@@ -66,10 +66,10 @@ export default function USMap({ onStateClick, selectedStateId }) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden relative">
       {/* Header */}
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div>
+      <div className="px-5 pt-3 pb-2 border-b border-gray-100">
+        <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-gray-800">US Community Solar Market</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Click any state for program details</p>
+          <p className="text-xs text-gray-400">Click any state for program details</p>
         </div>
         <Legend />
       </div>
@@ -146,14 +146,14 @@ export default function USMap({ onStateClick, selectedStateId }) {
 
 function Legend() {
   const items = [
-    { color: '#0F6E56', label: 'High opportunity (75+)' },
+    { color: '#0F6E56', label: 'High opp (75+)' },
     { color: '#34B08A', label: 'Moderate (45–74)' },
     { color: '#A7E3D4', label: 'Low / limited (30–44)' },
     { color: '#FCD34D', label: 'Pending launch' },
     { color: '#E5E7EB', label: 'No program' },
   ]
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
       {items.map((i) => (
         <div key={i.label} className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm flex-shrink-0 border border-black/10" style={{ backgroundColor: i.color }} />

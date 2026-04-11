@@ -3,6 +3,7 @@ import Nav from './components/Nav'
 import Footer from './components/Footer'
 import Dashboard from './pages/Dashboard'
 import Search from './pages/Search'
+import Glossary from './pages/Glossary'
 import Library from './pages/Library'
 
 export default function App() {
@@ -10,9 +11,10 @@ export default function App() {
     <BrowserRouter>
       <Nav />
       <Routes>
-        <Route path="/"        element={<Dashboard />} />
-        <Route path="/search"  element={<Search />} />
-        <Route path="/library" element={<Library />} />
+        <Route path="/"         element={<Dashboard />} />
+        <Route path="/search"   element={<Search />} />
+        <Route path="/glossary" element={<Glossary />} />
+        <Route path="/library"  element={<Library />} />
       </Routes>
       <Footer />
     </BrowserRouter>
