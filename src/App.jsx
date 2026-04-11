@@ -9,6 +9,7 @@ import Glossary from './pages/Glossary'
 import Library from './pages/Library'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
+import Profile from './pages/Profile'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/library"  element={<Library />} />
           <Route path="/signin"   element={<SignIn />} />
           <Route path="/signup"   element={<SignUp />} />
+          <Route path="/profile"  element={<Profile />} />
 
           {/* Search is gated — redirects to /signin with a message if not logged in */}
           <Route
