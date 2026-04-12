@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { stateById } from '../data/statePrograms'
-import { getCountyData, revenueStackByState } from '../data/countyData'
+import { getCountyData, revenueStackByState, COUNTIES_BY_STATE } from '../data/countyData'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -362,6 +362,97 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Shared style constant (used by CountyCombobox + Search form)
+// ─────────────────────────────────────────────────────────────────────────────
+const inputCls = "w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors appearance-none"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Searchable county combobox
+// ─────────────────────────────────────────────────────────────────────────────
+function CountyCombobox({ stateId, value, onValueChange }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState(value)
+  const containerRef = useRef(null)
+
+  const counties = COUNTIES_BY_STATE[stateId] || []
+  const hasSeeded = counties.length > 0
+
+  // Keep query in sync when parent resets value (e.g. state change)
+  useEffect(() => { setQuery(value) }, [value])
+
+  // Close on outside click
+  useEffect(() => {
+    function handleOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
+
+  const filtered = hasSeeded
+    ? counties.filter(c => c.label.toLowerCase().includes(query.toLowerCase()))
+    : []
+
+  const handleInput = (e) => {
+    setQuery(e.target.value)
+    onValueChange(e.target.value)
+    if (!open) setOpen(true)
+  }
+
+  const handleSelect = (county) => {
+    setQuery(county.label)
+    onValueChange(county.label)
+    setOpen(false)
+  }
+
+  const disabled = !stateId
+  const placeholder = disabled
+    ? 'Select a state first'
+    : hasSeeded
+      ? 'Search counties…'
+      : 'e.g. Jefferson'
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={handleInput}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        disabled={disabled}
+        required
+        className={inputCls + (disabled ? ' opacity-50 cursor-not-allowed bg-gray-50' : '')}
+      />
+      {hasSeeded && (
+        <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      )}
+      {open && hasSeeded && (
+        <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+          {filtered.length > 0 ? filtered.map(c => (
+            <li
+              key={c.slug}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(c) }}
+              className={`px-3 py-2 text-sm cursor-pointer hover:bg-primary-50 hover:text-primary ${
+                value === c.label ? 'bg-primary-50 text-primary font-medium' : 'text-gray-800'
+              }`}
+            >
+              {c.label}
+            </li>
+          )) : (
+            <li className="px-3 py-2 text-xs text-gray-400 italic">
+              No match — will use state-level defaults
+            </li>
+          )}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Save confirmation toast
 // ─────────────────────────────────────────────────────────────────────────────
 function SaveToast({ visible }) {
@@ -439,7 +530,6 @@ export default function Search() {
 
   const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.technology
 
-  const inputCls = "w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors appearance-none"
   const labelCls = "block text-xs font-semibold text-gray-600 mb-1.5"
 
   return (
@@ -463,7 +553,12 @@ export default function Search() {
             <div>
               <label className={labelCls}>State</label>
               <div className="relative">
-                <select value={form.state} onChange={set('state')} required className={inputCls + ' pr-8'}>
+                <select
+                  value={form.state}
+                  onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, county: '' }))}
+                  required
+                  className={inputCls + ' pr-8'}
+                >
                   <option value="">Select state…</option>
                   {ALL_STATES.map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
@@ -476,13 +571,10 @@ export default function Search() {
             {/* County */}
             <div>
               <label className={labelCls}>County</label>
-              <input
-                type="text"
+              <CountyCombobox
+                stateId={form.state}
                 value={form.county}
-                onChange={set('county')}
-                placeholder="e.g. Champaign"
-                required
-                className={inputCls}
+                onValueChange={(val) => setForm((f) => ({ ...f, county: val }))}
               />
             </div>
 
