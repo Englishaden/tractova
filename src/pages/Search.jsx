@@ -472,6 +472,8 @@ export default function Search() {
   })
   const [results, setResults] = useState(null)
   const [showToast, setShowToast] = useState(false)
+  const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
+  const [saveName, setSaveName] = useState('')
   const resultsRef = useRef(null)
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
@@ -497,11 +499,17 @@ export default function Search() {
 
   const handleSave = () => {
     if (!results) return
+    const defaultName = `${results.form.county} ${results.form.mw}MW ${results.form.technology}`
+    setSaveName(defaultName)
+    setSaveModal({ defaultName })
+  }
 
+  const handleSaveConfirm = () => {
+    if (!results) return
     const projects = JSON.parse(localStorage.getItem('tractova_projects') || '[]')
     const project = {
       id: Date.now(),
-      name: `${results.form.county} County, ${results.form.state} — ${results.form.mw}MW ${results.form.technology}`,
+      name: saveName.trim() || `${results.form.county} ${results.form.mw}MW ${results.form.technology}`,
       state: results.form.state,
       stateName: results.stateProgram?.name || results.form.state,
       county: results.form.county,
@@ -516,7 +524,7 @@ export default function Search() {
     }
     projects.unshift(project)
     localStorage.setItem('tractova_projects', JSON.stringify(projects))
-
+    setSaveModal(null)
     setShowToast(true)
     setTimeout(() => setShowToast(false), 3000)
   }
@@ -688,6 +696,41 @@ export default function Search() {
       </main>
 
       <SaveToast visible={showToast} />
+
+      {/* Save naming modal */}
+      {saveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSaveModal(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-sm font-bold text-gray-900 mb-1">Name this project</h3>
+            <p className="text-xs text-gray-400 mb-4">You can edit the name before saving.</p>
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveConfirm() }}
+              autoFocus
+              className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-4"
+            />
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setSaveModal(null)}
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveConfirm}
+                disabled={!saveName.trim()}
+                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Project
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
