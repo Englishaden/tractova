@@ -631,103 +631,139 @@ export default function Search() {
 
   const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.technology
 
-  const labelCls = "block text-xs font-semibold text-gray-600 mb-1.5"
+  const labelCls = "block text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5"
 
   return (
     <div className="min-h-screen bg-surface">
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* Page header */}
-        <div className="mt-4 mb-6">
+        <div className="mt-4 mb-5">
           <h1 className="text-xl font-bold text-gray-900">Tractova Lens</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Enter a specific project to get targeted site control, interconnection, and offtake intelligence.
           </p>
-
         </div>
 
         {/* Search form */}
-        <form onSubmit={handleSubmit} className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-xl overflow-hidden shadow-sm border border-gray-200/80"
+          style={{ boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
+        >
+          {/* Form header band */}
+          <div
+            className="px-6 py-4 flex items-center gap-4"
+            style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
+          >
+            {/* Top accent line */}
+            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-primary-400/40 via-primary-300/60 to-primary-400/40 pointer-events-none" />
 
-            {/* State */}
-            <div>
-              <label className={labelCls}>State</label>
-              <div className="relative">
-                <select
-                  value={form.state}
-                  onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, county: '' }))}
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.10)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60 leading-none mb-1">
+                Project Intelligence Search
+              </p>
+              <p className="text-sm font-bold text-white leading-snug">
+                Enter project parameters below to run a targeted Lens analysis
+              </p>
+            </div>
+
+            {/* Required field hint */}
+            <p className="text-[10px] text-white/40 flex-shrink-0 hidden lg:block">All fields required</p>
+          </div>
+
+          {/* Fields */}
+          <div className="bg-white px-6 pt-5 pb-1">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
+
+              {/* State */}
+              <div>
+                <label className={labelCls}>State</label>
+                <div className="relative">
+                  <select
+                    value={form.state}
+                    onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, county: '' }))}
+                    required
+                    className={inputCls + ' pr-8'}
+                  >
+                    <option value="">Select state…</option>
+                    {ALL_STATES.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+              </div>
+
+              {/* County */}
+              <div>
+                <label className={labelCls}>County</label>
+                <CountyCombobox
+                  stateId={form.state}
+                  value={form.county}
+                  onValueChange={(val) => setForm((f) => ({ ...f, county: val }))}
+                />
+              </div>
+
+              {/* MW */}
+              <div>
+                <label className={labelCls}>Project Size (MW AC)</label>
+                <input
+                  type="number"
+                  value={form.mw}
+                  onChange={set('mw')}
+                  placeholder="e.g. 5"
+                  min="0.1"
+                  step="0.1"
                   required
-                  className={inputCls + ' pr-8'}
-                >
-                  <option value="">Select state…</option>
-                  {ALL_STATES.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-                <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  className={inputCls}
+                />
               </div>
-            </div>
 
-            {/* County */}
-            <div>
-              <label className={labelCls}>County</label>
-              <CountyCombobox
-                stateId={form.state}
-                value={form.county}
-                onValueChange={(val) => setForm((f) => ({ ...f, county: val }))}
-              />
-            </div>
-
-            {/* MW */}
-            <div>
-              <label className={labelCls}>Project Size (MW AC)</label>
-              <input
-                type="number"
-                value={form.mw}
-                onChange={set('mw')}
-                placeholder="e.g. 5"
-                min="0.1"
-                step="0.1"
-                required
-                className={inputCls}
-              />
-            </div>
-
-            {/* Development stage */}
-            <div>
-              <label className={labelCls}>Development Stage</label>
-              <div className="relative">
-                <select value={form.stage} onChange={set('stage')} required className={inputCls + ' pr-8'}>
-                  <option value="">Select stage…</option>
-                  {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              {/* Development stage */}
+              <div>
+                <label className={labelCls}>Development Stage</label>
+                <div className="relative">
+                  <select value={form.stage} onChange={set('stage')} required className={inputCls + ' pr-8'}>
+                    <option value="">Select stage…</option>
+                    {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
               </div>
-            </div>
 
-            {/* Technology */}
-            <div>
-              <label className={labelCls}>Technology Type</label>
-              <div className="relative">
-                <select value={form.technology} onChange={set('technology')} required className={inputCls + ' pr-8'}>
-                  <option value="">Select type…</option>
-                  {TECHNOLOGIES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              {/* Technology */}
+              <div>
+                <label className={labelCls}>Technology Type</label>
+                <div className="relative">
+                  <select value={form.technology} onChange={set('technology')} required className={inputCls + ' pr-8'}>
+                    <option value="">Select type…</option>
+                    {TECHNOLOGIES.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Submit */}
-          <div className="mt-5 flex justify-end">
+          {/* Submit row */}
+          <div className="bg-white px-6 py-4 border-t border-gray-100 flex items-center justify-between mt-2">
+            <p className="text-xs text-gray-400 hidden sm:block">
+              Intelligence is generated from seeded state + county data — verify with your utility and PUC before committing capital.
+            </p>
             <button
               type="submit"
               disabled={!isFormValid}
-              className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              Find Intelligence
+              Run Lens Analysis
             </button>
           </div>
         </form>
