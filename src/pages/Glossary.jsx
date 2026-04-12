@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 const terms = [
   {
@@ -83,16 +83,92 @@ const PILLAR_LABEL = {
   all:     'All Pillars',
 }
 
-export default function Glossary() {
-  const [query, setQuery] = useState('')
+// Highlight the matching substring in a suggestion label
+function MatchHighlight({ text, query }) {
+  if (!query) return <span>{text}</span>
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return <span>{text}</span>
+  return (
+    <span>
+      {text.slice(0, idx)}
+      <span className="font-bold text-primary">{text.slice(idx, idx + query.length)}</span>
+      {text.slice(idx + query.length)}
+    </span>
+  )
+}
 
-  const filtered = query.trim()
-    ? terms.filter(
-        (t) =>
-          t.term.toLowerCase().includes(query.toLowerCase()) ||
-          t.definition.toLowerCase().includes(query.toLowerCase())
-      )
-    : terms
+const PILLAR_FILTERS = [
+  { key: 'offtake', label: 'Offtake' },
+  { key: 'ix',      label: 'Interconnection' },
+  { key: 'site',    label: 'Site Control' },
+]
+
+// Active pillar filter button style per pillar
+const PILLAR_ACTIVE = {
+  offtake: 'bg-primary-600 text-white border-primary-600',
+  ix:      'bg-accent-500 text-white border-accent-500',
+  site:    'bg-blue-600 text-white border-blue-600',
+}
+
+export default function Glossary() {
+  const [query, setQuery]           = useState('')
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [pillar, setPillar]         = useState(null)   // null = all
+  const [highlighted, setHighlighted] = useState(null) // term name briefly flashing
+
+  const searchRef = useRef(null)
+  const cardRefs  = useRef({})  // { [termName]: DOM element }
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onOutside(e) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', onOutside)
+    return () => document.removeEventListener('mousedown', onOutside)
+  }, [])
+
+  // Typeahead: match term names only
+  const suggestions = query.trim()
+    ? terms.filter((t) => t.term.toLowerCase().includes(query.toLowerCase()))
+    : []
+
+  // Main list: apply pillar filter + text search (name or definition)
+  const filtered = terms.filter((t) => {
+    const matchesPillar = !pillar || t.pillar === pillar || t.pillar === 'all'
+    const q = query.trim().toLowerCase()
+    const matchesQuery = !q ||
+      t.term.toLowerCase().includes(q) ||
+      t.definition.toLowerCase().includes(q)
+    return matchesPillar && matchesQuery
+  })
+
+  const handleSuggestionClick = (termName) => {
+    setQuery('')
+    setShowDropdown(false)
+    setPillar(null) // ensure the target card is visible
+
+    setTimeout(() => {
+      const el = cardRefs.current[termName]
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setHighlighted(termName)
+        setTimeout(() => setHighlighted(null), 1400)
+      }
+    }, 50)
+  }
+
+  const handleQueryChange = (e) => {
+    setQuery(e.target.value)
+    setShowDropdown(true)
+  }
+
+  const clearQuery = () => {
+    setQuery('')
+    setShowDropdown(false)
+  }
 
   return (
     <div className="min-h-screen bg-surface">
@@ -105,21 +181,22 @@ export default function Glossary() {
           </p>
         </div>
 
-        {/* Search input */}
-        <div className="relative max-w-sm mb-6">
+        {/* Search input + typeahead dropdown */}
+        <div ref={searchRef} className="relative max-w-sm mb-6">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
+            onFocus={() => { if (query.trim()) setShowDropdown(true) }}
             placeholder="Search terms..."
-            className="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
           />
           {query && (
             <button
-              onClick={() => setQuery('')}
+              onClick={clearQuery}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -127,15 +204,52 @@ export default function Glossary() {
               </svg>
             </button>
           )}
+
+          {/* Typeahead dropdown */}
+          {showDropdown && suggestions.length > 0 && (
+            <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+              {suggestions.map((t) => (
+                <li key={t.term} className="border-b border-gray-50 last:border-0">
+                  <button
+                    onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(t.term) }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-primary-50 flex items-center justify-between gap-3 transition-colors"
+                  >
+                    <MatchHighlight text={t.term} query={query} />
+                    <span className={`text-xs px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${PILLAR_BADGE[t.pillar]}`}>
+                      {PILLAR_LABEL[t.pillar]}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        {/* Pillar legend */}
-        <div className="flex items-center gap-3 mb-6">
-          <span className="text-xs text-gray-400 font-medium">Pillars:</span>
-          {Object.entries(PILLAR_LABEL).map(([key, label]) => (
-            <span key={key} className={`text-xs px-2 py-0.5 rounded border font-medium ${PILLAR_BADGE[key]}`}>
+        {/* Pillar filter buttons */}
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-xs text-gray-400 font-medium mr-1">Pillar:</span>
+          <button
+            onClick={() => setPillar(null)}
+            className={`text-xs px-2.5 py-0.5 rounded border font-medium transition-colors ${
+              pillar === null
+                ? 'bg-gray-800 text-white border-gray-800'
+                : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'
+            }`}
+          >
+            All
+          </button>
+          {PILLAR_FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setPillar(pillar === key ? null : key)}
+              className={`text-xs px-2.5 py-0.5 rounded border font-medium transition-colors ${
+                pillar === key
+                  ? PILLAR_ACTIVE[key]
+                  : PILLAR_BADGE[key] + ' hover:opacity-80'
+              }`}
+            >
               {label}
-            </span>
+            </button>
           ))}
         </div>
 
@@ -143,7 +257,15 @@ export default function Glossary() {
         {filtered.length > 0 ? (
           <div className="grid gap-4">
             {filtered.map((t) => (
-              <div key={t.term} className="bg-white border border-gray-200 rounded-lg px-6 py-5">
+              <div
+                key={t.term}
+                ref={(el) => { cardRefs.current[t.term] = el }}
+                className={`bg-white border rounded-lg px-6 py-5 transition-all duration-700 ${
+                  highlighted === t.term
+                    ? 'border-primary ring-2 ring-primary/25 bg-primary-50/40'
+                    : 'border-gray-200'
+                }`}
+              >
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
@@ -159,7 +281,10 @@ export default function Glossary() {
             ))}
           </div>
         ) : (
-          <div className="text-sm text-gray-400 italic">No terms match &ldquo;{query}&rdquo;</div>
+          <div className="text-sm text-gray-400 italic">
+            No terms match &ldquo;{query}&rdquo;
+            {pillar && <span> in <span className="font-medium">{PILLAR_LABEL[pillar]}</span></span>}
+          </div>
         )}
       </main>
     </div>
