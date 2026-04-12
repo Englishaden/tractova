@@ -465,7 +465,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared style constant (used by CountyCombobox + Search form)
 // ─────────────────────────────────────────────────────────────────────────────
-const inputCls = "w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors appearance-none"
+const inputCls = "w-full text-sm bg-transparent border-0 outline-none px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Searchable county combobox
@@ -521,9 +521,9 @@ function CountyCombobox({ stateId, value, onValueChange }) {
         placeholder={placeholder}
         disabled={disabled}
         required
-        className={inputCls + (disabled ? ' opacity-50 cursor-not-allowed bg-gray-50' : '')}
+        className={inputCls + (disabled ? ' opacity-50 cursor-not-allowed' : '')}
       />
-      <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       {open && stateId && (
         <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-52 overflow-y-auto">
           {filtered.length > 0 ? filtered.map(name => (
@@ -656,8 +656,6 @@ export default function Search() {
             className="px-6 py-4 flex items-center gap-4"
             style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
           >
-            {/* Top accent line */}
-            <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-primary-400/40 via-primary-300/60 to-primary-400/40 pointer-events-none" />
 
             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.10)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -679,31 +677,37 @@ export default function Search() {
           </div>
 
           {/* Fields */}
-          <div className="bg-white px-6 pt-5 pb-1">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
+          <div className="px-5 py-5" style={{ background: '#EEF4F2' }}>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
               {/* State */}
-              <div>
-                <label className={labelCls}>State</label>
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+                <label className={labelCls + ' flex items-center gap-1.5'}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  State
+                </label>
                 <div className="relative">
                   <select
                     value={form.state}
                     onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, county: '' }))}
                     required
-                    className={inputCls + ' pr-8'}
+                    className={inputCls + ' pr-5 w-full'}
                   >
                     <option value="">Select state…</option>
                     {ALL_STATES.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
-                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
               </div>
 
               {/* County */}
-              <div>
-                <label className={labelCls}>County</label>
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+                <label className={labelCls + ' flex items-center gap-1.5'}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                  County
+                </label>
                 <CountyCombobox
                   stateId={form.state}
                   value={form.county}
@@ -712,8 +716,11 @@ export default function Search() {
               </div>
 
               {/* MW */}
-              <div>
-                <label className={labelCls}>Project Size (MW AC)</label>
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+                <label className={labelCls + ' flex items-center gap-1.5'}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  Project Size (MW AC)
+                </label>
                 <input
                   type="number"
                   value={form.mw}
@@ -722,31 +729,37 @@ export default function Search() {
                   min="0.1"
                   step="0.1"
                   required
-                  className={inputCls}
+                  className={inputCls + ' w-full'}
                 />
               </div>
 
               {/* Development stage */}
-              <div>
-                <label className={labelCls}>Development Stage</label>
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+                <label className={labelCls + ' flex items-center gap-1.5'}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  Development Stage
+                </label>
                 <div className="relative">
-                  <select value={form.stage} onChange={set('stage')} required className={inputCls + ' pr-8'}>
+                  <select value={form.stage} onChange={set('stage')} required className={inputCls + ' pr-5 w-full'}>
                     <option value="">Select stage…</option>
                     {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
-                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
               </div>
 
               {/* Technology */}
-              <div>
-                <label className={labelCls}>Technology Type</label>
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+                <label className={labelCls + ' flex items-center gap-1.5'}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                  Technology Type
+                </label>
                 <div className="relative">
-                  <select value={form.technology} onChange={set('technology')} required className={inputCls + ' pr-8'}>
+                  <select value={form.technology} onChange={set('technology')} required className={inputCls + ' pr-5 w-full'}>
                     <option value="">Select type…</option>
                     {TECHNOLOGIES.map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
-                  <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </div>
               </div>
             </div>
