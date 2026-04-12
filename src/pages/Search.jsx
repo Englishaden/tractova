@@ -34,7 +34,7 @@ const ALL_STATES = [
   { id: 'WI', name: 'Wisconsin' }, { id: 'WY', name: 'Wyoming' },
 ]
 
-const STAGES = ['Prospecting', 'Site Control', 'Pre-Development', 'Development', 'Shovel Ready', 'Construction', 'Operational']
+const STAGES = ['Prospecting', 'Site Control', 'Pre-Development', 'Development', 'NTP (Notice to Proceed)', 'Construction', 'Operational']
 const TECHNOLOGIES = ['Community Solar', 'C&I Solar', 'BESS', 'Hybrid']
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -612,10 +612,7 @@ export default function Search() {
           </div>
 
           {/* Submit */}
-          <div className="mt-5 flex items-center justify-between">
-            <p className="text-xs text-gray-400">
-              Detailed data seeded for IL, NY, MA, MN, CO — other states return state-level intelligence.
-            </p>
+          <div className="mt-5 flex justify-end">
             <button
               type="submit"
               disabled={!isFormValid}
