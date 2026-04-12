@@ -229,6 +229,49 @@ function MetricsModal({ title, onClose, children }) {
   )
 }
 
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+function IconMap() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+    </svg>
+  )
+}
+function IconZap() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  )
+}
+function IconBell() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+  )
+}
+function IconGauge() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10"/>
+      <path d="M12 6v6l4 2"/>
+      <circle cx="19" cy="19" r="3"/>
+      <path d="M19 16v3h3"/>
+    </svg>
+  )
+}
+function IconTrendingUp() {
+  return (
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+      <polyline points="17 6 23 6 23 12"/>
+    </svg>
+  )
+}
+
 // ── Card definitions ──────────────────────────────────────────────────────────
 
 const CARDS = [
@@ -237,7 +280,8 @@ const CARDS = [
     label: 'States w/ Active CS',
     value: metrics.statesWithActiveCS,
     sub: `${metrics.statesWithAnyCS} with any program`,
-    color: 'text-primary',
+    icon: <IconMap />,
+    alert: false,
     modalTitle: `${metrics.statesWithActiveCS} States with Active Community Solar Programs`,
     ModalContent: ActiveCSDetail,
   },
@@ -246,16 +290,18 @@ const CARDS = [
     label: 'Utilities w/ IX Capacity',
     value: metrics.utilitiesWithIXHeadroom,
     sub: 'open queue capacity',
-    color: 'text-primary',
+    icon: <IconZap />,
+    alert: false,
     modalTitle: `${metrics.utilitiesWithIXHeadroom} Utilities with Interconnection Headroom`,
     ModalContent: IXCapacityDetail,
   },
   {
     key: 'policyAlerts',
-    label: 'Policy Alerts This Week',
+    label: 'Policy Alerts',
     value: metrics.policyAlertsThisWeek,
-    sub: 'across all pillars',
-    color: 'text-accent-500',
+    sub: 'this week · all pillars',
+    icon: <IconBell />,
+    alert: true,
     modalTitle: 'Policy Alerts This Week',
     ModalContent: PolicyAlertsDetail,
   },
@@ -264,7 +310,8 @@ const CARDS = [
     label: 'Avg CS Capacity Left',
     value: metrics.avgCSCapacityRemaining,
     sub: 'across active programs',
-    color: 'text-primary',
+    icon: <IconGauge />,
+    alert: false,
     modalTitle: `Average CS Capacity Remaining: ${metrics.avgCSCapacityRemaining}`,
     ModalContent: AvgCapacityDetail,
   },
@@ -272,12 +319,15 @@ const CARDS = [
     key: 'mwPipeline',
     label: 'MW in Active Pipeline',
     value: metrics.totalMWInPipeline.toLocaleString(),
-    sub: 'across active/limited states',
-    color: 'text-primary',
+    sub: 'active + limited states',
+    icon: <IconTrendingUp />,
+    alert: false,
     modalTitle: `${metrics.totalMWInPipeline.toLocaleString()} MW in Active CS Pipeline`,
     ModalContent: MWPipelineDetail,
   },
 ]
+
+const CARD_BG = 'linear-gradient(145deg, #0A3D32 0%, #051F19 100%)'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -287,19 +337,53 @@ export default function MetricsBar() {
 
   return (
     <>
-      <div className="grid grid-cols-5 gap-4 mt-6">
+      <div className="grid grid-cols-5 gap-3 mt-6">
         {CARDS.map((c) => (
           <button
             key={c.key}
             onClick={() => setOpenKey(c.key)}
-            className="bg-white border border-gray-200 rounded-lg px-5 py-4 text-left hover:border-primary-300 hover:shadow-sm transition-all group"
+            className="relative overflow-hidden rounded-xl text-left transition-all duration-200 group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
+            style={{ background: CARD_BG }}
           >
-            <div className={`text-2xl font-bold ${c.color} leading-none`}>{c.value}</div>
-            <div className="text-xs font-semibold text-gray-700 mt-1.5">{c.label}</div>
-            <div className="text-xs text-gray-400 mt-0.5">{c.sub}</div>
-            <div className="text-xs text-primary opacity-0 group-hover:opacity-100 mt-1.5 transition-opacity">
-              View details →
+            {/* Top accent line */}
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-primary-400/60 via-primary-300/80 to-primary-400/60" />
+
+            {/* Watermark icon */}
+            <div className="absolute top-3 right-3 text-white/[0.07] pointer-events-none select-none">
+              {c.icon}
             </div>
+
+            {/* Alert pulse dot */}
+            {c.alert && (
+              <span className="absolute top-3.5 left-[4.5rem] flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-400" />
+              </span>
+            )}
+
+            <div className="relative px-5 py-5">
+              {/* Label */}
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40 mb-2.5 leading-none">
+                {c.label}
+              </p>
+
+              {/* Value */}
+              <div className="text-[2rem] font-bold text-white leading-none tabular-nums">
+                {c.value}
+              </div>
+
+              {/* Sub */}
+              <div className="text-[11px] text-white/35 mt-2 leading-none">{c.sub}</div>
+
+              {/* Hover CTA */}
+              <div className="flex items-center gap-1 mt-4 text-[10px] font-medium text-white/0 group-hover:text-white/50 transition-all duration-200 uppercase tracking-wider">
+                <span>Details</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </div>
+            </div>
+
+            {/* Bottom shimmer on hover */}
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
           </button>
         ))}
       </div>
