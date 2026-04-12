@@ -468,6 +468,71 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
 const inputCls = "w-full text-sm bg-transparent border-0 outline-none px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none"
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Custom select dropdown (replaces native <select> for Stage + Technology)
+// ─────────────────────────────────────────────────────────────────────────────
+function FieldSelect({ value, onChange, options, placeholder, required }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handle = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Hidden native input for form validation */}
+      <input type="text" value={value} onChange={() => {}} required={required} className="sr-only" />
+
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-1 text-sm py-0.5 focus:outline-none"
+      >
+        <span className={value ? 'text-gray-900' : 'text-gray-400'}>
+          {value || placeholder}
+        </span>
+        <svg
+          width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          className={`flex-shrink-0 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <ul className="absolute z-50 left-0 top-full mt-2 w-full min-w-[180px] bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
+            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}>
+          {options.map((opt) => (
+            <li
+              key={opt}
+              onMouseDown={(e) => { e.preventDefault(); onChange(opt); setOpen(false) }}
+              className={`flex items-center gap-2.5 px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+                value === opt
+                  ? 'bg-primary-50 text-primary-700 font-medium'
+                  : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
+              }`}
+            >
+              <span className={`w-3.5 h-3.5 flex-shrink-0 ${value === opt ? 'text-primary' : 'text-transparent'}`}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </span>
+              {opt}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Searchable county combobox
 // ─────────────────────────────────────────────────────────────────────────────
 function CountyCombobox({ stateId, value, onValueChange }) {
@@ -525,7 +590,8 @@ function CountyCombobox({ stateId, value, onValueChange }) {
       />
       <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       {open && stateId && (
-        <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-52 overflow-y-auto">
+        <ul className="absolute z-50 top-full mt-2 w-full bg-white border border-gray-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto"
+            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}>
           {filtered.length > 0 ? filtered.map(name => (
             <li
               key={name}
@@ -648,12 +714,12 @@ export default function Search() {
         {/* Search form */}
         <form
           onSubmit={handleSubmit}
-          className="rounded-xl overflow-hidden shadow-sm border border-gray-200/80"
+          className="rounded-xl border border-gray-200/80"
           style={{ boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
         >
           {/* Form header band */}
           <div
-            className="px-6 py-4 flex items-center gap-4"
+            className="px-6 py-4 flex items-center gap-4 rounded-t-xl"
             style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
           >
 
@@ -686,20 +752,16 @@ export default function Search() {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                   State
                 </label>
-                <div className="relative">
-                  <select
-                    value={form.state}
-                    onChange={(e) => setForm((f) => ({ ...f, state: e.target.value, county: '' }))}
-                    required
-                    className={inputCls + ' pr-5 w-full'}
-                  >
-                    <option value="">Select state…</option>
-                    {ALL_STATES.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                  <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
+                <FieldSelect
+                  value={ALL_STATES.find(s => s.id === form.state)?.name || ''}
+                  onChange={(name) => {
+                    const s = ALL_STATES.find(s => s.name === name)
+                    setForm((f) => ({ ...f, state: s?.id || '', county: '' }))
+                  }}
+                  options={ALL_STATES.map(s => s.name)}
+                  placeholder="Select state…"
+                  required
+                />
               </div>
 
               {/* County */}
@@ -739,13 +801,13 @@ export default function Search() {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                   Development Stage
                 </label>
-                <div className="relative">
-                  <select value={form.stage} onChange={set('stage')} required className={inputCls + ' pr-5 w-full'}>
-                    <option value="">Select stage…</option>
-                    {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
+                <FieldSelect
+                  value={form.stage}
+                  onChange={(val) => setForm((f) => ({ ...f, stage: val }))}
+                  options={STAGES}
+                  placeholder="Select stage…"
+                  required
+                />
               </div>
 
               {/* Technology */}
@@ -754,13 +816,13 @@ export default function Search() {
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
                   Technology Type
                 </label>
-                <div className="relative">
-                  <select value={form.technology} onChange={set('technology')} required className={inputCls + ' pr-5 w-full'}>
-                    <option value="">Select type…</option>
-                    {TECHNOLOGIES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
+                <FieldSelect
+                  value={form.technology}
+                  onChange={(val) => setForm((f) => ({ ...f, technology: val }))}
+                  options={TECHNOLOGIES}
+                  placeholder="Select type…"
+                  required
+                />
               </div>
             </div>
           </div>
