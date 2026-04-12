@@ -486,43 +486,9 @@ const countyDataByState = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lookup helper
-// Normalizes county input → slug (lowercase, strip "county" suffix, trim)
+// Normalizes county display name → slug (lowercase, no spaces/suffix)
 // Falls back to state default if specific county not found
 // ─────────────────────────────────────────────────────────────────────────────
-// Counties with seeded data, keyed by state ID.
-// label is the display name; slug is the key used in countyDataByState.
-export const COUNTIES_BY_STATE = {
-  IL: [
-    { slug: 'champaign', label: 'Champaign' },
-    { slug: 'cook',      label: 'Cook' },
-    { slug: 'mclean',    label: 'McLean' },
-    { slug: 'will',      label: 'Will' },
-  ],
-  NY: [
-    { slug: 'albany',      label: 'Albany' },
-    { slug: 'monroe',      label: 'Monroe' },
-    { slug: 'ulster',      label: 'Ulster' },
-    { slug: 'westchester', label: 'Westchester' },
-  ],
-  MA: [
-    { slug: 'hampshire', label: 'Hampshire' },
-    { slug: 'middlesex', label: 'Middlesex' },
-    { slug: 'worcester', label: 'Worcester' },
-  ],
-  MN: [
-    { slug: 'dakota',   label: 'Dakota' },
-    { slug: 'hennepin', label: 'Hennepin' },
-    { slug: 'olmsted',  label: 'Olmsted' },
-    { slug: 'stearns',  label: 'Stearns' },
-  ],
-  CO: [
-    { slug: 'adams',   label: 'Adams' },
-    { slug: 'elpaso',  label: 'El Paso' },
-    { slug: 'larimer', label: 'Larimer' },
-    { slug: 'weld',    label: 'Weld' },
-  ],
-}
-
 export function normalizeCounty(input) {
   // Strip trailing "county", lowercase, and remove all spaces so "El Paso" → "elpaso"
   return input.trim().toLowerCase().replace(/\s+county\s*$/i, '').trim().replace(/\s+/g, '')

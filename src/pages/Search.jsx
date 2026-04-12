@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { stateById } from '../data/statePrograms'
-import { getCountyData, revenueStackByState, COUNTIES_BY_STATE } from '../data/countyData'
+import { getCountyData, revenueStackByState } from '../data/countyData'
+import allCounties from '../data/allCounties.json'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -374,8 +375,8 @@ function CountyCombobox({ stateId, value, onValueChange }) {
   const [query, setQuery] = useState(value)
   const containerRef = useRef(null)
 
-  const counties = COUNTIES_BY_STATE[stateId] || []
-  const hasSeeded = counties.length > 0
+  // allCounties keys are state abbreviations → string[]
+  const counties = allCounties[stateId] || []
 
   // Keep query in sync when parent resets value (e.g. state change)
   useEffect(() => { setQuery(value) }, [value])
@@ -391,9 +392,9 @@ function CountyCombobox({ stateId, value, onValueChange }) {
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [])
 
-  const filtered = hasSeeded
-    ? counties.filter(c => c.label.toLowerCase().includes(query.toLowerCase()))
-    : []
+  const filtered = counties.filter(name =>
+    name.toLowerCase().includes(query.toLowerCase())
+  )
 
   const handleInput = (e) => {
     setQuery(e.target.value)
@@ -401,18 +402,14 @@ function CountyCombobox({ stateId, value, onValueChange }) {
     if (!open) setOpen(true)
   }
 
-  const handleSelect = (county) => {
-    setQuery(county.label)
-    onValueChange(county.label)
+  const handleSelect = (name) => {
+    setQuery(name)
+    onValueChange(name)
     setOpen(false)
   }
 
   const disabled = !stateId
-  const placeholder = disabled
-    ? 'Select a state first'
-    : hasSeeded
-      ? 'Search counties…'
-      : 'e.g. Jefferson'
+  const placeholder = disabled ? 'Select a state first' : 'Search counties…'
 
   return (
     <div ref={containerRef} className="relative">
@@ -426,25 +423,21 @@ function CountyCombobox({ stateId, value, onValueChange }) {
         required
         className={inputCls + (disabled ? ' opacity-50 cursor-not-allowed bg-gray-50' : '')}
       />
-      {hasSeeded && (
-        <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      )}
-      {open && hasSeeded && (
+      <svg className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      {open && stateId && (
         <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-52 overflow-y-auto">
-          {filtered.length > 0 ? filtered.map(c => (
+          {filtered.length > 0 ? filtered.map(name => (
             <li
-              key={c.slug}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(c) }}
+              key={name}
+              onMouseDown={(e) => { e.preventDefault(); handleSelect(name) }}
               className={`px-3 py-2 text-sm cursor-pointer hover:bg-primary-50 hover:text-primary ${
-                value === c.label ? 'bg-primary-50 text-primary font-medium' : 'text-gray-800'
+                value === name ? 'bg-primary-50 text-primary font-medium' : 'text-gray-800'
               }`}
             >
-              {c.label}
+              {name}
             </li>
           )) : (
-            <li className="px-3 py-2 text-xs text-gray-400 italic">
-              No match — will use state-level defaults
-            </li>
+            <li className="px-3 py-2 text-xs text-gray-400 italic">No matching county</li>
           )}
         </ul>
       )}
