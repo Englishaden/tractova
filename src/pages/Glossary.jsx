@@ -1,6 +1,51 @@
 import { useState, useRef, useEffect } from 'react'
 
 const terms = [
+  // ── Development stages ──────────────────────────────────────────────────────
+  {
+    term: 'Prospecting',
+    pillar: 'stage',
+    definition:
+      'The earliest stage of project development. A developer is identifying potential sites based on available land, favorable grid conditions, and state program activity — but has not yet engaged landowners or utilities. Prospecting decisions are driven by desktop research, GIS analysis, and market intelligence. Tractova is purpose-built to support this stage.',
+  },
+  {
+    term: 'Site Control',
+    pillar: 'stage',
+    definition:
+      'The developer has secured a legal right to develop a specific parcel — typically through an option agreement or lease with the landowner. Site control is a prerequisite for filing an interconnection application and most project financing. Standard option agreements run 3–5 years with renewal rights tied to project milestones.',
+  },
+  {
+    term: 'Pre-Development',
+    pillar: 'stage',
+    definition:
+      'Site control is secured and the developer is completing foundational studies and permits before construction begins. Activities include environmental surveys, Phase I/II assessments, permitting applications, and interconnection study execution (ISA filing). Pre-development spend typically ranges from $50K–$500K before a project reaches NTP.',
+  },
+  {
+    term: 'Development',
+    pillar: 'stage',
+    definition:
+      'The project has cleared pre-development milestones and is actively advancing toward construction. Key activities include finalizing the Interconnection Agreement (IA), securing offtake contracts, completing land use permits, and arranging project financing. Many projects fail to close financing and never exit this stage.',
+  },
+  {
+    term: 'NTP (Notice to Proceed)',
+    pillar: 'stage',
+    definition:
+      'A contractual milestone issued by the project owner or lender authorizing the EPC contractor to begin construction. NTP signals that financing is closed, permits are in hand, interconnection is approved, and offtake is contracted. It is the official start of the construction timeline and a key trigger for lender disbursements.',
+  },
+  {
+    term: 'Construction',
+    pillar: 'stage',
+    definition:
+      'The EPC contractor is actively building the project. For community solar, construction typically takes 3–9 months depending on project size and grid connection complexity. Key milestones include equipment procurement, civil work, racking installation, electrical balance-of-system completion, and utility commissioning inspection.',
+  },
+  {
+    term: 'Operational',
+    pillar: 'stage',
+    definition:
+      'The project has received Permission to Operate (PTO) from the utility and is generating electricity. For community solar, operational status triggers subscriber billing and revenue recognition. Ongoing responsibilities include O&M, subscriber management, performance reporting, and REC delivery under the offtake contract.',
+  },
+
+  // ── Program status terms ─────────────────────────────────────────────────────
   {
     term: 'Active Program',
     pillar: 'offtake',
@@ -67,12 +112,45 @@ const terms = [
     definition:
       'A proprietary Tractova composite score (0–100) reflecting the combined attractiveness of a state for community solar development. Inputs include CS program status, remaining capacity, IX difficulty, LMI requirements, and IRA adder eligibility. Higher scores indicate states where a small developer is most likely to close a viable project. This scoring is Tractova\'s primary differentiated data layer.',
   },
+
+  // ── Additional industry terms ────────────────────────────────────────────────
+  {
+    term: 'SREC (Solar Renewable Energy Certificate)',
+    pillar: 'offtake',
+    definition:
+      'A state-specific Solar REC representing the environmental attributes of 1 MWh of solar generation. SRECs trade on state-specific markets and prices vary widely — from under $10/MWh in oversupplied markets to $300+/MWh in constrained markets like Massachusetts. States with active SREC markets include MA, NJ, MD, DC, OH, and PA. SREC revenue is often a key component of the revenue stack and can make or break project economics in these states.',
+  },
+  {
+    term: 'Illinois Shines',
+    pillar: 'offtake',
+    definition:
+      'Illinois\' community solar and distributed generation incentive program, formally structured as the Adjustable Block Program (ABP). Administered by the Illinois Power Agency (IPA), Illinois Shines provides Renewable Energy Credits (RECs) at a fixed price per MWh under a 15-year contract. Projects up to 2,000 kW AC qualify. The program is funded through the Climate and Equitable Jobs Act (CEJA) and is widely regarded as one of the most developer-friendly CS programs in the country. Capacity is released in tranches and waitlists can form quickly.',
+  },
+  {
+    term: 'CSEGS (Community Solar Electric Generating System)',
+    pillar: 'offtake',
+    definition:
+      'The formal regulatory term used in Illinois for a community solar project. A CSEGS is a distributed generation facility of up to 2,000 kW AC whose output is subscribed by multiple customers in the same utility territory. CSEGS projects are eligible for Illinois Shines REC contracts under the ABP. The term is defined under the Illinois Public Utilities Act and used in all IPA program filings.',
+  },
+  {
+    term: 'ANEM (Adjustable Net Energy Metering)',
+    pillar: 'offtake',
+    definition:
+      'A community solar billing mechanism used in select states that adjusts subscriber credit rates based on time-of-use or other market factors, rather than applying a flat volumetric credit. ANEM structures attempt to align subscriber bill credits with the actual market value of solar generation, similar in intent to New York\'s VDER Value Stack. Specific ANEM rules vary by state and utility territory.',
+  },
+  {
+    term: 'ABP (Adjustable Block Program)',
+    pillar: 'offtake',
+    definition:
+      'The formal programmatic structure underlying Illinois Shines, administered by the Illinois Power Agency. The ABP sets fixed REC prices ("blocks") by project category — small distributed generation, large distributed generation, and community solar — and adjusts pricing across tranches based on demand. When a block fills, the IPA sets new pricing for the next tranche. The ABP is widely considered a model for well-structured state community solar incentive programs and is frequently cited by other states designing their own programs.',
+  },
 ]
 
 const PILLAR_BADGE = {
   offtake: 'bg-primary-50 text-primary-700 border-primary-200',
   ix:      'bg-accent-50 text-accent-700 border-accent-200',
   site:    'bg-blue-50 text-blue-700 border-blue-200',
+  stage:   'bg-purple-50 text-purple-700 border-purple-200',
   all:     'bg-gray-100 text-gray-600 border-gray-200',
 }
 
@@ -80,6 +158,7 @@ const PILLAR_LABEL = {
   offtake: 'Offtake',
   ix:      'Interconnection',
   site:    'Site Control',
+  stage:   'Dev Stage',
   all:     'All Pillars',
 }
 
@@ -101,6 +180,7 @@ const PILLAR_FILTERS = [
   { key: 'offtake', label: 'Offtake' },
   { key: 'ix',      label: 'Interconnection' },
   { key: 'site',    label: 'Site Control' },
+  { key: 'stage',   label: 'Dev Stages' },
 ]
 
 // Active pillar filter button style per pillar
@@ -108,6 +188,7 @@ const PILLAR_ACTIVE = {
   offtake: 'bg-primary-600 text-white border-primary-600',
   ix:      'bg-accent-500 text-white border-accent-500',
   site:    'bg-blue-600 text-white border-blue-600',
+  stage:   'bg-purple-600 text-white border-purple-600',
 }
 
 export default function Glossary() {
