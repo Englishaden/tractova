@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 import { stateById } from '../data/statePrograms'
 import { getCountyData, revenueStackByState } from '../data/countyData'
 import allCounties from '../data/allCounties.json'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -629,6 +632,7 @@ function SaveToast({ visible }) {
 // Main Search component
 // ─────────────────────────────────────────────────────────────────────────────
 export default function Search() {
+  const { user } = useAuth()
   const [form, setForm] = useState({
     state: '',
     county: '',
@@ -636,10 +640,11 @@ export default function Search() {
     stage: '',
     technology: '',
   })
-  const [results, setResults] = useState(null)
+  const [results, setResults]     = useState(null)
   const [showToast, setShowToast] = useState(false)
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
-  const [saveName, setSaveName] = useState('')
+  const [saveName, setSaveName]   = useState('')
+  const [saving, setSaving]       = useState(false)
   const resultsRef = useRef(null)
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
@@ -650,14 +655,8 @@ export default function Search() {
     const countyData   = getCountyData(form.state, form.county)
     const revenueStack = revenueStackByState[form.state] || null
 
-    setResults({
-      form: { ...form },
-      stateProgram,
-      countyData,
-      revenueStack,
-    })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack })
 
-    // Scroll to results
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 80)
@@ -670,29 +669,29 @@ export default function Search() {
     setSaveModal({ defaultName })
   }
 
-  const handleSaveConfirm = () => {
-    if (!results) return
-    const projects = JSON.parse(localStorage.getItem('tractova_projects') || '[]')
-    const project = {
-      id: Date.now(),
-      name: saveName.trim() || `${results.form.county} ${results.form.mw}MW ${results.form.technology}`,
-      state: results.form.state,
-      stateName: results.stateProgram?.name || results.form.state,
-      county: results.form.county,
-      mw: results.form.mw,
-      stage: results.form.stage,
-      technology: results.form.technology,
-      savedAt: new Date().toISOString(),
-      csProgram: results.stateProgram?.csProgram || null,
-      csStatus: results.stateProgram?.csStatus || 'none',
-      servingUtility: results.countyData?.interconnection?.servingUtility || null,
-      opportunityScore: results.stateProgram?.opportunityScore || null,
+  const handleSaveConfirm = async () => {
+    if (!results || !user) return
+    setSaving(true)
+    const { error } = await supabase.from('projects').insert({
+      user_id:          user.id,
+      name:             saveName.trim() || `${results.form.county} ${results.form.mw}MW ${results.form.technology}`,
+      state:            results.form.state,
+      state_name:       results.stateProgram?.name || results.form.state,
+      county:           results.form.county,
+      mw:               results.form.mw,
+      stage:            results.form.stage,
+      technology:       results.form.technology,
+      cs_program:       results.stateProgram?.csProgram || null,
+      cs_status:        results.stateProgram?.csStatus || 'none',
+      serving_utility:  results.countyData?.interconnection?.servingUtility || null,
+      opportunity_score: results.stateProgram?.opportunityScore || null,
+    })
+    setSaving(false)
+    if (!error) {
+      setSaveModal(null)
+      setShowToast(true)
+      setTimeout(() => setShowToast(false), 3000)
     }
-    projects.unshift(project)
-    localStorage.setItem('tractova_projects', JSON.stringify(projects))
-    setSaveModal(null)
-    setShowToast(true)
-    setTimeout(() => setShowToast(false), 3000)
   }
 
   const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.technology
@@ -918,37 +917,77 @@ export default function Search() {
 
       <SaveToast visible={showToast} />
 
-      {/* Save naming modal */}
+      {/* Save modal — sign-in prompt if not authed, name input if authed */}
       {saveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSaveModal(null)} />
           <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-            <h3 className="text-sm font-bold text-gray-900 mb-1">Name this project</h3>
-            <p className="text-xs text-gray-400 mb-4">You can edit the name before saving.</p>
-            <input
-              type="text"
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveConfirm() }}
-              autoFocus
-              className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-4"
-            />
-            <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => setSaveModal(null)}
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveConfirm}
-                disabled={!saveName.trim()}
-                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save Project
-              </button>
-            </div>
+
+            {!user ? (
+              /* ── Not signed in ── */
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  </div>
+                  <h3 className="text-sm font-bold text-gray-900">Sign in to save projects</h3>
+                </div>
+                <p className="text-xs text-gray-500 mb-5 leading-relaxed">
+                  Create a free account to save projects and access them from any device.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setSaveModal(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors">
+                    Cancel
+                  </button>
+                  <Link
+                    to="/signup"
+                    onClick={() => setSaveModal(null)}
+                    className="flex-1 text-center text-sm font-semibold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+                  >
+                    Create Account
+                  </Link>
+                  <Link
+                    to="/signin"
+                    onClick={() => setSaveModal(null)}
+                    className="flex-1 text-center text-sm font-medium text-gray-700 border border-gray-200 px-4 py-2 rounded-lg hover:border-gray-300 transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                </div>
+              </>
+            ) : (
+              /* ── Signed in: name the project ── */
+              <>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">Name this project</h3>
+                <p className="text-xs text-gray-400 mb-4">You can edit the name before saving.</p>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveConfirm() }}
+                  autoFocus
+                  className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-4"
+                />
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setSaveModal(null)}
+                    className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveConfirm}
+                    disabled={!saveName.trim() || saving}
+                    className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    {saving ? 'Saving…' : 'Save Project'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

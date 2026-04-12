@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const STAGE_BADGE = {
   'Prospecting':            'bg-gray-100 text-gray-600 border-gray-200',
@@ -16,6 +18,25 @@ const TECH_BADGE = {
   'C&I Solar':       'bg-blue-50 text-blue-700 border-blue-200',
   'BESS':            'bg-accent-50 text-accent-700 border-accent-200',
   'Hybrid':          'bg-purple-50 text-purple-700 border-purple-200',
+}
+
+// Normalize Supabase snake_case row → camelCase shape the card expects
+function normalize(row) {
+  return {
+    id:               row.id,
+    name:             row.name,
+    state:            row.state,
+    stateName:        row.state_name,
+    county:           row.county,
+    mw:               row.mw,
+    stage:            row.stage,
+    technology:       row.technology,
+    csProgram:        row.cs_program,
+    csStatus:         row.cs_status,
+    servingUtility:   row.serving_utility,
+    opportunityScore: row.opportunity_score,
+    savedAt:          row.saved_at,
+  }
 }
 
 function Badge({ label, map }) {
@@ -69,23 +90,84 @@ function ProjectCard({ project, onRequestRemove }) {
 }
 
 export default function Library() {
-  const [projects, setProjects] = useState([])
+  const { user, loading: authLoading } = useAuth()
+  const [projects, setProjects]         = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState(null)
   const [confirmRemove, setConfirmRemove] = useState(null) // { id, name } | null
 
+  // Fetch projects whenever the logged-in user changes
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('tractova_projects') || '[]')
-    setProjects(stored)
-  }, [])
+    if (authLoading) return
+    if (!user) { setLoading(false); return }
 
-  const handleRequestRemove = (id, name) => {
-    setConfirmRemove({ id, name })
+    setLoading(true)
+    supabase
+      .from('projects')
+      .select('*')
+      .order('saved_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) { setError(error.message); setLoading(false); return }
+        setProjects((data || []).map(normalize))
+        setLoading(false)
+      })
+  }, [user, authLoading])
+
+  const handleRequestRemove = (id, name) => setConfirmRemove({ id, name })
+
+  const handleConfirmRemove = async () => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', confirmRemove.id)
+
+    if (!error) setProjects((prev) => prev.filter((p) => p.id !== confirmRemove.id))
+    setConfirmRemove(null)
   }
 
-  const handleConfirmRemove = () => {
-    const updated = projects.filter((p) => p.id !== confirmRemove.id)
-    setProjects(updated)
-    localStorage.setItem('tractova_projects', JSON.stringify(updated))
-    setConfirmRemove(null)
+  // ── Render states ────────────────────────────────────────────────────────────
+
+  // Still resolving auth session
+  if (authLoading) return null
+
+  // Not signed in
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-surface">
+        <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
+          <div className="mt-4 mb-6">
+            <h1 className="text-xl font-bold text-gray-900">My Projects</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Your saved deals. Add projects from Tractova Lens results.</p>
+          </div>
+          <div className="flex flex-col items-center justify-center text-center py-24">
+            <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-gray-700">Sign in to view your projects</p>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs">
+              Your saved projects are tied to your account and sync across devices.
+            </p>
+            <div className="flex items-center gap-3 mt-5">
+              <Link
+                to="/signin"
+                className="text-sm font-semibold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                to="/signup"
+                className="text-sm font-medium text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-lg hover:border-gray-300 transition-colors"
+              >
+                Create Account
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -100,19 +182,21 @@ export default function Library() {
           </p>
         </div>
 
-        {/* Amber info banner */}
-        <div className="flex items-start gap-3 bg-accent-50 border border-accent-200 rounded-lg px-4 py-3 mb-8">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <p className="text-sm text-accent-700">
-            <span className="font-semibold">Coming in Iteration 3:</span>{' '}
-            Your saved projects will appear on an interactive US map with clickable county markers.
-          </p>
-        </div>
-
-        {/* Project cards or empty state */}
-        {projects.length > 0 ? (
+        {/* Loading skeleton */}
+        {loading ? (
+          <div className="grid gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-lg px-6 py-5 animate-pulse">
+                <div className="h-4 bg-gray-100 rounded w-1/3 mb-3" />
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-5 py-4 text-sm text-red-700">
+            Failed to load projects: {error}
+          </div>
+        ) : projects.length > 0 ? (
           <div className="grid gap-4">
             {projects.map((p) => (
               <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />
