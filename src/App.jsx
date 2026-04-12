@@ -28,7 +28,7 @@ export default function App() {
           <Route
             path="/search"
             element={
-              <ProtectedRoute message="Sign in to access Catered Search.">
+              <ProtectedRoute message="Sign in to access Tractova Lens.">
                 <Search />
               </ProtectedRoute>
             }

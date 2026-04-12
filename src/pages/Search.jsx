@@ -448,10 +448,11 @@ export default function Search() {
 
         {/* Page header */}
         <div className="mt-4 mb-6">
-          <h1 className="text-xl font-bold text-gray-900">Catered Search</h1>
+          <h1 className="text-xl font-bold text-gray-900">Tractova Lens</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Enter a specific project to get targeted site control, interconnection, and offtake intelligence.
           </p>
+
         </div>
 
         {/* Search form */}

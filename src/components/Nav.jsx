@@ -63,7 +63,7 @@ export default function Nav() {
         {/* Nav links */}
         <div className="flex items-center gap-7">
           {navLink('/', 'Dashboard')}
-          {navLink('/search', 'Search')}
+          {navLink('/search', 'Tractova Lens')}
           {navLink('/glossary', 'Glossary')}
           {navLink('/library', 'My Projects')}
         </div>

@@ -1,4 +1,4 @@
-// County-level intelligence data seeded for Iteration 2 — Catered Search
+// County-level intelligence data seeded for Iteration 2 — Tractova Lens
 // Keyed by STATE_ID → county slug → pillar data
 // Counties are normalized: lowercase, no "county" suffix, no spaces → hyphens
 //
