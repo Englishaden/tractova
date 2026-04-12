@@ -1,5 +1,4 @@
-// Glossary — stub page for Iteration 1
-// Full definitions and search/filter will be added in a later pass
+import { useState } from 'react'
 
 const terms = [
   {
@@ -85,26 +84,54 @@ const PILLAR_LABEL = {
 }
 
 export default function Glossary() {
+  const [query, setQuery] = useState('')
+
+  const filtered = query.trim()
+    ? terms.filter(
+        (t) =>
+          t.term.toLowerCase().includes(query.toLowerCase()) ||
+          t.definition.toLowerCase().includes(query.toLowerCase())
+      )
+    : terms
+
   return (
     <div className="min-h-screen bg-surface">
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
         {/* Page header */}
-        <div className="mt-6 mb-8 max-w-2xl">
+        <div className="mt-6 mb-6 max-w-2xl">
           <h1 className="text-xl font-bold text-gray-900">Glossary</h1>
           <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
             Key terms used across the Tractova platform. Understanding these concepts is essential for interpreting market intelligence and making informed project decisions.
           </p>
-          <div className="mt-3 inline-flex items-center gap-2 text-xs text-accent-600 bg-accent-50 border border-accent-200 px-3 py-1.5 rounded-md">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            Stub — additional terms and search/filter coming in a later iteration
-          </div>
+        </div>
+
+        {/* Search input */}
+        <div className="relative max-w-sm mb-6">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search terms..."
+            className="w-full pl-9 pr-3 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
         </div>
 
         {/* Pillar legend */}
         <div className="flex items-center gap-3 mb-6">
-          <span className="text-xs text-gray-400 font-medium">Filter by pillar:</span>
+          <span className="text-xs text-gray-400 font-medium">Pillars:</span>
           {Object.entries(PILLAR_LABEL).map(([key, label]) => (
             <span key={key} className={`text-xs px-2 py-0.5 rounded border font-medium ${PILLAR_BADGE[key]}`}>
               {label}
@@ -113,26 +140,27 @@ export default function Glossary() {
         </div>
 
         {/* Term list */}
-        <div className="grid gap-4">
-          {terms.map((t) => (
-            <div
-              key={t.term}
-              className="bg-white border border-gray-200 rounded-lg px-6 py-5"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h2 className="text-sm font-bold text-gray-900">{t.term}</h2>
-                    <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PILLAR_BADGE[t.pillar]}`}>
-                      {PILLAR_LABEL[t.pillar]}
-                    </span>
+        {filtered.length > 0 ? (
+          <div className="grid gap-4">
+            {filtered.map((t) => (
+              <div key={t.term} className="bg-white border border-gray-200 rounded-lg px-6 py-5">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h2 className="text-sm font-bold text-gray-900">{t.term}</h2>
+                      <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PILLAR_BADGE[t.pillar]}`}>
+                        {PILLAR_LABEL[t.pillar]}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">{t.definition}</p>
                   </div>
-                  <p className="text-sm text-gray-600 mt-2 leading-relaxed">{t.definition}</p>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-sm text-gray-400 italic">No terms match &ldquo;{query}&rdquo;</div>
+        )}
       </main>
     </div>
   )
