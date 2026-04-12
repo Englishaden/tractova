@@ -17,19 +17,41 @@ export default function App() {
       <AuthProvider>
         <Nav />
         <Routes>
-          <Route path="/"         element={<Dashboard />} />
-          <Route path="/glossary" element={<Glossary />} />
-          <Route path="/library"  element={<Library />} />
-          <Route path="/signin"   element={<SignIn />} />
-          <Route path="/signup"   element={<SignUp />} />
-          <Route path="/profile"  element={<Profile />} />
+          {/* Public routes */}
+          <Route path="/"       element={<Dashboard />} />
+          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signup" element={<SignUp />} />
 
-          {/* Search is gated — redirects to /signin with a message if not logged in */}
+          {/* Gated routes — require sign-in */}
           <Route
             path="/search"
             element={
-              <ProtectedRoute message="Sign in to access Tractova Lens.">
+              <ProtectedRoute message="Sign in to access Tractova Lens intelligence reports.">
                 <Search />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/library"
+            element={
+              <ProtectedRoute message="Sign in to view and manage your saved projects.">
+                <Library />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/glossary"
+            element={
+              <ProtectedRoute message="Sign in to access the full Tractova glossary.">
+                <Glossary />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute message="Sign in to view your profile.">
+                <Profile />
               </ProtectedRoute>
             }
           />
