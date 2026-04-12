@@ -25,14 +25,14 @@ function Badge({ label, map }) {
   )
 }
 
-function ProjectCard({ project, onRemove }) {
+function ProjectCard({ project, onRequestRemove }) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg px-6 py-5 flex flex-col gap-3">
       {/* Name + remove */}
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-sm font-bold text-gray-900 leading-snug">{project.name}</h2>
         <button
-          onClick={() => onRemove(project.id)}
+          onClick={() => onRequestRemove(project.id, project.name)}
           title="Remove project"
           className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
         >
@@ -70,16 +70,22 @@ function ProjectCard({ project, onRemove }) {
 
 export default function Library() {
   const [projects, setProjects] = useState([])
+  const [confirmRemove, setConfirmRemove] = useState(null) // { id, name } | null
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem('tractova_projects') || '[]')
     setProjects(stored)
   }, [])
 
-  const handleRemove = (id) => {
-    const updated = projects.filter((p) => p.id !== id)
+  const handleRequestRemove = (id, name) => {
+    setConfirmRemove({ id, name })
+  }
+
+  const handleConfirmRemove = () => {
+    const updated = projects.filter((p) => p.id !== confirmRemove.id)
     setProjects(updated)
     localStorage.setItem('tractova_projects', JSON.stringify(updated))
+    setConfirmRemove(null)
   }
 
   return (
@@ -109,7 +115,7 @@ export default function Library() {
         {projects.length > 0 ? (
           <div className="grid gap-4">
             {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} onRemove={handleRemove} />
+              <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />
             ))}
           </div>
         ) : (
@@ -133,6 +139,45 @@ export default function Library() {
           </div>
         )}
       </main>
+
+      {/* Remove confirmation modal */}
+      {confirmRemove && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmRemove(null)} />
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </div>
+              <h3 className="text-sm font-bold text-gray-900">Remove project?</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-1 leading-relaxed">
+              Are you sure you want to remove{' '}
+              <span className="font-semibold text-gray-700">{confirmRemove.name}</span>?
+            </p>
+            <p className="text-xs text-gray-400 mb-5">This cannot be undone.</p>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setConfirmRemove(null)}
+                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors"
+              >
+                No, keep it
+              </button>
+              <button
+                onClick={handleConfirmRemove}
+                className="flex items-center gap-2 bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Yes, remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
