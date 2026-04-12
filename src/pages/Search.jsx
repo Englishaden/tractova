@@ -1,7 +1,107 @@
 import { useState, useRef, useEffect } from 'react'
+import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 import { stateById } from '../data/statePrograms'
 import { getCountyData, revenueStackByState } from '../data/countyData'
 import allCounties from '../data/allCounties.json'
+
+const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
+
+const FIPS = {
+  "01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT",
+  "10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL",
+  "18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD",
+  "25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE",
+  "32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND",
+  "39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD",
+  "47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV",
+  "55":"WI","56":"WY",
+}
+
+function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
+  const statusConfig = {
+    active:  { label: 'Active Program',   dot: '#0F6E56' },
+    limited: { label: 'Limited Capacity', dot: '#BA7517' },
+    pending: { label: 'Pending Launch',   dot: '#FBBF24' },
+    none:    { label: 'No Program',       dot: '#9CA3AF' },
+  }
+  const cfg = statusConfig[csStatus] || statusConfig.none
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <div className="flex items-stretch">
+        {/* Map column */}
+        <div className="flex-1 min-w-0">
+          <ComposableMap
+            projection="geoAlbersUsa"
+            projectionConfig={{ scale: 900 }}
+            style={{ width: '100%', height: '180px', display: 'block' }}
+          >
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies.map((geo) => {
+                  const fips = String(geo.id).padStart(2, '0')
+                  const geoStateId = FIPS[fips]
+                  const isTarget = geoStateId === stateId
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={isTarget ? '#0F6E56' : '#E5E7EB'}
+                      stroke="#FFFFFF"
+                      strokeWidth={0.75}
+                      style={{
+                        default: { outline: 'none' },
+                        hover:   { outline: 'none', fill: isTarget ? '#0F6E56' : '#E5E7EB' },
+                        pressed: { outline: 'none' },
+                      }}
+                    />
+                  )
+                })
+              }
+            </Geographies>
+          </ComposableMap>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px bg-gray-100 flex-shrink-0" />
+
+        {/* Info column */}
+        <div className="w-52 flex-shrink-0 flex flex-col justify-center px-5 py-4 gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Target State</p>
+            <p className="text-lg font-bold text-gray-900 leading-tight">{stateName}</p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
+              <span className="text-xs text-gray-700 font-medium">{cfg.label}</span>
+            </div>
+            {opportunityScore > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-gray-400">Opportunity score</span>
+                  <span className="text-xs font-bold text-gray-700">{opportunityScore}</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${opportunityScore}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: '#0F6E56' }} />
+            <span className="text-xs text-gray-400">= {stateName}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -661,6 +761,16 @@ export default function Search() {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
                 Save as Project
               </button>
+            </div>
+
+            {/* State context map */}
+            <div className="mb-5">
+              <ResultsStateMap
+                stateId={results.form.state}
+                stateName={results.stateProgram?.name || results.form.state}
+                csStatus={results.stateProgram?.csStatus || 'none'}
+                opportunityScore={results.stateProgram?.opportunityScore || 0}
+              />
             </div>
 
             {/* Three pillar cards */}
