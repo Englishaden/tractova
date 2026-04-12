@@ -281,7 +281,6 @@ const CARDS = [
     value: metrics.statesWithActiveCS,
     sub: `${metrics.statesWithAnyCS} with any program`,
     icon: <IconMap />,
-    alert: false,
     modalTitle: `${metrics.statesWithActiveCS} States with Active Community Solar Programs`,
     ModalContent: ActiveCSDetail,
   },
@@ -291,7 +290,6 @@ const CARDS = [
     value: metrics.utilitiesWithIXHeadroom,
     sub: 'open queue capacity',
     icon: <IconZap />,
-    alert: false,
     modalTitle: `${metrics.utilitiesWithIXHeadroom} Utilities with Interconnection Headroom`,
     ModalContent: IXCapacityDetail,
   },
@@ -301,7 +299,6 @@ const CARDS = [
     value: metrics.policyAlertsThisWeek,
     sub: 'this week · all pillars',
     icon: <IconBell />,
-    alert: true,
     modalTitle: 'Policy Alerts This Week',
     ModalContent: PolicyAlertsDetail,
   },
@@ -311,7 +308,6 @@ const CARDS = [
     value: metrics.avgCSCapacityRemaining,
     sub: 'across active programs',
     icon: <IconGauge />,
-    alert: false,
     modalTitle: `Average CS Capacity Remaining: ${metrics.avgCSCapacityRemaining}`,
     ModalContent: AvgCapacityDetail,
   },
@@ -321,13 +317,12 @@ const CARDS = [
     value: metrics.totalMWInPipeline.toLocaleString(),
     sub: 'active + limited states',
     icon: <IconTrendingUp />,
-    alert: false,
     modalTitle: `${metrics.totalMWInPipeline.toLocaleString()} MW in Active CS Pipeline`,
     ModalContent: MWPipelineDetail,
   },
 ]
 
-const CARD_BG = 'linear-gradient(145deg, #0A3D32 0%, #051F19 100%)'
+const CARD_BG = 'linear-gradient(145deg, #0F6E56 0%, #0A5240 100%)'
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -348,22 +343,14 @@ export default function MetricsBar() {
             {/* Top accent line */}
             <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-primary-400/60 via-primary-300/80 to-primary-400/60" />
 
-            {/* Watermark icon */}
-            <div className="absolute top-3 right-3 text-white/[0.07] pointer-events-none select-none">
+            {/* Icon */}
+            <div className="absolute top-3 right-3 text-white pointer-events-none select-none">
               {c.icon}
             </div>
 
-            {/* Alert pulse dot */}
-            {c.alert && (
-              <span className="absolute top-3.5 left-[4.5rem] flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-400" />
-              </span>
-            )}
-
             <div className="relative px-5 py-5">
               {/* Label */}
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40 mb-2.5 leading-none">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70 mb-2.5 leading-none">
                 {c.label}
               </p>
 
@@ -373,7 +360,7 @@ export default function MetricsBar() {
               </div>
 
               {/* Sub */}
-              <div className="text-[11px] text-white/35 mt-2 leading-none">{c.sub}</div>
+              <div className="text-[11px] text-white/60 mt-2 leading-none">{c.sub}</div>
 
               {/* Hover CTA */}
               <div className="flex items-center gap-1 mt-4 text-[10px] font-medium text-white/0 group-hover:text-white/50 transition-all duration-200 uppercase tracking-wider">
