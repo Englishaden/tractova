@@ -34,7 +34,7 @@ const ALL_STATES = [
   { id: 'WI', name: 'Wisconsin' }, { id: 'WY', name: 'Wyoming' },
 ]
 
-const STAGES = ['Concept', 'Site Control', 'Interconnection', 'Offtake']
+const STAGES = ['Prospecting', 'Site Control', 'Pre-Development', 'Development', 'Shovel Ready', 'Construction', 'Operational']
 const TECHNOLOGIES = ['Community Solar', 'C&I Solar', 'BESS', 'Hybrid']
 
 // ─────────────────────────────────────────────────────────────────────────────
