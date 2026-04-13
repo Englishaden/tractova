@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 import { stateById } from '../data/statePrograms'
+import TopoBackground from './TopoBackground'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -64,7 +65,11 @@ export default function USMap({ onStateClick, selectedStateId }) {
   const tooltipState = tooltip?.stateId ? stateById[tooltip.stateId] : null
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden relative">
+    <div
+      className="bg-white border border-gray-200 rounded-lg overflow-hidden relative"
+      style={{ boxShadow: '0 4px 24px rgba(15,110,86,0.10), 0 1px 4px rgba(0,0,0,0.06)' }}
+    >
+      <TopoBackground opacity={0.07} />
       {/* Header */}
       <div className="px-5 pt-3 pb-2 border-b border-gray-100">
         <div className="flex items-baseline justify-between">
