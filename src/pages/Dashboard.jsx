@@ -35,7 +35,7 @@ export default function Dashboard() {
         {/* Metrics bar */}
         <MetricsBar />
 
-        <SectionDivider label="Market Overview" />
+        <SectionDivider />
 
         {/* Main two-panel layout */}
         <div className="grid grid-cols-5 gap-5" style={{ minHeight: '600px' }}>

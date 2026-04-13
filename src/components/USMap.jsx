@@ -4,7 +4,6 @@ import { stateById } from '../data/statePrograms'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
-// FIPS numeric ID → state abbreviation
 const FIPS = {
   "01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT",
   "10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL",
@@ -16,18 +15,18 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
-// State fills — designed for dark card background
+// Dark jewel-tone fills against a light background — classic cartography contrast
 function getStateColor(stateId, isHovered, isSelected) {
-  if (isSelected) return '#7C3AED'   // violet — intelligence highlight
+  if (isSelected) return '#7C3AED'    // violet — intelligence highlight
   const state = stateById[stateId]
-  if (isHovered) return '#D97706'    // rich amber on hover
-  if (!state) return '#1F3D2E'       // dark muted — no data
+  if (isHovered) return '#D97706'     // amber on hover
+  if (!state) return '#D4E8DC'        // light muted — blank territory
 
-  if (state.csStatus === 'pending') return '#B45309'  // dark rich amber-orange
-  if (state.csStatus === 'none')    return '#1F3D2E'
+  if (state.csStatus === 'pending') return '#B45309'  // rich burnt orange
+  if (state.csStatus === 'none')    return '#D4E8DC'  // light muted neutral
 
   const score = state.feasibilityScore
-  if (score >= 75) return '#059669'  // rich emerald — top markets
+  if (score >= 75) return '#059669'   // rich emerald — top markets
   if (score >= 65) return '#047857'
   if (score >= 55) return '#065F46'
   if (score >= 45) return '#064E3B'
@@ -62,22 +61,20 @@ export default function USMap({ onStateClick, selectedStateId }) {
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        background: 'linear-gradient(145deg, #1C5438 0%, #1F5C3E 55%, #173F2C 100%)',
-        border: '1px solid rgba(52,176,138,0.35)',
-        boxShadow: '0 0 0 1px rgba(15,110,86,0.14), 0 12px 40px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.10)',
+        background: 'linear-gradient(160deg, #FFFFFF 0%, #EDF7F2 100%)',
+        border: '1px solid rgba(15,110,86,0.18)',
+        boxShadow: '0 0 0 1px rgba(15,110,86,0.06), 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05)',
       }}
     >
-      {/* Aurora mesh gradient — absolutely positioned, pure decoration */}
+      {/* Subtle watercolor teal wash — very low opacity on light bg */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
         style={{
           background: [
-            'radial-gradient(ellipse at 80% 10%, rgba(52,176,138,0.22) 0%, transparent 48%)',
-            'radial-gradient(ellipse at 12% 82%, rgba(15,110,86,0.28) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.08) 0%, transparent 58%)',
-            'radial-gradient(ellipse at 8%  8%,  rgba(124,58,237,0.10) 0%, transparent 36%)',
-            'radial-gradient(ellipse at 88% 92%, rgba(186,117,23,0.09) 0%, transparent 34%)',
+            'radial-gradient(ellipse at 85% 10%, rgba(15,110,86,0.07) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 10% 85%, rgba(15,110,86,0.09) 0%, transparent 52%)',
+            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.04) 0%, transparent 60%)',
           ].join(', '),
         }}
       />
@@ -85,13 +82,13 @@ export default function USMap({ onStateClick, selectedStateId }) {
       {/* Header */}
       <div
         className="relative z-10 px-5 pt-3 pb-2"
-        style={{ borderBottom: '1px solid rgba(52,176,138,0.12)', background: 'rgba(15,110,86,0.08)' }}
+        style={{ borderBottom: '1px solid rgba(15,110,86,0.10)', background: 'rgba(15,110,86,0.04)' }}
       >
         <div className="flex items-baseline justify-between">
-          <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
+          <h2 className="text-sm font-semibold text-gray-800">
             US Community Solar Market
           </h2>
-          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.30)' }}>
+          <p className="text-xs text-gray-400">
             Click any state for program details
           </p>
         </div>
@@ -118,8 +115,8 @@ export default function USMap({ onStateClick, selectedStateId }) {
                     key={geo.rsmKey}
                     geography={geo}
                     fill={getStateColor(stateId, isHovered, isSelected)}
-                    stroke="rgba(255,255,255,0.08)"
-                    strokeWidth={0.6}
+                    stroke="#FFFFFF"
+                    strokeWidth={0.7}
                     style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
                     onMouseMove={(evt) => handleMouseMove(geo, evt)}
                     onMouseLeave={handleMouseLeave}
@@ -133,7 +130,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
         </ComposableMap>
       </div>
 
-      {/* Tooltip */}
+      {/* Tooltip — keep dark glass style regardless of card bg */}
       {tooltip && tooltipState && (
         <div
           className="fixed z-50 pointer-events-none"
@@ -142,8 +139,8 @@ export default function USMap({ onStateClick, selectedStateId }) {
           <div
             className="text-xs rounded-lg px-3 py-2 shadow-2xl max-w-[200px]"
             style={{
-              background: 'rgba(6,14,11,0.96)',
-              border: '1px solid rgba(52,176,138,0.25)',
+              background: 'rgba(7,17,12,0.95)',
+              border: '1px solid rgba(15,110,86,0.30)',
               backdropFilter: 'blur(8px)',
             }}
           >
@@ -154,7 +151,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
             <div className="mt-1.5 flex items-center gap-2">
               <StatusPill status={tooltipState.csStatus} />
               {tooltipState.feasibilityScore > 0 && (
-                <span style={{ color: '#4DE8A8', fontWeight: 600 }}>
+                <span style={{ color: '#34D399', fontWeight: 600 }}>
                   {tooltipState.feasibilityScore}
                 </span>
               )}
@@ -169,7 +166,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
         >
           <div
             className="text-xs rounded-lg px-3 py-2"
-            style={{ background: 'rgba(6,14,11,0.96)', border: '1px solid rgba(52,176,138,0.25)' }}
+            style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(15,110,86,0.30)' }}
           >
             <div className="font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>{tooltip.stateId || 'Unknown'}</div>
             <div style={{ color: 'rgba(255,255,255,0.35)' }}>No data</div>
@@ -182,10 +179,10 @@ export default function USMap({ onStateClick, selectedStateId }) {
 
 function StatusPill({ status }) {
   const map = {
-    active:  { label: 'Active',   bg: 'rgba(77,232,168,0.12)', text: '#4DE8A8', border: 'rgba(77,232,168,0.25)' },
-    limited: { label: 'Limited',  bg: 'rgba(245,158,11,0.12)', text: '#F59E0B', border: 'rgba(245,158,11,0.25)' },
-    pending: { label: 'Pending',  bg: 'rgba(217,119,6,0.12)',  text: '#D97706', border: 'rgba(217,119,6,0.25)' },
-    none:    { label: 'No Program', bg: 'rgba(255,255,255,0.05)', text: 'rgba(255,255,255,0.35)', border: 'rgba(255,255,255,0.10)' },
+    active:  { label: 'Active',     bg: 'rgba(5,150,105,0.10)',  text: '#065F46', border: 'rgba(5,150,105,0.25)' },
+    limited: { label: 'Limited',    bg: 'rgba(180,83,9,0.10)',   text: '#92400E', border: 'rgba(180,83,9,0.25)' },
+    pending: { label: 'Pending',    bg: 'rgba(180,83,9,0.10)',   text: '#92400E', border: 'rgba(180,83,9,0.25)' },
+    none:    { label: 'No Program', bg: 'rgba(0,0,0,0.04)',      text: '#6B7280', border: 'rgba(0,0,0,0.10)' },
   }
   const cfg = map[status] || map.none
   return (
@@ -204,7 +201,7 @@ function Legend() {
     { color: '#065F46', label: 'Moderate (45–74)' },
     { color: '#053D2E', label: 'Low / limited' },
     { color: '#B45309', label: 'Pending launch' },
-    { color: '#1F3D2E', label: 'No program', border: 'rgba(255,255,255,0.12)' },
+    { color: '#D4E8DC', label: 'No program', border: 'rgba(15,110,86,0.20)' },
   ]
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
@@ -212,9 +209,9 @@ function Legend() {
         <div key={i.label} className="flex items-center gap-1.5">
           <span
             className="w-3 h-3 rounded-sm flex-shrink-0"
-            style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(255,255,255,0.10)'}` }}
+            style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.12)'}` }}
           />
-          <span className="text-xs" style={{ color: 'rgba(255,255,255,0.42)' }}>{i.label}</span>
+          <span className="text-xs text-gray-500">{i.label}</span>
         </div>
       ))}
     </div>

@@ -798,7 +798,7 @@ function LibraryContent() {
           </div>
         ) : projects.length > 0 ? (
           <>
-            <SectionDivider label="Active Projects" />
+            <SectionDivider />
             <div className="grid gap-3">
               {projects.map((p) => (
                 <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />

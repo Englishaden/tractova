@@ -1342,7 +1342,7 @@ function SearchContent() {
         {/* Results panel */}
         {results && (
           <div ref={resultsRef}>
-            <SectionDivider label="Analysis Results" />
+            <SectionDivider />
             {/* Results header */}
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1387,7 +1387,7 @@ function SearchContent() {
             </div>
 
             {/* Market Intelligence Summary */}
-            <SectionDivider label="Market Intelligence" />
+            <SectionDivider />
             <MarketIntelligenceSummary
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -1395,7 +1395,7 @@ function SearchContent() {
             />
 
             {/* Three pillar cards */}
-            <SectionDivider label="Pillar Breakdown" />
+            <SectionDivider />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <SiteControlCard
                 siteControl={results.countyData.siteControl}
