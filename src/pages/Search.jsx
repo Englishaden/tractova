@@ -1014,8 +1014,8 @@ function CountyCombobox({ stateId, value, onValueChange }) {
   return (
     <div
       ref={containerRef}
-      onClick={() => !disabled && inputRef.current?.focus()}
-      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm cursor-text relative transition-all focus-within:border-primary/60"
+      onClick={() => { if (!disabled && !open) { setOpen(true); setTimeout(() => inputRef.current?.focus(), 0) } }}
+      className={`bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm relative transition-all focus-within:border-primary/60 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
       {/* Label */}
       <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
@@ -1023,21 +1023,37 @@ function CountyCombobox({ stateId, value, onValueChange }) {
         County
       </p>
 
-      {/* Input row */}
-      <div className="flex items-center gap-1 py-0.5">
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={handleInput}
-          onFocus={() => setOpen(true)}
-          placeholder={placeholder}
-          disabled={disabled}
-          required
-          className={inputCls + ' flex-1' + (disabled ? ' opacity-50 cursor-not-allowed' : '')}
-        />
-        <svg className="pointer-events-none flex-shrink-0 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      {/* Closed: mimic FieldSelect display row. Open: show text input */}
+      <div className="flex items-center justify-between gap-1 py-0.5">
+        {open ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={handleInput}
+            placeholder="Search counties…"
+            disabled={disabled}
+            required
+            onClick={(e) => e.stopPropagation()}
+            className={inputCls + ' flex-1'}
+          />
+        ) : (
+          <span className={`text-sm pointer-events-none select-none ${query ? 'text-gray-900' : 'text-gray-400'}`}>
+            {query || placeholder}
+          </span>
+        )}
+        <svg
+          className="pointer-events-none flex-shrink-0 text-gray-400 transition-transform duration-150"
+          width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
       </div>
+
+      {/* Hidden input for form validation when open=false and no value yet */}
+      <input type="text" value={value} onChange={() => {}} required className="sr-only" tabIndex={-1} />
 
       {open && stateId && (
         <ul className="absolute z-50 left-0 top-full mt-2 w-full bg-white border border-gray-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto"

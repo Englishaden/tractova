@@ -3,7 +3,6 @@ import MetricsBar from '../components/MetricsBar'
 import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
-import TopoBackground from '../components/TopoBackground'
 import { stateById } from '../data/statePrograms'
 
 export default function Dashboard() {
@@ -20,9 +19,8 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-surface relative overflow-hidden">
-      <TopoBackground opacity={0.055} />
-      <main className="relative z-10 max-w-dashboard mx-auto px-6 pt-20 pb-10">
+    <div className="min-h-screen bg-surface">
+      <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* Page header */}
         <div className="mt-4 mb-1">
           <h1 className="text-xl font-bold text-gray-900">Market Dashboard</h1>
@@ -37,12 +35,7 @@ export default function Dashboard() {
         {/* Main two-panel layout */}
         <div className="grid grid-cols-5 gap-5 mt-5" style={{ minHeight: '600px' }}>
           {/* Map — 60% */}
-          <div className="col-span-3 relative">
-            {/* Radial glow — gives the map a "stage lit" depth against the topo background */}
-            <div
-              className="absolute -inset-6 rounded-3xl pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(15,110,86,0.11) 0%, transparent 72%)' }}
-            />
+          <div className="col-span-3">
             <USMap
               onStateClick={handleStateClick}
               selectedStateId={selectedStateId}
