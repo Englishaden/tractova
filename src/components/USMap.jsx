@@ -62,9 +62,9 @@ export default function USMap({ onStateClick, selectedStateId }) {
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        background: 'linear-gradient(145deg, #060E0B 0%, #0A1812 60%, #080F0C 100%)',
-        border: '1px solid rgba(52,176,138,0.20)',
-        boxShadow: '0 0 0 1px rgba(15,110,86,0.08), 0 24px 64px rgba(0,0,0,0.45), 0 4px 16px rgba(0,0,0,0.25)',
+        background: 'linear-gradient(145deg, #0D1628 0%, #111E2E 60%, #0E1A24 100%)',
+        border: '1px solid rgba(139,92,246,0.22)',
+        boxShadow: '0 0 0 1px rgba(139,92,246,0.08), 0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.15)',
       }}
     >
       {/* Aurora mesh gradient — absolutely positioned, pure decoration */}
@@ -73,10 +73,10 @@ export default function USMap({ onStateClick, selectedStateId }) {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: [
-            'radial-gradient(ellipse at 12% 85%, rgba(124,58,237,0.18) 0%, transparent 52%)',
-            'radial-gradient(ellipse at 88% 18%, rgba(15,110,86,0.28) 0%, transparent 48%)',
-            'radial-gradient(ellipse at 55% 105%, rgba(186,117,23,0.10) 0%, transparent 42%)',
-            'radial-gradient(ellipse at 30% 30%, rgba(52,176,138,0.08) 0%, transparent 40%)',
+            'radial-gradient(ellipse at 8% 80%,  rgba(139,92,246,0.22) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 90% 15%, rgba(99,102,241,0.18) 0%, transparent 48%)',
+            'radial-gradient(ellipse at 50% 100%,rgba(186,117,23,0.10) 0%, transparent 40%)',
+            'radial-gradient(ellipse at 55% 40%, rgba(15,110,86,0.10) 0%, transparent 45%)',
           ].join(', '),
         }}
       />
@@ -84,7 +84,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
       {/* Header */}
       <div
         className="relative z-10 px-5 pt-3 pb-2"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,110,86,0.06)' }}
+        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(139,92,246,0.06)' }}
       >
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
