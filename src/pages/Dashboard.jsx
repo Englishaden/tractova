@@ -5,6 +5,27 @@ import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
 import { stateById } from '../data/statePrograms'
 
+// Palantir-style section divider — thin gradient rule with optional label
+function SectionDivider({ label }) {
+  return (
+    <div className="flex items-center gap-3 my-5">
+      {label && (
+        <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-primary-600 whitespace-nowrap font-mono flex-shrink-0">
+          {label}
+        </span>
+      )}
+      <div
+        className="flex-1 h-px"
+        style={{
+          background: label
+            ? 'linear-gradient(90deg, rgba(15,110,86,0.55) 0%, rgba(15,110,86,0.18) 55%, transparent 100%)'
+            : 'linear-gradient(90deg, transparent 0%, rgba(15,110,86,0.20) 30%, rgba(15,110,86,0.20) 70%, transparent 100%)',
+        }}
+      />
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [selectedStateId, setSelectedStateId] = useState(null)
 
@@ -29,11 +50,15 @@ export default function Dashboard() {
           </p>
         </div>
 
+        <SectionDivider />
+
         {/* Metrics bar */}
         <MetricsBar />
 
+        <SectionDivider label="Market Overview" />
+
         {/* Main two-panel layout */}
-        <div className="grid grid-cols-5 gap-5 mt-5" style={{ minHeight: '600px' }}>
+        <div className="grid grid-cols-5 gap-5" style={{ minHeight: '600px' }}>
           {/* Map — 60% */}
           <div className="col-span-3">
             <USMap
@@ -57,9 +82,12 @@ export default function Dashboard() {
 
         {/* Hint when nothing is selected */}
         {!selectedState && (
-          <p className="text-xs text-gray-400 mt-3 text-center">
-            Click any state on the map to view its program details
-          </p>
+          <>
+            <SectionDivider />
+            <p className="text-xs text-gray-400 text-center">
+              Click any state on the map to view its program details
+            </p>
+          </>
         )}
       </main>
     </div>

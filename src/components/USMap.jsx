@@ -62,9 +62,9 @@ export default function USMap({ onStateClick, selectedStateId }) {
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        background: 'linear-gradient(145deg, #0B2018 0%, #0F2A1E 55%, #0C2219 100%)',
-        border: '1px solid rgba(52,176,138,0.28)',
-        boxShadow: '0 0 0 1px rgba(15,110,86,0.10), 0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.14)',
+        background: 'linear-gradient(145deg, #0F3D27 0%, #143D28 55%, #112E1F 100%)',
+        border: '1px solid rgba(52,176,138,0.30)',
+        boxShadow: '0 0 0 1px rgba(15,110,86,0.12), 0 12px 40px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
       }}
     >
       {/* Aurora mesh gradient — absolutely positioned, pure decoration */}
@@ -73,11 +73,11 @@ export default function USMap({ onStateClick, selectedStateId }) {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: [
-            'radial-gradient(ellipse at 80% 15%, rgba(52,176,138,0.22) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 15% 80%, rgba(15,110,86,0.28) 0%, transparent 52%)',
-            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.10) 0%, transparent 60%)',
-            'radial-gradient(ellipse at 10% 10%, rgba(124,58,237,0.10) 0%, transparent 38%)',
-            'radial-gradient(ellipse at 85% 90%, rgba(186,117,23,0.08) 0%, transparent 35%)',
+            'radial-gradient(ellipse at 80% 10%, rgba(52,176,138,0.30) 0%, transparent 48%)',
+            'radial-gradient(ellipse at 12% 82%, rgba(15,110,86,0.35) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.12) 0%, transparent 58%)',
+            'radial-gradient(ellipse at 8%  8%,  rgba(124,58,237,0.12) 0%, transparent 36%)',
+            'radial-gradient(ellipse at 88% 92%, rgba(186,117,23,0.10) 0%, transparent 34%)',
           ].join(', '),
         }}
       />
