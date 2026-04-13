@@ -895,7 +895,7 @@ const inputCls = "w-full text-sm bg-transparent border-0 outline-none px-0 py-0 
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom select dropdown (replaces native <select> for Stage + Technology)
 // ─────────────────────────────────────────────────────────────────────────────
-function FieldSelect({ value, onChange, options, placeholder, required }) {
+function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, required }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -909,14 +909,21 @@ function FieldSelect({ value, onChange, options, placeholder, required }) {
   }, [open])
 
   return (
-    <div ref={ref} className="relative cursor-pointer" onClick={() => setOpen((o) => !o)}>
-      {/* Hidden native input for form validation */}
-      <input type="text" value={value} onChange={() => {}} required={required} className="sr-only" />
+    <div
+      ref={ref}
+      onClick={() => setOpen((o) => !o)}
+      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm cursor-pointer relative transition-all focus-within:border-primary/60"
+    >
+      {/* Label */}
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
+        {labelIcon}{label}
+      </p>
 
-      <button
-        type="button"
-        className="w-full flex items-center justify-between gap-1 text-sm py-0.5 focus:outline-none pointer-events-none"
-      >
+      {/* Hidden native input for form validation */}
+      <input type="text" value={value} onChange={() => {}} required={required} className="sr-only" tabIndex={-1} />
+
+      {/* Display row */}
+      <div className="flex items-center justify-between gap-1 text-sm py-0.5 pointer-events-none select-none">
         <span className={value ? 'text-gray-900' : 'text-gray-400'}>
           {value || placeholder}
         </span>
@@ -927,12 +934,14 @@ function FieldSelect({ value, onChange, options, placeholder, required }) {
         >
           <polyline points="6 9 12 15 18 9"/>
         </svg>
-      </button>
+      </div>
 
       {open && (
-        <ul className="absolute z-50 left-0 top-full mt-2 w-full min-w-[180px] bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
-            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
-            onClick={(e) => e.stopPropagation()}>
+        <ul
+          className="absolute z-50 left-0 top-full mt-2 w-full min-w-[180px] bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
+          style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {options.map((opt) => (
             <li
               key={opt}
@@ -1219,22 +1228,18 @@ function SearchContent() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
               {/* State */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
-                <label className={labelCls + ' flex items-center gap-1.5'}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  State
-                </label>
-                <FieldSelect
-                  value={ALL_STATES.find(s => s.id === form.state)?.name || ''}
-                  onChange={(name) => {
-                    const s = ALL_STATES.find(s => s.name === name)
-                    setForm((f) => ({ ...f, state: s?.id || '', county: '' }))
-                  }}
-                  options={ALL_STATES.map(s => s.name)}
-                  placeholder="Select state…"
-                  required
-                />
-              </div>
+              <FieldSelect
+                label="State"
+                labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>}
+                value={ALL_STATES.find(s => s.id === form.state)?.name || ''}
+                onChange={(name) => {
+                  const s = ALL_STATES.find(s => s.name === name)
+                  setForm((f) => ({ ...f, state: s?.id || '', county: '' }))
+                }}
+                options={ALL_STATES.map(s => s.name)}
+                placeholder="Select state…"
+                required
+              />
 
               {/* County */}
               <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
@@ -1268,34 +1273,26 @@ function SearchContent() {
               </div>
 
               {/* Development stage */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
-                <label className={labelCls + ' flex items-center gap-1.5'}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                  Development Stage
-                </label>
-                <FieldSelect
-                  value={form.stage}
-                  onChange={(val) => setForm((f) => ({ ...f, stage: val }))}
-                  options={STAGES}
-                  placeholder="Select stage…"
-                  required
-                />
-              </div>
+              <FieldSelect
+                label="Development Stage"
+                labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>}
+                value={form.stage}
+                onChange={(val) => setForm((f) => ({ ...f, stage: val }))}
+                options={STAGES}
+                placeholder="Select stage…"
+                required
+              />
 
               {/* Technology */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
-                <label className={labelCls + ' flex items-center gap-1.5'}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
-                  Technology Type
-                </label>
-                <FieldSelect
-                  value={form.technology}
-                  onChange={(val) => setForm((f) => ({ ...f, technology: val }))}
-                  options={TECHNOLOGIES}
-                  placeholder="Select type…"
-                  required
-                />
-              </div>
+              <FieldSelect
+                label="Technology Type"
+                labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>}
+                value={form.technology}
+                onChange={(val) => setForm((f) => ({ ...f, technology: val }))}
+                options={TECHNOLOGIES}
+                placeholder="Select type…"
+                required
+              />
             </div>
           </div>
 

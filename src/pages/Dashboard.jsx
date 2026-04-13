@@ -20,8 +20,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-surface relative overflow-hidden">
-      <TopoBackground />
+    <div className="min-h-screen bg-surface">
       <main className="relative z-10 max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* Page header */}
         <div className="mt-4 mb-1">
@@ -37,7 +36,8 @@ export default function Dashboard() {
         {/* Main two-panel layout */}
         <div className="grid grid-cols-5 gap-5 mt-5" style={{ minHeight: '600px' }}>
           {/* Map — 60% */}
-          <div className="col-span-3 relative">
+          <div className="col-span-3 relative overflow-hidden rounded-xl">
+            <TopoBackground />
             {/* Radial glow — gives the map a "stage lit" depth against the topo background */}
             <div
               className="absolute -inset-6 rounded-3xl pointer-events-none"
