@@ -6,40 +6,28 @@
 - Priority 3: Search form visual redesign + field dropdown polish
 - Priority 4: Glossary — 7 dev stages + 5 industry terms + Dev Stages filter
 - Iteration 3a: Supabase project persistence (Library + Search save flow migrated from localStorage)
+- Iteration 3b — Priority 1: Auth gating (Lens + Library behind auth; Glossary + Dashboard public)
+- Iteration 3b — Priority 2: Data expansion to 18 states (countyData.js)
+- Iteration 3b — Priority 3: Landing / marketing page (Landing.jsx)
+- Iteration 4 — Stripe Pro subscription ($9.99/mo): checkout, portal, webhook, real-time tier sync
+- Iteration 4 — Paywall on Lens + Library (UpgradePrompt + wrapper gate pattern)
+- Iteration 4 — Alert badges on project cards in Library (getAlerts, AlertChip, urgent/warning/info)
 
 ---
 
-## Current: Iteration 3 — Remaining
+## Current: Iteration 4 — Remaining
 
-### Priority 1: Freemium Gating
-Gate Tractova Lens behind authentication.
-- Unauthenticated users who try to run a Lens search see a prompt to sign in / create account instead of results
-- My Projects already shows a sign-in prompt — Lens needs the same treatment on form submit
-- Dashboard remains fully public — no gate on the map or news feed
-- Keep it a soft gate: show a clear value prop, not just a hard block
+## Proposed discussion for Claude, give feedback where necessary on the below prompt. The goal is how to manage web scraping in an efficient manner to have live updated data via pulling from state regs or state incentive programs like MA Smart 3.0 or ABP shines 2.0, etc, but have it be as efficient and easy to update as possible even if it requires us to run a scraping 1-2 times per week, whereby you would pull the data into the database and remove any old data. 
 
-### Priority 2: Data Expansion — Seed More States
-The county data layer (countyData.js) only has full data for a handful of states.
-- Expand to cover all 18+ states with active/limited CS programs
-- Each state needs: siteControl, interconnection, and offtake data (county-level or state-level fallback)
-- Priority states: IL, MN, NY, MA, MD, CO, NJ, ME, OR, WA, VA, CT, RI, NM, HI
-- Directly improves Lens usefulness before any paywall goes up
+- Build a simple, structured backend in Supabase that serves as the single source of truth for program rules and constraints. Start with one table (program_rules) where each row represents a state/program/utility combination, and includes key fields such as LMI minimum/maximum percentages, minimum bill applicability (LMI vs non-LMI), net crediting, and concise notes on credit structure and key risks. Populate this manually at first using trusted public sources, focusing on a few core markets (e.g., MA, VA, IL). Keep the schema simple and clean—prioritize accuracy, usability, and speed over building a complex or fully automated system upfront.
 
-### Priority 3: Landing / Marketing Page
-tractova.com currently drops visitors straight into the dashboard — no context for first-time visitors.
-- Build a proper homepage for logged-out users
-- Above the fold: headline, tagline, strong CTA (Get Started / Sign Up)
-- Below fold: three pillars explained briefly, who it's for, preview of the dashboard
-- Nav should reflect logged-out state cleanly
+This is a proposed approach for the next iteration of the product, and I’d like feedback before building further. The application layer would pull from this structured dataset to deterministically evaluate project viability based on user inputs (state, utility, size, subscriber mix), returning a clear go/no-go (or viable/borderline/not viable) with plain-English explanations and risk flags tied directly to stored rules. Longer term, the idea is to maintain and scale this database by running updates 1–2 times per week, where new program or policy information is identified from public sources, structured, and pushed into Supabase. Does this methodology make sense, and do you agree this is an accurate and scalable way to manage and update a growing dataset like this?
 
 ---
 
-## Backlog — Iteration 4
+## Backlog — Iteration 4 (remaining)
 
-- Stripe Pro subscription ($99/mo)
-- Paywall on Lens + Library for non-subscribers (upgrade prompt, not hard block)
 - Resend transactional email — weekly project digest, policy alerts
-- In-app alert badges on project cards (policy change / IX update / program capacity drop)
 
 ---
 

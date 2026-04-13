@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
+import { stateById } from '../data/statePrograms'
 
 const STAGE_BADGE = {
   'Prospecting':            'bg-gray-100 text-gray-600 border-gray-200',
@@ -48,9 +49,113 @@ function Badge({ label, map }) {
   )
 }
 
-function ProjectCard({ project, onRequestRemove }) {
+// ── Alert detection ──────────────────────────────────────────────────────────
+// Compares saved project state against current statePrograms.js data.
+// When Iteration 5 scrapers update the seed data, these fire automatically.
+const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
+
+function getAlerts(project) {
+  const current = stateById[project.state]
+  if (!current) return []
+
+  const alerts = []
+  const savedRank   = STATUS_RANK[project.csStatus]   ?? 2
+  const currentRank = STATUS_RANK[current.csStatus]   ?? 2
+
+  // Program status degraded since save
+  if (currentRank < savedRank) {
+    if (current.csStatus === 'limited') {
+      alerts.push({
+        level: 'warning',
+        pillar: 'Offtake',
+        label: 'Capacity Limited',
+        detail: `${current.name} program moved to limited capacity`,
+      })
+    } else if (current.csStatus === 'none' || current.csStatus === 'pending') {
+      alerts.push({
+        level: 'urgent',
+        pillar: 'Offtake',
+        label: 'Program Closed',
+        detail: `${current.name} CS program is no longer active`,
+      })
+    }
+  }
+
+  // Opportunity score dropped >10 pts since save
+  if (
+    project.opportunityScore != null &&
+    current.opportunityScore < project.opportunityScore - 10
+  ) {
+    alerts.push({
+      level: 'warning',
+      pillar: 'Market',
+      label: 'Score Drop',
+      detail: `Opportunity score fell from ${project.opportunityScore} → ${current.opportunityScore}`,
+    })
+  }
+
+  // IX difficulty increased since save
+  const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
+  if (
+    project.ixDifficulty &&
+    (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ixDifficulty] ?? 0)
+  ) {
+    alerts.push({
+      level: 'warning',
+      pillar: 'IX',
+      label: 'Queue Harder',
+      detail: `${current.name} IX difficulty increased to ${current.ixDifficulty.replace('_', ' ')}`,
+    })
+  }
+
+  // State data updated since project was saved
+  if (current.lastUpdated) {
+    const updatedAt = new Date(current.lastUpdated)
+    const savedAt   = new Date(project.savedAt)
+    const ageMs     = Date.now() - updatedAt.getTime()
+    const ageDays   = ageMs / (1000 * 60 * 60 * 24)
+    if (updatedAt > savedAt && ageDays < 90) {
+      alerts.push({
+        level: 'info',
+        pillar: null,
+        label: 'Data Refreshed',
+        detail: `${current.name} data updated ${current.lastUpdated}`,
+      })
+    }
+  }
+
+  return alerts
+}
+
+// ── Alert badge chip ──────────────────────────────────────────────────────────
+const ALERT_STYLES = {
+  urgent:  { chip: 'bg-red-50 border-red-200 text-red-700',    dot: 'bg-red-500'   },
+  warning: { chip: 'bg-amber-50 border-amber-200 text-amber-700', dot: 'bg-amber-400' },
+  info:    { chip: 'bg-blue-50 border-blue-200 text-blue-600', dot: 'bg-blue-400'  },
+}
+
+function AlertChip({ alert }) {
+  const s = ALERT_STYLES[alert.level] || ALERT_STYLES.info
   return (
-    <div className="bg-white border border-gray-200 rounded-lg px-6 py-5 flex flex-col gap-3">
+    <div className={`group relative inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-default ${s.chip}`}>
+      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+      {alert.pillar && <span className="opacity-60">{alert.pillar}</span>}
+      {alert.label}
+      {/* Tooltip */}
+      <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-52 bg-gray-900 text-white text-[10px] rounded px-2 py-1.5 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+        {alert.detail}
+      </span>
+    </div>
+  )
+}
+
+// ── Project card ──────────────────────────────────────────────────────────────
+function ProjectCard({ project, onRequestRemove }) {
+  const alerts = getAlerts(project)
+  const hasUrgent = alerts.some(a => a.level === 'urgent')
+
+  return (
+    <div className={`bg-white rounded-lg px-6 py-5 flex flex-col gap-3 border ${hasUrgent ? 'border-red-200' : 'border-gray-200'}`}>
       {/* Name + remove */}
       <div className="flex items-start justify-between gap-4">
         <h2 className="text-sm font-bold text-gray-900 leading-snug">{project.name}</h2>
@@ -67,6 +172,13 @@ function ProjectCard({ project, onRequestRemove }) {
           </svg>
         </button>
       </div>
+
+      {/* Alert badges */}
+      {alerts.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {alerts.map((a, i) => <AlertChip key={i} alert={a} />)}
+        </div>
+      )}
 
       {/* Key details row */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-gray-500">
