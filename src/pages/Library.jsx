@@ -146,7 +146,7 @@ function ScoreGauge({ score }) {
 
   return (
     <div className="flex flex-col items-center">
-      <svg viewBox="0 0 100 56" className="w-28">
+      <svg viewBox="0 0 100 64" className="w-28">
         {/* Track */}
         <path
           d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
@@ -487,14 +487,17 @@ function LibraryContent() {
   const { user, loading: authLoading } = useAuth()
   const [projects,      setProjects]      = useState([])
   const [loading,       setLoading]       = useState(true)
+  const [hasFetched,    setHasFetched]    = useState(false)
   const [error,         setError]         = useState(null)
   const [confirmRemove, setConfirmRemove] = useState(null)
 
   useEffect(() => {
     if (authLoading) return
     if (!user) { setLoading(false); return }
-
-    setLoading(true)
+    // Only show the loading skeleton on the very first fetch —
+    // subsequent re-fires (e.g. Supabase auth refresh on window focus)
+    // silently update data without collapsing expanded cards.
+    if (!hasFetched) setLoading(true)
     supabase
       .from('projects')
       .select('*')
@@ -503,6 +506,7 @@ function LibraryContent() {
         if (error) { setError(error.message); setLoading(false); return }
         setProjects((data || []).map(normalize))
         setLoading(false)
+        setHasFetched(true)
       })
   }, [user, authLoading])
 
