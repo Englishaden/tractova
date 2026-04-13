@@ -20,10 +20,10 @@ function getStateColor(stateId, isHovered, isSelected) {
   if (isSelected) return '#7C3AED'    // violet — intelligence highlight
   const state = stateById[stateId]
   if (isHovered) return '#D97706'     // amber on hover
-  if (!state) return '#D4E8DC'        // light muted — blank territory
+  if (!state) return '#CBD5E1'        // light muted — blank territory
 
   if (state.csStatus === 'pending') return '#B45309'  // rich burnt orange
-  if (state.csStatus === 'none')    return '#D4E8DC'  // light muted neutral
+  if (state.csStatus === 'none')    return '#CBD5E1'  // light muted neutral
 
   const score = state.feasibilityScore
   if (score >= 75) return '#059669'   // rich emerald — top markets
@@ -201,7 +201,7 @@ function Legend() {
     { color: '#065F46', label: 'Moderate (45–74)' },
     { color: '#053D2E', label: 'Low / limited' },
     { color: '#B45309', label: 'Pending launch' },
-    { color: '#D4E8DC', label: 'No program', border: 'rgba(15,110,86,0.20)' },
+    { color: '#CBD5E1', label: 'No program', border: 'rgba(15,110,86,0.20)' },
   ]
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
