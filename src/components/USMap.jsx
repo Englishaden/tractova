@@ -21,10 +21,10 @@ function getStateColor(stateId, isHovered, isSelected) {
   if (isSelected) return '#8B5CF6'   // violet — intelligence highlight
   const state = stateById[stateId]
   if (isHovered) return '#F59E0B'    // amber on hover
-  if (!state) return '#1E3028'       // dark muted — no data
+  if (!state) return '#2D5040'       // dark muted — no data
 
   if (state.csStatus === 'pending') return '#D97706'
-  if (state.csStatus === 'none')    return '#1E3028'
+  if (state.csStatus === 'none')    return '#2D5040'
 
   const score = state.feasibilityScore
   if (score >= 75) return '#4DE8A8'  // vivid teal-green — top markets
@@ -62,9 +62,9 @@ export default function USMap({ onStateClick, selectedStateId }) {
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        background: 'linear-gradient(145deg, #0D1628 0%, #111E2E 60%, #0E1A24 100%)',
-        border: '1px solid rgba(139,92,246,0.22)',
-        boxShadow: '0 0 0 1px rgba(139,92,246,0.08), 0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.15)',
+        background: 'linear-gradient(145deg, #0B2018 0%, #0F2A1E 55%, #0C2219 100%)',
+        border: '1px solid rgba(52,176,138,0.28)',
+        boxShadow: '0 0 0 1px rgba(15,110,86,0.10), 0 16px 48px rgba(0,0,0,0.28), 0 4px 12px rgba(0,0,0,0.14)',
       }}
     >
       {/* Aurora mesh gradient — absolutely positioned, pure decoration */}
@@ -73,10 +73,11 @@ export default function USMap({ onStateClick, selectedStateId }) {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: [
-            'radial-gradient(ellipse at 8% 80%,  rgba(139,92,246,0.22) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 90% 15%, rgba(99,102,241,0.18) 0%, transparent 48%)',
-            'radial-gradient(ellipse at 50% 100%,rgba(186,117,23,0.10) 0%, transparent 40%)',
-            'radial-gradient(ellipse at 55% 40%, rgba(15,110,86,0.10) 0%, transparent 45%)',
+            'radial-gradient(ellipse at 80% 15%, rgba(52,176,138,0.22) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 15% 80%, rgba(15,110,86,0.28) 0%, transparent 52%)',
+            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.10) 0%, transparent 60%)',
+            'radial-gradient(ellipse at 10% 10%, rgba(124,58,237,0.10) 0%, transparent 38%)',
+            'radial-gradient(ellipse at 85% 90%, rgba(186,117,23,0.08) 0%, transparent 35%)',
           ].join(', '),
         }}
       />
@@ -84,7 +85,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
       {/* Header */}
       <div
         className="relative z-10 px-5 pt-3 pb-2"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(139,92,246,0.06)' }}
+        style={{ borderBottom: '1px solid rgba(52,176,138,0.12)', background: 'rgba(15,110,86,0.08)' }}
       >
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.88)' }}>
@@ -203,7 +204,7 @@ function Legend() {
     { color: '#18A872', label: 'Moderate (45–74)' },
     { color: '#0A6E49', label: 'Low / limited' },
     { color: '#D97706', label: 'Pending launch' },
-    { color: '#1E3028', label: 'No program', border: 'rgba(255,255,255,0.12)' },
+    { color: '#2D5040', label: 'No program', border: 'rgba(255,255,255,0.12)' },
   ]
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
