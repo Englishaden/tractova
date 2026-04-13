@@ -50,27 +50,29 @@ function getMarketRank(stateId) {
 }
 
 function ArcGauge({ score }) {
-  const pct = Math.max(0, Math.min(100, score)) / 100
+  const s = (typeof score === 'number' && isFinite(score)) ? score : 0
+  const pct = Math.max(0, Math.min(100, s)) / 100
   const R = 44, cx = 58, cy = 54
-  // arc endpoint from 180° sweeping clockwise by pct*180°
+  // arc endpoint: sweep clockwise (sweep=1) from left to pct*180°
   const ex = cx - R * Math.cos(Math.PI * pct)
   const ey = cy - R * Math.sin(Math.PI * pct)
-  const largeArc = pct > 0.5 ? 1 : 0
+  // fill is always ≤ 180° of the full circle → never a large-arc in SVG terms
+  const largeArc = 0
 
   const track = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
   const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}` : ''
 
   let color = '#DC2626'
-  if (score >= 70) color = '#059669'
-  else if (score >= 55) color = '#0F6E56'
-  else if (score >= 40) color = '#D97706'
-  else if (score >= 25) color = '#EA580C'
+  if (s >= 70)      color = '#059669'
+  else if (s >= 55) color = '#0F6E56'
+  else if (s >= 40) color = '#D97706'
+  else if (s >= 25) color = '#EA580C'
 
   return (
     <svg viewBox="0 0 116 62" className="w-full max-w-[130px]">
       <path d={track} fill="none" stroke="#E5E7EB" strokeWidth="9" strokeLinecap="round" />
       {fill && <path d={fill} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" />}
-      <text x="58" y="50" textAnchor="middle" fontSize="22" fontWeight="800" fill={color} fontFamily="system-ui">{score}</text>
+      <text x="58" y="50" textAnchor="middle" fontSize="22" fontWeight="800" fill={color} fontFamily="system-ui">{s}</text>
     </svg>
   )
 }
@@ -223,27 +225,28 @@ function DataRow({ label, value, highlight, valueClass }) {
 }
 
 function EaseArcGauge({ score }) {
-  if (score === null || score === undefined) {
+  const s = (typeof score === 'number' && isFinite(score)) ? score : null
+  if (s === null) {
     return <span className="text-xs text-gray-400 italic">Not available</span>
   }
-  const pct = Math.max(0, Math.min(10, score)) / 10
+  const pct = Math.max(0, Math.min(10, s)) / 10
   const R = 44, cx = 58, cy = 54
   const ex = cx - R * Math.cos(Math.PI * pct)
   const ey = cy - R * Math.sin(Math.PI * pct)
-  const largeArc = pct > 0.5 ? 1 : 0
+  // fill is always ≤ 180° of the full circle → never a large-arc in SVG terms
   const track = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
-  const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}` : ''
+  const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${ex} ${ey}` : ''
 
   let color = '#DC2626'
-  if (score >= 7)      color = '#0F6E56'
-  else if (score >= 5) color = '#BA7517'
-  else if (score >= 3) color = '#EA580C'
+  if (s >= 7)      color = '#0F6E56'
+  else if (s >= 5) color = '#BA7517'
+  else if (s >= 3) color = '#EA580C'
 
   return (
     <svg viewBox="0 0 116 62" className="w-full max-w-[120px]">
       <path d={track} fill="none" stroke="#E5E7EB" strokeWidth="9" strokeLinecap="round" />
       {fill && <path d={fill} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" />}
-      <text x="58" y="50" textAnchor="middle" fontSize="20" fontWeight="800" fill={color} fontFamily="system-ui">{score}/10</text>
+      <text x="58" y="50" textAnchor="middle" fontSize="20" fontWeight="800" fill={color} fontFamily="system-ui">{s}/10</text>
     </svg>
   )
 }
