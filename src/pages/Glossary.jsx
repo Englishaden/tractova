@@ -255,11 +255,35 @@ export default function Glossary() {
     <div className="min-h-screen bg-surface">
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
         {/* Page header */}
-        <div className="mt-6 mb-6 max-w-2xl">
-          <h1 className="text-xl font-bold text-gray-900">Glossary</h1>
-          <p className="text-sm text-gray-500 mt-1.5 leading-relaxed">
-            Key terms used across the Tractova platform. Understanding these concepts is essential for interpreting market intelligence and making informed project decisions.
-          </p>
+        <div className="mt-6 mb-8">
+          <div className="relative bg-gradient-to-br from-[#063629] via-[#0a4a38] to-[#0d5c47] rounded-2xl px-8 py-7 overflow-hidden">
+            {/* Subtle grid texture */}
+            <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage:'repeating-linear-gradient(0deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px),repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px)'}} />
+            {/* Amber accent glow */}
+            <div className="absolute -top-8 -right-8 w-40 h-40 bg-accent-400 opacity-10 rounded-full blur-3xl" />
+
+            <div className="relative flex items-start justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2.5 mb-2">
+                  <span className="text-xs font-semibold tracking-widest text-accent-400 uppercase">Reference</span>
+                  <span className="w-px h-3 bg-accent-400/40" />
+                  <span className="text-xs font-medium text-emerald-300/60">{terms.length} terms</span>
+                </div>
+                <h1 className="text-2xl font-bold text-white tracking-tight">Industry Glossary</h1>
+                <p className="text-sm text-emerald-100/70 mt-2 leading-relaxed max-w-xl">
+                  Definitions for every key term used across Tractova — from program structures and dev stages to interconnection mechanics. Built for practitioners, not generalists.
+                </p>
+              </div>
+              {/* Decorative monospace tag */}
+              <div className="hidden sm:block flex-shrink-0 text-right">
+                <div className="font-mono text-[10px] text-emerald-400/40 leading-5 select-none">
+                  <div>offtake · ix · site</div>
+                  <div>stage · program</div>
+                  <div className="text-accent-400/50">v{new Date().getFullYear()}.1</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Search input + typeahead dropdown */}
