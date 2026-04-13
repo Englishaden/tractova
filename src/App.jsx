@@ -1,15 +1,24 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import Dashboard from './pages/Dashboard'
+import Landing from './pages/Landing'
 import Search from './pages/Search'
 import Glossary from './pages/Glossary'
 import Library from './pages/Library'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import Profile from './pages/Profile'
+
+// Shows Landing to logged-out visitors, Dashboard to signed-in users.
+// Blank surface during auth hydration prevents content flash.
+function HomeRoute() {
+  const { user, loading } = useAuth()
+  if (loading) return <div className="pt-14 min-h-screen bg-surface" />
+  return user ? <Dashboard /> : <Landing />
+}
 
 export default function App() {
   return (
@@ -18,7 +27,7 @@ export default function App() {
         <Nav />
         <Routes>
           {/* Public routes */}
-          <Route path="/"       element={<Dashboard />} />
+          <Route path="/"       element={<HomeRoute />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
 

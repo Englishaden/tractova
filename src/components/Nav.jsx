@@ -60,12 +60,12 @@ export default function Nav() {
           <span className="text-lg font-semibold tracking-tight text-gray-900">tractova</span>
         </Link>
 
-        {/* Nav links */}
+        {/* Nav links — only shown to signed-in users */}
         <div className="flex items-center gap-7">
-          {navLink('/', 'Dashboard')}
-          {navLink('/search', 'Tractova Lens')}
-          {navLink('/glossary', 'Glossary')}
-          {navLink('/library', 'My Projects')}
+          {user && navLink('/', 'Dashboard')}
+          {user && navLink('/search', 'Tractova Lens')}
+          {user && navLink('/glossary', 'Glossary')}
+          {user && navLink('/library', 'My Projects')}
         </div>
 
         {/* Auth */}
