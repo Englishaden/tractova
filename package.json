@@ -15,7 +15,9 @@
     "react-router-dom": "^6.23.1",
     "react-simple-maps": "^3.0.0",
     "recharts": "^2.12.7",
-    "topojson-client": "^3.1.0"
+    "stripe": "^22.0.1",
+    "topojson-client": "^3.1.0",
+    "us-atlas": "^3.0.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

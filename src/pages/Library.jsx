@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/UpgradePrompt'
 
 const STAGE_BADGE = {
   'Prospecting':            'bg-gray-100 text-gray-600 border-gray-200',
@@ -89,7 +91,15 @@ function ProjectCard({ project, onRequestRemove }) {
   )
 }
 
+// Paywall gate
 export default function Library() {
+  const { isPro, loading: subLoading } = useSubscription()
+  if (subLoading) return <div className="min-h-screen bg-surface" />
+  if (!isPro)     return <UpgradePrompt feature="My Projects" />
+  return <LibraryContent />
+}
+
+function LibraryContent() {
   const { user, loading: authLoading } = useAuth()
   const [projects, setProjects]         = useState([])
   const [loading, setLoading]           = useState(true)

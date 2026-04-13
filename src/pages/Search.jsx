@@ -6,6 +6,8 @@ import { getCountyData, revenueStackByState } from '../data/countyData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useSubscription } from '../hooks/useSubscription'
+import UpgradePrompt from '../components/UpgradePrompt'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -629,9 +631,18 @@ function SaveToast({ visible }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main Search component
-// ─────────────────────────────────────────────────────────────────────────────
+// Paywall gate — renders UpgradePrompt until subscription is confirmed Pro
 export default function Search() {
+  const { isPro, loading: subLoading } = useSubscription()
+  if (subLoading) return <div className="min-h-screen bg-surface" />
+  if (!isPro)     return <UpgradePrompt feature="Tractova Lens" />
+  return <SearchContent />
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Search content (only mounts when user is confirmed Pro)
+// ─────────────────────────────────────────────────────────────────────────────
+function SearchContent() {
   const { user } = useAuth()
   const [form, setForm] = useState({
     state: '',

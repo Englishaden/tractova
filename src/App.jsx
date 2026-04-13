@@ -11,6 +11,7 @@ import Library from './pages/Library'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import Profile from './pages/Profile'
+import UpgradeSuccess from './pages/UpgradeSuccess'
 
 // Shows Landing to logged-out visitors, Dashboard to signed-in users.
 // Blank surface during auth hydration prevents content flash.
@@ -28,8 +29,9 @@ export default function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/"       element={<HomeRoute />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
+          <Route path="/signin"          element={<SignIn />} />
+          <Route path="/signup"          element={<SignUp />} />
+          <Route path="/upgrade-success" element={<UpgradeSuccess />} />
 
           {/* Gated routes — require sign-in */}
           <Route
