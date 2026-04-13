@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -6,6 +6,7 @@ import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import { stateById } from '../data/statePrograms'
 
+// ── Stage / tech badge styles ────────────────────────────────────────────────
 const STAGE_BADGE = {
   'Prospecting':            'bg-gray-100 text-gray-600 border-gray-200',
   'Site Control':           'bg-blue-50 text-blue-700 border-blue-200',
@@ -23,7 +24,27 @@ const TECH_BADGE = {
   'Hybrid':          'bg-purple-50 text-purple-700 border-purple-200',
 }
 
-// Normalize Supabase snake_case row → camelCase shape the card expects
+const PIPELINE_STAGES = [
+  'Prospecting',
+  'Site Control',
+  'Pre-Development',
+  'Development',
+  'NTP (Notice to Proceed)',
+  'Construction',
+  'Operational',
+]
+
+const PIPELINE_SHORT = [
+  'Prospect',
+  'Site Ctrl',
+  'Pre-Dev',
+  'Dev',
+  'NTP',
+  'Construct',
+  'Operating',
+]
+
+// ── Normalize Supabase row → camelCase ──────────────────────────────────────
 function normalize(row) {
   return {
     id:               row.id,
@@ -38,6 +59,8 @@ function normalize(row) {
     csStatus:         row.cs_status,
     servingUtility:   row.serving_utility,
     opportunityScore: row.opportunity_score,
+    ixDifficulty:     row.ix_difficulty,
+    notes:            row.notes || '',
     savedAt:          row.saved_at,
   }
 }
@@ -50,8 +73,6 @@ function Badge({ label, map }) {
 }
 
 // ── Alert detection ──────────────────────────────────────────────────────────
-// Compares saved project state against current statePrograms.js data.
-// When Iteration 5 scrapers update the seed data, these fire automatically.
 const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
 
 function getAlerts(project) {
@@ -62,76 +83,40 @@ function getAlerts(project) {
   const savedRank   = STATUS_RANK[project.csStatus]   ?? 2
   const currentRank = STATUS_RANK[current.csStatus]   ?? 2
 
-  // Program status degraded since save
   if (currentRank < savedRank) {
     if (current.csStatus === 'limited') {
-      alerts.push({
-        level: 'warning',
-        pillar: 'Offtake',
-        label: 'Capacity Limited',
-        detail: `${current.name} program moved to limited capacity`,
-      })
+      alerts.push({ level: 'warning', pillar: 'Offtake', label: 'Capacity Limited', detail: `${current.name} program moved to limited capacity` })
     } else if (current.csStatus === 'none' || current.csStatus === 'pending') {
-      alerts.push({
-        level: 'urgent',
-        pillar: 'Offtake',
-        label: 'Program Closed',
-        detail: `${current.name} CS program is no longer active`,
-      })
+      alerts.push({ level: 'urgent', pillar: 'Offtake', label: 'Program Closed', detail: `${current.name} CS program is no longer active` })
     }
   }
 
-  // Opportunity score dropped >10 pts since save
-  if (
-    project.opportunityScore != null &&
-    current.opportunityScore < project.opportunityScore - 10
-  ) {
-    alerts.push({
-      level: 'warning',
-      pillar: 'Market',
-      label: 'Score Drop',
-      detail: `Opportunity score fell from ${project.opportunityScore} → ${current.opportunityScore}`,
-    })
+  if (project.opportunityScore != null && current.opportunityScore < project.opportunityScore - 10) {
+    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Opportunity score fell from ${project.opportunityScore} → ${current.opportunityScore}` })
   }
 
-  // IX difficulty increased since save
   const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
-  if (
-    project.ixDifficulty &&
-    (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ixDifficulty] ?? 0)
-  ) {
-    alerts.push({
-      level: 'warning',
-      pillar: 'IX',
-      label: 'Queue Harder',
-      detail: `${current.name} IX difficulty increased to ${current.ixDifficulty.replace('_', ' ')}`,
-    })
+  if (project.ixDifficulty && (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ixDifficulty] ?? 0)) {
+    alerts.push({ level: 'warning', pillar: 'IX', label: 'Queue Harder', detail: `${current.name} IX difficulty increased to ${current.ixDifficulty.replace('_', ' ')}` })
   }
 
-  // State data updated since project was saved
   if (current.lastUpdated) {
     const updatedAt = new Date(current.lastUpdated)
     const savedAt   = new Date(project.savedAt)
-    const ageMs     = Date.now() - updatedAt.getTime()
-    const ageDays   = ageMs / (1000 * 60 * 60 * 24)
+    const ageDays   = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24)
     if (updatedAt > savedAt && ageDays < 90) {
-      alerts.push({
-        level: 'info',
-        pillar: null,
-        label: 'Data Refreshed',
-        detail: `${current.name} data updated ${current.lastUpdated}`,
-      })
+      alerts.push({ level: 'info', pillar: null, label: 'Data Refreshed', detail: `${current.name} data updated ${current.lastUpdated}` })
     }
   }
 
   return alerts
 }
 
-// ── Alert badge chip ──────────────────────────────────────────────────────────
+// ── Alert chip ───────────────────────────────────────────────────────────────
 const ALERT_STYLES = {
-  urgent:  { chip: 'bg-red-50 border-red-200 text-red-700',    dot: 'bg-red-500'   },
+  urgent:  { chip: 'bg-red-50 border-red-200 text-red-700',       dot: 'bg-red-500'   },
   warning: { chip: 'bg-amber-50 border-amber-200 text-amber-700', dot: 'bg-amber-400' },
-  info:    { chip: 'bg-blue-50 border-blue-200 text-blue-600', dot: 'bg-blue-400'  },
+  info:    { chip: 'bg-blue-50 border-blue-200 text-blue-600',    dot: 'bg-blue-400'  },
 }
 
 function AlertChip({ alert }) {
@@ -141,7 +126,6 @@ function AlertChip({ alert }) {
       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
       {alert.pillar && <span className="opacity-60">{alert.pillar}</span>}
       {alert.label}
-      {/* Tooltip */}
       <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-52 bg-gray-900 text-white text-[10px] rounded px-2 py-1.5 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
         {alert.detail}
       </span>
@@ -149,61 +133,349 @@ function AlertChip({ alert }) {
   )
 }
 
-// ── Project card ──────────────────────────────────────────────────────────────
-function ProjectCard({ project, onRequestRemove }) {
-  const alerts = getAlerts(project)
-  const hasUrgent = alerts.some(a => a.level === 'urgent')
+// ── Score arc gauge ───────────────────────────────────────────────────────────
+function ScoreGauge({ score }) {
+  if (score == null) return null
+  const r    = 34
+  const cx   = 50
+  const cy   = 48
+  const circ = Math.PI * r
+  const fill = Math.max(0, Math.min(score / 100, 1)) * circ
+  const color = score >= 70 ? '#0F6E56' : score >= 50 ? '#F59E0B' : '#EF4444'
+  const label = score >= 70 ? 'Strong' : score >= 50 ? 'Moderate' : 'Weak'
 
   return (
-    <div className={`bg-white rounded-lg px-6 py-5 flex flex-col gap-3 border ${hasUrgent ? 'border-red-200' : 'border-gray-200'}`}>
-      {/* Name + remove */}
-      <div className="flex items-start justify-between gap-4">
-        <h2 className="text-sm font-bold text-gray-900 leading-snug">{project.name}</h2>
-        <button
-          onClick={() => onRequestRemove(project.id, project.name)}
-          title="Remove project"
-          className="flex-shrink-0 text-gray-300 hover:text-red-400 transition-colors mt-0.5"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-            <path d="M10 11v6M14 11v6"/>
-            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-          </svg>
-        </button>
-      </div>
-
-      {/* Alert badges */}
-      {alerts.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {alerts.map((a, i) => <AlertChip key={i} alert={a} />)}
-        </div>
-      )}
-
-      {/* Key details row */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-gray-500">
-        <span className="flex items-center gap-1">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          {project.county} County, {project.stateName || project.state}
-        </span>
-        <span className="flex items-center gap-1">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          {project.mw} MW AC
-        </span>
-        <span className="text-gray-300">·</span>
-        <Badge label={project.stage} map={STAGE_BADGE} />
-        <Badge label={project.technology} map={TECH_BADGE} />
-      </div>
-
-      {/* Saved date */}
-      <p className="text-[11px] text-gray-400">
-        Saved {new Date(project.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-      </p>
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 100 56" className="w-28">
+        {/* Track */}
+        <path
+          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+          fill="none" stroke="#e5e7eb" strokeWidth="7" strokeLinecap="round"
+        />
+        {/* Fill */}
+        <path
+          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
+          fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
+          strokeDasharray={`${fill} ${circ}`}
+        />
+        <text x={cx} y={cy - 3} textAnchor="middle" fontSize="20" fontWeight="800" fill="#0f172a">{score}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7.5" fill="#9ca3af">out of 100</text>
+      </svg>
+      <span className="text-[10px] font-semibold mt-0.5" style={{ color }}>{label} market</span>
     </div>
   )
 }
 
-// Paywall gate
+// ── IX difficulty display ────────────────────────────────────────────────────
+const IX_STYLES = {
+  easy:      'bg-emerald-50 text-emerald-700 border-emerald-200',
+  moderate:  'bg-yellow-50 text-yellow-700 border-yellow-200',
+  hard:      'bg-orange-50 text-orange-700 border-orange-200',
+  very_hard: 'bg-red-50 text-red-700 border-red-200',
+}
+const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
+
+// ── CS status display ────────────────────────────────────────────────────────
+const CS_STATUS_STYLES = {
+  active:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+  limited: 'bg-amber-50 text-amber-700 border-amber-200',
+  pending: 'bg-blue-50 text-blue-700 border-blue-200',
+  none:    'bg-red-50 text-red-700 border-red-200',
+}
+const CS_STATUS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'Closed' }
+
+// ── Pipeline progress ────────────────────────────────────────────────────────
+function PipelineProgress({ stage }) {
+  const activeIdx = PIPELINE_STAGES.indexOf(stage)
+  return (
+    <div>
+      <div className="flex items-center">
+        {PIPELINE_STAGES.map((s, i) => {
+          const done    = i < activeIdx
+          const current = i === activeIdx
+          const future  = i > activeIdx
+          return (
+            <div key={s} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center">
+                <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 transition-colors ${
+                  done    ? 'bg-primary border-primary' :
+                  current ? 'bg-white border-primary ring-2 ring-primary/20' :
+                            'bg-white border-gray-200'
+                }`} />
+              </div>
+              {i < PIPELINE_STAGES.length - 1 && (
+                <div className={`flex-1 h-0.5 mx-0.5 ${done ? 'bg-primary' : 'bg-gray-200'}`} />
+              )}
+            </div>
+          )
+        })}
+      </div>
+      <div className="flex mt-1.5">
+        {PIPELINE_SHORT.map((label, i) => {
+          const current = i === activeIdx
+          return (
+            <div key={label} className={`flex-1 last:flex-none text-center text-[8.5px] leading-tight font-medium truncate px-0.5 ${
+              current ? 'text-primary font-bold' : 'text-gray-300'
+            }`}>
+              {label}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Project card ─────────────────────────────────────────────────────────────
+function ProjectCard({ project, onRequestRemove }) {
+  const [expanded,   setExpanded]   = useState(false)
+  const [notes,      setNotes]      = useState(project.notes || '')
+  const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
+
+  const alerts    = getAlerts(project)
+  const hasUrgent = alerts.some(a => a.level === 'urgent')
+  const current   = stateById[project.state]
+
+  // Debounced notes save
+  useEffect(() => {
+    if (notes === project.notes) return
+    setSaveStatus('saving')
+    const timer = setTimeout(async () => {
+      await supabase.from('projects').update({ notes }).eq('id', project.id)
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 2000)
+    }, 900)
+    return () => clearTimeout(timer)
+  }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const scoreColor = (s) => {
+    if (s == null) return 'bg-gray-100 text-gray-500'
+    if (s >= 70)   return 'bg-primary-50 text-primary-700'
+    if (s >= 50)   return 'bg-amber-50 text-amber-700'
+    return 'bg-red-50 text-red-600'
+  }
+
+  const liveScore = current?.opportunityScore ?? null
+
+  return (
+    <div className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
+      hasUrgent ? 'border-red-200 shadow-sm' :
+      expanded  ? 'border-primary/25 shadow-sm' :
+                  'border-gray-200 hover:border-gray-300'
+    }`}>
+
+      {/* ── Collapsed header (always visible) ──────────────────────────────── */}
+      <div
+        className="px-5 py-4 flex items-center gap-4 cursor-pointer select-none"
+        onClick={() => setExpanded(e => !e)}
+      >
+        {/* Score bubble */}
+        <div className={`flex-shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center font-bold ${scoreColor(liveScore)}`}>
+          <span className="text-base leading-none">{liveScore ?? '—'}</span>
+          <span className="text-[8px] font-medium opacity-60 mt-0.5">score</span>
+        </div>
+
+        {/* Name + meta */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-sm font-bold text-gray-900 leading-snug">{project.name}</h2>
+            <Badge label={project.stage} map={STAGE_BADGE} />
+            {alerts.length > 0 && (
+              <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 border ${
+                hasUrgent
+                  ? 'bg-red-50 text-red-600 border-red-200'
+                  : 'bg-amber-50 text-amber-600 border-amber-200'
+              }`}>
+                {alerts.length} alert{alerts.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-0.5 truncate">
+            {project.county} County, {project.stateName || project.state}
+            {' · '}{project.mw} MW AC
+            {project.technology ? ` · ${project.technology}` : ''}
+          </p>
+        </div>
+
+        {/* Right controls */}
+        <div className="flex items-center gap-2.5 flex-shrink-0">
+          <button
+            onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
+            title="Remove project"
+            className="text-gray-300 hover:text-red-400 transition-colors p-1"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+            </svg>
+          </button>
+          <svg
+            className={`text-gray-300 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* ── Expanded panel ──────────────────────────────────────────────────── */}
+      {expanded && (
+        <div className="border-t border-gray-100 bg-gray-50/40 px-5 py-5">
+
+          {/* Alert strip */}
+          {alerts.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-5 pb-4 border-b border-gray-100">
+              {alerts.map((a, i) => <AlertChip key={i} alert={a} />)}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* ── Left: Market Intelligence ──────────────────────────────── */}
+            <div className="flex flex-col gap-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Market Intelligence</p>
+
+              {current ? (
+                <>
+                  {/* Score gauge */}
+                  <div className="flex items-center gap-5">
+                    <ScoreGauge score={liveScore} />
+                    <div className="flex flex-col gap-2">
+                      {/* CS status */}
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Program Status</p>
+                        <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {CS_STATUS_LABEL[current.csStatus] ?? current.csStatus}
+                        </span>
+                      </div>
+                      {/* IX difficulty */}
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">IX Difficulty</p>
+                        <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Program details */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">CS Program</p>
+                      <p className="text-gray-700 font-medium">{current.csProgram ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">LMI Required</p>
+                      <p className="text-gray-700 font-medium">
+                        {current.lmiRequired
+                          ? <span className="text-primary-700">{current.lmiPercent}% minimum</span>
+                          : <span className="text-gray-400">Not required</span>}
+                      </p>
+                    </div>
+                    {current.capacityMW && (
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Program Capacity</p>
+                        <p className="text-gray-700 font-medium">{current.capacityMW} MW</p>
+                      </div>
+                    )}
+                    {current.lastUpdated && (
+                      <div>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Data As Of</p>
+                        <p className="text-gray-500">{current.lastUpdated}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* IX notes */}
+                  {current.ixNotes && (
+                    <div className="bg-white border border-gray-100 rounded-lg px-3 py-2.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">IX Notes</p>
+                      <p className="text-[11px] text-gray-500 leading-relaxed">{current.ixNotes}</p>
+                    </div>
+                  )}
+
+                  {/* Program notes */}
+                  {current.programNotes && (
+                    <div className="bg-primary-50/60 border border-primary-100 rounded-lg px-3 py-2.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wider text-primary-500 mb-1">Program Context</p>
+                      <p className="text-[11px] text-primary-800/70 leading-relaxed">{current.programNotes}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-gray-400">No market data available for this state.</p>
+              )}
+            </div>
+
+            {/* ── Right: Your Deal ───────────────────────────────────────── */}
+            <div className="flex flex-col gap-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Your Deal</p>
+
+              {/* Pipeline progress */}
+              <div className="bg-white border border-gray-100 rounded-lg px-4 py-3">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-3">Development Stage</p>
+                <PipelineProgress stage={project.stage} />
+              </div>
+
+              {/* Deal details */}
+              <div className="bg-white border border-gray-100 rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Technology</p>
+                  <p className="text-gray-700 font-medium">{project.technology || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Capacity</p>
+                  <p className="text-gray-700 font-medium">{project.mw} MW AC</p>
+                </div>
+                {project.servingUtility && (
+                  <div className="col-span-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Serving Utility</p>
+                    <p className="text-gray-700 font-medium">{project.servingUtility}</p>
+                  </div>
+                )}
+                <div className="col-span-2">
+                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Saved</p>
+                  <p className="text-gray-400">{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Deal Notes</p>
+                  {saveStatus === 'saving' && (
+                    <span className="text-[9px] text-gray-400 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse inline-block" />
+                      Saving…
+                    </span>
+                  )}
+                  {saveStatus === 'saved' && (
+                    <span className="text-[9px] text-emerald-600 flex items-center gap-1">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      Saved
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder="Add notes — landowner contact, queue position, site visit findings…"
+                  rows={4}
+                  className="w-full text-xs text-gray-700 placeholder-gray-300 bg-white border border-gray-200 rounded-lg px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors leading-relaxed"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Paywall gate ─────────────────────────────────────────────────────────────
 export default function Library() {
   const { isPro, loading: subLoading } = useSubscription()
   if (subLoading) return <div className="min-h-screen bg-surface" />
@@ -213,12 +485,11 @@ export default function Library() {
 
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth()
-  const [projects, setProjects]         = useState([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState(null)
-  const [confirmRemove, setConfirmRemove] = useState(null) // { id, name } | null
+  const [projects,      setProjects]      = useState([])
+  const [loading,       setLoading]       = useState(true)
+  const [error,         setError]         = useState(null)
+  const [confirmRemove, setConfirmRemove] = useState(null)
 
-  // Fetch projects whenever the logged-in user changes
   useEffect(() => {
     if (authLoading) return
     if (!user) { setLoading(false); return }
@@ -238,21 +509,13 @@ function LibraryContent() {
   const handleRequestRemove = (id, name) => setConfirmRemove({ id, name })
 
   const handleConfirmRemove = async () => {
-    const { error } = await supabase
-      .from('projects')
-      .delete()
-      .eq('id', confirmRemove.id)
-
+    const { error } = await supabase.from('projects').delete().eq('id', confirmRemove.id)
     if (!error) setProjects((prev) => prev.filter((p) => p.id !== confirmRemove.id))
     setConfirmRemove(null)
   }
 
-  // ── Render states ────────────────────────────────────────────────────────────
-
-  // Still resolving auth session
   if (authLoading) return null
 
-  // Not signed in
   if (!user) {
     return (
       <div className="min-h-screen bg-surface">
@@ -269,22 +532,10 @@ function LibraryContent() {
               </svg>
             </div>
             <p className="text-sm font-semibold text-gray-700">Sign in to view your projects</p>
-            <p className="text-xs text-gray-400 mt-1 max-w-xs">
-              Your saved projects are tied to your account and sync across devices.
-            </p>
+            <p className="text-xs text-gray-400 mt-1 max-w-xs">Your saved projects are tied to your account and sync across devices.</p>
             <div className="flex items-center gap-3 mt-5">
-              <Link
-                to="/signin"
-                className="text-sm font-semibold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                to="/signup"
-                className="text-sm font-medium text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-lg hover:border-gray-300 transition-colors"
-              >
-                Create Account
-              </Link>
+              <Link to="/signin" className="text-sm font-semibold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">Sign In</Link>
+              <Link to="/signup" className="text-sm font-medium text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-lg hover:border-gray-300 transition-colors">Create Account</Link>
             </div>
           </div>
         </main>
@@ -302,9 +553,7 @@ function LibraryContent() {
             <div>
               <p className="text-[10px] font-bold tracking-widest text-primary/60 uppercase mb-1">Deal Tracker</p>
               <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Projects</h1>
-              <p className="text-sm text-gray-400 mt-1">
-                Your saved deals — tracked, scored, and monitored for policy changes.
-              </p>
+              <p className="text-sm text-gray-400 mt-1">Your saved deals — tracked, scored, and monitored for policy changes.</p>
             </div>
             <Link
               to="/search"
@@ -319,27 +568,9 @@ function LibraryContent() {
           {projects.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
               {[
-                {
-                  label: 'Saved Projects',
-                  value: projects.length,
-                  sub: 'across all states',
-                  color: 'border-primary/20 bg-primary-50/60',
-                  val: 'text-primary-700',
-                },
-                {
-                  label: 'Total Capacity',
-                  value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`,
-                  sub: 'AC nameplate',
-                  color: 'border-accent-200 bg-accent-50/60',
-                  val: 'text-accent-700',
-                },
-                {
-                  label: 'Active Alerts',
-                  value: projects.reduce((s, p) => s + getAlerts(p).length, 0),
-                  sub: 'policy or market flags',
-                  color: 'border-gray-200 bg-white',
-                  val: 'text-gray-800',
-                },
+                { label: 'Saved Projects', value: projects.length, sub: 'across all states', color: 'border-primary/20 bg-primary-50/60', val: 'text-primary-700' },
+                { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', color: 'border-accent-200 bg-accent-50/60', val: 'text-accent-700' },
+                { label: 'Active Alerts', value: projects.reduce((s, p) => s + getAlerts(p).length, 0), sub: 'policy or market flags', color: 'border-gray-200 bg-white', val: 'text-gray-800' },
               ].map(({ label, value, sub, color, val }) => (
                 <div key={label} className={`border rounded-xl px-4 py-3 ${color}`}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
@@ -353,11 +584,14 @@ function LibraryContent() {
 
         {/* Loading skeleton */}
         {loading ? (
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-lg px-6 py-5 animate-pulse">
-                <div className="h-4 bg-gray-100 rounded w-1/3 mb-3" />
-                <div className="h-3 bg-gray-100 rounded w-1/2" />
+              <div key={i} className="bg-white border border-gray-200 rounded-xl px-5 py-4 animate-pulse flex items-center gap-4">
+                <div className="w-11 h-11 bg-gray-100 rounded-lg flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="h-3.5 bg-gray-100 rounded w-1/3 mb-2" />
+                  <div className="h-2.5 bg-gray-100 rounded w-1/2" />
+                </div>
               </div>
             ))}
           </div>
@@ -366,7 +600,7 @@ function LibraryContent() {
             Failed to load projects: {error}
           </div>
         ) : projects.length > 0 ? (
-          <div className="grid gap-4">
+          <div className="grid gap-3">
             {projects.map((p) => (
               <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />
             ))}
@@ -410,21 +644,14 @@ function LibraryContent() {
               <h3 className="text-sm font-bold text-gray-900">Remove project?</h3>
             </div>
             <p className="text-xs text-gray-500 mb-1 leading-relaxed">
-              Are you sure you want to remove{' '}
-              <span className="font-semibold text-gray-700">{confirmRemove.name}</span>?
+              Are you sure you want to remove <span className="font-semibold text-gray-700">{confirmRemove.name}</span>?
             </p>
             <p className="text-xs text-gray-400 mb-5">This cannot be undone.</p>
             <div className="flex items-center justify-end gap-2">
-              <button
-                onClick={() => setConfirmRemove(null)}
-                className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors"
-              >
+              <button onClick={() => setConfirmRemove(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors">
                 No, keep it
               </button>
-              <button
-                onClick={handleConfirmRemove}
-                className="flex items-center gap-2 bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-              >
+              <button onClick={handleConfirmRemove} className="flex items-center gap-2 bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
                 Yes, remove
               </button>
             </div>
