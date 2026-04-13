@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -227,6 +227,89 @@ function PipelineProgress({ stage }) {
   )
 }
 
+// ── CSV export ───────────────────────────────────────────────────────────────
+function exportCSV(projects) {
+  const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
+  const headers = ['Name', 'State', 'County', 'MW AC', 'Technology', 'Stage', 'CS Status', 'CS Program', 'Feasibility Score', 'Serving Utility', 'Saved Date']
+  const rows = projects.map(p => [
+    p.name,
+    p.stateName || p.state,
+    p.county,
+    p.mw,
+    p.technology || '',
+    p.stage || '',
+    CS_LABEL[p.csStatus] || p.csStatus || '',
+    p.csProgram || '',
+    p.feasibilityScore ?? '',
+    p.servingUtility || '',
+    p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
+  ])
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href = url
+  a.download = `tractova-projects-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── Inline stage picker ───────────────────────────────────────────────────────
+function StagePicker({ stage, projectId, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const handleSelect = async (newStage) => {
+    setOpen(false)
+    if (newStage === stage) return
+    await supabase.from('projects').update({ stage: newStage }).eq('id', projectId)
+    onChange(newStage)
+  }
+
+  const stageCls = STAGE_BADGE[stage] || 'bg-gray-100 text-gray-600 border-gray-200'
+
+  return (
+    <div ref={ref} className="relative inline-flex">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen(v => !v) }}
+        title="Edit stage"
+        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border font-medium transition-opacity hover:opacity-80 ${stageCls}`}
+      >
+        {stage}
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <ul className="absolute z-50 top-full mt-1 left-0 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden min-w-[210px]"
+            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+          {PIPELINE_STAGES.map((s) => (
+            <li key={s}>
+              <button
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(s) }}
+                className={`w-full text-left flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
+                  s === stage
+                    ? 'font-semibold bg-primary-50 text-primary-700'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s === stage ? 'bg-primary' : 'bg-transparent'}`} />
+                {s}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 // ── Compare chip (icon-only button, sits in card right controls) ─────────────
 function CompareChip({ project }) {
   const { add, remove, isInCompare, items, MAX_ITEMS } = useCompare()
@@ -265,6 +348,7 @@ function ProjectCard({ project, onRequestRemove }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
+  const [stage,      setStage]      = useState(project.stage || '')
 
   const alerts    = getAlerts(project)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
@@ -313,7 +397,7 @@ function ProjectCard({ project, onRequestRemove }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-sm font-bold text-gray-900 leading-snug">{project.name}</h2>
-            <Badge label={project.stage} map={STAGE_BADGE} />
+            <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
             {alerts.length > 0 && (
               <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 border ${
                 hasUrgent
@@ -451,8 +535,11 @@ function ProjectCard({ project, onRequestRemove }) {
 
               {/* Pipeline progress */}
               <div className="bg-white border border-gray-100 rounded-lg px-4 py-3">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-3">Development Stage</p>
-                <PipelineProgress stage={project.stage} />
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Development Stage</p>
+                  <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
+                </div>
+                <PipelineProgress stage={stage} />
               </div>
 
               {/* Deal details */}
@@ -494,11 +581,26 @@ function ProjectCard({ project, onRequestRemove }) {
                     </span>
                   )}
                 </div>
+                {/* Hint chips — click to append prompt header */}
+                {!notes && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Landowner', 'Queue position', 'Key dates', 'ISA deposit', 'Site notes'].map((hint) => (
+                      <button
+                        key={hint}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setNotes(`${hint}: `) }}
+                        className="text-[10px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 bg-white hover:border-primary/40 hover:text-primary transition-colors"
+                      >
+                        + {hint}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
-                  placeholder="Add notes — landowner contact, queue position, site visit findings…"
+                  placeholder="Landowner · Queue position · Key dates · ISA deposit · Site findings"
                   rows={4}
                   className="w-full text-xs text-gray-700 placeholder-gray-300 bg-white border border-gray-200 rounded-lg px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors leading-relaxed"
                 />
@@ -595,13 +697,25 @@ function LibraryContent() {
               <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Projects</h1>
               <p className="text-sm text-gray-400 mt-1">Your saved deals — tracked, scored, and monitored for policy changes.</p>
             </div>
-            <Link
-              to="/search"
-              className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3.5 py-2 rounded-lg transition-colors"
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              New Search
-            </Link>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {projects.length > 0 && (
+                <button
+                  onClick={() => exportCSV(projects)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 hover:border-gray-300 px-3.5 py-2 rounded-lg transition-colors"
+                  title="Export all projects to CSV"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export CSV
+                </button>
+              )}
+              <Link
+                to="/search"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3.5 py-2 rounded-lg transition-colors"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Search
+              </Link>
+            </div>
           </div>
 
           {/* Stat strip */}

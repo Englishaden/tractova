@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 
+// Convert term name to a URL-safe anchor slug
+function toSlug(term) {
+  return term.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+}
+
 const terms = [
   // ── Development stages ──────────────────────────────────────────────────────
   {
@@ -7,42 +12,49 @@ const terms = [
     pillar: 'stage',
     definition:
       'The earliest stage of project development. A developer is identifying potential sites based on available land, favorable grid conditions, and state program activity — but has not yet engaged landowners or utilities. Prospecting decisions are driven by desktop research, GIS analysis, and market intelligence. Tractova is purpose-built to support this stage.',
+    related: ['Site Control', 'Feasibility Score', 'IX Queue (Interconnection Queue)'],
   },
   {
     term: 'Site Control',
     pillar: 'stage',
     definition:
       'The developer has secured a legal right to develop a specific parcel — typically through an option agreement or lease with the landowner. Site control is a prerequisite for filing an interconnection application and most project financing. Standard option agreements run 3–5 years with renewal rights tied to project milestones.',
+    related: ['Pre-Development', 'ISA (Interconnection Study Agreement)', 'Offtake'],
   },
   {
     term: 'Pre-Development',
     pillar: 'stage',
     definition:
       'Site control is secured and the developer is completing foundational studies and permits before construction begins. Activities include environmental surveys, Phase I/II assessments, permitting applications, and interconnection study execution (ISA filing). Pre-development spend typically ranges from $50K–$500K before a project reaches NTP.',
+    related: ['Site Control', 'ISA (Interconnection Study Agreement)', 'Development'],
   },
   {
     term: 'Development',
     pillar: 'stage',
     definition:
       'The project has cleared pre-development milestones and is actively advancing toward construction. Key activities include finalizing the Interconnection Agreement (IA), securing offtake contracts, completing land use permits, and arranging project financing. Many projects fail to close financing and never exit this stage.',
+    related: ['Pre-Development', 'NTP (Notice to Proceed)', 'Offtake', 'ITC (Investment Tax Credit)'],
   },
   {
     term: 'NTP (Notice to Proceed)',
     pillar: 'stage',
     definition:
       'A contractual milestone issued by the project owner or lender authorizing the EPC contractor to begin construction. NTP signals that financing is closed, permits are in hand, interconnection is approved, and offtake is contracted. It is the official start of the construction timeline and a key trigger for lender disbursements.',
+    related: ['Development', 'Construction', 'ITC (Investment Tax Credit)'],
   },
   {
     term: 'Construction',
     pillar: 'stage',
     definition:
       'The EPC contractor is actively building the project. For community solar, construction typically takes 3–9 months depending on project size and grid connection complexity. Key milestones include equipment procurement, civil work, racking installation, electrical balance-of-system completion, and utility commissioning inspection.',
+    related: ['NTP (Notice to Proceed)', 'Operational'],
   },
   {
     term: 'Operational',
     pillar: 'stage',
     definition:
       'The project has received Permission to Operate (PTO) from the utility and is generating electricity. For community solar, operational status triggers subscriber billing and revenue recognition. Ongoing responsibilities include O&M, subscriber management, performance reporting, and REC delivery under the offtake contract.',
+    related: ['Construction', 'REC (Renewable Energy Certificate)', 'Offtake'],
   },
 
   // ── Program status terms ─────────────────────────────────────────────────────
@@ -51,66 +63,77 @@ const terms = [
     pillar: 'offtake',
     definition:
       'A state has a currently open, funded community solar program accepting new project applications or subscriber enrollments. Active programs have defined capacity, compensation structures, and regulatory approval. Contrast with Limited (nearly full) or Pending (rules not yet finalized).',
+    related: ['Limited Capacity', 'LMI (Low-to-Moderate Income)', 'Offtake'],
   },
   {
     term: 'Limited Capacity',
     pillar: 'offtake',
     definition:
       'The program exists and is operational, but available capacity is nearly exhausted. Developers should monitor closely for new tranches or block openings. A Limited state may become Active again when the program administrator authorizes additional MW.',
+    related: ['Active Program', 'Offtake', 'Feasibility Score'],
   },
   {
     term: 'LMI (Low-to-Moderate Income)',
     pillar: 'offtake',
     definition:
       'Federal income designation, typically defined as households earning ≤80% of Area Median Income (AMI). Many community solar programs mandate a minimum percentage of LMI-qualified subscribers — commonly 20–51%. Meeting LMI requirements can also unlock additional ITC adders under the Inflation Reduction Act (IRA Section 48E).',
+    related: ['ITC (Investment Tax Credit)', 'Active Program', 'Offtake'],
   },
   {
     term: 'IX Queue (Interconnection Queue)',
     pillar: 'ix',
     definition:
       'The backlog of generation projects awaiting utility or ISO/RTO approval to connect to the electric grid. Queue position, study timelines, Network Upgrade costs, and ISA withdrawal rates determine whether a project is technically and economically viable. Queue saturation is one of the top project killers for small developers.',
+    related: ['ISA (Interconnection Study Agreement)', 'Feasibility Score', 'Pre-Development'],
   },
   {
     term: 'ISA (Interconnection Study Agreement)',
     pillar: 'ix',
     definition:
       'A contract between a developer and the utility or ISO/RTO that triggers the formal interconnection feasibility or system impact study. Executing an ISA is a major project milestone — it commits capital (typically $10K–$100K+ in study deposits), locks in a queue position, and initiates the timeline toward a final Interconnection Agreement (IA).',
+    related: ['IX Queue (Interconnection Queue)', 'Pre-Development', 'Development'],
   },
   {
     term: 'VDER (Value of Distributed Energy Resources)',
     pillar: 'offtake',
     definition:
       'New York\'s compensation framework for distributed generation and community solar, replacing net metering for most projects. VDER calculates credit rates based on time of delivery, location on the grid, installed capacity, and system attributes rather than a flat avoided cost rate. Also called the "Value Stack." Rates vary by utility territory and are set annually by NYSERDA.',
+    related: ['NEM (Net Energy Metering)', 'Offtake', 'REC (Renewable Energy Certificate)'],
   },
   {
     term: 'NEM (Net Energy Metering)',
     pillar: 'offtake',
     definition:
       'A billing mechanism that credits solar system owners for electricity exported to the grid, typically at or near the retail rate. NEM policies vary significantly by state and utility and are being modified in several markets — most notably NEM 3.0 in California, which reduced export credits by ~75%. Virtual NEM (VNEM) is the mechanism used for community solar subscriber billing in many states.',
+    related: ['VDER (Value of Distributed Energy Resources)', 'ANEM (Adjustable Net Energy Metering)', 'Offtake'],
   },
   {
     term: 'Offtake',
     pillar: 'offtake',
     definition:
       'The arrangement by which electricity generated by a project is sold or assigned to end users. In community solar, offtake means subscriber enrollment — the process of signing up households or businesses to receive bill credits from the project\'s output. Offtake risk (inability to find subscribers) is a key early-stage concern for community solar developers.',
+    related: ['Active Program', 'REC (Renewable Energy Certificate)', 'NEM (Net Energy Metering)', 'LMI (Low-to-Moderate Income)'],
   },
   {
     term: 'REC (Renewable Energy Certificate)',
     pillar: 'offtake',
     definition:
       'A market instrument representing the environmental attributes of 1 MWh of renewable electricity generation. RECs can be sold separately from the physical electricity ("unbundled") or bundled with power purchase agreements. State RPS (Renewable Portfolio Standard) requirements drive REC demand. Community solar projects may generate SRECs (Solar RECs) or TRECs depending on state program structure.',
+    related: ['SREC (Solar Renewable Energy Certificate)', 'ITC (Investment Tax Credit)', 'Offtake'],
   },
   {
     term: 'ITC (Investment Tax Credit)',
     pillar: 'offtake',
     definition:
       'A federal tax credit for renewable energy projects equal to a percentage of qualifying project costs, governed by IRA Section 48/48E. The base ITC rate is 30% for projects meeting prevailing wage and apprenticeship requirements. Adders are available for Energy Community siting (+10%), Low-Income Community Projects (+10–20%), and domestic content (+10%). Most community solar projects under 5MW AC qualify for the full adder stack.',
+    related: ['LMI (Low-to-Moderate Income)', 'REC (Renewable Energy Certificate)', 'Feasibility Score'],
   },
   {
     term: 'Feasibility Score',
     pillar: 'all',
     definition:
       'A proprietary Tractova composite score (0–100) reflecting the combined attractiveness of a state for community solar development. Inputs include CS program status, remaining capacity, IX difficulty, LMI requirements, and IRA adder eligibility. Higher scores indicate states where a small developer is most likely to close a viable project. This scoring is Tractova\'s primary differentiated data layer.',
+    related: ['IX Queue (Interconnection Queue)', 'Active Program', 'ITC (Investment Tax Credit)'],
   },
 
   // ── Additional industry terms ────────────────────────────────────────────────
@@ -119,30 +142,35 @@ const terms = [
     pillar: 'offtake',
     definition:
       'A state-specific Solar REC representing the environmental attributes of 1 MWh of solar generation. SRECs trade on state-specific markets and prices vary widely — from under $10/MWh in oversupplied markets to $300+/MWh in constrained markets like Massachusetts. States with active SREC markets include MA, NJ, MD, DC, OH, and PA. SREC revenue is often a key component of the revenue stack and can make or break project economics in these states.',
+    related: ['REC (Renewable Energy Certificate)', 'Illinois Shines', 'Offtake'],
   },
   {
     term: 'Illinois Shines',
     pillar: 'offtake',
     definition:
       'Illinois\' community solar and distributed generation incentive program, formally structured as the Adjustable Block Program (ABP). Administered by the Illinois Power Agency (IPA), Illinois Shines provides Renewable Energy Credits (RECs) at a fixed price per MWh under a 15-year contract. Projects up to 2,000 kW AC qualify. The program is funded through the Climate and Equitable Jobs Act (CEJA) and is widely regarded as one of the most developer-friendly CS programs in the country. Capacity is released in tranches and waitlists can form quickly.',
+    related: ['ABP (Adjustable Block Program)', 'CSEGS (Community Solar Electric Generating System)', 'REC (Renewable Energy Certificate)'],
   },
   {
     term: 'CSEGS (Community Solar Electric Generating System)',
     pillar: 'offtake',
     definition:
       'The formal regulatory term used in Illinois for a community solar project. A CSEGS is a distributed generation facility of up to 2,000 kW AC whose output is subscribed by multiple customers in the same utility territory. CSEGS projects are eligible for Illinois Shines REC contracts under the ABP. The term is defined under the Illinois Public Utilities Act and used in all IPA program filings.',
+    related: ['Illinois Shines', 'ABP (Adjustable Block Program)', 'Offtake'],
   },
   {
     term: 'ANEM (Adjustable Net Energy Metering)',
     pillar: 'offtake',
     definition:
       'A community solar billing mechanism used in select states that adjusts subscriber credit rates based on time-of-use or other market factors, rather than applying a flat volumetric credit. ANEM structures attempt to align subscriber bill credits with the actual market value of solar generation, similar in intent to New York\'s VDER Value Stack. Specific ANEM rules vary by state and utility territory.',
+    related: ['NEM (Net Energy Metering)', 'VDER (Value of Distributed Energy Resources)', 'Offtake'],
   },
   {
     term: 'ABP (Adjustable Block Program)',
     pillar: 'offtake',
     definition:
       'The formal programmatic structure underlying Illinois Shines, administered by the Illinois Power Agency. The ABP sets fixed REC prices ("blocks") by project category — small distributed generation, large distributed generation, and community solar — and adjusts pricing across tranches based on demand. When a block fills, the IPA sets new pricing for the next tranche. The ABP is widely considered a model for well-structured state community solar incentive programs and is frequently cited by other states designing their own programs.',
+    related: ['Illinois Shines', 'CSEGS (Community Solar Electric Generating System)', 'REC (Renewable Energy Certificate)'],
   },
 ]
 
@@ -211,6 +239,22 @@ export default function Glossary() {
     return () => document.removeEventListener('mousedown', onOutside)
   }, [])
 
+  // Deep-link: scroll to hashed term on mount
+  useEffect(() => {
+    const hash = window.location.hash.slice(1)
+    if (!hash) return
+    const match = terms.find(t => toSlug(t.term) === hash)
+    if (!match) return
+    setTimeout(() => {
+      const el = cardRefs.current[match.term]
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        setHighlighted(match.term)
+        setTimeout(() => setHighlighted(null), 1400)
+      }
+    }, 200)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Typeahead: match term names only
   const suggestions = query.trim()
     ? terms.filter((t) => t.term.toLowerCase().includes(query.toLowerCase()))
@@ -226,11 +270,11 @@ export default function Glossary() {
     return matchesPillar && matchesQuery
   })
 
-  const handleSuggestionClick = (termName) => {
+  const scrollToTerm = (termName) => {
     setQuery('')
     setShowDropdown(false)
-    setPillar(null) // ensure the target card is visible
-
+    setPillar(null)
+    window.location.hash = toSlug(termName)
     setTimeout(() => {
       const el = cardRefs.current[termName]
       if (el) {
@@ -239,6 +283,13 @@ export default function Glossary() {
         setTimeout(() => setHighlighted(null), 1400)
       }
     }, 50)
+  }
+
+  const handleSuggestionClick = (termName) => scrollToTerm(termName)
+
+  const copyAnchorLink = (termName) => {
+    const url = `${window.location.origin}${window.location.pathname}#${toSlug(termName)}`
+    navigator.clipboard.writeText(url).catch(() => {})
   }
 
   const handleQueryChange = (e) => {
@@ -364,6 +415,7 @@ export default function Glossary() {
             {filtered.map((t) => (
               <div
                 key={t.term}
+                id={toSlug(t.term)}
                 ref={(el) => { cardRefs.current[t.term] = el }}
                 className={`bg-white border rounded-lg px-6 py-5 transition-all duration-700 ${
                   highlighted === t.term
@@ -374,12 +426,41 @@ export default function Glossary() {
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2.5 flex-wrap">
-                      <h2 className="text-sm font-bold text-gray-900">{t.term}</h2>
+                      <button
+                        onClick={() => copyAnchorLink(t.term)}
+                        title="Copy link to this term"
+                        className="group flex items-center gap-1.5 text-sm font-bold text-gray-900 hover:text-primary transition-colors"
+                      >
+                        {t.term}
+                        <svg
+                          width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                          className="opacity-0 group-hover:opacity-40 transition-opacity flex-shrink-0"
+                        >
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                        </svg>
+                      </button>
                       <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PILLAR_BADGE[t.pillar]}`}>
                         {PILLAR_LABEL[t.pillar]}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600 mt-2 leading-relaxed">{t.definition}</p>
+
+                    {/* Related terms */}
+                    {t.related?.length > 0 && (
+                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-gray-100">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">See also:</span>
+                        {t.related.map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => scrollToTerm(r)}
+                            className="text-xs text-primary hover:text-primary-700 hover:underline transition-colors"
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
