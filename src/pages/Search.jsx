@@ -154,8 +154,8 @@ function MarketPositionPanel({ stateProgram, countyData }) {
         {/* Center — Sub-score bars */}
         <div className="px-5 py-4 flex flex-col justify-center gap-3">
           <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F6E56" />
-          <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#2563EB" />
-          <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#D97706" />
+          <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#BA7517" />
+          <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#2563EB" />
         </div>
 
         {/* Right — Arc gauge */}
@@ -222,23 +222,29 @@ function DataRow({ label, value, highlight, valueClass }) {
   )
 }
 
-function EaseScoreMeter({ score }) {
+function EaseArcGauge({ score }) {
   if (score === null || score === undefined) {
     return <span className="text-xs text-gray-400 italic">Not available</span>
   }
-  const pct = score * 10
-  let color = 'bg-red-400'
-  if (score >= 7) color = 'bg-primary'
-  else if (score >= 5) color = 'bg-yellow-400'
-  else if (score >= 3) color = 'bg-orange-400'
+  const pct = Math.max(0, Math.min(10, score)) / 10
+  const R = 44, cx = 58, cy = 54
+  const ex = cx - R * Math.cos(Math.PI * pct)
+  const ey = cy - R * Math.sin(Math.PI * pct)
+  const largeArc = pct > 0.5 ? 1 : 0
+  const track = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
+  const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}` : ''
+
+  let color = '#DC2626'
+  if (score >= 7)      color = '#0F6E56'
+  else if (score >= 5) color = '#BA7517'
+  else if (score >= 3) color = '#EA580C'
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs font-bold text-gray-700 w-10 text-right">{score} / 10</span>
-    </div>
+    <svg viewBox="0 0 116 62" className="w-full max-w-[120px]">
+      <path d={track} fill="none" stroke="#E5E7EB" strokeWidth="9" strokeLinecap="round" />
+      {fill && <path d={fill} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" />}
+      <text x="58" y="50" textAnchor="middle" fontSize="20" fontWeight="800" fill={color} fontFamily="system-ui">{score}/10</text>
+    </svg>
   )
 }
 
@@ -323,11 +329,53 @@ function PillarIcon({ type }) {
 function SiteControlCard({ siteControl, stateName, county }) {
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
 
+  const tiles = [
+    {
+      label: 'Land',
+      status: availableLand ? 'Available' : 'Limited',
+      color: availableLand ? '#0F6E56' : '#DC2626',
+      bg: availableLand ? 'rgba(15,110,86,0.06)' : 'rgba(220,38,38,0.06)',
+      note: landNotes,
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Wetland',
+      status: wetlandWarning ? 'Warning' : 'Low Risk',
+      color: wetlandWarning ? '#B45309' : '#0F6E56',
+      bg: wetlandWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,110,86,0.06)',
+      note: wetlandNotes || (wetlandWarning ? null : 'Low wetland risk on typical upland sites'),
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
+        </svg>
+      ),
+    },
+    {
+      label: 'Zoning',
+      status: 'Mixed',
+      color: '#6B7280',
+      bg: 'rgba(107,114,128,0.06)',
+      note: landUseNotes,
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/>
+        </svg>
+      ),
+    },
+  ]
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col">
+    <div
+      className="bg-white border border-gray-200 rounded-lg flex flex-col"
+      style={{ borderLeft: '3px solid #2563EB' }}
+    >
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md bg-primary-50 flex items-center justify-center text-primary">
+        <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
           <PillarIcon type="site" />
         </div>
         <div>
@@ -337,53 +385,30 @@ function SiteControlCard({ siteControl, stateName, county }) {
       </div>
 
       {/* Body */}
-      <div className="px-5 py-4 space-y-4 flex-1">
-        {/* Land availability flag */}
-        <div>
-          <SectionLabel>Land Availability</SectionLabel>
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium ${
-            availableLand
-              ? 'bg-primary-50 text-primary-700'
-              : 'bg-red-50 text-red-700'
-          }`}>
-            {availableLand ? (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                Land parcels available in this county
-              </>
-            ) : (
-              <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                Limited land availability — see notes
-              </>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 mt-2 leading-relaxed">{landNotes}</p>
-        </div>
-
-        {/* Wetland warning */}
-        <div>
-          <SectionLabel>Wetland Risk</SectionLabel>
-          {wetlandWarning ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-              <div className="flex items-center gap-1.5 text-amber-700 text-xs font-semibold mb-1">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Wetland warning — NWI review required
+      <div className="px-5 py-4 flex-1">
+        {/* 3-factor risk tile grid */}
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {tiles.map((t) => (
+            <div
+              key={t.label}
+              className="rounded-lg px-3 py-2.5 flex flex-col gap-1"
+              style={{ background: t.bg, borderTop: `3px solid ${t.color}` }}
+            >
+              <div className="flex items-center gap-1.5" style={{ color: t.color }}>
+                {t.icon}
+                <span className="text-[10px] font-bold uppercase tracking-wider">{t.label}</span>
               </div>
-              {wetlandNotes && <p className="text-xs text-amber-700 leading-relaxed">{wetlandNotes}</p>}
+              <span className="text-xs font-semibold text-gray-700">{t.status}</span>
             </div>
-          ) : (
-            <div className="flex items-center gap-1.5 bg-primary-50 text-primary-700 text-xs font-medium px-3 py-2 rounded-md">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              Low wetland risk on typical upland sites
-            </div>
-          )}
+          ))}
         </div>
-
-        {/* Land use notes */}
-        <div>
-          <SectionLabel>Zoning & Land Use</SectionLabel>
-          <p className="text-xs text-gray-600 leading-relaxed bg-surface rounded-md px-3 py-2">{landUseNotes}</p>
+        {/* Notes below each tile */}
+        <div className="grid grid-cols-3 gap-2">
+          {tiles.map((t) => (
+            <p key={t.label + '-note'} className="text-[10px] text-gray-500 leading-relaxed px-1">
+              {t.note}
+            </p>
+          ))}
         </div>
       </div>
     </div>
@@ -394,10 +419,10 @@ function InterconnectionCard({ interconnection, stateProgram }) {
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col">
+    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #BA7517' }}>
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md bg-primary-50 flex items-center justify-center text-primary">
+        <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(186,117,23,0.10)', color: '#BA7517' }}>
           <PillarIcon type="ix" />
         </div>
         <div>
@@ -424,9 +449,9 @@ function InterconnectionCard({ interconnection, stateProgram }) {
         {/* Ease score */}
         <div>
           <SectionLabel>Ease Score</SectionLabel>
-          <div className="bg-surface rounded-md px-3 py-2">
-            <EaseScoreMeter score={easeScore} />
-            <p className="text-xs text-gray-400 mt-1.5">
+          <div className="bg-surface rounded-md px-3 py-3 flex flex-col items-center">
+            <EaseArcGauge score={easeScore} />
+            <p className="text-xs text-gray-400 mt-1 text-center">
               {easeScore >= 7 ? 'Strong interconnection conditions for this county.'
                : easeScore >= 5 ? 'Moderate difficulty — budget for potential upgrade costs.'
                : easeScore >= 3 ? 'Challenging territory — high upgrade costs likely.'
@@ -454,13 +479,48 @@ function InterconnectionCard({ interconnection, stateProgram }) {
   )
 }
 
+function RevenueStackBar({ revenueStack }) {
+  const segments = [
+    { label: 'ITC Base',  value: revenueStack.itcBase,          color: '#0F6E56' },
+    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#34D399' },
+    { label: 'IREC',      value: revenueStack.irecMarket,       color: '#0D9488' },
+    { label: 'Net Meter', value: revenueStack.netMeteringStatus, color: '#9CA3AF' },
+  ]
+  // Parse leading number from string like "30%" or "26%"
+  const parse = (v) => { const m = String(v || '').match(/(\d+(\.\d+)?)/) ; return m ? parseFloat(m[1]) : null }
+  const nums = segments.map(s => parse(s.value))
+  const total = nums.reduce((a, b) => a + (b || 0), 0)
+  // Fall back to equal widths if no numeric data
+  const widths = total > 0
+    ? nums.map(n => ((n || 0) / total) * 100)
+    : segments.map(() => 25)
+
+  return (
+    <div className="mb-3">
+      <div className="h-3 rounded-full overflow-hidden flex">
+        {segments.map((s, i) => (
+          <div key={s.label} style={{ width: `${widths[i]}%`, background: s.color }} />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+        {segments.map((s) => (
+          <div key={s.label} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+            <span className="text-[10px] text-gray-500">{s.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram ? getRunway(stateProgram) : null
   const showCSWarning = technology === 'BESS' || technology === 'C&I Solar'
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col">
+    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #0F6E56' }}>
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
         <div className="w-7 h-7 rounded-md bg-primary-50 flex items-center justify-center text-primary">
@@ -530,6 +590,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
         {revenueStack ? (
           <div>
             <SectionLabel>Revenue Stack</SectionLabel>
+            <RevenueStackBar revenueStack={revenueStack} />
             <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
               <DataRow label="ITC base" value={revenueStack.itcBase} highlight />
               <DataRow label="ITC adders" value={revenueStack.itcAdder} />
@@ -824,18 +885,18 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
     <div
       className="mb-5 rounded-lg overflow-hidden"
       style={{
-        border: '1px solid rgba(15,110,86,0.18)',
-        borderLeft: '4px solid #0F6E56',
+        border: '1px solid rgba(124,58,237,0.18)',
+        borderLeft: '4px solid #7C3AED',
         boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
       }}
     >
       {/* Dark header band */}
       <div
         className="px-5 py-3 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #0A2518 0%, #0F3526 100%)' }}
+        style={{ background: 'linear-gradient(135deg, #1E0A3C 0%, #2D1657 100%)' }}
       >
         <div className="flex items-center gap-2.5">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
           </svg>
           <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
@@ -1197,7 +1258,30 @@ function SearchContent() {
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
   const [saving, setSaving]       = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const resultsRef = useRef(null)
+
+  // Restore from sessionStorage on mount (URL param takes priority)
+  useEffect(() => {
+    if (initialState) return
+    try {
+      const savedForm = sessionStorage.getItem('tractova_lens_form')
+      if (savedForm) setForm(JSON.parse(savedForm))
+      const savedResults = sessionStorage.getItem('tractova_lens_results')
+      if (savedResults) setResults(JSON.parse(savedResults))
+    } catch { /* ignore parse errors */ }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync form to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem('tractova_lens_form', JSON.stringify(form))
+  }, [form])
+
+  // Sync results to sessionStorage
+  useEffect(() => {
+    if (results) sessionStorage.setItem('tractova_lens_results', JSON.stringify(results))
+    else sessionStorage.removeItem('tractova_lens_results')
+  }, [results])
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
@@ -1246,7 +1330,16 @@ function SearchContent() {
     }
   }
 
+  const handleClearAll = () => {
+    setForm({ state: '', county: '', mw: '', stage: '', technology: '' })
+    setResults(null)
+    setConfirmClear(false)
+    sessionStorage.removeItem('tractova_lens_form')
+    sessionStorage.removeItem('tractova_lens_results')
+  }
+
   const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.technology
+  const hasAnyInput = form.state || form.county || form.mw || form.stage || form.technology || results
 
   const labelCls = "block text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5"
 
@@ -1361,18 +1454,37 @@ function SearchContent() {
           </div>
 
           {/* Submit row */}
-          <div className="bg-white px-6 py-4 border-t border-gray-100 flex items-center justify-between mt-2">
-            <p className="text-xs text-gray-400 hidden sm:block">
+          <div className="bg-white px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3 mt-2">
+            <p className="text-xs text-gray-400 hidden sm:block flex-1">
               Intelligence is generated from seeded state + county data — verify with your utility and PUC before committing capital.
             </p>
-            <button
-              type="submit"
-              disabled={!isFormValid}
-              className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed ml-auto"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              Run Lens Analysis
-            </button>
+            <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+              {/* Clear All — two-step inline confirm */}
+              {hasAnyInput && !confirmClear && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(true)}
+                  className="text-xs text-gray-400 hover:text-red-500 transition-colors px-2.5 py-1.5 rounded-lg border border-gray-200 hover:border-red-200"
+                >
+                  Clear All
+                </button>
+              )}
+              {confirmClear && (
+                <div className="flex items-center gap-2 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+                  <span className="text-gray-600">Clear all inputs?</span>
+                  <button type="button" onClick={handleClearAll} className="font-semibold text-red-600 hover:underline">Yes, clear</button>
+                  <button type="button" onClick={() => setConfirmClear(false)} className="text-gray-400 hover:text-gray-600">Cancel</button>
+                </div>
+              )}
+              <button
+                type="submit"
+                disabled={!isFormValid}
+                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Run Lens Analysis
+              </button>
+            </div>
           </div>
         </form>
 
