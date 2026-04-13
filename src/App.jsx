@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { CompareProvider } from './context/CompareContext'
+import CompareTray from './components/CompareTray'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -25,6 +27,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <CompareProvider>
         <Nav />
         <Routes>
           {/* Public routes */}
@@ -68,6 +71,8 @@ export default function App() {
           />
         </Routes>
         <Footer />
+        <CompareTray />
+        </CompareProvider>
       </AuthProvider>
     </BrowserRouter>
   )

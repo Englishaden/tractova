@@ -8,7 +8,7 @@ import newsFeed from '../data/newsFeed'
 function ActiveCSDetail() {
   const active = statePrograms
     .filter((s) => s.csStatus === 'active')
-    .sort((a, b) => b.opportunityScore - a.opportunityScore)
+    .sort((a, b) => b.feasibilityScore - a.feasibilityScore)
   return (
     <div>
       <p className="text-xs text-gray-500 mb-3">
@@ -29,7 +29,7 @@ function ActiveCSDetail() {
               <td className="py-2 font-semibold text-gray-800">{s.name}</td>
               <td className="py-2 text-gray-600">{s.csProgram}</td>
               <td className="py-2 text-right text-primary font-medium">{s.capacityMW.toLocaleString()} MW</td>
-              <td className="py-2 text-right text-gray-500">{s.opportunityScore}</td>
+              <td className="py-2 text-right text-gray-500">{s.feasibilityScore}</td>
             </tr>
           ))}
         </tbody>

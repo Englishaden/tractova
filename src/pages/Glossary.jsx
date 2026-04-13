@@ -107,7 +107,7 @@ const terms = [
       'A federal tax credit for renewable energy projects equal to a percentage of qualifying project costs, governed by IRA Section 48/48E. The base ITC rate is 30% for projects meeting prevailing wage and apprenticeship requirements. Adders are available for Energy Community siting (+10%), Low-Income Community Projects (+10–20%), and domestic content (+10%). Most community solar projects under 5MW AC qualify for the full adder stack.',
   },
   {
-    term: 'Opportunity Score',
+    term: 'Feasibility Score',
     pillar: 'all',
     definition:
       'A proprietary Tractova composite score (0–100) reflecting the combined attractiveness of a state for community solar development. Inputs include CS program status, remaining capacity, IX difficulty, LMI requirements, and IRA adder eligibility. Higher scores indicate states where a small developer is most likely to close a viable project. This scoring is Tractova\'s primary differentiated data layer.',

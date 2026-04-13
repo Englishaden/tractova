@@ -7,6 +7,7 @@ import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
+import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
@@ -22,79 +23,7 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Compare mode — strip shown when a pinned result differs from current
-// ─────────────────────────────────────────────────────────────────────────────
-const IX_RANK  = { easy: 3, moderate: 2, hard: 1, very_hard: 0 }
-const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
-const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
-
-function ComparisonStrip({ pinned, current, onClear }) {
-  const ps = pinned.stateProgram
-  const cs = current.stateProgram
-
-  const scoreDelta = (cs?.opportunityScore || 0) - (ps?.opportunityScore || 0)
-  const ixDelta    = (IX_RANK[cs?.ixDifficulty] ?? 2) - (IX_RANK[ps?.ixDifficulty] ?? 2)
-
-  function ScoreDelta({ v }) {
-    if (v === 0) return <span className="text-[10px] text-gray-400">—</span>
-    return <span className={`text-[10px] font-bold ${v > 0 ? 'text-primary' : 'text-red-500'}`}>{v > 0 ? `+${v}` : v}</span>
-  }
-  function IXDelta({ d }) {
-    if (d === 0) return <span className="text-[10px] text-gray-400">—</span>
-    return <span className={`text-[10px] font-bold ${d > 0 ? 'text-primary' : 'text-red-500'}`}>{d > 0 ? '↑ Easier' : '↓ Harder'}</span>
-  }
-
-  const rows = [
-    { label: 'Opportunity Score', pinnedVal: ps?.opportunityScore ?? '—', currentVal: cs?.opportunityScore ?? '—', delta: <ScoreDelta v={scoreDelta} /> },
-    { label: 'CS Program',        pinnedVal: CS_LABEL[ps?.csStatus] ?? '—', currentVal: CS_LABEL[cs?.csStatus] ?? '—', delta: null },
-    { label: 'IX Difficulty',     pinnedVal: IX_LABEL[ps?.ixDifficulty] ?? '—', currentVal: IX_LABEL[cs?.ixDifficulty] ?? '—', delta: <IXDelta d={ixDelta} /> },
-  ]
-
-  return (
-    <div className="mb-5 bg-white border border-primary/20 rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-2.5 bg-primary-50/60 border-b border-primary/10">
-        <div className="flex items-center gap-2">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <span className="text-xs font-semibold text-primary">Comparing Results</span>
-        </div>
-        <button onClick={onClear} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
-          Clear
-          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/></svg>
-        </button>
-      </div>
-
-      <div className="px-5 py-3">
-        {/* Column headers */}
-        <div className="grid grid-cols-[140px_1fr_1fr_72px] gap-3 mb-1.5">
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Metric</span>
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Pinned</span>
-            <p className="text-xs font-medium text-gray-700 mt-0.5 truncate">{pinned.form.county} Co., {ps?.name || pinned.form.state}</p>
-          </div>
-          <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Current</span>
-            <p className="text-xs font-medium text-gray-700 mt-0.5 truncate">{current.form.county} Co., {cs?.name || current.form.state}</p>
-          </div>
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Delta</span>
-        </div>
-
-        <div className="divide-y divide-gray-100">
-          {rows.map((row) => (
-            <div key={row.label} className="grid grid-cols-[140px_1fr_1fr_72px] gap-3 py-2 items-center">
-              <span className="text-xs text-gray-500">{row.label}</span>
-              <span className="text-xs font-semibold text-gray-700">{row.pinnedVal}</span>
-              <span className="text-xs font-semibold text-gray-700">{row.currentVal}</span>
-              <span>{row.delta ?? <span className="text-[10px] text-gray-400">—</span>}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
+function ResultsStateMap({ stateId, stateName, csStatus, feasibilityScore }) {
   const [showInfo, setShowInfo] = useState(false)
 
   const statusConfig = {
@@ -156,11 +85,11 @@ function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
               <span className="text-xs text-gray-700 font-medium">{cfg.label}</span>
             </div>
-            {opportunityScore > 0 && (
+            {feasibilityScore > 0 && (
               <div className="relative">
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-400">Opportunity score</span>
+                    <span className="text-xs text-gray-400">Feasibility score</span>
                     <button
                       type="button"
                       onClick={() => setShowInfo((v) => !v)}
@@ -170,16 +99,16 @@ function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
                     </button>
                   </div>
-                  <span className="text-xs font-bold text-gray-700">{opportunityScore}</span>
+                  <span className="text-xs font-bold text-gray-700">{feasibilityScore}</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full bg-primary"
-                    style={{ width: `${opportunityScore}%` }}
+                    style={{ width: `${feasibilityScore}%` }}
                   />
                 </div>
                 {showInfo && (
-                  <div className="absolute right-0 bottom-full mb-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">How is this scored?</p>
                     <div className="space-y-2">
                       {[
@@ -736,6 +665,41 @@ function SaveToast({ visible }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Add-to-compare button (wired to CompareContext)
+// ─────────────────────────────────────────────────────────────────────────────
+function AddToCompareButton({ results }) {
+  const { add, remove, isInCompare, items, MAX_ITEMS } = useCompare()
+  const item = lensResultToCompareItem(results)
+  const inCompare = isInCompare(item.id)
+  const atLimit = !inCompare && items.length >= MAX_ITEMS
+
+  const handleClick = () => {
+    if (inCompare) { remove(item.id); return }
+    add(item)
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={atLimit}
+      title={atLimit ? `Compare tray full (max ${MAX_ITEMS})` : undefined}
+      className={`flex items-center gap-2 border text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
+        inCompare
+          ? 'border-primary bg-primary-50 text-primary'
+          : atLimit
+            ? 'bg-white border-gray-200 text-gray-300 cursor-not-allowed'
+            : 'bg-white border-gray-200 text-gray-700 hover:border-primary hover:text-primary'
+      }`}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      {inCompare ? 'In Compare' : 'Add to Compare'}
+    </button>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Paywall gate — renders UpgradePrompt until subscription is confirmed Pro
 export default function Search() {
   const { isPro, loading: subLoading } = useSubscription()
@@ -764,7 +728,6 @@ function SearchContent() {
     technology: '',
   })
   const [results, setResults]         = useState(null)
-  const [pinnedResult, setPinnedResult] = useState(null)
   const [showToast, setShowToast]     = useState(false)
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
@@ -808,7 +771,7 @@ function SearchContent() {
       cs_program:       results.stateProgram?.csProgram || null,
       cs_status:        results.stateProgram?.csStatus || 'none',
       serving_utility:  results.countyData?.interconnection?.servingUtility || null,
-      opportunity_score: results.stateProgram?.opportunityScore || null,
+      opportunity_score: results.stateProgram?.feasibilityScore || null,
     })
     setSaving(false)
     if (!error) {
@@ -988,25 +951,8 @@ function SearchContent() {
               </div>
 
               <div className="flex items-center gap-2">
-                {/* Pin for comparison */}
-                {(() => {
-                  const isPinned = pinnedResult &&
-                    pinnedResult.form.state === results.form.state &&
-                    pinnedResult.form.county === results.form.county
-                  return (
-                    <button
-                      onClick={() => setPinnedResult(isPinned ? null : results)}
-                      className={`flex items-center gap-2 border text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
-                        isPinned
-                          ? 'border-primary bg-primary-50 text-primary'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-primary hover:text-primary'
-                      }`}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      {isPinned ? 'Pinned' : 'Pin'}
-                    </button>
-                  )
-                })()}
+                {/* Add to Compare */}
+                <AddToCompareButton results={results} />
 
                 {/* Save as Project */}
                 <button
@@ -1025,21 +971,9 @@ function SearchContent() {
                 stateId={results.form.state}
                 stateName={results.stateProgram?.name || results.form.state}
                 csStatus={results.stateProgram?.csStatus || 'none'}
-                opportunityScore={results.stateProgram?.opportunityScore || 0}
+                feasibilityScore={results.stateProgram?.feasibilityScore || 0}
               />
             </div>
-
-            {/* Comparison strip — only when pinned differs from current */}
-            {pinnedResult && (
-              pinnedResult.form.state !== results.form.state ||
-              pinnedResult.form.county !== results.form.county
-            ) && (
-              <ComparisonStrip
-                pinned={pinnedResult}
-                current={results}
-                onClear={() => setPinnedResult(null)}
-              />
-            )}
 
             {/* Three pillar cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

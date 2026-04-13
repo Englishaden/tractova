@@ -24,7 +24,7 @@ function getStateColor(stateId, isHovered) {
   if (state.csStatus === 'pending') return '#FCD34D'
   if (state.csStatus === 'none') return '#E5E7EB'
 
-  const score = state.opportunityScore
+  const score = state.feasibilityScore
   if (score >= 75) return '#0F6E56'
   if (score >= 65) return '#1A9070'
   if (score >= 55) return '#34B08A'
@@ -122,8 +122,8 @@ export default function USMap({ onStateClick, selectedStateId }) {
               <span className={`text-xs px-1.5 py-0.5 rounded border ${STATUS_LABEL[tooltipState.csStatus]?.cls}`}>
                 {STATUS_LABEL[tooltipState.csStatus]?.text}
               </span>
-              {tooltipState.opportunityScore > 0 && (
-                <span className="text-gray-300">Score: {tooltipState.opportunityScore}</span>
+              {tooltipState.feasibilityScore > 0 && (
+                <span className="text-gray-300">Score: {tooltipState.feasibilityScore}</span>
               )}
             </div>
           </div>

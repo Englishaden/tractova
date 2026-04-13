@@ -28,7 +28,7 @@ function ScoreBar({ score }) {
       <div className="flex items-end gap-2 mb-1">
         <span className="text-3xl font-bold text-gray-900">{pct}</span>
         <span className="text-sm text-gray-400 mb-1">/ 100</span>
-        <span className="text-xs text-gray-400 mb-1 ml-1">opportunity score</span>
+        <span className="text-xs text-gray-400 mb-1 ml-1">feasibility score</span>
       </div>
       <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
@@ -108,7 +108,7 @@ export default function StateDetailPanel({ state, onClose }) {
 
         {/* Opportunity score */}
         <div className="mt-4">
-          <ScoreBar score={state.opportunityScore} />
+          <ScoreBar score={state.feasibilityScore} />
         </div>
       </div>
 

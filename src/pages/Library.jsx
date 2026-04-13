@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import { stateById } from '../data/statePrograms'
+import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
 const STAGE_BADGE = {
@@ -58,7 +59,7 @@ function normalize(row) {
     csProgram:        row.cs_program,
     csStatus:         row.cs_status,
     servingUtility:   row.serving_utility,
-    opportunityScore: row.opportunity_score,
+    feasibilityScore: row.opportunity_score,
     ixDifficulty:     row.ix_difficulty,
     notes:            row.notes || '',
     savedAt:          row.saved_at,
@@ -91,8 +92,8 @@ function getAlerts(project) {
     }
   }
 
-  if (project.opportunityScore != null && current.opportunityScore < project.opportunityScore - 10) {
-    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Opportunity score fell from ${project.opportunityScore} → ${current.opportunityScore}` })
+  if (project.feasibilityScore != null && current.feasibilityScore < project.feasibilityScore - 10) {
+    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility score fell from ${project.feasibilityScore} → ${current.feasibilityScore}` })
   }
 
   const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
@@ -226,6 +227,39 @@ function PipelineProgress({ stage }) {
   )
 }
 
+// ── Compare chip (icon-only button, sits in card right controls) ─────────────
+function CompareChip({ project }) {
+  const { add, remove, isInCompare, items, MAX_ITEMS } = useCompare()
+  const item = libraryProjectToCompareItem(project)
+  const inCompare = isInCompare(item.id)
+  const atLimit = !inCompare && items.length >= MAX_ITEMS
+
+  const handleClick = (e) => {
+    e.stopPropagation()
+    if (inCompare) { remove(item.id); return }
+    add(item)
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={atLimit}
+      title={inCompare ? 'Remove from compare' : atLimit ? `Compare tray full (max ${MAX_ITEMS})` : 'Add to compare'}
+      className={`p-1 transition-colors ${
+        inCompare
+          ? 'text-primary'
+          : atLimit
+            ? 'text-gray-200 cursor-not-allowed'
+            : 'text-gray-300 hover:text-primary'
+      }`}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+    </button>
+  )
+}
+
 // ── Project card ─────────────────────────────────────────────────────────────
 function ProjectCard({ project, onRequestRemove }) {
   const [expanded,   setExpanded]   = useState(false)
@@ -255,7 +289,7 @@ function ProjectCard({ project, onRequestRemove }) {
     return 'bg-red-50 text-red-600'
   }
 
-  const liveScore = current?.opportunityScore ?? null
+  const liveScore = current?.feasibilityScore ?? null
 
   return (
     <div className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
@@ -294,12 +328,13 @@ function ProjectCard({ project, onRequestRemove }) {
             {project.county} County, {project.stateName || project.state}
             {' · '}{project.mw} MW AC
             {project.technology ? ` · ${project.technology}` : ''}
-            {project.savedAt ? ` · Searched ${new Date(project.savedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
+            {project.savedAt ? ` · Saved ${new Date(project.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}` : ''}
           </p>
         </div>
 
         {/* Right controls */}
         <div className="flex items-center gap-2.5 flex-shrink-0">
+          <CompareChip project={project} />
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
             title="Remove project"
