@@ -41,7 +41,7 @@ export default function Dashboard() {
             {/* Radial glow — gives the map a "stage lit" depth against the topo background */}
             <div
               className="absolute -inset-6 rounded-3xl pointer-events-none"
-              style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(15,110,86,0.07) 0%, transparent 72%)' }}
+              style={{ background: 'radial-gradient(ellipse at 50% 45%, rgba(15,110,86,0.11) 0%, transparent 72%)' }}
             />
             <USMap
               onStateClick={handleStateClick}
