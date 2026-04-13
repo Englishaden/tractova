@@ -143,26 +143,26 @@ function ScoreGauge({ score }) {
   const cx   = 50
   const cy   = 48
   const circ = Math.PI * r
-  const fill = Math.max(0, Math.min(score / 100, 1)) * circ
-  const color = score >= 70 ? '#0F6E56' : score >= 50 ? '#F59E0B' : '#EF4444'
+  // arc fill uses dasharray on a full-semicircle path (always 0 large-arc, sweep=1)
+  const pct  = Math.max(0, Math.min(score / 100, 1))
+  const ex   = cx - r * Math.cos(Math.PI * pct)
+  const ey   = cy - r * Math.sin(Math.PI * pct)
+  const arcD = pct > 0.01 ? `M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${ex} ${ey}` : ''
+  const color = score >= 70 ? '#34D399' : score >= 50 ? '#FCD34D' : '#F87171'
   const label = score >= 70 ? 'Strong' : score >= 50 ? 'Moderate' : 'Weak'
 
   return (
     <div className="flex flex-col items-center">
       <svg viewBox="0 0 100 64" className="w-28">
-        {/* Track */}
         <path
           d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-          fill="none" stroke="#e5e7eb" strokeWidth="7" strokeLinecap="round"
+          fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="7" strokeLinecap="round"
         />
-        {/* Fill */}
-        <path
-          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
-          fill="none" stroke={color} strokeWidth="7" strokeLinecap="round"
-          strokeDasharray={`${fill} ${circ}`}
-        />
-        <text x={cx} y={cy - 3} textAnchor="middle" fontSize="20" fontWeight="800" fill="#0f172a">{score}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7.5" fill="#9ca3af">out of 100</text>
+        {arcD && (
+          <path d={arcD} fill="none" stroke={color} strokeWidth="7" strokeLinecap="round" />
+        )}
+        <text x={cx} y={cy - 3} textAnchor="middle" fontSize="20" fontWeight="800" fill="rgba(255,255,255,0.90)">{score}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7.5" fill="rgba(255,255,255,0.30)">out of 100</text>
       </svg>
       <span className="text-[10px] font-semibold mt-0.5" style={{ color }}>{label} market</span>
     </div>
@@ -196,18 +196,24 @@ function PipelineProgress({ stage }) {
         {PIPELINE_STAGES.map((s, i) => {
           const done    = i < activeIdx
           const current = i === activeIdx
-          const future  = i > activeIdx
           return (
             <div key={s} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center">
-                <div className={`w-3 h-3 rounded-full border-2 flex-shrink-0 transition-colors ${
-                  done    ? 'bg-primary border-primary' :
-                  current ? 'bg-white border-primary ring-2 ring-primary/20' :
-                            'bg-white border-gray-200'
-                }`} />
+                <div
+                  className={`w-3 h-3 rounded-full border-2 flex-shrink-0 transition-colors ${
+                    done    ? 'bg-primary border-primary' :
+                    current ? 'border-primary ring-2 ring-primary/30' :
+                              ''
+                  }`}
+                  style={(!done && !current) ? { background: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.15)' } :
+                         current             ? { background: 'rgba(15,110,86,0.15)' } : {}}
+                />
               </div>
               {i < PIPELINE_STAGES.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-0.5 ${done ? 'bg-primary' : 'bg-gray-200'}`} />
+                <div
+                  className={`flex-1 h-0.5 mx-0.5 ${done ? 'bg-primary' : ''}`}
+                  style={!done ? { background: 'rgba(255,255,255,0.10)' } : {}}
+                />
               )}
             </div>
           )
@@ -217,9 +223,11 @@ function PipelineProgress({ stage }) {
         {PIPELINE_SHORT.map((label, i) => {
           const current = i === activeIdx
           return (
-            <div key={label} className={`flex-1 last:flex-none text-center text-[8.5px] leading-tight font-medium truncate px-0.5 ${
-              current ? 'text-primary font-bold' : 'text-gray-300'
-            }`}>
+            <div
+              key={label}
+              className={`flex-1 last:flex-none text-center text-[8.5px] leading-tight font-medium truncate px-0.5 ${current ? 'text-primary font-bold' : ''}`}
+              style={!current ? { color: 'rgba(255,255,255,0.20)' } : {}}
+            >
               {label}
             </div>
           )
@@ -289,19 +297,25 @@ function StagePicker({ stage, projectId, onChange }) {
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && (
-        <ul className="absolute z-50 top-full mt-1 left-0 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden min-w-[210px]"
-            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+        <ul
+          className="absolute z-50 top-full mt-1 left-0 rounded-lg overflow-hidden min-w-[210px]"
+          style={{ background: '#0F2419', border: '1px solid rgba(15,110,86,0.30)', boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}
+        >
           {PIPELINE_STAGES.map((s) => (
             <li key={s}>
               <button
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(s) }}
-                className={`w-full text-left flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
-                  s === stage
-                    ? 'font-semibold bg-primary-50 text-primary-700'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs transition-colors"
+                style={s === stage
+                  ? { fontWeight: 600, background: 'rgba(15,110,86,0.20)', color: '#34D399' }
+                  : { color: 'rgba(255,255,255,0.65)' }}
+                onMouseEnter={(e) => { if (s !== stage) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={(e) => { if (s !== stage) e.currentTarget.style.background = 'transparent' }}
               >
-                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s === stage ? 'bg-primary' : 'bg-transparent'}`} />
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ background: s === stage ? '#0F6E56' : 'transparent' }}
+                />
                 {s}
               </button>
             </li>
@@ -380,21 +394,26 @@ function ProjectCard({ project, onRequestRemove }) {
     return () => clearTimeout(timer)
   }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const scoreColor = (s) => {
-    if (s == null) return 'bg-gray-100 text-gray-500'
-    if (s >= 70)   return 'bg-primary-50 text-primary-700'
-    if (s >= 50)   return 'bg-amber-50 text-amber-700'
-    return 'bg-red-50 text-red-600'
-  }
-
   const liveScore = current?.feasibilityScore ?? null
 
+  const scoreBg = liveScore == null ? 'rgba(255,255,255,0.06)' :
+                  liveScore >= 70   ? 'rgba(15,110,86,0.22)'   :
+                  liveScore >= 50   ? 'rgba(217,119,6,0.22)'   :
+                                      'rgba(220,38,38,0.22)'
+  const scoreText = liveScore == null ? 'rgba(255,255,255,0.30)' :
+                    liveScore >= 70   ? '#34D399'  :
+                    liveScore >= 50   ? '#FCD34D'  :
+                                        '#F87171'
+
   return (
-    <div className={`bg-white rounded-xl border transition-all duration-200 overflow-hidden ${
-      hasUrgent ? 'border-red-200 shadow-sm' :
-      expanded  ? 'border-primary/25 shadow-sm' :
-                  'border-gray-200 hover:border-gray-300'
-    }`}>
+    <div
+      className="rounded-xl border transition-all duration-200 overflow-hidden"
+      style={{
+        background: '#0D1F17',
+        borderColor: hasUrgent ? 'rgba(220,38,38,0.30)' : expanded ? 'rgba(15,110,86,0.35)' : 'rgba(15,110,86,0.18)',
+        boxShadow: '0 2px 16px rgba(0,0,0,0.30)',
+      }}
+    >
 
       {/* ── Collapsed header (always visible) ──────────────────────────────── */}
       <div
@@ -402,7 +421,10 @@ function ProjectCard({ project, onRequestRemove }) {
         onClick={() => setExpanded(e => !e)}
       >
         {/* Score bubble */}
-        <div className={`flex-shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center font-bold ${scoreColor(liveScore)}`}>
+        <div
+          className="flex-shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center font-bold"
+          style={{ background: scoreBg, color: scoreText }}
+        >
           <span className="text-base leading-none">{liveScore ?? '—'}</span>
           <span className="text-[8px] font-medium opacity-60 mt-0.5">score</span>
         </div>
@@ -410,19 +432,20 @@ function ProjectCard({ project, onRequestRemove }) {
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-sm font-bold text-gray-900 leading-snug">{project.name}</h2>
+            <h2 className="text-sm font-bold leading-snug" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.name}</h2>
             <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
             {alerts.length > 0 && (
-              <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 border ${
-                hasUrgent
-                  ? 'bg-red-50 text-red-600 border-red-200'
-                  : 'bg-amber-50 text-amber-600 border-amber-200'
-              }`}>
+              <span
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border"
+                style={hasUrgent
+                  ? { background: 'rgba(220,38,38,0.15)', color: '#F87171', borderColor: 'rgba(220,38,38,0.30)' }
+                  : { background: 'rgba(217,119,6,0.15)',  color: '#FCD34D', borderColor: 'rgba(217,119,6,0.30)' }}
+              >
                 {alerts.length} alert{alerts.length > 1 ? 's' : ''}
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-400 mt-0.5 truncate">
+          <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.38)' }}>
             {project.county} County, {project.stateName || project.state}
             {' · '}{project.mw} MW AC
             {project.technology ? ` · ${project.technology}` : ''}
@@ -436,7 +459,8 @@ function ProjectCard({ project, onRequestRemove }) {
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
             title="Remove project"
-            className="text-gray-300 hover:text-red-400 transition-colors p-1"
+            className="hover:text-red-400 transition-colors p-1"
+            style={{ color: 'rgba(255,255,255,0.20)' }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6"/>
@@ -446,7 +470,8 @@ function ProjectCard({ project, onRequestRemove }) {
             </svg>
           </button>
           <svg
-            className={`text-gray-300 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            className={`transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+            style={{ color: 'rgba(255,255,255,0.25)' }}
             width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           >
             <polyline points="6 9 12 15 18 9"/>
@@ -456,11 +481,11 @@ function ProjectCard({ project, onRequestRemove }) {
 
       {/* ── Expanded panel ──────────────────────────────────────────────────── */}
       {expanded && (
-        <div className="border-t border-gray-100 bg-gray-50/40 px-5 py-5">
+        <div className="px-5 py-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.20)' }}>
 
           {/* Alert strip */}
           {alerts.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-5 pb-4 border-b border-gray-100">
+            <div className="flex flex-wrap gap-1.5 mb-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               {alerts.map((a, i) => <AlertChip key={i} alert={a} />)}
             </div>
           )}
@@ -469,7 +494,7 @@ function ProjectCard({ project, onRequestRemove }) {
 
             {/* ── Left: Market Intelligence ──────────────────────────────── */}
             <div className="flex flex-col gap-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Market Intelligence</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.60)' }}>Market Intelligence</p>
 
               {current ? (
                 <>
@@ -479,14 +504,14 @@ function ProjectCard({ project, onRequestRemove }) {
                     <div className="flex flex-col gap-2">
                       {/* CS status */}
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Program Status</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.30)' }}>Program Status</p>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {CS_STATUS_LABEL[current.csStatus] ?? current.csStatus}
                         </span>
                       </div>
                       {/* IX difficulty */}
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">IX Difficulty</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.30)' }}>IX Difficulty</p>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
                         </span>
@@ -497,105 +522,104 @@ function ProjectCard({ project, onRequestRemove }) {
                   {/* Program details */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">CS Program</p>
-                      <p className="text-gray-700 font-medium">{current.csProgram ?? '—'}</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>CS Program</p>
+                      <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{current.csProgram ?? '—'}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">LMI Required</p>
-                      <p className="text-gray-700 font-medium">
+                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>LMI Required</p>
+                      <p className="font-medium">
                         {current.lmiRequired
-                          ? <span className="text-primary-700">{current.lmiPercent}% minimum</span>
-                          : <span className="text-gray-400">Not required</span>}
+                          ? <span style={{ color: '#34D399' }}>{current.lmiPercent}% minimum</span>
+                          : <span style={{ color: 'rgba(255,255,255,0.30)' }}>Not required</span>}
                       </p>
                     </div>
                     {current.capacityMW && (
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Program Capacity</p>
-                        <p className="text-gray-700 font-medium">{current.capacityMW} MW</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Program Capacity</p>
+                        <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{current.capacityMW} MW</p>
                       </div>
                     )}
                     {current.lastUpdated && (
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Data As Of</p>
-                        <p className="text-gray-500">{current.lastUpdated}</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Data As Of</p>
+                        <p style={{ color: 'rgba(255,255,255,0.40)' }}>{current.lastUpdated}</p>
                       </div>
                     )}
                   </div>
 
                   {/* IX notes */}
                   {current.ixNotes && (
-                    <div className="bg-white border border-gray-100 rounded-lg px-3 py-2.5">
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">IX Notes</p>
-                      <p className="text-[11px] text-gray-500 leading-relaxed">{current.ixNotes}</p>
+                    <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(186,117,23,0.08)', border: '1px solid rgba(186,117,23,0.18)' }}>
+                      <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(186,117,23,0.70)' }}>IX Notes</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{current.ixNotes}</p>
                     </div>
                   )}
 
                   {/* Program notes */}
                   {current.programNotes && (
-                    <div className="bg-primary-50/60 border border-primary-100 rounded-lg px-3 py-2.5">
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-primary-500 mb-1">Program Context</p>
-                      <p className="text-[11px] text-primary-800/70 leading-relaxed">{current.programNotes}</p>
+                    <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(15,110,86,0.10)', border: '1px solid rgba(15,110,86,0.20)' }}>
+                      <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(52,211,153,0.60)' }}>Program Context</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{current.programNotes}</p>
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-xs text-gray-400">No market data available for this state.</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.30)' }}>No market data available for this state.</p>
               )}
             </div>
 
             {/* ── Right: Your Deal ───────────────────────────────────────── */}
             <div className="flex flex-col gap-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Your Deal</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.60)' }}>Your Deal</p>
 
               {/* Pipeline progress */}
-              <div className="bg-white border border-gray-100 rounded-lg px-4 py-3">
+              <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Development Stage</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.30)' }}>Development Stage</p>
                   <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
                 </div>
                 <PipelineProgress stage={stage} />
               </div>
 
               {/* Deal details */}
-              <div className="bg-white border border-gray-100 rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+              <div className="rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Technology</p>
-                  <p className="text-gray-700 font-medium">{project.technology || '—'}</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Technology</p>
+                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{project.technology || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Capacity</p>
-                  <p className="text-gray-700 font-medium">{project.mw} MW AC</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Capacity</p>
+                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{project.mw} MW AC</p>
                 </div>
                 {project.servingUtility && (
                   <div className="col-span-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Serving Utility</p>
-                    <p className="text-gray-700 font-medium">{project.servingUtility}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Serving Utility</p>
+                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{project.servingUtility}</p>
                   </div>
                 )}
                 <div className="col-span-2">
-                  <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-0.5">Saved</p>
-                  <p className="text-gray-400">{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Saved</p>
+                  <p style={{ color: 'rgba(255,255,255,0.35)' }}>{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                 </div>
               </div>
 
               {/* Notes */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Deal Notes</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.30)' }}>Deal Notes</p>
                   {saveStatus === 'saving' && (
-                    <span className="text-[9px] text-gray-400 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300 animate-pulse inline-block" />
+                    <span className="text-[9px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.30)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: 'rgba(255,255,255,0.30)' }} />
                       Saving…
                     </span>
                   )}
                   {saveStatus === 'saved' && (
-                    <span className="text-[9px] text-emerald-600 flex items-center gap-1">
+                    <span className="text-[9px] flex items-center gap-1" style={{ color: '#34D399' }}>
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       Saved
                     </span>
                   )}
                 </div>
-                {/* Hint chips — click to append prompt header */}
                 {!notes && (
                   <div className="flex flex-wrap gap-1.5">
                     {['Landowner', 'Queue position', 'Key dates', 'ISA deposit', 'Site notes'].map((hint) => (
@@ -603,7 +627,10 @@ function ProjectCard({ project, onRequestRemove }) {
                         key={hint}
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setNotes(`${hint}: `) }}
-                        className="text-[10px] px-2 py-0.5 rounded border border-gray-200 text-gray-400 bg-white hover:border-primary/40 hover:text-primary transition-colors"
+                        className="text-[10px] px-2 py-0.5 rounded transition-colors"
+                        style={{ border: '1px solid rgba(15,110,86,0.25)', color: 'rgba(255,255,255,0.35)', background: 'transparent' }}
+                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(15,110,86,0.55)'; e.currentTarget.style.color = '#34D399' }}
+                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(15,110,86,0.25)'; e.currentTarget.style.color = 'rgba(255,255,255,0.35)' }}
                       >
                         + {hint}
                       </button>
@@ -616,19 +643,25 @@ function ProjectCard({ project, onRequestRemove }) {
                   onClick={(e) => e.stopPropagation()}
                   placeholder="Landowner · Queue position · Key dates · ISA deposit · Site findings"
                   rows={4}
-                  className="w-full text-xs text-gray-700 placeholder-gray-300 bg-white border border-gray-200 rounded-lg px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors leading-relaxed"
+                  className="w-full text-xs resize-none focus:outline-none leading-relaxed rounded-lg px-3 py-2.5 transition-colors"
+                  style={{
+                    background: 'rgba(0,0,0,0.25)',
+                    border: '1px solid rgba(15,110,86,0.20)',
+                    color: 'rgba(255,255,255,0.75)',
+                  }}
                 />
               </div>
             </div>
           </div>
 
           {/* ── Export footer ── */}
-          <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
-            <p className="text-[10px] text-gray-400">One-page project summary with market intelligence and deal notes</p>
+          <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>One-page project summary with market intelligence and deal notes</p>
             <button
               onClick={handleExportPDF}
               disabled={exporting}
-              className="flex items-center gap-2 text-xs font-medium text-gray-600 border border-gray-200 bg-white px-3 py-1.5 rounded-lg hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}
             >
               {exporting ? (
                 <>
@@ -727,22 +760,23 @@ function LibraryContent() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen" style={{ background: '#07110D' }}>
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* Page header */}
         <div className="mt-4 mb-8">
           <div className="flex items-end justify-between gap-4 mb-4">
             <div>
-              <p className="text-[10px] font-bold tracking-widest text-primary/60 uppercase mb-1">Deal Tracker</p>
-              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Projects</h1>
-              <p className="text-sm text-gray-400 mt-1">Your saved deals — tracked, scored, and monitored for policy changes.</p>
+              <p className="text-[10px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(52,211,153,0.55)' }}>Deal Tracker</p>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.92)' }}>My Projects</h1>
+              <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>Your saved deals — tracked, scored, and monitored for policy changes.</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {projects.length > 0 && (
                 <button
                   onClick={() => exportCSV(projects)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 bg-white border border-gray-200 hover:border-gray-300 px-3.5 py-2 rounded-lg transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
                   title="Export all projects to CSV"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -754,7 +788,7 @@ function LibraryContent() {
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3.5 py-2 rounded-lg transition-colors"
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                New Search
+                New Lens Search
               </Link>
             </div>
           </div>
@@ -765,14 +799,14 @@ function LibraryContent() {
           {projects.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: 'Saved Projects', value: projects.length, sub: 'across all states', color: 'border-primary/20 bg-primary-50/60', val: 'text-primary-700' },
-                { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', color: 'border-accent-200 bg-accent-50/60', val: 'text-accent-700' },
-                { label: 'Active Alerts', value: projects.reduce((s, p) => s + getAlerts(p).length, 0), sub: 'policy or market flags', color: 'border-gray-200 bg-white', val: 'text-gray-800' },
-              ].map(({ label, value, sub, color, val }) => (
-                <div key={label} className={`border rounded-xl px-4 py-3 ${color}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
-                  <p className={`text-xl font-bold mt-0.5 ${val}`}>{value}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
+                { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     topColor: '#0F6E56', valColor: '#34D399' },
+                { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', topColor: '#BA7517', valColor: '#FCD34D' },
+                { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
+              ].map(({ label, value, sub, topColor, valColor }) => (
+                <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1F17', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.30)' }}>{label}</p>
+                  <p className="text-xl font-bold mt-0.5" style={{ color: valColor }}>{value}</p>
+                  <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>{sub}</p>
                 </div>
               ))}
             </div>
@@ -783,11 +817,11 @@ function LibraryContent() {
         {loading ? (
           <div className="grid gap-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white border border-gray-200 rounded-xl px-5 py-4 animate-pulse flex items-center gap-4">
-                <div className="w-11 h-11 bg-gray-100 rounded-lg flex-shrink-0" />
+              <div key={i} className="rounded-xl px-5 py-4 animate-pulse flex items-center gap-4" style={{ background: '#0D1F17', border: '1px solid rgba(15,110,86,0.15)' }}>
+                <div className="w-11 h-11 rounded-lg flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
                 <div className="flex-1">
-                  <div className="h-3.5 bg-gray-100 rounded w-1/3 mb-2" />
-                  <div className="h-2.5 bg-gray-100 rounded w-1/2" />
+                  <div className="h-3.5 rounded w-1/3 mb-2" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  <div className="h-2.5 rounded w-1/2" style={{ background: 'rgba(255,255,255,0.04)' }} />
                 </div>
               </div>
             ))}
@@ -807,14 +841,14 @@ function LibraryContent() {
           </>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-20">
-            <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(15,110,86,0.12)', border: '1px solid rgba(15,110,86,0.20)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             </div>
-            <p className="text-sm font-semibold text-gray-700">No saved projects yet</p>
-            <p className="text-xs text-gray-400 mt-1 max-w-xs">
-              Run a search in Tractova Lens, then click <span className="font-medium text-gray-600">Save as Project</span> to add it here.
+            <p className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>No saved projects yet</p>
+            <p className="text-xs mt-1 max-w-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              Run a search in Tractova Lens, then click <span style={{ color: 'rgba(255,255,255,0.60)', fontWeight: 500 }}>Save as Project</span> to add it here.
             </p>
             <Link
               to="/search"
