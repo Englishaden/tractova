@@ -973,6 +973,7 @@ function CountyCombobox({ stateId, value, onValueChange }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState(value)
   const containerRef = useRef(null)
+  const inputRef = useRef(null)
 
   // allCounties keys are state abbreviations → string[]
   const counties = allCounties[stateId] || []
@@ -1011,20 +1012,35 @@ function CountyCombobox({ stateId, value, onValueChange }) {
   const placeholder = disabled ? 'Select a state first' : 'Search counties…'
 
   return (
-    <div ref={containerRef} className="relative">
-      <input
-        type="text"
-        value={query}
-        onChange={handleInput}
-        onFocus={() => setOpen(true)}
-        placeholder={placeholder}
-        disabled={disabled}
-        required
-        className={inputCls + (disabled ? ' opacity-50 cursor-not-allowed' : '')}
-      />
-      <svg className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    <div
+      ref={containerRef}
+      onClick={() => !disabled && inputRef.current?.focus()}
+      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm cursor-text relative transition-all focus-within:border-primary/60"
+    >
+      {/* Label */}
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        County
+      </p>
+
+      {/* Input row */}
+      <div className="flex items-center gap-1 py-0.5">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          disabled={disabled}
+          required
+          className={inputCls + ' flex-1' + (disabled ? ' opacity-50 cursor-not-allowed' : '')}
+        />
+        <svg className="pointer-events-none flex-shrink-0 text-gray-400" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+
       {open && stateId && (
-        <ul className="absolute z-50 top-full mt-2 w-full bg-white border border-gray-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto"
+        <ul className="absolute z-50 left-0 top-full mt-2 w-full bg-white border border-gray-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto"
             style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}>
           {filtered.length > 0 ? filtered.map(name => (
             <li
@@ -1242,17 +1258,11 @@ function SearchContent() {
               />
 
               {/* County */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
-                <label className={labelCls + ' flex items-center gap-1.5'}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-                  County
-                </label>
-                <CountyCombobox
-                  stateId={form.state}
-                  value={form.county}
-                  onValueChange={(val) => setForm((f) => ({ ...f, county: val }))}
-                />
-              </div>
+              <CountyCombobox
+                stateId={form.state}
+                value={form.county}
+                onValueChange={(val) => setForm((f) => ({ ...f, county: val }))}
+              />
 
               {/* MW */}
               <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
