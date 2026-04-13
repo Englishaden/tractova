@@ -297,11 +297,58 @@ function LibraryContent() {
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* Page header */}
-        <div className="mt-4 mb-6">
-          <h1 className="text-xl font-bold text-gray-900">My Projects</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Your saved deals. Add projects from Tractova Lens results.
-          </p>
+        <div className="mt-4 mb-8">
+          <div className="flex items-end justify-between gap-4 mb-4">
+            <div>
+              <p className="text-[10px] font-bold tracking-widest text-primary/60 uppercase mb-1">Deal Tracker</p>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">My Projects</h1>
+              <p className="text-sm text-gray-400 mt-1">
+                Your saved deals — tracked, scored, and monitored for policy changes.
+              </p>
+            </div>
+            <Link
+              to="/search"
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3.5 py-2 rounded-lg transition-colors"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Search
+            </Link>
+          </div>
+
+          {/* Stat strip */}
+          {projects.length > 0 && (
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                {
+                  label: 'Saved Projects',
+                  value: projects.length,
+                  sub: 'across all states',
+                  color: 'border-primary/20 bg-primary-50/60',
+                  val: 'text-primary-700',
+                },
+                {
+                  label: 'Total Capacity',
+                  value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`,
+                  sub: 'AC nameplate',
+                  color: 'border-accent-200 bg-accent-50/60',
+                  val: 'text-accent-700',
+                },
+                {
+                  label: 'Active Alerts',
+                  value: projects.reduce((s, p) => s + getAlerts(p).length, 0),
+                  sub: 'policy or market flags',
+                  color: 'border-gray-200 bg-white',
+                  val: 'text-gray-800',
+                },
+              ].map(({ label, value, sub, color, val }) => (
+                <div key={label} className={`border rounded-xl px-4 py-3 ${color}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</p>
+                  <p className={`text-xl font-bold mt-0.5 ${val}`}>{value}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Loading skeleton */}
