@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 import { stateById, getRunway } from '../data/statePrograms'
 import { getCountyData, revenueStackByState } from '../data/countyData'
 import allCounties from '../data/allCounties.json'
@@ -11,132 +10,158 @@ import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
+// ─────────────────────────────────────────────────────────────────────────────
+// Market Position Panel — replaces the old mini state map
+// ─────────────────────────────────────────────────────────────────────────────
 
-const FIPS = {
-  "01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT",
-  "10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL",
-  "18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD",
-  "25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE",
-  "32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND",
-  "39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD",
-  "47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV",
-  "55":"WI","56":"WY",
+function computeSubScores(stateProgram, countyData) {
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0 }
+
+  // Offtake (0–100): CS status + capacity + LMI drag
+  const csBase = { active: 80, limited: 52, pending: 25, none: 8 }
+  let offtake = csBase[stateProgram.csStatus] ?? 8
+  if (stateProgram.csStatus === 'active' && stateProgram.capacityMW > 500) offtake += 8
+  if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 40) offtake -= 10
+  else if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 25) offtake -= 5
+  offtake = Math.max(0, Math.min(100, offtake))
+
+  // IX (0–100): difficulty rating
+  const ix = { easy: 88, moderate: 65, hard: 38, very_hard: 14 }[stateProgram.ixDifficulty] ?? 50
+
+  // Site (0–100): from countyData land + wetland signals
+  let site = 60
+  if (countyData?.siteControl) {
+    const { availableLand, wetlandWarning } = countyData.siteControl
+    if (availableLand && !wetlandWarning)  site = 82
+    else if (availableLand && wetlandWarning)  site = 56
+    else if (!availableLand && !wetlandWarning) site = 42
+    else site = 26
+  }
+
+  return { offtake, ix, site }
 }
 
-function ResultsStateMap({ stateId, stateName, csStatus, feasibilityScore }) {
-  const [showInfo, setShowInfo] = useState(false)
+function getMarketRank(stateId) {
+  const ranked = Object.values(stateById)
+    .filter(s => s.csStatus === 'active' || s.csStatus === 'limited')
+    .sort((a, b) => b.feasibilityScore - a.feasibilityScore)
+  const rank = ranked.findIndex(s => s.id === stateId) + 1
+  return { rank: rank || null, total: ranked.length }
+}
 
-  const statusConfig = {
-    active:  { label: 'Active Program',   dot: '#0F6E56' },
-    limited: { label: 'Limited Capacity', dot: '#BA7517' },
-    pending: { label: 'Pending Launch',   dot: '#FBBF24' },
-    none:    { label: 'No Program',       dot: '#9CA3AF' },
-  }
-  const cfg = statusConfig[csStatus] || statusConfig.none
+function ArcGauge({ score }) {
+  const pct = Math.max(0, Math.min(100, score)) / 100
+  const R = 44, cx = 58, cy = 54
+  // arc endpoint from 180° sweeping clockwise by pct*180°
+  const ex = cx - R * Math.cos(Math.PI * pct)
+  const ey = cy - R * Math.sin(Math.PI * pct)
+  const largeArc = pct > 0.5 ? 1 : 0
+
+  const track = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
+  const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}` : ''
+
+  let color = '#DC2626'
+  if (score >= 70) color = '#059669'
+  else if (score >= 55) color = '#0F6E56'
+  else if (score >= 40) color = '#D97706'
+  else if (score >= 25) color = '#EA580C'
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className="flex items-stretch">
-        {/* Map column */}
-        <div className="flex-1 min-w-0">
-          <ComposableMap
-            projection="geoAlbersUsa"
-            projectionConfig={{ scale: 900 }}
-            style={{ width: '100%', height: '180px', display: 'block' }}
-          >
-            <Geographies geography={GEO_URL}>
-              {({ geographies }) =>
-                geographies.map((geo) => {
-                  const fips = String(geo.id).padStart(2, '0')
-                  const geoStateId = FIPS[fips]
-                  const isTarget = geoStateId === stateId
-                  return (
-                    <Geography
-                      key={geo.rsmKey}
-                      geography={geo}
-                      fill={isTarget ? '#0F6E56' : '#E5E7EB'}
-                      stroke="#FFFFFF"
-                      strokeWidth={0.75}
-                      style={{
-                        default: { outline: 'none' },
-                        hover:   { outline: 'none', fill: isTarget ? '#0F6E56' : '#E5E7EB' },
-                        pressed: { outline: 'none' },
-                      }}
-                    />
-                  )
-                })
-              }
-            </Geographies>
-          </ComposableMap>
+    <svg viewBox="0 0 116 62" className="w-full max-w-[130px]">
+      <path d={track} fill="none" stroke="#E5E7EB" strokeWidth="9" strokeLinecap="round" />
+      {fill && <path d={fill} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" />}
+      <text x="58" y="50" textAnchor="middle" fontSize="22" fontWeight="800" fill={color} fontFamily="system-ui">{score}</text>
+    </svg>
+  )
+}
+
+function SubScoreBar({ label, weight, value, color }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
+          <span className="text-[9px] text-gray-400 font-mono">{weight}</span>
+        </div>
+        <span className="text-[10px] font-bold tabular-nums text-gray-700">{value}</span>
+      </div>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500"
+          style={{ width: `${value}%`, background: color }}
+        />
+      </div>
+    </div>
+  )
+}
+
+const STATUS_CFG = {
+  active:  { label: 'Active Program',   bg: 'rgba(5,150,105,0.10)',  text: '#065F46', border: 'rgba(5,150,105,0.25)' },
+  limited: { label: 'Limited Capacity', bg: 'rgba(180,83,9,0.10)',   text: '#92400E', border: 'rgba(180,83,9,0.25)' },
+  pending: { label: 'Pending Launch',   bg: 'rgba(202,138,4,0.12)',  text: '#854D0E', border: 'rgba(202,138,4,0.30)' },
+  none:    { label: 'No Program',       bg: 'rgba(0,0,0,0.05)',      text: '#6B7280', border: 'rgba(0,0,0,0.12)' },
+}
+
+function MarketPositionPanel({ stateProgram, countyData }) {
+  if (!stateProgram) return null
+  const { offtake, ix, site } = computeSubScores(stateProgram, countyData)
+  const { rank, total } = getMarketRank(stateProgram.id)
+  const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
+  const score = stateProgram.feasibilityScore || 0
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden mb-5"
+      style={{ border: '1px solid rgba(15,110,86,0.18)', boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
+    >
+      {/* Header band */}
+      <div
+        className="px-5 py-3 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
+      >
+        <div className="flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 font-mono">Market Position</span>
+        </div>
+        <span
+          className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+          style={{ background: status.bg, color: status.text, border: `1px solid ${status.border}`,
+            // On dark header, lighten the bg slightly
+            filter: 'brightness(1.4)',
+          }}
+        >
+          {status.label}
+        </span>
+      </div>
+
+      {/* Three-column body */}
+      <div className="bg-white grid grid-cols-3 divide-x divide-gray-100">
+
+        {/* Left — State identity */}
+        <div className="px-5 py-4 flex flex-col justify-center gap-1.5">
+          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-gray-400">Target State</p>
+          <h3 className="text-xl font-extrabold text-gray-900 leading-tight">{stateProgram.name}</h3>
+          {stateProgram.csProgram && (
+            <p className="text-xs text-primary-700 font-medium leading-snug">{stateProgram.csProgram}</p>
+          )}
+          {rank && (
+            <p className="text-[10px] text-gray-400 mt-1">
+              Ranked <span className="font-bold text-gray-700">#{rank}</span> of {total} active CS markets
+            </p>
+          )}
         </div>
 
-        {/* Divider */}
-        <div className="w-px bg-gray-100 flex-shrink-0" />
+        {/* Center — Sub-score bars */}
+        <div className="px-5 py-4 flex flex-col justify-center gap-3">
+          <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F6E56" />
+          <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#2563EB" />
+          <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#D97706" />
+        </div>
 
-        {/* Info column */}
-        <div className="w-52 flex-shrink-0 flex flex-col justify-center px-5 py-4 gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">Target State</p>
-            <p className="text-lg font-bold text-gray-900 leading-tight">{stateName}</p>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.dot }} />
-              <span className="text-xs text-gray-700 font-medium">{cfg.label}</span>
-            </div>
-            {feasibilityScore > 0 && (
-              <div className="relative">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-gray-400">Feasibility score</span>
-                    <button
-                      type="button"
-                      onClick={() => setShowInfo((v) => !v)}
-                      className="text-gray-300 hover:text-gray-500 transition-colors"
-                      aria-label="How is this scored?"
-                    >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-                    </button>
-                  </div>
-                  <span className="text-xs font-bold text-gray-700">{feasibilityScore}</span>
-                </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${feasibilityScore}%` }}
-                  />
-                </div>
-                {showInfo && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">How is this scored?</p>
-                    <div className="space-y-2">
-                      {[
-                        { pct: '40%', label: 'Offtake',          desc: 'Program status, remaining capacity, LMI requirements' },
-                        { pct: '35%', label: 'Interconnection',   desc: 'Queue difficulty and utility territory conditions' },
-                        { pct: '25%', label: 'Site Control',      desc: 'Land use constraints, wetland exposure, regulatory risk' },
-                      ].map(({ pct, label, desc }) => (
-                        <div key={label} className="flex gap-2">
-                          <span className="text-[10px] font-bold text-primary mt-0.5 w-7 flex-shrink-0 tabular-nums">{pct}</span>
-                          <div>
-                            <p className="text-[10px] font-semibold text-gray-700">{label}</p>
-                            <p className="text-[10px] text-gray-400 leading-tight">{desc}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100 leading-tight">Composite estimate — verify with utility and PUC before committing capital.</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: '#0F6E56' }} />
-            <span className="text-xs text-gray-400">= {stateName}</span>
-          </div>
+        {/* Right — Arc gauge */}
+        <div className="px-5 py-4 flex flex-col items-center justify-center gap-1">
+          <ArcGauge score={score} />
+          <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 text-center">Feasibility Score</p>
         </div>
       </div>
     </div>
@@ -1376,15 +1401,10 @@ function SearchContent() {
               </div>
             </div>
 
-            {/* State context map */}
-            <div className="mb-5">
-              <ResultsStateMap
-                stateId={results.form.state}
-                stateName={results.stateProgram?.name || results.form.state}
-                csStatus={results.stateProgram?.csStatus || 'none'}
-                feasibilityScore={results.stateProgram?.feasibilityScore || 0}
-              />
-            </div>
+            <MarketPositionPanel
+              stateProgram={results.stateProgram}
+              countyData={results.countyData}
+            />
 
             {/* Market Intelligence Summary */}
             <SectionDivider />
