@@ -17,12 +17,21 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+const PAGE_SIZE = 4
+
 export default function NewsFeed() {
   const [filter, setFilter] = useState('all')
+  const [page, setPage]     = useState(0)
 
   const filtered = filter === 'all'
     ? newsFeed
     : newsFeed.filter((item) => item.pillar === filter)
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated  = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+
+  // Reset to page 0 when filter changes
+  const handleFilter = (f) => { setFilter(f); setPage(0) }
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg flex flex-col h-full">
@@ -30,14 +39,14 @@ export default function NewsFeed() {
       <div className="px-5 py-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-800">Policy & Market Feed</h2>
-          <span className="text-xs text-gray-400">{newsFeed.length} items</span>
+          <span className="text-xs text-gray-400">{filtered.length} items</span>
         </div>
         {/* Filter tabs */}
         <div className="flex gap-1 mt-2.5">
           {['all', 'offtake', 'ix', 'site'].map((f) => (
             <button
               key={f}
-              onClick={() => setFilter(f)}
+              onClick={() => handleFilter(f)}
               className={`text-xs px-2.5 py-1 rounded font-medium transition-colors ${
                 filter === f
                   ? 'bg-primary text-white'
@@ -52,7 +61,7 @@ export default function NewsFeed() {
 
       {/* Feed items */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-        {filtered.map((item) => {
+        {paginated.map((item) => {
           const pillar    = PILLAR_STYLES[item.pillar] || PILLAR_STYLES.offtake
           const typeStyle = TYPE_STYLES[item.type]     || TYPE_STYLES['market-update']
           const isAlert   = item.type === 'policy-alert'
@@ -111,11 +120,30 @@ export default function NewsFeed() {
         })}
       </div>
 
-      {/* Footer */}
-      <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg">
+      {/* Footer — pagination */}
+      <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between">
         <p className="text-xs text-gray-400">
-          Manually curated · Automated feed in Iteration 5
+          {page * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE + PAGE_SIZE, filtered.length)} of {filtered.length}
         </p>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="Previous page"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span className="text-xs text-gray-400 tabular-nums">{page + 1} / {totalPages}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            aria-label="Next page"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
       </div>
     </div>
   )

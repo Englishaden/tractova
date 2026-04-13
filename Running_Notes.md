@@ -27,12 +27,12 @@
 ### Priority 1 — Dashboard
 - [x] News feed urgency hierarchy: "Policy Alert" vs "Market Update" type tag on each item
 - [x] StateDetailPanel: "Open in Lens →" CTA button in panel footer (passes ?state=XX in URL)
-- [ ] News feed pagination or carousel: feed scrolls too far — add "See more / See less" toggle
+- [x] News feed pagination or carousel: feed scrolls too far — add "See more / See less" toggle
       or left/right arrow mini-pagination so the panel stays compact (e.g. 4 items visible, arrows to page through)
-- [ ] Dashboard page header redesign: match Glossary/Library intelligence aesthetic (teal banner or stat strip)
+- [x] Dashboard page header redesign: match Glossary/Library intelligence aesthetic (teal banner or stat strip)
 
 ### Priority 1b — Lens (Search) — state pre-fill from Dashboard
-- [ ] Read ?state= query param on Search page load and auto-select that state in the form
+- [x] Read ?state= query param on Search page load and auto-select that state in the form
       — currently the URL is passed (?state=IL) but Search.jsx doesn't read it yet
       — use useSearchParams() from react-router-dom, set initial state value from param on mount
 - [ ] Consider moving "Search in Lens" CTA higher in StateDetailPanel — currently in footer,

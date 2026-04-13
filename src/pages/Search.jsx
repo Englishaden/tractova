@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 import { stateById } from '../data/statePrograms'
 import { getCountyData, revenueStackByState } from '../data/countyData'
@@ -644,8 +644,15 @@ export default function Search() {
 // ─────────────────────────────────────────────────────────────────────────────
 function SearchContent() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
+
+  const initialState = (() => {
+    const param = searchParams.get('state')?.toUpperCase()
+    return param && ALL_STATES.some(s => s.id === param) ? param : ''
+  })()
+
   const [form, setForm] = useState({
-    state: '',
+    state: initialState,
     county: '',
     mw: '',
     stage: '',

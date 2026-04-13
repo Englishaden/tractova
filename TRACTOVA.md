@@ -433,23 +433,7 @@ Do not make assumptions outside this brief without asking first.
 
 ## 16. Current Status
 
-| Item | Status |
-|------|--------|
-| Product concept | ✅ Defined |
-| Three pillars | ✅ Defined |
-| Three surfaces | ✅ Defined |
-| Monetization model | ✅ Defined |
-| Brand name | ✅ Tractova |
-| Domain | ✅ tractova.com owned |
-| GitHub repo | ✅ englishaden/tractova |
-| Vercel account | ✅ Connected to GitHub |
-| Iteration 1 | 🔄 Ready to build |
-| Iteration 2 | ⏳ Not started |
-| Iteration 3 | ⏳ Not started |
-| Iteration 4 | ⏳ Not started |
-| Iteration 5 | ⏳ Not started |
-
+We are on either iteration 3 or 4. Reference Running_Notes.MD for further updated details of each task to come, i will keep that up to date. Use this as a general project outline / overview, but not as a to-do list. 
 ---
 
-*Last updated: April 11, 2026*
-*Next action: Build Iteration 1 — Dashboard shell in React + Vite*
+*Last updated: April 12, 2026*
