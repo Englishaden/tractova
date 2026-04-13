@@ -7,6 +7,11 @@ const PILLAR_STYLES = {
   site:    { dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200',               label: 'Site Control' },
 }
 
+const TYPE_STYLES = {
+  'policy-alert':  { badge: 'bg-amber-50 text-amber-700 border-amber-200', label: 'Policy Alert',  dot: 'bg-amber-400' },
+  'market-update': { badge: 'bg-gray-100 text-gray-500 border-gray-200',   label: 'Market Update', dot: 'bg-gray-300'  },
+}
+
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -48,19 +53,31 @@ export default function NewsFeed() {
       {/* Feed items */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
         {filtered.map((item) => {
-          const pillar = PILLAR_STYLES[item.pillar] || PILLAR_STYLES.offtake
+          const pillar    = PILLAR_STYLES[item.pillar] || PILLAR_STYLES.offtake
+          const typeStyle = TYPE_STYLES[item.type]     || TYPE_STYLES['market-update']
+          const isAlert   = item.type === 'policy-alert'
           const stateTags = item.tags.filter((t) => t.length === 2 && t === t.toUpperCase())
 
           return (
-            <article key={item.id} className="px-5 py-4 hover:bg-surface transition-colors">
+            <article
+              key={item.id}
+              className={`px-5 py-4 hover:bg-surface transition-colors ${isAlert ? 'border-l-2 border-amber-300' : ''}`}
+            >
               <div className="flex items-start gap-2.5">
-                <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${pillar.dot}`} />
+                <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${isAlert ? typeStyle.dot : pillar.dot}`} />
                 <div className="flex-1 min-w-0">
+                  {/* Type tag above headline for alerts */}
+                  {isAlert && (
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border mb-1 ${typeStyle.badge}`}>
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.5L20.5 19h-17L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+                      {typeStyle.label}
+                    </span>
+                  )}
                   <a
                     href={item.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm font-medium text-gray-900 hover:text-primary leading-snug transition-colors"
+                    className={`block text-sm leading-snug transition-colors hover:text-primary ${isAlert ? 'font-semibold text-gray-900' : 'font-medium text-gray-800'}`}
                   >
                     {item.headline}
                   </a>
@@ -70,6 +87,11 @@ export default function NewsFeed() {
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {!isAlert && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${typeStyle.badge}`}>
+                        {typeStyle.label}
+                      </span>
+                    )}
                     <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${pillar.badge}`}>
                       {pillar.label}
                     </span>

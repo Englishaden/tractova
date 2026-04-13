@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import newsFeed from '../data/newsFeed'
 
 const STATUS_CONFIG = {
@@ -167,11 +168,19 @@ export default function StateDetailPanel({ state, onClose }) {
       </div>
 
       {/* Footer */}
-      {lastUpdatedFmt && (
-        <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg">
-          <p className="text-xs text-gray-400">Last updated: {lastUpdatedFmt}</p>
-        </div>
-      )}
+      <div className="px-5 py-3 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between gap-3">
+        {lastUpdatedFmt
+          ? <p className="text-xs text-gray-400">Updated: {lastUpdatedFmt}</p>
+          : <span />
+        }
+        <Link
+          to={`/search?state=${state.id}`}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Search {state.name} in Lens
+        </Link>
+      </div>
     </div>
   )
 }

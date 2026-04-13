@@ -1,6 +1,7 @@
 // Policy & news feed — seeded manually for Iteration 1
 // Scraped/automated feed comes in Iteration 5
 // pillar: "site" | "ix" | "offtake"
+// type: "policy-alert" (immediate action / deadline / capacity change) | "market-update" (broader intelligence)
 
 const newsFeed = [
   {
@@ -11,6 +12,7 @@ const newsFeed = [
     date: "2026-04-08",
     tags: ["offtake", "IL", "policy", "LMI"],
     pillar: "offtake",
+    type: "policy-alert",
     summary: "The ICC approved a CEJA amendment expanding Illinois Shines by 300MW, with 50% earmarked for LMI subscribers. New application window opens May 1 for Approved Vendor registration.",
   },
   {
@@ -21,6 +23,7 @@ const newsFeed = [
     date: "2026-04-05",
     tags: ["ix", "IL", "MN", "IN", "MI", "WI", "policy"],
     pillar: "ix",
+    type: "market-update",
     summary: "MISO's Definitive Planning Phase reforms resulted in 823 project withdrawals, reducing active queue backlog by 31%. Small projects under 5MW see fastest queue movement.",
   },
   {
@@ -31,6 +34,7 @@ const newsFeed = [
     date: "2026-04-03",
     tags: ["offtake", "NY", "policy"],
     pillar: "offtake",
+    type: "market-update",
     summary: "NYSERDA revised Value Stack compensation upward 12% across all CDG project categories. Community DG projects under 5MW see the largest rate increase.",
   },
   {
@@ -41,6 +45,7 @@ const newsFeed = [
     date: "2026-03-31",
     tags: ["offtake", "CO", "policy"],
     pillar: "offtake",
+    type: "policy-alert",
     summary: "Colorado PUC approved rule amendments removing the 2MW single-project cap. Projects up to 10MW may now qualify for the community solar program, opening the door for larger independent developers.",
   },
   {
@@ -51,6 +56,7 @@ const newsFeed = [
     date: "2026-03-28",
     tags: ["offtake", "MA", "policy", "alert"],
     pillar: "offtake",
+    type: "policy-alert",
     summary: "SMART Block 8 is now 90% subscribed. DOER has committed to initiating Block 9 rulemaking by July 2026. Developers should monitor closely — new block likely increases compensation adder.",
   },
   {
@@ -61,6 +67,7 @@ const newsFeed = [
     date: "2026-03-25",
     tags: ["ix", "policy", "multi-state"],
     pillar: "ix",
+    type: "market-update",
     summary: "FERC accepted Order 2023-A compliance filings from 12 transmission owners, including several in PJM and MISO. Developers can expect faster initial study timelines beginning Q3 2026.",
   },
   {
@@ -71,6 +78,7 @@ const newsFeed = [
     date: "2026-03-20",
     tags: ["ix", "VA", "policy"],
     pillar: "ix",
+    type: "market-update",
     summary: "The SCC approved Dominion's revised Small Generator Interconnection Procedures, mandating 90-day feasibility studies (down from 130 days average). Effective for all applications filed after May 1.",
   },
   {
@@ -81,6 +89,7 @@ const newsFeed = [
     date: "2026-03-15",
     tags: ["offtake", "NM", "LMI", "policy"],
     pillar: "offtake",
+    type: "market-update",
     summary: "The PRC approved amendments to the New Mexico CS program expanding the LMI income-qualified subscriber requirement to 30% and increasing the LMI subscriber rate adder.",
   },
   {
@@ -91,6 +100,7 @@ const newsFeed = [
     date: "2026-03-10",
     tags: ["offtake", "MD", "policy"],
     pillar: "offtake",
+    type: "policy-alert",
     summary: "The Maryland PSC opened the 2026 CS application window for the full 300MW program tranche. Applications accepted through June 15. LMI allocation requirement: 40%.",
   },
   {
@@ -101,6 +111,7 @@ const newsFeed = [
     date: "2026-03-05",
     tags: ["offtake", "policy", "multi-state", "IRA"],
     pillar: "offtake",
+    type: "market-update",
     summary: "IRS released Notice 2026-12 clarifying community solar project eligibility for the Energy Community and Low-Income Community ITC adders under IRA Section 48E. Most projects under 5MW AC qualify.",
   },
   {
@@ -111,6 +122,7 @@ const newsFeed = [
     date: "2026-03-01",
     tags: ["offtake", "CT", "policy"],
     pillar: "offtake",
+    type: "policy-alert",
     summary: "PURA approved a new 50MW SCEF program tranche for 2026 with updated compensation tariffs. Projects must be under 2MW. LMI requirement: 20%.",
   },
   {
@@ -121,6 +133,7 @@ const newsFeed = [
     date: "2026-02-20",
     tags: ["ix", "MD", "VA", "NJ", "PA", "policy"],
     pillar: "ix",
+    type: "market-update",
     summary: "PJM's Regional Transmission Expansion Plan identifies 4.2GW of new transmission additions through 2030. Developers in MD, VA, and NJ may see reduced upgrade costs in the next round of interconnection studies.",
   },
   {
@@ -131,6 +144,7 @@ const newsFeed = [
     date: "2026-02-15",
     tags: ["offtake", "OR", "policy"],
     pillar: "offtake",
+    type: "market-update",
     summary: "The PUC expanded the Oregon CS program from 100MW to 200MW for the 2026-2027 program cycle, citing strong subscriber demand and grid reliability co-benefits.",
   },
   {
@@ -141,6 +155,7 @@ const newsFeed = [
     date: "2026-02-10",
     tags: ["site", "policy", "multi-state"],
     pillar: "site",
+    type: "policy-alert",
     summary: "USFWS completed the 2025 NWI update for IL, MN, IA, IN, OH, MI, MO, WI, ND, SD, NE. Developers should re-screen site candidates in these states against the updated wetland boundaries.",
   },
 ]
