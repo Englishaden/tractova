@@ -86,15 +86,24 @@ export default function StateDetailPanel({ state, onClose }) {
               <p className="text-xs text-gray-500 mt-0.5">{state.csProgram}</p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="flex-shrink-0 text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1 rounded"
-            aria-label="Close state panel"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/>
-            </svg>
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Link
+              to={`/search?state=${state.id}`}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-2.5 py-1.5 rounded-lg transition-colors"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              Search in Lens
+            </Link>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1 rounded"
+              aria-label="Close state panel"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Opportunity score */}
@@ -168,19 +177,11 @@ export default function StateDetailPanel({ state, onClose }) {
       </div>
 
       {/* Footer */}
-      <div className="px-5 py-3 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between gap-3">
-        {lastUpdatedFmt
-          ? <p className="text-xs text-gray-400">Updated: {lastUpdatedFmt}</p>
-          : <span />
-        }
-        <Link
-          to={`/search?state=${state.id}`}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Search {state.name} in Lens
-        </Link>
-      </div>
+      {lastUpdatedFmt && (
+        <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg">
+          <p className="text-xs text-gray-400">Updated: {lastUpdatedFmt}</p>
+        </div>
+      )}
     </div>
   )
 }
