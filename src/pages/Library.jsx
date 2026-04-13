@@ -6,6 +6,7 @@ import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import { stateById } from '../data/statePrograms'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
+// ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
 const STAGE_BADGE = {
@@ -349,6 +350,18 @@ function ProjectCard({ project, onRequestRemove }) {
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
   const [stage,      setStage]      = useState(project.stage || '')
+  const [exporting,  setExporting]  = useState(false)
+
+  const handleExportPDF = async (e) => {
+    e.stopPropagation()
+    setExporting(true)
+    try {
+      const { exportProjectPDF } = await import('../components/ProjectPDFExport')
+      await exportProjectPDF({ ...project, notes, stage }, current)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const alerts    = getAlerts(project)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
@@ -606,6 +619,33 @@ function ProjectCard({ project, onRequestRemove }) {
                 />
               </div>
             </div>
+          </div>
+
+          {/* ── Export footer ── */}
+          <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-between">
+            <p className="text-[10px] text-gray-400">One-page project summary with market intelligence and deal notes</p>
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="flex items-center gap-2 text-xs font-medium text-gray-600 border border-gray-200 bg-white px-3 py-1.5 rounded-lg hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-primary animate-spin" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <polyline points="9 15 12 18 15 15"/>
+                  </svg>
+                  Export Summary PDF
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}
