@@ -909,14 +909,13 @@ function FieldSelect({ value, onChange, options, placeholder, required }) {
   }, [open])
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative cursor-pointer" onClick={() => setOpen((o) => !o)}>
       {/* Hidden native input for form validation */}
       <input type="text" value={value} onChange={() => {}} required={required} className="sr-only" />
 
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-1 text-sm py-0.5 focus:outline-none"
+        className="w-full flex items-center justify-between gap-1 text-sm py-0.5 focus:outline-none pointer-events-none"
       >
         <span className={value ? 'text-gray-900' : 'text-gray-400'}>
           {value || placeholder}
@@ -932,7 +931,8 @@ function FieldSelect({ value, onChange, options, placeholder, required }) {
 
       {open && (
         <ul className="absolute z-50 left-0 top-full mt-2 w-full min-w-[180px] bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
-            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}>
+            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
+            onClick={(e) => e.stopPropagation()}>
           {options.map((opt) => (
             <li
               key={opt}
