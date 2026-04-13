@@ -15,19 +15,22 @@
 
 ---
 
-## Current: Iteration 4 — Remaining
+## ✅ Iteration 4 — Complete
+- Stripe Pro subscription ($9.99/mo): checkout, portal, webhook, real-time tier sync
+- Paywall on Lens + Library (UpgradePrompt + wrapper gate pattern)
+- Alert badges on project cards (getAlerts, AlertChip, urgent/warning/info)
+- Resend transactional email: weekly digest + policy alert emails via Vercel cron
+- Glossary header redesign: dark teal gradient banner, amber glow, monospace decoration
+- Library header redesign: Deal Tracker label, stat strip (projects, MW, alerts)
+- Project cards: expandable inline panel with score arc gauge, pipeline progress bar,
+  market intelligence (CS status, IX difficulty, LMI, program notes), auto-saving notes field
+- Bug fixes: score gauge clip, expanded state preserved on window focus/alt-tab
 
 ## Proposed discussion for Claude, give feedback where necessary on the below prompt. The goal is how to manage web scraping in an efficient manner to have live updated data via pulling from state regs or state incentive programs like MA Smart 3.0 or ABP shines 2.0, etc, but have it be as efficient and easy to update as possible even if it requires us to run a scraping 1-2 times per week, whereby you would pull the data into the database and remove any old data. 
 
 - Build a simple, structured backend in Supabase that serves as the single source of truth for program rules and constraints. Start with one table (program_rules) where each row represents a state/program/utility combination, and includes key fields such as LMI minimum/maximum percentages, minimum bill applicability (LMI vs non-LMI), net crediting, and concise notes on credit structure and key risks. Populate this manually at first using trusted public sources, focusing on a few core markets (e.g., MA, VA, IL). Keep the schema simple and clean—prioritize accuracy, usability, and speed over building a complex or fully automated system upfront.
 
 This is a proposed approach for the next iteration of the product, and I’d like feedback before building further. The application layer would pull from this structured dataset to deterministically evaluate project viability based on user inputs (state, utility, size, subscriber mix), returning a clear go/no-go (or viable/borderline/not viable) with plain-English explanations and risk flags tied directly to stored rules. Longer term, the idea is to maintain and scale this database by running updates 1–2 times per week, where new program or policy information is identified from public sources, structured, and pushed into Supabase. Does this methodology make sense, and do you agree this is an accurate and scalable way to manage and update a growing dataset like this?
-
----
-
-## Backlog — Iteration 4 (remaining)
-
-- Resend transactional email — weekly project digest, policy alerts
 
 ---
 
