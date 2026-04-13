@@ -502,6 +502,219 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Market Intelligence Summary — pure logic
+// ─────────────────────────────────────────────────────────────────────────────
+function generateMarketSummary({ stateProgram, countyData, form }) {
+  if (!stateProgram) return null
+
+  const { csStatus, csProgram, capacityMW, lmiRequired, lmiPercent, ixDifficulty, feasibilityScore } = stateProgram
+  const queueStatus = countyData?.interconnection?.queueStatusCode || 'unknown'
+  const { mw, technology, stage, county } = form
+  const mwNum = parseFloat(mw) || 0
+
+  // ── Verdict ────────────────────────────────────────────────────────────────
+  let verdict, verdictBg, verdictText
+  if (feasibilityScore >= 70 && csStatus === 'active' && (ixDifficulty === 'easy' || ixDifficulty === 'moderate')) {
+    verdict = 'STRONG FIT';      verdictBg = '#DCFCE7'; verdictText = '#14532D'
+  } else if (feasibilityScore >= 55 && (csStatus === 'active' || csStatus === 'limited') && ixDifficulty !== 'very_hard') {
+    verdict = 'VIABLE';          verdictBg = '#D1FAE5'; verdictText = '#065F46'
+  } else if (feasibilityScore >= 38 || csStatus === 'pending') {
+    verdict = 'PROCEED WITH CAUTION'; verdictBg = '#FEF3C7'; verdictText = '#78350F'
+  } else if (feasibilityScore >= 18) {
+    verdict = 'HIGH FRICTION';   verdictBg = '#FFEDD5'; verdictText = '#7C2D12'
+  } else {
+    verdict = 'NOT RECOMMENDED'; verdictBg = '#FEE2E2'; verdictText = '#7F1D1D'
+  }
+
+  // ── Headline sentence ───────────────────────────────────────────────────────
+  let headline = ''
+  const stateName = stateProgram.name
+
+  if (csStatus === 'active') {
+    if (ixDifficulty === 'easy' && feasibilityScore >= 70) {
+      headline = `${stateName} is running an active ${csProgram} with easy interconnection access — among the most developer-friendly markets in the country right now.`
+    } else if (ixDifficulty === 'easy') {
+      headline = `${stateName} has an active ${csProgram} and easy IX conditions — a clean market for a ${mw}MW project.`
+    } else if (ixDifficulty === 'moderate' && feasibilityScore >= 65) {
+      headline = `${stateName} combines an active ${csProgram} with moderate IX conditions — strong fundamentals for experienced developers willing to manage queue timelines.`
+    } else if (ixDifficulty === 'moderate') {
+      headline = `${stateName} has an active ${csProgram}. IX is moderate here — manageable, but budget for study delays and potential upgrade costs.`
+    } else if (ixDifficulty === 'hard') {
+      headline = `${stateName} has a strong CS program, but interconnection is the limiting factor in ${county} County. Extended study timelines and upgrade costs are real risks — underwrite them before committing.`
+    } else {
+      headline = `${stateName} has an active ${csProgram}, but IX conditions here are severely constrained. Only projects with exceptional economics can absorb the interconnection risk.`
+    }
+  } else if (csStatus === 'limited') {
+    if (ixDifficulty === 'easy' || ixDifficulty === 'moderate') {
+      headline = `Program capacity is tightening in ${stateName} — ${capacityMW}MW remaining in ${csProgram}. IX is workable, but move quickly before the current block closes.`
+    } else {
+      headline = `${stateName} has limited program capacity (${capacityMW}MW remaining) and difficult IX conditions — a double constraint that demands careful underwriting.`
+    }
+  } else if (csStatus === 'pending') {
+    headline = `No active CS program in ${stateName} yet — legislation is in place but program rules are still being developed at the PUC. Early-mover positioning has value, but there is no live offtake path today.`
+  } else {
+    if (technology === 'Community Solar') {
+      headline = `No community solar framework exists in ${stateName}. This market is not viable for CS development without a policy change — monitor for legislative activity.`
+    } else {
+      headline = `${stateName} has no community solar program, but ${technology} projects may still find a path through direct utility contracts or virtual PPAs depending on the county.`
+    }
+  }
+
+  // ── Project-specific qualifier ──────────────────────────────────────────────
+  let qualifier = ''
+  if (csStatus === 'active' && capacityMW > 0 && mwNum > 0) {
+    const pct = ((mwNum / capacityMW) * 100)
+    if (pct < 0.5) {
+      qualifier = ` At ${mw}MW, your project is a negligible draw on the ${capacityMW.toLocaleString()}MW remaining — no capacity risk.`
+    } else if (pct < 3) {
+      qualifier = ` At ${mw}MW, you'd represent ${pct.toFixed(1)}% of remaining capacity — a small, low-risk position.`
+    } else if (pct < 10) {
+      qualifier = ` At ${mw}MW, your project consumes ${pct.toFixed(1)}% of remaining capacity — meaningful exposure to program fluctuations worth monitoring.`
+    } else {
+      qualifier = ` At ${mw}MW, your project would take ${pct.toFixed(1)}% of remaining capacity — significant concentration risk if the program contracts or pauses enrollment.`
+    }
+  }
+
+  // ── LMI note ────────────────────────────────────────────────────────────────
+  let lmiNote = ''
+  if (technology === 'Community Solar' && lmiRequired) {
+    if (lmiPercent >= 50) {
+      lmiNote = ` The ${lmiPercent}% LMI requirement is a real execution constraint — subscriber sourcing complexity will affect your timeline and cost structure.`
+    } else if (lmiPercent >= 30) {
+      lmiNote = ` LMI allocation at ${lmiPercent}% is required — factor in subscriber program costs and sourcing timelines.`
+    } else {
+      lmiNote = ` ${lmiPercent}% LMI allocation required — manageable with the right subscriber program partner.`
+    }
+  }
+
+  // ── Stage note ──────────────────────────────────────────────────────────────
+  let stageNote = ''
+  if (stage === 'Interconnection' && (ixDifficulty === 'hard' || ixDifficulty === 'very_hard')) {
+    stageNote = ` In active interconnection here, model upgrade costs before your next milestone — the ease score is a leading indicator.`
+  } else if ((stage === 'Prospecting' || stage === 'Site Control') && csStatus === 'limited') {
+    stageNote = ` At this stage, confirm program availability directly with your state PUC before committing resources to site control.`
+  } else if (stage === 'Prospecting' && csStatus === 'pending') {
+    stageNote = ` Early pipeline positioning makes sense, but don't commit capital until program rules are finalized.`
+  }
+
+  const summary = headline + qualifier + lmiNote + stageNote
+
+  // ── Signal chips ─────────────────────────────────────────────────────────────
+  const signals = []
+
+  // Program status
+  if (csStatus === 'active') {
+    signals.push({ label: `Active — ${capacityMW > 0 ? `${capacityMW.toLocaleString()}MW remaining` : csProgram}`, color: 'green' })
+  } else if (csStatus === 'limited') {
+    signals.push({ label: `Limited — ${capacityMW}MW left`, color: 'amber' })
+  } else if (csStatus === 'pending') {
+    signals.push({ label: 'Program pending launch', color: 'yellow' })
+  } else {
+    signals.push({ label: 'No CS program', color: 'gray' })
+  }
+
+  // IX difficulty
+  const ixLabel = { easy: 'Easy IX', moderate: 'Moderate IX', hard: 'Hard IX', very_hard: 'Very Hard IX' }
+  const ixColor = { easy: 'green', moderate: 'amber', hard: 'orange', very_hard: 'red' }
+  signals.push({ label: ixLabel[ixDifficulty] || 'IX Unknown', color: ixColor[ixDifficulty] || 'gray' })
+
+  // Queue
+  if (queueStatus !== 'unknown') {
+    const qLabel = { open: 'Queue Open', limited: 'Queue Limited', saturated: 'Queue Saturated' }
+    const qColor = { open: 'green', limited: 'amber', saturated: 'red' }
+    signals.push({ label: qLabel[queueStatus], color: qColor[queueStatus] || 'gray' })
+  }
+
+  // LMI (community solar only)
+  if (technology === 'Community Solar') {
+    if (!lmiRequired) {
+      signals.push({ label: 'No LMI requirement', color: 'green' })
+    } else if (lmiPercent >= 40) {
+      signals.push({ label: `${lmiPercent}% LMI required`, color: 'orange' })
+    } else {
+      signals.push({ label: `${lmiPercent}% LMI required`, color: 'amber' })
+    }
+  }
+
+  // Feasibility band
+  if (feasibilityScore >= 70) {
+    signals.push({ label: `Score ${feasibilityScore} — Top Tier`, color: 'green' })
+  } else if (feasibilityScore >= 55) {
+    signals.push({ label: `Score ${feasibilityScore} — Viable`, color: 'teal' })
+  } else if (feasibilityScore >= 38) {
+    signals.push({ label: `Score ${feasibilityScore} — Caution`, color: 'amber' })
+  } else {
+    signals.push({ label: `Score ${feasibilityScore} — Weak`, color: 'red' })
+  }
+
+  return { verdict, verdictBg, verdictText, summary, signals }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Market Intelligence Summary — component
+// ─────────────────────────────────────────────────────────────────────────────
+const CHIP_COLORS = {
+  green:  { bg: '#DCFCE7', text: '#14532D', dot: '#16A34A' },
+  teal:   { bg: '#CCFBF1', text: '#134E4A', dot: '#0D9488' },
+  amber:  { bg: '#FEF3C7', text: '#78350F', dot: '#D97706' },
+  yellow: { bg: '#FEF9C3', text: '#713F12', dot: '#CA8A04' },
+  orange: { bg: '#FFEDD5', text: '#7C2D12', dot: '#EA580C' },
+  red:    { bg: '#FEE2E2', text: '#7F1D1D', dot: '#DC2626' },
+  gray:   { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
+}
+
+function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
+  const data = generateMarketSummary({ stateProgram, countyData, form })
+  if (!data) return null
+
+  const { verdict, verdictBg, verdictText, summary, signals } = data
+
+  return (
+    <div className="mb-5 bg-white border border-gray-200 rounded-lg overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md bg-primary-50 flex items-center justify-center text-primary flex-shrink-0">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+            </svg>
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Market Intelligence</span>
+        </div>
+        <span
+          className="text-[10px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full"
+          style={{ background: verdictBg, color: verdictText }}
+        >
+          {verdict}
+        </span>
+      </div>
+
+      {/* Body */}
+      <div className="px-5 py-4">
+        <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
+
+        {/* Signal chips */}
+        <div className="flex flex-wrap gap-1.5 mt-3">
+          {signals.map((sig, i) => {
+            const c = CHIP_COLORS[sig.color] || CHIP_COLORS.gray
+            return (
+              <span
+                key={i}
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full"
+                style={{ background: c.bg, color: c.text }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c.dot }} />
+                {sig.label}
+              </span>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Shared style constant (used by CountyCombobox + Search form)
 // ─────────────────────────────────────────────────────────────────────────────
 const inputCls = "w-full text-sm bg-transparent border-0 outline-none px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none"
@@ -974,6 +1187,13 @@ function SearchContent() {
                 feasibilityScore={results.stateProgram?.feasibilityScore || 0}
               />
             </div>
+
+            {/* Market Intelligence Summary */}
+            <MarketIntelligenceSummary
+              stateProgram={results.stateProgram}
+              countyData={results.countyData}
+              form={results.form}
+            />
 
             {/* Three pillar cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

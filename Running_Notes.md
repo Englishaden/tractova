@@ -88,11 +88,12 @@
 These are the high-value items from the "Inspired by Wood Mackenzie / Enverus / Aurora" section.
 Pick up here next session. Suggested order:
 
-### 1. Executive Summary Sentence (Lens results) — HIGH VALUE, LOW EFFORT
-  - One plain-English line above the feasibility score on Lens results
-  - e.g. "Illinois is an active CS market with moderate IX difficulty — strong for LMI-heavy projects under 2MW."
-  - Build as a pure mapping function in statePrograms.js or generate from csStatus + ixDifficulty + score
-  - No external dependencies — entirely client-side
+### 1. Executive Summary Sentence (Lens results) ✅ DONE
+  - `generateMarketSummary()` pure function in Search.jsx — synthesizes csStatus, ixDifficulty, feasibilityScore, project MW vs remaining capacity, LMI%, stage, technology
+  - `MarketIntelligenceSummary` component renders between state map and pillar cards
+  - Verdict pill: STRONG FIT / VIABLE / PROCEED WITH CAUTION / HIGH FRICTION / NOT RECOMMENDED with color coding
+  - Signal chips: program status, IX difficulty, queue status, LMI requirement, feasibility band
+  - Analyst-voice sentences are project-specific (MW relative to remaining capacity, stage-aware notes, LMI complexity callouts)
 
 ### 2. Sensitivity Chips (Lens results) — MEDIUM EFFORT, HIGH PERCEIVED SOPHISTICATION
   - "What if IX gets harder?" / "What if LMI drops to 30%?" chips on score display
