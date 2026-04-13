@@ -294,6 +294,7 @@ function ProjectCard({ project, onRequestRemove }) {
             {project.county} County, {project.stateName || project.state}
             {' · '}{project.mw} MW AC
             {project.technology ? ` · ${project.technology}` : ''}
+            {project.savedAt ? ` · Searched ${new Date(project.savedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
           </p>
         </div>
 

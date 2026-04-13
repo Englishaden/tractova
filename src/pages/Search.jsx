@@ -22,7 +22,81 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Compare mode — strip shown when a pinned result differs from current
+// ─────────────────────────────────────────────────────────────────────────────
+const IX_RANK  = { easy: 3, moderate: 2, hard: 1, very_hard: 0 }
+const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
+const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
+
+function ComparisonStrip({ pinned, current, onClear }) {
+  const ps = pinned.stateProgram
+  const cs = current.stateProgram
+
+  const scoreDelta = (cs?.opportunityScore || 0) - (ps?.opportunityScore || 0)
+  const ixDelta    = (IX_RANK[cs?.ixDifficulty] ?? 2) - (IX_RANK[ps?.ixDifficulty] ?? 2)
+
+  function ScoreDelta({ v }) {
+    if (v === 0) return <span className="text-[10px] text-gray-400">—</span>
+    return <span className={`text-[10px] font-bold ${v > 0 ? 'text-primary' : 'text-red-500'}`}>{v > 0 ? `+${v}` : v}</span>
+  }
+  function IXDelta({ d }) {
+    if (d === 0) return <span className="text-[10px] text-gray-400">—</span>
+    return <span className={`text-[10px] font-bold ${d > 0 ? 'text-primary' : 'text-red-500'}`}>{d > 0 ? '↑ Easier' : '↓ Harder'}</span>
+  }
+
+  const rows = [
+    { label: 'Opportunity Score', pinnedVal: ps?.opportunityScore ?? '—', currentVal: cs?.opportunityScore ?? '—', delta: <ScoreDelta v={scoreDelta} /> },
+    { label: 'CS Program',        pinnedVal: CS_LABEL[ps?.csStatus] ?? '—', currentVal: CS_LABEL[cs?.csStatus] ?? '—', delta: null },
+    { label: 'IX Difficulty',     pinnedVal: IX_LABEL[ps?.ixDifficulty] ?? '—', currentVal: IX_LABEL[cs?.ixDifficulty] ?? '—', delta: <IXDelta d={ixDelta} /> },
+  ]
+
+  return (
+    <div className="mb-5 bg-white border border-primary/20 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-2.5 bg-primary-50/60 border-b border-primary/10">
+        <div className="flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          <span className="text-xs font-semibold text-primary">Comparing Results</span>
+        </div>
+        <button onClick={onClear} className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors">
+          Clear
+          <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/></svg>
+        </button>
+      </div>
+
+      <div className="px-5 py-3">
+        {/* Column headers */}
+        <div className="grid grid-cols-[140px_1fr_1fr_72px] gap-3 mb-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Metric</span>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Pinned</span>
+            <p className="text-xs font-medium text-gray-700 mt-0.5 truncate">{pinned.form.county} Co., {ps?.name || pinned.form.state}</p>
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Current</span>
+            <p className="text-xs font-medium text-gray-700 mt-0.5 truncate">{current.form.county} Co., {cs?.name || current.form.state}</p>
+          </div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Delta</span>
+        </div>
+
+        <div className="divide-y divide-gray-100">
+          {rows.map((row) => (
+            <div key={row.label} className="grid grid-cols-[140px_1fr_1fr_72px] gap-3 py-2 items-center">
+              <span className="text-xs text-gray-500">{row.label}</span>
+              <span className="text-xs font-semibold text-gray-700">{row.pinnedVal}</span>
+              <span className="text-xs font-semibold text-gray-700">{row.currentVal}</span>
+              <span>{row.delta ?? <span className="text-[10px] text-gray-400">—</span>}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
+  const [showInfo, setShowInfo] = useState(false)
+
   const statusConfig = {
     active:  { label: 'Active Program',   dot: '#0F6E56' },
     limited: { label: 'Limited Capacity', dot: '#BA7517' },
@@ -83,9 +157,19 @@ function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
               <span className="text-xs text-gray-700 font-medium">{cfg.label}</span>
             </div>
             {opportunityScore > 0 && (
-              <div>
+              <div className="relative">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs text-gray-400">Opportunity score</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-400">Opportunity score</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowInfo((v) => !v)}
+                      className="text-gray-300 hover:text-gray-500 transition-colors"
+                      aria-label="How is this scored?"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    </button>
+                  </div>
                   <span className="text-xs font-bold text-gray-700">{opportunityScore}</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -94,6 +178,27 @@ function ResultsStateMap({ stateId, stateName, csStatus, opportunityScore }) {
                     style={{ width: `${opportunityScore}%` }}
                   />
                 </div>
+                {showInfo && (
+                  <div className="absolute right-0 bottom-full mb-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-20 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">How is this scored?</p>
+                    <div className="space-y-2">
+                      {[
+                        { pct: '40%', label: 'Offtake',          desc: 'Program status, remaining capacity, LMI requirements' },
+                        { pct: '35%', label: 'Interconnection',   desc: 'Queue difficulty and utility territory conditions' },
+                        { pct: '25%', label: 'Site Control',      desc: 'Land use constraints, wetland exposure, regulatory risk' },
+                      ].map(({ pct, label, desc }) => (
+                        <div key={label} className="flex gap-2">
+                          <span className="text-[10px] font-bold text-primary mt-0.5 w-7 flex-shrink-0 tabular-nums">{pct}</span>
+                          <div>
+                            <p className="text-[10px] font-semibold text-gray-700">{label}</p>
+                            <p className="text-[10px] text-gray-400 leading-tight">{desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2 pt-2 border-t border-gray-100 leading-tight">Composite estimate — verify with utility and PUC before committing capital.</p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -658,8 +763,9 @@ function SearchContent() {
     stage: '',
     technology: '',
   })
-  const [results, setResults]     = useState(null)
-  const [showToast, setShowToast] = useState(false)
+  const [results, setResults]         = useState(null)
+  const [pinnedResult, setPinnedResult] = useState(null)
+  const [showToast, setShowToast]     = useState(false)
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
   const [saving, setSaving]       = useState(false)
@@ -881,14 +987,36 @@ function SearchContent() {
                 </p>
               </div>
 
-              {/* Save as Project */}
-              <button
-                onClick={handleSave}
-                className="flex items-center gap-2 bg-white border border-gray-200 text-sm font-medium text-gray-700 px-4 py-2 rounded-lg hover:border-primary hover:text-primary transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Save as Project
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Pin for comparison */}
+                {(() => {
+                  const isPinned = pinnedResult &&
+                    pinnedResult.form.state === results.form.state &&
+                    pinnedResult.form.county === results.form.county
+                  return (
+                    <button
+                      onClick={() => setPinnedResult(isPinned ? null : results)}
+                      className={`flex items-center gap-2 border text-sm font-medium px-4 py-2 rounded-lg transition-colors ${
+                        isPinned
+                          ? 'border-primary bg-primary-50 text-primary'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-primary hover:text-primary'
+                      }`}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill={isPinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      {isPinned ? 'Pinned' : 'Pin'}
+                    </button>
+                  )
+                })()}
+
+                {/* Save as Project */}
+                <button
+                  onClick={handleSave}
+                  className="flex items-center gap-2 bg-white border border-gray-200 text-sm font-medium text-gray-700 px-4 py-2 rounded-lg hover:border-primary hover:text-primary transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Save as Project
+                </button>
+              </div>
             </div>
 
             {/* State context map */}
@@ -900,6 +1028,18 @@ function SearchContent() {
                 opportunityScore={results.stateProgram?.opportunityScore || 0}
               />
             </div>
+
+            {/* Comparison strip — only when pinned differs from current */}
+            {pinnedResult && (
+              pinnedResult.form.state !== results.form.state ||
+              pinnedResult.form.county !== results.form.county
+            ) && (
+              <ComparisonStrip
+                pinned={pinnedResult}
+                current={results}
+                onClear={() => setPinnedResult(null)}
+              />
+            )}
 
             {/* Three pillar cards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
