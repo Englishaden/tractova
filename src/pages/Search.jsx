@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
+import SectionDivider from '../components/SectionDivider'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -1340,7 +1341,8 @@ function SearchContent() {
 
         {/* Results panel */}
         {results && (
-          <div ref={resultsRef} className="mt-8">
+          <div ref={resultsRef}>
+            <SectionDivider label="Analysis Results" />
             {/* Results header */}
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -1385,6 +1387,7 @@ function SearchContent() {
             </div>
 
             {/* Market Intelligence Summary */}
+            <SectionDivider label="Market Intelligence" />
             <MarketIntelligenceSummary
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -1392,6 +1395,7 @@ function SearchContent() {
             />
 
             {/* Three pillar cards */}
+            <SectionDivider label="Pillar Breakdown" />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <SiteControlCard
                 siteControl={results.countyData.siteControl}

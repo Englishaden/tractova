@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
+import SectionDivider from '../components/SectionDivider'
 import { stateById } from '../data/statePrograms'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
@@ -758,6 +759,8 @@ function LibraryContent() {
             </div>
           </div>
 
+          <SectionDivider />
+
           {/* Stat strip */}
           {projects.length > 0 && (
             <div className="grid grid-cols-3 gap-3">
@@ -794,11 +797,14 @@ function LibraryContent() {
             Failed to load projects: {error}
           </div>
         ) : projects.length > 0 ? (
-          <div className="grid gap-3">
-            {projects.map((p) => (
-              <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />
-            ))}
-          </div>
+          <>
+            <SectionDivider label="Active Projects" />
+            <div className="grid gap-3">
+              {projects.map((p) => (
+                <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />
+              ))}
+            </div>
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-20">
             <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4">

@@ -18,20 +18,20 @@ const FIPS = {
 
 // State fills — designed for dark card background
 function getStateColor(stateId, isHovered, isSelected) {
-  if (isSelected) return '#8B5CF6'   // violet — intelligence highlight
+  if (isSelected) return '#7C3AED'   // violet — intelligence highlight
   const state = stateById[stateId]
-  if (isHovered) return '#F59E0B'    // amber on hover
-  if (!state) return '#2D5040'       // dark muted — no data
+  if (isHovered) return '#D97706'    // rich amber on hover
+  if (!state) return '#1F3D2E'       // dark muted — no data
 
-  if (state.csStatus === 'pending') return '#D97706'
-  if (state.csStatus === 'none')    return '#2D5040'
+  if (state.csStatus === 'pending') return '#B45309'  // dark rich amber-orange
+  if (state.csStatus === 'none')    return '#1F3D2E'
 
   const score = state.feasibilityScore
-  if (score >= 75) return '#4DE8A8'  // vivid teal-green — top markets
-  if (score >= 65) return '#29C98A'
-  if (score >= 55) return '#18A872'
-  if (score >= 45) return '#0F8A5C'
-  return '#0A6E49'
+  if (score >= 75) return '#059669'  // rich emerald — top markets
+  if (score >= 65) return '#047857'
+  if (score >= 55) return '#065F46'
+  if (score >= 45) return '#064E3B'
+  return '#053D2E'
 }
 
 export default function USMap({ onStateClick, selectedStateId }) {
@@ -62,9 +62,9 @@ export default function USMap({ onStateClick, selectedStateId }) {
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        background: 'linear-gradient(145deg, #0F3D27 0%, #143D28 55%, #112E1F 100%)',
-        border: '1px solid rgba(52,176,138,0.30)',
-        boxShadow: '0 0 0 1px rgba(15,110,86,0.12), 0 12px 40px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
+        background: 'linear-gradient(145deg, #1C5438 0%, #1F5C3E 55%, #173F2C 100%)',
+        border: '1px solid rgba(52,176,138,0.35)',
+        boxShadow: '0 0 0 1px rgba(15,110,86,0.14), 0 12px 40px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.10)',
       }}
     >
       {/* Aurora mesh gradient — absolutely positioned, pure decoration */}
@@ -73,11 +73,11 @@ export default function USMap({ onStateClick, selectedStateId }) {
         className="absolute inset-0 pointer-events-none"
         style={{
           background: [
-            'radial-gradient(ellipse at 80% 10%, rgba(52,176,138,0.30) 0%, transparent 48%)',
-            'radial-gradient(ellipse at 12% 82%, rgba(15,110,86,0.35) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.12) 0%, transparent 58%)',
-            'radial-gradient(ellipse at 8%  8%,  rgba(124,58,237,0.12) 0%, transparent 36%)',
-            'radial-gradient(ellipse at 88% 92%, rgba(186,117,23,0.10) 0%, transparent 34%)',
+            'radial-gradient(ellipse at 80% 10%, rgba(52,176,138,0.22) 0%, transparent 48%)',
+            'radial-gradient(ellipse at 12% 82%, rgba(15,110,86,0.28) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.08) 0%, transparent 58%)',
+            'radial-gradient(ellipse at 8%  8%,  rgba(124,58,237,0.10) 0%, transparent 36%)',
+            'radial-gradient(ellipse at 88% 92%, rgba(186,117,23,0.09) 0%, transparent 34%)',
           ].join(', '),
         }}
       />
@@ -200,11 +200,11 @@ function StatusPill({ status }) {
 
 function Legend() {
   const items = [
-    { color: '#4DE8A8', label: 'High opp (75+)' },
-    { color: '#18A872', label: 'Moderate (45–74)' },
-    { color: '#0A6E49', label: 'Low / limited' },
-    { color: '#D97706', label: 'Pending launch' },
-    { color: '#2D5040', label: 'No program', border: 'rgba(255,255,255,0.12)' },
+    { color: '#059669', label: 'High opp (75+)' },
+    { color: '#065F46', label: 'Moderate (45–74)' },
+    { color: '#053D2E', label: 'Low / limited' },
+    { color: '#B45309', label: 'Pending launch' },
+    { color: '#1F3D2E', label: 'No program', border: 'rgba(255,255,255,0.12)' },
   ]
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
