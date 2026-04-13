@@ -813,7 +813,6 @@ const CHIP_COLORS = {
 function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
   const [activeScenario, setActiveScenario] = useState(null)
 
-  // When a scenario is active, merge its overrides into stateProgram before generating summary
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
   if (!data) return null
@@ -822,24 +821,34 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
   const scenarios = buildSensitivityScenarios(stateProgram, form.technology)
 
   return (
-    <div className="mb-5 bg-white border border-gray-200 rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-primary-50 flex items-center justify-center text-primary flex-shrink-0">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-            </svg>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Market Intelligence</span>
+    <div
+      className="mb-5 rounded-lg overflow-hidden"
+      style={{
+        border: '1px solid rgba(15,110,86,0.18)',
+        borderLeft: '4px solid #0F6E56',
+        boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+      }}
+    >
+      {/* Dark header band */}
+      <div
+        className="px-5 py-3 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, #0A2518 0%, #0F3526 100%)' }}
+      >
+        <div className="flex items-center gap-2.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
+          </svg>
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            Market Intelligence
+          </span>
           {activeScenario && (
-            <span className="text-[10px] font-medium text-accent-600 bg-accent-50 border border-accent-200 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(217,119,6,0.20)', color: '#FCD34D', border: '1px solid rgba(217,119,6,0.35)' }}>
               Scenario Mode
             </span>
           )}
         </div>
         <span
-          className="text-[10px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full transition-colors"
+          className="text-[10px] font-bold uppercase tracking-[0.10em] px-2.5 py-1 rounded-full"
           style={{ background: verdictBg, color: verdictText }}
         >
           {verdict}
@@ -847,30 +856,33 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
       </div>
 
       {/* Body */}
-      <div className="px-5 py-4">
-        <p className="text-sm text-gray-700 leading-relaxed">{summary}</p>
+      <div className="bg-white px-5 py-4">
+        {/* Analyst sentence — prominent */}
+        <p className="text-[15px] font-medium text-gray-800 leading-relaxed">{summary}</p>
 
-        {/* Signal chips */}
-        <div className="flex flex-wrap gap-1.5 mt-3">
+        {/* Signal tiles — structured 2-col grid */}
+        <div className="mt-4 grid grid-cols-2 gap-2">
           {signals.map((sig, i) => {
             const c = CHIP_COLORS[sig.color] || CHIP_COLORS.gray
             return (
-              <span
+              <div
                 key={i}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full"
-                style={{ background: c.bg, color: c.text }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                style={{
+                  background: c.bg,
+                  borderLeft: `3px solid ${c.dot}`,
+                }}
               >
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c.dot }} />
-                {sig.label}
-              </span>
+                <span className="text-[11px] font-semibold leading-tight" style={{ color: c.text }}>{sig.label}</span>
+              </div>
             )
           })}
         </div>
 
-        {/* Sensitivity chips */}
+        {/* Sensitivity Analysis */}
         {scenarios.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Sensitivity Analysis</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-2.5">Sensitivity Analysis</p>
             <div className="flex flex-wrap gap-2">
               {scenarios.map((s) => {
                 const delta = computeScoreDelta(stateProgram, s.override)
