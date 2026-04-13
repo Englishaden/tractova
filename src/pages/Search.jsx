@@ -651,6 +651,97 @@ function generateMarketSummary({ stateProgram, countyData, form }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sensitivity analysis — score delta + scenario builder
+// ─────────────────────────────────────────────────────────────────────────────
+function computeScoreDelta(base, override) {
+  const modified = { ...base, ...override }
+
+  // IX sub-score (35pt range): easy=33, moderate=24, hard=14, very_hard=5
+  const ixSub = { easy: 33, moderate: 24, hard: 14, very_hard: 5 }
+  const ixDelta = (ixSub[modified.ixDifficulty] ?? 0) - (ixSub[base.ixDifficulty] ?? 0)
+
+  // CS status sub-score (40pt range)
+  const csSub = { active: 34, limited: 21, pending: 11, none: 2 }
+  const csDelta = (csSub[modified.csStatus] ?? 0) - (csSub[base.csStatus] ?? 0)
+
+  // LMI penalty (within offtake pillar)
+  const lmiPen = (pct, req) => {
+    if (!req) return 0
+    if (pct >= 50) return -7
+    if (pct >= 40) return -5
+    if (pct >= 30) return -3
+    return pct > 0 ? -1 : 0
+  }
+  const lmiDelta = lmiPen(modified.lmiPercent ?? base.lmiPercent, modified.lmiRequired ?? base.lmiRequired)
+                 - lmiPen(base.lmiPercent, base.lmiRequired)
+
+  const raw = Math.round(ixDelta + csDelta + lmiDelta)
+  const newScore = Math.max(5, Math.min(95, base.feasibilityScore + raw))
+  return newScore - base.feasibilityScore
+}
+
+const IX_LEVELS = ['easy', 'moderate', 'hard', 'very_hard']
+
+function buildSensitivityScenarios(stateProgram, technology) {
+  if (!stateProgram) return []
+  const { ixDifficulty, csStatus, lmiRequired, lmiPercent, capacityMW } = stateProgram
+  const ixIdx = IX_LEVELS.indexOf(ixDifficulty)
+  const scenarios = []
+
+  // IX scenarios
+  if (ixIdx < IX_LEVELS.length - 1) {
+    scenarios.push({
+      id: 'ix_harder',
+      label: 'What if IX gets harder?',
+      override: { ixDifficulty: IX_LEVELS[ixIdx + 1] },
+    })
+  }
+  if (ixIdx > 0) {
+    scenarios.push({
+      id: 'ix_easier',
+      label: 'What if IX improves?',
+      override: { ixDifficulty: IX_LEVELS[ixIdx - 1] },
+    })
+  }
+
+  // Program capacity scenarios
+  if (csStatus === 'active' && capacityMW > 0) {
+    scenarios.push({
+      id: 'program_caps',
+      label: 'What if the program caps out?',
+      override: { csStatus: 'limited' },
+    })
+  }
+  if (csStatus === 'limited') {
+    scenarios.push({
+      id: 'new_block',
+      label: 'What if a new block opens?',
+      override: { csStatus: 'active' },
+    })
+  }
+
+  // LMI scenarios (community solar only)
+  if (technology === 'Community Solar') {
+    if (!lmiRequired || lmiPercent < 50) {
+      scenarios.push({
+        id: 'lmi_rises',
+        label: 'What if LMI rises to 50%?',
+        override: { lmiRequired: true, lmiPercent: 50 },
+      })
+    }
+    if (lmiRequired && lmiPercent > 0) {
+      scenarios.push({
+        id: 'lmi_removed',
+        label: 'What if LMI req. is removed?',
+        override: { lmiRequired: false, lmiPercent: 0 },
+      })
+    }
+  }
+
+  return scenarios.slice(0, 4)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Market Intelligence Summary — component
 // ─────────────────────────────────────────────────────────────────────────────
 const CHIP_COLORS = {
@@ -664,10 +755,15 @@ const CHIP_COLORS = {
 }
 
 function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
-  const data = generateMarketSummary({ stateProgram, countyData, form })
+  const [activeScenario, setActiveScenario] = useState(null)
+
+  // When a scenario is active, merge its overrides into stateProgram before generating summary
+  const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
+  const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
   if (!data) return null
 
   const { verdict, verdictBg, verdictText, summary, signals } = data
+  const scenarios = buildSensitivityScenarios(stateProgram, form.technology)
 
   return (
     <div className="mb-5 bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -680,9 +776,14 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
             </svg>
           </div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Market Intelligence</span>
+          {activeScenario && (
+            <span className="text-[10px] font-medium text-accent-600 bg-accent-50 border border-accent-200 px-2 py-0.5 rounded-full">
+              Scenario Mode
+            </span>
+          )}
         </div>
         <span
-          className="text-[10px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full"
+          className="text-[10px] font-bold uppercase tracking-[0.08em] px-2.5 py-1 rounded-full transition-colors"
           style={{ background: verdictBg, color: verdictText }}
         >
           {verdict}
@@ -709,6 +810,48 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
             )
           })}
         </div>
+
+        {/* Sensitivity chips */}
+        {scenarios.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-2.5">Sensitivity Analysis</p>
+            <div className="flex flex-wrap gap-2">
+              {scenarios.map((s) => {
+                const delta = computeScoreDelta(stateProgram, s.override)
+                const isActive = activeScenario?.id === s.id
+                const positive = delta > 0
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setActiveScenario(isActive ? null : s)}
+                    className={`flex items-center gap-2 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                      isActive
+                        ? 'bg-primary-50 border-primary/40 text-primary-700'
+                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary/30 hover:text-primary-700 hover:bg-primary-50'
+                    }`}
+                  >
+                    <span>{s.label}</span>
+                    <span className={`font-bold tabular-nums text-[10px] px-1.5 py-0.5 rounded ${
+                      positive
+                        ? 'bg-green-100 text-green-700'
+                        : delta < 0
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {positive ? '+' : ''}{delta}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            {activeScenario && (
+              <p className="text-[10px] text-gray-400 mt-2.5 leading-relaxed">
+                Scenario active — summary and verdict reflect modified conditions. Click again to return to base case.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
