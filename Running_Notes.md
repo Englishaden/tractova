@@ -1,6 +1,34 @@
 # Tractova — Build Queue
 
+---
+
+## Core Design Principle — Database-Ready Architecture
+
+**Every UI/UX decision from this point forward must be designed to connect seamlessly to the live database (Iteration 5).**
+
+This means:
+- All data fields displayed in the UI must have a clear mapping to a future Supabase column or scraped field. Don't hardcode values that will later come from the DB without a clear swap-out path.
+- Components that today consume `statePrograms.js` or `countyData.js` must be written so the data source can be swapped to a Supabase query without restructuring the component.
+- Any new field added to the UI (e.g., runway months, IX ease score, LMI %, program notes) should be noted here alongside its intended future DB source so it's easy to wire up during Iteration 5.
+- Enrollment rate, program capacity, and queue status data displayed as "estimated" / seeded today should render identically when sourced from the live `program_rules` table — the component shouldn't care where the data comes from.
+- Design for AI-ready content zones in Market Intelligence — text areas should comfortably hold 2–3 sentences of richer AI-generated insight without layout changes when Claude API integration is added.
+
+**Future DB field mapping (current seed → intended source):**
+| UI Field | Current Source | Future Source |
+|---|---|---|
+| csStatus, csProgram, capacityMW | statePrograms.js | program_rules table |
+| lmiRequired, lmiPercent | statePrograms.js | program_rules table |
+| ixDifficulty, ixNotes | statePrograms.js | program_rules table (utility-level) |
+| enrollmentRateMWPerMonth | statePrograms.js (seeded) | program_rules table |
+| programNotes | statePrograms.js | program_rules table |
+| siteControl, interconnection | countyData.js | county_data table |
+| revenueStack | countyData.js | revenue_stack table |
+| feasibilityScore | statePrograms.js (computed) | computed server-side from program_rules |
+
+---
+
 ## ✅ Completed
+
 - Priority 1: Tractova Lens — state context map on results
 - Priority 2: Remove project confirmation dialog
 - Priority 3: Search form visual redesign + field dropdown polish
@@ -15,109 +43,107 @@
 - Iteration 4 — Resend transactional email: weekly digest + policy alert emails via Vercel cron
 - Iteration 4 — Glossary header redesign: dark teal gradient banner, amber glow, monospace decoration
 - Iteration 4 — Library header redesign: Deal Tracker label, stat strip (projects, MW, alerts)
-- Iteration 4 — Project cards: expandable inline panel with score arc gauge, pipeline progress bar,
-  market intelligence (CS status, IX difficulty, LMI, program notes), auto-saving notes field
-- Iteration 4 — Bug fixes: score gauge clip, expanded state preserved on window focus/alt-tab
+- Iteration 4 — Project cards: expandable inline panel with score arc gauge, pipeline progress bar, market intelligence, auto-saving notes field
 - Iteration 4 — Dashboard: urgency tags on news feed, "Open in Lens" CTA in StateDetailPanel
-
-### Session: April 13, 2026
-- [x] Dashboard — News feed pagination: 4 items per page, prev/next arrows, item count display
-- [x] Dashboard — StateDetailPanel: "Search in Lens" CTA moved to panel header (next to close button)
-- [x] Lens — Read ?state= query param on load, auto-select state in form (useSearchParams)
-- [x] Platform-wide rename: opportunityScore → feasibilityScore in all JS/JSX
-      (statePrograms.js, MetricsBar, USMap, StateDetailPanel, Library, Search, Glossary)
-      DB column (opportunity_score) intentionally unchanged
-- [x] Lens — Score popover: fixed upward clipping, now opens downward (top-full mt-2)
-- [x] Lens — Score label renamed "Opportunity score" → "Feasibility score" in popover
-- [x] Library — Timestamp format: changed to exact date M/D/YYYY (was short month/year)
-- [x] Lens — Replaced Pin/ComparisonStrip with full Comparison Tray:
-        · CompareContext (localStorage, max 5, add/remove/clear/isInCompare)
-        · CompareTray: floating bottom bar with project chips + Compare button
-        · CompareModal: projects as columns, rows for Feasibility Score (bar), CS Status,
-          IX Difficulty, Size, Technology, Stage, Source (Saved date vs Live)
-        · "Add to Compare" button on Lens results header
-        · Compare icon chip on Library project card right controls
-        · CompareProvider + CompareTray wired into App.jsx (persists across pages)
-- [x] Library — Inline stage editing: stage badge is now a StagePicker dropdown
-      (both in collapsed header and expanded panel), updates Supabase on select,
-      pipeline progress bar re-renders immediately
-- [x] Library — Structured note prompts: hint chips (Landowner, Queue position, Key dates,
-      ISA deposit, Site notes) appear above empty notes field; clicking pre-fills textarea header;
-      placeholder updated to "Landowner · Queue position · Key dates · ISA deposit"
-- [x] Library — CSV export: "Export CSV" button in header downloads all projects as
-      tractova-projects-YYYY-MM-DD.csv with all key fields
-- [x] Glossary — Related terms: "See also:" links at bottom of each definition,
-      curated 2–4 per term, click scrolls and highlights target card
-- [x] Glossary — Anchor links: each card has an id slug; hovering term name shows
-      link icon; click copies shareable URL to clipboard
-- [x] Glossary — Deep-linking: /glossary#slug auto-scrolls on page load;
-      typeahead selections update URL hash
+- Session Apr 13: News feed pagination, StateDetailPanel CTA to header, ?state= query param, feasibilityScore rename, Comparison Tray, inline stage editing, structured note prompts, CSV export, Glossary related terms + anchor links
+- Professional Tools — 1: Market Intelligence Summary (generateMarketSummary, verdict pill, signal chips, analyst sentence)
+- Professional Tools — 2: Sensitivity Analysis chips (computeScoreDelta, buildSensitivityScenarios, scenario mode on Market Intel card)
+- Professional Tools — 3: Project Summary PDF export (react-pdf, lazy-loaded, one-pager with score bar, pipeline viz, notes)
+- Professional Tools — 4: Program Runway field (enrollmentRateMWPerMonth seeded for 5 states, getRunway(), RunwayBadge in Lens + Dashboard)
 
 ---
 
-## UI/UX Backlog — 4 Tabs (do before live data)
+## 🔨 Active — UI/UX Revamp (Current Sprint)
 
-### Priority 1 — Dashboard ✅ DONE
-- [x] News feed urgency hierarchy: "Policy Alert" vs "Market Update" type tag on each item
-- [x] StateDetailPanel: "Open in Lens →" CTA button in panel footer (passes ?state=XX in URL)
-- [x] News feed pagination or carousel: 4 items visible, prev/next arrows
-- [x] Dashboard page header redesign (reverted — duplicated MetricsBar; original header kept)
+Design philosophy: make it feel like a Bloomberg Terminal crossed with a modern intelligence briefing. Data-dense but not overwhelming. Every paid feature should feel comforting and catered to the individual developer, not a generic dashboard.
 
-### Priority 1b — Lens (Search) ✅ DONE
-- [x] Read ?state= query param on Search page load and auto-select state in form
-- [x] "Search in Lens" CTA moved to StateDetailPanel header
+Color system going forward:
+- Teal `#0F6E56` — primary / positive market signal
+- Amber `#BA7517` — caution / watch
+- Violet `#7C3AED` — proprietary intelligence features (score, AI insights, scenario analysis)
+- Dark surface: `#070D0B` background, `#0F1A16` cards, `#1C2E27` borders (Library only)
 
-### Priority 2 — Lens (Search) ✅ DONE
-- [x] Feasibility Score explainer popover (3-pillar breakdown, opens downward)
-- [x] Comparison Tray (replaced Pin/ComparisonStrip — see session notes above)
-- [x] Search history: exact date timestamp on Library project cards
+### Step 1 — Lens: Field dropdown click area fix ✅ DONE (quick win)
+- Make entire white field box clickable to open dropdown, not just the arrow
+- Applies to: State, Development Stage, Technology Type (FieldSelect component)
+- County combobox already correct behavior
 
-### Priority 3 — Library ✅ DONE
-- [x] Inline stage editing: StagePicker dropdown on stage badge, saves to Supabase
-- [x] Structured note prompts: hint chips + updated placeholder
-- [x] CSV export: one-click download of all saved projects
+### Step 2 — Dashboard: Topographic background
+- Replace blank white page background with subtle SVG topographic contour pattern
+- On-brand: Tractova name derives from Roman land surveying (tractus = surveyed tract)
+- Implementation: CSS SVG background-image at ~3-4% opacity — pure CSS, no library
+- Add subtle radial gradient behind map panel to give it a "stage lit" depth effect
+- Keep map and all existing components unchanged — background only
 
-### Priority 4 — Glossary ✅ DONE
-- [x] Related terms links: "See also:" row at bottom of each definition
-- [x] Anchor links: id per card, copy-link on term name click, deep-link on mount
+### Step 3 — Lens: Replace state map with Market Position Panel
+- Current map is too small to read, adds zero analytical value, elongated horizontally
+- Replace ResultsStateMap entirely with a Market Position Panel:
+  - Left: State name + program name + status badge (large, confident)
+  - Center: Three mini horizontal bars for Offtake / IX / Site Control sub-scores
+    (Offtake 40%, IX 35%, Site 25% — same weights as score popover)
+  - Right: Market rank ("Ranked #X of Y active CS markets"), feasibility score as arc gauge
+  - Dark teal gradient header band matching search form aesthetic
+- DB-ready: sub-scores and rank will be computed from program_rules table in Iteration 5
+
+### Step 4 — Lens: Market Intelligence Summary redesign
+- Elevate to visual centerpiece of the Lens results page
+- Structure:
+  - Dark header band (`#0A5240`) with "TRACTOVA INTELLIGENCE" in monospace small caps left, large verdict badge right
+  - 3px left-side accent bar that color-matches the verdict (animates on scenario change)
+  - Primary insight zone: analyst sentence in `text-base` (larger), key terms highlighted inline (state name bold, program name teal, risk terms amber)
+  - Signal tiles: structured grid (icon + label + value) replacing small floating pills — more visual weight
+  - Subtle off-white surface `#F7FAF8` to distinguish from rest of page
+- Scenario Analysis upgrade (real developer scenarios):
+  - "If my study returns major upgrade requirements" → IX very_hard + estimated cost range ($150K–$400K) + timeline (+6–12 months)
+  - "If program fills before I reach NTP" → csStatus limited/none + interpretation of what that means for this project
+  - "If LMI requirement increases to 50%" → lmiPercent 50 + subscriber sourcing complexity note
+  - "If I need to downsize to 2MW" → recalculates capacity %, runway impact, score delta
+  - Visual: before/after score comparison on activation, not just sentence change
+  - Accent bar and verdict badge animate to new state
+- DB-ready: AI insight zone sized for 2–3 sentences of Claude API output when added later
+
+### Step 5 — Lens: Pillar cards (SC / IX / REV) redesign
+- Redesign to match visual language established in Steps 3 & 4
+- Each card: colored header band at reduced opacity per pillar (teal=offtake, blue=ix, amber=site)
+- Most important signal per card promoted to visual dominance:
+  - Site Control: wetland risk flag (red/green, large) above secondary data
+  - IX: Ease score meter prominent, queue status badge large
+  - Offtake: Program status + runway as the hero, revenue stack secondary
+- Add subtle hover state: border glow `rgba(15,110,86,0.15)`
+- DB-ready: all fields already map to future DB columns per the field mapping table above
+
+### Step 6 — Library: Full dark mode + intelligence redesign
+- Full dark theme for Library page only (purposeful mode shift into "deal war room")
+  - Page bg: `#070D0B`, card bg: `#0F1A16`, card border: `#1C2E27`
+  - Primary text: `#F0FAF7`, secondary: `#6B9E8A`, muted: `#3D5E52`
+- Three-color signal system on dark: teal (positive), amber (caution), violet (intelligence)
+- Topographic SVG background (same as Dashboard, very faint) — brand consistency
+- Collapsed card improvements:
+  - Score bubble → mini arc gauge (even in collapsed state)
+  - Pipeline stage shown as a mini progress bar under project name
+  - Hover: card border glow, subtle scale transform
+- Expanded panel:
+  - Dark header band with project name large and white
+  - Teal dividers, glowing score arc gauge
+  - Alert strips in amber/red on dark surface
+  - Notes field styled as terminal input (monospace, dark surface)
+  - Pipeline dots glow on dark
+- Header stat strip: numbers large and glowing on dark surface
+- Empty state: beautiful dark empty state with Tractova brand + CTA to run first Lens search
+- Export PDF button: styled for dark surface
+
+### Step 7 — Lens: Loading / analysis animation
+- Brief 800ms loading state when "Run Lens Analysis" is clicked
+- "Analyzing market conditions..." with animated pulse on three pillar icons
+- Makes platform feel like it's computing, not just rendering hardcoded data
+- Psychological value: Bloomberg users trust data more when they see it load
+- Remove after results appear, smooth fade-in on results panel
 
 ---
 
-## Next Up — Professional Tools Roadmap
+## Proposed: Web Scraping & Database Architecture (Iteration 5)
 
-These are the high-value items from the "Inspired by Wood Mackenzie / Enverus / Aurora" section.
-Pick up here next session. Suggested order:
-
-### 1. Executive Summary Sentence (Lens results) ✅ DONE
-  - `generateMarketSummary()` pure function in Search.jsx — synthesizes csStatus, ixDifficulty, feasibilityScore, project MW vs remaining capacity, LMI%, stage, technology
-  - `MarketIntelligenceSummary` component renders between state map and pillar cards
-  - Verdict pill: STRONG FIT / VIABLE / PROCEED WITH CAUTION / HIGH FRICTION / NOT RECOMMENDED with color coding
-  - Signal chips: program status, IX difficulty, queue status, LMI requirement, feasibility band
-  - Analyst-voice sentences are project-specific (MW relative to remaining capacity, stage-aware notes, LMI complexity callouts)
-
-### 2. Sensitivity Chips (Lens results) — MEDIUM EFFORT, HIGH PERCEIVED SOPHISTICATION
-  - "What if IX gets harder?" / "What if LMI drops to 30%?" chips on score display
-  - Re-runs feasibility score with toggled param, shows delta vs current score
-  - Buildable without a model — just re-invoke the score function with modified inputs
-
-### 3. Project Summary PDF Export (Library) — HIGH RETENTION VALUE
-  - One-click export from expanded Library card → clean one-pager PDF
-  - Pulls market intelligence, deal details, notes into a structured layout
-  - Requires: react-pdf or Puppeteer endpoint
-  - Highest retention item: once a dev exports a Tractova summary, they won't switch tools
-  - Build react-pdf version first (client-side, no server needed)
-
-### 4. Program Runway Field (Lens + Dashboard) — REQUIRES DATA WORK
-  - Estimated months of remaining program capacity at current enrollment pace
-  - Forward-looking signal nobody else provides cheaply
-  - Requires enrollment rate data — seed manually for top 5 states first, flag as "estimated"
-
----
-
-## Proposed: Web Scraping & Database Architecture
-
-Goal: live-updated program rules and constraints, pulling from state regs and incentive programs
-(MA SMART 3.0, IL ABP SHINES 2.0, etc.) 1-2x per week.
+Goal: live-updated program rules and constraints, pulling from state regs and incentive programs (MA SMART 3.0, IL ABP SHINES 2.0, etc.) 1–2x per week.
 
 Approach:
 - Single Supabase table `program_rules`: one row per state/program/utility
@@ -142,6 +168,7 @@ Recommended build order:
 - Admin panel for reviewing / approving scraped data before it hits prod
 - Data freshness indicators in the UI
 - `program_rules` Supabase table (see web scraping section above)
+- Wire all UI components off statePrograms.js → Supabase queries (per field mapping table above)
 
 ---
 
@@ -151,5 +178,6 @@ Recommended build order:
 - IRA Energy Community map layer (DOE API)
 - Utility Report Card (standalone profile page per utility)
 - Document Vault with AI summarization
-- Project Summary PDF export (see Professional Tools section)
 - Per-state deep program pages (replacing DSIRE)
+- Market Intelligence Summary — Claude API integration for AI-generated insights
+- Scenario Analysis — real cost/timeline estimates per IX upgrade tier
