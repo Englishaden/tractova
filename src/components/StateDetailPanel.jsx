@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import newsFeed from '../data/newsFeed'
+import { getRunway } from '../data/statePrograms'
 
 const STATUS_CONFIG = {
   active:  { label: 'Active Program',   cls: 'bg-primary-50 text-primary-700 border border-primary-300 ring-1 ring-primary-200' },
@@ -55,11 +56,19 @@ function StatRow({ label, value, highlight }) {
   )
 }
 
+const RUNWAY_COLORS = {
+  strong:   { bg: '#DCFCE7', text: '#14532D' },
+  moderate: { bg: '#FEF3C7', text: '#78350F' },
+  watch:    { bg: '#FFEDD5', text: '#7C2D12' },
+  urgent:   { bg: '#FEE2E2', text: '#7F1D1D' },
+}
+
 export default function StateDetailPanel({ state, onClose }) {
   if (!state) return null
 
   const status = STATUS_CONFIG[state.csStatus] || STATUS_CONFIG.none
   const ixCfg  = IX_CONFIG[state.ixDifficulty] || IX_CONFIG.moderate
+  const runway = getRunway(state)
 
   // Relevant news items for this state
   const relatedNews = newsFeed.filter(
@@ -122,6 +131,20 @@ export default function StateDetailPanel({ state, onClose }) {
           ) : (
             <div className="bg-surface rounded-md p-3 space-y-0.5">
               <StatRow label="Program capacity remaining" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : 'TBD'} highlight />
+              {runway && (
+                <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
+                  <span className="text-xs text-gray-500">Est. program runway</span>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="text-xs font-semibold px-2 py-0.5 rounded"
+                      style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
+                    >
+                      ~{runway.months} months{runway.urgency === 'watch' ? ' — watch' : runway.urgency === 'urgent' ? ' — act now' : ''}
+                    </span>
+                    <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">est.</span>
+                  </div>
+                </div>
+              )}
               <StatRow label="LMI allocation required"    value={state.lmiRequired ? `Yes — ${state.lmiPercent}%` : 'No'} />
               {state.programNotes && (
                 <p className="text-xs text-gray-500 pt-1 leading-relaxed">{state.programNotes}</p>

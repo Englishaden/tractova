@@ -3,6 +3,7 @@
 // csStatus: "active" | "limited" | "pending" | "none"
 // ixDifficulty: "easy" | "moderate" | "hard" | "very_hard"
 // feasibilityScore: 0–100 composite (drives map color intensity)
+// enrollmentRateMWPerMonth: estimated MW enrolled per month (seeded for select states, flagged as estimated)
 
 const statePrograms = [
   // ── ACTIVE PROGRAMS ──────────────────────────────────────────────────────────
@@ -18,6 +19,7 @@ const statePrograms = [
     ixNotes: "ComEd territory manageable; Ameren more backlogged. MISO queue improving post-Order 2023.",
     feasibilityScore: 78,
     programNotes: "CEJA expanded the program significantly. Strong LMI adder. Competitive but well-structured.",
+    enrollmentRateMWPerMonth: 14,
     lastUpdated: "2026-03-15",
   },
   {
@@ -46,6 +48,7 @@ const statePrograms = [
     ixNotes: "NYISO backlog significant. Con Ed territory very hard. Upstate utilities (NYSEG, RG&E) more accessible.",
     feasibilityScore: 65,
     programNotes: "Value Stack compensation is strong. Complex program rules. Long study timelines in downstate.",
+    enrollmentRateMWPerMonth: 20,
     lastUpdated: "2026-03-28",
   },
   {
@@ -74,6 +77,7 @@ const statePrograms = [
     ixNotes: "Xcel Energy Colorado has capacity. Rural co-ops in WACM have good headroom.",
     feasibilityScore: 75,
     programNotes: "2MW cap removed. Strong IRA ITC adder eligibility. Developer-friendly program structure.",
+    enrollmentRateMWPerMonth: 8,
     lastUpdated: "2026-04-01",
   },
   {
@@ -88,6 +92,7 @@ const statePrograms = [
     ixNotes: "PJM / JCP&L and PSE&G territories congested. High upgrade costs common.",
     feasibilityScore: 52,
     programNotes: "High LMI requirement creates subscriber complexity. Above-market TREC values help economics.",
+    enrollmentRateMWPerMonth: 10,
     lastUpdated: "2026-02-14",
   },
   {
@@ -216,6 +221,7 @@ const statePrograms = [
     ixNotes: "ISO-NE. Eversource and National Grid. Block 8 nearly full — watch for Block 9 announcement.",
     feasibilityScore: 45,
     programNotes: "Program nearly at capacity. Watch for next block opening. Strong IRA adder eligibility.",
+    enrollmentRateMWPerMonth: 8,
     lastUpdated: "2026-04-05",
   },
   {
@@ -316,5 +322,19 @@ export const stateById = statePrograms.reduce((acc, s) => {
   acc[s.id] = s
   return acc
 }, {})
+
+// Program runway — estimated months of remaining capacity at current enrollment pace.
+// Returns null if enrollment rate data is not seeded for this state.
+// urgency: 'strong' (>24mo) | 'moderate' (13–24mo) | 'watch' (7–12mo) | 'urgent' (≤6mo)
+export function getRunway(stateProgram) {
+  if (!stateProgram?.enrollmentRateMWPerMonth || !(stateProgram.capacityMW > 0)) return null
+  const months = Math.round(stateProgram.capacityMW / stateProgram.enrollmentRateMWPerMonth)
+  let urgency
+  if (months > 24)      urgency = 'strong'
+  else if (months > 12) urgency = 'moderate'
+  else if (months > 6)  urgency = 'watch'
+  else                  urgency = 'urgent'
+  return { months, urgency }
+}
 
 export default statePrograms

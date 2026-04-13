@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
-import { stateById } from '../data/statePrograms'
+import { stateById, getRunway } from '../data/statePrograms'
 import { getCountyData, revenueStackByState } from '../data/countyData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
@@ -231,6 +231,29 @@ function QueueBadge({ statusCode }) {
   )
 }
 
+const RUNWAY_COLORS = {
+  strong:   { bg: '#DCFCE7', text: '#14532D' },
+  moderate: { bg: '#FEF3C7', text: '#78350F' },
+  watch:    { bg: '#FFEDD5', text: '#7C2D12' },
+  urgent:   { bg: '#FEE2E2', text: '#7F1D1D' },
+}
+
+function RunwayBadge({ runway }) {
+  const c = RUNWAY_COLORS[runway.urgency] || RUNWAY_COLORS.moderate
+  const suffix = runway.urgency === 'watch' ? ' — watch' : runway.urgency === 'urgent' ? ' — act now' : ''
+  return (
+    <div className="flex items-center gap-1.5">
+      <span
+        className="text-xs font-semibold px-2 py-0.5 rounded"
+        style={{ background: c.bg, color: c.text }}
+      >
+        ~{runway.months} months{suffix}
+      </span>
+      <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">est.</span>
+    </div>
+  )
+}
+
 function CSStatusBadge({ csStatus }) {
   const map = {
     active:  { label: 'Active Program', cls: 'bg-primary-50 text-primary-700 border-primary-200' },
@@ -407,6 +430,7 @@ function InterconnectionCard({ interconnection, stateProgram }) {
 
 function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
+  const runway = stateProgram ? getRunway(stateProgram) : null
   const showCSWarning = technology === 'BESS' || technology === 'C&I Solar'
 
   return (
@@ -450,6 +474,12 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
                   label="Project share of remaining"
                   value={`${((parseFloat(mw) / stateProgram.capacityMW) * 100).toFixed(1)}%`}
                 />
+              )}
+              {runway && (
+                <div className="flex items-center justify-between pt-1.5">
+                  <span className="text-xs text-gray-500">Est. program runway</span>
+                  <RunwayBadge runway={runway} />
+                </div>
               )}
             </div>
           ) : (
