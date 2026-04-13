@@ -20,79 +20,96 @@
 - Iteration 4 — Bug fixes: score gauge clip, expanded state preserved on window focus/alt-tab
 - Iteration 4 — Dashboard: urgency tags on news feed, "Open in Lens" CTA in StateDetailPanel
 
+### Session: April 13, 2026
+- [x] Dashboard — News feed pagination: 4 items per page, prev/next arrows, item count display
+- [x] Dashboard — StateDetailPanel: "Search in Lens" CTA moved to panel header (next to close button)
+- [x] Lens — Read ?state= query param on load, auto-select state in form (useSearchParams)
+- [x] Platform-wide rename: opportunityScore → feasibilityScore in all JS/JSX
+      (statePrograms.js, MetricsBar, USMap, StateDetailPanel, Library, Search, Glossary)
+      DB column (opportunity_score) intentionally unchanged
+- [x] Lens — Score popover: fixed upward clipping, now opens downward (top-full mt-2)
+- [x] Lens — Score label renamed "Opportunity score" → "Feasibility score" in popover
+- [x] Library — Timestamp format: changed to exact date M/D/YYYY (was short month/year)
+- [x] Lens — Replaced Pin/ComparisonStrip with full Comparison Tray:
+        · CompareContext (localStorage, max 5, add/remove/clear/isInCompare)
+        · CompareTray: floating bottom bar with project chips + Compare button
+        · CompareModal: projects as columns, rows for Feasibility Score (bar), CS Status,
+          IX Difficulty, Size, Technology, Stage, Source (Saved date vs Live)
+        · "Add to Compare" button on Lens results header
+        · Compare icon chip on Library project card right controls
+        · CompareProvider + CompareTray wired into App.jsx (persists across pages)
+- [x] Library — Inline stage editing: stage badge is now a StagePicker dropdown
+      (both in collapsed header and expanded panel), updates Supabase on select,
+      pipeline progress bar re-renders immediately
+- [x] Library — Structured note prompts: hint chips (Landowner, Queue position, Key dates,
+      ISA deposit, Site notes) appear above empty notes field; clicking pre-fills textarea header;
+      placeholder updated to "Landowner · Queue position · Key dates · ISA deposit"
+- [x] Library — CSV export: "Export CSV" button in header downloads all projects as
+      tractova-projects-YYYY-MM-DD.csv with all key fields
+- [x] Glossary — Related terms: "See also:" links at bottom of each definition,
+      curated 2–4 per term, click scrolls and highlights target card
+- [x] Glossary — Anchor links: each card has an id slug; hovering term name shows
+      link icon; click copies shareable URL to clipboard
+- [x] Glossary — Deep-linking: /glossary#slug auto-scrolls on page load;
+      typeahead selections update URL hash
+
 ---
 
 ## UI/UX Backlog — 4 Tabs (do before live data)
 
-### Priority 1 — Dashboard
+### Priority 1 — Dashboard ✅ DONE
 - [x] News feed urgency hierarchy: "Policy Alert" vs "Market Update" type tag on each item
 - [x] StateDetailPanel: "Open in Lens →" CTA button in panel footer (passes ?state=XX in URL)
-- [x] News feed pagination or carousel: feed scrolls too far — add "See more / See less" toggle
-      or left/right arrow mini-pagination so the panel stays compact (e.g. 4 items visible, arrows to page through)
-- [x] Dashboard page header redesign: match Glossary/Library intelligence aesthetic (teal banner or stat strip)
+- [x] News feed pagination or carousel: 4 items visible, prev/next arrows
+- [x] Dashboard page header redesign (reverted — duplicated MetricsBar; original header kept)
 
-### Priority 1b — Lens (Search) — state pre-fill from Dashboard
-- [x] Read ?state= query param on Search page load and auto-select that state in the form
-      — currently the URL is passed (?state=IL) but Search.jsx doesn't read it yet
-      — use useSearchParams() from react-router-dom, set initial state value from param on mount
-- [ ] Consider moving "Search in Lens" CTA higher in StateDetailPanel — currently in footer,
-      could sit next to the state name in the header for faster discoverability
-      — use discretion: header may be too crowded, footer placement is clean but easy to miss
+### Priority 1b — Lens (Search) ✅ DONE
+- [x] Read ?state= query param on Search page load and auto-select state in form
+- [x] "Search in Lens" CTA moved to StateDetailPanel header
 
-### Priority 2 — Lens (Search)
-- [ ] Score explainer: "How is this scored?" tooltip or expandable 3-bullet breakdown on results
-      — developers distrust a number they don't understand; trust = retention
-- [ ] Compare mode: pin two state results side by side (IL vs MN), avoids mental tab-switching
-- [ ] Search history: "Last searched [date]" timestamp surfaced on saved Library projects
-      — shows whether conditions changed since original search
+### Priority 2 — Lens (Search) ✅ DONE
+- [x] Feasibility Score explainer popover (3-pillar breakdown, opens downward)
+- [x] Comparison Tray (replaced Pin/ComparisonStrip — see session notes above)
+- [x] Search history: exact date timestamp on Library project cards
 
-### Priority 3 — Library (My Projects)
-- [ ] Inline stage editing: clicking the stage badge in expanded panel lets user update it
-      — projects stuck at "Prospecting" forever are useless as a deal tracker
-- [ ] Structured note prompts: placeholder text in notes field like
-      "Landowner · Queue position · Key dates · ISA deposit" to guide input
-- [ ] CSV export: one-click export of all saved projects with market data columns
-      — high value for pipeline reporting to investors or partners
+### Priority 3 — Library ✅ DONE
+- [x] Inline stage editing: StagePicker dropdown on stage badge, saves to Supabase
+- [x] Structured note prompts: hint chips + updated placeholder
+- [x] CSV export: one-click download of all saved projects
 
-### Priority 4 — Glossary
-- [ ] Related terms links: bottom of each definition links to 2-3 related terms
-      (e.g. ISA → IX Queue, Interconnection Agreement)
-      — makes it feel like real reference documentation, not a flat list
-- [ ] Anchor links per term: clicking a term name updates URL to /glossary#isa
-      so developers can share specific definitions with colleagues
+### Priority 4 — Glossary ✅ DONE
+- [x] Related terms links: "See also:" row at bottom of each definition
+- [x] Anchor links: id per card, copy-link on term name click, deep-link on mount
 
 ---
 
-## Professional Tools — Future Functionality Roadmap
+## Next Up — Professional Tools Roadmap
 
-### Inspired by Wood Mackenzie / Enverus
-- [ ] Executive summary sentence on Lens results: one plain-English line above the score
-      e.g. "Illinois is an active CS market with moderate IX difficulty — strong for LMI-heavy projects under 2MW."
-      This is the insight the developer needs before the data.
-- [ ] Program runway field: estimated months of remaining program capacity at current enrollment pace
-      — forward-looking signal that none of the cheap tools provide
-      — requires enrollment rate data from scrapers (Iteration 5+)
+These are the high-value items from the "Inspired by Wood Mackenzie / Enverus / Aurora" section.
+Pick up here next session. Suggested order:
 
-### Inspired by Aurora Energy Research
-- [ ] Sensitivity chips on Lens results: "What if IX gets harder?" or "What if LMI drops to 30%?"
-      — re-runs the score with a modified input and shows delta
-      — buildable without a full model, just re-invoke the score function with toggled params
-      — high perceived sophistication, relatively low build complexity
+### 1. Executive Summary Sentence (Lens results) — HIGH VALUE, LOW EFFORT
+  - One plain-English line above the feasibility score on Lens results
+  - e.g. "Illinois is an active CS market with moderate IX difficulty — strong for LMI-heavy projects under 2MW."
+  - Build as a pure mapping function in statePrograms.js or generate from csStatus + ixDifficulty + score
+  - No external dependencies — entirely client-side
 
-### Inspired by Energy Toolbase
-- [ ] Project Summary PDF export from Library expanded panel
-      — pulls market data, deal details, notes into a clean one-pager
-      — developers use this for investor decks and partner handoffs
-      — highest retention value item on this list: once a dev exports a Tractova summary,
-        they won't switch tools
-      — requires a PDF generation library (e.g. react-pdf or a server-side Puppeteer endpoint)
+### 2. Sensitivity Chips (Lens results) — MEDIUM EFFORT, HIGH PERCEIVED SOPHISTICATION
+  - "What if IX gets harder?" / "What if LMI drops to 30%?" chips on score display
+  - Re-runs feasibility score with toggled param, shows delta vs current score
+  - Buildable without a model — just re-invoke the score function with modified inputs
 
-### Replacing DSIRE (free tier reference — currently ugly and slow)
-- [ ] Per-state program summary pages: dedicated readable page per active CS state
-      — goes deeper than the StateDetailPanel: full program rules, adder structure,
-        REC price history, utility territory map
-      — positions Tractova as the place developers go instead of DSIRE
-      — requires live data layer (Iteration 5) to be trustworthy
+### 3. Project Summary PDF Export (Library) — HIGH RETENTION VALUE
+  - One-click export from expanded Library card → clean one-pager PDF
+  - Pulls market intelligence, deal details, notes into a structured layout
+  - Requires: react-pdf or Puppeteer endpoint
+  - Highest retention item: once a dev exports a Tractova summary, they won't switch tools
+  - Build react-pdf version first (client-side, no server needed)
+
+### 4. Program Runway Field (Lens + Dashboard) — REQUIRES DATA WORK
+  - Estimated months of remaining program capacity at current enrollment pace
+  - Forward-looking signal nobody else provides cheaply
+  - Requires enrollment rate data — seed manually for top 5 states first, flag as "estimated"
 
 ---
 
