@@ -1079,37 +1079,43 @@ const LENS_OVERLAY_STYLES = `
 
 function LensOverlay({ visible, stateName, countyName }) {
   const C = 2 * Math.PI * 60  // circumference ≈ 376.99
-  const [progress, setProgress] = useState(0)
-  const [isShown, setIsShown]   = useState(false)
-  const intervalRef = useRef(null)
+  const [isShown, setIsShown] = useState(false)
+  const arcRef  = useRef(null)
+  const rafRef  = useRef(null)
 
   useEffect(() => {
     if (visible) {
-      // Overlay appearing — reset and start slow fill toward 88%
-      setProgress(0)
+      // Mount overlay and start smooth fill toward 88% over ~14s via RAF
+      // RAF mutates the DOM directly — zero React re-renders during animation
       setIsShown(true)
-      intervalRef.current = setInterval(() => {
-        setProgress(p => {
-          if (p >= 88) {
-            clearInterval(intervalRef.current)
-            return 88
-          }
-          return p + 0.7
-        })
-      }, 100)
+      let startTs = null
+      const FILL_DURATION = 14000 // ms to reach 88% — longer than worst-case API time
+
+      const tick = (ts) => {
+        if (!startTs) startTs = ts
+        const elapsed = ts - startTs
+        const p = Math.min(88, (elapsed / FILL_DURATION) * 88)
+        if (arcRef.current) {
+          arcRef.current.style.transition = 'none'
+          arcRef.current.style.strokeDashoffset = C * (1 - p / 100)
+        }
+        if (p < 88) rafRef.current = requestAnimationFrame(tick)
+      }
+      rafRef.current = requestAnimationFrame(tick)
     } else {
-      // API returned — snap fill to 100%, then dismiss after the transition completes
-      clearInterval(intervalRef.current)
-      setProgress(100)
-      const dismissTimer = setTimeout(() => setIsShown(false), 700)
+      // API returned — cancel RAF, snap to full via CSS transition, then dismiss
+      cancelAnimationFrame(rafRef.current)
+      if (arcRef.current) {
+        arcRef.current.style.transition = 'stroke-dashoffset 600ms cubic-bezier(0.4,0,0.2,1)'
+        arcRef.current.style.strokeDashoffset = 0
+      }
+      const dismissTimer = setTimeout(() => setIsShown(false), 750)
       return () => clearTimeout(dismissTimer)
     }
-    return () => clearInterval(intervalRef.current)
-  }, [visible])
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [visible]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isShown) return null
-
-  const offset = C * (1 - progress / 100)
 
   return (
     <div
@@ -1132,22 +1138,19 @@ function LensOverlay({ visible, stateName, countyName }) {
         <svg width="160" height="160" viewBox="0 0 160 160" fill="none">
           {/* Track ring */}
           <circle cx="80" cy="80" r="60" stroke="rgba(255,255,255,0.08)" strokeWidth="7" fill="none" />
-          {/* Progress arc — driven by React state, completes via CSS transition */}
+          {/* Progress arc — driven by RAF via ref, never causes React re-renders */}
           <circle
+            ref={arcRef}
             cx="80" cy="80" r="60"
             stroke="#D97706"
             strokeWidth="7"
             fill="none"
             strokeLinecap="round"
             strokeDasharray={`${C} ${C}`}
-            strokeDashoffset={offset}
-            style={{
-              transformOrigin: '80px 80px',
-              transform: 'rotate(-90deg)',
-              transition: progress === 100 ? 'stroke-dashoffset 500ms ease-out' : 'none',
-            }}
+            strokeDashoffset={C}
+            style={{ transformOrigin: '80px 80px', transform: 'rotate(-90deg)' }}
           />
-          {/* 8 sun rays radiating from center */}
+          {/* 8 sun rays */}
           {Array.from({ length: 8 }).map((_, i) => {
             const angle = (i * 45 * Math.PI) / 180
             return (
@@ -1163,10 +1166,7 @@ function LensOverlay({ visible, stateName, countyName }) {
           <circle
             cx="80" cy="80" r="7"
             fill="#D97706"
-            style={{
-              transformOrigin: '80px 80px',
-              animation: 'lens-pulse 1800ms ease-in-out infinite',
-            }}
+            style={{ transformOrigin: '80px 80px', animation: 'lens-pulse 1800ms ease-in-out infinite' }}
           />
         </svg>
       </div>

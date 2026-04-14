@@ -205,6 +205,6 @@ export default async function handler(req, res) {
   } catch (err) {
     clearTimeout(timeoutId)
     console.error('[lens-insight] error:', err.message)
-    return res.status(200).json({ insight: null, fallback: true, reason: 'api_error' })
+    return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }
