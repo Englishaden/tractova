@@ -176,7 +176,7 @@ export default async function handler(req, res) {
   // ── Build context + call Claude ────────────────────────────────────────────
   const contextText = buildContext(body)
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 10000)
+  const timeoutId = setTimeout(() => controller.abort(), 25000)
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
