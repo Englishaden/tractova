@@ -396,11 +396,17 @@ function ProjectCard({ project, onRequestRemove }) {
 
   const liveScore = current?.feasibilityScore ?? null
 
-  const scoreBg = liveScore == null ? 'rgba(255,255,255,0.06)' :
-                  liveScore >= 70   ? 'rgba(15,110,86,0.22)'   :
-                  liveScore >= 50   ? 'rgba(217,119,6,0.22)'   :
-                                      'rgba(220,38,38,0.22)'
-  const scoreText = liveScore == null ? 'rgba(255,255,255,0.30)' :
+  const accentColor = hasUrgent          ? '#EF4444' :
+                      liveScore == null   ? 'rgba(255,255,255,0.15)' :
+                      liveScore >= 70     ? '#0F6E56' :
+                      liveScore >= 50     ? '#D97706' :
+                                            '#EF4444'
+
+  const scoreBg = liveScore == null ? 'rgba(255,255,255,0.08)' :
+                  liveScore >= 70   ? 'rgba(15,110,86,0.30)'   :
+                  liveScore >= 50   ? 'rgba(217,119,6,0.28)'   :
+                                      'rgba(220,38,38,0.28)'
+  const scoreText = liveScore == null ? 'rgba(255,255,255,0.45)' :
                     liveScore >= 70   ? '#34D399'  :
                     liveScore >= 50   ? '#FCD34D'  :
                                         '#F87171'
@@ -409,9 +415,12 @@ function ProjectCard({ project, onRequestRemove }) {
     <div
       className="rounded-xl border transition-all duration-200 overflow-hidden"
       style={{
-        background: '#0D1F17',
-        borderColor: hasUrgent ? 'rgba(220,38,38,0.30)' : expanded ? 'rgba(15,110,86,0.35)' : 'rgba(15,110,86,0.18)',
-        boxShadow: '0 2px 16px rgba(0,0,0,0.30)',
+        background: '#0F2318',
+        borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(15,110,86,0.40)' : 'rgba(15,110,86,0.20)',
+        borderLeft: `3px solid ${accentColor}`,
+        boxShadow: expanded
+          ? `0 4px 24px rgba(0,0,0,0.40), 0 0 0 1px rgba(15,110,86,0.12)`
+          : '0 2px 12px rgba(0,0,0,0.25)',
       }}
     >
 
@@ -432,7 +441,7 @@ function ProjectCard({ project, onRequestRemove }) {
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-sm font-bold leading-snug" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.name}</h2>
+            <h2 className="text-sm font-bold leading-snug" style={{ color: '#FFFFFF' }}>{project.name}</h2>
             <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
             {alerts.length > 0 && (
               <span
@@ -445,7 +454,7 @@ function ProjectCard({ project, onRequestRemove }) {
               </span>
             )}
           </div>
-          <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.38)' }}>
+          <p className="text-xs mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.52)' }}>
             {project.county} County, {project.stateName || project.state}
             {' · '}{project.mw} MW AC
             {project.technology ? ` · ${project.technology}` : ''}
@@ -494,7 +503,7 @@ function ProjectCard({ project, onRequestRemove }) {
 
             {/* ── Left: Market Intelligence ──────────────────────────────── */}
             <div className="flex flex-col gap-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.60)' }}>Market Intelligence</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.90)' }}>Market Intelligence</p>
 
               {current ? (
                 <>
@@ -504,14 +513,14 @@ function ProjectCard({ project, onRequestRemove }) {
                     <div className="flex flex-col gap-2">
                       {/* CS status */}
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.30)' }}>Program Status</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Program Status</p>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {CS_STATUS_LABEL[current.csStatus] ?? current.csStatus}
                         </span>
                       </div>
                       {/* IX difficulty */}
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.30)' }}>IX Difficulty</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>IX Difficulty</p>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
                         </span>
@@ -522,26 +531,26 @@ function ProjectCard({ project, onRequestRemove }) {
                   {/* Program details */}
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>CS Program</p>
-                      <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{current.csProgram ?? '—'}</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>CS Program</p>
+                      <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{current.csProgram ?? '—'}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>LMI Required</p>
+                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>LMI Required</p>
                       <p className="font-medium">
                         {current.lmiRequired
                           ? <span style={{ color: '#34D399' }}>{current.lmiPercent}% minimum</span>
-                          : <span style={{ color: 'rgba(255,255,255,0.30)' }}>Not required</span>}
+                          : <span style={{ color: 'rgba(255,255,255,0.45)' }}>Not required</span>}
                       </p>
                     </div>
                     {current.capacityMW && (
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Program Capacity</p>
-                        <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{current.capacityMW} MW</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>Program Capacity</p>
+                        <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{current.capacityMW} MW</p>
                       </div>
                     )}
                     {current.lastUpdated && (
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Data As Of</p>
+                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>Data As Of</p>
                         <p style={{ color: 'rgba(255,255,255,0.40)' }}>{current.lastUpdated}</p>
                       </div>
                     )}
@@ -551,7 +560,7 @@ function ProjectCard({ project, onRequestRemove }) {
                   {current.ixNotes && (
                     <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(186,117,23,0.08)', border: '1px solid rgba(186,117,23,0.18)' }}>
                       <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(186,117,23,0.70)' }}>IX Notes</p>
-                      <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{current.ixNotes}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>{current.ixNotes}</p>
                     </div>
                   )}
 
@@ -559,23 +568,23 @@ function ProjectCard({ project, onRequestRemove }) {
                   {current.programNotes && (
                     <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(15,110,86,0.10)', border: '1px solid rgba(15,110,86,0.20)' }}>
                       <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(52,211,153,0.60)' }}>Program Context</p>
-                      <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{current.programNotes}</p>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.72)' }}>{current.programNotes}</p>
                     </div>
                   )}
                 </>
               ) : (
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.30)' }}>No market data available for this state.</p>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>No market data available for this state.</p>
               )}
             </div>
 
             {/* ── Right: Your Deal ───────────────────────────────────────── */}
             <div className="flex flex-col gap-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.60)' }}>Your Deal</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.90)' }}>Your Deal</p>
 
               {/* Pipeline progress */}
               <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.30)' }}>Development Stage</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.45)' }}>Development Stage</p>
                   <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
                 </div>
                 <PipelineProgress stage={stage} />
@@ -584,21 +593,21 @@ function ProjectCard({ project, onRequestRemove }) {
               {/* Deal details */}
               <div className="rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Technology</p>
-                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{project.technology || '—'}</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>Technology</p>
+                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.technology || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Capacity</p>
-                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{project.mw} MW AC</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>Capacity</p>
+                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.mw} MW AC</p>
                 </div>
                 {project.servingUtility && (
                   <div className="col-span-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Serving Utility</p>
-                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.75)' }}>{project.servingUtility}</p>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>Serving Utility</p>
+                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.servingUtility}</p>
                   </div>
                 )}
                 <div className="col-span-2">
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.30)' }}>Saved</p>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>Saved</p>
                   <p style={{ color: 'rgba(255,255,255,0.35)' }}>{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                 </div>
               </div>
@@ -606,10 +615,10 @@ function ProjectCard({ project, onRequestRemove }) {
               {/* Notes */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.30)' }}>Deal Notes</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.45)' }}>Deal Notes</p>
                   {saveStatus === 'saving' && (
-                    <span className="text-[9px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.30)' }}>
-                      <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: 'rgba(255,255,255,0.30)' }} />
+                    <span className="text-[9px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: 'rgba(255,255,255,0.45)' }} />
                       Saving…
                     </span>
                   )}
@@ -647,7 +656,7 @@ function ProjectCard({ project, onRequestRemove }) {
                   style={{
                     background: 'rgba(0,0,0,0.25)',
                     border: '1px solid rgba(15,110,86,0.20)',
-                    color: 'rgba(255,255,255,0.75)',
+                    color: 'rgba(255,255,255,0.90)',
                   }}
                 />
               </div>
@@ -661,7 +670,7 @@ function ProjectCard({ project, onRequestRemove }) {
               onClick={handleExportPDF}
               disabled={exporting}
               className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}
+              style={{ color: 'rgba(255,255,255,0.72)', border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.04)' }}
             >
               {exporting ? (
                 <>
@@ -767,8 +776,8 @@ function LibraryContent() {
         <div className="mt-4 mb-8">
           <div className="flex items-end justify-between gap-4 mb-4">
             <div>
-              <p className="text-[10px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(52,211,153,0.55)' }}>Deal Tracker</p>
-              <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.92)' }}>My Projects</h1>
+              <p className="text-[10px] font-bold tracking-widest uppercase mb-1" style={{ color: 'rgba(52,211,153,0.80)' }}>Deal Tracker</p>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#FFFFFF' }}>My Projects</h1>
               <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>Your saved deals — tracked, scored, and monitored for policy changes.</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -776,7 +785,7 @@ function LibraryContent() {
                 <button
                   onClick={() => exportCSV(projects)}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-                  style={{ color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
+                  style={{ color: 'rgba(255,255,255,0.72)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }}
                   title="Export all projects to CSV"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -804,7 +813,7 @@ function LibraryContent() {
                 { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
               ].map(({ label, value, sub, topColor, valColor }) => (
                 <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1F17', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.30)' }}>{label}</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</p>
                   <p className="text-xl font-bold mt-0.5" style={{ color: valColor }}>{value}</p>
                   <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>{sub}</p>
                 </div>
@@ -846,7 +855,7 @@ function LibraryContent() {
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             </div>
-            <p className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>No saved projects yet</p>
+            <p className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.90)' }}>No saved projects yet</p>
             <p className="text-xs mt-1 max-w-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
               Run a search in Tractova Lens, then click <span style={{ color: 'rgba(255,255,255,0.60)', fontWeight: 500 }}>Save as Project</span> to add it here.
             </p>
