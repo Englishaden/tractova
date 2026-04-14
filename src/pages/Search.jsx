@@ -1062,14 +1062,10 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
 // ─────────────────────────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 // Lens fullscreen overlay — sun-fill animation shown while analyzing
+// Progress fills slowly to 88% while waiting, then completes when API returns.
+// Single pass only — never loops.
 // ─────────────────────────────────────────────────────────────────────────────
 const LENS_OVERLAY_STYLES = `
-  @keyframes lens-arc {
-    0%   { stroke-dashoffset: 376.99; }
-    60%  { stroke-dashoffset: 0; }
-    85%  { stroke-dashoffset: 0; }
-    100% { stroke-dashoffset: 376.99; }
-  }
   @keyframes lens-pulse {
     0%, 100% { opacity: 0.55; transform: scale(1); }
     50%       { opacity: 1;    transform: scale(1.18); }
@@ -1078,6 +1074,38 @@ const LENS_OVERLAY_STYLES = `
 
 function LensOverlay({ visible, stateName, countyName }) {
   const C = 2 * Math.PI * 60  // circumference ≈ 376.99
+  const [progress, setProgress] = useState(0)
+  const [isShown, setIsShown]   = useState(false)
+  const intervalRef = useRef(null)
+
+  useEffect(() => {
+    if (visible) {
+      // Overlay appearing — reset and start slow fill toward 88%
+      setProgress(0)
+      setIsShown(true)
+      intervalRef.current = setInterval(() => {
+        setProgress(p => {
+          if (p >= 88) {
+            clearInterval(intervalRef.current)
+            return 88
+          }
+          return p + 0.7
+        })
+      }, 100)
+    } else {
+      // API returned — snap fill to 100%, then dismiss after the transition completes
+      clearInterval(intervalRef.current)
+      setProgress(100)
+      const dismissTimer = setTimeout(() => setIsShown(false), 700)
+      return () => clearTimeout(dismissTimer)
+    }
+    return () => clearInterval(intervalRef.current)
+  }, [visible])
+
+  if (!isShown) return null
+
+  const offset = C * (1 - progress / 100)
+
   return (
     <div
       style={{
@@ -1092,9 +1120,6 @@ function LensOverlay({ visible, stateName, countyName }) {
         alignItems: 'center',
         justifyContent: 'center',
         gap: '20px',
-        opacity: visible ? 1 : 0,
-        pointerEvents: visible ? 'all' : 'none',
-        transition: 'opacity 200ms ease',
       }}
     >
       {/* Sun circle */}
@@ -1102,7 +1127,7 @@ function LensOverlay({ visible, stateName, countyName }) {
         <svg width="160" height="160" viewBox="0 0 160 160" fill="none">
           {/* Track ring */}
           <circle cx="80" cy="80" r="60" stroke="rgba(255,255,255,0.08)" strokeWidth="7" fill="none" />
-          {/* Animated fill arc — starts at top (rotated -90°) */}
+          {/* Progress arc — driven by React state, completes via CSS transition */}
           <circle
             cx="80" cy="80" r="60"
             stroke="#D97706"
@@ -1110,12 +1135,11 @@ function LensOverlay({ visible, stateName, countyName }) {
             fill="none"
             strokeLinecap="round"
             strokeDasharray={`${C} ${C}`}
+            strokeDashoffset={offset}
             style={{
               transformOrigin: '80px 80px',
               transform: 'rotate(-90deg)',
-              animation: visible
-                ? 'lens-arc 3s cubic-bezier(0.45,0,0.55,1) infinite'
-                : 'none',
+              transition: progress === 100 ? 'stroke-dashoffset 500ms ease-out' : 'none',
             }}
           />
           {/* 8 sun rays radiating from center */}
@@ -1136,7 +1160,7 @@ function LensOverlay({ visible, stateName, countyName }) {
             fill="#D97706"
             style={{
               transformOrigin: '80px 80px',
-              animation: visible ? 'lens-pulse 1800ms ease-in-out infinite' : 'none',
+              animation: 'lens-pulse 1800ms ease-in-out infinite',
             }}
           />
         </svg>
