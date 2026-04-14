@@ -299,7 +299,7 @@ function StagePicker({ stage, projectId, onChange }) {
       {open && (
         <ul
           className="absolute z-50 top-full mt-1 left-0 rounded-lg overflow-hidden min-w-[210px]"
-          style={{ background: '#0F2419', border: '1px solid rgba(15,110,86,0.30)', boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}
+          style={{ background: '#0D1A2E', border: '1px solid rgba(15,110,86,0.30)', boxShadow: '0 8px 32px rgba(0,0,0,0.45)' }}
         >
           {PIPELINE_STAGES.map((s) => (
             <li key={s}>
@@ -415,7 +415,7 @@ function ProjectCard({ project, onRequestRemove }) {
     <div
       className="rounded-xl border transition-all duration-200 overflow-hidden"
       style={{
-        background: '#0F2318',
+        background: '#0D1624',
         borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(15,110,86,0.40)' : 'rgba(15,110,86,0.20)',
         borderLeft: `3px solid ${accentColor}`,
         boxShadow: expanded
@@ -490,7 +490,7 @@ function ProjectCard({ project, onRequestRemove }) {
 
       {/* ── Expanded panel ──────────────────────────────────────────────────── */}
       {expanded && (
-        <div className="px-5 py-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.20)' }}>
+        <div className="px-5 py-5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,5,20,0.35)' }}>
 
           {/* Alert strip */}
           {alerts.length > 0 && (
@@ -769,7 +769,7 @@ function LibraryContent() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: '#07110D' }}>
+    <div className="min-h-screen" style={{ background: '#080C14' }}>
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* Page header */}
@@ -812,7 +812,7 @@ function LibraryContent() {
                 { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', topColor: '#BA7517', valColor: '#FCD34D' },
                 { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
               ].map(({ label, value, sub, topColor, valColor }) => (
-                <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1F17', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
+                <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1624', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</p>
                   <p className="text-xl font-bold mt-0.5" style={{ color: valColor }}>{value}</p>
                   <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>{sub}</p>
@@ -826,7 +826,7 @@ function LibraryContent() {
         {loading ? (
           <div className="grid gap-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="rounded-xl px-5 py-4 animate-pulse flex items-center gap-4" style={{ background: '#0D1F17', border: '1px solid rgba(15,110,86,0.15)' }}>
+              <div key={i} className="rounded-xl px-5 py-4 animate-pulse flex items-center gap-4" style={{ background: '#0D1624', border: '1px solid rgba(15,110,86,0.15)' }}>
                 <div className="w-11 h-11 rounded-lg flex-shrink-0" style={{ background: 'rgba(255,255,255,0.06)' }} />
                 <div className="flex-1">
                   <div className="h-3.5 rounded w-1/3 mb-2" style={{ background: 'rgba(255,255,255,0.06)' }} />
