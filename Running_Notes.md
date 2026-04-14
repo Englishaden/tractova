@@ -50,6 +50,8 @@ This means:
 - Professional Tools — 2: Sensitivity Analysis chips (computeScoreDelta, buildSensitivityScenarios, scenario mode on Market Intel card)
 - Professional Tools — 3: Project Summary PDF export (react-pdf, lazy-loaded, one-pager with score bar, pipeline viz, notes)
 - Professional Tools — 4: Program Runway field (enrollmentRateMWPerMonth seeded for 5 states, getRunway(), RunwayBadge in Lens + Dashboard)
+- UI/UX Revamp — Step 1: Lens form fields fully self-contained (FieldSelect + CountyCombobox own their white boxes + labels; pointer cursor, chevron rotation, full-box click)
+- UI/UX Revamp — Step 2: USMap dark card redesign (deep forest-green base, aurora mesh gradient, vivid state fills on dark, glass tooltip, teal glow shadow) — shade balance still being tuned
 
 ---
 
@@ -61,19 +63,15 @@ Color system going forward:
 - Teal `#0F6E56` — primary / positive market signal
 - Amber `#BA7517` — caution / watch
 - Violet `#7C3AED` — proprietary intelligence features (score, AI insights, scenario analysis)
-- Dark surface: `#070D0B` background, `#0F1A16` cards, `#1C2E27` borders (Library only)
+- Dark card surface for USMap: `#0B2018` base, teal-dominant aurora gradient, violet + amber accents
 
-### Step 1 — Lens: Field dropdown click area fix ✅ DONE (quick win)
-- Make entire white field box clickable to open dropdown, not just the arrow
-- Applies to: State, Development Stage, Technology Type (FieldSelect component)
-- County combobox already correct behavior
-
-### Step 2 — Dashboard: Topographic background
-- Replace blank white page background with subtle SVG topographic contour pattern
-- On-brand: Tractova name derives from Roman land surveying (tractus = surveyed tract)
-- Implementation: CSS SVG background-image at ~3-4% opacity — pure CSS, no library
-- Add subtle radial gradient behind map panel to give it a "stage lit" depth effect
-- Keep map and all existing components unchanged — background only
+### Step 2 — Dashboard: USMap dark card ⚠️ NEEDS SHADE TUNING
+Current state (commit 37d11f9):
+- Base: `linear-gradient(145deg, #0B2018, #0F2A1E, #0C2219)` — deep forest teal
+- Aurora: teal upper-right + lower-left dominant, violet upper-left whisper, amber lower-right warmth
+- State fills: `#4DE8A8` (score ≥75) down to `#2D5040` (no program)
+- Selected: `#8B5CF6` violet | Hover: `#F59E0B` amber | Borders: `rgba(white, 0.08)`
+- Feedback: previous attempt (violet/indigo base) felt too contrasted vs green nav. Current attempt feels slightly too dark overall. Next tweak: try lifting base lightness one more step (e.g. `#0E2D22`) and/or boosting aurora opacity slightly so glow reads without needing pure darkness for contrast.
 
 ### Step 3 — Lens: Replace state map with Market Position Panel
 - Current map is too small to read, adds zero analytical value, elongated horizontally
@@ -132,12 +130,24 @@ Color system going forward:
 - Empty state: beautiful dark empty state with Tractova brand + CTA to run first Lens search
 - Export PDF button: styled for dark surface
 
-### Step 7 — Lens: Loading / analysis animation
-- Brief 800ms loading state when "Run Lens Analysis" is clicked
-- "Analyzing market conditions..." with animated pulse on three pillar icons
-- Makes platform feel like it's computing, not just rendering hardcoded data
-- Psychological value: Bloomberg users trust data more when they see it load
-- Remove after results appear, smooth fade-in on results panel
+### Step 7 — Lens: Loading / analysis animation ✅ COMPLETE
+- Fullscreen cinematic overlay with sun-fill progress animation
+- Arc fills smoothly via requestAnimationFrame (60fps, zero React re-renders during animation)
+- Caps at 88% while API is in flight, completes via CSS transition when results arrive
+- Single pass only — never loops
+- "TRACTOVA LENS" label + "Analyzing {State} · {County} County"
+
+### Step 8 — Claude API: AI Insights in Market Intelligence card ✅ COMPLETE
+- `api/lens-insight.js` — Vercel serverless function calling Claude Sonnet 4.6
+- System prompt: senior community solar analyst persona, 11 directive rules
+- `buildContext()` pre-computes project % of remaining capacity + approx LMI subscriber count before sending to Claude
+- Output: `{ brief, primaryRisk, topOpportunity, immediateAction }` — strict JSON, 3-tier parser fallback
+- Market Intelligence card shows "AI Analysis" badge (violet) + brief replaces rule-based summary
+- Two spotlight tiles: Primary Risk (red) + Top Opportunity (green)
+- Immediate Action block (violet, lightning bolt) below tiles
+- Graceful degradation: if API fails or times out → rule-based summary renders silently, no error state
+- Function timeout: 30s maxDuration in vercel.json, 25s AbortController internally
+- DB-ready: `buildContext()` receives data objects as params — swap `stateById`/`countyData.js` for Supabase queries in `handleSubmit` and AI insights automatically reflect live DB data
 
 ---
 
@@ -179,5 +189,5 @@ Recommended build order:
 - Utility Report Card (standalone profile page per utility)
 - Document Vault with AI summarization
 - Per-state deep program pages (replacing DSIRE)
-- Market Intelligence Summary — Claude API integration for AI-generated insights
 - Scenario Analysis — real cost/timeline estimates per IX upgrade tier
+- Strip AI debug line from Market Intelligence card (small `ai: ...` note — temporary diagnostic, commit 723a684)
