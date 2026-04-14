@@ -990,6 +990,125 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Analysis skeleton — pulsing placeholder shown during the 820ms analysis wait
+// ─────────────────────────────────────────────────────────────────────────────
+function SkeletonBar({ w = 'w-full', h = 'h-2.5' }) {
+  return <div className={`${w} ${h} rounded-full bg-gray-200 animate-pulse`} />
+}
+
+function AnalysisSkeleton() {
+  return (
+    <div className="mt-5">
+      {/* MarketPositionPanel skeleton */}
+      <div className="rounded-xl overflow-hidden mb-5" style={{ border: '1px solid rgba(15,110,86,0.18)' }}>
+        {/* Header band */}
+        <div className="px-5 py-3.5" style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}>
+          <div className="flex items-center justify-between">
+            <div className="w-28 h-2.5 rounded-full bg-white/20 animate-pulse" />
+            <div className="w-20 h-5 rounded-full bg-white/15 animate-pulse" />
+          </div>
+        </div>
+        {/* 3-col body */}
+        <div className="bg-white grid grid-cols-3 divide-x divide-gray-100">
+          <div className="px-5 py-4 flex flex-col gap-2.5">
+            <div className="w-16 h-2 rounded-full bg-gray-200 animate-pulse" />
+            <div className="w-28 h-6 rounded bg-gray-200 animate-pulse" />
+            <div className="w-36 h-2.5 rounded-full bg-gray-100 animate-pulse" />
+            <div className="w-24 h-2 rounded-full bg-gray-100 animate-pulse" />
+          </div>
+          <div className="px-5 py-4 flex flex-col gap-3">
+            {[0,1,2].map(i => (
+              <div key={i}>
+                <div className="flex justify-between mb-1">
+                  <div className="w-16 h-2 rounded-full bg-gray-200 animate-pulse" />
+                  <div className="w-6 h-2 rounded-full bg-gray-200 animate-pulse" />
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full bg-gray-200 animate-pulse" style={{ width: `${55 - i * 12}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="px-5 py-4 flex flex-col items-center justify-center gap-2">
+            <div className="w-28 h-14 rounded bg-gray-100 animate-pulse" />
+            <div className="w-20 h-2 rounded-full bg-gray-100 animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-gray-100" />
+      </div>
+
+      {/* MarketIntelligenceSummary skeleton */}
+      <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.18)', borderLeft: '4px solid rgba(124,58,237,0.35)' }}>
+        {/* Purple header band */}
+        <div className="px-5 py-3.5 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #1E0A3C 0%, #2D1657 100%)' }}>
+          <div className="w-32 h-2.5 rounded-full bg-white/20 animate-pulse" />
+          <div className="w-24 h-5 rounded-full bg-white/15 animate-pulse" />
+        </div>
+        <div className="bg-white px-5 py-4">
+          {/* Analyst sentence */}
+          <div className="space-y-2 mb-4">
+            <SkeletonBar w="w-full" h="h-3" />
+            <SkeletonBar w="w-11/12" h="h-3" />
+            <SkeletonBar w="w-3/4" h="h-3" />
+          </div>
+          {/* Signal tiles */}
+          <div className="grid grid-cols-2 gap-2">
+            {[0,1,2,3,4].map(i => (
+              <div key={i} className="h-8 rounded-lg bg-gray-100 animate-pulse" style={{ borderLeft: '3px solid #E5E7EB' }} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Divider */}
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-gray-100" />
+      </div>
+
+      {/* Three pillar card skeletons */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {[
+          { accent: '#2563EB' },
+          { accent: '#BA7517' },
+          { accent: '#0F6E56' },
+        ].map((card, i) => (
+          <div key={i} className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ borderLeft: `3px solid ${card.accent}` }}>
+            {/* Header */}
+            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-md bg-gray-100 animate-pulse" />
+              <div className="flex flex-col gap-1.5 flex-1">
+                <div className="w-24 h-3 rounded-full bg-gray-200 animate-pulse" />
+                <div className="w-36 h-2 rounded-full bg-gray-100 animate-pulse" />
+              </div>
+            </div>
+            {/* Body */}
+            <div className="px-5 py-4 space-y-3">
+              {/* Tile row */}
+              <div className="grid grid-cols-3 gap-2">
+                {[0,1,2].map(j => (
+                  <div key={j} className="h-14 rounded-lg bg-gray-100 animate-pulse" />
+                ))}
+              </div>
+              <div className="space-y-2.5 mt-3">
+                <SkeletonBar w="w-full" />
+                <SkeletonBar w="w-5/6" />
+                <SkeletonBar w="w-4/5" />
+                <SkeletonBar w="w-full" />
+                <SkeletonBar w="w-3/4" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Shared style constant (used by CountyCombobox + Search form)
 // ─────────────────────────────────────────────────────────────────────────────
 const inputCls = "w-full text-sm bg-transparent border-0 outline-none px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none"
@@ -1257,6 +1376,7 @@ function SearchContent() {
     technology: '',
   })
   const [results, setResults]         = useState(null)
+  const [analyzing, setAnalyzing]     = useState(false)
   const [showToast, setShowToast]     = useState(false)
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
@@ -1290,15 +1410,20 @@ function SearchContent() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const stateProgram = stateById[form.state] || null
-    const countyData   = getCountyData(form.state, form.county)
-    const revenueStack = revenueStackByState[form.state] || null
-
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack })
-
+    setResults(null)
+    setAnalyzing(true)
+    // Scroll to skeleton immediately
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 80)
+    }, 60)
+    // Resolve after 800ms
+    setTimeout(() => {
+      const stateProgram = stateById[form.state] || null
+      const countyData   = getCountyData(form.state, form.county)
+      const revenueStack = revenueStackByState[form.state] || null
+      setResults({ form: { ...form }, stateProgram, countyData, revenueStack })
+      setAnalyzing(false)
+    }, 820)
   }
 
   const handleSave = () => {
@@ -1481,19 +1606,40 @@ function SearchContent() {
               )}
               <button
                 type="submit"
-                disabled={!isFormValid}
-                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!isFormValid || analyzing}
+                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed min-w-[160px] justify-center"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                Run Lens Analysis
+                {analyzing ? (
+                  <>
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin flex-shrink-0" />
+                    Analyzing…
+                  </>
+                ) : (
+                  <>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    Run Lens Analysis
+                  </>
+                )}
               </button>
             </div>
           </div>
         </form>
 
+        {/* Results area — skeleton while analyzing, real results when done */}
+        {analyzing && (
+          <div ref={resultsRef}>
+            <SectionDivider />
+            <div className="flex items-center gap-2 mb-2">
+              <span className="w-3 h-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin flex-shrink-0" />
+              <p className="text-xs text-gray-400 font-medium">Running Lens analysis…</p>
+            </div>
+            <AnalysisSkeleton />
+          </div>
+        )}
+
         {/* Results panel */}
         {results && (
-          <div ref={resultsRef}>
+          <div ref={analyzing ? null : resultsRef}>
             <SectionDivider />
             {/* Results header */}
             <div className="flex items-center justify-between mb-4">
