@@ -1065,8 +1065,10 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
 // ─────────────────────────────────────────────────────────────────────────────
 const LENS_OVERLAY_STYLES = `
   @keyframes lens-arc {
-    from { stroke-dashoffset: 376.99; }
-    to   { stroke-dashoffset: 0; }
+    0%   { stroke-dashoffset: 376.99; }
+    60%  { stroke-dashoffset: 0; }
+    85%  { stroke-dashoffset: 0; }
+    100% { stroke-dashoffset: 376.99; }
   }
   @keyframes lens-pulse {
     0%, 100% { opacity: 0.55; transform: scale(1); }
@@ -1112,7 +1114,7 @@ function LensOverlay({ visible, stateName, countyName }) {
               transformOrigin: '80px 80px',
               transform: 'rotate(-90deg)',
               animation: visible
-                ? 'lens-arc 1600ms cubic-bezier(0.37,0,0.63,1) forwards'
+                ? 'lens-arc 3s cubic-bezier(0.45,0,0.55,1) infinite'
                 : 'none',
             }}
           />
