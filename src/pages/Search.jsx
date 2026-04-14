@@ -874,7 +874,7 @@ const CHIP_COLORS = {
   gray:   { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
 }
 
-function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }) {
+function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, aiDebug }) {
   const [activeScenario, setActiveScenario] = useState(null)
 
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
@@ -973,6 +973,11 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
               </div>
             )}
           </div>
+        )}
+
+        {/* DEBUG — remove after diagnosing AI */}
+        {!showAI && aiDebug && (
+          <p className="mt-2 text-[10px] font-mono text-gray-400">ai: {aiDebug}</p>
         )}
 
         {/* Signal tiles — always shown */}
@@ -1443,11 +1448,11 @@ async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, ru
         runway,
       }),
     })
-    if (!res.ok) return null
+    if (!res.ok) return { insight: null, reason: `http_${res.status}` }
     const data = await res.json()
-    return data.insight ?? null
-  } catch {
-    return null
+    return { insight: data.insight ?? null, reason: data.reason ?? (data.insight ? 'ok' : 'null_insight') }
+  } catch (err) {
+    return { insight: null, reason: `fetch_error: ${err.message}` }
   }
 }
 
@@ -1529,12 +1534,15 @@ function SearchContent() {
 
     // Run AI fetch + 800ms display floor in parallel
     // The overlay stays up until the AI responds (typically 2–4s)
-    const [aiInsight] = await Promise.all([
-      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, accessToken }).catch(() => null),
+    const [aiResult] = await Promise.all([
+      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, accessToken }).catch((e) => ({ insight: null, reason: `caught: ${e.message}` })),
       new Promise(resolve => setTimeout(resolve, 800)),
     ])
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, aiInsight })
+    const aiInsight = aiResult?.insight ?? null
+    const aiDebug   = aiResult?.reason ?? 'no_result'
+
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, aiInsight, aiDebug })
     setAnalyzing(false)
   }
 
@@ -1792,6 +1800,7 @@ function SearchContent() {
               countyData={results.countyData}
               form={results.form}
               aiInsight={results.aiInsight ?? null}
+              aiDebug={results.aiDebug ?? null}
             />
 
             {/* Three pillar cards */}
