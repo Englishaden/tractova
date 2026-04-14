@@ -990,119 +990,96 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Analysis skeleton — pulsing placeholder shown during the 820ms analysis wait
 // ─────────────────────────────────────────────────────────────────────────────
-function SkeletonBar({ w = 'w-full', h = 'h-2.5' }) {
-  return <div className={`${w} ${h} rounded-full bg-gray-200 animate-pulse`} />
-}
+// Lens fullscreen overlay — sun-fill animation shown while analyzing
+// ─────────────────────────────────────────────────────────────────────────────
+const LENS_OVERLAY_STYLES = `
+  @keyframes lens-arc {
+    from { stroke-dashoffset: 376.99; }
+    to   { stroke-dashoffset: 0; }
+  }
+  @keyframes lens-pulse {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50%       { opacity: 1;    transform: scale(1.18); }
+  }
+`
 
-function AnalysisSkeleton() {
+function LensOverlay({ visible, stateName, countyName }) {
+  const C = 2 * Math.PI * 60  // circumference ≈ 376.99
   return (
-    <div className="mt-5">
-      {/* MarketPositionPanel skeleton */}
-      <div className="rounded-xl overflow-hidden mb-5" style={{ border: '1px solid rgba(15,110,86,0.18)' }}>
-        {/* Header band */}
-        <div className="px-5 py-3.5" style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}>
-          <div className="flex items-center justify-between">
-            <div className="w-28 h-2.5 rounded-full bg-white/20 animate-pulse" />
-            <div className="w-20 h-5 rounded-full bg-white/15 animate-pulse" />
-          </div>
-        </div>
-        {/* 3-col body */}
-        <div className="bg-white grid grid-cols-3 divide-x divide-gray-100">
-          <div className="px-5 py-4 flex flex-col gap-2.5">
-            <div className="w-16 h-2 rounded-full bg-gray-200 animate-pulse" />
-            <div className="w-28 h-6 rounded bg-gray-200 animate-pulse" />
-            <div className="w-36 h-2.5 rounded-full bg-gray-100 animate-pulse" />
-            <div className="w-24 h-2 rounded-full bg-gray-100 animate-pulse" />
-          </div>
-          <div className="px-5 py-4 flex flex-col gap-3">
-            {[0,1,2].map(i => (
-              <div key={i}>
-                <div className="flex justify-between mb-1">
-                  <div className="w-16 h-2 rounded-full bg-gray-200 animate-pulse" />
-                  <div className="w-6 h-2 rounded-full bg-gray-200 animate-pulse" />
-                </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full bg-gray-200 animate-pulse" style={{ width: `${55 - i * 12}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="px-5 py-4 flex flex-col items-center justify-center gap-2">
-            <div className="w-28 h-14 rounded bg-gray-100 animate-pulse" />
-            <div className="w-20 h-2 rounded-full bg-gray-100 animate-pulse" />
-          </div>
-        </div>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        background: 'rgba(7,17,12,0.88)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '20px',
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? 'all' : 'none',
+        transition: 'opacity 200ms ease',
+      }}
+    >
+      {/* Sun circle */}
+      <div style={{ filter: 'drop-shadow(0 0 14px rgba(217,119,6,0.55))' }}>
+        <svg width="160" height="160" viewBox="0 0 160 160" fill="none">
+          {/* Track ring */}
+          <circle cx="80" cy="80" r="60" stroke="rgba(255,255,255,0.08)" strokeWidth="7" fill="none" />
+          {/* Animated fill arc — starts at top (rotated -90°) */}
+          <circle
+            cx="80" cy="80" r="60"
+            stroke="#D97706"
+            strokeWidth="7"
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={`${C} ${C}`}
+            style={{
+              transformOrigin: '80px 80px',
+              transform: 'rotate(-90deg)',
+              animation: visible
+                ? 'lens-arc 1600ms cubic-bezier(0.37,0,0.63,1) forwards'
+                : 'none',
+            }}
+          />
+          {/* 8 sun rays radiating from center */}
+          {Array.from({ length: 8 }).map((_, i) => {
+            const angle = (i * 45 * Math.PI) / 180
+            return (
+              <line
+                key={i}
+                x1={80 + 12 * Math.cos(angle)} y1={80 + 12 * Math.sin(angle)}
+                x2={80 + 20 * Math.cos(angle)} y2={80 + 20 * Math.sin(angle)}
+                stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" opacity="0.5"
+              />
+            )
+          })}
+          {/* Pulsing center dot */}
+          <circle
+            cx="80" cy="80" r="7"
+            fill="#D97706"
+            style={{
+              transformOrigin: '80px 80px',
+              animation: visible ? 'lens-pulse 1800ms ease-in-out infinite' : 'none',
+            }}
+          />
+        </svg>
       </div>
 
-      {/* Divider */}
-      <div className="flex items-center gap-3 my-5">
-        <div className="flex-1 h-px bg-gray-100" />
-      </div>
-
-      {/* MarketIntelligenceSummary skeleton */}
-      <div className="mb-5 rounded-lg overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.18)', borderLeft: '4px solid rgba(124,58,237,0.35)' }}>
-        {/* Purple header band */}
-        <div className="px-5 py-3.5 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #1E0A3C 0%, #2D1657 100%)' }}>
-          <div className="w-32 h-2.5 rounded-full bg-white/20 animate-pulse" />
-          <div className="w-24 h-5 rounded-full bg-white/15 animate-pulse" />
-        </div>
-        <div className="bg-white px-5 py-4">
-          {/* Analyst sentence */}
-          <div className="space-y-2 mb-4">
-            <SkeletonBar w="w-full" h="h-3" />
-            <SkeletonBar w="w-11/12" h="h-3" />
-            <SkeletonBar w="w-3/4" h="h-3" />
-          </div>
-          {/* Signal tiles */}
-          <div className="grid grid-cols-2 gap-2">
-            {[0,1,2,3,4].map(i => (
-              <div key={i} className="h-8 rounded-lg bg-gray-100 animate-pulse" style={{ borderLeft: '3px solid #E5E7EB' }} />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="flex items-center gap-3 my-5">
-        <div className="flex-1 h-px bg-gray-100" />
-      </div>
-
-      {/* Three pillar card skeletons */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {[
-          { accent: '#2563EB' },
-          { accent: '#BA7517' },
-          { accent: '#0F6E56' },
-        ].map((card, i) => (
-          <div key={i} className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ borderLeft: `3px solid ${card.accent}` }}>
-            {/* Header */}
-            <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-md bg-gray-100 animate-pulse" />
-              <div className="flex flex-col gap-1.5 flex-1">
-                <div className="w-24 h-3 rounded-full bg-gray-200 animate-pulse" />
-                <div className="w-36 h-2 rounded-full bg-gray-100 animate-pulse" />
-              </div>
-            </div>
-            {/* Body */}
-            <div className="px-5 py-4 space-y-3">
-              {/* Tile row */}
-              <div className="grid grid-cols-3 gap-2">
-                {[0,1,2].map(j => (
-                  <div key={j} className="h-14 rounded-lg bg-gray-100 animate-pulse" />
-                ))}
-              </div>
-              <div className="space-y-2.5 mt-3">
-                <SkeletonBar w="w-full" />
-                <SkeletonBar w="w-5/6" />
-                <SkeletonBar w="w-4/5" />
-                <SkeletonBar w="w-full" />
-                <SkeletonBar w="w-3/4" />
-              </div>
-            </div>
-          </div>
-        ))}
+      {/* Labels */}
+      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <p style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.20em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.30)', fontFamily: 'inherit' }}>
+          TRACTOVA LENS
+        </p>
+        {stateName && countyName && (
+          <p style={{ fontSize: '13px', fontWeight: 500, color: 'rgba(255,255,255,0.65)', fontFamily: 'inherit' }}>
+            Analyzing {stateName}&nbsp;·&nbsp;{countyName} County
+          </p>
+        )}
       </div>
     </div>
   )
@@ -1412,18 +1389,13 @@ function SearchContent() {
     e.preventDefault()
     setResults(null)
     setAnalyzing(true)
-    // Scroll to skeleton immediately
-    setTimeout(() => {
-      resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 60)
-    // Resolve after 800ms
     setTimeout(() => {
       const stateProgram = stateById[form.state] || null
       const countyData   = getCountyData(form.state, form.county)
       const revenueStack = revenueStackByState[form.state] || null
       setResults({ form: { ...form }, stateProgram, countyData, revenueStack })
       setAnalyzing(false)
-    }, 820)
+    }, 1800)
   }
 
   const handleSave = () => {
@@ -1473,6 +1445,12 @@ function SearchContent() {
 
   return (
     <div className="min-h-screen bg-surface">
+      <style>{LENS_OVERLAY_STYLES}</style>
+      <LensOverlay
+        visible={analyzing}
+        stateName={ALL_STATES.find(s => s.id === form.state)?.name || ''}
+        countyName={form.county}
+      />
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* Page header */}
@@ -1625,21 +1603,9 @@ function SearchContent() {
           </div>
         </form>
 
-        {/* Results area — skeleton while analyzing, real results when done */}
-        {analyzing && (
-          <div ref={resultsRef}>
-            <SectionDivider />
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-3 h-3 rounded-full border-2 border-primary/30 border-t-primary animate-spin flex-shrink-0" />
-              <p className="text-xs text-gray-400 font-medium">Running Lens analysis…</p>
-            </div>
-            <AnalysisSkeleton />
-          </div>
-        )}
-
         {/* Results panel */}
         {results && (
-          <div ref={analyzing ? null : resultsRef}>
+          <div ref={resultsRef}>
             <SectionDivider />
             {/* Results header */}
             <div className="flex items-center justify-between mb-4">
