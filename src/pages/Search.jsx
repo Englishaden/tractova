@@ -874,7 +874,7 @@ const CHIP_COLORS = {
   gray:   { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
 }
 
-function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
+function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }) {
   const [activeScenario, setActiveScenario] = useState(null)
 
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
@@ -883,6 +883,9 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
 
   const { verdict, verdictBg, verdictText, summary, signals } = data
   const scenarios = buildSensitivityScenarios(stateProgram, form.technology)
+
+  // Show AI content only when insight exists and not overridden by scenario mode
+  const showAI = !!aiInsight && !activeScenario
 
   return (
     <div
@@ -905,6 +908,15 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
           <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
             Market Intelligence
           </span>
+          {/* Badge: AI-powered vs scenario mode */}
+          {showAI && (
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(124,58,237,0.28)', color: '#C4B5FD', border: '1px solid rgba(124,58,237,0.45)' }}
+            >
+              AI Analysis
+            </span>
+          )}
           {activeScenario && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(217,119,6,0.20)', color: '#FCD34D', border: '1px solid rgba(217,119,6,0.35)' }}>
               Scenario Mode
@@ -921,10 +933,49 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
 
       {/* Body */}
       <div className="bg-white px-5 py-4">
-        {/* Analyst sentence — prominent */}
-        <p className="text-[15px] font-medium text-gray-800 leading-relaxed">{summary}</p>
 
-        {/* Signal tiles — structured 2-col grid */}
+        {/* Analyst brief — AI when available, rule-based fallback otherwise */}
+        <p className="text-[15px] font-medium text-gray-800 leading-relaxed">
+          {showAI && aiInsight.brief ? aiInsight.brief : summary}
+        </p>
+
+        {/* AI Spotlight tiles — Primary Risk + Top Opportunity */}
+        {showAI && (aiInsight.primaryRisk || aiInsight.topOpportunity) && (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {aiInsight.primaryRisk && (
+              <div
+                className="rounded-lg px-4 py-3"
+                style={{
+                  background: 'rgba(220,38,38,0.05)',
+                  border: '1px solid rgba(220,38,38,0.15)',
+                  borderLeft: '3px solid #DC2626',
+                }}
+              >
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: '#DC2626' }}>
+                  Primary Risk
+                </p>
+                <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.primaryRisk}</p>
+              </div>
+            )}
+            {aiInsight.topOpportunity && (
+              <div
+                className="rounded-lg px-4 py-3"
+                style={{
+                  background: 'rgba(15,110,86,0.05)',
+                  border: '1px solid rgba(15,110,86,0.15)',
+                  borderLeft: '3px solid #0F6E56',
+                }}
+              >
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: '#0F6E56' }}>
+                  Top Opportunity
+                </p>
+                <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.topOpportunity}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Signal tiles — always shown */}
         <div className="mt-4 grid grid-cols-2 gap-2">
           {signals.map((sig, i) => {
             const c = CHIP_COLORS[sig.color] || CHIP_COLORS.gray
@@ -932,10 +983,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
               <div
                 key={i}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                style={{
-                  background: c.bg,
-                  borderLeft: `3px solid ${c.dot}`,
-                }}
+                style={{ background: c.bg, borderLeft: `3px solid ${c.dot}` }}
               >
                 <span className="text-[11px] font-semibold leading-tight" style={{ color: c.text }}>{sig.label}</span>
               </div>
@@ -943,7 +991,29 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form }) {
           })}
         </div>
 
-        {/* Sensitivity Analysis */}
+        {/* Immediate Action block — AI only */}
+        {showAI && aiInsight.immediateAction && (
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg px-4 py-3"
+            style={{
+              background: 'rgba(124,58,237,0.05)',
+              border: '1px solid rgba(124,58,237,0.15)',
+              borderLeft: '3px solid #7C3AED',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#7C3AED' }}>
+                Immediate Action — Next 30 Days
+              </p>
+              <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.immediateAction}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Sensitivity Analysis — always shown */}
         {scenarios.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-2.5">Sensitivity Analysis</p>
@@ -1325,6 +1395,37 @@ function AddToCompareButton({ results }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// AI Insight fetch helper — calls /api/lens-insight, returns insight or null
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, accessToken }) {
+  try {
+    const res = await fetch('/api/lens-insight', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        state:        form.state,
+        county:       form.county,
+        mw:           form.mw,
+        stage:        form.stage,
+        technology:   form.technology,
+        stateProgram,
+        countyData,
+        revenueStack,
+        runway,
+      }),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.insight ?? null
+  } catch {
+    return null
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Paywall gate — renders UpgradePrompt until subscription is confirmed Pro
 export default function Search() {
   const { isPro, loading: subLoading } = useSubscription()
@@ -1385,17 +1486,30 @@ function SearchContent() {
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setResults(null)
     setAnalyzing(true)
-    setTimeout(() => {
-      const stateProgram = stateById[form.state] || null
-      const countyData   = getCountyData(form.state, form.county)
-      const revenueStack = revenueStackByState[form.state] || null
-      setResults({ form: { ...form }, stateProgram, countyData, revenueStack })
-      setAnalyzing(false)
-    }, 1800)
+
+    // Get JWT for the API call
+    const { data: { session } } = await supabase.auth.getSession()
+    const accessToken = session?.access_token ?? ''
+
+    // Resolve local data synchronously
+    const stateProgram = stateById[form.state] || null
+    const countyData   = getCountyData(form.state, form.county)
+    const revenueStack = revenueStackByState[form.state] || null
+    const runway       = stateProgram ? getRunway(stateProgram) : null
+
+    // Run AI fetch + 800ms display floor in parallel
+    // The overlay stays up until the AI responds (typically 2–4s)
+    const [aiInsight] = await Promise.all([
+      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, accessToken }).catch(() => null),
+      new Promise(resolve => setTimeout(resolve, 800)),
+    ])
+
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, aiInsight })
+    setAnalyzing(false)
   }
 
   const handleSave = () => {
@@ -1651,6 +1765,7 @@ function SearchContent() {
               stateProgram={results.stateProgram}
               countyData={results.countyData}
               form={results.form}
+              aiInsight={results.aiInsight ?? null}
             />
 
             {/* Three pillar cards */}
