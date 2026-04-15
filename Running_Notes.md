@@ -11,6 +11,29 @@
 
 ### Step 8 — Claude API: AI Insights in Market Intelligence card ✅ COMPLETE
 
+### Step 9 — Library UI refresh + site-wide bug fixes ✅ COMPLETE (commit 46f08dd)
+
+**Library page UI — "Dark Done Right":**
+- Page bg #080C14 → #0C1220 (less crushing, richer dark blue)
+- Expanded panel: solid #0F1A2E — distinct tonal separation from collapsed card
+- All section label text lifted 0.45 → 0.60 opacity
+- Secondary meta text (county · MW · tech) 0.52 → 0.68 — scannable at a glance
+- Card borders stronger (0.20 → 0.28 collapsed, 0.40 → 0.45 expanded)
+- Page subtitle, stat strip sub-labels, footer hint text all lifted
+- Your Deal section boxes: bg 0.04 → 0.06, borders 0.07 → 0.11
+- Notes textarea: bg black → semi-white, teal border brightened
+- Chevron/delete icons lifted from 0.20–0.25 → 0.35
+
+**Bug fixes:**
+- Search.jsx: `results.countyData` null crash → added `?.` guard on SiteControl + Interconnection props
+- Library.jsx: debounced notes save inner `setTimeout` not cleared on unmount → stored in `idleTimerRef`, cleared in cleanup
+
+**Known deferred (not bugs, planned work):**
+- STRIPE_WEBHOOK_SECRET placeholder in .env.local → needs real secret from Stripe dashboard
+- CRON_SECRET missing from .env.local → needs value added before cron jobs go live
+- Missing `enrollmentRateMWPerMonth` on most states → data entry task for Iteration 5
+- LMI ITC stacking logic in lens-insight.js → Iteration 5 feature
+
 ---
 
 ## Proposed: Web Scraping & Database Architecture (Iteration 5)
