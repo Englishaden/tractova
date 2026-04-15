@@ -874,7 +874,7 @@ const CHIP_COLORS = {
   gray:   { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
 }
 
-function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, aiDebug }) {
+function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }) {
   const [activeScenario, setActiveScenario] = useState(null)
 
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
@@ -973,11 +973,6 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
               </div>
             )}
           </div>
-        )}
-
-        {/* DEBUG — remove after diagnosing AI */}
-        {!showAI && aiDebug && (
-          <p className="mt-2 text-[10px] font-mono text-gray-400">ai: {aiDebug}</p>
         )}
 
         {/* Signal tiles — always shown */}
@@ -1540,9 +1535,8 @@ function SearchContent() {
     ])
 
     const aiInsight = aiResult?.insight ?? null
-    const aiDebug   = aiResult?.reason ?? 'no_result'
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, aiInsight, aiDebug })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, aiInsight })
     setAnalyzing(false)
   }
 
@@ -1800,19 +1794,18 @@ function SearchContent() {
               countyData={results.countyData}
               form={results.form}
               aiInsight={results.aiInsight ?? null}
-              aiDebug={results.aiDebug ?? null}
             />
 
             {/* Three pillar cards */}
             <SectionDivider />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <SiteControlCard
-                siteControl={results.countyData.siteControl}
+                siteControl={results.countyData?.siteControl}
                 stateName={results.stateProgram?.name || results.form.state}
                 county={results.form.county}
               />
               <InterconnectionCard
-                interconnection={results.countyData.interconnection}
+                interconnection={results.countyData?.interconnection}
                 stateProgram={results.stateProgram}
               />
               <OfftakeCard
