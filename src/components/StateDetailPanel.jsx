@@ -1,6 +1,4 @@
 import { Link } from 'react-router-dom'
-import newsFeed from '../data/newsFeed'
-import { getRunway } from '../data/statePrograms'
 
 const STATUS_CONFIG = {
   active:  { label: 'Active Program',   cls: 'bg-primary-50 text-primary-700 border border-primary-300 ring-1 ring-primary-200' },
@@ -63,20 +61,20 @@ const RUNWAY_COLORS = {
   urgent:   { bg: '#FEE2E2', text: '#7F1D1D' },
 }
 
-export default function StateDetailPanel({ state, onClose }) {
+export default function StateDetailPanel({ state, news = [], onClose }) {
   if (!state) return null
 
   const status = STATUS_CONFIG[state.csStatus] || STATUS_CONFIG.none
   const ixCfg  = IX_CONFIG[state.ixDifficulty] || IX_CONFIG.moderate
-  const runway = getRunway(state)
+  const runway = state.runway ?? null
 
-  // Relevant news items for this state
-  const relatedNews = newsFeed.filter(
-    (item) => item.tags.includes(state.id) || item.tags.includes('multi-state')
+  // Relevant news items for this state — passed from Dashboard (already live)
+  const relatedNews = news.filter(
+    (item) => (item.stateIds ?? item.tags ?? []).includes(state.id)
   ).slice(0, 4)
 
-  const lastUpdatedFmt = state.lastUpdated
-    ? new Date(state.lastUpdated + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const lastUpdatedFmt = state.lastVerified
+    ? new Date(state.lastVerified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
   return (

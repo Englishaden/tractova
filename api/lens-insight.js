@@ -1,4 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — analyst persona + strict output rules
@@ -136,8 +142,28 @@ function parseInsightResponse(text) {
     }
   } catch (_) {}
 
-  // Tier 3: use raw text as brief only
-  if (text && text.length > 20) {
+  // Tier 2.5: regex-extract individual fields from truncated / malformed JSON.
+  // Handles the case where max_tokens cuts off the response mid-string, causing
+  // Tiers 1 and 2 to fail. We greedily capture up to the first unescaped quote.
+  try {
+    const extract = (field) => {
+      const m = text.match(new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`))
+      if (!m) return null
+      return m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\t/g, '\t').trim()
+    }
+    const brief = extract('brief')
+    if (brief && brief.length > 20) {
+      return {
+        brief,
+        primaryRisk:     extract('primaryRisk'),
+        topOpportunity:  extract('topOpportunity'),
+        immediateAction: extract('immediateAction'),
+      }
+    }
+  } catch (_) {}
+
+  // Tier 3: last resort — only use raw text if it doesn't look like JSON
+  if (text && text.length > 20 && !text.trim().startsWith('{')) {
     return { brief: text.trim().slice(0, 600), primaryRisk: null, topOpportunity: null, immediateAction: null }
   }
 
@@ -168,6 +194,20 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid request body' })
   }
 
+  // ── Auth gate — Pro subscribers only ──────────────────────────────────────
+  const token = req.headers.authorization?.slice(7)
+  if (!token) return res.status(401).json({ error: 'Unauthorized' })
+  const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
+  if (!user || authErr) return res.status(401).json({ error: 'Unauthorized' })
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('subscription_tier, subscription_status')
+    .eq('id', user.id)
+    .maybeSingle()
+  const isPro = profile?.subscription_tier === 'pro' &&
+    ['active', 'trialing'].includes(profile?.subscription_status)
+  if (!isPro) return res.status(403).json({ error: 'Pro subscription required' })
+
   // ── If no API key, return fallback immediately (no error) ──────────────────
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(200).json({ insight: null, fallback: true, reason: 'no_api_key' })
@@ -184,7 +224,7 @@ export default async function handler(req, res) {
     const message = await client.messages.create(
       {
         model: 'claude-sonnet-4-6',
-        max_tokens: 600,
+        max_tokens: 900,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: contextText }],
       },

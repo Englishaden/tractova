@@ -9,37 +9,35 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'digest@tractova.com'
 const APP_URL = 'https://tractova.com'
 
-const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
+const STATUS_RANK  = { active: 3, limited: 2, pending: 1, none: 0 }
 const STATUS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'Closed' }
 const STATUS_COLOR = { active: '#059669', limited: '#d97706', pending: '#6366f1', none: '#dc2626' }
+const IX_RANK      = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
 
-// Detect alerts for a project against current program data from statePrograms
-// We inline a minimal version here since this runs server-side (no JSX imports)
-const STATE_STATUS = {
-  IL: { csStatus: 'active',  opportunityScore: 78,  ixDifficulty: 'moderate' },
-  MN: { csStatus: 'active',  opportunityScore: 72,  ixDifficulty: 'moderate' },
-  NY: { csStatus: 'active',  opportunityScore: 85,  ixDifficulty: 'hard'     },
-  MA: { csStatus: 'limited', opportunityScore: 68,  ixDifficulty: 'hard'     },
-  MD: { csStatus: 'active',  opportunityScore: 74,  ixDifficulty: 'moderate' },
-  CO: { csStatus: 'active',  opportunityScore: 70,  ixDifficulty: 'moderate' },
-  NJ: { csStatus: 'active',  opportunityScore: 66,  ixDifficulty: 'hard'     },
-  ME: { csStatus: 'active',  opportunityScore: 62,  ixDifficulty: 'easy'     },
-  OR: { csStatus: 'active',  opportunityScore: 65,  ixDifficulty: 'moderate' },
-  WA: { csStatus: 'pending', opportunityScore: 45,  ixDifficulty: 'moderate' },
-  VA: { csStatus: 'active',  opportunityScore: 71,  ixDifficulty: 'moderate' },
-  CT: { csStatus: 'active',  opportunityScore: 67,  ixDifficulty: 'moderate' },
-  RI: { csStatus: 'active',  opportunityScore: 60,  ixDifficulty: 'easy'     },
-  NM: { csStatus: 'active',  opportunityScore: 63,  ixDifficulty: 'easy'     },
-  HI: { csStatus: 'limited', opportunityScore: 55,  ixDifficulty: 'hard'     },
-  CA: { csStatus: 'limited', opportunityScore: 58,  ixDifficulty: 'very_hard'},
-  FL: { csStatus: 'none',    opportunityScore: 20,  ixDifficulty: 'hard'     },
-  MI: { csStatus: 'active',  opportunityScore: 69,  ixDifficulty: 'moderate' },
+// Deterministic feasibility score — mirrors programData.js formula exactly.
+// Inlined here so this serverless function has no client-side import dependency.
+function computeFeasibilityScore(row) {
+  const base     = { active: 65, limited: 40, pending: 18, none: 5 }[row.cs_status] ?? 5
+  const mw       = row.capacity_mw ?? 0
+  const capacity = mw > 1000 ? 12 : mw > 500 ? 8 : mw > 100 ? 4 : mw > 0 ? 2 : 0
+  const lmi      = row.lmi_percent ?? 0
+  const lmiP     = lmi >= 40 ? -14 : lmi >= 25 ? -7 : lmi >= 10 ? -3 : 0
+  const ix       = { easy: 12, moderate: 3, hard: -10, very_hard: -22 }[row.ix_difficulty] ?? 3
+  return Math.min(95, Math.max(1, base + capacity + lmiP + ix))
 }
 
-const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
+// Build state map from live Supabase rows
+function buildStateMap(rows) {
+  return Object.fromEntries(rows.map(r => [r.id, {
+    csStatus:         r.cs_status,
+    opportunityScore: computeFeasibilityScore(r),
+    ixDifficulty:     r.ix_difficulty,
+    name:             r.name,
+  }]))
+}
 
-function getAlerts(project) {
-  const current = STATE_STATUS[project.state]
+function getAlerts(project, stateMap) {
+  const current = stateMap[project.state]
   if (!current) return []
   const alerts = []
   const savedRank   = STATUS_RANK[project.cs_status]    ?? 2
@@ -65,9 +63,9 @@ function alertPill(alert) {
   </span>`
 }
 
-function projectCard(project) {
-  const alerts  = getAlerts(project)
-  const state   = STATE_STATUS[project.state]
+function projectCard(project, stateMap) {
+  const alerts  = getAlerts(project, stateMap)
+  const state   = stateMap[project.state]
   const status  = state?.csStatus ?? project.cs_status ?? 'active'
   const score   = state?.opportunityScore ?? project.opportunity_score ?? '—'
   const alertsHtml = alerts.length
@@ -90,9 +88,9 @@ function projectCard(project) {
   </div>`
 }
 
-function buildDigestHtml(user, projects) {
-  const hasAlerts   = projects.some(p => getAlerts(p).length > 0)
-  const projectsHtml = projects.map(projectCard).join('')
+function buildDigestHtml(user, projects, stateMap) {
+  const hasAlerts   = projects.some(p => getAlerts(p, stateMap).length > 0)
+  const projectsHtml = projects.map(p => projectCard(p, stateMap)).join('')
 
   return `<!DOCTYPE html>
 <html>
@@ -148,13 +146,19 @@ export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
   // Cron secret guard — skip if no secret configured
-  const cronSecret = process.env.CRON_SECRET
-  if (cronSecret) {
-    const auth = req.headers.authorization
-    if (auth !== `Bearer ${cronSecret}`) return res.status(401).json({ error: 'Unauthorized' })
-  }
+  const isVercelCron       = req.headers['x-vercel-cron'] === '1'
+  const isManualWithSecret = process.env.CRON_SECRET &&
+    req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+  if (!isVercelCron && !isManualWithSecret) return res.status(401).json({ error: 'Unauthorized' })
 
   try {
+    // Load live state data — replaces the former hardcoded STATE_STATUS object
+    const { data: stateRows, error: stateErr } = await supabaseAdmin
+      .from('state_programs')
+      .select('id, name, cs_status, capacity_mw, lmi_percent, ix_difficulty')
+    if (stateErr) throw stateErr
+    const stateMap = buildStateMap(stateRows ?? [])
+
     // Fetch all Pro users
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from('profiles')
@@ -180,7 +184,7 @@ export default async function handler(req, res) {
 
       if (projErr || !projects?.length) continue
 
-      const html = buildDigestHtml(user, projects)
+      const html = buildDigestHtml(user, projects, stateMap)
       const subject = `Your weekly Tractova digest — ${projects.length} project${projects.length !== 1 ? 's' : ''}`
 
       await sendEmail(user.email, subject, html)

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
-import { stateById } from '../data/statePrograms'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -16,9 +15,9 @@ const FIPS = {
 }
 
 // Dark jewel-tone fills against a light background — classic cartography contrast
-function getStateColor(stateId, isHovered, isSelected) {
+function getStateColor(stateId, isHovered, isSelected, stateProgramMap) {
   if (isSelected) return '#7C3AED'    // violet — intelligence highlight
-  const state = stateById[stateId]
+  const state = stateProgramMap[stateId]
   if (isHovered) return '#D97706'     // amber on hover
   if (!state) return '#CBD5E1'        // light muted — blank territory
 
@@ -33,7 +32,7 @@ function getStateColor(stateId, isHovered, isSelected) {
   return '#053D2E'
 }
 
-export default function USMap({ onStateClick, selectedStateId }) {
+export default function USMap({ onStateClick, selectedStateId, stateProgramMap = {} }) {
   const [tooltip, setTooltip] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -55,7 +54,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
     if (stateId && onStateClick) onStateClick(stateId)
   }
 
-  const tooltipState = tooltip?.stateId ? stateById[tooltip.stateId] : null
+  const tooltipState = tooltip?.stateId ? stateProgramMap[tooltip.stateId] : null
 
   return (
     <div
@@ -114,7 +113,7 @@ export default function USMap({ onStateClick, selectedStateId }) {
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
-                    fill={getStateColor(stateId, isHovered, isSelected)}
+                    fill={getStateColor(stateId, isHovered, isSelected, stateProgramMap)}
                     stroke="#FFFFFF"
                     strokeWidth={0.7}
                     style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}

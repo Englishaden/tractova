@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
-import { stateById } from '../data/statePrograms'
+import { getStateProgramMap } from '../lib/programData'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
@@ -78,8 +78,8 @@ function Badge({ label, map }) {
 // ── Alert detection ──────────────────────────────────────────────────────────
 const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
 
-function getAlerts(project) {
-  const current = stateById[project.state]
+function getAlerts(project, stateProgramMap) {
+  const current = stateProgramMap[project.state]
   if (!current) return []
 
   const alerts = []
@@ -103,12 +103,13 @@ function getAlerts(project) {
     alerts.push({ level: 'warning', pillar: 'IX', label: 'Queue Harder', detail: `${current.name} IX difficulty increased to ${current.ixDifficulty.replace('_', ' ')}` })
   }
 
-  if (current.lastUpdated) {
-    const updatedAt = new Date(current.lastUpdated)
+  if (current.updatedAt) {
+    const updatedAt = new Date(current.updatedAt)
     const savedAt   = new Date(project.savedAt)
     const ageDays   = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24)
     if (updatedAt > savedAt && ageDays < 90) {
-      alerts.push({ level: 'info', pillar: null, label: 'Data Refreshed', detail: `${current.name} data updated ${current.lastUpdated}` })
+      const fmt = updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      alerts.push({ level: 'info', pillar: null, label: 'Data Refreshed', detail: `${current.name} data updated ${fmt}` })
     }
   }
 
@@ -360,7 +361,7 @@ function CompareChip({ project }) {
 }
 
 // ── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ project, onRequestRemove }) {
+function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
@@ -379,9 +380,9 @@ function ProjectCard({ project, onRequestRemove }) {
     }
   }
 
-  const alerts    = getAlerts(project)
+  const current   = stateProgramMap[project.state]
+  const alerts    = getAlerts(project, stateProgramMap)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
-  const current   = stateById[project.state]
 
   // Debounced notes save
   useEffect(() => {
@@ -710,11 +711,17 @@ export default function Library() {
 
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth()
-  const [projects,      setProjects]      = useState([])
-  const [loading,       setLoading]       = useState(true)
-  const [hasFetched,    setHasFetched]    = useState(false)
-  const [error,         setError]         = useState(null)
-  const [confirmRemove, setConfirmRemove] = useState(null)
+  const [projects,        setProjects]        = useState([])
+  const [loading,         setLoading]         = useState(true)
+  const [hasFetched,      setHasFetched]      = useState(false)
+  const [error,           setError]           = useState(null)
+  const [confirmRemove,   setConfirmRemove]   = useState(null)
+  const [stateProgramMap, setStateProgramMap] = useState({})
+
+  // Load live state program map for alert detection
+  useEffect(() => {
+    getStateProgramMap().then(setStateProgramMap).catch(console.error)
+  }, [])
 
   useEffect(() => {
     if (authLoading) return
@@ -814,7 +821,7 @@ function LibraryContent() {
               {[
                 { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     topColor: '#0F6E56', valColor: '#34D399' },
                 { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', topColor: '#BA7517', valColor: '#FCD34D' },
-                { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
+                { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
               ].map(({ label, value, sub, topColor, valColor }) => (
                 <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1624', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
                   <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.58)' }}>{label}</p>
@@ -848,7 +855,7 @@ function LibraryContent() {
             <SectionDivider />
             <div className="grid gap-3">
               {projects.map((p) => (
-                <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} />
+                <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} stateProgramMap={stateProgramMap} />
               ))}
             </div>
           </>

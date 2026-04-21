@@ -1,15 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import MetricsBar from '../components/MetricsBar'
 import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
 import SectionDivider from '../components/SectionDivider'
-import { stateById } from '../data/statePrograms'
+import { getStateProgramMap, getNewsFeed } from '../lib/programData'
 
 export default function Dashboard() {
-  const [selectedStateId, setSelectedStateId] = useState(null)
+  const [selectedStateId,  setSelectedStateId]  = useState(null)
+  const [stateProgramMap,  setStateProgramMap]  = useState({})
+  const [news,             setNews]             = useState([])
 
-  const selectedState = selectedStateId ? stateById[selectedStateId] : null
+  useEffect(() => {
+    getStateProgramMap().then(setStateProgramMap).catch(console.error)
+    getNewsFeed().then(setNews).catch(console.error)
+  }, [])
+
+  const selectedState = selectedStateId ? stateProgramMap[selectedStateId] : null
 
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))
@@ -44,6 +51,7 @@ export default function Dashboard() {
             <USMap
               onStateClick={handleStateClick}
               selectedStateId={selectedStateId}
+              stateProgramMap={stateProgramMap}
             />
           </div>
 
@@ -52,10 +60,11 @@ export default function Dashboard() {
             {selectedState ? (
               <StateDetailPanel
                 state={selectedState}
+                news={news}
                 onClose={handleClosePanel}
               />
             ) : (
-              <NewsFeed />
+              <NewsFeed news={news} />
             )}
           </div>
         </div>

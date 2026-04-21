@@ -1,12 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import metrics from '../data/metrics'
-import statePrograms from '../data/statePrograms'
-import newsFeed from '../data/newsFeed'
+import { getDashboardMetrics, getStatePrograms, getNewsFeed } from '../lib/programData'
 
 // ── Modal detail content per card ────────────────────────────────────────────
 
-function ActiveCSDetail() {
-  const active = statePrograms
+function ActiveCSDetail({ programs = [] }) {
+  const active = programs
     .filter((s) => s.csStatus === 'active')
     .sort((a, b) => b.feasibilityScore - a.feasibilityScore)
   return (
@@ -83,8 +82,8 @@ function IXCapacityDetail() {
   )
 }
 
-function PolicyAlertsDetail() {
-  const recent = [...newsFeed]
+function PolicyAlertsDetail({ news = [] }) {
+  const recent = [...news]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 7)
 
@@ -125,8 +124,8 @@ function PolicyAlertsDetail() {
   )
 }
 
-function AvgCapacityDetail() {
-  const states = statePrograms
+function AvgCapacityDetail({ programs = [] }) {
+  const states = programs
     .filter((s) => s.csStatus === 'active' || s.csStatus === 'limited')
     .sort((a, b) => b.capacityMW - a.capacityMW)
   const total = states.reduce((sum, s) => sum + s.capacityMW, 0)
@@ -171,8 +170,8 @@ function AvgCapacityDetail() {
   )
 }
 
-function MWPipelineDetail() {
-  const states = statePrograms
+function MWPipelineDetail({ programs = [] }) {
+  const states = programs
     .filter((s) => s.csStatus === 'active' || s.csStatus === 'limited')
     .sort((a, b) => b.capacityMW - a.capacityMW)
   const total = states.reduce((sum, s) => sum + s.capacityMW, 0)
@@ -293,62 +292,90 @@ function IconTrendingUp() {
   )
 }
 
-// ── Card definitions ──────────────────────────────────────────────────────────
-
-const CARDS = [
-  {
-    key: 'activeCS',
-    label: 'CS Coverage',
-    value: metrics.statesWithActiveCS,
-    sub: `${metrics.statesWithAnyCS} with any program`,
-    icon: <IconMap />,
-    modalTitle: 'CS Coverage — Active Markets',
-    ModalContent: ActiveCSDetail,
-  },
-  {
-    key: 'ixCapacity',
-    label: 'IX Headroom',
-    value: metrics.utilitiesWithIXHeadroom,
-    sub: 'open queue capacity',
-    icon: <IconZap />,
-    modalTitle: 'IX Headroom — Open Queues',
-    ModalContent: IXCapacityDetail,
-  },
-  {
-    key: 'policyAlerts',
-    label: 'Policy Pulse',
-    value: metrics.policyAlertsThisWeek,
-    sub: 'this week · all pillars',
-    icon: <IconBell />,
-    modalTitle: 'Policy Pulse — This Week',
-    ModalContent: PolicyAlertsDetail,
-  },
-  {
-    key: 'avgCapacity',
-    label: 'Capacity Index',
-    value: metrics.avgCSCapacityRemaining,
-    sub: 'across active programs',
-    icon: <IconGauge />,
-    modalTitle: 'Capacity Index — Active Programs',
-    ModalContent: AvgCapacityDetail,
-  },
-  {
-    key: 'mwPipeline',
-    label: 'Pipeline Load',
-    value: metrics.totalMWInPipeline.toLocaleString(),
-    sub: 'active + limited states',
-    icon: <IconTrendingUp />,
-    modalTitle: 'Pipeline Load — Active + Limited',
-    ModalContent: MWPipelineDetail,
-  },
-]
-
 const CARD_BG = 'linear-gradient(145deg, #0F6E56 0%, #0A5240 100%)'
+
+// Returns days-since if > 14, otherwise null (signal only shown when stale)
+function staleDays(dateStr) {
+  if (!dateStr) return null
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24))
+  return days > 14 ? days : null
+}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function MetricsBar() {
-  const [openKey, setOpenKey] = useState(null)
+  const [openKey, setOpenKey]     = useState(null)
+  const [liveMetrics, setLiveMetrics] = useState(null)
+  const [programs, setPrograms]   = useState([])
+  const [news, setNews]           = useState([])
+
+  useEffect(() => {
+    getDashboardMetrics().then(setLiveMetrics).catch(console.error)
+    getStatePrograms().then(setPrograms).catch(console.error)
+    getNewsFeed().then(setNews).catch(console.error)
+  }, [])
+
+  // Live values with fallback to static metrics.js while Supabase loads.
+  // utilitiesWithIXHeadroom and policyAlertsThisWeek stay in metrics.js
+  // until FERC/news scrapers exist.
+  const m = {
+    statesWithActiveCS:    liveMetrics?.statesWithActiveCS    ?? metrics.statesWithActiveCS,
+    statesWithAnyCS:       liveMetrics?.statesWithAnyCS       ?? metrics.statesWithAnyCS,
+    utilitiesWithIXHeadroom: metrics.utilitiesWithIXHeadroom,
+    policyAlertsThisWeek:  metrics.policyAlertsThisWeek,
+    avgCSCapacityRemaining: liveMetrics?.avgCSCapacityRemaining ?? metrics.avgCSCapacityRemaining,
+    totalMWInPipeline:     liveMetrics?.totalMWInPipeline     ?? metrics.totalMWInPipeline,
+    lastUpdated:           liveMetrics?.lastUpdated           ?? metrics.lastUpdated,
+  }
+
+  const CARDS = [
+    {
+      key: 'activeCS',
+      label: 'CS Coverage',
+      value: m.statesWithActiveCS,
+      sub: `${m.statesWithAnyCS} with any program`,
+      icon: <IconMap />,
+      modalTitle: 'CS Coverage — Active Markets',
+      ModalContent: () => <ActiveCSDetail programs={programs} />,
+    },
+    {
+      key: 'ixCapacity',
+      label: 'IX Headroom',
+      value: m.utilitiesWithIXHeadroom,
+      sub: 'open queue capacity',
+      icon: <IconZap />,
+      modalTitle: 'IX Headroom — Open Queues',
+      ModalContent: IXCapacityDetail,
+    },
+    {
+      key: 'policyAlerts',
+      label: 'Policy Pulse',
+      value: m.policyAlertsThisWeek,
+      sub: 'this week · all pillars',
+      icon: <IconBell />,
+      modalTitle: 'Policy Pulse — This Week',
+      ModalContent: () => <PolicyAlertsDetail news={news} />,
+    },
+    {
+      key: 'avgCapacity',
+      label: 'Capacity Index',
+      value: m.avgCSCapacityRemaining,
+      sub: 'across active programs',
+      icon: <IconGauge />,
+      modalTitle: 'Capacity Index — Active Programs',
+      ModalContent: () => <AvgCapacityDetail programs={programs} />,
+    },
+    {
+      key: 'mwPipeline',
+      label: 'Pipeline Load',
+      value: typeof m.totalMWInPipeline === 'number' ? m.totalMWInPipeline.toLocaleString() : m.totalMWInPipeline,
+      sub: 'active + limited states',
+      icon: <IconTrendingUp />,
+      modalTitle: 'Pipeline Load — Active + Limited',
+      ModalContent: () => <MWPipelineDetail programs={programs} />,
+    },
+  ]
+
   const openCard = CARDS.find((c) => c.key === openKey)
 
   return (
@@ -395,6 +422,15 @@ export default function MetricsBar() {
           </button>
         ))}
       </div>
+
+      {(() => {
+        const stale = staleDays(liveMetrics?.lastUpdated)
+        return stale ? (
+          <p className="text-right text-[10px] font-mono mt-1.5" style={{ color: 'rgba(251,191,36,0.45)' }}>
+            <span style={{ color: 'rgba(251,191,36,0.3)' }}>⚠</span> data verified {stale}d ago
+          </p>
+        ) : null
+      })()}
 
       {openCard && (
         <MetricsModal title={openCard.modalTitle} onClose={() => setOpenKey(null)}>

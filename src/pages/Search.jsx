@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { stateById, getRunway } from '../data/statePrograms'
-import { getCountyData, revenueStackByState } from '../data/countyData'
+import { getStateProgramMap, getCountyData, getRevenueStack } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -41,8 +40,9 @@ function computeSubScores(stateProgram, countyData) {
   return { offtake, ix, site }
 }
 
-function getMarketRank(stateId) {
-  const ranked = Object.values(stateById)
+function getMarketRank(stateId, programMap) {
+  if (!programMap) return { rank: null, total: 0 }
+  const ranked = Object.values(programMap)
     .filter(s => s.csStatus === 'active' || s.csStatus === 'limited')
     .sort((a, b) => b.feasibilityScore - a.feasibilityScore)
   const rank = ranked.findIndex(s => s.id === stateId) + 1
@@ -104,10 +104,32 @@ const STATUS_CFG = {
   none:    { label: 'No Program',       bg: 'rgba(0,0,0,0.05)',      text: '#6B7280', border: 'rgba(0,0,0,0.12)' },
 }
 
-function MarketPositionPanel({ stateProgram, countyData }) {
+// Returns days-since if > 14, otherwise null (signal only shown when stale)
+function staleDays(dateStr) {
+  if (!dateStr) return null
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24))
+  return days > 14 ? days : null
+}
+
+// Guards against raw JSON leaking into the analyst brief (e.g. from truncated
+// API responses cached in sessionStorage before the parser fix was deployed).
+function sanitizeBrief(text) {
+  if (!text) return null
+  const t = text.trim()
+  if (!t.startsWith('{')) return t
+  // Looks like raw JSON — try to recover just the brief value
+  try {
+    const parsed = JSON.parse(t)
+    if (typeof parsed.brief === 'string' && !parsed.brief.trim().startsWith('{')) return parsed.brief
+  } catch (_) {}
+  const m = t.match(/"brief"\s*:\s*"((?:[^"\\]|\\.)*)"/)
+  return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim() : null
+}
+
+function MarketPositionPanel({ stateProgram, countyData, programMap }) {
   if (!stateProgram) return null
   const { offtake, ix, site } = computeSubScores(stateProgram, countyData)
-  const { rank, total } = getMarketRank(stateProgram.id)
+  const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
   const score = stateProgram.feasibilityScore || 0
 
@@ -124,6 +146,11 @@ function MarketPositionPanel({ stateProgram, countyData }) {
         <div className="flex items-center gap-2">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 font-mono">Market Position</span>
+          {staleDays(stateProgram.lastVerified) && (
+            <span className="text-[9px] font-mono" style={{ color: 'rgba(251,191,36,0.55)' }}>
+              · verified {staleDays(stateProgram.lastVerified)}d ago
+            </span>
+          )}
         </div>
         <span
           className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
@@ -519,7 +546,7 @@ function RevenueStackBar({ revenueStack }) {
 
 function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
-  const runway = stateProgram ? getRunway(stateProgram) : null
+  const runway = stateProgram?.runway ?? null
   const showCSWarning = technology === 'BESS' || technology === 'C&I Solar'
 
   return (
@@ -564,10 +591,15 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
                   value={`${((parseFloat(mw) / stateProgram.capacityMW) * 100).toFixed(1)}%`}
                 />
               )}
-              {runway && (
+              {runway ? (
                 <div className="flex items-center justify-between pt-1.5">
                   <span className="text-xs text-gray-500">Est. program runway</span>
                   <RunwayBadge runway={runway} />
+                </div>
+              ) : stateProgram?.csStatus !== 'none' && (
+                <div className="flex items-center justify-between pt-1.5">
+                  <span className="text-xs text-gray-500">Est. program runway</span>
+                  <span className="text-xs text-gray-400 italic">not yet seeded</span>
                 </div>
               )}
             </div>
@@ -885,7 +917,8 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
   const scenarios = buildSensitivityScenarios(stateProgram, form.technology)
 
   // Show AI content only when insight exists and not overridden by scenario mode
-  const showAI = !!aiInsight && !activeScenario
+  const cleanBrief = sanitizeBrief(aiInsight?.brief)
+  const showAI = !!aiInsight && !!cleanBrief && !activeScenario
 
   return (
     <div
@@ -936,7 +969,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
 
         {/* Analyst brief — AI when available, rule-based fallback otherwise */}
         <p className="text-[15px] font-medium text-gray-800 leading-relaxed">
-          {showAI && aiInsight.brief ? aiInsight.brief : summary}
+          {showAI ? cleanBrief : summary}
         </p>
 
         {/* AI Spotlight tiles — Primary Risk + Top Opportunity */}
@@ -1479,6 +1512,7 @@ function SearchContent() {
     stage: '',
     technology: '',
   })
+  const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
   const [analyzing, setAnalyzing]     = useState(false)
   const [showToast, setShowToast]     = useState(false)
@@ -1487,6 +1521,11 @@ function SearchContent() {
   const [saving, setSaving]       = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const resultsRef = useRef(null)
+
+  // Load live state program map on mount — used for market rank + handleSubmit
+  useEffect(() => {
+    getStateProgramMap().then(setProgramMap).catch(console.error)
+  }, [])
 
   // Restore from sessionStorage on mount (URL param takes priority)
   useEffect(() => {
@@ -1521,11 +1560,13 @@ function SearchContent() {
     const { data: { session } } = await supabase.auth.getSession()
     const accessToken = session?.access_token ?? ''
 
-    // Resolve local data synchronously
-    const stateProgram = stateById[form.state] || null
-    const countyData   = getCountyData(form.state, form.county)
-    const revenueStack = revenueStackByState[form.state] || null
-    const runway       = stateProgram ? getRunway(stateProgram) : null
+    // Resolve live data from Supabase (cached — fast after first load)
+    const [stateProgram, countyData, revenueStack] = await Promise.all([
+      programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
+      getCountyData(form.state, form.county),
+      getRevenueStack(form.state),
+    ])
+    const runway = stateProgram?.runway ?? null
 
     // Run AI fetch + 800ms display floor in parallel
     // The overlay stays up until the AI responds (typically 2–4s)
@@ -1785,6 +1826,7 @@ function SearchContent() {
             <MarketPositionPanel
               stateProgram={results.stateProgram}
               countyData={results.countyData}
+              programMap={programMap}
             />
 
             {/* Market Intelligence Summary */}

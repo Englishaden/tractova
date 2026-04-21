@@ -53,14 +53,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/glossary"
-            element={
-              <ProtectedRoute message="Sign in to access the full Tractova glossary.">
-                <Glossary />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/glossary" element={<Glossary />} />
           <Route
             path="/profile"
             element={

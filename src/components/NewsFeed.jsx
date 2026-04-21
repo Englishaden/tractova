@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import newsFeed from '../data/newsFeed'
+import { useState, useEffect } from 'react'
+import { getNewsFeed } from '../lib/programData'
 
 const PILLAR_STYLES = {
   offtake: { dot: 'bg-primary',     badge: 'bg-primary-50 text-primary-700 border-primary-200',     label: 'Offtake' },
@@ -19,13 +19,21 @@ function formatDate(dateStr) {
 
 const PAGE_SIZE = 4
 
-export default function NewsFeed() {
-  const [filter, setFilter] = useState('all')
-  const [page, setPage]     = useState(0)
+export default function NewsFeed({ news: newsProp }) {
+  const [filter,   setFilter]   = useState('all')
+  const [page,     setPage]     = useState(0)
+  const [liveNews, setLiveNews] = useState(null)
+
+  // If news wasn't passed as a prop (e.g. used standalone), fetch it ourselves
+  useEffect(() => {
+    if (!newsProp) getNewsFeed().then(setLiveNews).catch(console.error)
+  }, [newsProp])
+
+  const newsData = newsProp ?? liveNews ?? []
 
   const filtered = filter === 'all'
-    ? newsFeed
-    : newsFeed.filter((item) => item.pillar === filter)
+    ? newsData
+    : newsData.filter((item) => item.pillar === filter)
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated  = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
@@ -39,7 +47,7 @@ export default function NewsFeed() {
       <div className="px-5 py-3 border-b border-gray-100">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-800">Policy & Market Feed</h2>
-          <span className="text-xs text-gray-400">{filtered.length} items</span>
+          <span className="text-xs text-gray-400">{newsData.length} items</span>
         </div>
         {/* Filter tabs */}
         <div className="flex gap-1 mt-2.5">
