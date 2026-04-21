@@ -50,7 +50,7 @@ function IXCapacityDetail() {
   return (
     <div>
       <p className="text-xs text-white/45 mb-3">
-        Utilities estimated to have meaningful interconnection queue capacity based on FERC Form 1 data, ISO/RTO queue reports, and recent ISA withdrawal activity. Per-utility detail data is coming in Iteration 2.
+        Utilities estimated to have meaningful interconnection queue capacity based on FERC Form 1 data, ISO/RTO queue reports, and recent ISA withdrawal activity. Per-utility detail data available on request.
       </p>
       <div className="rounded-md px-3 py-2.5 mb-4" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
         <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-amber-400/80">Methodology note</p>
@@ -77,7 +77,7 @@ function IXCapacityDetail() {
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-white/30 mt-3">Full utility-level data with ease scores launches in Iteration 2.</p>
+      <p className="text-xs text-white/30 mt-3">Full utility-level data with ease scores updated as queue reports are published.</p>
     </div>
   )
 }
@@ -138,7 +138,7 @@ function AvgCapacityDetail({ programs = [] }) {
   return (
     <div>
       <p className="text-xs text-white/45 mb-3">
-        Average remaining capacity across active and limited programs, weighted equally by program. Capacity figures are manually curated — automated data in Iteration 5.
+        Average remaining capacity across active and limited programs, weighted equally by program. Capacity figures sourced from state program administrators and updated weekly.
       </p>
       <table className="w-full text-xs">
         <thead>

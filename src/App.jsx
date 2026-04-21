@@ -35,6 +35,7 @@ export default function App() {
           <Route path="/signin"          element={<SignIn />} />
           <Route path="/signup"          element={<SignUp />} />
           <Route path="/upgrade-success" element={<UpgradeSuccess />} />
+          <Route path="/preview"         element={<Dashboard previewMode />} />
 
           {/* Gated routes — require sign-in */}
           <Route

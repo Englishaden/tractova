@@ -169,10 +169,10 @@ export default function Landing() {
                 </svg>
               </Link>
               <Link
-                to="/signin"
+                to="/preview"
                 className="text-sm font-medium text-white/60 hover:text-white transition-colors"
               >
-                Already have an account? Sign in →
+                Preview live data →
               </Link>
             </div>
 
@@ -456,10 +456,10 @@ export default function Landing() {
               Create Free Account
             </Link>
             <Link
-              to="/signin"
+              to="/preview"
               className="px-8 py-3 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-semibold rounded-lg transition-colors"
             >
-              Sign In
+              Preview the platform →
             </Link>
           </div>
         </div>

@@ -26,7 +26,7 @@ export default function Footer() {
           >
             The Adder Newsletter ↗
           </a>
-          <span className={`text-xs ${dark ? 'text-white/20' : 'text-gray-300'}`}>Iteration 1 — Dashboard Shell</span>
+          <span className={`text-xs ${dark ? 'text-white/20' : 'text-gray-300'}`}>© 2025 Tractova</span>
         </div>
       </div>
     </footer>

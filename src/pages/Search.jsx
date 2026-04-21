@@ -13,7 +13,18 @@ import SectionDivider from '../components/SectionDivider'
 // Market Position Panel — replaces the old mini state map
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computeSubScores(stateProgram, countyData) {
+// Stage modifiers: [offtake delta, ix delta, site delta]
+const STAGE_MODIFIERS = {
+  'Prospecting':              [  0,   0,   0 ],
+  'Site Control':             [  0, +10, +15 ],
+  'Pre-Development':          [  0,   0, +20 ],
+  'Development':              [ +5,   0, +25 ],
+  'NTP (Notice to Proceed)':  [ +8,  -5, +25 ],
+  'Construction':             [+10,  -8, +25 ],
+  'Operational':              [+10, +10, +25 ],
+}
+
+function computeSubScores(stateProgram, countyData, stage = '') {
   if (!stateProgram) return { offtake: 0, ix: 0, site: 0 }
 
   // Offtake (0–100): CS status + capacity + LMI drag
@@ -22,10 +33,9 @@ function computeSubScores(stateProgram, countyData) {
   if (stateProgram.csStatus === 'active' && stateProgram.capacityMW > 500) offtake += 8
   if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 40) offtake -= 10
   else if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 25) offtake -= 5
-  offtake = Math.max(0, Math.min(100, offtake))
 
   // IX (0–100): difficulty rating
-  const ix = { easy: 88, moderate: 65, hard: 38, very_hard: 14 }[stateProgram.ixDifficulty] ?? 50
+  let ix = { easy: 88, moderate: 65, hard: 38, very_hard: 14 }[stateProgram.ixDifficulty] ?? 50
 
   // Site (0–100): from countyData land + wetland signals
   let site = 60
@@ -36,6 +46,12 @@ function computeSubScores(stateProgram, countyData) {
     else if (!availableLand && !wetlandWarning) site = 42
     else site = 26
   }
+
+  // Apply stage modifiers
+  const [dOft, dIX, dSite] = STAGE_MODIFIERS[stage] ?? [0, 0, 0]
+  offtake = Math.max(0, Math.min(100, offtake + dOft))
+  ix      = Math.max(0, Math.min(100, ix      + dIX))
+  site    = Math.max(0, Math.min(100, site    + dSite))
 
   return { offtake, ix, site }
 }
@@ -126,9 +142,9 @@ function sanitizeBrief(text) {
   return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim() : null
 }
 
-function MarketPositionPanel({ stateProgram, countyData, programMap }) {
+function MarketPositionPanel({ stateProgram, countyData, programMap, stage }) {
   if (!stateProgram) return null
-  const { offtake, ix, site } = computeSubScores(stateProgram, countyData)
+  const { offtake, ix, site } = computeSubScores(stateProgram, countyData, stage)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
   const score = stateProgram.feasibilityScore || 0
@@ -512,9 +528,9 @@ function InterconnectionCard({ interconnection, stateProgram }) {
 function RevenueStackBar({ revenueStack }) {
   const segments = [
     { label: 'ITC Base',  value: revenueStack.itcBase,          color: '#0F6E56' },
-    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#34D399' },
-    { label: 'IREC',      value: revenueStack.irecMarket,       color: '#0D9488' },
-    { label: 'Net Meter', value: revenueStack.netMeteringStatus, color: '#9CA3AF' },
+    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#D97706' },
+    { label: 'IREC',      value: revenueStack.irecMarket,       color: '#7C3AED' },
+    { label: 'Net Meter', value: revenueStack.netMeteringStatus, color: '#0EA5E9' },
   ]
   // Parse leading number from string like "30%" or "26%"
   const parse = (v) => { const m = String(v || '').match(/(\d+(\.\d+)?)/) ; return m ? parseFloat(m[1]) : null }
@@ -834,34 +850,44 @@ function computeScoreDelta(base, override) {
 
 const IX_LEVELS = ['easy', 'moderate', 'hard', 'very_hard']
 
-function buildSensitivityScenarios(stateProgram, technology) {
+function buildSensitivityScenarios(stateProgram, technology, mw) {
   if (!stateProgram) return []
-  const { ixDifficulty, csStatus, lmiRequired, lmiPercent, capacityMW } = stateProgram
+  const { ixDifficulty, csStatus, lmiRequired, lmiPercent, capacityMW, name: stateName, csProgram } = stateProgram
   const ixIdx = IX_LEVELS.indexOf(ixDifficulty)
+  const mwNum = parseFloat(mw) || 5
   const scenarios = []
 
   // IX scenarios
   if (ixIdx < IX_LEVELS.length - 1) {
+    const newLevel = IX_LEVELS[ixIdx + 1]
+    const timelineMap = { moderate: '12–18 months', hard: '18–30 months', very_hard: '30–48+ months' }
+    const costMap = { moderate: '$500K–$1.5M', hard: '$1–3M', very_hard: '$3–6M+' }
     scenarios.push({
       id: 'ix_harder',
       label: 'What if IX gets harder?',
-      override: { ixDifficulty: IX_LEVELS[ixIdx + 1] },
+      override: { ixDifficulty: newLevel },
+      detail: `Queue moves to ${newLevel.replace('_', ' ')} — add ${timelineMap[newLevel] ?? '18–30 months'} to your IX study timeline and budget ${costMap[newLevel] ?? '$1–3M'} in potential upgrade costs. At ${mwNum}MW, IX cost exposure could consume a significant portion of program enrollment value. Model this in your pro forma before advancing site control.`,
     })
   }
   if (ixIdx > 0) {
+    const newLevel = IX_LEVELS[ixIdx - 1]
     scenarios.push({
       id: 'ix_easier',
       label: 'What if IX improves?',
-      override: { ixDifficulty: IX_LEVELS[ixIdx - 1] },
+      override: { ixDifficulty: newLevel },
+      detail: `If queue conditions ease to ${newLevel.replace('_', ' ')}, interconnection timelines compress and upgrade cost risk drops sharply. This is the upside case — valuable for sensitivity modeling but don't underwrite to it without a confirmed study result.`,
     })
   }
 
   // Program capacity scenarios
   if (csStatus === 'active' && capacityMW > 0) {
+    const pct = capacityMW > 0 ? Math.round((mwNum / capacityMW) * 100) : null
+    const pctStr = pct != null ? ` Your ${mwNum}MW project represents ~${pct}% of remaining capacity.` : ''
     scenarios.push({
       id: 'program_caps',
       label: 'What if the program caps out?',
       override: { csStatus: 'limited' },
+      detail: `${csProgram ?? stateName} moves to limited capacity.${pctStr} Enrollment windows for limited-capacity programs often close within 30–60 days of announcement. Submit your application now or risk missing the window — once capped, new blocks can take 6–18 months to open.`,
     })
   }
   if (csStatus === 'limited') {
@@ -869,6 +895,7 @@ function buildSensitivityScenarios(stateProgram, technology) {
       id: 'new_block',
       label: 'What if a new block opens?',
       override: { csStatus: 'active' },
+      detail: `A new capacity block in ${stateName} would immediately unlock enrollment — historically these periods see 3–5x developer activity within the first 60 days. Position your project now so you can file on day one. Monitor the state PUC docket for block announcement filings.`,
     })
   }
 
@@ -879,6 +906,7 @@ function buildSensitivityScenarios(stateProgram, technology) {
         id: 'lmi_rises',
         label: 'What if LMI rises to 50%?',
         override: { lmiRequired: true, lmiPercent: 50 },
+        detail: `A 50% LMI requirement means sourcing ~${Math.round(mwNum * 250)} low-income subscriber households for a ${mwNum}MW project. Budget 6–9 months for aggregator contracting and expect a 10–15% revenue haircut to attract compliant subscribers. Verify whether adders or bill credits offset this drag before proceeding.`,
       })
     }
     if (lmiRequired && lmiPercent > 0) {
@@ -886,6 +914,7 @@ function buildSensitivityScenarios(stateProgram, technology) {
         id: 'lmi_removed',
         label: 'What if LMI req. is removed?',
         override: { lmiRequired: false, lmiPercent: 0 },
+        detail: `Removing the LMI requirement opens the full commercial and residential subscriber market — dramatically easier customer acquisition and stronger bill credit economics. This is the regulatory upside case; watch for pending state PUC proceedings on LMI carveout rules.`,
       })
     }
   }
@@ -914,11 +943,11 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
   if (!data) return null
 
   const { verdict, verdictBg, verdictText, summary, signals } = data
-  const scenarios = buildSensitivityScenarios(stateProgram, form.technology)
+  const scenarios = buildSensitivityScenarios(stateProgram, form.technology, form.mw)
 
-  // Show AI content only when insight exists and not overridden by scenario mode
   const cleanBrief = sanitizeBrief(aiInsight?.brief)
-  const showAI = !!aiInsight && !!cleanBrief && !activeScenario
+  // AI brief always shown when available — serves as base case anchor even in scenario mode
+  const showAI = !!aiInsight && !!cleanBrief
 
   return (
     <div
@@ -968,12 +997,56 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
       <div className="bg-white px-5 py-4">
 
         {/* Analyst brief — AI when available, rule-based fallback otherwise */}
-        <p className="text-[15px] font-medium text-gray-800 leading-relaxed">
-          {showAI ? cleanBrief : summary}
-        </p>
+        {showAI ? (
+          <div>
+            {activeScenario && (
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: 'rgba(124,58,237,0.55)' }}>
+                Base Analysis
+              </p>
+            )}
+            <p className={`text-[15px] font-medium leading-relaxed ${activeScenario ? 'text-gray-400' : 'text-gray-800'}`}>
+              {cleanBrief}
+            </p>
+          </div>
+        ) : (
+          <p className="text-[15px] font-medium text-gray-800 leading-relaxed">{summary}</p>
+        )}
 
-        {/* AI Spotlight tiles — Primary Risk + Top Opportunity */}
-        {showAI && (aiInsight.primaryRisk || aiInsight.topOpportunity) && (
+        {/* Scenario overlay — shown when a scenario is active */}
+        {activeScenario && (() => {
+          const delta = computeScoreDelta(stateProgram, activeScenario.override)
+          const positive = delta > 0
+          return (
+            <div
+              className="mt-4 rounded-lg overflow-hidden"
+              style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
+            >
+              <div className="px-4 py-2 flex items-center justify-between" style={{ background: 'rgba(217,119,6,0.08)' }}>
+                <div className="flex items-center gap-2">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                  </svg>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.18em]" style={{ color: '#92400E' }}>
+                    Scenario · {activeScenario.label.replace('What if ', '').replace('?', '')}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-bold tabular-nums px-2 py-0.5 rounded ${
+                  positive ? 'bg-green-100 text-green-700' : delta < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  Score impact: {positive ? '+' : ''}{delta} pts
+                </span>
+              </div>
+              <div className="px-4 py-3 bg-white">
+                <p className="text-[13px] font-medium text-gray-800 leading-relaxed">
+                  {activeScenario.detail ?? summary}
+                </p>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* AI Spotlight tiles — Primary Risk + Top Opportunity — hide in scenario mode */}
+        {showAI && !activeScenario && (aiInsight.primaryRisk || aiInsight.topOpportunity) && (
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {aiInsight.primaryRisk && (
               <div
@@ -1082,7 +1155,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
             </div>
             {activeScenario && (
               <p className="text-[10px] text-gray-400 mt-2.5 leading-relaxed">
-                Scenario active — summary and verdict reflect modified conditions. Click again to return to base case.
+                Click the active scenario again to return to base case.
               </p>
             )}
           </div>
@@ -1827,6 +1900,7 @@ function SearchContent() {
               stateProgram={results.stateProgram}
               countyData={results.countyData}
               programMap={programMap}
+              stage={results.form.stage}
             />
 
             {/* Market Intelligence Summary */}

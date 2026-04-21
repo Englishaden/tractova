@@ -6,7 +6,7 @@ import StateDetailPanel from '../components/StateDetailPanel'
 import SectionDivider from '../components/SectionDivider'
 import { getStateProgramMap, getNewsFeed } from '../lib/programData'
 
-export default function Dashboard() {
+export default function Dashboard({ previewMode = false }) {
   const [selectedStateId,  setSelectedStateId]  = useState(null)
   const [stateProgramMap,  setStateProgramMap]  = useState({})
   const [news,             setNews]             = useState([])
@@ -28,6 +28,25 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-surface">
+      {previewMode && (
+        <div
+          className="sticky top-14 z-30 flex items-center justify-between px-6 py-2.5"
+          style={{ background: '#063629', borderBottom: '1px solid rgba(52,211,153,0.20)' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">Live Preview</span>
+            <span className="text-xs text-white/55">
+              You're viewing live market intelligence. Sign up for Tractova Lens AI analysis and project tracking.
+            </span>
+          </div>
+          <a
+            href="/signup"
+            className="flex-shrink-0 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors px-3 py-1.5 rounded-lg"
+          >
+            Get full access →
+          </a>
+        </div>
+      )}
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* Page header */}
         <div className="mt-4 mb-1">
