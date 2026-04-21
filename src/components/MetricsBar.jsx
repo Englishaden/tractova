@@ -11,25 +11,25 @@ function ActiveCSDetail() {
     .sort((a, b) => b.feasibilityScore - a.feasibilityScore)
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-white/45 mb-3">
         These {active.length} states have currently open, funded community solar programs accepting new project applications or subscriber enrollments.
       </p>
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-gray-100">
-            <th className="text-left py-1.5 text-gray-400 font-semibold">State</th>
-            <th className="text-left py-1.5 text-gray-400 font-semibold">Program</th>
-            <th className="text-right py-1.5 text-gray-400 font-semibold">Capacity Left</th>
-            <th className="text-right py-1.5 text-gray-400 font-semibold">Score</th>
+          <tr className="border-b border-white/[0.06]">
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">State</th>
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Program</th>
+            <th className="text-right py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Capacity Left</th>
+            <th className="text-right py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Score</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-white/[0.04]">
           {active.map((s) => (
-            <tr key={s.id} className="hover:bg-surface">
-              <td className="py-2 font-semibold text-gray-800">{s.name}</td>
-              <td className="py-2 text-gray-600">{s.csProgram}</td>
-              <td className="py-2 text-right text-primary font-medium">{s.capacityMW.toLocaleString()} MW</td>
-              <td className="py-2 text-right text-gray-500">{s.feasibilityScore}</td>
+            <tr key={s.id} className="hover:bg-white/[0.025] transition-colors">
+              <td className="py-2 font-semibold text-white/80">{s.name}</td>
+              <td className="py-2 text-white/45">{s.csProgram}</td>
+              <td className="py-2 text-right text-emerald-400 font-mono">{s.capacityMW.toLocaleString()} MW</td>
+              <td className="py-2 text-right text-white/45 font-mono">{s.feasibilityScore}</td>
             </tr>
           ))}
         </tbody>
@@ -50,35 +50,35 @@ function IXCapacityDetail() {
   ]
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-white/45 mb-3">
         Utilities estimated to have meaningful interconnection queue capacity based on FERC Form 1 data, ISO/RTO queue reports, and recent ISA withdrawal activity. Per-utility detail data is coming in Iteration 2.
       </p>
-      <div className="bg-accent-50 border border-accent-200 rounded-md px-3 py-2.5 mb-4">
-        <p className="text-xs text-accent-700 font-medium">Methodology note</p>
-        <p className="text-xs text-accent-700 mt-0.5">
+      <div className="rounded-md px-3 py-2.5 mb-4" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
+        <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-amber-400/80">Methodology note</p>
+        <p className="text-xs text-amber-300/70 mt-1">
           Count is derived from public FERC and ISO/RTO queue data. "Headroom" means the utility has capacity on at least one transmission line segment without requiring major network upgrades for projects ≤5MW AC.
         </p>
       </div>
-      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Representative utilities</p>
+      <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/40 mb-2">Representative utilities</p>
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-gray-100">
-            <th className="text-left py-1.5 text-gray-400 font-semibold">Utility</th>
-            <th className="text-left py-1.5 text-gray-400 font-semibold">Territory</th>
-            <th className="text-left py-1.5 text-gray-400 font-semibold">Status</th>
+          <tr className="border-b border-white/[0.06]">
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Utility</th>
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Territory</th>
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-white/[0.04]">
           {notes.map((n) => (
-            <tr key={n.utility}>
-              <td className="py-2 font-medium text-gray-800">{n.utility}</td>
-              <td className="py-2 text-gray-500">{n.territory}</td>
-              <td className="py-2 text-primary">{n.status}</td>
+            <tr key={n.utility} className="hover:bg-white/[0.025] transition-colors">
+              <td className="py-2 font-medium text-white/80">{n.utility}</td>
+              <td className="py-2 text-white/40">{n.territory}</td>
+              <td className="py-2 text-emerald-400">{n.status}</td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-gray-400 mt-3">Full utility-level data with ease scores launches in Iteration 2.</p>
+      <p className="text-xs text-white/30 mt-3">Full utility-level data with ease scores launches in Iteration 2.</p>
     </div>
   )
 }
@@ -89,14 +89,14 @@ function PolicyAlertsDetail() {
     .slice(0, 7)
 
   const PILLAR_BADGE = {
-    offtake: 'bg-primary-50 text-primary-700 border-primary-200',
-    ix:      'bg-accent-50 text-accent-700 border-accent-200',
-    site:    'bg-blue-50 text-blue-700 border-blue-200',
+    offtake: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20',
+    ix:      'bg-amber-400/10 text-amber-400 border-amber-400/20',
+    site:    'bg-sky-400/10 text-sky-400 border-sky-400/20',
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-gray-500">
+    <div className="space-y-2.5">
+      <p className="text-xs text-white/45">
         Most recent policy and market developments across all three pillars.
       </p>
       {recent.map((item) => (
@@ -105,14 +105,17 @@ function PolicyAlertsDetail() {
           href={item.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="block border border-gray-100 rounded-md px-3 py-2.5 hover:bg-surface transition-colors"
+          className="block rounded-md px-3 py-2.5 transition-colors"
+          style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.025)'}
+          onMouseLeave={e => e.currentTarget.style.background = ''}
         >
-          <p className="text-xs font-medium text-gray-900 leading-snug">{item.headline}</p>
+          <p className="text-xs font-medium text-white/80 leading-snug">{item.headline}</p>
           <div className="flex items-center gap-2 mt-1.5">
-            <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PILLAR_BADGE[item.pillar]}`}>
+            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase tracking-wider ${PILLAR_BADGE[item.pillar]}`}>
               {item.pillar === 'ix' ? 'Interconnection' : item.pillar.charAt(0).toUpperCase() + item.pillar.slice(1)}
             </span>
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-white/35">
               {item.source} · {new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </span>
           </div>
@@ -129,38 +132,38 @@ function AvgCapacityDetail() {
   const total = states.reduce((sum, s) => sum + s.capacityMW, 0)
 
   const STATUS_BADGE = {
-    active:  'bg-primary-50 text-primary-700 border-primary-200',
-    limited: 'bg-amber-50 text-amber-700 border-amber-200',
+    active:  'bg-emerald-400/10 text-emerald-400 border-emerald-400/20',
+    limited: 'bg-amber-400/10 text-amber-400 border-amber-400/20',
   }
 
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-white/45 mb-3">
         Average remaining capacity across active and limited programs, weighted equally by program. Capacity figures are manually curated — automated data in Iteration 5.
       </p>
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-gray-100">
-            <th className="text-left py-1.5 text-gray-400 font-semibold">State</th>
-            <th className="text-left py-1.5 text-gray-400 font-semibold">Status</th>
-            <th className="text-right py-1.5 text-gray-400 font-semibold">Remaining (MW)</th>
+          <tr className="border-b border-white/[0.06]">
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">State</th>
+            <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Status</th>
+            <th className="text-right py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Remaining (MW)</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-white/[0.04]">
           {states.map((s) => (
-            <tr key={s.id} className="hover:bg-surface">
-              <td className="py-2 font-medium text-gray-800">{s.name}</td>
+            <tr key={s.id} className="hover:bg-white/[0.025] transition-colors">
+              <td className="py-2 font-medium text-white/80">{s.name}</td>
               <td className="py-2">
-                <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${STATUS_BADGE[s.csStatus]}`}>
+                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase tracking-wider ${STATUS_BADGE[s.csStatus]}`}>
                   {s.csStatus === 'active' ? 'Active' : 'Limited'}
                 </span>
               </td>
-              <td className="py-2 text-right font-semibold text-primary">{s.capacityMW.toLocaleString()}</td>
+              <td className="py-2 text-right font-mono text-emerald-400">{s.capacityMW.toLocaleString()}</td>
             </tr>
           ))}
-          <tr className="border-t border-gray-200">
-            <td colSpan={2} className="py-2 font-semibold text-gray-700">Total</td>
-            <td className="py-2 text-right font-bold text-gray-900">{total.toLocaleString()} MW</td>
+          <tr className="border-t border-white/[0.08]">
+            <td colSpan={2} className="py-2 font-semibold text-white/60">Total</td>
+            <td className="py-2 text-right font-mono font-bold text-white/90">{total.toLocaleString()} MW</td>
           </tr>
         </tbody>
       </table>
@@ -176,28 +179,28 @@ function MWPipelineDetail() {
 
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-xs text-white/45 mb-3">
         Total megawatts of remaining capacity across all active and limited community solar programs. This represents the addressable pipeline for independent developers today.
       </p>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {states.map((s) => {
           const pct = Math.round((s.capacityMW / total) * 100)
           return (
             <div key={s.id}>
-              <div className="flex items-center justify-between text-xs mb-0.5">
-                <span className="font-medium text-gray-700">{s.name}</span>
-                <span className="text-primary font-semibold">{s.capacityMW.toLocaleString()} MW</span>
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-medium text-white/75">{s.name}</span>
+                <span className="text-emerald-400 font-mono">{s.capacityMW.toLocaleString()} MW</span>
               </div>
-              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+              <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                <div className="h-full rounded-full bg-emerald-400/70" style={{ width: `${pct}%` }} />
               </div>
             </div>
           )
         })}
       </div>
-      <div className="mt-4 pt-3 border-t border-gray-100 flex justify-between text-xs">
-        <span className="font-semibold text-gray-700">Total addressable pipeline</span>
-        <span className="font-bold text-gray-900">{total.toLocaleString()} MW</span>
+      <div className="mt-4 pt-3 flex justify-between text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        <span className="font-semibold text-white/60">Total addressable pipeline</span>
+        <span className="font-mono font-bold text-white/90">{total.toLocaleString()} MW</span>
       </div>
     </div>
   )
@@ -208,20 +211,38 @@ function MWPipelineDetail() {
 function MetricsModal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-          <h3 className="text-sm font-bold text-gray-900">{title}</h3>
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        className="relative rounded-lg w-full max-w-lg flex flex-col"
+        style={{
+          background: '#080E1A',
+          border: '1px solid rgba(52,211,153,0.18)',
+          boxShadow: '0 0 0 1px rgba(52,211,153,0.08), 0 32px 64px rgba(0,0,0,0.8)',
+          maxHeight: '80vh',
+        }}
+      >
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-lg bg-gradient-to-r from-emerald-500/50 via-emerald-400/90 to-emerald-500/50" />
+
+        {/* Header */}
+        <div
+          className="px-5 pt-5 pb-3.5 flex items-center justify-between flex-shrink-0"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#0D1424', borderRadius: '0.5rem 0.5rem 0 0' }}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-[3px] h-3.5 rounded-full bg-emerald-400/70 flex-shrink-0" />
+            <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/85">{title}</h3>
+          </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1 rounded"
+            className="text-white/30 hover:text-white/70 transition-colors font-mono text-lg leading-none px-1 -mr-1"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/>
-            </svg>
+            ×
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.1) transparent' }}>
           {children}
         </div>
       </div>
@@ -277,47 +298,47 @@ function IconTrendingUp() {
 const CARDS = [
   {
     key: 'activeCS',
-    label: 'States w/ Active CS',
+    label: 'CS Coverage',
     value: metrics.statesWithActiveCS,
     sub: `${metrics.statesWithAnyCS} with any program`,
     icon: <IconMap />,
-    modalTitle: `${metrics.statesWithActiveCS} States with Active Community Solar Programs`,
+    modalTitle: 'CS Coverage — Active Markets',
     ModalContent: ActiveCSDetail,
   },
   {
     key: 'ixCapacity',
-    label: 'Utilities w/ IX Capacity',
+    label: 'IX Headroom',
     value: metrics.utilitiesWithIXHeadroom,
     sub: 'open queue capacity',
     icon: <IconZap />,
-    modalTitle: `${metrics.utilitiesWithIXHeadroom} Utilities with Interconnection Headroom`,
+    modalTitle: 'IX Headroom — Open Queues',
     ModalContent: IXCapacityDetail,
   },
   {
     key: 'policyAlerts',
-    label: 'Policy Alerts',
+    label: 'Policy Pulse',
     value: metrics.policyAlertsThisWeek,
     sub: 'this week · all pillars',
     icon: <IconBell />,
-    modalTitle: 'Policy Alerts This Week',
+    modalTitle: 'Policy Pulse — This Week',
     ModalContent: PolicyAlertsDetail,
   },
   {
     key: 'avgCapacity',
-    label: 'Avg CS Capacity Left',
+    label: 'Capacity Index',
     value: metrics.avgCSCapacityRemaining,
     sub: 'across active programs',
     icon: <IconGauge />,
-    modalTitle: `Average CS Capacity Remaining: ${metrics.avgCSCapacityRemaining}`,
+    modalTitle: 'Capacity Index — Active Programs',
     ModalContent: AvgCapacityDetail,
   },
   {
     key: 'mwPipeline',
-    label: 'MW in Active Pipeline',
+    label: 'Pipeline Load',
     value: metrics.totalMWInPipeline.toLocaleString(),
     sub: 'active + limited states',
     icon: <IconTrendingUp />,
-    modalTitle: `${metrics.totalMWInPipeline.toLocaleString()} MW in Active CS Pipeline`,
+    modalTitle: 'Pipeline Load — Active + Limited',
     ModalContent: MWPipelineDetail,
   },
 ]
