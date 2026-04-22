@@ -104,9 +104,9 @@ function sanitizeBrief(text) {
   return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim() : null
 }
 
-function MarketPositionPanel({ stateProgram, countyData, programMap, stage }) {
+function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology }) {
   if (!stateProgram) return null
-  const { offtake, ix, site } = computeSubScores(stateProgram, countyData, stage)
+  const { offtake, ix, site } = computeSubScores(stateProgram, countyData, stage, technology)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
   const score = computeDisplayScore(offtake, ix, site)
@@ -1171,7 +1171,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
   const [activeScenario, setActiveScenario] = useState(null)
 
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage)
+  const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology)
   effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
   if (!data) return null
@@ -2163,6 +2163,7 @@ function SearchContent() {
               countyData={results.countyData}
               programMap={programMap}
               stage={results.form.stage}
+              technology={results.form.technology}
             />
 
             {/* Market Intelligence Summary */}

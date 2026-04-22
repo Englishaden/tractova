@@ -1,7 +1,11 @@
 # Tractova — 4-Week Premium Buildout Plan
 
 > Last updated: April 22, 2026
-> Status: Week 1 not yet started. All pre-work complete (revenue calculator, IX queue intelligence, substation proximity committed).
+> Status: Week 1 COMPLETE (commit 562627a). Week 2 IN PROGRESS — engines done, wiring into UI next.
+
+### Progress Log
+- **Week 1** (commit 562627a): All placeholder text removed, typography unified, revenue colors overhauled (ITC→blue, credits→emerald, REC→violet), Profile page upgraded with avatar banner + recent activity, Library dark theme refined with column divider + bordered sections + stronger alerts, Landing page pricing + freshness added, bidirectional nav (Library→Lens carries all params) pulled forward from Week 4.
+- **Week 2** (in progress): Revenue engine expanded with C&I PPA model (8 states), BESS capacity/demand/arbitrage model (8 states), and Hybrid combined model. Score engine updated with tech-aware offtake (retail rate tiers for C&I, capacity market tiers for BESS), IX modifiers (BESS +5, Hybrid -5), and site adjustments (BESS needs less land). All `computeSubScores` call sites updated to pass technology param. **Still TODO**: Tech-aware Offtake card UI, tech-aware scenarios, tech-aware AI prompt.
 
 ---
 

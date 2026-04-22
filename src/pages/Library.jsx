@@ -407,7 +407,7 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
   }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { offtake, ix, site } = current
-    ? computeSubScores(current, countyData, stage)
+    ? computeSubScores(current, countyData, stage, project.technology)
     : { offtake: 0, ix: 0, site: 0 }
   const liveScore = current ? computeDisplayScore(offtake, ix, site) : null
 
