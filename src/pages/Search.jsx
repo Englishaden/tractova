@@ -56,6 +56,10 @@ function computeSubScores(stateProgram, countyData, stage = '') {
   return { offtake, ix, site }
 }
 
+function computeDisplayScore(offtake, ix, site) {
+  return Math.round(offtake * 0.40 + ix * 0.35 + site * 0.25)
+}
+
 function getMarketRank(stateId, programMap) {
   if (!programMap) return { rank: null, total: 0 }
   const ranked = Object.values(programMap)
@@ -147,7 +151,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage }) {
   const { offtake, ix, site } = computeSubScores(stateProgram, countyData, stage)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
-  const score = stateProgram.feasibilityScore || 0
+  const score = computeDisplayScore(offtake, ix, site)
 
   return (
     <div
@@ -402,9 +406,9 @@ function SiteControlCard({ siteControl, stateName, county }) {
     },
     {
       label: 'Zoning',
-      status: 'Mixed',
-      color: '#6B7280',
-      bg: 'rgba(107,114,128,0.06)',
+      status: landUseNotes ? 'Restricted' : '—',
+      color: landUseNotes ? '#B45309' : '#6B7280',
+      bg: landUseNotes ? 'rgba(180,83,9,0.06)' : 'rgba(107,114,128,0.06)',
       note: landUseNotes,
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -536,10 +540,8 @@ function RevenueStackBar({ revenueStack }) {
   const parse = (v) => { const m = String(v || '').match(/(\d+(\.\d+)?)/) ; return m ? parseFloat(m[1]) : null }
   const nums = segments.map(s => parse(s.value))
   const total = nums.reduce((a, b) => a + (b || 0), 0)
-  // Fall back to equal widths if no numeric data
-  const widths = total > 0
-    ? nums.map(n => ((n || 0) / total) * 100)
-    : segments.map(() => 25)
+  if (total === 0) return null
+  const widths = nums.map(n => ((n || 0) / total) * 100)
 
   return (
     <div className="mb-3">
@@ -563,7 +565,7 @@ function RevenueStackBar({ revenueStack }) {
 function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
-  const showCSWarning = technology === 'BESS' || technology === 'C&I Solar'
+  const isCS = technology === 'Community Solar'
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #0F6E56' }}>
@@ -574,90 +576,115 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
         </div>
         <div>
           <h3 className="text-sm font-bold text-gray-900">Offtake</h3>
-          <p className="text-xs text-gray-400">Program status & revenue stack</p>
+          <p className="text-xs text-gray-400">{isCS ? 'Program status & revenue stack' : `${technology} revenue profile`}</p>
         </div>
       </div>
 
       {/* Body */}
       <div className="px-5 py-4 space-y-4 flex-1">
-        {/* CS program status */}
-        <div>
-          <SectionLabel>Community Solar Program</SectionLabel>
-          {hasProgram ? (
-            <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
-              <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
-                <span className="text-xs text-gray-500">Program</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-gray-800 text-right max-w-[180px] leading-tight">{stateProgram.csProgram}</span>
-                  <CSStatusBadge csStatus={stateProgram.csStatus} />
+
+        {isCS ? (
+          <>
+            {/* CS program status — only for Community Solar */}
+            <div>
+              <SectionLabel>Community Solar Program</SectionLabel>
+              {hasProgram ? (
+                <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-gray-100">
+                    <span className="text-xs text-gray-500">Program</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-gray-800 text-right max-w-[180px] leading-tight">{stateProgram.csProgram}</span>
+                      <CSStatusBadge csStatus={stateProgram.csStatus} />
+                    </div>
+                  </div>
+                  <DataRow
+                    label="Capacity remaining"
+                    value={stateProgram.capacityMW > 0 ? `${stateProgram.capacityMW.toLocaleString()} MW` : '—'}
+                    highlight
+                  />
+                  <DataRow
+                    label="LMI allocation required"
+                    value={stateProgram.lmiRequired ? `Yes — ${stateProgram.lmiPercent}%` : 'No'}
+                  />
+                  {mw && stateProgram.capacityMW > 0 && (
+                    <DataRow
+                      label="Project share of remaining"
+                      value={`${((parseFloat(mw) / stateProgram.capacityMW) * 100).toFixed(1)}%`}
+                    />
+                  )}
+                  {runway ? (
+                    <div className="flex items-center justify-between pt-1.5">
+                      <span className="text-xs text-gray-500">Est. program runway</span>
+                      <RunwayBadge runway={runway} />
+                    </div>
+                  ) : stateProgram?.csStatus !== 'none' && (
+                    <div className="flex items-center justify-between pt-1.5">
+                      <span className="text-xs text-gray-500">Est. program runway</span>
+                      <span className="text-xs text-gray-400 italic">not yet seeded</span>
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-3">
+                  <p className="text-xs font-medium text-gray-600">No active community solar program in this state.</p>
+                  {stateProgram?.programNotes && (
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">{stateProgram.programNotes}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Revenue stack — only for Community Solar */}
+            {revenueStack ? (
+              <div>
+                <SectionLabel>Revenue Stack</SectionLabel>
+                <RevenueStackBar revenueStack={revenueStack} />
+                <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
+                  <DataRow label="ITC base" value={revenueStack.itcBase} highlight />
+                  <DataRow label="ITC adders" value={revenueStack.itcAdder} />
+                  <DataRow label="REC / I-REC market" value={revenueStack.irecMarket} />
+                  <DataRow label="Net metering / credit" value={revenueStack.netMeteringStatus} />
+                </div>
+                <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
               </div>
-              <DataRow
-                label="Capacity remaining"
-                value={stateProgram.capacityMW > 0 ? `${stateProgram.capacityMW.toLocaleString()} MW` : 'TBD'}
-                highlight
-              />
-              <DataRow
-                label="LMI allocation required"
-                value={stateProgram.lmiRequired ? `Yes — ${stateProgram.lmiPercent}%` : 'No'}
-              />
-              {mw && stateProgram.capacityMW > 0 && (
-                <DataRow
-                  label="Project share of remaining"
-                  value={`${((parseFloat(mw) / stateProgram.capacityMW) * 100).toFixed(1)}%`}
-                />
-              )}
-              {runway ? (
-                <div className="flex items-center justify-between pt-1.5">
-                  <span className="text-xs text-gray-500">Est. program runway</span>
-                  <RunwayBadge runway={runway} />
-                </div>
-              ) : stateProgram?.csStatus !== 'none' && (
-                <div className="flex items-center justify-between pt-1.5">
-                  <span className="text-xs text-gray-500">Est. program runway</span>
-                  <span className="text-xs text-gray-400 italic">not yet seeded</span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-3">
-              <p className="text-xs font-medium text-gray-600">No active community solar program in this state.</p>
-              {stateProgram?.programNotes && (
-                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{stateProgram.programNotes}</p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Technology note */}
-        {showCSWarning && technology === 'BESS' && (
-          <div className="flex items-start gap-2 bg-accent-50 border border-accent-200 rounded-md px-3 py-2">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <p className="text-xs text-accent-700">BESS offtake depends on contracted capacity market revenue, not CS bill credits. CS program data shown is for context only.</p>
-          </div>
-        )}
-
-        {/* Revenue stack */}
-        {revenueStack ? (
-          <div>
-            <SectionLabel>Revenue Stack</SectionLabel>
-            <RevenueStackBar revenueStack={revenueStack} />
-            <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
-              <DataRow label="ITC base" value={revenueStack.itcBase} highlight />
-              <DataRow label="ITC adders" value={revenueStack.itcAdder} />
-              <DataRow label="REC / I-REC market" value={revenueStack.irecMarket} />
-              <DataRow label="Net metering / credit" value={revenueStack.netMeteringStatus} />
-            </div>
-            <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
-          </div>
+            ) : (
+              <div>
+                <SectionLabel>Revenue Stack</SectionLabel>
+                <p className="text-xs text-gray-400 italic">Revenue stack summary not yet seeded for this state. Check DSIRE (dsireusa.org) for incentive details.</p>
+              </div>
+            )}
+          </>
         ) : (
+          /* Non-CS technology — show appropriate messaging instead of CS data */
           <div>
-            <SectionLabel>Revenue Stack</SectionLabel>
-            <p className="text-xs text-gray-400 italic">Revenue stack summary not yet seeded for this state. Check DSIRE (dsireusa.org) for incentive details.</p>
+            <SectionLabel>{technology} Offtake</SectionLabel>
+            <div className="bg-surface rounded-md px-3 py-3 space-y-2">
+              {technology === 'BESS' && (
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  BESS revenue depends on contracted capacity market rates, demand charge reduction, and frequency regulation — not community solar bill credits. Evaluate PJM, MISO, or ISO-NE capacity market clearing prices for this state's RTO region.
+                </p>
+              )}
+              {technology === 'C&I Solar' && (
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  C&I solar offtake is driven by PPA or VPPA pricing with an anchor tenant, not CS program enrollment. ITC base and adder eligibility still applies. Revenue modeling depends on the contracted rate and electricity price escalation in this market.
+                </p>
+              )}
+              {technology === 'Hybrid' && (
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Hybrid projects stack solar generation revenue with storage capacity market and demand response value. ITC applies to the storage component if co-located. Model each revenue stream separately — the blended basis drives project economics.
+                </p>
+              )}
+              {revenueStack?.itcBase && (
+                <div className="border-t border-gray-100 pt-2">
+                  <DataRow label="ITC base" value={revenueStack.itcBase} highlight />
+                  {revenueStack.itcAdder && <DataRow label="ITC adders" value={revenueStack.itcAdder} />}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* Program notes */}
+        {/* Program notes — shown for all tech types */}
         {hasProgram && stateProgram.programNotes && (
           <div>
             <SectionLabel>Developer Notes</SectionLabel>
@@ -757,7 +784,7 @@ function generateMarketSummary({ stateProgram, countyData, form }) {
 
   // ── Stage note ──────────────────────────────────────────────────────────────
   let stageNote = ''
-  if (stage === 'Interconnection' && (ixDifficulty === 'hard' || ixDifficulty === 'very_hard')) {
+  if (stage === 'Pre-Development' && (ixDifficulty === 'hard' || ixDifficulty === 'very_hard')) {
     stageNote = ` In active interconnection here, model upgrade costs before your next milestone — the ease score is a leading indicator.`
   } else if ((stage === 'Prospecting' || stage === 'Site Control') && csStatus === 'limited') {
     stageNote = ` At this stage, confirm program availability directly with your state PUC before committing resources to site control.`
@@ -879,8 +906,8 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
     })
   }
 
-  // Program capacity scenarios
-  if (csStatus === 'active' && capacityMW > 0) {
+  // Program capacity scenarios (CS only)
+  if (csStatus === 'active' && capacityMW > 0 && technology === 'Community Solar') {
     const pct = capacityMW > 0 ? Math.round((mwNum / capacityMW) * 100) : null
     const pctStr = pct != null ? ` Your ${mwNum}MW project represents ~${pct}% of remaining capacity.` : ''
     scenarios.push({
@@ -890,7 +917,7 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `${csProgram ?? stateName} moves to limited capacity.${pctStr} Enrollment windows for limited-capacity programs often close within 30–60 days of announcement. Submit your application now or risk missing the window — once capped, new blocks can take 6–18 months to open.`,
     })
   }
-  if (csStatus === 'limited') {
+  if (csStatus === 'limited' && technology === 'Community Solar') {
     scenarios.push({
       id: 'new_block',
       label: 'What if a new block opens?',
@@ -939,6 +966,8 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
   const [activeScenario, setActiveScenario] = useState(null)
 
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
+  const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage)
+  effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
   if (!data) return null
 

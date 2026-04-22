@@ -668,9 +668,20 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
             </div>
           </div>
 
-          {/* ── Export footer ── */}
+          {/* ── Action footer ── */}
           <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.10)' }}>
-            <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.42)' }}>One-page project summary with market intelligence and deal notes</p>
+            <Link
+              to={`/search?state=${project.state}`}
+              className="flex items-center gap-1.5 text-xs font-medium transition-colors"
+              style={{ color: 'rgba(52,211,153,0.75)' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#34D399'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(52,211,153,0.75)'}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              Re-Analyze in Lens →
+            </Link>
             <button
               onClick={handleExportPDF}
               disabled={exporting}

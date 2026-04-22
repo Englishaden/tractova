@@ -34,8 +34,8 @@ export default function Dashboard({ previewMode = false }) {
           style={{ background: '#063629', borderBottom: '1px solid rgba(52,211,153,0.20)' }}
         >
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-400">Live Preview</span>
-            <span className="text-xs text-white/55">
+            <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-400">Live Preview</span>
+            <span className="text-xs text-white/75">
               You're viewing live market intelligence. Sign up for Tractova Lens AI analysis and project tracking.
             </span>
           </div>
@@ -50,7 +50,7 @@ export default function Dashboard({ previewMode = false }) {
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* Page header */}
         <div className="mt-4 mb-1">
-          <h1 className="text-xl font-bold text-gray-900">Market Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Market Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Community solar program status, interconnection conditions, and policy alerts — updated weekly.
           </p>

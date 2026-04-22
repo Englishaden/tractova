@@ -74,7 +74,7 @@ function DashboardPreview() {
             { label: 'Policy Alerts', value: metrics.policyAlertsThisWeek },
           ].map(m => (
             <div key={m.label} className="bg-[#0a2f25] px-4 py-3">
-              <div className="text-xl font-bold text-white">{m.value}</div>
+              <div className="text-2xl font-bold text-white tabular-nums">{m.value}</div>
               <div className="text-[10px] text-white/40 mt-0.5 leading-tight">{m.label}</div>
             </div>
           ))}

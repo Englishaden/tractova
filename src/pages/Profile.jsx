@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import { supabase } from '../lib/supabase'
@@ -58,6 +58,17 @@ function ManageBillingButton() {
 export default function Profile() {
   const { user } = useAuth()
   const { isPro, tier, status } = useSubscription()
+  const navigate = useNavigate()
+  const [signingOut, setSigningOut] = useState(false)
+  const [projectCount, setProjectCount] = useState(null)
+
+  useEffect(() => {
+    if (user) {
+      supabase.from('projects').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .then(({ count }) => setProjectCount(count))
+    }
+  }, [user])
 
   if (!user) {
     return (
@@ -82,7 +93,7 @@ export default function Profile() {
 
           {/* Header */}
           <div className="mb-6">
-            <h1 className="text-xl font-bold text-gray-900">Profile</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
             <p className="text-sm text-gray-500 mt-1">Your account details.</p>
           </div>
 
@@ -133,9 +144,26 @@ export default function Profile() {
             )}
           </div>
 
-          <p className="mt-5 text-xs text-gray-400">
-            <Link to="/" className="hover:text-gray-600 transition-colors">← Back to dashboard</Link>
-          </p>
+          {/* Usage card */}
+          <div className="mt-5 bg-white border border-gray-200 rounded-lg px-6 py-2">
+            <Field label="Projects saved" value={projectCount != null ? String(projectCount) : '—'} />
+          </div>
+
+          {/* Actions */}
+          <div className="mt-5 flex items-center justify-between">
+            <Link to="/" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">← Back to dashboard</Link>
+            <button
+              onClick={async () => {
+                setSigningOut(true)
+                await supabase.auth.signOut()
+                navigate('/')
+              }}
+              disabled={signingOut}
+              className="text-xs font-medium text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
+            >
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </button>
+          </div>
         </div>
       </main>
     </div>

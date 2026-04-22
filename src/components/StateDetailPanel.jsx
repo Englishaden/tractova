@@ -128,7 +128,7 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
             <p className="text-xs text-gray-400 italic">No community solar program in this state.</p>
           ) : (
             <div className="bg-surface rounded-md p-3 space-y-0.5">
-              <StatRow label="Program capacity remaining" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : 'TBD'} highlight />
+              <StatRow label="Program capacity remaining" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : '—'} highlight />
               {runway && (
                 <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
                   <span className="text-xs text-gray-500">Est. program runway</span>
@@ -198,11 +198,15 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
       </div>
 
       {/* Footer */}
-      {lastUpdatedFmt && (
-        <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg">
-          <p className="text-xs text-gray-400">Updated: {lastUpdatedFmt}</p>
-        </div>
-      )}
+      <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between">
+        {lastUpdatedFmt && <p className="text-xs text-gray-400">Updated: {lastUpdatedFmt}</p>}
+        <Link
+          to={`/search?state=${state.id}`}
+          className="text-xs font-medium text-primary hover:text-primary-700 transition-colors"
+        >
+          Analyze in Lens →
+        </Link>
+      </div>
     </div>
   )
 }
