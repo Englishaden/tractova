@@ -16,6 +16,7 @@ import SectionDivider from '../components/SectionDivider'
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { getIXQueueSummary, hasIXQueueData } from '../lib/ixQueueEngine'
+import { getNearestSubstations, hasSubstationData } from '../lib/substationEngine'
 
 function getMarketRank(stateId, programMap) {
   if (!programMap) return { rank: null, total: 0 }
@@ -333,7 +334,7 @@ function PillarIcon({ type }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pillar Cards
 // ─────────────────────────────────────────────────────────────────────────────
-function SiteControlCard({ siteControl, stateName, county }) {
+function SiteControlCard({ siteControl, stateName, county, stateId }) {
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
 
   const tiles = [
@@ -445,6 +446,44 @@ function SiteControlCard({ siteControl, stateName, county }) {
               {guidance.map((g, i) => (
                 <p key={i} className="text-[11px] text-gray-600 leading-relaxed mt-1">{g}</p>
               ))}
+            </div>
+          )
+        })()}
+
+        {/* Nearest substations */}
+        {(() => {
+          const subs = getNearestSubstations(stateId, county)
+          if (!subs) return null
+          return (
+            <div className="mt-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Nearest Substations</span>
+              </div>
+              <div className="space-y-1.5">
+                {subs.map((s, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-3 py-2 rounded-lg text-xs"
+                    style={{ background: i === 0 ? 'rgba(37,99,235,0.06)' : 'rgba(243,244,246,0.8)', borderLeft: i === 0 ? '3px solid #2563EB' : '3px solid transparent' }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`font-semibold ${i === 0 ? 'text-blue-700' : 'text-gray-700'}`}>{s.name}</span>
+                      <span className="text-gray-400">·</span>
+                      <span className="text-gray-500">{s.utility}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 tabular-nums">
+                      {s.distanceMiles != null && (
+                        <span className={`font-semibold ${i === 0 ? 'text-blue-700' : 'text-gray-600'}`}>{s.distanceMiles} mi</span>
+                      )}
+                      <span className="text-gray-400">{s.capacityMw} MW</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[9px] text-gray-400 mt-1.5">Distances from county centroid. Source: EIA Form 860. Verify POI capacity with utility.</p>
             </div>
           )
         })()}
@@ -2132,6 +2171,7 @@ function SearchContent() {
                 siteControl={results.countyData?.siteControl}
                 stateName={results.stateProgram?.name || results.form.state}
                 county={results.form.county}
+                stateId={results.stateProgram?.id}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
