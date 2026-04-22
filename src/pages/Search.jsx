@@ -15,6 +15,7 @@ import SectionDivider from '../components/SectionDivider'
 
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
+import { getIXQueueSummary, hasIXQueueData } from '../lib/ixQueueEngine'
 
 function getMarketRank(stateId, programMap) {
   if (!programMap) return { rank: null, total: 0 }
@@ -452,8 +453,18 @@ function SiteControlCard({ siteControl, stateName, county }) {
   )
 }
 
-function InterconnectionCard({ interconnection, stateProgram }) {
+function InterconnectionCard({ interconnection, stateProgram, stateId, mw }) {
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
+  const queueSummary = getIXQueueSummary(stateId, mw)
+
+  const TREND_ICON = { growing: '↑', stable: '→', shrinking: '↓' }
+  const TREND_COLOR = { growing: '#DC2626', stable: '#D97706', shrinking: '#0F6E56' }
+  const CONGESTION = {
+    high:     { label: 'High Congestion',     color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
+    moderate: { label: 'Moderate Congestion',  color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
+    low:      { label: 'Low Congestion',       color: '#0F6E56', bg: 'rgba(15,110,86,0.08)' },
+  }
+  const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #BA7517' }}>
@@ -498,11 +509,75 @@ function InterconnectionCard({ interconnection, stateProgram }) {
           </div>
         </div>
 
+        {/* ISO Queue Data — real numbers from public queue reports */}
+        {queueSummary && (
+          <div>
+            <SectionLabel>Queue Data · {queueSummary.iso}</SectionLabel>
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ border: '1px solid rgba(186,117,23,0.25)', borderLeft: '3px solid #BA7517' }}
+            >
+              {/* Congestion headline */}
+              <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: CONGESTION[queueSummary.congestionLevel].bg }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: CONGESTION[queueSummary.congestionLevel].color }}>
+                    {CONGESTION[queueSummary.congestionLevel].label}
+                  </span>
+                  <span className="text-[10px] text-gray-400">·</span>
+                  <span className="text-[10px] text-gray-500 tabular-nums">{queueSummary.totalProjects} solar projects in queue</span>
+                </div>
+                <span className="text-xs font-bold tabular-nums text-gray-700">{queueSummary.totalMW.toLocaleString()} MW</span>
+              </div>
+
+              {/* Aggregate stats */}
+              <div className="px-4 py-2.5 grid grid-cols-3 gap-3 bg-white border-b border-gray-100">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-900 tabular-nums">{queueSummary.avgStudyMonths}</p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">mo avg study</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-900 tabular-nums">{queueSummary.avgWithdrawalPct}%</p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">withdrawal</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#BA7517' }}>{fmt(queueSummary.estimatedUpgradeCost)}</p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">est. upgrade</p>
+                </div>
+              </div>
+
+              {/* Per-utility breakdown */}
+              <div className="px-4 py-2.5 bg-white space-y-2">
+                {queueSummary.utilities.map(u => (
+                  <div key={u.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-gray-700 truncate">{u.name}</span>
+                      <span className="text-[10px] tabular-nums" style={{ color: TREND_COLOR[u.queueTrend] }}>
+                        {TREND_ICON[u.queueTrend]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 text-gray-500 tabular-nums">
+                      <span>{u.projectsInQueue} proj</span>
+                      <span>{u.avgStudyMonths}mo</span>
+                      <span>${(u.avgUpgradeCostMW / 1000).toFixed(0)}K/MW</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-4 py-1.5 border-t border-gray-100">
+                <p className="text-[9px] text-gray-400">Aggregated from public ISO queue filings. Solar projects &lt;25MW. Updated Q1 2026.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Queue notes */}
-        <div>
-          <SectionLabel>Queue Intelligence</SectionLabel>
-          <p className="text-xs text-gray-600 leading-relaxed bg-surface rounded-md px-3 py-2">{queueNotes}</p>
-        </div>
+        {queueNotes && (
+          <div>
+            <SectionLabel>County Queue Notes</SectionLabel>
+            <p className="text-xs text-gray-600 leading-relaxed bg-surface rounded-md px-3 py-2">{queueNotes}</p>
+          </div>
+        )}
 
         {/* State-level IX note */}
         {stateProgram?.ixNotes && (
@@ -2061,6 +2136,8 @@ function SearchContent() {
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
                 stateProgram={results.stateProgram}
+                stateId={results.stateProgram?.id}
+                mw={results.form.mw}
               />
               <OfftakeCard
                 stateProgram={results.stateProgram}
