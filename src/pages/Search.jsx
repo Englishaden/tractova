@@ -14,6 +14,7 @@ import SectionDivider from '../components/SectionDivider'
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
+import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 
 function getMarketRank(stateId, programMap) {
   if (!programMap) return { rank: null, total: 0 }
@@ -548,6 +549,101 @@ function RevenueStackBar({ revenueStack }) {
   )
 }
 
+function RevenueProjectionSection({ stateId, mw }) {
+  const proj = computeRevenueProjection(stateId, mw)
+  if (!proj) {
+    if (!hasRevenueData(stateId)) return null
+    return (
+      <div>
+        <SectionLabel>Revenue Projection</SectionLabel>
+        <p className="text-xs text-gray-400 italic">Enter project MW above to see estimated annual revenue.</p>
+      </div>
+    )
+  }
+
+  const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
+  const streams = [
+    { label: 'Bill Credits', value: proj.billCreditRevenue, color: '#0F6E56', detail: `${proj.billCreditCentsKwh}¢/kWh` },
+    { label: 'REC / SREC',   value: proj.recRevenue,        color: '#7C3AED', detail: proj.recPerMwh > 0 ? `$${proj.recPerMwh}/MWh` : 'N/A' },
+    { label: 'ITC (ann.)',    value: proj.itcAnnualized,     color: '#D97706', detail: `${proj.itcTotalPct}% over 6yr` },
+  ]
+  const total = proj.annualGrossRevenue
+
+  return (
+    <div>
+      <SectionLabel>Revenue Projection</SectionLabel>
+      <div
+        className="rounded-lg overflow-hidden"
+        style={{ border: '1px solid rgba(15,110,86,0.25)', borderLeft: '3px solid #0F6E56' }}
+      >
+        {/* Headline */}
+        <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(15,110,86,0.06)' }}>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual Revenue</p>
+            <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(total)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Per MW</p>
+            <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#0F6E56' }}>{fmt(proj.revenuePerMW)}</p>
+          </div>
+        </div>
+
+        {/* Stream breakdown bar */}
+        <div className="px-4 py-2" style={{ background: 'rgba(15,110,86,0.03)' }}>
+          <div className="flex h-2.5 rounded-full overflow-hidden gap-px">
+            {streams.map(s => s.value > 0 && (
+              <div
+                key={s.label}
+                className="rounded-full"
+                style={{ width: `${(s.value / total) * 100}%`, background: s.color }}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-3 mt-2">
+            {streams.map(s => (
+              <div key={s.label} className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                <span className="text-[10px] text-gray-500">{s.label}</span>
+                <span className="text-[10px] font-semibold text-gray-700 tabular-nums">{fmt(s.value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Detail rows */}
+        <div className="px-4 py-2.5 space-y-1.5 bg-white">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">Annual generation</span>
+            <span className="font-semibold text-gray-700 tabular-nums">{proj.annualMWh.toLocaleString()} MWh</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">Capacity factor</span>
+            <span className="font-semibold text-gray-700 tabular-nums">{proj.capacityFactor}%</span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">Installed cost (est.)</span>
+            <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.installedCostTotal)} <span className="font-normal text-gray-400">@ ${proj.installedCostPerWatt}/W</span></span>
+          </div>
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500">ITC value (one-time)</span>
+            <span className="font-semibold tabular-nums" style={{ color: '#D97706' }}>{fmt(proj.itcValueOneTime)}</span>
+          </div>
+          <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
+            <span className="text-gray-500">25-year NPV <span className="text-gray-400">(8% discount)</span></span>
+            <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv25)}</span>
+          </div>
+        </div>
+
+        {/* Source note */}
+        <div className="px-4 py-2 border-t border-gray-100">
+          <p className="text-[9px] text-gray-400 leading-relaxed">{proj.notes}</p>
+          <p className="text-[9px] text-gray-300 mt-0.5">Estimates only — actual revenue depends on contracted rates, PPA terms, and market conditions.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
@@ -639,6 +735,9 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
                 <p className="text-xs text-gray-400 italic">Revenue stack summary not yet seeded for this state. Check DSIRE (dsireusa.org) for incentive details.</p>
               </div>
             )}
+
+            {/* Revenue Projection — quantitative $/MW estimate */}
+            <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} />
           </>
         ) : (
           /* Non-CS technology — show appropriate messaging instead of CS data */
