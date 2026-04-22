@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -728,6 +728,10 @@ function LibraryContent() {
   const [error,           setError]           = useState(null)
   const [confirmRemove,   setConfirmRemove]   = useState(null)
   const [stateProgramMap, setStateProgramMap] = useState({})
+  const [sortBy,          setSortBy]          = useState('saved')    // saved|score|mw|alerts
+  const [filterState,     setFilterState]     = useState('')
+  const [filterTech,      setFilterTech]      = useState('')
+  const [filterStage,     setFilterStage]     = useState('')
 
   // Load live state program map for alert detection
   useEffect(() => {
@@ -752,6 +756,19 @@ function LibraryContent() {
         setHasFetched(true)
       })
   }, [user, authLoading])
+
+  const displayProjects = useMemo(() => {
+    let filtered = projects
+    if (filterState) filtered = filtered.filter(p => p.state === filterState)
+    if (filterTech)  filtered = filtered.filter(p => p.technology === filterTech)
+    if (filterStage) filtered = filtered.filter(p => p.stage === filterStage)
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'score') return (stateProgramMap[b.state]?.feasibilityScore ?? 0) - (stateProgramMap[a.state]?.feasibilityScore ?? 0)
+      if (sortBy === 'mw')    return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
+      if (sortBy === 'alerts') return getAlerts(b, stateProgramMap).length - getAlerts(a, stateProgramMap).length
+      return new Date(b.savedAt) - new Date(a.savedAt)
+    })
+  }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap])
 
   const handleRequestRemove = (id, name) => setConfirmRemove({ id, name })
 
@@ -826,21 +843,117 @@ function LibraryContent() {
 
           <SectionDivider />
 
-          {/* Stat strip */}
+          {/* Stat strip + pipeline overview */}
           {projects.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     topColor: '#0F6E56', valColor: '#34D399' },
-                { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', topColor: '#BA7517', valColor: '#FCD34D' },
-                { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
-              ].map(({ label, value, sub, topColor, valColor }) => (
-                <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1624', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.58)' }}>{label}</p>
-                  <p className="text-xl font-bold mt-0.5" style={{ color: valColor }}>{value}</p>
-                  <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.42)' }}>{sub}</p>
+            <>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     topColor: '#0F6E56', valColor: '#34D399' },
+                  { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', topColor: '#BA7517', valColor: '#FCD34D' },
+                  { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap).length, 0), sub: 'policy or market flags', topColor: 'rgba(255,255,255,0.15)', valColor: 'rgba(255,255,255,0.80)' },
+                ].map(({ label, value, sub, topColor, valColor }) => (
+                  <div key={label} className="rounded-xl px-4 py-3" style={{ background: '#0D1624', border: '1px solid rgba(15,110,86,0.18)', borderTop: `3px solid ${topColor}` }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.58)' }}>{label}</p>
+                    <p className="text-xl font-bold mt-0.5" style={{ color: valColor }}>{value}</p>
+                    <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.42)' }}>{sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pipeline distribution bar */}
+              {(() => {
+                const stageCounts = PIPELINE_STAGES.map(s => ({ stage: s, count: projects.filter(p => p.stage === s).length }))
+                const maxCount = Math.max(...stageCounts.map(s => s.count), 1)
+                return (
+                  <div className="mt-4 rounded-xl px-4 py-3" style={{ background: '#0D1624', border: '1px solid rgba(15,110,86,0.15)' }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>Pipeline Distribution</p>
+                    <div className="flex items-end gap-1.5 h-10">
+                      {stageCounts.map(({ stage, count }) => (
+                        <div key={stage} className="flex-1 flex flex-col items-center gap-1">
+                          <div
+                            className="w-full rounded-sm transition-all duration-300"
+                            style={{
+                              height: count > 0 ? `${Math.max(4, (count / maxCount) * 32)}px` : '2px',
+                              background: count > 0 ? '#0F6E56' : 'rgba(255,255,255,0.08)',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5 mt-1.5">
+                      {stageCounts.map(({ stage, count }) => (
+                        <div key={stage + 'l'} className="flex-1 text-center">
+                          <p className="text-[8px] leading-tight truncate" style={{ color: count > 0 ? 'rgba(52,211,153,0.80)' : 'rgba(255,255,255,0.20)' }}>
+                            {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
+                          </p>
+                          {count > 0 && (
+                            <p className="text-[9px] font-bold tabular-nums" style={{ color: '#34D399' }}>{count}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Filter + sort bar */}
+              <div className="mt-4 flex items-center gap-2 flex-wrap">
+                <select
+                  value={filterState}
+                  onChange={e => setFilterState(e.target.value)}
+                  className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: filterState ? '#34D399' : 'rgba(255,255,255,0.55)' }}
+                >
+                  <option value="">All States</option>
+                  {[...new Set(projects.map(p => p.state))].sort().map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterTech}
+                  onChange={e => setFilterTech(e.target.value)}
+                  className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: filterTech ? '#34D399' : 'rgba(255,255,255,0.55)' }}
+                >
+                  <option value="">All Tech</option>
+                  {[...new Set(projects.map(p => p.technology).filter(Boolean))].sort().map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterStage}
+                  onChange={e => setFilterStage(e.target.value)}
+                  className="text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: filterStage ? '#34D399' : 'rgba(255,255,255,0.55)' }}
+                >
+                  <option value="">All Stages</option>
+                  {PIPELINE_STAGES.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>Sort:</span>
+                  {[
+                    { key: 'saved', label: 'Recent' },
+                    { key: 'score', label: 'Score' },
+                    { key: 'mw',    label: 'MW' },
+                    { key: 'alerts', label: 'Alerts' },
+                  ].map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => setSortBy(s.key)}
+                      className="text-[10px] font-semibold px-2 py-1 rounded transition-colors"
+                      style={sortBy === s.key
+                        ? { background: 'rgba(15,110,86,0.25)', color: '#34D399', border: '1px solid rgba(15,110,86,0.40)' }
+                        : { background: 'transparent', color: 'rgba(255,255,255,0.40)', border: '1px solid transparent' }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
 
@@ -864,11 +977,24 @@ function LibraryContent() {
         ) : projects.length > 0 ? (
           <>
             <SectionDivider />
-            <div className="grid gap-3">
-              {projects.map((p) => (
-                <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} stateProgramMap={stateProgramMap} />
-              ))}
-            </div>
+            {displayProjects.length > 0 ? (
+              <div className="grid gap-3">
+                {displayProjects.map((p) => (
+                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} stateProgramMap={stateProgramMap} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.60)' }}>No projects match current filters.</p>
+                <button
+                  onClick={() => { setFilterState(''); setFilterTech(''); setFilterStage('') }}
+                  className="mt-2 text-xs font-medium transition-colors"
+                  style={{ color: '#34D399' }}
+                >
+                  Clear all filters
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-20">

@@ -358,11 +358,15 @@ export default function MetricsBar() {
     },
     {
       key: 'avgCapacity',
-      label: 'Capacity Index',
-      value: m.avgCSCapacityRemaining,
-      sub: 'across active programs',
+      label: 'Avg Capacity',
+      value: (() => {
+        const raw = m.avgCSCapacityRemaining
+        const num = typeof raw === 'string' ? parseInt(raw, 10) : raw
+        return isNaN(num) ? raw : `${num} MW`
+      })(),
+      sub: 'avg remaining · active states',
       icon: <IconGauge />,
-      modalTitle: 'Capacity Index — Active Programs',
+      modalTitle: 'Average Capacity Remaining — Active Programs',
       ModalContent: () => <AvgCapacityDetail programs={programs} />,
     },
     {

@@ -437,7 +437,7 @@ function SiteControlCard({ siteControl, stateName, county }) {
       {/* Body */}
       <div className="px-5 py-4 flex-1">
         {/* 3-factor risk tile grid */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           {tiles.map((t) => (
             <div
               key={t.label}
@@ -449,17 +449,48 @@ function SiteControlCard({ siteControl, stateName, county }) {
                 <span className="text-[10px] font-bold uppercase tracking-wider">{t.label}</span>
               </div>
               <span className="text-xs font-semibold text-gray-700">{t.status}</span>
+              {t.note && (
+                <p className="text-[10px] text-gray-500 leading-relaxed mt-0.5">{t.note}</p>
+              )}
             </div>
           ))}
         </div>
-        {/* Notes below each tile */}
-        <div className="grid grid-cols-3 gap-2">
-          {tiles.map((t) => (
-            <p key={t.label + '-note'} className="text-[10px] text-gray-500 leading-relaxed px-1">
-              {t.note}
-            </p>
-          ))}
-        </div>
+
+        {/* Site Risk Assessment — synthesize all signals */}
+        {(() => {
+          const riskCount = [!availableLand, wetlandWarning, !!landUseNotes].filter(Boolean).length
+          const riskLevel = riskCount === 0 ? 'low' : riskCount === 1 ? 'moderate' : 'elevated'
+          const riskConfig = {
+            low:      { label: 'Low Risk', color: '#0F6E56', bg: 'rgba(15,110,86,0.06)', border: 'rgba(15,110,86,0.20)' },
+            moderate: { label: 'Moderate Risk', color: '#B45309', bg: 'rgba(180,83,9,0.06)', border: 'rgba(180,83,9,0.20)' },
+            elevated: { label: 'Elevated Risk', color: '#DC2626', bg: 'rgba(220,38,38,0.06)', border: 'rgba(220,38,38,0.20)' },
+          }
+          const rc = riskConfig[riskLevel]
+
+          const guidance = []
+          if (!availableLand) guidance.push('Land supply is constrained — expect competitive pricing on available parcels and longer site acquisition timelines.')
+          if (wetlandWarning) guidance.push('Wetland presence may require USACE Section 404 permits and jurisdictional delineation studies, adding 3–6 months and $20K–$50K to pre-development.')
+          if (landUseNotes) guidance.push('Zoning restrictions may limit array placement or require special-use permits — review county ordinances early before committing to lease terms.')
+          if (guidance.length === 0) guidance.push(`${county} County shows favorable site conditions. Standard due diligence recommended — confirm parcel-level suitability during site walks.`)
+
+          return (
+            <div
+              className="rounded-lg px-3.5 py-3 mt-1"
+              style={{ background: rc.bg, border: `1px solid ${rc.border}` }}
+            >
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: rc.color }}>
+                  {rc.label}
+                </span>
+                <span className="text-[9px] text-gray-400">·</span>
+                <span className="text-[9px] text-gray-400">{riskCount} of 3 risk factors flagged</span>
+              </div>
+              {guidance.map((g, i) => (
+                <p key={i} className="text-[11px] text-gray-600 leading-relaxed mt-1">{g}</p>
+              ))}
+            </div>
+          )
+        })()}
       </div>
     </div>
   )
@@ -1148,45 +1179,69 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
           </div>
         )}
 
-        {/* Sensitivity Analysis — always shown */}
+        {/* Sensitivity Analysis — structured scenario panel */}
         {scenarios.length > 0 && (
           <div className="mt-4 pt-4 border-t border-gray-100">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400 mb-2.5">Sensitivity Analysis</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 20V10M12 20V4M6 20v-6"/>
+                </svg>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">Sensitivity Analysis</p>
+              </div>
+              {activeScenario && (
+                <button
+                  onClick={() => setActiveScenario(null)}
+                  className="text-[10px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  Reset to base case
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {scenarios.map((s) => {
                 const delta = computeScoreDelta(stateProgram, s.override)
                 const isActive = activeScenario?.id === s.id
                 const positive = delta > 0
+                const direction = positive ? 'upside' : delta < 0 ? 'downside' : 'neutral'
+                const dirColors = {
+                  upside:   { border: 'rgba(15,110,86,0.35)', bg: isActive ? 'rgba(15,110,86,0.06)' : 'white', accent: '#0F6E56' },
+                  downside: { border: 'rgba(220,38,38,0.25)', bg: isActive ? 'rgba(220,38,38,0.04)' : 'white', accent: '#DC2626' },
+                  neutral:  { border: 'rgba(107,114,128,0.25)', bg: isActive ? 'rgba(107,114,128,0.04)' : 'white', accent: '#6B7280' },
+                }
+                const dc = dirColors[direction]
+                const oneLiner = s.detail.split(/[.!—]/)[0].trim()
                 return (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => setActiveScenario(isActive ? null : s)}
-                    className={`flex items-center gap-2 text-[11px] font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                      isActive
-                        ? 'bg-primary-50 border-primary/40 text-primary-700'
-                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary/30 hover:text-primary-700 hover:bg-primary-50'
-                    }`}
+                    className="text-left rounded-lg p-3 transition-all duration-150"
+                    style={{
+                      border: `1px solid ${isActive ? dc.accent : dc.border}`,
+                      background: dc.bg,
+                      boxShadow: isActive ? `0 0 0 1px ${dc.accent}` : 'none',
+                    }}
                   >
-                    <span>{s.label}</span>
-                    <span className={`font-bold tabular-nums text-[10px] px-1.5 py-0.5 rounded ${
-                      positive
-                        ? 'bg-green-100 text-green-700'
-                        : delta < 0
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {positive ? '+' : ''}{delta}
-                    </span>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-semibold text-gray-700 leading-snug">{s.label}</span>
+                      <span className={`flex-shrink-0 font-bold tabular-nums text-[10px] px-1.5 py-0.5 rounded ${
+                        positive ? 'bg-green-100 text-green-700' : delta < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                      }`}>
+                        {positive ? '+' : ''}{delta} pts
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2">{oneLiner}</p>
+                    {isActive && (
+                      <div className="mt-1.5 flex items-center gap-1 text-[9px] font-medium" style={{ color: dc.accent }}>
+                        <span className="w-1 h-1 rounded-full" style={{ background: dc.accent }} />
+                        Active — details shown above
+                      </div>
+                    )}
                   </button>
                 )
               })}
             </div>
-            {activeScenario && (
-              <p className="text-[10px] text-gray-400 mt-2.5 leading-relaxed">
-                Click the active scenario again to return to base case.
-              </p>
-            )}
           </div>
         )}
       </div>
