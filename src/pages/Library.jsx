@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
-import { getStateProgramMap } from '../lib/programData'
+import { getStateProgramMap, getCountyData } from '../lib/programData'
+import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
@@ -367,7 +368,13 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
   const [stage,      setStage]      = useState(project.stage || '')
   const [exporting,  setExporting]  = useState(false)
+  const [countyData, setCountyData] = useState(null)
   const idleTimerRef = useRef(null)
+
+  useEffect(() => {
+    if (project.state && project.county)
+      getCountyData(project.state, project.county).then(setCountyData).catch(() => {})
+  }, [project.state, project.county])
 
   const handleExportPDF = async (e) => {
     e.stopPropagation()
@@ -399,7 +406,10 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
     }
   }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const liveScore = current?.feasibilityScore ?? null
+  const { offtake, ix, site } = current
+    ? computeSubScores(current, countyData, stage)
+    : { offtake: 0, ix: 0, site: 0 }
+  const liveScore = current ? computeDisplayScore(offtake, ix, site) : null
 
   const accentColor = hasUrgent          ? '#EF4444' :
                       liveScore == null   ? 'rgba(255,255,255,0.15)' :
