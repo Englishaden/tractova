@@ -74,11 +74,11 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
         lines.push(`  Enrollment rate: ~${stateProgram.enrollmentRateMWPerMonth} MW/month`)
       }
     } else {
-      lines.push(`  Program runway: enrollment rate not seeded — cannot compute`)
+      lines.push(`  Program runway: enrollment pace data not available — advise developer to request current block fill rate from program administrator`)
     }
     if (stateProgram.lastUpdated) lines.push(`  Data last updated: ${stateProgram.lastUpdated}`)
   } else {
-    lines.push(`\nSTATE PROGRAM: No program data seeded for ${state}`)
+    lines.push(`\nSTATE PROGRAM: No community solar program data available for ${state}`)
   }
 
   // ── Site control ───────────────────────────────────────────────────────────

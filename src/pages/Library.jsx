@@ -509,12 +509,18 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
 
           {/* Alert strip */}
           {alerts.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.10)' }}>
+            <div
+              className="flex flex-wrap gap-1.5 mb-5 pb-4 px-3 py-2.5 rounded-lg"
+              style={{
+                borderBottom: '1px solid rgba(255,255,255,0.10)',
+                background: alerts.some(a => a.level === 'warning' || a.level === 'urgent') ? 'rgba(217,119,6,0.06)' : 'rgba(255,255,255,0.02)',
+              }}
+            >
               {alerts.map((a, i) => <AlertChip key={i} alert={a} />)}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1px_1fr] gap-6">
 
             {/* ── Left: Market Intelligence ──────────────────────────────── */}
             <div className="flex flex-col gap-4">
@@ -544,7 +550,7 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
                   </div>
 
                   {/* Program details */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs">
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs rounded-lg px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <div>
                       <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>CS Program</p>
                       <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{current.csProgram ?? '—'}</p>
@@ -591,6 +597,9 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
                 <p className="text-xs" style={{ color: 'rgba(255,255,255,0.60)' }}>No market data available for this state.</p>
               )}
             </div>
+
+            {/* ── Column divider ── */}
+            <div className="hidden md:block" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
             {/* ── Right: Your Deal ───────────────────────────────────────── */}
             <div className="flex flex-col gap-4">
@@ -681,7 +690,7 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
           {/* ── Action footer ── */}
           <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.10)' }}>
             <Link
-              to={`/search?state=${project.state}`}
+              to={`/search?state=${project.state}&county=${encodeURIComponent(project.county || '')}&mw=${project.mw || ''}&stage=${encodeURIComponent(project.stage || '')}&technology=${encodeURIComponent(project.technology || '')}`}
               className="flex items-center gap-1.5 text-xs font-medium transition-colors"
               style={{ color: 'rgba(52,211,153,0.75)' }}
               onMouseEnter={e => e.currentTarget.style.color = '#34D399'}
@@ -795,7 +804,7 @@ function LibraryContent() {
       <div className="min-h-screen bg-surface">
         <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
           <div className="mt-4 mb-6">
-            <h1 className="text-xl font-bold text-gray-900">My Projects</h1>
+            <h1 className="text-2xl font-bold text-gray-900">My Projects</h1>
             <p className="text-sm text-gray-500 mt-0.5">Your saved deals. Add projects from Tractova Lens results.</p>
           </div>
           <div className="flex flex-col items-center justify-center text-center py-24">

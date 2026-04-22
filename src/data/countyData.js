@@ -1687,7 +1687,7 @@ function getGenericData(stateId) {
   return {
     siteControl: {
       availableLand: true,
-      landNotes: "County-level land data not yet seeded for this state. Check USDA Web Soil Survey for farmland class and EPA NWI for wetland mapping.",
+      landNotes: "Statewide assessment — use USDA Web Soil Survey for farmland classification and EPA NWI for wetland mapping at the parcel level.",
       wetlandWarning: false,
       wetlandNotes: null,
       landUseNotes: "Review local county zoning and state solar siting guidelines before committing to a site.",
@@ -1698,7 +1698,7 @@ function getGenericData(stateId) {
       queueStatusCode: "unknown",
       easeScore: null,
       avgStudyTimeline: "Varies",
-      queueNotes: "Detailed county-level interconnection data not yet available for this state. See state overview for IX conditions.",
+      queueNotes: "State-level IX conditions apply. Contact the serving utility directly for queue position and hosting capacity details.",
     },
   }
 }

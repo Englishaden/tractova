@@ -407,7 +407,7 @@ export default function MetricsBar() {
               </p>
 
               {/* Value */}
-              <div className="text-[2rem] font-bold text-white leading-none tabular-nums">
+              <div className="text-2xl font-bold text-white leading-none tabular-nums">
                 {c.value}
               </div>
 

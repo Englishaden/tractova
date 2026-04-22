@@ -106,8 +106,9 @@ function DashboardPreview() {
 
         {/* Simulated alert feed */}
         <div className="border-t border-white/10 px-4 py-3">
-          <div className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
-            Recent Policy Alerts
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Recent Policy Alerts</span>
+            <span className="text-[8px] text-white/25 uppercase tracking-wider">Updated weekly</span>
           </div>
           <div className="space-y-2">
             {[
@@ -158,22 +159,27 @@ export default function Landing() {
             </p>
 
             <div className="flex flex-wrap items-center gap-4 mb-10">
-              <Link
-                to="/signup"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-400 text-white font-semibold rounded-lg transition-colors text-sm shadow-lg shadow-accent/20"
-              >
-                Get Started Free
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12"/>
-                  <polyline points="12 5 19 12 12 19"/>
-                </svg>
-              </Link>
-              <Link
-                to="/preview"
-                className="text-sm font-medium text-white/60 hover:text-white transition-colors"
-              >
-                Preview live data →
-              </Link>
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-4">
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-400 text-white font-semibold rounded-lg transition-colors text-sm shadow-lg shadow-accent/20"
+                  >
+                    Get Started Free
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                      <polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </Link>
+                  <Link
+                    to="/preview"
+                    className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+                  >
+                    Preview live data →
+                  </Link>
+                </div>
+                <span className="text-xs text-white/30">Pro plans from $9.99/mo</span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-6 text-sm text-white/50">

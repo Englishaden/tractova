@@ -632,10 +632,10 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw }) {
 
 function RevenueStackBar({ revenueStack }) {
   const segments = [
-    { label: 'ITC Base',  value: revenueStack.itcBase,          color: '#0F6E56' },
-    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#D97706' },
+    { label: 'ITC Base',  value: revenueStack.itcBase,          color: '#2563EB' },
+    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#3B82F6' },
     { label: 'IREC',      value: revenueStack.irecMarket,       color: '#7C3AED' },
-    { label: 'Net Meter', value: revenueStack.netMeteringStatus, color: '#0EA5E9' },
+    { label: 'Net Meter', value: revenueStack.netMeteringStatus, color: '#059669' },
   ]
   // Parse leading number from string like "30%" or "26%"
   const parse = (v) => { const m = String(v || '').match(/(\d+(\.\d+)?)/) ; return m ? parseFloat(m[1]) : null }
@@ -677,9 +677,9 @@ function RevenueProjectionSection({ stateId, mw }) {
 
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
   const streams = [
-    { label: 'Bill Credits', value: proj.billCreditRevenue, color: '#0F6E56', detail: `${proj.billCreditCentsKwh}¢/kWh` },
+    { label: 'Bill Credits', value: proj.billCreditRevenue, color: '#059669', detail: `${proj.billCreditCentsKwh}¢/kWh` },
     { label: 'REC / SREC',   value: proj.recRevenue,        color: '#7C3AED', detail: proj.recPerMwh > 0 ? `$${proj.recPerMwh}/MWh` : 'N/A' },
-    { label: 'ITC (ann.)',    value: proj.itcAnnualized,     color: '#D97706', detail: `${proj.itcTotalPct}% over 6yr` },
+    { label: 'ITC (ann.)',    value: proj.itcAnnualized,     color: '#2563EB', detail: `${proj.itcTotalPct}% over 6yr` },
   ]
   const total = proj.annualGrossRevenue
 
@@ -740,7 +740,7 @@ function RevenueProjectionSection({ stateId, mw }) {
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-500">ITC value (one-time)</span>
-            <span className="font-semibold tabular-nums" style={{ color: '#D97706' }}>{fmt(proj.itcValueOneTime)}</span>
+            <span className="font-semibold tabular-nums" style={{ color: '#2563EB' }}>{fmt(proj.itcValueOneTime)}</span>
           </div>
           <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
             <span className="text-gray-500">25-year NPV <span className="text-gray-400">(8% discount)</span></span>
@@ -816,7 +816,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
                   ) : stateProgram?.csStatus !== 'none' && (
                     <div className="flex items-center justify-between pt-1.5">
                       <span className="text-xs text-gray-500">Est. program runway</span>
-                      <span className="text-xs text-gray-400 italic">not yet seeded</span>
+                      <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded">Contact program administrator for current fill status</span>
                     </div>
                   )}
                 </div>
@@ -846,7 +846,13 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
             ) : (
               <div>
                 <SectionLabel>Revenue Stack</SectionLabel>
-                <p className="text-xs text-gray-400 italic">Revenue stack summary not yet seeded for this state. Check DSIRE (dsireusa.org) for incentive details.</p>
+                <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">ITC base (federal)</span>
+                    <span className="font-semibold text-gray-700">30%</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">State-specific incentive details available at <a href="https://dsireusa.org" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline hover:text-teal-700">dsireusa.org</a></p>
+                </div>
               </div>
             )}
 
@@ -1829,13 +1835,17 @@ function SearchContent() {
     const param = searchParams.get('state')?.toUpperCase()
     return param && ALL_STATES.some(s => s.id === param) ? param : ''
   })()
+  const initialCounty = searchParams.get('county') || ''
+  const initialMW = searchParams.get('mw') || ''
+  const initialStage = searchParams.get('stage') || ''
+  const initialTechnology = searchParams.get('technology') || ''
 
   const [form, setForm] = useState({
     state: initialState,
-    county: '',
-    mw: '',
-    stage: '',
-    technology: '',
+    county: initialCounty,
+    mw: initialMW,
+    stage: initialStage,
+    technology: initialTechnology,
   })
   const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
@@ -1963,7 +1973,7 @@ function SearchContent() {
 
         {/* Page header */}
         <div className="mt-4 mb-5">
-          <h1 className="text-xl font-bold text-gray-900">Tractova Lens</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Tractova Lens</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Enter a specific project to get targeted site control, interconnection, and offtake intelligence.
           </p>
