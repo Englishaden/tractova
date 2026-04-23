@@ -5,7 +5,7 @@
 
 ### Progress Log
 - **Week 1** (commit 562627a): All placeholder text removed, typography unified, revenue colors overhauled (ITC→blue, credits→emerald, REC→violet), Profile page upgraded with avatar banner + recent activity, Library dark theme refined with column divider + bordered sections + stronger alerts, Landing page pricing + freshness added, bidirectional nav (Library→Lens carries all params) pulled forward from Week 4.
-- **Week 2** (in progress): Revenue engine expanded with C&I PPA model (8 states), BESS capacity/demand/arbitrage model (8 states), and Hybrid combined model. Score engine updated with tech-aware offtake (retail rate tiers for C&I, capacity market tiers for BESS), IX modifiers (BESS +5, Hybrid -5), and site adjustments (BESS needs less land). All `computeSubScores` call sites updated to pass technology param. **Still TODO**: Tech-aware Offtake card UI, tech-aware scenarios, tech-aware AI prompt.
+- **Week 2** (commit c852301 + current): Revenue engine expanded with C&I PPA model (8 states), BESS capacity/demand/arbitrage model (8 states), and Hybrid combined model. Score engine updated with tech-aware offtake (retail rate tiers for C&I, capacity market tiers for BESS), IX modifiers (BESS +5, Hybrid -5), and site adjustments (BESS needs less land). Offtake card rebuilt: C&I shows PPA rate vs retail savings, BESS shows 3-stream revenue tiles (capacity/demand/arbitrage) with payback, Hybrid shows solar+storage split with ITC co-location bonus. Tech-specific scenarios added (C&I: PPA drop/rate rise/offtaker default; BESS: capacity drop/degradation/demand increase; Hybrid: ITC drop/solar clipping). AI prompt updated with tech-aware rules (#12, #13) and tech-specific revenue context in buildContext. **COMPLETE.**
 
 ---
 

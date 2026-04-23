@@ -14,7 +14,7 @@ import SectionDivider from '../components/SectionDivider'
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
-import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
+import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
 import { getIXQueueSummary, hasIXQueueData } from '../lib/ixQueueEngine'
 import { getNearestSubstations, hasSubstationData } from '../lib/substationEngine'
 
@@ -860,32 +860,180 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
             <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} />
           </>
         ) : (
-          /* Non-CS technology — show appropriate messaging instead of CS data */
-          <div>
+          /* Non-CS technology — structured analysis per tech type */
+          <div className="space-y-4">
             <SectionLabel>{technology} Offtake</SectionLabel>
-            <div className="bg-surface rounded-md px-3 py-3 space-y-2">
-              {technology === 'BESS' && (
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  BESS revenue depends on contracted capacity market rates, demand charge reduction, and frequency regulation — not community solar bill credits. Evaluate PJM, MISO, or ISO-NE capacity market clearing prices for this state's RTO region.
-                </p>
-              )}
-              {technology === 'C&I Solar' && (
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  C&I solar offtake is driven by PPA or VPPA pricing with an anchor tenant, not CS program enrollment. ITC base and adder eligibility still applies. Revenue modeling depends on the contracted rate and electricity price escalation in this market.
-                </p>
-              )}
-              {technology === 'Hybrid' && (
-                <p className="text-xs text-gray-600 leading-relaxed">
-                  Hybrid projects stack solar generation revenue with storage capacity market and demand response value. ITC applies to the storage component if co-located. Model each revenue stream separately — the blended basis drives project economics.
-                </p>
-              )}
-              {revenueStack?.itcBase && (
-                <div className="border-t border-gray-100 pt-2">
-                  <DataRow label="ITC base" value={revenueStack.itcBase} highlight />
-                  {revenueStack.itcAdder && <DataRow label="ITC adders" value={revenueStack.itcAdder} />}
+
+            {technology === 'C&I Solar' && (() => {
+              const proj = computeCIRevenueProjection(stateProgram?.id, mw)
+              const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
+              return (
+                <div className="space-y-3">
+                  {proj ? (
+                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(37,99,235,0.25)', borderLeft: '3px solid #2563EB' }}>
+                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(37,99,235,0.05)' }}>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual PPA Revenue</p>
+                          <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Offtaker Savings</p>
+                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#2563EB' }}>{proj.savingsPercent}%</p>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2.5 space-y-1.5 bg-white">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">PPA rate</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{proj.ppaRateCentsKwh}¢/kWh</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">vs. utility retail rate</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{proj.retailRateCentsKwh}¢/kWh</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Annual escalator</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{proj.escalatorPct}%</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">ITC (one-time)</span>
+                          <span className="font-semibold tabular-nums" style={{ color: '#2563EB' }}>{fmt(proj.itcValueOneTime)} <span className="font-normal text-gray-400">({proj.itcPct}%)</span></span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
+                          <span className="text-gray-500">25-year NPV <span className="text-gray-400">(8% discount)</span></span>
+                          <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv25)}</span>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-[9px] text-gray-400">C&I success depends on anchor tenant credit quality and contract length. PPA rates are state-level estimates.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
+                      <p className="text-xs text-gray-500">Enter project MW to see C&I PPA revenue projection.</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              )
+            })()}
+
+            {technology === 'BESS' && (() => {
+              const proj = computeBESSProjection(stateProgram?.id, mw)
+              const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
+              return (
+                <div className="space-y-3">
+                  {proj ? (
+                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.25)', borderLeft: '3px solid #7C3AED' }}>
+                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(124,58,237,0.05)' }}>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual Revenue</p>
+                          <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payback</p>
+                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#7C3AED' }}>{proj.paybackYears ? `${proj.paybackYears}yr` : '—'}</p>
+                        </div>
+                      </div>
+                      {/* Three revenue stream tiles */}
+                      <div className="grid grid-cols-3 gap-px bg-gray-100">
+                        {[
+                          { label: 'Capacity Market', value: fmt(proj.capacityRevenue), sub: `$${proj.capacityPerKwYear}/kW-yr`, color: '#7C3AED' },
+                          { label: 'Demand Charge', value: fmt(proj.demandChargeRevenue), sub: `$${proj.demandChargePerKwMonth}/kW-mo`, color: '#8B5CF6' },
+                          { label: 'Arbitrage', value: fmt(proj.arbitrageRevenue), sub: `$${proj.arbitragePerMwh}/MWh`, color: '#A78BFA' },
+                        ].map(s => (
+                          <div key={s.label} className="bg-white px-3 py-2.5 text-center">
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{s.label}</p>
+                            <p className="text-sm font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
+                            <p className="text-[9px] text-gray-400 mt-0.5 tabular-nums">{s.sub}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="px-4 py-2.5 space-y-1.5 bg-white">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">ISO/RTO region</span>
+                          <span className="font-semibold text-gray-700">{proj.isoRegion}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Duration</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{proj.durationHrs}-hour ({proj.mwh} MWh)</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Installed cost</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.installedCostTotal)} <span className="font-normal text-gray-400">@ ${proj.installedCostPerKwh}/kWh</span></span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">ITC (one-time)</span>
+                          <span className="font-semibold tabular-nums" style={{ color: '#2563EB' }}>{fmt(proj.itcValueOneTime)} <span className="font-normal text-gray-400">({proj.itcPct}%)</span></span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
+                          <span className="text-gray-500">15-year NPV <span className="text-gray-400">(8% discount)</span></span>
+                          <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv15)}</span>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-[9px] text-gray-400">Revenue depends on {proj.isoRegion} capacity market pricing — historically volatile. 15-year NPV reflects battery lifecycle.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
+                      <p className="text-xs text-gray-500">Enter project MW to see BESS revenue projection.</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
+
+            {technology === 'Hybrid' && (() => {
+              const mwNum = parseFloat(mw) || 0
+              const solarMW = mwNum
+              const storageMW = Math.round(mwNum * 0.5 * 10) / 10
+              const proj = computeHybridProjection(stateProgram?.id, solarMW, storageMW)
+              const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
+              return (
+                <div className="space-y-3">
+                  {proj ? (
+                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(5,150,105,0.25)', borderLeft: '3px solid #059669' }}>
+                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(5,150,105,0.05)' }}>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Combined Revenue</p>
+                          <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">ITC Co-location Bonus</p>
+                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#059669' }}>{fmt(proj.coLocationItcBonus)}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-px bg-gray-100">
+                        <div className="bg-white px-3 py-2.5">
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Solar ({proj.solarMW} MW)</p>
+                          <p className="text-sm font-bold tabular-nums" style={{ color: '#059669' }}>{fmt(proj.solarAnnualRevenue)}<span className="text-[9px] font-normal text-gray-400 ml-1">/yr</span></p>
+                        </div>
+                        <div className="bg-white px-3 py-2.5">
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Storage ({proj.storageMW} MW / {proj.durationHrs}hr)</p>
+                          <p className="text-sm font-bold tabular-nums" style={{ color: '#7C3AED' }}>{fmt(proj.storageAnnualRevenue)}<span className="text-[9px] font-normal text-gray-400 ml-1">/yr</span></p>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2.5 space-y-1.5 bg-white">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Total installed cost</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.totalInstalledCost)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Co-located storage ITC uplift</span>
+                          <span className="font-semibold tabular-nums" style={{ color: '#059669' }}>+10% (40% total)</span>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-[9px] text-gray-400">Hybrid assumes {proj.storageMW}MW / {proj.durationHrs}hr co-located storage. IRA Section 48 provides 40% ITC for co-located storage vs 30% standalone.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
+                      <p className="text-xs text-gray-500">Enter project MW to see hybrid revenue projection.</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
 
@@ -1149,6 +1297,66 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
         detail: `Removing the LMI requirement opens the full commercial and residential subscriber market — dramatically easier customer acquisition and stronger bill credit economics. This is the regulatory upside case; watch for pending state PUC proceedings on LMI carveout rules.`,
       })
     }
+  }
+
+  // C&I Solar scenarios
+  if (technology === 'C&I Solar') {
+    scenarios.push({
+      id: 'ci_ppa_drop',
+      label: 'What if PPA rate drops 15%?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `A 15% PPA rate reduction compresses annual revenue by ~${Math.round(mwNum * 8760 * 0.17 * 0.07 * 0.15).toLocaleString()} and weakens the 25-year NPV substantially. If the offtaker demands below-market rates, evaluate whether the project still clears your return threshold — below 5.5¢/kWh is typically uneconomic in most markets.`,
+    })
+    scenarios.push({
+      id: 'ci_rate_rise',
+      label: 'What if retail rates rise 3%/yr?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `Rising utility retail rates increase your offtaker's savings from the PPA and reduce re-contracting risk at term. At 3% annual escalation, the spread between your PPA and retail widens by ~50% over 10 years — this is the upside case for long-term C&I PPAs.`,
+    })
+    scenarios.push({
+      id: 'ci_default',
+      label: 'What if the offtaker defaults?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `Offtaker default in year 5 means re-contracting the remaining ~${Math.round(mwNum * 8760 * 0.17 * 20 / 1000).toLocaleString()} GWh of output. Re-contracting typically takes 3–6 months and may require a 5–10% rate concession. Credit risk is the #1 C&I concern — underwrite tenant creditworthiness before signing the PPA.`,
+    })
+  }
+
+  // BESS scenarios
+  if (technology === 'BESS') {
+    scenarios.push({
+      id: 'bess_cap_drop',
+      label: 'What if capacity prices drop 30%?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `A 30% capacity market decline reduces the largest BESS revenue stream significantly. Historical PJM/ISO-NE capacity prices have swung 40–60% between auction cycles. If capacity revenue drops, demand charge reduction and arbitrage must carry the project — stress-test your pro forma with floor-case capacity pricing.`,
+    })
+    scenarios.push({
+      id: 'bess_degrade',
+      label: 'What if degradation is 3%/yr?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `At 3% annual degradation vs the typical 2.5% assumption, you lose ~8% more throughput by year 10 and ~15% by year 15. This directly impacts arbitrage revenue and may trigger warranty-related capacity shortfalls. Ensure your EPC warranty guarantees a minimum round-trip efficiency floor through year 10.`,
+    })
+    scenarios.push({
+      id: 'bess_demand_up',
+      label: 'What if demand charges increase?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `Rising demand charges are the BESS upside case — each $1/kW-month increase adds ~$${Math.round(mwNum * 1000 * 12).toLocaleString()} in annual revenue. Utilities in congested territories have been raising demand charges 3–8% annually. This trend favors behind-the-meter BESS economics.`,
+    })
+  }
+
+  // Hybrid scenarios
+  if (technology === 'Hybrid') {
+    scenarios.push({
+      id: 'hybrid_itc_drop',
+      label: 'What if storage ITC drops to 30%?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `Losing the 10% co-location bonus reduces ITC value on the storage component by ~$${Math.round(mwNum * 0.5 * 4 * 1000 * 380 * 0.10).toLocaleString()}. The co-location bonus under IRA Section 48 requires the storage to be placed in service with the solar facility — timeline delays that decouple the assets risk this adder.`,
+    })
+    scenarios.push({
+      id: 'hybrid_clip',
+      label: 'What if solar clipping is 8%+?',
+      override: { ixDifficulty: ixDifficulty },
+      detail: `Solar clipping above 8% means the inverter is curtailing more generation than expected — reducing both bill credit revenue and the energy available for storage charging. Right-size the DC/AC ratio and storage duration to minimize clipping losses. Typical hybrid designs target 3–5% clipping.`,
+    })
   }
 
   return scenarios.slice(0, 4)

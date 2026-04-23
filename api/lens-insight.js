@@ -30,6 +30,12 @@ RULES:
 9. Do NOT summarize. Every sentence must add information the developer cannot read directly from the data panel below.
 10. Do NOT use vague language like "may," "could potentially," "it is worth noting." Use declarative sentences.
 11. If LMI stacking with ITC adders is possible (LMI required + LMI ITC adder available), compute what the combined ITC rate would be and name it.
+12. TECHNOLOGY-AWARE analysis:
+   - Community Solar: focus on program enrollment, subscriber sourcing, bill credits, LMI requirements.
+   - C&I Solar: focus on PPA rate competitiveness vs retail rates, offtaker credit quality, contract structure. Do NOT discuss CS program enrollment or subscriber sourcing.
+   - BESS: focus on capacity market pricing in the relevant ISO/RTO, demand charge reduction value, battery degradation risk. The primary risk is always capacity market price volatility. Do NOT discuss bill credits or subscriber sourcing.
+   - Hybrid: focus on value stacking (solar generation + storage capacity), ITC co-location bonus (40% for co-located storage under IRA Section 48), and permitting complexity. Address both the solar and storage components.
+13. When technology is NOT Community Solar, do NOT discuss CS program enrollment, subscriber sourcing, or bill credits unless the developer could realistically pivot to CS in this market.
 
 OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
 {
@@ -110,14 +116,32 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
 
   // ── Revenue stack ──────────────────────────────────────────────────────────
   lines.push(`\nREVENUE STACK`)
-  if (revenueStack) {
-    lines.push(`  ITC base: ${revenueStack.itcBase}`)
-    lines.push(`  ITC adders available: ${revenueStack.itcAdder}`)
-    lines.push(`  REC / I-REC market: ${revenueStack.irecMarket}`)
-    lines.push(`  Net metering / CS credit structure: ${revenueStack.netMeteringStatus}`)
-    lines.push(`  Revenue summary: ${revenueStack.summary}`)
-  } else {
-    lines.push(`  Revenue stack: not seeded for ${state} — advise developer to check DSIRE`)
+  if (technology === 'Community Solar' || !technology) {
+    if (revenueStack) {
+      lines.push(`  ITC base: ${revenueStack.itcBase}`)
+      lines.push(`  ITC adders available: ${revenueStack.itcAdder}`)
+      lines.push(`  REC / I-REC market: ${revenueStack.irecMarket}`)
+      lines.push(`  Net metering / CS credit structure: ${revenueStack.netMeteringStatus}`)
+      lines.push(`  Revenue summary: ${revenueStack.summary}`)
+    } else {
+      lines.push(`  Revenue stack: not available for ${state} — advise developer to check DSIRE`)
+    }
+  } else if (technology === 'C&I Solar') {
+    lines.push(`  Revenue model: PPA-based (contracted rate with anchor tenant)`)
+    lines.push(`  ITC: 30% base (no CS-specific adders for C&I)`)
+    lines.push(`  Key revenue driver: PPA rate competitiveness vs utility retail rate`)
+    lines.push(`  Primary risk: offtaker credit quality and contract term length`)
+  } else if (technology === 'BESS') {
+    const isoMap = { IL: 'PJM', NY: 'NYISO', MA: 'ISO-NE', MN: 'MISO', CO: 'SPP', NJ: 'PJM', ME: 'ISO-NE', MD: 'PJM' }
+    const iso = isoMap[state] || 'Unknown'
+    lines.push(`  Revenue model: Capacity market + demand charge reduction + energy arbitrage`)
+    lines.push(`  ISO/RTO region: ${iso}`)
+    lines.push(`  ITC: 30% standalone storage (IRA)`)
+    lines.push(`  Primary risk: capacity market price volatility and battery degradation`)
+  } else if (technology === 'Hybrid') {
+    lines.push(`  Revenue model: Combined solar generation + storage capacity/arbitrage`)
+    lines.push(`  ITC: 30% solar + 40% co-located storage (IRA Section 48 co-location bonus)`)
+    lines.push(`  Primary risk: permitting complexity for combined facility + ITC co-location qualification`)
   }
 
   return lines.join('\n')
