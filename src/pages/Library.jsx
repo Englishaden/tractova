@@ -635,90 +635,8 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
             {/* ── Column divider ── */}
             <div className="hidden md:block" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
-            {/* ── Right: Your Deal ───────────────────────────────────────── */}
-            <div className="flex flex-col gap-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.90)' }}>Your Deal</p>
-
-              {/* Pipeline progress */}
-              <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.60)' }}>Development Stage</p>
-                  <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
-                </div>
-                <PipelineProgress stage={stage} />
-              </div>
-
-              {/* Deal details */}
-              <div className="rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Technology</p>
-                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.technology || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Capacity</p>
-                  <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.mw} MW AC</p>
-                </div>
-                {project.servingUtility && (
-                  <div className="col-span-2">
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Serving Utility</p>
-                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.servingUtility}</p>
-                  </div>
-                )}
-                <div className="col-span-2">
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Saved</p>
-                  <p style={{ color: 'rgba(255,255,255,0.50)' }}>{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.60)' }}>Deal Notes</p>
-                  {saveStatus === 'saving' && (
-                    <span className="text-[9px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.60)' }}>
-                      <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: 'rgba(255,255,255,0.60)' }} />
-                      Saving…
-                    </span>
-                  )}
-                  {saveStatus === 'saved' && (
-                    <span className="text-[9px] flex items-center gap-1" style={{ color: '#34D399' }}>
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      Saved
-                    </span>
-                  )}
-                </div>
-                {!notes && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {['Landowner', 'Queue position', 'Key dates', 'ISA deposit', 'Site notes'].map((hint) => (
-                      <button
-                        key={hint}
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setNotes(`${hint}: `) }}
-                        className="text-[10px] px-2 py-0.5 rounded transition-colors"
-                        style={{ border: '1px solid rgba(15,110,86,0.30)', color: 'rgba(255,255,255,0.50)', background: 'transparent' }}
-                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(15,110,86,0.60)'; e.currentTarget.style.color = '#34D399' }}
-                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(15,110,86,0.30)'; e.currentTarget.style.color = 'rgba(255,255,255,0.50)' }}
-                      >
-                        + {hint}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder="Landowner · Queue position · Key dates · ISA deposit · Site findings"
-                  rows={4}
-                  className="w-full text-xs resize-none focus:outline-none leading-relaxed rounded-lg px-3 py-2.5 transition-colors"
-                  style={{
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(15,110,86,0.30)',
-                    color: 'rgba(255,255,255,0.90)',
-                  }}
-                />
-              </div>
-            </div>
+            {/* ── Right: Your Deal (collapsible) ─────────────────────────── */}
+            <YourDealSection project={project} stage={stage} setStage={setStage} notes={notes} setNotes={setNotes} saveStatus={saveStatus} />
           </div>
 
           {/* ── Action footer ── */}
@@ -758,6 +676,124 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
                 </>
               )}
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Your Deal Section (collapsible) ──────────────────────────────────────────
+function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus }) {
+  const hasNotes = notes && notes.trim().length > 0
+  const [dealOpen, setDealOpen] = useState(hasNotes)
+
+  // "Last analyzed X days ago"
+  const daysAgo = project.savedAt
+    ? Math.max(0, Math.round((Date.now() - new Date(project.savedAt).getTime()) / 86400000))
+    : null
+
+  return (
+    <div className="flex flex-col gap-3">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setDealOpen(o => !o) }}
+        className="flex items-center justify-between w-full"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(52,211,153,0.90)' }}>Your Deal</p>
+          {daysAgo != null && (
+            <span className="text-[9px] font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>
+              · {daysAgo === 0 ? 'Saved today' : daysAgo === 1 ? 'Saved yesterday' : `Saved ${daysAgo}d ago`}
+            </span>
+          )}
+        </div>
+        <svg
+          className={`transition-transform duration-200 ${dealOpen ? 'rotate-180' : ''}`}
+          style={{ color: 'rgba(255,255,255,0.30)' }}
+          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {/* Always-visible summary strip */}
+      <div className="flex items-center gap-3 flex-wrap text-xs">
+        <span className="font-medium" style={{ color: 'rgba(255,255,255,0.70)' }}>{project.mw} MW AC</span>
+        {project.technology && <><span style={{ color: 'rgba(255,255,255,0.20)' }}>·</span><span style={{ color: 'rgba(255,255,255,0.70)' }}>{project.technology}</span></>}
+        <span style={{ color: 'rgba(255,255,255,0.20)' }}>·</span>
+        <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
+      </div>
+
+      {dealOpen && (
+        <div className="flex flex-col gap-4 mt-1">
+          {/* Pipeline progress */}
+          <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
+            <p className="text-[9px] font-bold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.60)' }}>Pipeline Progress</p>
+            <PipelineProgress stage={stage} />
+          </div>
+
+          {/* Deal details */}
+          <div className="rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
+            {project.servingUtility && (
+              <div className="col-span-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Serving Utility</p>
+                <p className="font-medium" style={{ color: 'rgba(255,255,255,0.90)' }}>{project.servingUtility}</p>
+              </div>
+            )}
+            <div className="col-span-2">
+              <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Saved</p>
+              <p style={{ color: 'rgba(255,255,255,0.50)' }}>{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.60)' }}>Deal Notes</p>
+              {saveStatus === 'saving' && (
+                <span className="text-[9px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.60)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse inline-block" style={{ background: 'rgba(255,255,255,0.60)' }} />
+                  Saving…
+                </span>
+              )}
+              {saveStatus === 'saved' && (
+                <span className="text-[9px] flex items-center gap-1" style={{ color: '#34D399' }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Saved
+                </span>
+              )}
+            </div>
+            {!notes && (
+              <div className="flex flex-wrap gap-1.5">
+                {['Landowner', 'Queue position', 'Key dates', 'ISA deposit', 'Site notes'].map((hint) => (
+                  <button
+                    key={hint}
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setNotes(`${hint}: `) }}
+                    className="text-[10px] px-2 py-0.5 rounded transition-colors"
+                    style={{ border: '1px solid rgba(15,110,86,0.30)', color: 'rgba(255,255,255,0.50)', background: 'transparent' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(15,110,86,0.60)'; e.currentTarget.style.color = '#34D399' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(15,110,86,0.30)'; e.currentTarget.style.color = 'rgba(255,255,255,0.50)' }}
+                  >
+                    + {hint}
+                  </button>
+                ))}
+              </div>
+            )}
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="Landowner · Queue position · Key dates · ISA deposit · Site findings"
+              rows={4}
+              className="w-full text-xs resize-none focus:outline-none leading-relaxed rounded-lg px-3 py-2.5 transition-colors"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(15,110,86,0.30)',
+                color: 'rgba(255,255,255,0.90)',
+              }}
+            />
           </div>
         </div>
       )}

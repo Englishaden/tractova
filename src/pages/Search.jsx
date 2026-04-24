@@ -349,8 +349,25 @@ function PillarIcon({ type }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pillar Cards
 // ─────────────────────────────────────────────────────────────────────────────
-function SiteControlCard({ siteControl, stateName, county, stateId }) {
+function SiteControlCard({ siteControl, interconnection, stateName, county, stateId, mw }) {
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
+
+  // Derive hosting capacity status from IX ease score
+  const hostingStatus = (() => {
+    const ease = interconnection?.easeScore
+    if (ease == null) return { label: 'Unknown', color: '#6B7280', bg: 'rgba(107,114,128,0.06)', note: 'Contact serving utility for hosting capacity map' }
+    if (ease >= 7) return { label: 'Available', color: '#0F6E56', bg: 'rgba(15,110,86,0.06)', note: 'Hosting capacity appears sufficient based on IX conditions' }
+    if (ease >= 4) return { label: 'Constrained', color: '#B45309', bg: 'rgba(180,83,9,0.06)', note: 'Hosting capacity may be limited — upgrades possible' }
+    return { label: 'Constrained', color: '#DC2626', bg: 'rgba(220,38,38,0.06)', note: 'Significant hosting constraints — expect upgrade costs' }
+  })()
+
+  // Derive population density from land notes
+  const populationDensity = (() => {
+    const notes = (landNotes || '').toLowerCase()
+    if (notes.includes('urban') || notes.includes('densely') || notes.includes('metropolitan') || notes.includes('city')) return 'urban'
+    if (notes.includes('suburban') || notes.includes('fringe') || notes.includes('mixed')) return 'suburban'
+    return 'rural'
+  })()
 
   const tiles = [
     {
@@ -389,6 +406,18 @@ function SiteControlCard({ siteControl, stateName, county, stateId }) {
         </svg>
       ),
     },
+    {
+      label: 'Hosting',
+      status: hostingStatus.label,
+      color: hostingStatus.color,
+      bg: hostingStatus.bg,
+      note: hostingStatus.note,
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+      ),
+    },
   ]
 
   return (
@@ -409,8 +438,25 @@ function SiteControlCard({ siteControl, stateName, county, stateId }) {
 
       {/* Body */}
       <div className="px-5 py-4 flex-1">
-        {/* 3-factor risk tile grid */}
-        <div className="grid grid-cols-3 gap-2 mb-3">
+        {/* Population density context */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Area Profile</span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded border" style={{
+            ...(populationDensity === 'urban'
+              ? { color: '#7C3AED', background: 'rgba(124,58,237,0.06)', borderColor: 'rgba(124,58,237,0.20)' }
+              : populationDensity === 'suburban'
+              ? { color: '#2563EB', background: 'rgba(37,99,235,0.06)', borderColor: 'rgba(37,99,235,0.20)' }
+              : { color: '#0F6E56', background: 'rgba(15,110,86,0.06)', borderColor: 'rgba(15,110,86,0.20)' })
+          }}>
+            {populationDensity.charAt(0).toUpperCase() + populationDensity.slice(1)}
+          </span>
+          <span className="text-[9px] text-gray-400">
+            {populationDensity === 'urban' ? '· Higher land costs, rooftop focus' : populationDensity === 'suburban' ? '· Mixed land availability' : '· Large parcels typically available'}
+          </span>
+        </div>
+
+        {/* 4-factor risk tile grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
           {tiles.map((t) => (
             <div
               key={t.label}
@@ -431,8 +477,9 @@ function SiteControlCard({ siteControl, stateName, county, stateId }) {
 
         {/* Site Risk Assessment — synthesize all signals */}
         {(() => {
-          const riskCount = [!availableLand, wetlandWarning, !!landUseNotes].filter(Boolean).length
-          const riskLevel = riskCount === 0 ? 'low' : riskCount === 1 ? 'moderate' : 'elevated'
+          const hostingRisk = hostingStatus.label === 'Constrained'
+          const riskCount = [!availableLand, wetlandWarning, !!landUseNotes, hostingRisk].filter(Boolean).length
+          const riskLevel = riskCount <= 1 ? 'low' : riskCount === 2 ? 'moderate' : 'elevated'
           const riskConfig = {
             low:      { label: 'Low Risk', color: '#0F6E56', bg: 'rgba(15,110,86,0.06)', border: 'rgba(15,110,86,0.20)' },
             moderate: { label: 'Moderate Risk', color: '#B45309', bg: 'rgba(180,83,9,0.06)', border: 'rgba(180,83,9,0.20)' },
@@ -456,7 +503,7 @@ function SiteControlCard({ siteControl, stateName, county, stateId }) {
                   {rc.label}
                 </span>
                 <span className="text-[9px] text-gray-400">·</span>
-                <span className="text-[9px] text-gray-400">{riskCount} of 3 risk factors flagged</span>
+                <span className="text-[9px] text-gray-400">{riskCount} of 4 risk factors flagged</span>
               </div>
               {guidance.map((g, i) => (
                 <p key={i} className="text-[11px] text-gray-600 leading-relaxed mt-1">{g}</p>
@@ -469,6 +516,8 @@ function SiteControlCard({ siteControl, stateName, county, stateId }) {
         {(() => {
           const subs = getNearestSubstations(stateId, county)
           if (!subs) return null
+          const servingUtil = interconnection?.servingUtility?.toLowerCase() || ''
+          const mwNum = parseFloat(mw) || 5
           return (
             <div className="mt-4">
               <div className="flex items-center gap-1.5 mb-2">
@@ -478,27 +527,41 @@ function SiteControlCard({ siteControl, stateName, county, stateId }) {
                 <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Nearest Substations</span>
               </div>
               <div className="space-y-1.5">
-                {subs.map((s, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg text-xs"
-                    style={{ background: i === 0 ? 'rgba(37,99,235,0.06)' : 'rgba(243,244,246,0.8)', borderLeft: i === 0 ? '3px solid #2563EB' : '3px solid transparent' }}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`font-semibold ${i === 0 ? 'text-blue-700' : 'text-gray-700'}`}>{s.name}</span>
-                      <span className="text-gray-400">·</span>
-                      <span className="text-gray-500">{s.utility}</span>
+                {subs.map((s, i) => {
+                  const isUtilityMatch = servingUtil && s.utility?.toLowerCase().includes(servingUtil.split(' ')[0].toLowerCase())
+                  const highlight = isUtilityMatch || i === 0
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between px-3 py-2 rounded-lg text-xs"
+                      style={{
+                        background: isUtilityMatch ? 'rgba(15,110,86,0.08)' : highlight ? 'rgba(37,99,235,0.06)' : 'rgba(243,244,246,0.8)',
+                        borderLeft: isUtilityMatch ? '3px solid #0F6E56' : highlight ? '3px solid #2563EB' : '3px solid transparent',
+                      }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className={`font-semibold ${isUtilityMatch ? 'text-emerald-700' : highlight ? 'text-blue-700' : 'text-gray-700'}`}>{s.name}</span>
+                        <span className="text-gray-400">·</span>
+                        <span className="text-gray-500">{s.utility}</span>
+                        {isUtilityMatch && (
+                          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            Serving Utility
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 flex-shrink-0 tabular-nums">
+                        {s.distanceMiles != null && (
+                          <span className={`font-semibold ${isUtilityMatch ? 'text-emerald-700' : highlight ? 'text-blue-700' : 'text-gray-600'}`}>{s.distanceMiles} mi</span>
+                        )}
+                        <span className="text-gray-400">{s.capacityMw} MW</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0 tabular-nums">
-                      {s.distanceMiles != null && (
-                        <span className={`font-semibold ${i === 0 ? 'text-blue-700' : 'text-gray-600'}`}>{s.distanceMiles} mi</span>
-                      )}
-                      <span className="text-gray-400">{s.capacityMw} MW</span>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
-              <p className="text-[9px] text-gray-400 mt-1.5">Distances from county centroid. Source: EIA Form 860. Verify POI capacity with utility.</p>
+              <p className="text-[9px] text-gray-400 mt-1.5">
+                Distances from county centroid. Source: EIA Form 860. {mwNum <= 5 ? '138kV substations are typical POI for sub-5MW projects.' : mwNum <= 20 ? '138–230kV substations typical for this project size.' : '230kV+ substations may be needed for projects above 20MW.'} Verify POI with utility.
+              </p>
             </div>
           )
         })()}
@@ -1701,9 +1764,94 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
                 )
               })}
             </div>
+
+            {/* Custom Scenario builder */}
+            <CustomScenarioBuilder stateProgram={stateProgram} technology={technology} />
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Custom Scenario Builder ─────────────────────────────────────────────────
+function CustomScenarioBuilder({ stateProgram, technology }) {
+  const [open, setOpen] = useState(false)
+  const [customIX, setCustomIX] = useState(stateProgram?.ixDifficulty || 'moderate')
+  const [customCS, setCustomCS] = useState(stateProgram?.csStatus || 'active')
+
+  if (!stateProgram) return null
+
+  const override = {}
+  if (customIX !== stateProgram.ixDifficulty) override.ixDifficulty = customIX
+  if (customCS !== stateProgram.csStatus) override.csStatus = customCS
+  const hasChange = Object.keys(override).length > 0
+  const delta = hasChange ? computeScoreDelta(stateProgram, override) : 0
+
+  return (
+    <div className="mt-3 rounded-lg" style={{ border: '1px dashed rgba(107,114,128,0.25)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          <span className="text-[10px] font-semibold text-gray-500">Custom Scenario</span>
+        </div>
+        <svg
+          className={`transition-transform duration-200 text-gray-400 ${open ? 'rotate-180' : ''}`}
+          width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div className="px-3 pb-3 pt-1 flex flex-col gap-3" style={{ borderTop: '1px solid rgba(107,114,128,0.12)' }}>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-1">IX Difficulty</label>
+              <select
+                value={customIX}
+                onChange={e => setCustomIX(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded border border-gray-200 bg-white text-gray-700 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 outline-none"
+              >
+                <option value="easy">Easy</option>
+                <option value="moderate">Moderate</option>
+                <option value="hard">Hard</option>
+                <option value="very_hard">Very Hard</option>
+              </select>
+            </div>
+            {technology === 'Community Solar' && (
+              <div>
+                <label className="text-[9px] font-bold uppercase tracking-wider text-gray-400 block mb-1">CS Program Status</label>
+                <select
+                  value={customCS}
+                  onChange={e => setCustomCS(e.target.value)}
+                  className="w-full text-xs px-2 py-1.5 rounded border border-gray-200 bg-white text-gray-700 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 outline-none"
+                >
+                  <option value="active">Active</option>
+                  <option value="limited">Limited</option>
+                  <option value="pending">Pending</option>
+                  <option value="none">None</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          {hasChange && (
+            <div className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: delta > 0 ? 'rgba(15,110,86,0.06)' : delta < 0 ? 'rgba(220,38,38,0.04)' : 'rgba(107,114,128,0.04)' }}>
+              <span className={`text-xs font-bold tabular-nums ${delta > 0 ? 'text-green-700' : delta < 0 ? 'text-red-700' : 'text-gray-500'}`}>
+                Index impact: {delta > 0 ? '+' : ''}{delta} pts
+              </span>
+              <span className="text-[10px] text-gray-400">vs. current base case</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -2479,9 +2627,11 @@ function SearchContent() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               <SiteControlCard
                 siteControl={results.countyData?.siteControl}
+                interconnection={results.countyData?.interconnection}
                 stateName={results.stateProgram?.name || results.form.state}
                 county={results.form.county}
                 stateId={results.stateProgram?.id}
+                mw={results.form.mw}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
