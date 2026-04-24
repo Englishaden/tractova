@@ -12,7 +12,7 @@ const terms = [
     pillar: 'stage',
     definition:
       'The earliest stage of project development. A developer is identifying potential sites based on available land, favorable grid conditions, and state program activity — but has not yet engaged landowners or utilities. Prospecting decisions are driven by desktop research, GIS analysis, and market intelligence. Tractova is purpose-built to support this stage.',
-    related: ['Site Control', 'Feasibility Score', 'IX Queue (Interconnection Queue)'],
+    related: ['Site Control', 'Feasibility Index', 'IX Queue (Interconnection Queue)'],
   },
   {
     term: 'Site Control',
@@ -84,7 +84,7 @@ const terms = [
     pillar: 'ix',
     definition:
       'The backlog of generation projects awaiting utility or ISO/RTO approval to connect to the electric grid. Queue position, study timelines, Network Upgrade costs, and ISA withdrawal rates determine whether a project is technically and economically viable. Queue saturation is one of the top project killers for small developers.',
-    related: ['ISA (Interconnection Study Agreement)', 'Feasibility Score', 'Pre-Development'],
+    related: ['ISA (Interconnection Study Agreement)', 'Feasibility Index', 'Pre-Development'],
   },
   {
     term: 'ISA (Interconnection Study Agreement)',
@@ -126,13 +126,13 @@ const terms = [
     pillar: 'offtake',
     definition:
       'A federal tax credit for renewable energy projects equal to a percentage of qualifying project costs, governed by IRA Section 48/48E. The base ITC rate is 30% for projects meeting prevailing wage and apprenticeship requirements. Adders are available for Energy Community siting (+10%), Low-Income Community Projects (+10–20%), and domestic content (+10%). Most community solar projects under 5MW AC qualify for the full adder stack.',
-    related: ['LMI (Low-to-Moderate Income)', 'REC (Renewable Energy Certificate)', 'Feasibility Score'],
+    related: ['LMI (Low-to-Moderate Income)', 'REC (Renewable Energy Certificate)', 'Feasibility Index'],
   },
   {
-    term: 'Feasibility Score',
+    term: 'Feasibility Index',
     pillar: 'all',
     definition:
-      'A proprietary Tractova composite score (0–100) reflecting the combined attractiveness of a state for community solar development. Inputs include CS program status, remaining capacity, IX difficulty, LMI requirements, and IRA adder eligibility. Higher scores indicate states where a small developer is most likely to close a viable project. This scoring is Tractova\'s primary differentiated data layer.',
+      'A proprietary Tractova composite index (0–100) reflecting the combined attractiveness of a state for community solar development. Inputs include CS program status, remaining capacity, IX difficulty, LMI requirements, and IRA adder eligibility. Higher scores indicate states where a small developer is most likely to close a viable project. This scoring is Tractova\'s primary differentiated data layer.',
     related: ['IX Queue (Interconnection Queue)', 'Active Program', 'ITC (Investment Tax Credit)'],
   },
 

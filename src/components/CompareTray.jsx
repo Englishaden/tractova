@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
 
 const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
@@ -57,7 +58,7 @@ function CompareModal({ onClose }) {
 
   const rows = [
     {
-      label: 'Feasibility Score',
+      label: 'Feasibility Index',
       render: (item) => <ScoreBar score={item.feasibilityScore} />,
     },
     {
@@ -111,6 +112,18 @@ function CompareModal({ onClose }) {
       ),
     },
   ]
+
+  // Auto-generated "Best for" summary
+  const bestFor = (() => {
+    if (items.length < 2) return null
+    const IX_RANK = { easy: 3, moderate: 2, hard: 1, very_hard: 0 }
+    const bestScore = items.reduce((best, item) => (!best || (item.feasibilityScore ?? 0) > (best.feasibilityScore ?? 0)) ? item : best, null)
+    const bestIX = items.reduce((best, item) => (!best || (IX_RANK[item.ixDifficulty] ?? 0) > (IX_RANK[best.ixDifficulty] ?? 0)) ? item : best, null)
+    const parts = []
+    if (bestScore) parts.push(`${bestScore.name} has the strongest feasibility index`)
+    if (bestIX && bestIX.id !== bestScore?.id) parts.push(`${bestIX.name} has easier interconnection`)
+    return parts.join(' · ') || null
+  })()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -192,8 +205,34 @@ function CompareModal({ onClose }) {
           </div>
         </div>
 
-        {/* Footer note */}
+        {/* "Open in Lens" row */}
+        <div className="px-6 py-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: `148px repeat(${items.length}, 1fr)` }}>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-white/30 py-2 pr-2">
+              Actions
+            </span>
+            {items.map((item) => (
+              <div key={item.id} className="py-2 px-1">
+                <Link
+                  to={`/search?state=${item.state}&county=${encodeURIComponent(item.county)}&mw=${item.mw || ''}&stage=${encodeURIComponent(item.stage || '')}&technology=${encodeURIComponent(item.technology || '')}`}
+                  className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
+                  style={{ color: '#34D399', borderColor: 'rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.08)' }}
+                  onClick={onClose}
+                >
+                  Open in Lens
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Best for summary + footer */}
         <div className="px-6 py-3 rounded-b-xl" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+          {bestFor && (
+            <p className="text-[10px] font-medium mb-2" style={{ color: '#34D399' }}>
+              {bestFor}
+            </p>
+          )}
           <p className="text-[9px] font-mono text-white/20 leading-relaxed uppercase tracking-wide">
             Scores reflect Tractova's composite feasibility index. Verify interconnection and capacity with the serving utility before committing capital.
           </p>

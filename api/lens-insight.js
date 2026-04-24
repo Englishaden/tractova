@@ -37,18 +37,28 @@ RULES:
    - Hybrid: focus on value stacking (solar generation + storage capacity), ITC co-location bonus (40% for co-located storage under IRA Section 48), and permitting complexity. Address both the solar and storage components.
 13. When technology is NOT Community Solar, do NOT discuss CS program enrollment, subscriber sourcing, or bill credits unless the developer could realistically pivot to CS in this market.
 
+14. STAGE-SPECIFIC GUIDANCE: Provide 2-3 actionable sentences tailored to the developer's current stage:
+   - Prospecting: Is this market worth entering? Compare to adjacent counties/states.
+   - Site Control: Will IX timeline kill this lease? What lease terms protect against IX delays?
+   - Pre-Development: When must program enrollment happen? What's the LMI sourcing lead time?
+   - Development/NTP: What study milestone deadlines exist? ITC safe-harbor timing?
+   - Construction/Operational: Revenue confirmation — are bill credits / capacity payments tracking to model?
+15. COMPETITIVE CONTEXT: Who else is developing in this county/state? Is the market saturating or underserved?
+
 OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
 {
   "brief": "3–4 sentences of analyst intelligence",
   "primaryRisk": "1 sentence — the single biggest risk for this exact project",
   "topOpportunity": "1 sentence — the most actionable financial or strategic upside right now",
-  "immediateAction": "1 sentence — the single most important thing to do in the next 30 days given the developer's current stage"
+  "immediateAction": "1 sentence — the single most important thing to do in the next 30 days given the developer's current stage",
+  "stageSpecificGuidance": "2–3 sentences of stage-appropriate tactical guidance",
+  "competitiveContext": "1–2 sentences about market competition and saturation in this geography"
 }`
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build structured context string from project data
 // ─────────────────────────────────────────────────────────────────────────────
-function buildContext({ state, county, mw, stage, technology, stateProgram, countyData, revenueStack, runway }) {
+function buildContext({ state, county, mw, stage, technology, stateProgram, countyData, revenueStack, runway, ixQueue }) {
   const mwNum = parseFloat(mw) || 0
   const lines = []
 
@@ -112,6 +122,22 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
     if (ix.queueNotes) lines.push(`  Queue notes: ${ix.queueNotes}`)
   } else {
     lines.push(`  Interconnection data: not seeded for this county`)
+  }
+
+  // ── IX Queue Intelligence ──────────────────────────────────────────────────
+  if (ixQueue) {
+    lines.push(`\nIX QUEUE INTELLIGENCE — ${ixQueue.iso}`)
+    lines.push(`  Total projects in queue: ${ixQueue.totalProjects}`)
+    lines.push(`  Total MW pending: ${ixQueue.totalMW} MW`)
+    lines.push(`  Avg study timeline: ~${ixQueue.avgStudyMonths} months`)
+    lines.push(`  Avg withdrawal rate: ${ixQueue.avgWithdrawalPct}%`)
+    lines.push(`  Congestion level: ${ixQueue.congestionLevel}`)
+    lines.push(`  Estimated upgrade cost for this project: $${(ixQueue.estimatedUpgradeCost || 0).toLocaleString()}`)
+    if (ixQueue.utilities?.length) {
+      ixQueue.utilities.forEach(u => {
+        lines.push(`  ${u.name}: ${u.projectsInQueue} projects / ${u.mwPending} MW pending / ~${u.avgStudyMonths}mo avg / ${u.queueTrend} trend`)
+      })
+    }
   }
 
   // ── Revenue stack ──────────────────────────────────────────────────────────
@@ -179,9 +205,11 @@ function parseInsightResponse(text) {
     if (brief && brief.length > 20) {
       return {
         brief,
-        primaryRisk:     extract('primaryRisk'),
-        topOpportunity:  extract('topOpportunity'),
-        immediateAction: extract('immediateAction'),
+        primaryRisk:            extract('primaryRisk'),
+        topOpportunity:         extract('topOpportunity'),
+        immediateAction:        extract('immediateAction'),
+        stageSpecificGuidance:  extract('stageSpecificGuidance'),
+        competitiveContext:     extract('competitiveContext'),
       }
     }
   } catch (_) {}
@@ -248,7 +276,7 @@ export default async function handler(req, res) {
     const message = await client.messages.create(
       {
         model: 'claude-sonnet-4-6',
-        max_tokens: 900,
+        max_tokens: 1200,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: contextText }],
       },

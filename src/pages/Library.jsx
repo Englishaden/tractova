@@ -96,7 +96,7 @@ function getAlerts(project, stateProgramMap) {
   }
 
   if (project.feasibilityScore != null && current.feasibilityScore < project.feasibilityScore - 10) {
-    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility score fell from ${project.feasibilityScore} → ${current.feasibilityScore}` })
+    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility index fell from ${project.feasibilityScore} → ${current.feasibilityScore}` })
   }
 
   const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
@@ -242,7 +242,7 @@ function PipelineProgress({ stage }) {
 // ── CSV export ───────────────────────────────────────────────────────────────
 function exportCSV(projects) {
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
-  const headers = ['Name', 'State', 'County', 'MW AC', 'Technology', 'Stage', 'CS Status', 'CS Program', 'Feasibility Score', 'Serving Utility', 'Saved Date']
+  const headers = ['Name', 'State', 'County', 'MW AC', 'Technology', 'Stage', 'CS Status', 'CS Program', 'Feasibility Index', 'Serving Utility', 'Saved Date']
   const rows = projects.map(p => [
     p.name,
     p.stateName || p.state,
@@ -391,6 +391,12 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
   const alerts    = getAlerts(project, stateProgramMap)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
 
+  // Blue dot: state data updated since project was saved
+  const hasDataUpdate = (() => {
+    if (!current?.lastUpdated || !project.savedAt) return false
+    return new Date(current.lastUpdated) > new Date(project.savedAt)
+  })()
+
   // Debounced notes save
   useEffect(() => {
     if (notes === project.notes) return
@@ -450,7 +456,7 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
           style={{ background: scoreBg, color: scoreText }}
         >
           <span className="text-base leading-none">{liveScore ?? '—'}</span>
-          <span className="text-[8px] font-medium opacity-60 mt-0.5">score</span>
+          <span className="text-[8px] font-medium opacity-60 mt-0.5">index</span>
         </div>
 
         {/* Name + meta */}
@@ -458,6 +464,15 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-sm font-bold leading-snug" style={{ color: '#FFFFFF' }}>{project.name}</h2>
             <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
+            {hasDataUpdate && !expanded && (
+              <span
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border flex items-center gap-1"
+                style={{ background: 'rgba(37,99,235,0.12)', color: '#60A5FA', borderColor: 'rgba(37,99,235,0.25)' }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                Updated
+              </span>
+            )}
             {alerts.length > 0 && (
               <span
                 className="text-[10px] font-semibold rounded-full px-2 py-0.5 border"
@@ -547,6 +562,25 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
                         </span>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Sub-score breakdown */}
+                  <div className="flex flex-col gap-2 rounded-lg px-3 py-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.55)' }}>Index Breakdown</p>
+                    {[
+                      { label: 'Offtake',  value: offtake, weight: '40%', color: '#34D399' },
+                      { label: 'IX Risk',   value: ix,      weight: '35%', color: '#FBBF24' },
+                      { label: 'Site',      value: site,    weight: '25%', color: '#60A5FA' },
+                    ].map(s => (
+                      <div key={s.label} className="flex items-center gap-2">
+                        <span className="text-[10px] w-14 text-right font-medium" style={{ color: 'rgba(255,255,255,0.60)' }}>{s.label}</span>
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${s.value}%`, background: s.color, opacity: 0.75 }} />
+                        </div>
+                        <span className="text-[10px] w-7 font-mono font-medium" style={{ color: s.color }}>{s.value}</span>
+                        <span className="text-[8px] font-mono" style={{ color: 'rgba(255,255,255,0.35)' }}>{s.weight}</span>
+                      </div>
+                    ))}
                   </div>
 
                   {/* Program details */}
@@ -724,6 +758,82 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
                 </>
               )}
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Weekly Summary Card ──────────────────────────────────────────────────────
+function WeeklySummaryCard({ totalProjects, strongCount, alertCount, urgentProjects, marketMoves }) {
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden mb-4"
+      style={{ background: '#0D1624', border: '1px solid rgba(52,211,153,0.20)' }}
+    >
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left"
+        style={{ background: 'linear-gradient(135deg, rgba(15,110,86,0.15) 0%, rgba(13,22,36,0.95) 100%)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.15)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs font-bold text-white/90">Portfolio Summary</p>
+            <p className="text-[10px] font-mono text-white/40 mt-0.5">{totalProjects} projects tracked</p>
+          </div>
+        </div>
+        <svg
+          className={`transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
+          style={{ color: 'rgba(255,255,255,0.35)' }}
+          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+        >
+          <polyline points="6 9 12 15 18 9"/>
+        </svg>
+      </button>
+
+      {!collapsed && (
+        <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          {/* Health */}
+          <div className="rounded-lg px-3 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <p className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(52,211,153,0.70)' }}>Portfolio Health</p>
+            <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              {strongCount} of {totalProjects} project{totalProjects > 1 ? 's' : ''} in strong markets.
+              {alertCount > 0 ? ` ${alertCount} alert${alertCount > 1 ? 's' : ''}.` : ' No alerts.'}
+            </p>
+          </div>
+
+          {/* Market moves */}
+          <div className="rounded-lg px-3 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <p className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(251,191,36,0.70)' }}>Market Signals</p>
+            {marketMoves.length > 0 ? (
+              <ul className="text-xs leading-relaxed space-y-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                {marketMoves.slice(0, 3).map((m, i) => <li key={i}>· {m}</li>)}
+              </ul>
+            ) : (
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>No notable changes this period.</p>
+            )}
+          </div>
+
+          {/* Action items */}
+          <div className="rounded-lg px-3 py-3" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <p className="text-[9px] font-bold uppercase tracking-wider mb-2" style={{ color: 'rgba(124,58,237,0.70)' }}>Action Items</p>
+            {urgentProjects.length > 0 ? (
+              <ul className="text-xs leading-relaxed space-y-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                {urgentProjects.slice(0, 2).map(p => (
+                  <li key={p.id}>· Review {p.name} — urgent alert</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>No urgent actions needed.</p>
+            )}
           </div>
         </div>
       )}
@@ -995,6 +1105,60 @@ function LibraryContent() {
           </div>
         ) : projects.length > 0 ? (
           <>
+            {/* "What Changed" banner */}
+            {(() => {
+              const updatedCount = projects.filter(p => {
+                const current = stateProgramMap[p.state]
+                return current?.lastUpdated && p.savedAt && new Date(current.lastUpdated) > new Date(p.savedAt)
+              }).length
+              const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap).length, 0)
+              if (updatedCount === 0 && alertCount === 0) return null
+              return (
+                <div
+                  className="flex items-center gap-3 rounded-lg px-4 py-3 mb-4"
+                  style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.20)' }}
+                >
+                  <span className="w-2 h-2 rounded-full bg-blue-400 flex-shrink-0" />
+                  <p className="text-xs font-medium" style={{ color: '#93C5FD' }}>
+                    {updatedCount > 0 && <span>{updatedCount} project{updatedCount > 1 ? 's have' : ' has'} updated market data</span>}
+                    {updatedCount > 0 && alertCount > 0 && <span> · </span>}
+                    {alertCount > 0 && <span>{alertCount} alert{alertCount > 1 ? 's' : ''} across your portfolio</span>}
+                  </p>
+                </div>
+              )
+            })()}
+
+            {/* Weekly Summary — shows when 3+ projects */}
+            {projects.length >= 3 && (() => {
+              const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap).length, 0)
+              const strongCount = projects.filter(p => {
+                const sp = stateProgramMap[p.state]
+                return sp && (sp.feasibilityScore ?? 0) >= 60
+              }).length
+              const urgentProjects = projects.filter(p => getAlerts(p, stateProgramMap).some(a => a.level === 'urgent'))
+
+              // Find noteworthy market moves
+              const marketMoves = []
+              const seenStates = new Set()
+              projects.forEach(p => {
+                if (seenStates.has(p.state)) return
+                seenStates.add(p.state)
+                const sp = stateProgramMap[p.state]
+                if (!sp) return
+                if (sp.csStatus === 'limited') marketMoves.push(`${sp.name || p.state} capacity is limited`)
+                if (sp.ixDifficulty === 'hard' || sp.ixDifficulty === 'very_hard') marketMoves.push(`${sp.name || p.state} IX queue is ${sp.ixDifficulty.replace('_', ' ')}`)
+              })
+
+              return (
+                <WeeklySummaryCard
+                  totalProjects={projects.length}
+                  strongCount={strongCount}
+                  alertCount={alertCount}
+                  urgentProjects={urgentProjects}
+                  marketMoves={marketMoves}
+                />
+              )
+            })()}
             <SectionDivider />
             {displayProjects.length > 0 ? (
               <div className="grid gap-3">

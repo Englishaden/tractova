@@ -145,7 +145,7 @@ function ScoreBar({ score }) {
     <View style={s.scoreRow}>
       <Text style={[s.scoreNum, { color }]}>{score}</Text>
       <View style={{ flex: 1 }}>
-        <Text style={[s.sectionLabel, { marginBottom: 5 }]}>Feasibility Score</Text>
+        <Text style={[s.sectionLabel, { marginBottom: 5 }]}>Feasibility Index</Text>
         <View style={s.scoreBarTrack}>
           <View style={[s.scoreBarFill, { width: `${pct * 100}%`, backgroundColor: color }]} />
         </View>

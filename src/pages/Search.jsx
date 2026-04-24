@@ -168,7 +168,22 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
         {/* Right — Arc gauge */}
         <div className="px-5 py-4 flex flex-col items-center justify-center gap-1">
           <ArcGauge score={score} />
-          <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 text-center">Feasibility Score</p>
+          <div className="flex items-center justify-center gap-1">
+            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Feasibility Index</p>
+            <div className="relative group">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+                <p className="font-bold mb-1">Methodology</p>
+                <p><span className="text-emerald-300">Offtake (40%)</span> — Program status, capacity, LMI complexity, enrollment runway</p>
+                <p className="mt-0.5"><span className="text-amber-300">Interconnection (35%)</span> — Queue difficulty, study timelines, upgrade cost risk</p>
+                <p className="mt-0.5"><span className="text-blue-300">Site Control (25%)</span> — Land availability, wetland risk, zoning constraints</p>
+                <p className="mt-1.5 text-gray-400">Weights reflect typical decision priority: offtake viability is the first gate, IX risk is the primary capital risk, site control is increasingly commoditized.</p>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45 -mt-1" />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1186,13 +1201,13 @@ function generateMarketSummary({ stateProgram, countyData, form }) {
 
   // Feasibility band
   if (feasibilityScore >= 70) {
-    signals.push({ label: `Score ${feasibilityScore} — Top Tier`, color: 'green' })
+    signals.push({ label: `Index ${feasibilityScore} — Top Tier`, color: 'green' })
   } else if (feasibilityScore >= 55) {
-    signals.push({ label: `Score ${feasibilityScore} — Viable`, color: 'teal' })
+    signals.push({ label: `Index ${feasibilityScore} — Viable`, color: 'teal' })
   } else if (feasibilityScore >= 38) {
-    signals.push({ label: `Score ${feasibilityScore} — Caution`, color: 'amber' })
+    signals.push({ label: `Index ${feasibilityScore} — Caution`, color: 'amber' })
   } else {
-    signals.push({ label: `Score ${feasibilityScore} — Weak`, color: 'red' })
+    signals.push({ label: `Index ${feasibilityScore} — Weak`, color: 'red' })
   }
 
   return { verdict, verdictBg, verdictText, summary, signals }
@@ -1242,11 +1257,15 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
     const newLevel = IX_LEVELS[ixIdx + 1]
     const timelineMap = { moderate: '12–18 months', hard: '18–30 months', very_hard: '30–48+ months' }
     const costMap = { moderate: '$500K–$1.5M', hard: '$1–3M', very_hard: '$3–6M+' }
+    const upgradeCostMap = { moderate: 85000, hard: 150000, very_hard: 350000 }
+    const estUpgrade = Math.round((upgradeCostMap[newLevel] ?? 150000) * mwNum)
     scenarios.push({
       id: 'ix_harder',
       label: 'What if IX gets harder?',
       override: { ixDifficulty: newLevel },
       detail: `Queue moves to ${newLevel.replace('_', ' ')} — add ${timelineMap[newLevel] ?? '18–30 months'} to your IX study timeline and budget ${costMap[newLevel] ?? '$1–3M'} in potential upgrade costs. At ${mwNum}MW, IX cost exposure could consume a significant portion of program enrollment value. Model this in your pro forma before advancing site control.`,
+      revenueImpact: `Est. cost: +$${estUpgrade.toLocaleString()} in IX upgrades`,
+      timelineImpact: `Study timeline extends to ~${timelineMap[newLevel] ?? '18–30 months'}`,
     })
   }
   if (ixIdx > 0) {
@@ -1482,6 +1501,20 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
                 <p className="text-[13px] font-medium text-gray-800 leading-relaxed">
                   {activeScenario.detail ?? summary}
                 </p>
+                {(activeScenario.revenueImpact || activeScenario.timelineImpact) && (
+                  <div className="flex flex-wrap gap-2 mt-2.5">
+                    {activeScenario.revenueImpact && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200">
+                        {activeScenario.revenueImpact}
+                      </span>
+                    )}
+                    {activeScenario.timelineImpact && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
+                        {activeScenario.timelineImpact}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -1557,6 +1590,50 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
                 Immediate Action — Next 30 Days
               </p>
               <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.immediateAction}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Stage-Specific Guidance — AI only */}
+        {showAI && aiInsight.stageSpecificGuidance && (
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg px-4 py-3"
+            style={{
+              background: 'rgba(15,110,86,0.05)',
+              border: '1px solid rgba(15,110,86,0.15)',
+              borderLeft: '3px solid #0F6E56',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F6E56' }}>
+                Stage Guidance — {form.stage || 'General'}
+              </p>
+              <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.stageSpecificGuidance}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Competitive Context — AI only */}
+        {showAI && aiInsight.competitiveContext && (
+          <div
+            className="mt-4 flex items-start gap-3 rounded-lg px-4 py-3"
+            style={{
+              background: 'rgba(37,99,235,0.05)',
+              border: '1px solid rgba(37,99,235,0.15)',
+              borderLeft: '3px solid #2563EB',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#2563EB' }}>
+                Competitive Context
+              </p>
+              <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.competitiveContext}</p>
             </div>
           </div>
         )}
@@ -1995,7 +2072,7 @@ function AddToCompareButton({ results }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // AI Insight fetch helper — calls /api/lens-insight, returns insight or null
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, accessToken }) {
+async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue, accessToken }) {
   try {
     const res = await fetch('/api/lens-insight', {
       method: 'POST',
@@ -2013,6 +2090,7 @@ async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, ru
         countyData,
         revenueStack,
         runway,
+        ixQueue,
       }),
     })
     if (!res.ok) return { insight: null, reason: `http_${res.status}` }
@@ -2094,8 +2172,20 @@ function SearchContent() {
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
+  // Auto-submit when all URL params are present (e.g. from Library "Re-Analyze in Lens")
+  const autoSubmitFired = useRef(false)
+  useEffect(() => {
+    if (autoSubmitFired.current || !programMap) return
+    if (initialState && initialCounty && initialMW && initialStage && initialTechnology) {
+      autoSubmitFired.current = true
+      formRef.current?.requestSubmit()
+    }
+  }, [programMap]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const formRef = useRef(null)
+
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e?.preventDefault()
     setResults(null)
     setAnalyzing(true)
 
@@ -2114,7 +2204,7 @@ function SearchContent() {
     // Run AI fetch + 800ms display floor in parallel
     // The overlay stays up until the AI responds (typically 2–4s)
     const [aiResult] = await Promise.all([
-      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, accessToken }).catch((e) => ({ insight: null, reason: `caught: ${e.message}` })),
+      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: getIXQueueSummary(form.state, form.mw), accessToken }).catch((e) => ({ insight: null, reason: `caught: ${e.message}` })),
       new Promise(resolve => setTimeout(resolve, 800)),
     ])
 
@@ -2189,6 +2279,7 @@ function SearchContent() {
 
         {/* Search form */}
         <form
+          ref={formRef}
           onSubmit={handleSubmit}
           className="rounded-xl border border-gray-200/80"
           style={{ boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
