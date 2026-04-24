@@ -1,13 +1,14 @@
 # Tractova — 4-Week Premium Buildout Plan
 
 > Last updated: April 23, 2026
-> Status: ALL 4 WEEKS COMPLETE. Plan fully implemented and deployed.
+> Status: ALL 4 WEEKS COMPLETE + remaining gap items built. Plan fully implemented and deployed.
 
 ### Progress Log
 - **Week 1** (commit 562627a): All placeholder text removed, typography unified, revenue colors overhauled (ITC→blue, credits→emerald, REC→violet), Profile page upgraded with avatar banner + recent activity, Library dark theme refined with column divider + bordered sections + stronger alerts, Landing page pricing + freshness added, bidirectional nav (Library→Lens carries all params) pulled forward from Week 4. **COMPLETE.**
 - **Week 2** (commits c852301 + 76f63de): Revenue engine expanded with C&I PPA model (8 states), BESS capacity/demand/arbitrage model (8 states), and Hybrid combined model. Score engine updated with tech-aware offtake (retail rate tiers for C&I, capacity market tiers for BESS), IX modifiers (BESS +5, Hybrid -5), and site adjustments (BESS needs less land). Offtake card rebuilt: C&I shows PPA rate vs retail savings, BESS shows 3-stream revenue tiles (capacity/demand/arbitrage) with payback, Hybrid shows solar+storage split with ITC co-location bonus. Tech-specific scenarios added (C&I: PPA drop/rate rise/offtaker default; BESS: capacity drop/degradation/demand increase; Hybrid: ITC drop/solar clipping). AI prompt updated with tech-aware rules (#12, #13) and tech-specific revenue context in buildContext. **COMPLETE.**
 - **Week 3** (commit 20b727c): "Feasibility Score" → "Feasibility Index" renamed across all surfaces (Search, Library, CompareTray, Glossary, PDF Export). Methodology info popover added to MarketPositionPanel. Sub-score breakdown bars (Offtake/IX/Site with weights) added to Library expanded cards. AI output schema expanded from 4→6 fields (added stageSpecificGuidance, competitiveContext). max_tokens increased 900→1200. IX queue data (project count, MW pending, per-utility breakdown) now fed into AI context. Quantified scenario impact chips (revenue cost + timeline) added to IX scenarios. **COMPLETE.**
 - **Week 4** (commit 20b727c): Auto-submit when all URL params present (Library→Lens roundtrip with auto-analysis). "What Changed" blue dot badges on Library cards when state data updated since save. Portfolio update banner ("X projects have updated data · Y alerts"). Weekly Summary card (portfolio health, market signals, action items) for users with 3+ projects. Compare Tray enhanced with "Open in Lens" action per column and auto-generated "Best For" summary. **COMPLETE.**
+- **Gap items** (commit 34fd46c): Site Control enriched with Hosting Capacity tile (derived from IX ease score), population density badge, serving-utility substation highlighting + voltage context. Custom Scenario builder with IX/CS dropdowns + live index impact. Library "Your Deal" section made collapsible with "Saved X days ago" timestamp. **COMPLETE.**
 
 ---
 
@@ -43,7 +44,7 @@ Tractova is a community solar market intelligence SaaS targeting $10-20/mo recur
 2. ~~**Placeholder text visible to users**~~ → FIXED (Week 1): All "not yet seeded" replaced with professional fallback language.
 3. ~~**Typography inconsistent**~~ → FIXED (Week 1): Unified scale applied (text-2xl for metrics/titles, text-xl for sections).
 4. ~~**Revenue stack colors**~~ → FIXED (Week 1): Purpose-mapped palette (ITC=blue, REC=violet, credits=emerald). Amber reserved for IX/caution.
-5. **Site Control is thin**: Binary land/wetland flags + substation proximity. No hosting capacity, no population density. **DEFERRED** — needs real data sourcing.
+5. ~~**Site Control is thin**~~ → FIXED (commit 34fd46c): 4th tile (Hosting Capacity derived from IX ease score), population density badge derived from land notes, serving-utility substation highlighting, voltage context by MW size.
 6. ~~**Profile page is MVP-basic**~~ → FIXED (Week 1): Avatar banner, recent activity, cleaner layout.
 7. ~~**Library dark theme crowding**~~ → FIXED (Week 1 + 3): Column divider, bordered subsections, sub-score bars, weekly summary card.
 8. ~~**Score model is arbitrary**~~ → FIXED (Week 3): Renamed to "Feasibility Index" with methodology popover explaining weights.
