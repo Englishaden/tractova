@@ -15,7 +15,7 @@ import SectionDivider from '../components/SectionDivider'
 
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
-import { getIXQueueSummary, hasIXQueueData } from '../lib/ixQueueEngine'
+import { getIXQueueSummary } from '../lib/programData'
 import { getNearestSubstations, hasSubstationData } from '../lib/substationEngine'
 
 function getMarketRank(stateId, programMap) {
@@ -571,10 +571,9 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
   )
 }
 
-function InterconnectionCard({ interconnection, stateProgram, stateId, mw }) {
+function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary }) {
   if (!interconnection) return null
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
-  const queueSummary = getIXQueueSummary(stateId, mw)
 
   const TREND_ICON = { growing: '↑', stable: '→', shrinking: '↓' }
   const TREND_COLOR = { growing: '#DC2626', stable: '#D97706', shrinking: '#0F6E56' }
@@ -2344,23 +2343,24 @@ function SearchContent() {
     const accessToken = session?.access_token ?? ''
 
     // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack] = await Promise.all([
+    const [stateProgram, countyData, revenueStack, ixQueueSummary] = await Promise.all([
       programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
       getCountyData(form.state, form.county),
       getRevenueStack(form.state),
+      getIXQueueSummary(form.state, form.mw),
     ])
     const runway = stateProgram?.runway ?? null
 
     // Run AI fetch + 800ms display floor in parallel
     // The overlay stays up until the AI responds (typically 2–4s)
     const [aiResult] = await Promise.all([
-      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: getIXQueueSummary(form.state, form.mw), accessToken }).catch((e) => ({ insight: null, reason: `caught: ${e.message}` })),
+      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken }).catch((e) => ({ insight: null, reason: `caught: ${e.message}` })),
       new Promise(resolve => setTimeout(resolve, 800)),
     ])
 
     const aiInsight = aiResult?.insight ?? null
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, aiInsight })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, aiInsight })
     setAnalyzing(false)
   }
 
@@ -2640,6 +2640,7 @@ function SearchContent() {
                 stateProgram={results.stateProgram}
                 stateId={results.stateProgram?.id}
                 mw={results.form.mw}
+                queueSummary={results.ixQueueSummary}
               />
               <OfftakeCard
                 stateProgram={results.stateProgram}

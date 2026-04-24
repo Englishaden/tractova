@@ -14,6 +14,7 @@ import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 import Profile from './pages/Profile'
 import UpgradeSuccess from './pages/UpgradeSuccess'
+import Admin from './pages/Admin'
 
 // Shows Landing to logged-out visitors, Dashboard to signed-in users.
 // Blank surface during auth hydration prevents content flash.
@@ -55,6 +56,7 @@ export default function App() {
             }
           />
           <Route path="/glossary" element={<Glossary />} />
+          <Route path="/admin" element={<Admin />} />
           <Route
             path="/profile"
             element={

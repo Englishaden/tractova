@@ -1,0 +1,364 @@
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseAdmin = createClient(
+  process.env.VITE_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IX Queue Refresh Cron
+//
+// Runs weekly (Sunday 6 AM UTC). Fetches public interconnection queue data
+// from MISO, PJM, NYISO, and ISO-NE. Filters to solar projects <25MW,
+// aggregates by utility territory, and upserts to ix_queue_data.
+//
+// Each ISO scraper is independent — one failure doesn't block the others.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Utility → state mapping (which state each utility's queue data applies to)
+const UTILITY_STATE_MAP = {
+  // PJM
+  'ComEd':            'IL',
+  'PSE&G':            'NJ',
+  'PSEG':             'NJ',
+  'JCP&L':            'NJ',
+  'BGE':              'MD',
+  'Pepco':            'MD',
+  'PECO':             'PA',
+  // MISO
+  'Ameren Illinois':  'IL',
+  'Ameren':           'IL',
+  'Xcel Energy':      'MN',
+  // NYISO
+  'ConEdison':        'NY',
+  'Con Edison':       'NY',
+  'National Grid':    'NY',
+  'NYSEG':            'NY',
+  'RG&E':             'NY',
+  'Central Hudson':   'NY',
+  // ISO-NE
+  'National Grid MA': 'MA',
+  'Eversource':       'MA',
+  'CMP':              'ME',
+  'Versant':          'ME',
+}
+
+// States we track and their ISO assignments
+const STATE_ISO_MAP = {
+  IL: ['PJM', 'MISO'],
+  NY: ['NYISO'],
+  MA: ['ISO-NE'],
+  MN: ['MISO'],
+  CO: ['WAPA'],
+  NJ: ['PJM'],
+  MD: ['PJM'],
+  ME: ['ISO-NE'],
+}
+
+// ── ISO-specific scrapers ────────────────────────────────────────────────────
+// Each returns an array of { stateId, iso, utilityName, projects, mw, studyMonths }
+// or throws on failure. The caller catches per-ISO.
+
+async function scrapePJM() {
+  // PJM publishes queue data as CSV at their planning page
+  // URL pattern: https://www.pjm.com/planning/services-requests/interconnection-queues
+  // The actual CSV download requires navigating their queue tool.
+  // For now, we use their public API endpoint.
+  const url = 'https://services.pjm.com/PJMPlanningApi/api/Queue/ExportToCSV'
+
+  const res = await fetch(url, {
+    headers: { 'Accept': 'text/csv' },
+    signal: AbortSignal.timeout(30000),
+  })
+
+  if (!res.ok) throw new Error(`PJM fetch failed: ${res.status}`)
+  const text = await res.text()
+  return parseCSVQueue(text, 'PJM', {
+    fuelColumn: 'Fuel',
+    fuelFilter: ['Solar', 'SUN'],
+    mwColumn: 'MFO',
+    mwMax: 25,
+    utilityColumn: 'Transmission Owner',
+    statusColumn: 'Status',
+    dateColumn: 'Queue Date',
+  })
+}
+
+async function scrapeMISO() {
+  // MISO GIA queue: https://www.misoenergy.org/planning/generator-interconnection/GI_Queue/
+  // Downloads as Excel but they also have a JSON API
+  const url = 'https://www.misoenergy.org/api/giqueue/getprojects'
+
+  const res = await fetch(url, {
+    headers: { 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(30000),
+  })
+
+  if (!res.ok) throw new Error(`MISO fetch failed: ${res.status}`)
+  const data = await res.json()
+
+  // Filter to solar <25MW
+  const solar = (Array.isArray(data) ? data : []).filter(p =>
+    p.fuelType?.toLowerCase().includes('solar') &&
+    (parseFloat(p.summerCapacity || p.capacity || 0) < 25)
+  )
+
+  return aggregateByUtility(solar, 'MISO', {
+    utilityField: 'transmissionOwner',
+    mwField: 'summerCapacity',
+    dateField: 'queueDate',
+  })
+}
+
+async function scrapeNYISO() {
+  // NYISO ARIS: https://www.nyiso.com/interconnections
+  // They publish a downloadable Excel with all projects
+  const url = 'https://www.nyiso.com/documents/20142/1407078/NYISO-Interconnection-Queue.xlsx'
+
+  // Since we can't parse XLSX natively, try their HTML/JSON endpoint first
+  const jsonUrl = 'https://www.nyiso.com/api/interconnections'
+  const res = await fetch(jsonUrl, {
+    headers: { 'Accept': 'application/json' },
+    signal: AbortSignal.timeout(30000),
+  })
+
+  if (!res.ok) throw new Error(`NYISO fetch failed: ${res.status}`)
+  const data = await res.json()
+
+  const solar = (Array.isArray(data) ? data : []).filter(p =>
+    p.fuelType?.toLowerCase().includes('solar') &&
+    (parseFloat(p.capacity || p.mw || 0) < 25)
+  )
+
+  return aggregateByUtility(solar, 'NYISO', {
+    utilityField: 'transmissionOwner',
+    mwField: 'capacity',
+    dateField: 'queueDate',
+  })
+}
+
+async function scrapeISONE() {
+  // ISO-NE: https://irtt.iso-ne.com/reports/external
+  // They publish queue data as CSV
+  const url = 'https://irtt.iso-ne.com/reports/external?reportId=interconnectionQueue&format=csv'
+
+  const res = await fetch(url, {
+    headers: { 'Accept': 'text/csv' },
+    signal: AbortSignal.timeout(30000),
+  })
+
+  if (!res.ok) throw new Error(`ISO-NE fetch failed: ${res.status}`)
+  const text = await res.text()
+  return parseCSVQueue(text, 'ISO-NE', {
+    fuelColumn: 'Fuel Type',
+    fuelFilter: ['Solar', 'SUN', 'PV'],
+    mwColumn: 'Net MW',
+    mwMax: 25,
+    utilityColumn: 'Host Utility',
+    statusColumn: 'Status',
+    dateColumn: 'Queue Date',
+  })
+}
+
+// ── CSV parser ───────────────────────────────────────────────────────────────
+
+function parseCSVQueue(csvText, iso, opts) {
+  const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean)
+  if (lines.length < 2) return []
+
+  const headers = parseCSVLine(lines[0])
+  const fuelIdx = findColumn(headers, opts.fuelColumn)
+  const mwIdx = findColumn(headers, opts.mwColumn)
+  const utilIdx = findColumn(headers, opts.utilityColumn)
+
+  if (fuelIdx < 0 || mwIdx < 0 || utilIdx < 0) {
+    throw new Error(`${iso}: missing required columns (fuel=${fuelIdx}, mw=${mwIdx}, util=${utilIdx})`)
+  }
+
+  const projects = []
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i])
+    const fuel = (cols[fuelIdx] || '').toLowerCase()
+    const mw = parseFloat(cols[mwIdx]) || 0
+    const utility = cols[utilIdx] || ''
+
+    if (opts.fuelFilter.some(f => fuel.includes(f.toLowerCase())) && mw > 0 && mw < opts.mwMax) {
+      projects.push({ utility, mw })
+    }
+  }
+
+  return aggregateProjects(projects, iso)
+}
+
+function parseCSVLine(line) {
+  const result = []
+  let current = ''
+  let inQuotes = false
+  for (const char of line) {
+    if (char === '"') { inQuotes = !inQuotes; continue }
+    if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; continue }
+    current += char
+  }
+  result.push(current.trim())
+  return result
+}
+
+function findColumn(headers, name) {
+  return headers.findIndex(h =>
+    h.toLowerCase().replace(/[^a-z0-9]/g, '') === name.toLowerCase().replace(/[^a-z0-9]/g, '')
+  )
+}
+
+// ── Aggregation helpers ──────────────────────────────────────────────────────
+
+function aggregateProjects(projects, iso) {
+  const byUtility = {}
+  for (const p of projects) {
+    const key = normalizeUtility(p.utility)
+    if (!key) continue
+    if (!byUtility[key]) byUtility[key] = { name: key, projects: 0, totalMW: 0 }
+    byUtility[key].projects++
+    byUtility[key].totalMW += p.mw
+  }
+
+  return Object.values(byUtility).map(u => ({
+    utilityName: u.name,
+    iso,
+    stateId: UTILITY_STATE_MAP[u.name] || null,
+    projectsInQueue: u.projects,
+    mwPending: Math.round(u.totalMW),
+  })).filter(u => u.stateId) // Only keep utilities we track
+}
+
+function aggregateByUtility(projects, iso, fields) {
+  const mapped = projects.map(p => ({
+    utility: p[fields.utilityField] || '',
+    mw: parseFloat(p[fields.mwField]) || 0,
+  }))
+  return aggregateProjects(mapped, iso)
+}
+
+function normalizeUtility(raw) {
+  if (!raw) return null
+  const cleaned = raw.trim()
+  // Try exact match first
+  if (UTILITY_STATE_MAP[cleaned]) return cleaned
+  // Try partial match
+  for (const key of Object.keys(UTILITY_STATE_MAP)) {
+    if (cleaned.toLowerCase().includes(key.toLowerCase())) return key
+  }
+  return null
+}
+
+// ── Trend computation ────────────────────────────────────────────────────────
+
+function computeTrend(newCount, oldCount) {
+  if (oldCount == null) return 'stable'
+  const delta = (newCount - oldCount) / Math.max(oldCount, 1)
+  if (delta > 0.10) return 'growing'
+  if (delta < -0.10) return 'shrinking'
+  return 'stable'
+}
+
+// ── Main handler ─────────────────────────────────────────────────────────────
+
+export default async function handler(req, res) {
+  // Auth: Vercel cron header or manual CRON_SECRET
+  const isVercelCron = req.headers['x-vercel-cron'] === '1'
+  const isBearerAuth = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+  if (!isVercelCron && !isBearerAuth) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  const results = { success: [], failed: [], updated: 0, unchanged: 0 }
+
+  // Fetch current data for trend comparison
+  const { data: existing } = await supabaseAdmin
+    .from('ix_queue_data')
+    .select('state_id, utility_name, projects_in_queue')
+  const existingMap = {}
+  for (const row of (existing || [])) {
+    existingMap[`${row.state_id}:${row.utility_name}`] = row.projects_in_queue
+  }
+
+  // Run all scrapers in parallel — each one is independent
+  const scrapers = [
+    { name: 'PJM', fn: scrapePJM },
+    { name: 'MISO', fn: scrapeMISO },
+    { name: 'NYISO', fn: scrapeNYISO },
+    { name: 'ISO-NE', fn: scrapeISONE },
+  ]
+
+  const scraperResults = await Promise.allSettled(
+    scrapers.map(async s => {
+      try {
+        const data = await s.fn()
+        return { name: s.name, data }
+      } catch (err) {
+        throw { name: s.name, error: err.message }
+      }
+    })
+  )
+
+  // Collect all successful results
+  const allUpdates = []
+  for (const result of scraperResults) {
+    if (result.status === 'fulfilled') {
+      results.success.push(result.value.name)
+      allUpdates.push(...result.value.data)
+    } else {
+      const reason = result.reason
+      results.failed.push({ iso: reason.name, error: reason.error })
+    }
+  }
+
+  // Upsert each utility's data
+  for (const update of allUpdates) {
+    const key = `${update.stateId}:${update.utilityName}`
+    const oldCount = existingMap[key]
+    const trend = computeTrend(update.projectsInQueue, oldCount)
+
+    const row = {
+      state_id: update.stateId,
+      iso: update.iso,
+      utility_name: update.utilityName,
+      projects_in_queue: update.projectsInQueue,
+      mw_pending: update.mwPending,
+      queue_trend: trend,
+      data_source: 'scraper',
+      fetched_at: new Date().toISOString(),
+    }
+
+    // Only include fields that were scraped (preserve existing values for others)
+    if (update.avgStudyMonths != null) row.avg_study_months = update.avgStudyMonths
+    if (update.withdrawalPct != null) row.withdrawal_pct = update.withdrawalPct
+    if (update.avgUpgradeCostMW != null) row.avg_upgrade_cost_mw = update.avgUpgradeCostMW
+
+    const { error } = await supabaseAdmin
+      .from('ix_queue_data')
+      .upsert(row, { onConflict: 'state_id,utility_name' })
+
+    if (error) {
+      results.failed.push({ utility: update.utilityName, error: error.message })
+    } else if (oldCount !== update.projectsInQueue) {
+      results.updated++
+      // Log the change
+      await supabaseAdmin.from('data_updates').insert({
+        table_name: 'ix_queue_data',
+        row_id: `${update.stateId}:${update.utilityName}`,
+        field: 'projects_in_queue',
+        old_value: String(oldCount ?? 'null'),
+        new_value: String(update.projectsInQueue),
+        updated_by: 'ix-queue-scraper',
+      })
+    } else {
+      results.unchanged++
+    }
+  }
+
+  return res.status(200).json({
+    message: `IX queue refresh complete`,
+    ...results,
+    timestamp: new Date().toISOString(),
+  })
+}

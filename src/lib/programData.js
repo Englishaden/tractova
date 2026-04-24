@@ -238,6 +238,184 @@ export async function getDashboardMetrics() {
   })
 }
 
+// ── getIXQueueData ───────────────────────────────────────────────────────────
+// Returns raw IX queue rows for a state, grouped by utility.
+// Shape: { iso, utilities: [{ name, projectsInQueue, mwPending, ... }] }
+export async function getIXQueueData(stateId) {
+  return withCache(`ix_queue:${stateId}`, async () => {
+    const { data, error } = await supabase
+      .from('ix_queue_data')
+      .select('*')
+      .eq('state_id', stateId)
+      .order('utility_name')
+    if (error) throw error
+    if (!data || data.length === 0) return null
+    return {
+      iso: data[0].iso,
+      utilities: data.map(row => ({
+        name:            row.utility_name,
+        projectsInQueue: row.projects_in_queue,
+        mwPending:       row.mw_pending,
+        avgStudyMonths:  row.avg_study_months,
+        withdrawalPct:   row.withdrawal_pct,
+        avgUpgradeCostMW: row.avg_upgrade_cost_mw,
+        queueTrend:      row.queue_trend,
+      })),
+    }
+  })
+}
+
+// ── hasIXQueueData ───────────────────────────────────────────────────────────
+export async function hasIXQueueData(stateId) {
+  const data = await getIXQueueData(stateId)
+  return data !== null
+}
+
+// ── getIXQueueSummary ────────────────────────────────────────────────────────
+// Aggregated summary across all utilities for a state + project MW.
+// Drop-in replacement for ixQueueEngine.getIXQueueSummary().
+export async function getIXQueueSummary(stateId, mwAC) {
+  const data = await getIXQueueData(stateId)
+  if (!data) return null
+
+  const mw = parseFloat(mwAC) || 5
+  const totalProjects = data.utilities.reduce((s, u) => s + u.projectsInQueue, 0)
+  const totalMW = data.utilities.reduce((s, u) => s + u.mwPending, 0)
+  const weightedStudy = data.utilities.reduce((s, u) => s + u.avgStudyMonths * u.projectsInQueue, 0) / totalProjects
+  const weightedWithdrawal = data.utilities.reduce((s, u) => s + u.withdrawalPct * u.projectsInQueue, 0) / totalProjects
+  const weightedUpgrade = data.utilities.reduce((s, u) => s + u.avgUpgradeCostMW * u.projectsInQueue, 0) / totalProjects
+
+  const estimatedUpgradeCost = Math.round(weightedUpgrade * mw)
+  const congestionLevel = totalProjects > 100 ? 'high' : totalProjects > 50 ? 'moderate' : 'low'
+
+  return {
+    iso: data.iso,
+    utilities: data.utilities,
+    totalProjects,
+    totalMW,
+    avgStudyMonths: Math.round(weightedStudy),
+    avgWithdrawalPct: Math.round(weightedWithdrawal),
+    estimatedUpgradeCost,
+    avgUpgradeCostPerMW: Math.round(weightedUpgrade),
+    congestionLevel,
+  }
+}
+
+// ── getRevenueRates ──────────────────────────────────────────────────────────
+// Returns full revenue rate data for a state (CS + C&I + BESS fields).
+export async function getRevenueRates(stateId) {
+  return withCache(`revenue_rates:${stateId}`, async () => {
+    const { data, error } = await supabase
+      .from('revenue_rates')
+      .select('*')
+      .eq('state_id', stateId)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  })
+}
+
+// ── getAllRevenueRates ────────────────────────────────────────────────────────
+export async function getAllRevenueRates() {
+  return withCache('revenue_rates_all', async () => {
+    const { data, error } = await supabase
+      .from('revenue_rates')
+      .select('*')
+      .order('state_id')
+    if (error) throw error
+    return data || []
+  })
+}
+
+// ── getAllIXQueueData ─────────────────────────────────────────────────────────
+export async function getAllIXQueueData() {
+  return withCache('ix_queue_all', async () => {
+    const { data, error } = await supabase
+      .from('ix_queue_data')
+      .select('*')
+      .order('state_id')
+    if (error) throw error
+    return data || []
+  })
+}
+
+// ── getAllCountyData ──────────────────────────────────────────────────────────
+export async function getAllCountyData(stateId) {
+  return withCache(`county_all:${stateId}`, async () => {
+    const { data, error } = await supabase
+      .from('county_intelligence')
+      .select('*')
+      .eq('state_id', stateId)
+      .order('county_slug')
+    if (error) throw error
+    return data || []
+  })
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Admin write helpers — all invalidate relevant caches after write
+// ══════════════════════════════════════════════════════════════════════════════
+
+export async function updateStateProgram(id, fields) {
+  const { error } = await supabase
+    .from('state_programs')
+    .update({ ...fields, updated_by: 'admin' })
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache()
+}
+
+export async function updateCountyIntelligence(id, fields) {
+  const { error } = await supabase
+    .from('county_intelligence')
+    .update(fields)
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache()
+}
+
+export async function upsertCountyIntelligence(fields) {
+  const { error } = await supabase
+    .from('county_intelligence')
+    .upsert(fields, { onConflict: 'state_id,county_slug' })
+  if (error) throw error
+  invalidateCache()
+}
+
+export async function updateRevenueRates(stateId, fields) {
+  const { error } = await supabase
+    .from('revenue_rates')
+    .upsert({ state_id: stateId, ...fields }, { onConflict: 'state_id' })
+  if (error) throw error
+  invalidateCache()
+}
+
+export async function upsertNewsItem(fields) {
+  const { error } = await supabase
+    .from('news_feed')
+    .upsert(fields)
+  if (error) throw error
+  invalidateCache()
+}
+
+export async function deleteNewsItem(id) {
+  const { error } = await supabase
+    .from('news_feed')
+    .update({ is_active: false })
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache()
+}
+
+export async function updateIXQueueRow(id, fields) {
+  const { error } = await supabase
+    .from('ix_queue_data')
+    .update(fields)
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache()
+}
+
 // ── invalidateCache ───────────────────────────────────────────────────────────
 // Call this after any admin write to force a fresh fetch on next access.
 export function invalidateCache(key) {
