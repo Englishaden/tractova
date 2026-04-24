@@ -1766,7 +1766,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
             </div>
 
             {/* Custom Scenario builder */}
-            <CustomScenarioBuilder stateProgram={stateProgram} technology={technology} />
+            <CustomScenarioBuilder stateProgram={stateProgram} technology={form.technology} />
           </div>
         )}
       </div>
