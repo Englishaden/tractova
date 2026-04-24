@@ -3,7 +3,7 @@
 
 const metrics = {
   statesWithActiveCS: 14,
-  statesWithAnyCS: 18,        // active + limited + pending
+  statesWithAnyCS: 19,        // active + limited + pending (14 + 3 + 2)
   utilitiesWithIXHeadroom: 34,
   policyAlertsThisWeek: 7,
   avgCSCapacityRemaining: "62%",

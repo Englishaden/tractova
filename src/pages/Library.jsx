@@ -376,6 +376,8 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
       getCountyData(project.state, project.county).then(setCountyData).catch(() => {})
   }, [project.state, project.county])
 
+  const current   = stateProgramMap[project.state]
+
   const handleExportPDF = async (e) => {
     e.stopPropagation()
     setExporting(true)
@@ -386,8 +388,6 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
       setExporting(false)
     }
   }
-
-  const current   = stateProgramMap[project.state]
   const alerts    = getAlerts(project, stateProgramMap)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
 
@@ -743,7 +743,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
             )}
             <div className="col-span-2">
               <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: 'rgba(255,255,255,0.60)' }}>Saved</p>
-              <p style={{ color: 'rgba(255,255,255,0.50)' }}>{new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+              <p style={{ color: 'rgba(255,255,255,0.50)' }}>{project.savedAt ? new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}</p>
             </div>
           </div>
 

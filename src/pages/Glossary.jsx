@@ -70,7 +70,7 @@ const terms = [
     pillar: 'offtake',
     definition:
       'The program exists and is operational, but available capacity is nearly exhausted. Developers should monitor closely for new tranches or block openings. A Limited state may become Active again when the program administrator authorizes additional MW.',
-    related: ['Active Program', 'Offtake', 'Feasibility Score'],
+    related: ['Active Program', 'Offtake', 'Feasibility Index'],
   },
   {
     term: 'LMI (Low-to-Moderate Income)',

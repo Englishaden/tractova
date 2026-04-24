@@ -22,6 +22,7 @@ function ManageBillingButton() {
     setError(null)
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Please sign in again')
       const res = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: {

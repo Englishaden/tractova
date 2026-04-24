@@ -113,12 +113,12 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
 
   return (
     <div
-      className="rounded-xl overflow-hidden mb-5"
+      className="rounded-xl mb-5"
       style={{ border: '1px solid rgba(15,110,86,0.18)', boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
     >
       {/* Header band */}
       <div
-        className="px-5 py-3 flex items-center justify-between"
+        className="px-5 py-3 flex items-center justify-between rounded-t-xl"
         style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
       >
         <div className="flex items-center gap-2">
@@ -174,13 +174,13 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help">
                 <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
               </svg>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-50">
+              <div className="absolute top-full right-0 mt-2 w-72 bg-gray-900 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-[100]">
+                <div className="absolute bottom-full right-3 w-2 h-2 bg-gray-900 rotate-45 mb-[-4px]" />
                 <p className="font-bold mb-1">Methodology</p>
                 <p><span className="text-emerald-300">Offtake (40%)</span> — Program status, capacity, LMI complexity, enrollment runway</p>
                 <p className="mt-0.5"><span className="text-amber-300">Interconnection (35%)</span> — Queue difficulty, study timelines, upgrade cost risk</p>
                 <p className="mt-0.5"><span className="text-blue-300">Site Control (25%)</span> — Land availability, wetland risk, zoning constraints</p>
                 <p className="mt-1.5 text-gray-400">Weights reflect typical decision priority: offtake viability is the first gate, IX risk is the primary capital risk, site control is increasingly commoditized.</p>
-                <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45 -mt-1" />
               </div>
             </div>
           </div>
@@ -350,6 +350,7 @@ function PillarIcon({ type }) {
 // Pillar Cards
 // ─────────────────────────────────────────────────────────────────────────────
 function SiteControlCard({ siteControl, interconnection, stateName, county, stateId, mw }) {
+  if (!siteControl) return null
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
 
   // Derive hosting capacity status from IX ease score
@@ -571,6 +572,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
 }
 
 function InterconnectionCard({ interconnection, stateProgram, stateId, mw }) {
+  if (!interconnection) return null
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
   const queueSummary = getIXQueueSummary(stateId, mw)
 
