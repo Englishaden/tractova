@@ -4,7 +4,7 @@ import { getDashboardMetrics } from '../lib/programData'
 
 export default function Footer() {
   const { pathname } = useLocation()
-  const dark = pathname === '/library'
+  const dark = false
   const [lastUpdated, setLastUpdated] = useState(null)
 
   useEffect(() => {

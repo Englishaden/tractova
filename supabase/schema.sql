@@ -139,10 +139,8 @@ create table if not exists data_updates (
 );
 
 -- ── RPC: get_dashboard_metrics ────────────────────────────────────────────────
--- Returns all 6 dashboard metrics computed live from state_programs.
--- MetricsBar.jsx calls this instead of importing the static metrics.js file.
--- utilitiesWithIXHeadroom and policyAlertsThisWeek remain in metrics.js
--- until FERC/news scrapers exist.
+-- Returns all dashboard metrics computed live from state_programs, ix_queue_data,
+-- and news_feed. MetricsBar.jsx calls this instead of importing static data.
 
 create or replace function get_dashboard_metrics()
 returns json language sql stable as $$
@@ -151,6 +149,11 @@ returns json language sql stable as $$
       (select count(*) from state_programs where cs_status = 'active'),
     'statesWithAnyCS',
       (select count(*) from state_programs where cs_status in ('active', 'limited', 'pending')),
+    'utilitiesWithIXHeadroom',
+      (select count(distinct utility_name) from ix_queue_data),
+    'policyAlertsThisWeek',
+      (select count(*) from news_feed where is_active = true
+       and published_at >= current_date - interval '7 days'),
     'avgCSCapacityRemaining',
       concat(
         (select round(avg(capacity_mw)) from state_programs where cs_status = 'active'),

@@ -427,8 +427,8 @@ export default function MetricsBar() {
       {(() => {
         const stale = staleDays(liveMetrics?.lastUpdated)
         return stale ? (
-          <p className="text-right text-[10px] font-mono mt-1.5" style={{ color: 'rgba(251,191,36,0.45)' }}>
-            <span style={{ color: 'rgba(251,191,36,0.3)' }}>⚠</span> data verified {stale}d ago
+          <p className="text-right text-[10px] font-mono mt-1.5" style={{ color: 'rgba(156,163,175,0.50)' }}>
+            <span style={{ color: 'rgba(156,163,175,0.35)' }}>⚠</span> data verified {stale}d ago
           </p>
         ) : null
       })()}
