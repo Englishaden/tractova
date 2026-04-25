@@ -1,9 +1,15 @@
+import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import metrics from '../data/metrics'
+import { getDashboardMetrics } from '../lib/programData'
 
 export default function Footer() {
   const { pathname } = useLocation()
   const dark = pathname === '/library'
+  const [lastUpdated, setLastUpdated] = useState(null)
+
+  useEffect(() => {
+    getDashboardMetrics().then(m => setLastUpdated(m?.lastUpdated)).catch(() => {})
+  }, [])
 
   return (
     <footer className={dark ? 'border-t border-white/[0.08] bg-[#080C14]' : 'border-t border-gray-200 bg-white mt-10'}>
@@ -16,7 +22,7 @@ export default function Footer() {
         </div>
         <div className="flex items-center gap-6">
           <span className={`text-xs ${dark ? 'text-white/35' : 'text-gray-400'}`}>
-            Data last updated: {metrics.lastUpdated}
+            Data last updated: {lastUpdated ?? '—'}
           </span>
           <a
             href="https://theadder.substack.com"

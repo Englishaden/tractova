@@ -16,7 +16,7 @@ import SectionDivider from '../components/SectionDivider'
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
-import { getNearestSubstations, hasSubstationData } from '../lib/substationEngine'
+import { getNearestSubstations } from '../lib/substationEngine'
 
 function getMarketRank(stateId, programMap) {
   if (!programMap) return { rank: null, total: 0 }
@@ -349,7 +349,7 @@ function PillarIcon({ type }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pillar Cards
 // ─────────────────────────────────────────────────────────────────────────────
-function SiteControlCard({ siteControl, interconnection, stateName, county, stateId, mw }) {
+function SiteControlCard({ siteControl, interconnection, stateName, county, stateId, mw, substations }) {
   if (!siteControl) return null
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
 
@@ -515,7 +515,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
 
         {/* Nearest substations */}
         {(() => {
-          const subs = getNearestSubstations(stateId, county)
+          const subs = substations
           if (!subs) return null
           const servingUtil = interconnection?.servingUtility?.toLowerCase() || ''
           const mwNum = parseFloat(mw) || 5
@@ -2343,11 +2343,12 @@ function SearchContent() {
     const accessToken = session?.access_token ?? ''
 
     // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack, ixQueueSummary] = await Promise.all([
+    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations] = await Promise.all([
       programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
       getCountyData(form.state, form.county),
       getRevenueStack(form.state),
       getIXQueueSummary(form.state, form.mw),
+      getNearestSubstations(form.state, form.county),
     ])
     const runway = stateProgram?.runway ?? null
 
@@ -2360,7 +2361,7 @@ function SearchContent() {
 
     const aiInsight = aiResult?.insight ?? null
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, aiInsight })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, aiInsight })
     setAnalyzing(false)
   }
 
@@ -2634,6 +2635,7 @@ function SearchContent() {
                 county={results.form.county}
                 stateId={results.stateProgram?.id}
                 mw={results.form.mw}
+                substations={results.substations}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}

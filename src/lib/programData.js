@@ -339,6 +339,27 @@ export async function getAllIXQueueData() {
   })
 }
 
+// ── getSubstations ───────────────────────────────────────────────────────────
+// Returns all substations for a state, sorted by capacity descending.
+export async function getSubstations(stateId) {
+  return withCache(`substations:${stateId}`, async () => {
+    const { data, error } = await supabase
+      .from('substations')
+      .select('*')
+      .eq('state_id', stateId)
+      .order('capacity_mw', { ascending: false })
+    if (error) throw error
+    return (data || []).map(row => ({
+      name:        row.name,
+      lat:         Number(row.lat),
+      lon:         Number(row.lon),
+      voltageKv:   Number(row.voltage_kv),
+      capacityMw:  Number(row.capacity_mw),
+      utility:     row.utility,
+    }))
+  })
+}
+
 // ── getAllCountyData ──────────────────────────────────────────────────────────
 export async function getAllCountyData(stateId) {
   return withCache(`county_all:${stateId}`, async () => {

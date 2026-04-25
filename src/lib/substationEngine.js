@@ -1,74 +1,8 @@
 // Substation proximity engine.
-// Seed data from EIA Form 860 — major substations in CS-active states.
-// Pre-computed county centroid → nearest substations.
-// Distances are approximate (haversine from county centroid).
+// Reads substation data from Supabase via programData.
+// County centroids from Census TIGER data (compute-only, not stored).
 
-const SUBSTATIONS = {
-  IL: [
-    { name: 'Pontiac 138kV', lat: 40.88, lon: -88.63, voltageKv: 138, capacityMw: 45, utility: 'ComEd' },
-    { name: 'Dixon 345kV', lat: 41.84, lon: -89.48, voltageKv: 345, capacityMw: 120, utility: 'ComEd' },
-    { name: 'Elwood 765kV', lat: 41.40, lon: -88.11, voltageKv: 765, capacityMw: 350, utility: 'ComEd' },
-    { name: 'DeWitt 345kV', lat: 40.17, lon: -88.90, voltageKv: 345, capacityMw: 95, utility: 'Ameren' },
-    { name: 'Coffeen 345kV', lat: 39.07, lon: -89.40, voltageKv: 345, capacityMw: 110, utility: 'Ameren' },
-    { name: 'Kincaid 345kV', lat: 39.58, lon: -89.42, voltageKv: 345, capacityMw: 80, utility: 'Ameren' },
-    { name: 'Lombard 138kV', lat: 41.88, lon: -88.01, voltageKv: 138, capacityMw: 55, utility: 'ComEd' },
-    { name: 'Rockford 138kV', lat: 42.27, lon: -89.09, voltageKv: 138, capacityMw: 40, utility: 'ComEd' },
-    { name: 'Marion 138kV', lat: 37.73, lon: -88.93, voltageKv: 138, capacityMw: 35, utility: 'Ameren' },
-    { name: 'Quincy 138kV', lat: 39.93, lon: -91.41, voltageKv: 138, capacityMw: 30, utility: 'Ameren' },
-  ],
-  NY: [
-    { name: 'Marcy 765kV', lat: 43.17, lon: -75.27, voltageKv: 765, capacityMw: 400, utility: 'National Grid' },
-    { name: 'Dunwoodie 345kV', lat: 40.94, lon: -73.87, voltageKv: 345, capacityMw: 200, utility: 'ConEdison' },
-    { name: 'Pleasant Valley 345kV', lat: 41.75, lon: -73.82, voltageKv: 345, capacityMw: 150, utility: 'Central Hudson' },
-    { name: 'Rotterdam 230kV', lat: 42.79, lon: -74.00, voltageKv: 230, capacityMw: 90, utility: 'National Grid' },
-    { name: 'Oakdale 138kV', lat: 40.74, lon: -73.14, voltageKv: 138, capacityMw: 60, utility: 'PSEG LI' },
-    { name: 'Massena 230kV', lat: 44.93, lon: -74.89, voltageKv: 230, capacityMw: 70, utility: 'National Grid' },
-    { name: 'Niagara 345kV', lat: 43.08, lon: -79.04, voltageKv: 345, capacityMw: 180, utility: 'National Grid' },
-    { name: 'Albany 115kV', lat: 42.65, lon: -73.76, voltageKv: 115, capacityMw: 45, utility: 'National Grid' },
-  ],
-  MA: [
-    { name: 'West Medway 345kV', lat: 42.14, lon: -71.42, voltageKv: 345, capacityMw: 160, utility: 'National Grid' },
-    { name: 'Millbury 345kV', lat: 42.20, lon: -71.77, voltageKv: 345, capacityMw: 140, utility: 'National Grid' },
-    { name: 'Canal 345kV', lat: 41.73, lon: -70.61, voltageKv: 345, capacityMw: 120, utility: 'Eversource' },
-    { name: 'Brayton Point 345kV', lat: 41.70, lon: -71.18, voltageKv: 345, capacityMw: 130, utility: 'Eversource' },
-    { name: 'Ludlow 115kV', lat: 42.18, lon: -72.47, voltageKv: 115, capacityMw: 50, utility: 'Eversource' },
-    { name: 'Pittsfield 115kV', lat: 42.45, lon: -73.25, voltageKv: 115, capacityMw: 35, utility: 'Eversource' },
-  ],
-  MN: [
-    { name: 'Blue Lake 345kV', lat: 44.94, lon: -93.44, voltageKv: 345, capacityMw: 180, utility: 'Xcel Energy' },
-    { name: 'Sherco 345kV', lat: 45.38, lon: -93.89, voltageKv: 345, capacityMw: 200, utility: 'Xcel Energy' },
-    { name: 'Chisago 345kV', lat: 45.37, lon: -92.89, voltageKv: 345, capacityMw: 120, utility: 'Xcel Energy' },
-    { name: 'Red Wing 115kV', lat: 44.56, lon: -92.53, voltageKv: 115, capacityMw: 45, utility: 'Xcel Energy' },
-    { name: 'Marshall 115kV', lat: 44.45, lon: -95.79, voltageKv: 115, capacityMw: 40, utility: 'Xcel Energy' },
-    { name: 'Wilmarth 345kV', lat: 44.15, lon: -93.98, voltageKv: 345, capacityMw: 100, utility: 'Xcel Energy' },
-  ],
-  CO: [
-    { name: 'Comanche 345kV', lat: 38.22, lon: -104.58, voltageKv: 345, capacityMw: 250, utility: 'Xcel Energy' },
-    { name: 'Daniels Park 230kV', lat: 39.49, lon: -104.91, voltageKv: 230, capacityMw: 140, utility: 'Xcel Energy' },
-    { name: 'Pawnee 230kV', lat: 40.82, lon: -104.72, voltageKv: 230, capacityMw: 110, utility: 'Xcel Energy' },
-    { name: 'Ault 230kV', lat: 40.58, lon: -104.73, voltageKv: 230, capacityMw: 90, utility: 'Xcel Energy' },
-    { name: 'San Luis 115kV', lat: 37.68, lon: -105.42, voltageKv: 115, capacityMw: 35, utility: 'Xcel Energy' },
-    { name: 'Pueblo 115kV', lat: 38.27, lon: -104.61, voltageKv: 115, capacityMw: 50, utility: 'Xcel Energy' },
-  ],
-  NJ: [
-    { name: 'Linden 230kV', lat: 40.63, lon: -74.24, voltageKv: 230, capacityMw: 160, utility: 'PSE&G' },
-    { name: 'Branchburg 230kV', lat: 40.57, lon: -74.73, voltageKv: 230, capacityMw: 120, utility: 'PSE&G' },
-    { name: 'Deans 230kV', lat: 40.40, lon: -74.50, voltageKv: 230, capacityMw: 100, utility: 'PSE&G' },
-    { name: 'Salem 500kV', lat: 39.46, lon: -75.54, voltageKv: 500, capacityMw: 300, utility: 'PSE&G' },
-    { name: 'Larrabee 230kV', lat: 40.74, lon: -74.19, voltageKv: 230, capacityMw: 110, utility: 'JCP&L' },
-  ],
-  MD: [
-    { name: 'Calvert Cliffs 500kV', lat: 38.43, lon: -76.44, voltageKv: 500, capacityMw: 280, utility: 'BGE' },
-    { name: 'Waugh Chapel 230kV', lat: 39.07, lon: -76.68, voltageKv: 230, capacityMw: 120, utility: 'BGE' },
-    { name: 'Chalk Point 230kV', lat: 38.53, lon: -76.67, voltageKv: 230, capacityMw: 100, utility: 'Pepco' },
-    { name: 'Indian River 138kV', lat: 38.60, lon: -75.06, voltageKv: 138, capacityMw: 55, utility: 'Delmarva' },
-  ],
-  ME: [
-    { name: 'Maine Yankee 345kV', lat: 43.95, lon: -69.70, voltageKv: 345, capacityMw: 100, utility: 'CMP' },
-    { name: 'Orrington 345kV', lat: 44.73, lon: -68.82, voltageKv: 345, capacityMw: 80, utility: 'Versant' },
-    { name: 'Surowiec 345kV', lat: 43.97, lon: -70.13, voltageKv: 345, capacityMw: 90, utility: 'CMP' },
-  ],
-}
+import { getSubstations } from './programData'
 
 // County centroid coordinates (approximate, from Census TIGER data)
 const COUNTY_CENTROIDS = {
@@ -159,9 +93,10 @@ function normalizeCounty(name) {
   return name.toLowerCase().replace(/\s+county$/i, '').replace(/[^a-z0-9]/g, '')
 }
 
-export function getNearestSubstations(stateId, countyName, count = 3) {
-  const subs = SUBSTATIONS[stateId]
-  if (!subs) return null
+// Async — fetches substations from Supabase, computes distances
+export async function getNearestSubstations(stateId, countyName, count = 3) {
+  const subs = await getSubstations(stateId)
+  if (!subs || subs.length === 0) return null
 
   const key = `${stateId}:${normalizeCounty(countyName)}`
   const centroid = COUNTY_CENTROIDS[key]
@@ -177,6 +112,7 @@ export function getNearestSubstations(stateId, countyName, count = 3) {
   return withDist.sort((a, b) => a.distanceMiles - b.distanceMiles).slice(0, count)
 }
 
-export function hasSubstationData(stateId) {
-  return stateId in SUBSTATIONS
+export async function hasSubstationData(stateId) {
+  const subs = await getSubstations(stateId)
+  return subs && subs.length > 0
 }

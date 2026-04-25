@@ -1,10 +1,6 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import statePrograms from '../data/statePrograms'
-import metrics from '../data/metrics'
-
-// ─── derived stats from real data ────────────────────────────────────────────
-const activeCount  = statePrograms.filter(s => s.csStatus === 'active').length
-const limitedCount = statePrograms.filter(s => s.csStatus === 'limited').length
+import { getStatePrograms, getDashboardMetrics } from '../lib/programData'
 
 // ─── icons ───────────────────────────────────────────────────────────────────
 function IconSite() {
@@ -42,7 +38,7 @@ function IconCheck() {
 }
 
 // ─── hero preview card — simulated dashboard snapshot ─────────────────────────
-function DashboardPreview() {
+function DashboardPreview({ activeCount, metrics }) {
   const sampleStates = [
     { id: 'IL', name: 'Illinois',    score: 78, status: 'active'  },
     { id: 'CO', name: 'Colorado',    score: 75, status: 'active'  },
@@ -70,8 +66,8 @@ function DashboardPreview() {
         <div className="grid grid-cols-3 gap-px bg-white/5 border-b border-white/10">
           {[
             { label: 'Active CS Programs', value: activeCount },
-            { label: 'IX Headroom', value: `${metrics.utilitiesWithIXHeadroom}+` },
-            { label: 'Policy Alerts', value: metrics.policyAlertsThisWeek },
+            { label: 'IX Headroom', value: `${metrics?.utilitiesWithIXHeadroom ?? '—'}+` },
+            { label: 'Policy Alerts', value: metrics?.policyAlertsThisWeek ?? '—' },
           ].map(m => (
             <div key={m.label} className="bg-[#0a2f25] px-4 py-3">
               <div className="text-2xl font-bold text-white tabular-nums">{m.value}</div>
@@ -133,6 +129,17 @@ function DashboardPreview() {
 
 // ─── main component ───────────────────────────────────────────────────────────
 export default function Landing() {
+  const [programs, setPrograms] = useState([])
+  const [metrics, setMetrics]   = useState(null)
+
+  useEffect(() => {
+    getStatePrograms().then(setPrograms).catch(() => {})
+    getDashboardMetrics().then(setMetrics).catch(() => {})
+  }, [])
+
+  const activeCount  = programs.filter(s => s.csStatus === 'active').length
+  const limitedCount = programs.filter(s => s.csStatus === 'limited').length
+
   return (
     <div className="pt-14">
 
@@ -197,7 +204,7 @@ export default function Landing() {
           </div>
 
           {/* Right — dashboard preview */}
-          <DashboardPreview />
+          <DashboardPreview activeCount={activeCount} metrics={metrics} />
         </div>
       </section>
 
@@ -205,9 +212,9 @@ export default function Landing() {
       <section className="bg-white border-b border-gray-200">
         <div className="max-w-dashboard mx-auto px-6 py-10 grid grid-cols-2 lg:grid-cols-4 gap-8">
           {[
-            { value: activeCount,                        label: 'Active CS Programs',           sub: 'across the U.S.' },
-            { value: `${metrics.utilitiesWithIXHeadroom}+`, label: 'Utilities with IX Headroom', sub: 'tracked and scored'  },
-            { value: activeCount + limitedCount,         label: 'States Fully Mapped',          sub: 'site, IX & offtake'   },
+            { value: activeCount || '—',                   label: 'Active CS Programs',           sub: 'across the U.S.' },
+            { value: `${metrics?.utilitiesWithIXHeadroom ?? '—'}+`, label: 'Utilities with IX Headroom', sub: 'tracked and scored'  },
+            { value: (activeCount + limitedCount) || '—', label: 'States Fully Mapped',          sub: 'site, IX & offtake'   },
             { value: '3',                                label: 'Intelligence Pillars',         sub: 'site · IX · offtake'  },
           ].map(m => (
             <div key={m.label} className="text-center lg:text-left">

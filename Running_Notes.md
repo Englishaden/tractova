@@ -1,7 +1,7 @@
 # Tractova — 4-Week Premium Buildout Plan
 
-> Last updated: April 23, 2026
-> Status: ALL 4 WEEKS COMPLETE + remaining gap items built. Plan fully implemented and deployed.
+> Last updated: April 25, 2026
+> Status: ALL 4 WEEKS COMPLETE + Hybrid Data Pipeline (4 phases) built. All data now served from Supabase.
 
 ### Progress Log
 - **Week 1** (commit 562627a): All placeholder text removed, typography unified, revenue colors overhauled (ITC→blue, credits→emerald, REC→violet), Profile page upgraded with avatar banner + recent activity, Library dark theme refined with column divider + bordered sections + stronger alerts, Landing page pricing + freshness added, bidirectional nav (Library→Lens carries all params) pulled forward from Week 4. **COMPLETE.**
@@ -11,6 +11,32 @@
 - **Gap items** (commit 34fd46c): Site Control enriched with Hosting Capacity tile (derived from IX ease score), population density badge, serving-utility substation highlighting + voltage context. Custom Scenario builder with IX/CS dropdowns + live index impact. Library "Your Deal" section made collapsible with "Saved X days ago" timestamp. **COMPLETE.**
 - **Bugfix** (commit e198ff9): Fixed white screen crash after Lens loading overlay. Root cause: `CustomScenarioBuilder` inside `MarketIntelligenceSummary` referenced bare `technology` variable that doesn't exist in that scope (parent receives `form`, not `technology`). Caused `ReferenceError` at runtime when scenarios rendered. Fixed to `form.technology`.
 - **Bug audit** (April 23): Full scan across all pages. Fixes applied: (1) Feasibility Index tooltip repositioned from `bottom-full` to `top-full` and removed `overflow-hidden` from parent to prevent clipping. (2) SiteControlCard and InterconnectionCard null guards added — prevents crash when countyData is null. (3) Library: moved `const current` above `handleExportPDF` (used-before-defined), added savedAt null guard in YourDealSection. (4) Profile: added session null guard in ManageBillingButton. (5) Glossary: completed "Feasibility Score" → "Feasibility Index" rename. (6) metrics.js: corrected statesWithAnyCS from 18 → 19.
+- **Hybrid Data Pipeline — Phase 1** (April 24-25): IX queue data migrated from hardcoded `ixQueueEngine.js` to Supabase table `ix_queue_data`. New migration `002_ix_queue.sql` (table + RLS) and seed `002_ix_queue_seed.sql` (12 utilities across 8 states). `programData.js` extended with `getIXQueueData()`, `getIXQueueSummary()`, `hasIXQueueData()`. Search.jsx updated from sync import to async pre-fetch in `handleSubmit`. Weekly cron scraper `api/refresh-ix-queue.js` fetches from MISO/PJM/NYISO/ISO-NE, runs Sunday 6AM UTC.
+- **Hybrid Data Pipeline — Phase 2** (April 24-25): Admin data editor at `/admin`, gated by email check. 5 tabs: State Programs, Counties, Revenue Rates, News Feed, IX Queue. All use list→detail card UI pattern with `Field` component. Revenue rates table created (`003_revenue_rates.sql` + seed for 8 states with CS/C&I/BESS fields). `programData.js` extended with admin write helpers (`updateStateProgram`, `updateCountyIntelligence`, `upsertNewsItem`, etc.) and bulk read functions. Admin link added to Profile page (visible only to admin). Route added in App.jsx.
+- **Hybrid Data Pipeline — Phase 3** (April 25): All static data imports eliminated. Landing.jsx, Footer.jsx, MetricsBar.jsx migrated from `data/metrics.js` and `data/statePrograms.js` to async `getStatePrograms()`/`getDashboardMetrics()` via useState/useEffect. `substationEngine.js` rewritten from hardcoded SUBSTATIONS object to async `getSubstations()` via new Supabase table. Search.jsx pre-fetches substations in `handleSubmit` alongside other data calls. New migration `004_substations.sql` + seed (48 substations across 8 states). Orphaned static files deleted: `metrics.js`, `statePrograms.js`, `newsFeed.js`, `countyData.js`. Bundle size dropped 821kB → 801kB.
+- **Hybrid Data Pipeline — Phase 4** (April 25): Monthly substation refresh cron `api/refresh-substations.js`. Queries EIA API v2 for plant-level data, filters to tracked states, upserts to `substations` table. Runs 1st of each month (6AM UTC). Graceful per-state failure handling. Requires `EIA_API_KEY` env var (optional — skips gracefully if not set). Vercel cron entry added.
+
+### Data Pipeline Summary
+
+All market intelligence data now served from Supabase with 1-hour TTL cache in `programData.js`:
+
+| Data | Source Table | Refresh | Admin Editable |
+|------|-------------|---------|----------------|
+| State programs (19 states) | `state_programs` | Manual (admin UI) | Yes |
+| County intelligence (~150 counties) | `county_intelligence` | Manual (admin UI) | Yes |
+| Revenue stacks | `revenue_stacks` | Manual (admin UI) | Yes |
+| Revenue rates (CS/C&I/BESS) | `revenue_rates` | Manual (admin UI) | Yes |
+| IX queue data (12 utilities) | `ix_queue_data` | Weekly cron (Sunday) | Yes (overrides until next scrape) |
+| Substations (48 across 8 states) | `substations` | Monthly cron (1st) | No (EIA source) |
+| News feed | `news_feed` | Manual (admin UI) | Yes |
+| Dashboard metrics | `get_dashboard_metrics()` RPC | Live (computed) | N/A |
+
+**Pending SQL migrations to run in Supabase:**
+- `004_substations.sql` — creates substations table
+- `004_substations_seed.sql` — seeds 48 substations from EIA Form 860 data
+
+**Environment variable to add (optional):**
+- `EIA_API_KEY` — enables monthly EIA data refresh for substations. Get from https://www.eia.gov/opendata/register.php
 
 ---
 

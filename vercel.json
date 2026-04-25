@@ -19,6 +19,10 @@
     {
       "path": "/api/refresh-ix-queue",
       "schedule": "0 6 * * 0"
+    },
+    {
+      "path": "/api/refresh-substations",
+      "schedule": "0 6 1 * *"
     }
   ]
 }

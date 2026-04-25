@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import metrics from '../data/metrics'
 import { getDashboardMetrics, getStatePrograms, getNewsFeed } from '../lib/programData'
 
 // ── Modal detail content per card ────────────────────────────────────────────
@@ -315,17 +314,15 @@ export default function MetricsBar() {
     getNewsFeed().then(setNews).catch(console.error)
   }, [])
 
-  // Live values with fallback to static metrics.js while Supabase loads.
-  // utilitiesWithIXHeadroom and policyAlertsThisWeek stay in metrics.js
-  // until FERC/news scrapers exist.
+  // Live values from Supabase with graceful defaults while loading
   const m = {
-    statesWithActiveCS:    liveMetrics?.statesWithActiveCS    ?? metrics.statesWithActiveCS,
-    statesWithAnyCS:       liveMetrics?.statesWithAnyCS       ?? metrics.statesWithAnyCS,
-    utilitiesWithIXHeadroom: metrics.utilitiesWithIXHeadroom,
-    policyAlertsThisWeek:  metrics.policyAlertsThisWeek,
-    avgCSCapacityRemaining: liveMetrics?.avgCSCapacityRemaining ?? metrics.avgCSCapacityRemaining,
-    totalMWInPipeline:     liveMetrics?.totalMWInPipeline     ?? metrics.totalMWInPipeline,
-    lastUpdated:           liveMetrics?.lastUpdated           ?? metrics.lastUpdated,
+    statesWithActiveCS:     liveMetrics?.statesWithActiveCS     ?? '—',
+    statesWithAnyCS:        liveMetrics?.statesWithAnyCS        ?? '—',
+    utilitiesWithIXHeadroom: liveMetrics?.utilitiesWithIXHeadroom ?? '—',
+    policyAlertsThisWeek:   liveMetrics?.policyAlertsThisWeek   ?? '—',
+    avgCSCapacityRemaining: liveMetrics?.avgCSCapacityRemaining  ?? '—',
+    totalMWInPipeline:      liveMetrics?.totalMWInPipeline       ?? '—',
+    lastUpdated:            liveMetrics?.lastUpdated             ?? null,
   }
 
   const CARDS = [

@@ -15,50 +15,34 @@ const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Qu
 // Shared UI
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Cell({ value, field, editing, onChange, type = 'text', options }) {
-  if (!editing) {
-    const display = value === null || value === undefined ? '—' : String(value)
-    return <span className="text-sm text-gray-700 truncate">{display}</span>
-  }
-  if (options) {
-    return (
-      <select
-        value={value ?? ''}
-        onChange={e => onChange(field, e.target.value)}
-        className="text-sm border border-gray-300 rounded px-2 py-1 w-full bg-white"
-      >
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    )
-  }
-  if (type === 'boolean') {
-    return (
-      <input
-        type="checkbox"
-        checked={!!value}
-        onChange={e => onChange(field, e.target.checked)}
-        className="h-4 w-4 accent-primary"
-      />
-    )
-  }
-  if (type === 'textarea') {
-    return (
-      <textarea
-        value={value ?? ''}
-        onChange={e => onChange(field, e.target.value)}
-        rows={2}
-        className="text-sm border border-gray-300 rounded px-2 py-1 w-full resize-y"
-      />
-    )
-  }
+function Field({ label, value, field, onChange, type = 'text', options, className = '' }) {
+  const inputBase = 'text-sm border border-gray-300 rounded-md px-2.5 py-1.5 bg-white focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-colors'
   return (
-    <input
-      type={type}
-      value={value ?? ''}
-      onChange={e => onChange(field, type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value)}
-      className="text-sm border border-gray-300 rounded px-2 py-1 w-full"
-    />
+    <div className={className}>
+      <label className="text-[11px] font-medium text-gray-500 block mb-1">{label}</label>
+      {options ? (
+        <select value={value ?? ''} onChange={e => onChange(field, e.target.value)} className={`${inputBase} w-full`}>
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : type === 'boolean' ? (
+        <input type="checkbox" checked={!!value} onChange={e => onChange(field, e.target.checked)} className="h-4 w-4 accent-primary mt-1" />
+      ) : type === 'textarea' ? (
+        <textarea value={value ?? ''} onChange={e => onChange(field, e.target.value)} rows={2} className={`${inputBase} w-full resize-y`} />
+      ) : (
+        <input
+          type={type}
+          value={value ?? ''}
+          onChange={e => onChange(field, type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value)}
+          className={`${inputBase} ${type === 'number' ? 'w-24 tabular-nums' : 'w-full'}`}
+        />
+      )}
+    </div>
   )
+}
+
+function ReadOnlyCell({ value, className = '' }) {
+  const display = value === null || value === undefined ? '—' : String(value)
+  return <span className={`text-sm text-gray-700 tabular-nums ${className}`}>{display}</span>
 }
 
 function SaveBar({ dirty, saving, onSave, onCancel, error }) {
@@ -157,90 +141,84 @@ function StateProgramsTab() {
 
   const statusColor = { active: 'green', limited: 'yellow', pending: 'blue', none: 'gray' }
 
+  // Detail view when editing
+  if (editId) {
+    const p = programs.find(x => x.id === editId)
+    return (
+      <div>
+        <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600 mb-4">← Back to list</button>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">{p?.name || editId}</h3>
+              <span className="text-xs text-gray-400">State ID: {editId}</span>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase">Live Score</p>
+              <span className={`text-2xl font-bold tabular-nums ${previewScore >= 60 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {previewScore}
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+            <Field label="CS Status" value={editData.cs_status} field="cs_status" onChange={handleChange} options={['active', 'limited', 'pending', 'none']} />
+            <Field label="Program Name" value={editData.cs_program} field="cs_program" onChange={handleChange} />
+            <Field label="Capacity (MW)" value={editData.capacity_mw} field="capacity_mw" onChange={handleChange} type="number" />
+            <Field label="LMI %" value={editData.lmi_percent} field="lmi_percent" onChange={handleChange} type="number" />
+            <Field label="IX Difficulty" value={editData.ix_difficulty} field="ix_difficulty" onChange={handleChange} options={['easy', 'moderate', 'hard', 'very_hard']} />
+            <Field label="Enrollment Rate (MW/mo)" value={editData.enrollment_rate_mw_per_month} field="enrollment_rate_mw_per_month" onChange={handleChange} type="number" />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <Field label="IX Notes" value={editData.ix_notes} field="ix_notes" onChange={handleChange} type="textarea" />
+            <Field label="Program Notes" value={editData.program_notes} field="program_notes" onChange={handleChange} type="textarea" />
+          </div>
+
+          <div className="flex gap-3 pt-2 border-t border-gray-100">
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+            <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+          </div>
+          {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+        </div>
+      </div>
+    )
+  }
+
+  // List view
   return (
     <div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-200">
-              {['State', 'Status', 'Program', 'Cap (MW)', 'LMI %', 'IX Diff', 'Enroll/mo', 'Score', ''].map(h => (
-                <th key={h} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-2 px-3">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {programs.filter(p => p.csStatus !== 'none').map(p => {
-              const isEditing = editId === p.id
-              return (
-                <tr key={p.id} className={`border-b border-gray-100 ${isEditing ? 'bg-primary-50/30' : 'hover:bg-gray-50'}`}>
-                  <td className="px-3 py-2.5">
-                    <span className="text-sm font-medium text-gray-900">{p.id}</span>
-                    <span className="text-xs text-gray-400 ml-1.5">{p.name}</span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {isEditing ? (
-                      <Cell value={editData.cs_status} field="cs_status" editing onChange={handleChange} options={['active', 'limited', 'pending', 'none']} />
-                    ) : (
-                      <Badge color={statusColor[p.csStatus]}>{p.csStatus}</Badge>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 max-w-[140px]">
-                    <Cell value={isEditing ? editData.cs_program : p.csProgram} field="cs_program" editing={isEditing} onChange={handleChange} />
-                  </td>
-                  <td className="px-3 py-2.5 w-20">
-                    <Cell value={isEditing ? editData.capacity_mw : p.capacityMW} field="capacity_mw" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-3 py-2.5 w-16">
-                    <Cell value={isEditing ? editData.lmi_percent : p.lmiPercent} field="lmi_percent" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {isEditing ? (
-                      <Cell value={editData.ix_difficulty} field="ix_difficulty" editing onChange={handleChange} options={['easy', 'moderate', 'hard', 'very_hard']} />
-                    ) : (
-                      <span className="text-sm text-gray-700">{p.ixDifficulty}</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 w-20">
-                    <Cell value={isEditing ? editData.enrollment_rate_mw_per_month : p.enrollmentRateMWPerMonth} field="enrollment_rate_mw_per_month" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-3 py-2.5 w-16">
-                    <span className={`text-sm font-bold tabular-nums ${(isEditing ? previewScore : p.feasibilityScore) >= 60 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                      {isEditing ? previewScore : p.feasibilityScore}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    {isEditing ? (
-                      <div className="flex gap-2">
-                        <button onClick={handleSave} disabled={saving} className="text-xs font-medium text-primary hover:text-primary-700 disabled:opacity-50">
-                          {saving ? 'Saving...' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => startEdit(p)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      <div className="space-y-1.5">
+        {programs.filter(p => p.csStatus !== 'none').map(p => (
+          <button
+            key={p.id}
+            onClick={() => startEdit(p)}
+            className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-sm font-bold text-gray-900 w-7">{p.id}</span>
+                <span className="text-sm text-gray-600 truncate">{p.name}</span>
+                <Badge color={statusColor[p.csStatus]}>{p.csStatus}</Badge>
+              </div>
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <div className="text-right hidden sm:block">
+                  <span className="text-xs text-gray-400">{p.capacityMW} MW</span>
+                  <span className="text-xs text-gray-300 mx-1.5">|</span>
+                  <span className="text-xs text-gray-400">{p.ixDifficulty}</span>
+                </div>
+                <span className={`text-sm font-bold tabular-nums w-8 text-right ${p.feasibilityScore >= 60 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {p.feasibilityScore}
+                </span>
+                <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
-      {error && <p className="text-xs text-red-500 px-3 py-2">{error}</p>}
-
-      {editId && (
-        <div className="mt-4 bg-gray-50 rounded-lg p-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Notes (editing {editId})</p>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">IX Notes</label>
-            <Cell value={editData.ix_notes} field="ix_notes" editing onChange={handleChange} type="textarea" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Program Notes</label>
-            <Cell value={editData.program_notes} field="program_notes" editing onChange={handleChange} type="textarea" />
-          </div>
-        </div>
-      )}
+      {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
     </div>
   )
 }
@@ -308,90 +286,70 @@ function CountiesTab() {
         <p className="text-sm text-gray-400 py-8 text-center">Loading counties...</p>
       ) : counties.length === 0 ? (
         <p className="text-sm text-gray-400 py-8 text-center">No county data for {stateId}</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-gray-200">
-                {['County', 'Utility', 'Queue Status', 'Ease', 'Land', 'Wetland', ''].map(h => (
-                  <th key={h} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-2 px-3">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {counties.map(c => {
-                const isEditing = editId === c.id
-                return (
-                  <tr key={c.id} className={`border-b border-gray-100 ${isEditing ? 'bg-primary-50/30' : 'hover:bg-gray-50'}`}>
-                    <td className="px-3 py-2.5 text-sm font-medium text-gray-900">{c.county_slug}</td>
-                    <td className="px-3 py-2.5">
-                      <Cell value={isEditing ? editData.serving_utility : c.serving_utility} field="serving_utility" editing={isEditing} onChange={handleChange} />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {isEditing ? (
-                        <Cell value={editData.queue_status_code} field="queue_status_code" editing onChange={handleChange} options={['open', 'limited', 'saturated']} />
-                      ) : (
-                        <span className="text-sm text-gray-700">{c.queue_status_code || '—'}</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 w-16">
-                      <Cell value={isEditing ? editData.ease_score : c.ease_score} field="ease_score" editing={isEditing} onChange={handleChange} type="number" />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Cell value={isEditing ? editData.available_land : c.available_land} field="available_land" editing={isEditing} onChange={handleChange} type="boolean" />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <Cell value={isEditing ? editData.wetland_warning : c.wetland_warning} field="wetland_warning" editing={isEditing} onChange={handleChange} type="boolean" />
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {isEditing ? (
-                        <div className="flex gap-2">
-                          <button onClick={handleSave} disabled={saving} className="text-xs font-medium text-primary hover:text-primary-700 disabled:opacity-50">
-                            {saving ? '...' : 'Save'}
-                          </button>
-                          <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => startEdit(c)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      ) : editId ? (
+        <div>
+          <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600 mb-4">← Back to list</button>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-5">{editData.county_slug} <span className="text-sm font-normal text-gray-400">({stateId})</span></h3>
 
-      {editId && (
-        <div className="mt-4 bg-gray-50 rounded-lg p-4 grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Queue Status</label>
-            <Cell value={editData.queue_status} field="queue_status" editing onChange={handleChange} type="textarea" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Avg Study Timeline</label>
-            <Cell value={editData.avg_study_timeline} field="avg_study_timeline" editing onChange={handleChange} />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Queue Notes</label>
-            <Cell value={editData.queue_notes} field="queue_notes" editing onChange={handleChange} type="textarea" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Land Notes</label>
-            <Cell value={editData.land_notes} field="land_notes" editing onChange={handleChange} type="textarea" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Wetland Notes</label>
-            <Cell value={editData.wetland_notes} field="wetland_notes" editing onChange={handleChange} type="textarea" />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500 block mb-1">Land Use Notes</label>
-            <Cell value={editData.land_use_notes} field="land_use_notes" editing onChange={handleChange} type="textarea" />
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Interconnection</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+              <Field label="Serving Utility" value={editData.serving_utility} field="serving_utility" onChange={handleChange} />
+              <Field label="Queue Status Code" value={editData.queue_status_code} field="queue_status_code" onChange={handleChange} options={['open', 'limited', 'saturated']} />
+              <Field label="Ease Score (1-10)" value={editData.ease_score} field="ease_score" onChange={handleChange} type="number" />
+              <Field label="Avg Study Timeline" value={editData.avg_study_timeline} field="avg_study_timeline" onChange={handleChange} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <Field label="Queue Status" value={editData.queue_status} field="queue_status" onChange={handleChange} type="textarea" />
+              <Field label="Queue Notes" value={editData.queue_notes} field="queue_notes" onChange={handleChange} type="textarea" />
+            </div>
+
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Site Control</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+              <Field label="Available Land" value={editData.available_land} field="available_land" onChange={handleChange} type="boolean" />
+              <Field label="Wetland Warning" value={editData.wetland_warning} field="wetland_warning" onChange={handleChange} type="boolean" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+              <Field label="Land Notes" value={editData.land_notes} field="land_notes" onChange={handleChange} type="textarea" />
+              <Field label="Wetland Notes" value={editData.wetland_notes} field="wetland_notes" onChange={handleChange} type="textarea" />
+              <Field label="Land Use Notes" value={editData.land_use_notes} field="land_use_notes" onChange={handleChange} type="textarea" />
+            </div>
+
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+              <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+            </div>
+            {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
           </div>
         </div>
+      ) : (
+        <div className="space-y-1.5">
+          {counties.map(c => (
+            <button
+              key={c.id}
+              onClick={() => startEdit(c)}
+              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-2.5 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-900">{c.county_slug}</span>
+                  <span className="text-xs text-gray-400">{c.serving_utility || '—'}</span>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <Badge color={c.queue_status_code === 'open' ? 'green' : c.queue_status_code === 'limited' ? 'yellow' : c.queue_status_code === 'saturated' ? 'red' : 'gray'}>
+                    {c.queue_status_code || '—'}
+                  </Badge>
+                  <span className="text-xs text-gray-400 tabular-nums w-6 text-right">{c.ease_score ?? '—'}</span>
+                  <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
       )}
-      {error && <p className="text-xs text-red-500 px-3 py-2">{error}</p>}
+      {!editId && error && <p className="text-xs text-red-500 mt-3">{error}</p>}
     </div>
   )
 }
@@ -463,68 +421,63 @@ function RevenueRatesTab() {
     <div>
       {editId ? (
         <div>
-          <div className="flex items-center gap-3 mb-4">
-            <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">← Back to list</button>
-            <span className="text-sm font-medium text-gray-900">Editing: {editId} — {editData.label}</span>
-          </div>
+          <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600 mb-4">← Back to list</button>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">{editData.label || editId}</h3>
+            <span className="text-xs text-gray-400">State ID: {editId}</span>
 
-          {['cs', 'ci', 'bess'].map(group => (
-            <div key={group} className="mb-6">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                {group === 'cs' ? 'Community Solar' : group === 'ci' ? 'C&I Solar' : 'BESS'}
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {NUM_FIELDS.filter(f => f.group === group).map(f => (
-                  <div key={f.key}>
-                    <label className="text-xs text-gray-500 block mb-1">{f.label}</label>
-                    <Cell value={editData[f.key]} field={f.key} editing onChange={handleChange} type="number" />
-                  </div>
-                ))}
+            {['cs', 'ci', 'bess'].map(group => (
+              <div key={group} className="mt-5">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  {group === 'cs' ? 'Community Solar' : group === 'ci' ? 'C&I Solar' : 'BESS'}
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {NUM_FIELDS.filter(f => f.group === group).map(f => (
+                    <Field key={f.key} label={f.label} value={editData[f.key]} field={f.key} onChange={handleChange} type="number" />
+                  ))}
+                </div>
               </div>
+            ))}
+
+            <div className="mt-5">
+              <Field label="Notes" value={editData.notes} field="notes" onChange={handleChange} type="textarea" />
             </div>
-          ))}
 
-          <div className="mb-4">
-            <label className="text-xs text-gray-500 block mb-1">Notes</label>
-            <Cell value={editData.notes} field="notes" editing onChange={handleChange} type="textarea" />
+            <div className="flex gap-3 pt-4 mt-5 border-t border-gray-100">
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+              <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+            </div>
+            {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
           </div>
-
-          <div className="flex gap-2">
-            <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-            <button onClick={() => setEditId(null)} className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
-          </div>
-          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-gray-200">
-                {['State', 'Bill Credit', 'REC', 'ITC', 'Cap Factor', 'C&I PPA', 'BESS Cap', 'Updated', ''].map(h => (
-                  <th key={h} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-2 px-3">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rates.map(r => (
-                <tr key={r.state_id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.state_id}</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-700 tabular-nums">{r.bill_credit_cents_kwh}¢</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-700 tabular-nums">${r.rec_per_mwh}</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-700 tabular-nums">{r.itc_pct}%+{r.itc_adder_pct}%</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-700 tabular-nums">{r.capacity_factor_pct}%</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-700 tabular-nums">{r.ci_ppa_rate_cents_kwh ?? '—'}¢</td>
-                  <td className="px-3 py-2.5 text-sm text-gray-700 tabular-nums">${r.bess_capacity_per_kw_year ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-xs text-gray-400">{r.updated_at ? new Date(r.updated_at).toLocaleDateString() : '—'}</td>
-                  <td className="px-3 py-2.5">
-                    <button onClick={() => startEdit(r)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-1.5">
+          {rates.map(r => (
+            <button
+              key={r.state_id}
+              onClick={() => startEdit(r)}
+              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-sm font-bold text-gray-900 w-7">{r.state_id}</span>
+                  <span className="text-sm text-gray-600 truncate">{r.label || '—'}</span>
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="text-right hidden sm:flex items-center gap-3">
+                    <span className="text-xs text-gray-400 tabular-nums">{r.bill_credit_cents_kwh}¢</span>
+                    <span className="text-xs text-gray-300">|</span>
+                    <span className="text-xs text-gray-400 tabular-nums">${r.rec_per_mwh} REC</span>
+                    <span className="text-xs text-gray-300">|</span>
+                    <span className="text-xs text-gray-400 tabular-nums">{r.itc_pct}%+{r.itc_adder_pct}%</span>
+                  </div>
+                  <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -632,49 +585,25 @@ function NewsFeedTab() {
       </div>
 
       {isFormOpen && (
-        <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{adding ? 'New item' : `Editing: ${editData.headline?.slice(0, 40)}...`}</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="text-xs text-gray-500 block mb-1">Headline</label>
-              <Cell value={editData.headline} field="headline" editing onChange={handleChange} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Source</label>
-              <Cell value={editData.source} field="source" editing onChange={handleChange} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">URL</label>
-              <Cell value={editData.url} field="url" editing onChange={handleChange} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Date</label>
-              <Cell value={editData.date} field="date" editing onChange={handleChange} type="date" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Pillar</label>
-              <Cell value={editData.pillar} field="pillar" editing onChange={handleChange} options={['offtake', 'ix', 'site']} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">Type</label>
-              <Cell value={editData.type} field="type" editing onChange={handleChange} options={['policy-alert', 'market-update']} />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 block mb-1">State IDs (comma-separated)</label>
-              <Cell value={Array.isArray(editData.stateIds) ? editData.stateIds.join(', ') : editData.stateIds} field="stateIds" editing onChange={handleChange} />
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs text-gray-500 block mb-1">Summary</label>
-              <Cell value={editData.summary} field="summary" editing onChange={handleChange} type="textarea" />
-            </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">{adding ? 'New item' : `Editing: ${editData.headline?.slice(0, 40)}...`}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="Headline" value={editData.headline} field="headline" onChange={handleChange} className="md:col-span-2" />
+            <Field label="Source" value={editData.source} field="source" onChange={handleChange} />
+            <Field label="URL" value={editData.url} field="url" onChange={handleChange} />
+            <Field label="Date" value={editData.date} field="date" onChange={handleChange} type="date" />
+            <Field label="Pillar" value={editData.pillar} field="pillar" onChange={handleChange} options={['offtake', 'ix', 'site']} />
+            <Field label="Type" value={editData.type} field="type" onChange={handleChange} options={['policy-alert', 'market-update']} />
+            <Field label="State IDs (comma-separated)" value={Array.isArray(editData.stateIds) ? editData.stateIds.join(', ') : editData.stateIds} field="stateIds" onChange={handleChange} />
+            <Field label="Summary" value={editData.summary} field="summary" onChange={handleChange} type="textarea" className="md:col-span-2" />
           </div>
-          <div className="flex gap-2">
-            <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
-              {saving ? 'Saving...' : adding ? 'Add' : 'Save'}
+          <div className="flex gap-3 pt-4 mt-4 border-t border-gray-100">
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              {saving ? 'Saving...' : adding ? 'Add item' : 'Save changes'}
             </button>
-            <button onClick={() => { setEditId(null); setAdding(false) }} className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+            <button onClick={() => { setEditId(null); setAdding(false) }} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
           </div>
-          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+          {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
         </div>
       )}
 
@@ -751,67 +680,71 @@ function IXQueueTab() {
   return (
     <div>
       <p className="text-xs text-gray-400 mb-4">Auto-refreshed weekly by cron. Manual edits persist until next scraper run.</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-200">
-              {['State', 'Utility', 'ISO', 'Projects', 'MW', 'Avg Study', 'Withdraw %', 'Upgrade $/MW', 'Trend', 'Source', ''].map(h => (
-                <th key={h} className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-2 px-2">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(r => {
-              const isEditing = editId === r.id
-              return (
-                <tr key={r.id} className={`border-b border-gray-100 ${isEditing ? 'bg-primary-50/30' : 'hover:bg-gray-50'}`}>
-                  <td className="px-2 py-2 text-sm font-medium text-gray-900">{r.state_id}</td>
-                  <td className="px-2 py-2 text-sm text-gray-700">{r.utility_name}</td>
-                  <td className="px-2 py-2 text-xs text-gray-400">{r.iso}</td>
-                  <td className="px-2 py-2">
-                    <Cell value={isEditing ? editData.projects_in_queue : r.projects_in_queue} field="projects_in_queue" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Cell value={isEditing ? editData.mw_pending : r.mw_pending} field="mw_pending" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Cell value={isEditing ? editData.avg_study_months : r.avg_study_months} field="avg_study_months" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Cell value={isEditing ? editData.withdrawal_pct : r.withdrawal_pct} field="withdrawal_pct" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-2 py-2">
-                    <Cell value={isEditing ? editData.avg_upgrade_cost_mw : r.avg_upgrade_cost_mw} field="avg_upgrade_cost_mw" editing={isEditing} onChange={handleChange} type="number" />
-                  </td>
-                  <td className="px-2 py-2">
-                    {isEditing ? (
-                      <Cell value={editData.queue_trend} field="queue_trend" editing onChange={handleChange} options={['growing', 'stable', 'shrinking']} />
-                    ) : (
-                      <span className={`text-sm font-medium ${trendColor[r.queue_trend] || ''}`}>{r.queue_trend}</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-2">
-                    <Badge color={r.data_source === 'scraper' ? 'green' : 'gray'}>{r.data_source}</Badge>
-                  </td>
-                  <td className="px-2 py-2">
-                    {isEditing ? (
-                      <div className="flex gap-2">
-                        <button onClick={handleSave} disabled={saving} className="text-xs font-medium text-primary hover:text-primary-700 disabled:opacity-50">
-                          {saving ? '...' : 'Save'}
-                        </button>
-                        <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => startEdit(r)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      {error && <p className="text-xs text-red-500 px-2 py-2">{error}</p>}
+
+      {editId ? (
+        <div>
+          <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600 mb-4">← Back to list</button>
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">{editData.utility_name}</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-gray-400">{editData.state_id}</span>
+                  <span className="text-xs text-gray-300">·</span>
+                  <span className="text-xs text-gray-400">{editData.iso}</span>
+                </div>
+              </div>
+              <span className={`text-sm font-medium ${trendColor[editData.queue_trend] || 'text-gray-500'}`}>{editData.queue_trend}</span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5">
+              <Field label="Projects in Queue" value={editData.projects_in_queue} field="projects_in_queue" onChange={handleChange} type="number" />
+              <Field label="MW Pending" value={editData.mw_pending} field="mw_pending" onChange={handleChange} type="number" />
+              <Field label="Avg Study (months)" value={editData.avg_study_months} field="avg_study_months" onChange={handleChange} type="number" />
+              <Field label="Withdrawal %" value={editData.withdrawal_pct} field="withdrawal_pct" onChange={handleChange} type="number" />
+              <Field label="Upgrade $/MW" value={editData.avg_upgrade_cost_mw} field="avg_upgrade_cost_mw" onChange={handleChange} type="number" />
+              <Field label="Trend" value={editData.queue_trend} field="queue_trend" onChange={handleChange} options={['growing', 'stable', 'shrinking']} />
+            </div>
+
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+              <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+            </div>
+            {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {rows.map(r => (
+            <button
+              key={r.id}
+              onClick={() => startEdit(r)}
+              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-sm font-bold text-gray-900 w-7">{r.state_id}</span>
+                  <span className="text-sm text-gray-600 truncate">{r.utility_name}</span>
+                  <span className="text-xs text-gray-400">{r.iso}</span>
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="text-right hidden sm:flex items-center gap-3">
+                    <span className="text-xs text-gray-400 tabular-nums">{r.projects_in_queue} projects</span>
+                    <span className="text-xs text-gray-300">|</span>
+                    <span className="text-xs text-gray-400 tabular-nums">{r.mw_pending} MW</span>
+                    <span className="text-xs text-gray-300">|</span>
+                    <span className={`text-xs font-medium ${trendColor[r.queue_trend] || ''}`}>{r.queue_trend}</span>
+                  </div>
+                  <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      {!editId && error && <p className="text-xs text-red-500 mt-3">{error}</p>}
     </div>
   )
 }
