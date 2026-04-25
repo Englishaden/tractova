@@ -383,7 +383,9 @@ export async function updateStateProgram(id, fields) {
     .update({ ...fields, updated_by: 'admin' })
     .eq('id', id)
   if (error) throw error
-  invalidateCache()
+  invalidateCache('state_programs')
+  invalidateCache('state_program_map')
+  invalidateCache('dashboard_metrics')
 }
 
 export async function updateCountyIntelligence(id, fields) {
@@ -392,7 +394,8 @@ export async function updateCountyIntelligence(id, fields) {
     .update(fields)
     .eq('id', id)
   if (error) throw error
-  invalidateCache()
+  invalidateCache('county:*')
+  invalidateCache('county_all:*')
 }
 
 export async function upsertCountyIntelligence(fields) {
@@ -400,7 +403,8 @@ export async function upsertCountyIntelligence(fields) {
     .from('county_intelligence')
     .upsert(fields, { onConflict: 'state_id,county_slug' })
   if (error) throw error
-  invalidateCache()
+  invalidateCache('county:*')
+  invalidateCache('county_all:*')
 }
 
 export async function updateRevenueRates(stateId, fields) {
@@ -408,7 +412,8 @@ export async function updateRevenueRates(stateId, fields) {
     .from('revenue_rates')
     .upsert({ state_id: stateId, ...fields }, { onConflict: 'state_id' })
   if (error) throw error
-  invalidateCache()
+  invalidateCache(`revenue_rates:${stateId}`)
+  invalidateCache('revenue_rates_all')
 }
 
 export async function upsertNewsItem(fields) {
@@ -416,7 +421,8 @@ export async function upsertNewsItem(fields) {
     .from('news_feed')
     .upsert(fields)
   if (error) throw error
-  invalidateCache()
+  invalidateCache('news_feed')
+  invalidateCache('dashboard_metrics')
 }
 
 export async function deleteNewsItem(id) {
@@ -425,7 +431,8 @@ export async function deleteNewsItem(id) {
     .update({ is_active: false })
     .eq('id', id)
   if (error) throw error
-  invalidateCache()
+  invalidateCache('news_feed')
+  invalidateCache('dashboard_metrics')
 }
 
 export async function updateIXQueueRow(id, fields) {
@@ -434,15 +441,20 @@ export async function updateIXQueueRow(id, fields) {
     .update(fields)
     .eq('id', id)
   if (error) throw error
-  invalidateCache()
+  invalidateCache('ix_queue:*')
+  invalidateCache('ix_queue_all')
+  invalidateCache('dashboard_metrics')
 }
 
 // ── invalidateCache ───────────────────────────────────────────────────────────
-// Call this after any admin write to force a fresh fetch on next access.
+// Call with a specific key, a prefix (ending in *), or no args to clear all.
 export function invalidateCache(key) {
-  if (key) {
-    delete _cache[key]
-  } else {
+  if (!key) {
     Object.keys(_cache).forEach(k => delete _cache[k])
+  } else if (key.endsWith('*')) {
+    const prefix = key.slice(0, -1)
+    Object.keys(_cache).forEach(k => { if (k.startsWith(prefix)) delete _cache[k] })
+  } else {
+    delete _cache[key]
   }
 }

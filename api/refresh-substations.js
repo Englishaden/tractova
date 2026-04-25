@@ -93,6 +93,10 @@ async function refreshFromEIA(eiaData) {
 
   for (const row of eiaData) {
     if (!row.lat || !row.lon) continue // Skip rows without coordinates
+    // Validate: skip rows outside reasonable US bounds
+    if (row.lat < 24 || row.lat > 50 || row.lon < -125 || row.lon > -66) continue
+    // Validate: skip capacity outliers
+    if (row.capacity_mw > 5000) continue
 
     const { error } = await supabaseAdmin
       .from('substations')
@@ -108,13 +112,15 @@ async function refreshFromEIA(eiaData) {
   return changes
 }
 
-async function logUpdate(source, changeCount, details) {
+async function logUpdate(stateId, changeCount, details) {
   try {
     await supabaseAdmin.from('data_updates').insert({
-      source,
-      change_count: changeCount,
-      details,
-      created_at: new Date().toISOString(),
+      table_name: 'substations',
+      row_id: stateId || 'all',
+      field: 'bulk_refresh',
+      old_value: null,
+      new_value: `${changeCount} records: ${details}`,
+      updated_by: 'substation-refresh-eia',
     })
   } catch (err) {
     console.error('Failed to log update:', err.message)
@@ -130,8 +136,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const startTime = Date.now()
-  const results = { source: 'substation-refresh', changes: 0, errors: [] }
+  const startedAt = new Date()
+  const results = { source: 'substation-refresh', changes: 0, errors: [], warnings: [] }
 
   try {
     const eiaData = await fetchEIAData()
@@ -142,23 +148,33 @@ export default async function handler(req, res) {
 
       if (changes.length > 0) {
         await logUpdate(
-          'substation-refresh-eia',
+          'all',
           changes.length,
-          `Updated ${changes.length} substations from EIA data. Samples: ${changes.slice(0, 5).join('; ')}`
+          `Updated from EIA. Samples: ${changes.slice(0, 5).join('; ')}`
         )
       }
 
       console.log(`Substation refresh complete: ${changes.length} upserted from EIA`)
     } else {
       console.log('No EIA data returned — substations unchanged')
-      await logUpdate('substation-refresh-eia', 0, 'No EIA API key or no new data returned')
+      await logUpdate('all', 0, 'No EIA API key or no new data returned')
     }
   } catch (err) {
     results.errors.push(err.message)
     console.error('Substation refresh failed:', err)
   }
 
-  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+  // Log cron run for observability
+  await supabaseAdmin.from('cron_runs').insert({
+    cron_name: 'substation-refresh',
+    status: results.errors.length > 0 ? 'partial' : 'success',
+    started_at: startedAt.toISOString(),
+    finished_at: new Date().toISOString(),
+    duration_ms: Date.now() - startedAt.getTime(),
+    summary: results,
+  }).catch(err => console.error('Failed to log cron run:', err.message))
+
+  const elapsed = ((Date.now() - startedAt.getTime()) / 1000).toFixed(1)
   return res.status(200).json({
     ...results,
     elapsed: `${elapsed}s`,

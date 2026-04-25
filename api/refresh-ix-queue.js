@@ -270,12 +270,13 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const results = { success: [], failed: [], updated: 0, unchanged: 0 }
+  const startedAt = new Date()
+  const results = { success: [], failed: [], updated: 0, unchanged: 0, warnings: [] }
 
   // Fetch current data for trend comparison
   const { data: existing } = await supabaseAdmin
     .from('ix_queue_data')
-    .select('state_id, utility_name, projects_in_queue')
+    .select('state_id, utility_name, projects_in_queue, iso')
   const existingMap = {}
   for (const row of (existing || [])) {
     existingMap[`${row.state_id}:${row.utility_name}`] = row.projects_in_queue
@@ -312,10 +313,28 @@ export default async function handler(req, res) {
     }
   }
 
+  // Validate: skip ISOs that returned 0 rows when they previously had data
+  const isoRowCounts = {}
+  for (const u of allUpdates) { isoRowCounts[u.iso] = (isoRowCounts[u.iso] || 0) + 1 }
+  const existingISOs = new Set(Object.keys(existingMap).length > 0
+    ? (existing || []).map(r => r.iso).filter(Boolean)
+    : [])
+  for (const iso of existingISOs) {
+    if (!isoRowCounts[iso] || isoRowCounts[iso] === 0) {
+      results.warnings.push(`${iso} returned 0 rows but had existing data — skipping`)
+    }
+  }
+
   // Upsert each utility's data
   for (const update of allUpdates) {
     const key = `${update.stateId}:${update.utilityName}`
     const oldCount = existingMap[key]
+
+    // Validate: flag large drops but still write
+    if (oldCount != null && oldCount > 0 && update.projectsInQueue < oldCount * 0.5) {
+      results.warnings.push(`${key}: projects_in_queue dropped ${Math.round((1 - update.projectsInQueue / oldCount) * 100)}% (${oldCount} → ${update.projectsInQueue})`)
+    }
+
     const trend = computeTrend(update.projectsInQueue, oldCount)
 
     const row = {
@@ -355,6 +374,16 @@ export default async function handler(req, res) {
       results.unchanged++
     }
   }
+
+  // Log cron run for observability
+  await supabaseAdmin.from('cron_runs').insert({
+    cron_name: 'ix-queue-refresh',
+    status: results.failed.length > 0 ? 'partial' : 'success',
+    started_at: startedAt.toISOString(),
+    finished_at: new Date().toISOString(),
+    duration_ms: Date.now() - startedAt.getTime(),
+    summary: results,
+  }).catch(err => console.error('Failed to log cron run:', err.message))
 
   return res.status(200).json({
     message: `IX queue refresh complete`,
