@@ -15,6 +15,9 @@
 - **Hybrid Data Pipeline — Phase 2** (April 24-25): Admin data editor at `/admin`, gated by email check. 5 tabs: State Programs, Counties, Revenue Rates, News Feed, IX Queue. All use list→detail card UI pattern with `Field` component. Revenue rates table created (`003_revenue_rates.sql` + seed for 8 states with CS/C&I/BESS fields). `programData.js` extended with admin write helpers (`updateStateProgram`, `updateCountyIntelligence`, `upsertNewsItem`, etc.) and bulk read functions. Admin link added to Profile page (visible only to admin). Route added in App.jsx.
 - **Hybrid Data Pipeline — Phase 3** (April 25): All static data imports eliminated. Landing.jsx, Footer.jsx, MetricsBar.jsx migrated from `data/metrics.js` and `data/statePrograms.js` to async `getStatePrograms()`/`getDashboardMetrics()` via useState/useEffect. `substationEngine.js` rewritten from hardcoded SUBSTATIONS object to async `getSubstations()` via new Supabase table. Search.jsx pre-fetches substations in `handleSubmit` alongside other data calls. New migration `004_substations.sql` + seed (48 substations across 8 states). Orphaned static files deleted: `metrics.js`, `statePrograms.js`, `newsFeed.js`, `countyData.js`. Bundle size dropped 821kB → 801kB.
 - **Hybrid Data Pipeline — Phase 4** (April 25): Monthly substation refresh cron `api/refresh-substations.js`. Queries EIA API v2 for plant-level data, filters to tracked states, upserts to `substations` table. Runs 1st of each month (6AM UTC). Graceful per-state failure handling. Requires `EIA_API_KEY` env var (optional — skips gracefully if not set). Vercel cron entry added.
+- **Library light theme + dashboard bugs** (commit 9c00f03, April 25): Full dark→light theme conversion of Library.jsx (~80 inline style changes). Page background #0C1220 → bg-surface, all cards → bg-white border-gray-200, all rgba(255,255,255,...) text → gray-{400-900} Tailwind classes. Fixed invisible filter dropdowns (white-on-white option elements). MetricsBar stale data warning muted from yellow to neutral gray. Updated `get_dashboard_metrics()` RPC to compute IX Headroom and Policy Pulse from live `ix_queue_data` and `news_feed` tables (new migration 005_dashboard_metrics_v2.sql). Footer.jsx dark-mode library check removed.
+- **Data ops: Phases 1-3** (commit 599c61f, April 25): Fixed broken substations audit logging (wrong column names in data_updates insert). Fixed cache invalidation — all admin write helpers now target specific cache keys instead of nuking everything; added wildcard prefix support (`county:*`, `ix_queue:*`). New `cron_runs` table (migration 006) tracks every cron execution with status, duration, and summary JSONB. New `get_data_freshness()` RPC returns staleness metrics for all tables + last cron runs in one call. Both cron handlers now log to `cron_runs`. Added data validation: IX queue flags >50% drops and skips ISOs returning 0 rows; substations skips rows outside US bounds or with capacity >5000 MW. Warnings stored in `cron_runs.summary.warnings`.
+- **Data ops: Phases 4-5** (April 25): Admin "Data Health" tab added as 6th tab in Admin panel. Three sections: (1) Freshness Grid — 6 cards showing row count, last-updated age, green/yellow/red staleness indicator per table; (2) Cron History — table of last 20 cron runs with status badge, duration, changes, warnings; (3) Recent Changes — last 30 `data_updates` rows with old→new diff, source badge (scraper vs admin). New serverless endpoint `api/data-health.js` serves admin-only data using service role key with JWT auth. Weekly staleness notification cron `api/check-staleness.js` runs Monday 8AM UTC — checks all 6 tables against freshness thresholds and emails admin via Resend if any are stale/overdue. Vercel cron entry added.
 
 ### Data Pipeline Summary
 
@@ -32,8 +35,18 @@ All market intelligence data now served from Supabase with 1-hour TTL cache in `
 | Dashboard metrics | `get_dashboard_metrics()` RPC | Live (computed) | N/A |
 
 **Pending SQL migrations to run in Supabase:**
-- `004_substations.sql` — creates substations table
-- `004_substations_seed.sql` — seeds 48 substations from EIA Form 860 data
+- `005_dashboard_metrics_v2.sql` — updates `get_dashboard_metrics()` RPC for IX Headroom + Policy Pulse
+- `006_cron_runs.sql` — creates `cron_runs` table + `get_data_freshness()` RPC
+
+### Data Ops — Remaining Phases (Phases 1-3 shipped, 4-7 pending)
+- ~~Phase 1: Fix substations logging + cache invalidation~~ **DONE** (commit 599c61f)
+- ~~Phase 2: Cron observability — `cron_runs` table + `get_data_freshness()` RPC~~ **DONE** (commit 599c61f)
+- ~~Phase 3: Data validation — sanity checks in scrapers~~ **DONE** (commit 599c61f)
+- ~~Phase 4: Admin "Data Health" tab — freshness grid, cron history, change log~~ **DONE**
+- ~~Phase 5: Weekly staleness notification email to admin~~ **DONE**
+- **Phase 6**: Expand automated refresh (EIA retail rates, NREL capacity factors)
+- **Phase 7**: Retention policies, staging workflow activation, export/backup
+See full plan: `.claude/plans/cheerful-seeking-adleman.md`
 
 **Environment variable to add (optional):**
 - `EIA_API_KEY` — enables monthly EIA data refresh for substations. Get from https://www.eia.gov/opendata/register.php

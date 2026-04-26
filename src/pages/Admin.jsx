@@ -9,7 +9,7 @@ import {
 } from '../lib/programData'
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
-const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Queue']
+const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Queue', 'Data Health']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI
@@ -750,6 +750,221 @@ function IXQueueTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Data Health Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+const FRESHNESS_CONFIG = {
+  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'newest_verified', staleField: 'stale_count', thresholds: [90, 180] },
+  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'newest_fetch',    staleField: 'stale_count', thresholds: [14, 30] },
+  substations:         { label: 'Substations',         icon: '🔌', field: 'last_updated',    staleField: null,          thresholds: [60, 180] },
+  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified', staleField: 'stale_count', thresholds: [90, 180] },
+  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_updated',    staleField: null,          thresholds: [90, 180] },
+  news_feed:           { label: 'News Feed',           icon: '📰', field: 'latest_item',     staleField: null,          thresholds: [14, 30] },
+}
+
+function daysSince(dateStr) {
+  if (!dateStr) return null
+  return Math.round((Date.now() - new Date(dateStr).getTime()) / 86400000)
+}
+
+function freshnessColor(days, thresholds) {
+  if (days == null) return 'gray'
+  if (days <= thresholds[0]) return 'green'
+  if (days <= thresholds[1]) return 'yellow'
+  return 'red'
+}
+
+function DataHealthTab() {
+  const [data, setData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function fetchHealth() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { setError('Not authenticated'); setLoading(false); return }
+        const resp = await fetch('/api/data-health', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+        setData(await resp.json())
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchHealth()
+  }, [])
+
+  if (loading) return <div className="py-12 text-center text-sm text-gray-400">Loading data health...</div>
+  if (error) return <div className="py-8 text-sm text-red-500">Failed to load: {error}</div>
+  if (!data) return null
+
+  const { freshness, cronRuns, dataUpdates } = data
+
+  return (
+    <div className="space-y-8">
+
+      {/* ── Section 1: Freshness Grid ── */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">Data Freshness</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {Object.entries(FRESHNESS_CONFIG).map(([key, cfg]) => {
+            const tableData = freshness?.[key]
+            if (!tableData) return null
+            const dateVal = tableData[cfg.field]
+            const days = daysSince(dateVal)
+            const color = freshnessColor(days, cfg.thresholds)
+            const rowCount = tableData.row_count ?? tableData.active_count ?? '—'
+            const staleCount = cfg.staleField ? (tableData[cfg.staleField] ?? 0) : null
+            const colorMap = { green: 'border-emerald-200 bg-emerald-50/40', yellow: 'border-amber-200 bg-amber-50/40', red: 'border-red-200 bg-red-50/40', gray: 'border-gray-200 bg-gray-50' }
+            const dotMap = { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500', gray: 'bg-gray-300' }
+
+            return (
+              <div key={key} className={`rounded-lg border px-4 py-3 ${colorMap[color]}`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-gray-700">{cfg.label}</span>
+                  <span className={`w-2 h-2 rounded-full ${dotMap[color]}`} />
+                </div>
+                <p className="text-lg font-bold text-gray-900 tabular-nums">{rowCount} <span className="text-xs font-normal text-gray-400">rows</span></p>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {days != null ? (
+                    <>Last updated <span className="font-medium">{days}d ago</span></>
+                  ) : (
+                    <span className="text-gray-400">No data</span>
+                  )}
+                </p>
+                {staleCount > 0 && (
+                  <p className="text-[10px] font-medium text-amber-600 mt-0.5">{staleCount} stale row{staleCount > 1 ? 's' : ''}</p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Section 2: Cron Run History ── */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">Cron Run History</h3>
+        {cronRuns.length === 0 ? (
+          <p className="text-xs text-gray-400 py-4">No cron runs recorded yet. Runs will appear after the next scheduled cron execution.</p>
+        ) : (
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
+                  <th className="text-left px-3 py-2 font-semibold">Cron</th>
+                  <th className="text-left px-3 py-2 font-semibold">Status</th>
+                  <th className="text-left px-3 py-2 font-semibold">Finished</th>
+                  <th className="text-right px-3 py-2 font-semibold">Duration</th>
+                  <th className="text-right px-3 py-2 font-semibold">Changes</th>
+                  <th className="text-left px-3 py-2 font-semibold">Warnings</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cronRuns.map((run) => {
+                  const statusColor = run.status === 'success' ? 'green' : run.status === 'partial' ? 'yellow' : 'red'
+                  const summary = run.summary || {}
+                  const changes = summary.updated ?? summary.changes ?? 0
+                  const warnings = summary.warnings || []
+                  const finishedAgo = daysSince(run.finished_at)
+                  return (
+                    <tr key={run.id} className={`border-b border-gray-100 last:border-0 ${run.status === 'failed' ? 'bg-red-50/30' : ''}`}>
+                      <td className="px-3 py-2 font-medium text-gray-700">{run.cron_name}</td>
+                      <td className="px-3 py-2"><Badge color={statusColor}>{run.status}</Badge></td>
+                      <td className="px-3 py-2 text-gray-500 tabular-nums">
+                        {run.finished_at ? (
+                          <>{finishedAgo === 0 ? 'Today' : `${finishedAgo}d ago`} <span className="text-gray-300">·</span> {new Date(run.finished_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</>
+                        ) : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{run.duration_ms != null ? `${(run.duration_ms / 1000).toFixed(1)}s` : '—'}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-medium text-gray-700">{changes}</td>
+                      <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate">{warnings.length > 0 ? warnings.join('; ') : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 3: Recent Changes ── */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-900 mb-3">Recent Data Changes</h3>
+        {dataUpdates.length === 0 ? (
+          <p className="text-xs text-gray-400 py-4">No changes recorded yet.</p>
+        ) : (
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500 border-b border-gray-200">
+                  <th className="text-left px-3 py-2 font-semibold">Table</th>
+                  <th className="text-left px-3 py-2 font-semibold">Row</th>
+                  <th className="text-left px-3 py-2 font-semibold">Field</th>
+                  <th className="text-left px-3 py-2 font-semibold">Old → New</th>
+                  <th className="text-left px-3 py-2 font-semibold">By</th>
+                  <th className="text-left px-3 py-2 font-semibold">When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dataUpdates.map((u) => {
+                  const ago = daysSince(u.updated_at)
+                  return (
+                    <tr key={u.id} className="border-b border-gray-100 last:border-0">
+                      <td className="px-3 py-2 font-medium text-gray-700">{u.table_name}</td>
+                      <td className="px-3 py-2 text-gray-500 max-w-[120px] truncate" title={u.row_id}>{u.row_id}</td>
+                      <td className="px-3 py-2 text-gray-500">{u.field}</td>
+                      <td className="px-3 py-2 text-gray-500 max-w-[200px] truncate">
+                        {u.old_value && <span className="text-red-400 line-through mr-1">{u.old_value}</span>}
+                        <span className="text-emerald-600">{u.new_value}</span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                          u.updated_by?.includes('scraper') || u.updated_by?.includes('refresh')
+                            ? 'bg-blue-50 text-blue-600'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>{u.updated_by || '—'}</span>
+                      </td>
+                      <td className="px-3 py-2 text-gray-400 tabular-nums">{ago != null ? `${ago}d ago` : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Last Cron Runs Summary from RPC ── */}
+      {freshness?.last_cron_runs && freshness.last_cron_runs.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">Last Run per Cron</h3>
+          <div className="flex gap-3">
+            {freshness.last_cron_runs.map((r) => {
+              const ago = daysSince(r.finished_at)
+              const statusColor = r.status === 'success' ? 'green' : r.status === 'partial' ? 'yellow' : 'red'
+              return (
+                <div key={r.cron_name} className="flex-1 border border-gray-200 rounded-lg px-4 py-3">
+                  <p className="text-xs font-semibold text-gray-700">{r.cron_name}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge color={statusColor}>{r.status}</Badge>
+                    <span className="text-[11px] text-gray-400">{ago != null ? `${ago}d ago` : '—'}</span>
+                  </div>
+                  {r.changes && <p className="text-[11px] text-gray-500 mt-1">{r.changes} changes</p>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Admin Page Shell
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -798,6 +1013,7 @@ export default function Admin() {
             {tab === 2 && <RevenueRatesTab />}
             {tab === 3 && <NewsFeedTab />}
             {tab === 4 && <IXQueueTab />}
+            {tab === 5 && <DataHealthTab />}
           </div>
         </div>
       </main>
