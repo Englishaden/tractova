@@ -131,6 +131,32 @@ export default async function handler(req, res) {
     console.error('Staleness check failed:', err)
   }
 
+  // ── Data Retention Cleanup ──────────────────────────────────────────────────
+  // Piggyback on weekly staleness check to prune old records.
+  // data_updates: keep 1 year, cron_runs: keep 6 months.
+  try {
+    const oneYearAgo = new Date(Date.now() - 365 * 86400000).toISOString()
+    const sixMonthsAgo = new Date(Date.now() - 180 * 86400000).toISOString()
+
+    const { count: deletedUpdates } = await supabaseAdmin
+      .from('data_updates')
+      .delete({ count: 'exact' })
+      .lt('updated_at', oneYearAgo)
+
+    const { count: deletedRuns } = await supabaseAdmin
+      .from('cron_runs')
+      .delete({ count: 'exact' })
+      .lt('created_at', sixMonthsAgo)
+
+    results.retention = {
+      data_updates_pruned: deletedUpdates ?? 0,
+      cron_runs_pruned: deletedRuns ?? 0,
+    }
+  } catch (err) {
+    results.retentionError = err.message
+    console.error('Retention cleanup failed:', err.message)
+  }
+
   // Log cron run
   await supabaseAdmin.from('cron_runs').insert({
     cron_name: 'staleness-check',

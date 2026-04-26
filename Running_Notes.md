@@ -46,11 +46,17 @@ All market intelligence data now served from Supabase with 1-hour TTL cache in `
 - ~~Phase 4: Admin "Data Health" tab — freshness grid, cron history, change log~~ **DONE**
 - ~~Phase 5: Weekly staleness notification email to admin~~ **DONE**
 - ~~Phase 6: Expand automated refresh (EIA retail rates, NREL capacity factors)~~ **DONE**
-- **Phase 7**: Retention policies, staging workflow activation, export/backup
+- ~~Phase 7: Retention policies, staging workflow, export/backup~~ **DONE**
 See full plan: `.claude/plans/cheerful-seeking-adleman.md`
 
-**Environment variable to add (optional):**
+**Phase 7 details:**
+- **7A — Data retention**: Weekly staleness cron now prunes `data_updates` >1 year and `cron_runs` >6 months
+- **7B — Staging workflow**: `state_programs_staging` table now active. New `api/staging.js` endpoint + Admin "Staging" tab. Scrapers/bulk imports write to staging → admin reviews diff → approve (promotes to live) or reject
+- **7C — Export/backup**: `api/export.js` endpoint downloads full JSON snapshot of all 7 data tables. Export button in Data Health tab
+
+**Environment variables to add (optional):**
 - `EIA_API_KEY` — enables monthly EIA data refresh for substations. Get from https://www.eia.gov/opendata/register.php
+- `NREL_API_KEY` — enables quarterly capacity factor refresh. Get free from https://developer.nrel.gov/signup/
 
 ---
 
