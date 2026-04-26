@@ -20,7 +20,7 @@ async function withCache(key, fetcher) {
   if (hit) {
     if (now - hit.ts < CACHE_TTL_MS) return hit.data
     // Stale — serve cached value and refresh in background
-    fetcher().then(data => { _cache[key] = { data, ts: Date.now() } }).catch(() => {})
+    fetcher().then(data => { _cache[key] = { data, ts: Date.now() } }).catch(err => console.error('[programData] background refresh failed:', key, err))
     return hit.data
   }
   const data = await fetcher()
@@ -117,10 +117,8 @@ export async function getStateProgram(id) {
 // ── getStateProgramMap ────────────────────────────────────────────────────────
 // Returns { IL: {...}, NY: {...}, ... } — drop-in replacement for stateById.
 export async function getStateProgramMap() {
-  return withCache('state_program_map', async () => {
-    const all = await getStatePrograms()
-    return Object.fromEntries(all.map(s => [s.id, s]))
-  })
+  const all = await getStatePrograms()
+  return Object.fromEntries(all.map(s => [s.id, s]))
 }
 
 // ── getCountyData ─────────────────────────────────────────────────────────────
@@ -281,9 +279,9 @@ export async function getIXQueueSummary(stateId, mwAC) {
   const mw = parseFloat(mwAC) || 5
   const totalProjects = data.utilities.reduce((s, u) => s + u.projectsInQueue, 0)
   const totalMW = data.utilities.reduce((s, u) => s + u.mwPending, 0)
-  const weightedStudy = data.utilities.reduce((s, u) => s + u.avgStudyMonths * u.projectsInQueue, 0) / totalProjects
-  const weightedWithdrawal = data.utilities.reduce((s, u) => s + u.withdrawalPct * u.projectsInQueue, 0) / totalProjects
-  const weightedUpgrade = data.utilities.reduce((s, u) => s + u.avgUpgradeCostMW * u.projectsInQueue, 0) / totalProjects
+  const weightedStudy = totalProjects > 0 ? data.utilities.reduce((s, u) => s + u.avgStudyMonths * u.projectsInQueue, 0) / totalProjects : 0
+  const weightedWithdrawal = totalProjects > 0 ? data.utilities.reduce((s, u) => s + u.withdrawalPct * u.projectsInQueue, 0) / totalProjects : 0
+  const weightedUpgrade = totalProjects > 0 ? data.utilities.reduce((s, u) => s + u.avgUpgradeCostMW * u.projectsInQueue, 0) / totalProjects : 0
 
   const estimatedUpgradeCost = Math.round(weightedUpgrade * mw)
   const congestionLevel = totalProjects > 100 ? 'high' : totalProjects > 50 ? 'moderate' : 'low'

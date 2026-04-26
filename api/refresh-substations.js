@@ -72,7 +72,7 @@ async function fetchEIAData() {
           name: row.plantName || row.plant_name || `Plant ${row.plantid || row.plant_id}`,
           lat: parseFloat(row.latitude) || null,
           lon: parseFloat(row.longitude) || null,
-          voltage_kv: null, // EIA facility-fuel doesn't include voltage; keep existing
+          // voltage_kv omitted — EIA doesn't include it; preserves existing values on upsert
           capacity_mw: capacity,
           utility: row.operator_name || row.operatorName || null,
         })
@@ -215,7 +215,9 @@ export default async function handler(req, res) {
   const authHeader = req.headers.authorization
   const cronHeader = req.headers['x-vercel-cron']
 
-  if (!cronHeader && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isVercelCron = cronHeader === '1'
+  const isBearerAuth = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
+  if (!isVercelCron && !isBearerAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 

@@ -90,7 +90,7 @@ function StateProgramsTab() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      invalidateCache()
+      invalidateCache('state_programs')
       const data = await getStatePrograms()
       setPrograms(data)
     } catch (e) { setError(e.message) }
@@ -265,7 +265,7 @@ function CountiesTab() {
     setSaving(true)
     setError(null)
     try {
-      const { id, ...fields } = editData
+      const { id, state_id, county_slug, created_at, updated_at, last_verified, ...fields } = editData
       await updateCountyIntelligence(id, fields)
       setEditId(null)
       await load()
@@ -567,6 +567,7 @@ function NewsFeedTab() {
   }
 
   const handleDeactivate = async (id) => {
+    if (!window.confirm('Remove this news item? This will deactivate it from the feed.')) return
     try {
       await deleteNewsItem(id)
       await load()
@@ -811,6 +812,7 @@ function StagingTab() {
     setActing(key)
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Session expired — please log in again')
       const resp = await fetch('/api/staging', {
         method: 'POST',
         headers: {
@@ -974,6 +976,7 @@ function DataHealthTab() {
     setExporting(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Session expired — please log in again')
       const resp = await fetch('/api/export', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })

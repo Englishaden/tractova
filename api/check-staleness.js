@@ -66,7 +66,7 @@ export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
   const isVercelCron = req.headers['x-vercel-cron'] === '1'
-  const isBearerAuth = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+  const isBearerAuth = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
   if (!isVercelCron && !isBearerAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }

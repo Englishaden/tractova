@@ -49,13 +49,12 @@ export default async function handler(req, res) {
         const session = data.object
         const userId = session.client_reference_id
         if (userId) {
-          await supabaseAdmin.from('profiles').upsert({
-            id: userId,
+          await supabaseAdmin.from('profiles').update({
             stripe_customer_id: session.customer,
             subscription_tier: 'pro',
             subscription_status: 'active',
             updated_at: new Date().toISOString(),
-          })
+          }).eq('id', userId)
         }
         break
       }
@@ -75,7 +74,9 @@ export default async function handler(req, res) {
 
       case 'invoice.payment_failed': {
         const invoice = data.object
-        await setTierByCustomer(invoice.customer, 'free', 'past_due')
+        // Keep tier as 'pro' — Stripe retries failed payments. Only downgrade
+        // on customer.subscription.deleted (actual cancellation).
+        await setTierByCustomer(invoice.customer, 'pro', 'past_due')
         break
       }
 

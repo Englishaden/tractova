@@ -57,7 +57,6 @@ export default async function handler(req, res) {
       const { data, error } = await supabaseAdmin
         .from(name)
         .select('*')
-        .order('id', { ascending: true })
         .limit(10000)
 
       if (error) {

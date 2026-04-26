@@ -89,7 +89,7 @@ export default function Profile() {
         .then(({ count }) => setProjectCount(count))
 
       supabase.from('projects')
-        .select('id, project_name, state, county, saved_at')
+        .select('id, name, state, county, saved_at')
         .eq('user_id', user.id)
         .order('saved_at', { ascending: false })
         .limit(5)
@@ -205,7 +205,7 @@ export default function Profile() {
                         {p.state || '—'}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-sm text-gray-800 font-medium truncate">{p.project_name || `${p.state} ${p.county || ''}`}</p>
+                        <p className="text-sm text-gray-800 font-medium truncate">{p.name || `${p.state} ${p.county || ''}`}</p>
                         {p.county && <p className="text-[10px] text-gray-400">{p.county} County</p>}
                       </div>
                     </div>

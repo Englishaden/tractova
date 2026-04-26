@@ -265,7 +265,7 @@ function computeTrend(newCount, oldCount) {
 export default async function handler(req, res) {
   // Auth: Vercel cron header or manual CRON_SECRET
   const isVercelCron = req.headers['x-vercel-cron'] === '1'
-  const isBearerAuth = req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+  const isBearerAuth = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
   if (!isVercelCron && !isBearerAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
