@@ -6,17 +6,17 @@ const supabaseAdmin = createClient(
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Substation Refresh Cron
+// Monthly Data Refresh Cron
 //
-// Runs monthly (1st of each month, 6 AM UTC). Downloads EIA Form 860
-// Schedule 2 (Plant level) data, filters to substations in our tracked
-// states, and upserts to the substations table.
+// Runs monthly (1st of each month, 6 AM UTC). Two tasks:
 //
-// EIA updates annually (typically June/July for prior year data).
-// Monthly check ensures we pick up updates promptly when they land.
+// 1. Substations — Downloads EIA Form 860 Schedule 2 (Plant level) data,
+//    filters to substations in tracked states, upserts to substations table.
+//
+// 2. Retail Electricity Rates — Downloads EIA state-average retail rates,
+//    upserts to revenue_rates.ci_retail_rate_cents_kwh for C&I PPA model.
 //
 // Data source: EIA Open Data API (api.eia.gov)
-// Endpoint: Electricity → Plant Level Data
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TRACKED_STATES = ['IL', 'NY', 'MA', 'MN', 'CO', 'NJ', 'MD', 'ME']
@@ -112,6 +112,89 @@ async function refreshFromEIA(eiaData) {
   return changes
 }
 
+// ── EIA Retail Electricity Rates ──────────────────────────────────────────────
+// Fetches state-average retail rates from EIA electricity/retail-sales endpoint.
+// Writes to revenue_rates.ci_retail_rate_cents_kwh for C&I PPA model comparisons.
+// Data is annual — monthly check picks up new year's data when published.
+
+async function fetchRetailRates() {
+  const apiKey = process.env.EIA_API_KEY
+  if (!apiKey) return { updated: 0, skipped: 'No EIA_API_KEY' }
+
+  const results = { updated: 0, errors: [], details: [] }
+
+  for (const stateId of TRACKED_STATES) {
+    try {
+      const url = new URL('https://api.eia.gov/v2/electricity/retail-sales/data/')
+      url.searchParams.set('api_key', apiKey)
+      url.searchParams.set('frequency', 'annual')
+      url.searchParams.set('data[0]', 'price')
+      url.searchParams.set('facets[stateid][]', stateId)
+      url.searchParams.set('facets[sectorid][]', 'COM')  // Commercial sector
+      url.searchParams.set('sort[0][column]', 'period')
+      url.searchParams.set('sort[0][direction]', 'desc')
+      url.searchParams.set('length', '1')
+
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) })
+      if (!res.ok) {
+        results.errors.push(`${stateId}: HTTP ${res.status}`)
+        continue
+      }
+
+      const json = await res.json()
+      const row = json?.response?.data?.[0]
+      if (!row?.price) {
+        results.errors.push(`${stateId}: no price data returned`)
+        continue
+      }
+
+      // EIA returns price in cents/kWh already
+      const rateCentsKwh = parseFloat(row.price)
+      if (isNaN(rateCentsKwh) || rateCentsKwh <= 0 || rateCentsKwh > 100) {
+        results.errors.push(`${stateId}: invalid price ${row.price}`)
+        continue
+      }
+
+      // Fetch existing rate to detect changes
+      const { data: existing } = await supabaseAdmin
+        .from('revenue_rates')
+        .select('ci_retail_rate_cents_kwh')
+        .eq('state_id', stateId)
+        .single()
+
+      const oldRate = existing?.ci_retail_rate_cents_kwh
+
+      const { error } = await supabaseAdmin
+        .from('revenue_rates')
+        .upsert({ state_id: stateId, ci_retail_rate_cents_kwh: rateCentsKwh }, { onConflict: 'state_id' })
+
+      if (error) {
+        results.errors.push(`${stateId}: upsert failed — ${error.message}`)
+      } else {
+        results.updated++
+        results.details.push(`${stateId}: ${rateCentsKwh}¢/kWh (period: ${row.period})`)
+
+        // Log change if value actually changed
+        if (oldRate != null && oldRate !== rateCentsKwh) {
+          await supabaseAdmin.from('data_updates').insert({
+            table_name: 'revenue_rates',
+            row_id: stateId,
+            field: 'ci_retail_rate_cents_kwh',
+            old_value: String(oldRate),
+            new_value: String(rateCentsKwh),
+            updated_by: 'eia-retail-rates',
+          }).catch(() => {})
+        }
+      }
+    } catch (err) {
+      results.errors.push(`${stateId}: ${err.message}`)
+    }
+  }
+
+  console.log(`Retail rates refresh: ${results.updated} updated, ${results.errors.length} errors`)
+  return results
+}
+
 async function logUpdate(stateId, changeCount, details) {
   try {
     await supabaseAdmin.from('data_updates').insert({
@@ -137,14 +220,15 @@ export default async function handler(req, res) {
   }
 
   const startedAt = new Date()
-  const results = { source: 'substation-refresh', changes: 0, errors: [], warnings: [] }
+  const results = { source: 'monthly-data-refresh', substations: 0, retailRates: 0, errors: [], warnings: [] }
 
+  // ── Task 1: Substations ──
   try {
     const eiaData = await fetchEIAData()
 
     if (eiaData) {
       const changes = await refreshFromEIA(eiaData)
-      results.changes = changes.length
+      results.substations = changes.length
 
       if (changes.length > 0) {
         await logUpdate(
@@ -160,13 +244,28 @@ export default async function handler(req, res) {
       await logUpdate('all', 0, 'No EIA API key or no new data returned')
     }
   } catch (err) {
-    results.errors.push(err.message)
+    results.errors.push(`substations: ${err.message}`)
     console.error('Substation refresh failed:', err)
+  }
+
+  // ── Task 2: Retail Electricity Rates ──
+  try {
+    const rateResults = await fetchRetailRates()
+    results.retailRates = rateResults.updated
+    if (rateResults.errors?.length > 0) {
+      results.warnings.push(...rateResults.errors.map(e => `retail-rates: ${e}`))
+    }
+    if (rateResults.details?.length > 0) {
+      results.retailRateDetails = rateResults.details
+    }
+  } catch (err) {
+    results.errors.push(`retail-rates: ${err.message}`)
+    console.error('Retail rates refresh failed:', err)
   }
 
   // Log cron run for observability
   await supabaseAdmin.from('cron_runs').insert({
-    cron_name: 'substation-refresh',
+    cron_name: 'monthly-data-refresh',
     status: results.errors.length > 0 ? 'partial' : 'success',
     started_at: startedAt.toISOString(),
     finished_at: new Date().toISOString(),
