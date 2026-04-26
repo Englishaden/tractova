@@ -1,100 +1,26 @@
 // Revenue projection engine for community solar projects.
-// Uses state-level rate data to estimate annual $/MW revenue from each stream.
-// Data sources: NREL benchmarks, Illinois Shines REC prices, NYSERDA VDER,
-// MA SMART, MN VOS, CO community solar tariffs. Updated 2026-04.
+// Computes annual $/MW revenue from each stream (bill credits, RECs, ITC, PPA, BESS).
+//
+// Data flow: Supabase `revenue_rates` table → getRevenueRates() in programData.js →
+// passed into compute functions here as `rates` parameter.
+//
+// Hardcoded fallback data below is used only when Supabase rates are unavailable
+// (e.g., first load before cache populates, or offline). The Supabase seed
+// (003_revenue_rates_seed.sql) matches these values; cron jobs update capacity
+// factors and retail rates over time.
 
+// ── Hardcoded fallback data (matches Supabase seed) ─────────────────────────
 const STATE_REVENUE_DATA = {
-  IL: {
-    billCreditCentsKwh: 8.2,
-    recPerMwh: 71.50,
-    itcPct: 30,
-    itcAdderPct: 10,
-    capacityFactorPct: 17.5,
-    installedCostPerWatt: 1.65,
-    degradationPct: 0.5,
-    label: 'Illinois (ComEd territory)',
-    notes: 'Bill credit = supply + transmission (~8.2¢/kWh ComEd). REC via Illinois Shines (~$71.50/REC). ITC 30% + 10% LMI adder if qualifying.',
-  },
-  NY: {
-    billCreditCentsKwh: 10.5,
-    recPerMwh: 0,
-    itcPct: 30,
-    itcAdderPct: 10,
-    capacityFactorPct: 16.0,
-    installedCostPerWatt: 1.80,
-    degradationPct: 0.5,
-    label: 'New York (ConEd territory)',
-    notes: 'Value Stack compensation (~10.5¢/kWh blended LBMP + ICAP + E + DRV). No separate SREC market. ITC 30% + Community Adder where available.',
-  },
-  MA: {
-    billCreditCentsKwh: 12.8,
-    recPerMwh: 35.00,
-    itcPct: 30,
-    itcAdderPct: 10,
-    capacityFactorPct: 16.5,
-    installedCostPerWatt: 1.75,
-    degradationPct: 0.5,
-    label: 'Massachusetts (SMART 3.0)',
-    notes: 'Net metering credit ~12.8¢/kWh. SMART 3.0 adder varies by tranche. SREC-II traded ~$35/MWh. ITC 30% + LMI adder potential.',
-  },
-  MN: {
-    billCreditCentsKwh: 9.5,
-    recPerMwh: 4.50,
-    itcPct: 30,
-    itcAdderPct: 0,
-    capacityFactorPct: 16.0,
-    installedCostPerWatt: 1.60,
-    degradationPct: 0.5,
-    label: 'Minnesota (Xcel Energy)',
-    notes: 'Value-of-Solar rate ~9.5¢/kWh (Xcel). Minimal REC market (~$4.50/MWh). ITC 30% base, no state adder currently.',
-  },
-  CO: {
-    billCreditCentsKwh: 8.8,
-    recPerMwh: 3.00,
-    itcPct: 30,
-    itcAdderPct: 0,
-    capacityFactorPct: 20.0,
-    installedCostPerWatt: 1.55,
-    degradationPct: 0.5,
-    label: 'Colorado (Xcel Energy)',
-    notes: 'Bill credit ~8.8¢/kWh. Minimal REC value (~$3/MWh). Strong irradiance drives higher capacity factor (~20%). ITC 30%.',
-  },
-  NJ: {
-    billCreditCentsKwh: 11.0,
-    recPerMwh: 85.00,
-    itcPct: 30,
-    itcAdderPct: 10,
-    capacityFactorPct: 16.5,
-    installedCostPerWatt: 1.70,
-    degradationPct: 0.5,
-    label: 'New Jersey (SREC-II / SuSI)',
-    notes: 'Net metering ~11¢/kWh. SREC-II / SuSI market ~$85/MWh — one of the strongest REC markets. ITC 30% + LMI adder.',
-  },
-  ME: {
-    billCreditCentsKwh: 9.0,
-    recPerMwh: 8.00,
-    itcPct: 30,
-    itcAdderPct: 0,
-    capacityFactorPct: 15.5,
-    installedCostPerWatt: 1.70,
-    degradationPct: 0.5,
-    label: 'Maine',
-    notes: 'Bill credit ~9¢/kWh. Modest REC value. ITC 30%.',
-  },
-  MD: {
-    billCreditCentsKwh: 9.5,
-    recPerMwh: 55.00,
-    itcPct: 30,
-    itcAdderPct: 10,
-    capacityFactorPct: 17.0,
-    installedCostPerWatt: 1.65,
-    degradationPct: 0.5,
-    label: 'Maryland',
-    notes: 'Bill credit ~9.5¢/kWh. SREC market ~$55/MWh. ITC 30% + LMI adder. Community Solar Pilot Program.',
-  },
+  IL: { billCreditCentsKwh: 8.2, recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 1.65, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: 'Bill credit = supply + transmission (~8.2¢/kWh ComEd). REC via Illinois Shines (~$71.50/REC). ITC 30% + 10% LMI adder if qualifying.' },
+  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.0, installedCostPerWatt: 1.80, degradationPct: 0.5, label: 'New York (ConEd territory)', notes: 'Value Stack compensation (~10.5¢/kWh blended LBMP + ICAP + E + DRV). No separate SREC market. ITC 30% + Community Adder where available.' },
+  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 1.75, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)', notes: 'Net metering credit ~12.8¢/kWh. SMART 3.0 adder varies by tranche. SREC-II traded ~$35/MWh. ITC 30% + LMI adder potential.' },
+  MN: { billCreditCentsKwh: 9.5, recPerMwh: 4.50, itcPct: 30, itcAdderPct: 0, capacityFactorPct: 16.0, installedCostPerWatt: 1.60, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)', notes: 'Value-of-Solar rate ~9.5¢/kWh (Xcel). Minimal REC market (~$4.50/MWh). ITC 30% base, no state adder currently.' },
+  CO: { billCreditCentsKwh: 8.8, recPerMwh: 3.00, itcPct: 30, itcAdderPct: 0, capacityFactorPct: 20.0, installedCostPerWatt: 1.55, degradationPct: 0.5, label: 'Colorado (Xcel Energy)', notes: 'Bill credit ~8.8¢/kWh. Minimal REC value (~$3/MWh). Strong irradiance drives higher capacity factor (~20%). ITC 30%.' },
+  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 1.70, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)', notes: 'Net metering ~11¢/kWh. SREC-II / SuSI market ~$85/MWh — one of the strongest REC markets. ITC 30% + LMI adder.' },
+  ME: { billCreditCentsKwh: 9.0, recPerMwh: 8.00, itcPct: 30, itcAdderPct: 0, capacityFactorPct: 15.5, installedCostPerWatt: 1.70, degradationPct: 0.5, label: 'Maine', notes: 'Bill credit ~9¢/kWh. Modest REC value. ITC 30%.' },
+  MD: { billCreditCentsKwh: 9.5, recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.0, installedCostPerWatt: 1.65, degradationPct: 0.5, label: 'Maryland', notes: 'Bill credit ~9.5¢/kWh. SREC market ~$55/MWh. ITC 30% + LMI adder. Community Solar Pilot Program.' },
 }
 
-// ── C&I Solar revenue data (PPA-based model) ─────────────────────────────────
 const CI_REVENUE_DATA = {
   IL: { ppaRateCentsKwh: 7.0, escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 17.5, degradationPct: 0.5, retailRateCentsKwh: 12.5, label: 'Illinois (C&I PPA)' },
   NY: { ppaRateCentsKwh: 8.0, escalatorPct: 2.0, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 16.0, degradationPct: 0.5, retailRateCentsKwh: 18.5, label: 'New York (C&I PPA)' },
@@ -106,7 +32,6 @@ const CI_REVENUE_DATA = {
   MD: { ppaRateCentsKwh: 7.0, escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 17.0, degradationPct: 0.5, retailRateCentsKwh: 13.5, label: 'Maryland (C&I PPA)' },
 }
 
-// ── BESS revenue data (capacity market + demand charge + arbitrage) ───────────
 const BESS_REVENUE_DATA = {
   IL:  { isoRegion: 'PJM',    capacityPerKwYear: 65, demandChargePerKwMonth: 12, arbitragePerMwh: 30, installedCostPerKwh: 380, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Illinois (PJM)' },
   NY:  { isoRegion: 'NYISO',  capacityPerKwYear: 70, demandChargePerKwMonth: 14, arbitragePerMwh: 35, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New York (NYISO)' },
@@ -120,6 +45,56 @@ const BESS_REVENUE_DATA = {
 
 const HOURS_PER_YEAR = 8760
 
+// ── Map Supabase revenue_rates row → engine format ──────────────────────────
+// Supabase returns snake_case; engine uses camelCase.
+// Returns null if the rates row doesn't have the needed fields.
+
+function mapCSRates(row) {
+  if (!row) return null
+  return {
+    billCreditCentsKwh: Number(row.bill_credit_cents_kwh),
+    recPerMwh:          Number(row.rec_per_mwh),
+    itcPct:             Number(row.itc_pct),
+    itcAdderPct:        Number(row.itc_adder_pct ?? 0),
+    capacityFactorPct:  Number(row.capacity_factor_pct),
+    installedCostPerWatt: Number(row.installed_cost_per_watt),
+    degradationPct:     Number(row.degradation_pct),
+    label:              row.label,
+    notes:              row.notes,
+  }
+}
+
+function mapCIRates(row) {
+  if (!row) return null
+  return {
+    ppaRateCentsKwh:    Number(row.ci_ppa_rate_cents_kwh),
+    escalatorPct:       Number(row.ci_escalator_pct),
+    installedCostPerWatt: Number(row.ci_installed_cost_per_watt),
+    itcPct:             Number(row.ci_itc_pct),
+    capacityFactorPct:  Number(row.ci_capacity_factor_pct),
+    degradationPct:     Number(row.ci_degradation_pct),
+    retailRateCentsKwh: Number(row.ci_retail_rate_cents_kwh),
+    label:              row.ci_label,
+  }
+}
+
+function mapBESSRates(row) {
+  if (!row) return null
+  return {
+    isoRegion:          row.bess_iso_region,
+    capacityPerKwYear:  Number(row.bess_capacity_per_kw_year),
+    demandChargePerKwMonth: Number(row.bess_demand_charge_per_kw_month),
+    arbitragePerMwh:    Number(row.bess_arbitrage_per_mwh),
+    installedCostPerKwh: Number(row.bess_installed_cost_per_kwh),
+    roundTripEfficiency: Number(row.bess_round_trip_efficiency),
+    annualDegradationPct: Number(row.bess_annual_degradation_pct),
+    itcPct:             Number(row.bess_itc_pct),
+    label:              row.bess_label,
+  }
+}
+
+// ── Public API ──────────────────────────────────────────────────────────────
+
 export function getRevenueData(stateId) {
   return STATE_REVENUE_DATA[stateId] ?? null
 }
@@ -132,8 +107,10 @@ export function getSupportedStates() {
   return Object.entries(STATE_REVENUE_DATA).map(([id, d]) => ({ id, label: d.label }))
 }
 
-export function computeRevenueProjection(stateId, mwAC) {
-  const data = STATE_REVENUE_DATA[stateId]
+// rates: optional Supabase revenue_rates row (snake_case). If provided,
+// overrides the hardcoded fallback for this computation.
+export function computeRevenueProjection(stateId, mwAC, rates) {
+  const data = (rates ? mapCSRates(rates) : null) || STATE_REVENUE_DATA[stateId]
   if (!data || !mwAC || mwAC <= 0) return null
 
   const mw = parseFloat(mwAC)
@@ -141,23 +118,15 @@ export function computeRevenueProjection(stateId, mwAC) {
   const annualMWh = mw * HOURS_PER_YEAR * cf
   const annualKWh = annualMWh * 1000
 
-  // Bill credit revenue (annual)
   const billCreditRevenue = annualKWh * (data.billCreditCentsKwh / 100)
-
-  // REC/SREC revenue (annual)
   const recRevenue = annualMWh * data.recPerMwh
-
-  // ITC value (one-time, amortized over 6 years for display)
   const installedCostTotal = mw * 1000000 * data.installedCostPerWatt
   const itcTotalPct = data.itcPct + data.itcAdderPct
   const itcValueOneTime = installedCostTotal * (itcTotalPct / 100)
   const itcAnnualized = itcValueOneTime / 6
-
-  // Totals
   const annualGrossRevenue = billCreditRevenue + recRevenue + itcAnnualized
   const revenuePerMW = annualGrossRevenue / mw
 
-  // 25-year NPV at 8% discount rate
   const discountRate = 0.08
   let npv25 = 0
   for (let year = 1; year <= 25; year++) {
@@ -165,8 +134,7 @@ export function computeRevenueProjection(stateId, mwAC) {
     const yearBillCredit = billCreditRevenue * degradation
     const yearREC = recRevenue * degradation
     const yearITC = year <= 6 ? itcAnnualized : 0
-    const yearTotal = yearBillCredit + yearREC + yearITC
-    npv25 += yearTotal / Math.pow(1 + discountRate, year)
+    npv25 += (yearBillCredit + yearREC + yearITC) / Math.pow(1 + discountRate, year)
   }
 
   return {
@@ -200,8 +168,8 @@ export function hasCIRevenueData(stateId) {
   return stateId in CI_REVENUE_DATA
 }
 
-export function computeCIRevenueProjection(stateId, mwAC) {
-  const data = CI_REVENUE_DATA[stateId]
+export function computeCIRevenueProjection(stateId, mwAC, rates) {
+  const data = (rates ? mapCIRates(rates) : null) || CI_REVENUE_DATA[stateId]
   if (!data || !mwAC || mwAC <= 0) return null
 
   const mw = parseFloat(mwAC)
@@ -213,7 +181,6 @@ export function computeCIRevenueProjection(stateId, mwAC) {
   const installedCostTotal = mw * 1000000 * data.installedCostPerWatt
   const itcValueOneTime = installedCostTotal * (data.itcPct / 100)
   const itcAnnualized = itcValueOneTime / 6
-
   const annualGrossRevenue = ppaRevenue + itcAnnualized
   const savingsPercent = Math.round((1 - data.ppaRateCentsKwh / data.retailRateCentsKwh) * 100)
 
@@ -258,8 +225,8 @@ export function hasBESSRevenueData(stateId) {
   return stateId in BESS_REVENUE_DATA
 }
 
-export function computeBESSProjection(stateId, mwAC, durationHrs = 4) {
-  const data = BESS_REVENUE_DATA[stateId]
+export function computeBESSProjection(stateId, mwAC, durationHrs = 4, rates) {
+  const data = (rates ? mapBESSRates(rates) : null) || BESS_REVENUE_DATA[stateId]
   if (!data || !mwAC || mwAC <= 0) return null
 
   const mw = parseFloat(mwAC)
@@ -279,7 +246,7 @@ export function computeBESSProjection(stateId, mwAC, durationHrs = 4) {
   let npv15 = 0
   for (let year = 1; year <= 15; year++) {
     const degradation = Math.pow(1 - data.annualDegradationPct / 100, year - 1)
-    const yearRevenue = (capacityRevenue + demandChargeRevenue + arbitrageRevenue * degradation)
+    const yearRevenue = (capacityRevenue + demandChargeRevenue + arbitrageRevenue) * degradation
     const yearITC = year <= 6 ? itcAnnualized : 0
     npv15 += (yearRevenue + yearITC) / Math.pow(1 + discountRate, year)
   }
@@ -312,14 +279,13 @@ export function computeBESSProjection(stateId, mwAC, durationHrs = 4) {
 }
 
 // ── Hybrid projection (solar + storage) ──────────────────────────────────────
-export function computeHybridProjection(stateId, solarMW, storageMW, durationHrs = 4) {
-  const csProj = computeRevenueProjection(stateId, solarMW)
-  const bessProj = computeBESSProjection(stateId, storageMW, durationHrs)
+export function computeHybridProjection(stateId, solarMW, storageMW, durationHrs = 4, rates) {
+  const csProj = computeRevenueProjection(stateId, solarMW, rates)
+  const bessProj = computeBESSProjection(stateId, storageMW, durationHrs, rates)
   if (!csProj && !bessProj) return null
 
   const solarAnnual = csProj?.annualGrossRevenue || 0
   const storageAnnual = bessProj?.annualGrossRevenue || 0
-  const storageItcBonus = bessProj ? Math.round(bessProj.installedCostTotal * 0.10) : 0
   const annualGrossRevenue = solarAnnual + storageAnnual
   const totalMW = (parseFloat(solarMW) || 0) + (parseFloat(storageMW) || 0)
 
@@ -333,7 +299,6 @@ export function computeHybridProjection(stateId, solarMW, storageMW, durationHrs
     storageAnnualRevenue: Math.round(storageAnnual),
     annualGrossRevenue: Math.round(annualGrossRevenue),
     revenuePerMW: totalMW > 0 ? Math.round(annualGrossRevenue / totalMW) : 0,
-    coLocationItcBonus: storageItcBonus,
     solarNpv25: csProj?.npv25 || 0,
     storageNpv15: bessProj?.npv15 || 0,
     solarInstalledCost: csProj?.installedCostTotal || 0,

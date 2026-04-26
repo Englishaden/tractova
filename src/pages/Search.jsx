@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -742,8 +742,8 @@ function RevenueStackBar({ revenueStack }) {
   )
 }
 
-function RevenueProjectionSection({ stateId, mw }) {
-  const proj = computeRevenueProjection(stateId, mw)
+function RevenueProjectionSection({ stateId, mw, rates }) {
+  const proj = computeRevenueProjection(stateId, mw, rates)
   if (!proj) {
     if (!hasRevenueData(stateId)) return null
     return (
@@ -837,7 +837,7 @@ function RevenueProjectionSection({ stateId, mw }) {
   )
 }
 
-function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
+function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
@@ -936,7 +936,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
             )}
 
             {/* Revenue Projection — quantitative $/MW estimate */}
-            <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} />
+            <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} rates={rates} />
           </>
         ) : (
           /* Non-CS technology — structured analysis per tech type */
@@ -944,7 +944,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
             <SectionLabel>{technology} Offtake</SectionLabel>
 
             {technology === 'C&I Solar' && (() => {
-              const proj = computeCIRevenueProjection(stateProgram?.id, mw)
+              const proj = computeCIRevenueProjection(stateProgram?.id, mw, rates)
               const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
               return (
                 <div className="space-y-3">
@@ -996,7 +996,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
             })()}
 
             {technology === 'BESS' && (() => {
-              const proj = computeBESSProjection(stateProgram?.id, mw)
+              const proj = computeBESSProjection(stateProgram?.id, mw, 4, rates)
               const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
               return (
                 <div className="space-y-3">
@@ -1065,7 +1065,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
               const mwNum = parseFloat(mw) || 0
               const solarMW = mwNum
               const storageMW = Math.round(mwNum * 0.5 * 10) / 10
-              const proj = computeHybridProjection(stateProgram?.id, solarMW, storageMW)
+              const proj = computeHybridProjection(stateProgram?.id, solarMW, storageMW, 4, rates)
               const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
               return (
                 <div className="space-y-3">
@@ -1077,8 +1077,8 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
                           <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">ITC Co-location Bonus</p>
-                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#059669' }}>{fmt(proj.coLocationItcBonus)}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Revenue / MW</p>
+                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#059669' }}>{fmt(proj.revenuePerMW)}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-px bg-gray-100">
@@ -1097,8 +1097,12 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw }) {
                           <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.totalInstalledCost)}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Co-located storage ITC uplift</span>
-                          <span className="font-semibold tabular-nums" style={{ color: '#059669' }}>+10% (40% total)</span>
+                          <span className="text-gray-500">Solar 25yr NPV</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.solarNpv25)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">Storage 15yr NPV</span>
+                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.storageNpv15)}</span>
                         </div>
                       </div>
                       <div className="px-4 py-2 border-t border-gray-100">
@@ -2343,12 +2347,13 @@ function SearchContent() {
     const accessToken = session?.access_token ?? ''
 
     // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations] = await Promise.all([
+    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates] = await Promise.all([
       programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
       getCountyData(form.state, form.county),
       getRevenueStack(form.state),
       getIXQueueSummary(form.state, form.mw),
       getNearestSubstations(form.state, form.county),
+      getRevenueRates(form.state),
     ])
     const runway = stateProgram?.runway ?? null
 
@@ -2361,7 +2366,7 @@ function SearchContent() {
 
     const aiInsight = aiResult?.insight ?? null
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, aiInsight })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, aiInsight })
     setAnalyzing(false)
   }
 
@@ -2649,6 +2654,7 @@ function SearchContent() {
                 revenueStack={results.revenueStack}
                 technology={results.form.technology}
                 mw={results.form.mw}
+                rates={results.revenueRates}
               />
             </div>
 
