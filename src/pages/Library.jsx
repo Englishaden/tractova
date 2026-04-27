@@ -341,12 +341,13 @@ function CompareChip({ project }) {
     add(item)
   }
 
+  const tooltipText = inCompare ? 'Remove from compare' : atLimit ? `Compare tray full (max ${MAX_ITEMS})` : 'Add to compare'
+
   return (
     <button
       onClick={handleClick}
       disabled={atLimit}
-      title={inCompare ? 'Remove from compare' : atLimit ? `Compare tray full (max ${MAX_ITEMS})` : 'Add to compare'}
-      className={`p-1 transition-colors ${
+      className={`group relative p-1 transition-colors ${
         inCompare
           ? 'text-primary'
           : atLimit
@@ -354,6 +355,9 @@ function CompareChip({ project }) {
             : 'text-gray-300 hover:text-primary'
       }`}
     >
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded bg-gray-900 text-white text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10">
+        {tooltipText}
+      </span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
       </svg>
@@ -362,7 +366,7 @@ function CompareChip({ project }) {
 }
 
 // ── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
+function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
@@ -463,7 +467,7 @@ function ProjectCard({ project, onRequestRemove, stateProgramMap }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-sm font-bold leading-snug text-gray-900">{project.name}</h2>
-            <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
+            <StagePicker stage={stage} projectId={project.id} onChange={(s) => { setStage(s); onStageChange?.(project.id, s) }} />
             {hasDataUpdate && !expanded && (
               <span
                 className="text-[10px] font-semibold rounded-full px-2 py-0.5 border flex items-center gap-1"
@@ -792,13 +796,72 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
 }
 
 // ── Weekly Summary Card ──────────────────────────────────────────────────────
-function WeeklySummaryCard({ totalProjects, strongCount, alertCount, urgentProjects, marketMoves }) {
+const TECH_COLORS = { 'Community Solar': '#0F6E56', 'C&I Solar': '#2563EB', 'BESS': '#7C3AED', 'Hybrid': '#059669' }
+
+function WeeklySummaryCard({ projects, stateProgramMap }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [aiInsight, setAiInsight] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  // Compute per-project scores
+  const scored = useMemo(() => projects.map(p => {
+    const sp = stateProgramMap[p.state]
+    if (!sp) return { ...p, score: 0 }
+    const subs = computeSubScores(sp, null, p.stage, p.technology)
+    return { ...p, score: computeDisplayScore(...Object.values(subs)) }
+  }), [projects, stateProgramMap])
+
+  // Portfolio health score (weighted avg)
+  const healthScore = useMemo(() => {
+    if (!scored.length) return 0
+    const totalMW = scored.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
+    const weighted = scored.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0)
+    return Math.round(weighted / totalMW)
+  }, [scored])
+
+  // MW by technology
+  const techBreakdown = useMemo(() => {
+    const map = {}
+    scored.forEach(p => {
+      const tech = p.technology || 'Community Solar'
+      map[tech] = (map[tech] || 0) + (parseFloat(p.mw) || 0)
+    })
+    return Object.entries(map).sort((a, b) => b[1] - a[1])
+  }, [scored])
+  const totalMW = techBreakdown.reduce((s, [, mw]) => s + mw, 0)
+
+  // Risk distribution
+  const riskDist = useMemo(() => {
+    let strong = 0, moderate = 0, atRisk = 0
+    scored.forEach(p => { if (p.score > 65) strong++; else if (p.score >= 40) moderate++; else atRisk++ })
+    return { strong, moderate, atRisk }
+  }, [scored])
+
+  const healthColor = healthScore > 65 ? 'text-primary-700' : healthScore >= 40 ? 'text-amber-600' : 'text-red-600'
+  const healthBg = healthScore > 65 ? 'bg-primary-50' : healthScore >= 40 ? 'bg-amber-50' : 'bg-red-50'
+
+  const handleGenerateInsight = async () => {
+    setAiLoading(true)
+    try {
+      const payload = scored.map(p => ({
+        name: p.name, state: p.state, county: p.county, mw: p.mw,
+        stage: p.stage, technology: p.technology, score: p.score
+      }))
+      const res = await fetch('/api/lens-insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'portfolio', projects: payload })
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setAiInsight(data)
+      }
+    } catch { /* silently fail */ }
+    setAiLoading(false)
+  }
 
   return (
-    <div
-      className="rounded-xl overflow-hidden mb-4 bg-primary-50 border border-primary-100"
-    >
+    <div className="rounded-xl overflow-hidden mb-4 bg-primary-50 border border-primary-100">
       <button
         onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between px-5 py-3.5 text-left"
@@ -811,7 +874,7 @@ function WeeklySummaryCard({ totalProjects, strongCount, alertCount, urgentProje
           </div>
           <div>
             <p className="text-xs font-bold text-gray-900">Portfolio Summary</p>
-            <p className="text-[10px] font-mono text-gray-500 mt-0.5">{totalProjects} projects tracked</p>
+            <p className="text-[10px] font-mono text-gray-500 mt-0.5">{projects.length} projects · {totalMW.toFixed(1)} MW total</p>
           </div>
         </div>
         <svg
@@ -823,39 +886,108 @@ function WeeklySummaryCard({ totalProjects, strongCount, alertCount, urgentProje
       </button>
 
       {!collapsed && (
-        <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ borderTop: '1px solid rgba(15,110,86,0.12)' }}>
-          {/* Health */}
-          <div className="rounded-lg px-3 py-3 bg-white/60">
-            <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-primary">Portfolio Health</p>
-            <p className="text-xs leading-relaxed text-gray-700">
-              {strongCount} of {totalProjects} project{totalProjects > 1 ? 's' : ''} in strong markets.
-              {alertCount > 0 ? ` ${alertCount} alert${alertCount > 1 ? 's' : ''}.` : ' No alerts.'}
-            </p>
+        <div className="px-5 py-4 space-y-4" style={{ borderTop: '1px solid rgba(15,110,86,0.12)' }}>
+          {/* Top row: Health Score + Risk Distribution */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Health Score */}
+            <div className={`rounded-lg px-4 py-3 ${healthBg} flex items-center gap-4`}>
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-gray-500">Health Score</p>
+                <p className={`text-3xl font-bold tabular-nums ${healthColor}`}>{healthScore}</p>
+              </div>
+              <div className="flex-1">
+                <div className="w-full h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${healthScore}%`, background: healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Risk Distribution */}
+            <div className="rounded-lg px-4 py-3 bg-white/60">
+              <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-gray-500">Risk Distribution</p>
+              <div className="flex items-center gap-2">
+                {riskDist.strong > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-100 text-primary-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />{riskDist.strong} Strong
+                  </span>
+                )}
+                {riskDist.moderate > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{riskDist.moderate} Moderate
+                  </span>
+                )}
+                {riskDist.atRisk > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />{riskDist.atRisk} At Risk
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* MW by Technology */}
+            <div className="rounded-lg px-4 py-3 bg-white/60">
+              <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-gray-500">MW by Technology</p>
+              {totalMW > 0 ? (
+                <>
+                  <div className="w-full h-3 rounded-full overflow-hidden flex">
+                    {techBreakdown.map(([tech, mw]) => (
+                      <div
+                        key={tech}
+                        style={{ width: `${(mw / totalMW) * 100}%`, background: TECH_COLORS[tech] || '#6B7280' }}
+                        className="h-full first:rounded-l-full last:rounded-r-full"
+                      />
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                    {techBreakdown.map(([tech, mw]) => (
+                      <span key={tech} className="flex items-center gap-1 text-[9px] text-gray-600">
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
+                        {tech} {mw.toFixed(1)}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-gray-400">No MW data</p>
+              )}
+            </div>
           </div>
 
-          {/* Market moves */}
-          <div className="rounded-lg px-3 py-3 bg-white/60">
-            <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-amber-600">Market Signals</p>
-            {marketMoves.length > 0 ? (
-              <ul className="text-xs leading-relaxed space-y-1 text-gray-700">
-                {marketMoves.slice(0, 3).map((m, i) => <li key={i}>· {m}</li>)}
-              </ul>
+          {/* AI Insight */}
+          <div className="rounded-lg px-4 py-3 bg-white/60">
+            {aiInsight ? (
+              <div className="space-y-2">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-primary">AI Portfolio Insight</p>
+                <p className="text-xs leading-relaxed text-gray-700">{aiInsight.summary}</p>
+                {aiInsight.topRecommendation && (
+                  <div className="flex items-start gap-2 mt-1 px-3 py-2 rounded-md bg-primary-50">
+                    <svg className="w-3.5 h-3.5 text-primary-600 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <p className="text-xs text-primary-800 font-medium">{aiInsight.topRecommendation}</p>
+                  </div>
+                )}
+                {aiInsight.riskAssessment && (
+                  <p className="text-[11px] text-gray-500 italic">{aiInsight.riskAssessment}</p>
+                )}
+              </div>
+            ) : aiLoading ? (
+              <div className="space-y-2">
+                <div className="h-3 w-32 rounded bg-gray-200 animate-pulse" />
+                <div className="h-3 w-full rounded bg-gray-200 animate-pulse" />
+                <div className="h-3 w-3/4 rounded bg-gray-200 animate-pulse" />
+              </div>
             ) : (
-              <p className="text-xs text-gray-400">No notable changes this period.</p>
-            )}
-          </div>
-
-          {/* Action items */}
-          <div className="rounded-lg px-3 py-3 bg-white/60">
-            <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-purple-600">Action Items</p>
-            {urgentProjects.length > 0 ? (
-              <ul className="text-xs leading-relaxed space-y-1 text-gray-700">
-                {urgentProjects.slice(0, 2).map(p => (
-                  <li key={p.id}>· Review {p.name} — urgent alert</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-xs text-gray-400">No urgent actions needed.</p>
+              <button
+                onClick={handleGenerateInsight}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-primary-700 hover:bg-primary-50 transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                Generate AI Insight
+              </button>
             )}
           </div>
         </div>
@@ -915,12 +1047,20 @@ function LibraryContent() {
     if (filterTech)  filtered = filtered.filter(p => p.technology === filterTech)
     if (filterStage) filtered = filtered.filter(p => p.stage === filterStage)
     return [...filtered].sort((a, b) => {
-      if (sortBy === 'score') return (stateProgramMap[b.state]?.feasibilityScore ?? 0) - (stateProgramMap[a.state]?.feasibilityScore ?? 0)
+      if (sortBy === 'score') {
+        const aS = computeSubScores(stateProgramMap[a.state], null, a.stage, a.technology)
+        const bS = computeSubScores(stateProgramMap[b.state], null, b.stage, b.technology)
+        return computeDisplayScore(bS.offtake, bS.ix, bS.site) - computeDisplayScore(aS.offtake, aS.ix, aS.site)
+      }
       if (sortBy === 'mw')    return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
       if (sortBy === 'alerts') return getAlerts(b, stateProgramMap).length - getAlerts(a, stateProgramMap).length
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
   }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap])
+
+  const handleStageChange = useCallback((id, newStage) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, stage: newStage } : p))
+  }, [])
 
   const handleRequestRemove = (id, name) => setConfirmRemove({ id, name })
 
@@ -1013,32 +1153,49 @@ function LibraryContent() {
 
               {/* Pipeline distribution bar */}
               {(() => {
-                const stageCounts = PIPELINE_STAGES.map(s => ({ stage: s, count: projects.filter(p => p.stage === s).length }))
+                const STAGE_COLORS = ['#A7F3D0', '#6EE7B7', '#34D399', '#10B981', '#059669', '#047857', '#065F46']
+                const stageCounts = PIPELINE_STAGES.map((s, i) => {
+                  const matching = projects.filter(p => p.stage === s)
+                  return {
+                    stage: s,
+                    count: matching.length,
+                    mw: matching.reduce((sum, p) => sum + (parseFloat(p.mw) || 0), 0),
+                    color: STAGE_COLORS[i],
+                  }
+                })
                 const maxCount = Math.max(...stageCounts.map(s => s.count), 1)
                 return (
-                  <div className="mt-4 rounded-xl px-4 py-3 bg-white border border-gray-200">
+                  <div className="mt-4 rounded-xl px-4 py-4 bg-white border border-gray-200">
                     <p className="text-[10px] font-bold uppercase tracking-widest mb-3 text-gray-400">Pipeline Distribution</p>
-                    <div className="flex items-end gap-1.5 h-10">
-                      {stageCounts.map(({ stage, count }) => (
-                        <div key={stage} className="flex-1 flex flex-col items-center gap-1">
+                    <div className="flex items-end gap-2 h-16">
+                      {stageCounts.map(({ stage, count, mw, color }) => (
+                        <div key={stage} className="flex-1 flex flex-col items-center gap-1 group relative">
                           <div
-                            className="w-full rounded-sm transition-all duration-300"
+                            className="w-full rounded-t-md transition-all duration-300"
                             style={{
-                              height: count > 0 ? `${Math.max(4, (count / maxCount) * 32)}px` : '2px',
-                              background: count > 0 ? '#0F6E56' : '#E5E7EB',
+                              height: count > 0 ? `${Math.max(6, (count / maxCount) * 56)}px` : '3px',
+                              background: count > 0 ? color : '#E5E7EB',
                             }}
                           />
+                          {count > 0 && (
+                            <span className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[10px] font-medium bg-gray-900 text-white shadow-lg pointer-events-none">
+                              {count} project{count > 1 ? 's' : ''} · {mw.toFixed(1)} MW
+                            </span>
+                          )}
                         </div>
                       ))}
                     </div>
-                    <div className="flex gap-1.5 mt-1.5">
-                      {stageCounts.map(({ stage, count }) => (
+                    <div className="flex gap-2 mt-2">
+                      {stageCounts.map(({ stage, count, mw, color }) => (
                         <div key={stage + 'l'} className="flex-1 text-center">
-                          <p className="text-[8px] leading-tight truncate" style={{ color: count > 0 ? '#0F6E56' : '#9CA3AF' }}>
+                          <p className="text-[9px] leading-tight" style={{ color: count > 0 ? color : '#9CA3AF' }}>
                             {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
                           </p>
                           {count > 0 && (
-                            <p className="text-[9px] font-bold tabular-nums text-primary">{count}</p>
+                            <>
+                              <p className="text-[10px] font-bold tabular-nums" style={{ color }}>{count}</p>
+                              <p className="text-[8px] tabular-nums text-gray-400">{mw.toFixed(0)} MW</p>
+                            </>
                           )}
                         </div>
                       ))}
@@ -1147,42 +1304,15 @@ function LibraryContent() {
               )
             })()}
 
-            {/* Weekly Summary — shows when 3+ projects */}
-            {projects.length >= 3 && (() => {
-              const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap).length, 0)
-              const strongCount = projects.filter(p => {
-                const sp = stateProgramMap[p.state]
-                return sp && (sp.feasibilityScore ?? 0) >= 60
-              }).length
-              const urgentProjects = projects.filter(p => getAlerts(p, stateProgramMap).some(a => a.level === 'urgent'))
-
-              // Find noteworthy market moves
-              const marketMoves = []
-              const seenStates = new Set()
-              projects.forEach(p => {
-                if (seenStates.has(p.state)) return
-                seenStates.add(p.state)
-                const sp = stateProgramMap[p.state]
-                if (!sp) return
-                if (sp.csStatus === 'limited') marketMoves.push(`${sp.name || p.state} capacity is limited`)
-                if (sp.ixDifficulty === 'hard' || sp.ixDifficulty === 'very_hard') marketMoves.push(`${sp.name || p.state} IX queue is ${sp.ixDifficulty.replace('_', ' ')}`)
-              })
-
-              return (
-                <WeeklySummaryCard
-                  totalProjects={projects.length}
-                  strongCount={strongCount}
-                  alertCount={alertCount}
-                  urgentProjects={urgentProjects}
-                  marketMoves={marketMoves}
-                />
-              )
-            })()}
+            {/* Portfolio Summary — shows when 3+ projects */}
+            {projects.length >= 3 && (
+              <WeeklySummaryCard projects={projects} stateProgramMap={stateProgramMap} />
+            )}
             <SectionDivider />
             {displayProjects.length > 0 ? (
               <div className="grid gap-3">
                 {displayProjects.map((p) => (
-                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} stateProgramMap={stateProgramMap} />
+                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} onStageChange={handleStageChange} stateProgramMap={stateProgramMap} />
                 ))}
               </div>
             ) : (

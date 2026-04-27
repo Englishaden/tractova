@@ -34,7 +34,7 @@ RULES:
    - Community Solar: focus on program enrollment, subscriber sourcing, bill credits, LMI requirements.
    - C&I Solar: focus on PPA rate competitiveness vs retail rates, offtaker credit quality, contract structure. Do NOT discuss CS program enrollment or subscriber sourcing.
    - BESS: focus on capacity market pricing in the relevant ISO/RTO, demand charge reduction value, battery degradation risk. The primary risk is always capacity market price volatility. Do NOT discuss bill credits or subscriber sourcing.
-   - Hybrid: focus on value stacking (solar generation + storage capacity), ITC co-location bonus (40% for co-located storage under IRA Section 48), and permitting complexity. Address both the solar and storage components.
+   - Hybrid: focus on value stacking (solar generation + storage capacity), ITC at 30% for both solar and co-located storage (co-location bonus not yet modeled in projections), and permitting complexity. Address both the solar and storage components.
 13. When technology is NOT Community Solar, do NOT discuss CS program enrollment, subscriber sourcing, or bill credits unless the developer could realistically pivot to CS in this market.
 
 14. STAGE-SPECIFIC GUIDANCE: Provide 2-3 actionable sentences tailored to the developer's current stage:
@@ -166,7 +166,7 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
     lines.push(`  Primary risk: capacity market price volatility and battery degradation`)
   } else if (technology === 'Hybrid') {
     lines.push(`  Revenue model: Combined solar generation + storage capacity/arbitrage`)
-    lines.push(`  ITC: 30% solar + 40% co-located storage (IRA Section 48 co-location bonus)`)
+    lines.push(`  ITC: 30% for both solar and co-located storage`)
     lines.push(`  Primary risk: permitting complexity for combined facility + ITC co-location qualification`)
   }
 
@@ -265,7 +265,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ insight: null, fallback: true, reason: 'no_api_key' })
   }
 
-  // ── Build context + call Claude ────────────────────────────────────────────
+  // ── Action routing — portfolio and compare use different prompts ──────────
+  const action = body.action
+  if (action === 'portfolio') return handlePortfolio(body, res)
+  if (action === 'compare') return handleCompare(body, res)
+
+  // ── Build context + call Claude (single-project analysis) ─────────────────
   const contextText = buildContext(body)
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), 25000)
@@ -297,6 +302,99 @@ export default async function handler(req, res) {
   } catch (err) {
     clearTimeout(timeoutId)
     console.error('[lens-insight] error:', err.message)
+    return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Portfolio analysis — summarize a developer's project portfolio
+// ─────────────────────────────────────────────────────────────────────────────
+const PORTFOLIO_PROMPT = `You are a senior portfolio strategist for a solar development company. The developer has multiple projects across states. Analyze the portfolio holistically — concentration risk, geographic diversification, stage distribution, and market timing.
+
+OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
+{
+  "summary": "2-3 sentences: overall portfolio health, diversification, and strategic position",
+  "topRecommendation": "1 sentence: the single most impactful action to improve portfolio outcomes",
+  "riskAssessment": "1-2 sentences: key portfolio-level risks (concentration, market timing, regulatory)"
+}`
+
+async function handlePortfolio(body, res) {
+  const { projects } = body
+  if (!projects?.length) return res.status(400).json({ error: 'No projects provided' })
+
+  const lines = [`PORTFOLIO: ${projects.length} projects\n`]
+  projects.forEach((p, i) => {
+    lines.push(`${i + 1}. ${p.name || 'Unnamed'} — ${p.mw || '?'}MW ${p.technology || 'Solar'} in ${p.state || '?'}, ${p.county || '?'} County`)
+    lines.push(`   Stage: ${p.stage || 'Unknown'} | Score: ${p.score ?? '?'}/100 | IX: ${p.ixDifficulty || '?'} | CS Status: ${p.csStatus || '?'}`)
+  })
+
+  const totalMW = projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)
+  const states = [...new Set(projects.map(p => p.state).filter(Boolean))]
+  lines.push(`\nTOTALS: ${totalMW} MW across ${states.length} state${states.length !== 1 ? 's' : ''} (${states.join(', ')})`)
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000)
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const message = await client.messages.create(
+      { model: 'claude-sonnet-4-6', max_tokens: 600, system: PORTFOLIO_PROMPT, messages: [{ role: 'user', content: lines.join('\n') }] },
+      { signal: controller.signal }
+    )
+    clearTimeout(timeoutId)
+    const parsed = parseInsightResponse(message.content?.[0]?.text || '')
+    return res.status(200).json({ insight: parsed })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[lens-insight:portfolio] error:', err.message)
+    return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Compare analysis — side-by-side project comparison
+// ─────────────────────────────────────────────────────────────────────────────
+const COMPARE_PROMPT = `You are a senior solar development analyst. Compare these projects side-by-side and identify which is the strongest opportunity and why. Consider feasibility score, interconnection difficulty, program status, project size, and market conditions.
+
+OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
+{
+  "comparison": "2-3 sentences highlighting the key tradeoffs between these projects",
+  "recommendedId": "the id of the strongest project",
+  "reason": "1 sentence explaining why this project is recommended"
+}`
+
+async function handleCompare(body, res) {
+  const { projects } = body
+  if (!projects?.length || projects.length < 2) return res.status(400).json({ error: 'Need at least 2 projects' })
+
+  const lines = [`COMPARING ${projects.length} PROJECTS:\n`]
+  projects.forEach((p, i) => {
+    lines.push(`PROJECT ${i + 1} (id: ${p.id})`)
+    lines.push(`  Name: ${p.name || 'Unnamed'}`)
+    lines.push(`  Location: ${p.state || '?'}, ${p.county || '?'} County`)
+    lines.push(`  Size: ${p.mw || '?'} MW AC ${p.technology || 'Solar'}`)
+    lines.push(`  Stage: ${p.stage || 'Unknown'}`)
+    lines.push(`  Feasibility Score: ${p.feasibilityScore ?? '?'}/100`)
+    lines.push(`  IX Difficulty: ${p.ixDifficulty || '?'}`)
+    lines.push(`  CS Status: ${p.csStatus || '?'}`)
+    lines.push('')
+  })
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 20000)
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const message = await client.messages.create(
+      { model: 'claude-sonnet-4-6', max_tokens: 500, system: COMPARE_PROMPT, messages: [{ role: 'user', content: lines.join('\n') }] },
+      { signal: controller.signal }
+    )
+    clearTimeout(timeoutId)
+    const parsed = parseInsightResponse(message.content?.[0]?.text || '')
+    return res.status(200).json({ insight: parsed })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[lens-insight:compare] error:', err.message)
     return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }

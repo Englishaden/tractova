@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
 
@@ -55,6 +55,32 @@ function MetricRow({ label, values }) {
 
 function CompareModal({ onClose }) {
   const { items, remove, clear } = useCompare()
+  const [aiCompare, setAiCompare] = useState(null)
+  const [aiLoading, setAiLoading] = useState(false)
+
+  useEffect(() => {
+    if (items.length < 2) return
+    let cancelled = false
+    setAiLoading(true)
+    fetch('/api/lens-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'compare',
+        projects: items.map(it => ({
+          id: it.id, name: it.name, state: it.stateName || it.state,
+          county: it.county, mw: it.mw, stage: it.stage,
+          technology: it.technology, feasibilityScore: it.feasibilityScore,
+          ixDifficulty: it.ixDifficulty, csStatus: it.csStatus
+        }))
+      })
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (!cancelled && data) setAiCompare(data) })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setAiLoading(false) })
+    return () => { cancelled = true }
+  }, [items.length])
 
   const rows = [
     {
@@ -177,7 +203,14 @@ function CompareModal({ onClose }) {
             {items.map((item) => (
               <div key={item.id} className="px-1">
                 <div className="flex items-start justify-between gap-1 mb-0.5">
-                  <p className="text-xs font-bold text-white/85 leading-snug">{item.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-white/85 leading-snug">{item.name}</p>
+                    {aiCompare?.recommendedId === item.id && (
+                      <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ color: '#34D399', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                        Recommended
+                      </span>
+                    )}
+                  </div>
                   <button
                     onClick={() => remove(item.id)}
                     className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
@@ -226,13 +259,28 @@ function CompareModal({ onClose }) {
           </div>
         </div>
 
-        {/* Best for summary + footer */}
+        {/* AI comparison + footer */}
         <div className="px-6 py-3 rounded-b-xl" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
           {bestFor && (
             <p className="text-[10px] font-medium mb-2" style={{ color: '#34D399' }}>
               {bestFor}
             </p>
           )}
+          {aiLoading ? (
+            <div className="mb-3 space-y-1.5">
+              <div className="h-2.5 w-48 rounded bg-white/5 animate-pulse" />
+              <div className="h-2.5 w-full rounded bg-white/5 animate-pulse" />
+              <div className="h-2.5 w-3/4 rounded bg-white/5 animate-pulse" />
+            </div>
+          ) : aiCompare?.comparison ? (
+            <div className="mb-3 rounded-lg px-3 py-2.5" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.12)' }}>
+              <p className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: '#34D399' }}>AI Comparison</p>
+              <p className="text-[11px] leading-relaxed text-white/60">{aiCompare.comparison}</p>
+              {aiCompare.reason && (
+                <p className="text-[10px] text-white/40 mt-1.5 italic">{aiCompare.reason}</p>
+              )}
+            </div>
+          ) : null}
           <p className="text-[9px] font-mono text-white/20 leading-relaxed uppercase tracking-wide">
             Scores reflect Tractova's composite feasibility index. Verify interconnection and capacity with the serving utility before committing capital.
           </p>

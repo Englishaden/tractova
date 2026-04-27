@@ -1106,7 +1106,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
                         </div>
                       </div>
                       <div className="px-4 py-2 border-t border-gray-100">
-                        <p className="text-[9px] text-gray-400">Hybrid assumes {proj.storageMW}MW / {proj.durationHrs}hr co-located storage. IRA Section 48 provides 40% ITC for co-located storage vs 30% standalone.</p>
+                        <p className="text-[9px] text-gray-400">Hybrid assumes {proj.storageMW}MW / {proj.durationHrs}hr co-located storage. ITC applied at 30% for both solar and storage components.</p>
                       </div>
                     </div>
                   ) : (
@@ -1874,7 +1874,7 @@ const LENS_OVERLAY_STYLES = `
   }
 `
 
-function LensOverlay({ visible, stateName, countyName }) {
+function LensOverlay({ visible, stateName, countyName, onCancel }) {
   const C = 2 * Math.PI * 60  // circumference ≈ 376.99
   const [isShown, setIsShown] = useState(false)
   const arcRef  = useRef(null)
@@ -1979,6 +1979,18 @@ function LensOverlay({ visible, stateName, countyName }) {
           </p>
         )}
       </div>
+
+      {/* Cancel button */}
+      {visible && onCancel && (
+        <button
+          onClick={onCancel}
+          style={{ marginTop: '8px', padding: '6px 18px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)', fontSize: '11px', fontWeight: 500, cursor: 'pointer', transition: 'all 150ms' }}
+          onMouseEnter={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.3)'; e.target.style.color = 'rgba(255,255,255,0.7)' }}
+          onMouseLeave={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.15)'; e.target.style.color = 'rgba(255,255,255,0.45)' }}
+        >
+          Cancel · ESC
+        </button>
+      )}
     </div>
   )
 }
@@ -2225,7 +2237,7 @@ function AddToCompareButton({ results }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // AI Insight fetch helper — calls /api/lens-insight, returns insight or null
 // ─────────────────────────────────────────────────────────────────────────────
-async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue, accessToken }) {
+async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue, accessToken, signal }) {
   try {
     const res = await fetch('/api/lens-insight', {
       method: 'POST',
@@ -2233,6 +2245,7 @@ async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, ru
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${accessToken}`,
       },
+      signal,
       body: JSON.stringify({
         state:        form.state,
         county:       form.county,
@@ -2250,6 +2263,7 @@ async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, ru
     const data = await res.json()
     return { insight: data.insight ?? null, reason: data.reason ?? (data.insight ? 'ok' : 'null_insight') }
   } catch (err) {
+    if (err.name === 'AbortError') throw err
     return { insight: null, reason: `fetch_error: ${err.message}` }
   }
 }
@@ -2295,6 +2309,15 @@ function SearchContent() {
   const [saving, setSaving]       = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const resultsRef = useRef(null)
+  const abortRef = useRef(null)
+
+  // ESC to cancel analysis
+  useEffect(() => {
+    if (!analyzing) return
+    const handler = (e) => { if (e.key === 'Escape') abortRef.current?.abort() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [analyzing])
 
   // Load live state program map on mount — used for market rank + handleSubmit
   useEffect(() => {
@@ -2357,14 +2380,23 @@ function SearchContent() {
     ])
     const runway = stateProgram?.runway ?? null
 
-    // Run AI fetch + 800ms display floor in parallel
-    // The overlay stays up until the AI responds (typically 2–4s)
-    const [aiResult] = await Promise.all([
-      fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken }).catch((e) => ({ insight: null, reason: `caught: ${e.message}` })),
-      new Promise(resolve => setTimeout(resolve, 800)),
-    ])
-
-    const aiInsight = aiResult?.insight ?? null
+    // AI fetch with abort support — ESC or cancel button can abort this
+    abortRef.current = new AbortController()
+    let aiInsight = null
+    try {
+      const [aiResult] = await Promise.all([
+        fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken, signal: abortRef.current.signal }),
+        new Promise(resolve => setTimeout(resolve, 800)),
+      ])
+      aiInsight = aiResult?.insight ?? null
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        // Cancelled — still show results without AI insight
+        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, aiInsight: null })
+        setAnalyzing(false)
+        return
+      }
+    }
 
     setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, aiInsight })
     setAnalyzing(false)
@@ -2392,6 +2424,7 @@ function SearchContent() {
       cs_program:       results.stateProgram?.csProgram || null,
       cs_status:        results.stateProgram?.csStatus || 'none',
       serving_utility:  results.countyData?.interconnection?.servingUtility || null,
+      ix_difficulty:    results.stateProgram?.ixDifficulty || null,
       opportunity_score: results.stateProgram?.feasibilityScore || null,
     })
     setSaving(false)
@@ -2422,6 +2455,7 @@ function SearchContent() {
         visible={analyzing}
         stateName={ALL_STATES.find(s => s.id === form.state)?.name || ''}
         countyName={form.county}
+        onCancel={() => abortRef.current?.abort()}
       />
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 

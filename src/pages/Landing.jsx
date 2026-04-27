@@ -161,7 +161,7 @@ export default function Landing() {
 
             <p className="text-lg text-white/70 leading-relaxed mb-8 max-w-lg">
               Site control constraints, interconnection queue status, and offtake program
-              capacity — all in one platform. Built for the 1–10 person shop competing
+              capacity — all in one platform. Built for small and mid-sized shops competing
               against teams with dedicated research staff.
             </p>
 
@@ -320,7 +320,7 @@ export default function Landing() {
               Built for who, exactly
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-5">
-              The 1–10 person shop.<br />
+              The under-100-person shop.<br />
               The developer who has real projects<br />
               and no research team.
             </h2>
@@ -348,7 +348,7 @@ export default function Landing() {
               <div className="text-sm font-semibold text-primary mb-3">Tractova is for</div>
               <ul className="space-y-2.5">
                 {[
-                  'Independent community solar developers (1–10 people)',
+                  'Independent and mid-sized solar developers (under 100 people)',
                   'C&I solar developers expanding into community solar',
                   'Project finance professionals evaluating new state markets',
                   'Developers tracking multiple projects across states',
