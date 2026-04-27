@@ -1,61 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import { supabase } from '../lib/supabase'
+import { getStateProgramMap } from '../lib/programData'
+import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 
-function Field({ label, value }) {
-  return (
-    <div className="py-3 border-b border-gray-100 last:border-0">
-      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
-      <p className="text-sm text-gray-900">{value || '—'}</p>
-    </div>
-  )
-}
-
-function ManageBillingButton() {
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState(null)
-
-  const handlePortal = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) throw new Error('Please sign in again')
-      const res = await fetch('/api/create-portal-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ returnUrl: window.location.href }),
-      })
-      const json = await res.json()
-      if (!res.ok || json.error) throw new Error(json.error || 'Something went wrong')
-      window.location.href = json.url
-    } catch (err) {
-      setError(err.message)
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div>
-      {error && (
-        <p className="text-xs text-red-500 mb-2">{error}</p>
-      )}
-      <button
-        onClick={handlePortal}
-        disabled={loading}
-        className="text-sm font-medium text-primary hover:text-primary-700 disabled:opacity-50 transition-colors"
-      >
-        {loading ? 'Loading...' : 'Manage subscription →'}
-      </button>
-    </div>
-  )
-}
-
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name) {
   if (!name || name === '—') return '?'
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2)
@@ -74,28 +25,289 @@ function timeAgo(dateStr) {
   return `${Math.floor(days / 30)}mo ago`
 }
 
+const STAGE_COLORS = {
+  'Prospecting':             '#A7F3D0',
+  'Site Control':            '#6EE7B7',
+  'Pre-Development':         '#34D399',
+  'Development':             '#10B981',
+  'NTP (Notice to Proceed)': '#059669',
+  'Construction':            '#047857',
+  'Operational':             '#065F46',
+}
+const TECH_COLORS = { 'Community Solar': '#0F6E56', 'C&I Solar': '#2563EB', 'BESS': '#7C3AED', 'Hybrid': '#059669' }
+
+// ── Manage Billing ───────────────────────────────────────────────────────────
+function ManageBillingButton() {
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState(null)
+
+  const handlePortal = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Please sign in again')
+      const res = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ returnUrl: window.location.href }),
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error || 'Something went wrong')
+      window.location.href = json.url
+    } catch (err) {
+      setError(err.message)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+      <button onClick={handlePortal} disabled={loading} className="text-sm font-medium text-primary hover:text-primary-700 disabled:opacity-50 transition-colors">
+        {loading ? 'Loading...' : 'Manage subscription →'}
+      </button>
+    </div>
+  )
+}
+
+// ── Alert Preferences Toggle ─────────────────────────────────────────────────
+function AlertPreferences({ userId }) {
+  const [prefs, setPrefs] = useState({ digest: true, alerts: true })
+  const [saving, setSaving] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase.from('profiles')
+      .select('alert_digest, alert_urgent')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setPrefs({ digest: data.alert_digest ?? true, alerts: data.alert_urgent ?? true })
+        setLoaded(true)
+      })
+  }, [userId])
+
+  const toggle = async (field) => {
+    const next = { ...prefs, [field]: !prefs[field] }
+    setPrefs(next)
+    setSaving(true)
+    await supabase.from('profiles').update({
+      alert_digest: next.digest,
+      alert_urgent: next.alerts,
+    }).eq('id', userId)
+    setSaving(false)
+  }
+
+  if (!loaded) return null
+
+  return (
+    <div className="mt-4 bg-white border border-gray-200 rounded-lg px-6 py-4">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Email Notifications</p>
+        {saving && <span className="text-[10px] text-gray-400">Saving…</span>}
+      </div>
+      <div className="space-y-3">
+        <label className="flex items-center justify-between cursor-pointer group">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Weekly digest</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Portfolio summary + market updates every Monday</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={prefs.digest}
+            onClick={() => toggle('digest')}
+            className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${prefs.digest ? 'bg-primary' : 'bg-gray-200'}`}
+          >
+            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs.digest ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </label>
+        <label className="flex items-center justify-between cursor-pointer group">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Urgent alerts</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Immediate email when a project's market conditions worsen</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={prefs.alerts}
+            onClick={() => toggle('alerts')}
+            className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${prefs.alerts ? 'bg-primary' : 'bg-gray-200'}`}
+          >
+            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs.alerts ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </label>
+      </div>
+    </div>
+  )
+}
+
+// ── Portfolio Stats (Pro only) ────────────────────────────────────────────────
+function PortfolioStats({ projects, stateProgramMap }) {
+  const scored = useMemo(() => projects.map(p => {
+    const sp = stateProgramMap[p.state]
+    if (!sp) return { ...p, score: 0 }
+    const subs = computeSubScores(sp, null, p.stage, p.technology)
+    return { ...p, score: computeDisplayScore(...Object.values(subs)) }
+  }), [projects, stateProgramMap])
+
+  const totalMW = useMemo(() =>
+    projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0), [projects])
+
+  const healthScore = useMemo(() => {
+    if (!scored.length) return 0
+    const wMW = scored.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
+    return Math.round(scored.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0) / wMW)
+  }, [scored])
+
+  const stageData = useMemo(() => {
+    const map = {}
+    projects.forEach(p => {
+      const s = p.stage || 'Unknown'
+      map[s] = (map[s] || 0) + 1
+    })
+    return Object.entries(map).sort((a, b) => b[1] - a[1])
+  }, [projects])
+
+  const techData = useMemo(() => {
+    const map = {}
+    projects.forEach(p => {
+      const t = p.technology || 'Community Solar'
+      map[t] = (map[t] || 0) + (parseFloat(p.mw) || 0)
+    })
+    return Object.entries(map).sort((a, b) => b[1] - a[1])
+  }, [projects])
+  const techTotal = techData.reduce((s, [, mw]) => s + mw, 0)
+
+  const riskCounts = useMemo(() => {
+    let strong = 0, moderate = 0, atRisk = 0
+    scored.forEach(p => { if (p.score > 65) strong++; else if (p.score >= 40) moderate++; else atRisk++ })
+    return { strong, moderate, atRisk }
+  }, [scored])
+
+  const healthColor = healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626'
+  const healthBg = healthScore > 65 ? 'linear-gradient(135deg, #ECFDF5, #D1FAE5)' : healthScore >= 40 ? 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' : 'linear-gradient(135deg, #FEF2F2, #FEE2E2)'
+
+  if (!projects.length) return null
+
+  return (
+    <div className="mt-4 space-y-3">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Portfolio Overview</p>
+
+      {/* Health + KPIs row */}
+      <div className="grid grid-cols-3 gap-3">
+        {/* Health gauge */}
+        <div className="rounded-xl px-4 py-4 flex flex-col items-center justify-center" style={{ background: healthBg }}>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Health</p>
+          <div className="relative w-14 h-14">
+            <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E7EB" strokeWidth="3" />
+              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={healthColor} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-lg font-bold tabular-nums" style={{ color: healthColor }}>{healthScore}</span>
+          </div>
+        </div>
+
+        {/* Total MW */}
+        <div className="rounded-xl px-4 py-4 bg-white border border-gray-100 flex flex-col justify-center">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Capacity</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">{totalMW >= 100 ? Math.round(totalMW) : totalMW.toFixed(1)}</p>
+          <p className="text-[10px] text-gray-400 font-medium">MW AC</p>
+        </div>
+
+        {/* Projects + risk split */}
+        <div className="rounded-xl px-4 py-4 bg-white border border-gray-100 flex flex-col justify-center">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Projects</p>
+          <p className="text-2xl font-bold tabular-nums text-gray-900">{projects.length}</p>
+          <div className="flex items-center gap-1 mt-1">
+            {riskCounts.strong > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title={`${riskCounts.strong} Strong`} />}
+            {riskCounts.moderate > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title={`${riskCounts.moderate} Moderate`} />}
+            {riskCounts.atRisk > 0 && <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title={`${riskCounts.atRisk} At Risk`} />}
+            <span className="text-[9px] text-gray-400">
+              {[
+                riskCounts.strong > 0 && `${riskCounts.strong} strong`,
+                riskCounts.atRisk > 0 && `${riskCounts.atRisk} at risk`,
+              ].filter(Boolean).join(' · ')}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Stage distribution mini-bar */}
+      <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">Stage Distribution</p>
+        <div className="flex items-end gap-1.5 h-10">
+          {stageData.map(([stage, count]) => (
+            <div key={stage} className="group relative flex-1 flex flex-col items-center">
+              <div
+                className="w-full rounded-t-sm transition-all"
+                style={{
+                  height: `${Math.max(4, (count / Math.max(...stageData.map(([, c]) => c))) * 36)}px`,
+                  background: STAGE_COLORS[stage] || '#9CA3AF',
+                }}
+              />
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-[9px] bg-gray-900 text-white px-1.5 py-0.5 rounded pointer-events-none z-10">{stage} ({count})</span>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          {stageData.map(([stage, count]) => (
+            <span key={stage} className="flex items-center gap-1 text-[9px] text-gray-500">
+              <span className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ background: STAGE_COLORS[stage] || '#9CA3AF' }} />
+              {stage.replace(' (Notice to Proceed)', '')} {count}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Tech breakdown bar */}
+      {techTotal > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl px-4 py-3">
+          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2.5">MW by Technology</p>
+          <div className="flex h-2.5 rounded-full overflow-hidden">
+            {techData.map(([tech, mw]) => (
+              <div
+                key={tech}
+                style={{ width: `${(mw / techTotal) * 100}%`, background: TECH_COLORS[tech] || '#6B7280' }}
+                className="first:rounded-l-full last:rounded-r-full"
+              />
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+            {techData.map(([tech, mw]) => (
+              <span key={tech} className="flex items-center gap-1 text-[9px] text-gray-500">
+                <span className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
+                {tech} · {mw.toFixed(1)} MW
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Profile ─────────────────────────────────────────────────────────────
 export default function Profile() {
   const { user } = useAuth()
   const { isPro, tier, status } = useSubscription()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
-  const [projectCount, setProjectCount] = useState(null)
-  const [recentProjects, setRecentProjects] = useState([])
+  const [allProjects, setAllProjects] = useState([])
+  const [stateProgramMap, setStateProgramMap] = useState({})
 
   useEffect(() => {
-    if (user) {
-      supabase.from('projects').select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .then(({ count }) => setProjectCount(count))
+    if (!user) return
+    // Fetch all projects for portfolio stats
+    supabase.from('projects')
+      .select('id, name, state, state_name, county, mw, stage, technology, opportunity_score, saved_at')
+      .eq('user_id', user.id)
+      .order('saved_at', { ascending: false })
+      .then(({ data }) => setAllProjects(data || []))
 
-      supabase.from('projects')
-        .select('id, name, state, county, saved_at')
-        .eq('user_id', user.id)
-        .order('saved_at', { ascending: false })
-        .limit(5)
-        .then(({ data }) => setRecentProjects(data || []))
+    if (isPro) {
+      getStateProgramMap().then(setStateProgramMap).catch(console.error)
     }
-  }, [user])
+  }, [user, isPro])
 
   if (!user) {
     return (
@@ -110,9 +322,8 @@ export default function Profile() {
   const fullName    = user.user_metadata?.full_name || '—'
   const email       = user.email
   const initials    = getInitials(fullName)
-  const memberSince = new Date(user.created_at).toLocaleDateString('en-US', {
-    month: 'long', day: 'numeric', year: 'numeric',
-  })
+  const memberSince = new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const recentProjects = allProjects.slice(0, 5)
 
   return (
     <div className="min-h-screen bg-surface">
@@ -128,7 +339,7 @@ export default function Profile() {
               >
                 {initials}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h1 className="text-2xl font-bold text-white truncate">{fullName}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   {isPro ? (
@@ -143,14 +354,33 @@ export default function Profile() {
                   )}
                   <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Member since {memberSince}</span>
                 </div>
+                {allProjects.length > 0 && (
+                  <p className="text-xs mt-2" style={{ color: 'rgba(52,211,153,0.7)' }}>
+                    {allProjects.length} project{allProjects.length !== 1 ? 's' : ''} tracked
+                    {allProjects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0) > 0 && (
+                      <> · {allProjects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW total</>
+                    )}
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
+          {/* Portfolio Stats (Pro) */}
+          {isPro && allProjects.length >= 2 && (
+            <PortfolioStats projects={allProjects} stateProgramMap={stateProgramMap} />
+          )}
+
           {/* Account card */}
-          <div className="bg-white border border-gray-200 rounded-lg px-6 py-2">
-            <Field label="Email" value={email} />
-            <Field label="Projects saved" value={projectCount != null ? String(projectCount) : '—'} />
+          <div className={`bg-white border border-gray-200 rounded-lg px-6 py-2 ${isPro && allProjects.length >= 2 ? 'mt-4' : ''}`}>
+            <div className="py-3 border-b border-gray-100">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
+              <p className="text-sm text-gray-900">{email}</p>
+            </div>
+            <div className="py-3">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Projects saved</p>
+              <p className="text-sm text-gray-900">{allProjects.length || '—'}</p>
+            </div>
           </div>
 
           {/* Subscription card */}
@@ -168,18 +398,11 @@ export default function Profile() {
                       <span className="text-sm text-gray-500">$9.99 / month</span>
                     </>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-500">
-                      Free
-                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-500">Free</span>
                   )}
                 </div>
-                {isPro ? (
-                  <ManageBillingButton />
-                ) : (
-                  <Link
-                    to="/search"
-                    className="text-sm font-medium text-primary hover:text-primary-700 transition-colors"
-                  >
+                {isPro ? <ManageBillingButton /> : (
+                  <Link to="/search" className="text-sm font-medium text-primary hover:text-primary-700 transition-colors">
                     Upgrade to Pro →
                   </Link>
                 )}
@@ -193,7 +416,10 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Recent activity card */}
+          {/* Alert preferences (Pro only) */}
+          {isPro && <AlertPreferences userId={user.id} />}
+
+          {/* Recent activity */}
           {recentProjects.length > 0 && (
             <div className="mt-4 bg-white border border-gray-200 rounded-lg px-6 py-4">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Activity</p>
@@ -206,7 +432,7 @@ export default function Profile() {
                       </span>
                       <div className="min-w-0">
                         <p className="text-sm text-gray-800 font-medium truncate">{p.name || `${p.state} ${p.county || ''}`}</p>
-                        {p.county && <p className="text-[10px] text-gray-400">{p.county} County</p>}
+                        <p className="text-[10px] text-gray-400">{[p.county && `${p.county} Co.`, p.stage].filter(Boolean).join(' · ')}</p>
                       </div>
                     </div>
                     <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums">{timeAgo(p.saved_at)}</span>
@@ -219,7 +445,7 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Admin access — only visible to admin */}
+          {/* Admin access */}
           {email === 'aden.walker67@gmail.com' && (
             <Link
               to="/admin"

@@ -135,7 +135,7 @@ export default async function handler(req, res) {
 
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from('profiles')
-      .select('id, subscription_tier, subscription_status')
+      .select('id, subscription_tier, subscription_status, alert_urgent')
       .eq('subscription_tier', 'pro')
       .in('subscription_status', ['active', 'trialing'])
 
@@ -144,6 +144,9 @@ export default async function handler(req, res) {
     const results = []
 
     for (const profile of profiles ?? []) {
+      // Respect alert preference — default on if column not yet set
+      if (profile.alert_urgent === false) continue
+
       const { data: { user }, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id)
       if (userErr || !user?.email) continue
 

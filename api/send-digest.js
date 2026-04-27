@@ -162,7 +162,7 @@ export default async function handler(req, res) {
     // Fetch all Pro users
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from('profiles')
-      .select('id, stripe_customer_id, subscription_tier, subscription_status')
+      .select('id, stripe_customer_id, subscription_tier, subscription_status, alert_digest')
       .eq('subscription_tier', 'pro')
       .in('subscription_status', ['active', 'trialing'])
 
@@ -171,6 +171,9 @@ export default async function handler(req, res) {
     const results = []
 
     for (const profile of profiles ?? []) {
+      // Respect digest preference — default on if column not yet set
+      if (profile.alert_digest === false) continue
+
       // Get user email from auth
       const { data: { user }, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id)
       if (userErr || !user?.email) continue
