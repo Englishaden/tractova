@@ -342,12 +342,18 @@ async function handlePortfolio(body, res) {
       { signal: controller.signal }
     )
     clearTimeout(timeoutId)
-    const parsed = parseInsightResponse(message.content?.[0]?.text || '')
-    return res.status(200).json({ insight: parsed })
+    const raw = message.content?.[0]?.text || ''
+    try {
+      const match = raw.match(/\{[\s\S]*\}/)
+      const parsed = JSON.parse(match ? match[0] : raw)
+      return res.status(200).json(parsed)
+    } catch {
+      return res.status(200).json({ summary: null, fallback: true, reason: 'parse_failed' })
+    }
   } catch (err) {
     clearTimeout(timeoutId)
     console.error('[lens-insight:portfolio] error:', err.message)
-    return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+    return res.status(200).json({ summary: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }
 
@@ -390,11 +396,17 @@ async function handleCompare(body, res) {
       { signal: controller.signal }
     )
     clearTimeout(timeoutId)
-    const parsed = parseInsightResponse(message.content?.[0]?.text || '')
-    return res.status(200).json({ insight: parsed })
+    const raw = message.content?.[0]?.text || ''
+    try {
+      const match = raw.match(/\{[\s\S]*\}/)
+      const parsed = JSON.parse(match ? match[0] : raw)
+      return res.status(200).json(parsed)
+    } catch {
+      return res.status(200).json({ comparison: null, fallback: true, reason: 'parse_failed' })
+    }
   } catch (err) {
     clearTimeout(timeoutId)
     console.error('[lens-insight:compare] error:', err.message)
-    return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+    return res.status(200).json({ comparison: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }

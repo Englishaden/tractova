@@ -843,38 +843,56 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
   const handleGenerateInsight = async () => {
     setAiLoading(true)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
       const payload = scored.map(p => ({
         name: p.name, state: p.state, county: p.county, mw: p.mw,
         stage: p.stage, technology: p.technology, score: p.score
       }))
       const res = await fetch('/api/lens-insight', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
         body: JSON.stringify({ action: 'portfolio', projects: payload })
       })
       if (res.ok) {
         const data = await res.json()
-        setAiInsight(data)
+        if (data.summary) setAiInsight(data)
       }
     } catch { /* silently fail */ }
     setAiLoading(false)
   }
 
+  // Geographic breakdown
+  const geoBreakdown = useMemo(() => {
+    const map = {}
+    scored.forEach(p => {
+      const st = p.state_name || p.state || 'Unknown'
+      if (!map[st]) map[st] = { count: 0, mw: 0, avgScore: 0, scores: [] }
+      map[st].count++
+      map[st].mw += parseFloat(p.mw) || 0
+      map[st].scores.push(p.score)
+    })
+    Object.values(map).forEach(v => { v.avgScore = Math.round(v.scores.reduce((a, b) => a + b, 0) / v.scores.length) })
+    return Object.entries(map).sort((a, b) => b[1].mw - a[1].mw)
+  }, [scored])
+
   return (
-    <div className="rounded-xl overflow-hidden mb-4 bg-primary-50 border border-primary-100">
+    <div className="rounded-xl overflow-hidden mb-4 bg-white border border-gray-200 shadow-sm">
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left bg-gradient-to-r from-primary-50 to-white"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-100">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
             </svg>
           </div>
           <div>
-            <p className="text-xs font-bold text-gray-900">Portfolio Summary</p>
-            <p className="text-[10px] font-mono text-gray-500 mt-0.5">{projects.length} projects · {totalMW.toFixed(1)} MW total</p>
+            <p className="text-sm font-bold text-gray-900">Portfolio Intelligence</p>
+            <p className="text-[10px] font-mono text-gray-500 mt-0.5">{projects.length} projects · {totalMW.toFixed(1)} MW across {geoBreakdown.length} state{geoBreakdown.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
         <svg
@@ -886,107 +904,198 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
       </button>
 
       {!collapsed && (
-        <div className="px-5 py-4 space-y-4" style={{ borderTop: '1px solid rgba(15,110,86,0.12)' }}>
-          {/* Top row: Health Score + Risk Distribution */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Health Score */}
-            <div className={`rounded-lg px-4 py-3 ${healthBg} flex items-center gap-4`}>
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-gray-500">Health Score</p>
-                <p className={`text-3xl font-bold tabular-nums ${healthColor}`}>{healthScore}</p>
+        <div className="px-5 py-4 space-y-3" style={{ borderTop: '1px solid rgba(15,110,86,0.08)' }}>
+          {/* Row 1: Health score gauge + KPI widgets */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Health Score — large gauge */}
+            <div className="col-span-2 sm:col-span-1 rounded-xl px-4 py-4 flex flex-col items-center justify-center" style={{ background: healthScore > 65 ? 'linear-gradient(135deg, #ECFDF5, #D1FAE5)' : healthScore >= 40 ? 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' : 'linear-gradient(135deg, #FEF2F2, #FEE2E2)' }}>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 mb-1">Portfolio Health</p>
+              <div className="relative w-16 h-16">
+                <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E7EB" strokeWidth="3" />
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626'} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
+                </svg>
+                <span className={`absolute inset-0 flex items-center justify-center text-xl font-bold tabular-nums ${healthColor}`}>{healthScore}</span>
               </div>
-              <div className="flex-1">
-                <div className="w-full h-1.5 rounded-full bg-gray-200 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${healthScore}%`, background: healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626' }}
-                  />
-                </div>
-              </div>
+              <p className="text-[9px] font-medium mt-1" style={{ color: healthScore > 65 ? '#059669' : healthScore >= 40 ? '#B45309' : '#DC2626' }}>
+                {healthScore > 65 ? 'Strong' : healthScore >= 40 ? 'Moderate' : 'At Risk'}
+              </p>
             </div>
 
-            {/* Risk Distribution */}
-            <div className="rounded-lg px-4 py-3 bg-white/60">
-              <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-gray-500">Risk Distribution</p>
-              <div className="flex items-center gap-2">
+            {/* KPI: Total MW */}
+            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total Capacity</p>
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{totalMW.toFixed(1)}</p>
+              <p className="text-[10px] text-gray-500 font-medium">MW AC</p>
+            </div>
+
+            {/* KPI: Avg Score */}
+            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Avg. Score</p>
+              <p className="text-2xl font-bold tabular-nums text-gray-900">{scored.length ? Math.round(scored.reduce((s, p) => s + p.score, 0) / scored.length) : 0}</p>
+              <p className="text-[10px] text-gray-500 font-medium">/ 100</p>
+            </div>
+
+            {/* KPI: Risk Distribution */}
+            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2">Risk Spread</p>
+              <div className="flex flex-col gap-1.5">
                 {riskDist.strong > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-100 text-primary-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />{riskDist.strong} Strong
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(riskDist.strong / scored.length) * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold tabular-nums text-emerald-700 w-4 text-right">{riskDist.strong}</span>
+                  </div>
                 )}
                 {riskDist.moderate > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />{riskDist.moderate} Moderate
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${(riskDist.moderate / scored.length) * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold tabular-nums text-amber-700 w-4 text-right">{riskDist.moderate}</span>
+                  </div>
                 )}
                 {riskDist.atRisk > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />{riskDist.atRisk} At Risk
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full rounded-full bg-red-500" style={{ width: `${(riskDist.atRisk / scored.length) * 100}%` }} />
+                    </div>
+                    <span className="text-[10px] font-bold tabular-nums text-red-700 w-4 text-right">{riskDist.atRisk}</span>
+                  </div>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* MW by Technology */}
-            <div className="rounded-lg px-4 py-3 bg-white/60">
-              <p className="text-[9px] font-bold uppercase tracking-wider mb-2 text-gray-500">MW by Technology</p>
+          {/* Row 2: MW by Technology + Geographic Breakdown */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* MW by Technology — donut-style */}
+            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-3">MW by Technology</p>
               {totalMW > 0 ? (
-                <>
-                  <div className="w-full h-3 rounded-full overflow-hidden flex">
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 flex-shrink-0">
+                    <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
+                      {(() => {
+                        let offset = 0
+                        return techBreakdown.map(([tech, mw]) => {
+                          const pct = (mw / totalMW) * 100
+                          const el = <circle key={tech} cx="18" cy="18" r="14" fill="none" stroke={TECH_COLORS[tech] || '#6B7280'} strokeWidth="4" strokeDasharray={`${pct * 0.88} ${88 - pct * 0.88}`} strokeDashoffset={-offset * 0.88} strokeLinecap="round" />
+                          offset += pct
+                          return el
+                        })
+                      })()}
+                    </svg>
+                    <span className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className="text-sm font-bold text-gray-900">{totalMW.toFixed(0)}</span>
+                      <span className="text-[8px] text-gray-400">MW</span>
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
                     {techBreakdown.map(([tech, mw]) => (
-                      <div
-                        key={tech}
-                        style={{ width: `${(mw / totalMW) * 100}%`, background: TECH_COLORS[tech] || '#6B7280' }}
-                        className="h-full first:rounded-l-full last:rounded-r-full"
-                      />
+                      <div key={tech} className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-[10px] text-gray-600">
+                          <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
+                          {tech}
+                        </span>
+                        <span className="text-[10px] font-bold tabular-nums text-gray-700">{mw.toFixed(1)} MW</span>
+                      </div>
                     ))}
                   </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-                    {techBreakdown.map(([tech, mw]) => (
-                      <span key={tech} className="flex items-center gap-1 text-[9px] text-gray-600">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
-                        {tech} {mw.toFixed(1)}
-                      </span>
-                    ))}
-                  </div>
-                </>
+                </div>
               ) : (
                 <p className="text-xs text-gray-400">No MW data</p>
               )}
             </div>
+
+            {/* Geographic Breakdown */}
+            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-3">Geographic Spread</p>
+              <div className="space-y-2">
+                {geoBreakdown.slice(0, 5).map(([state, data]) => (
+                  <div key={state} className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-gray-700 w-8 flex-shrink-0">{state}</span>
+                    <div className="flex-1 h-2.5 rounded-full bg-gray-200 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${totalMW > 0 ? (data.mw / totalMW) * 100 : 0}%`, background: data.avgScore > 65 ? '#10B981' : data.avgScore >= 40 ? '#F59E0B' : '#EF4444' }}
+                      />
+                    </div>
+                    <span className="text-[9px] tabular-nums text-gray-500 w-14 text-right flex-shrink-0">{data.mw.toFixed(1)} MW</span>
+                    <span className="text-[9px] font-bold tabular-nums w-6 text-right flex-shrink-0" style={{ color: data.avgScore > 65 ? '#059669' : data.avgScore >= 40 ? '#D97706' : '#DC2626' }}>{data.avgScore}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
-          {/* AI Insight */}
-          <div className="rounded-lg px-4 py-3 bg-white/60">
+          {/* Row 3: AI Insight */}
+          <div className="rounded-xl border border-gray-100 overflow-hidden" style={{ background: 'linear-gradient(135deg, #F0FDF9, #ECFDF5)' }}>
             {aiInsight ? (
-              <div className="space-y-2">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-primary">AI Portfolio Insight</p>
-                <p className="text-xs leading-relaxed text-gray-700">{aiInsight.summary}</p>
-                {aiInsight.topRecommendation && (
-                  <div className="flex items-start gap-2 mt-1 px-3 py-2 rounded-md bg-primary-50">
-                    <svg className="w-3.5 h-3.5 text-primary-600 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                    <p className="text-xs text-primary-800 font-medium">{aiInsight.topRecommendation}</p>
+              <div className="px-4 py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }}>
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   </div>
-                )}
-                {aiInsight.riskAssessment && (
-                  <p className="text-[11px] text-gray-500 italic">{aiInsight.riskAssessment}</p>
-                )}
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary-700">AI Portfolio Insight</p>
+                </div>
+                <p className="text-xs leading-relaxed text-gray-700">{aiInsight.summary}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {aiInsight.topRecommendation && (
+                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-primary-100">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-primary-100 flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-primary-600 mb-0.5">Top Recommendation</p>
+                        <p className="text-[11px] leading-relaxed text-gray-700">{aiInsight.topRecommendation}</p>
+                      </div>
+                    </div>
+                  )}
+                  {aiInsight.riskAssessment && (
+                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-amber-100">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-amber-100 flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-amber-600 mb-0.5">Risk Assessment</p>
+                        <p className="text-[11px] leading-relaxed text-gray-700">{aiInsight.riskAssessment}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleGenerateInsight}
+                  className="text-[10px] font-medium text-primary-500 hover:text-primary-700 transition-colors"
+                >
+                  Regenerate
+                </button>
               </div>
             ) : aiLoading ? (
-              <div className="space-y-2">
-                <div className="h-3 w-32 rounded bg-gray-200 animate-pulse" />
-                <div className="h-3 w-full rounded bg-gray-200 animate-pulse" />
-                <div className="h-3 w-3/4 rounded bg-gray-200 animate-pulse" />
+              <div className="px-4 py-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }} />
+                  <div className="h-3 w-28 rounded bg-primary-200/50 animate-pulse" />
+                </div>
+                <div className="h-3 w-full rounded bg-primary-100/40 animate-pulse" />
+                <div className="h-3 w-4/5 rounded bg-primary-100/40 animate-pulse" />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
+                  <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
+                </div>
               </div>
             ) : (
               <button
                 onClick={handleGenerateInsight}
-                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-primary-700 hover:bg-primary-50 transition-colors"
+                className="w-full flex items-center justify-center gap-2.5 px-4 py-4 text-xs font-semibold text-primary-700 hover:bg-primary-50/50 transition-colors"
               >
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                </svg>
-                Generate AI Insight
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }}>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                </div>
+                Generate AI Portfolio Insight
               </button>
             )}
           </div>

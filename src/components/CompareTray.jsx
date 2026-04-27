@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
+import { supabase } from '../lib/supabase'
 
 const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
 const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
@@ -62,23 +63,29 @@ function CompareModal({ onClose }) {
     if (items.length < 2) return
     let cancelled = false
     setAiLoading(true)
-    fetch('/api/lens-insight', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: 'compare',
-        projects: items.map(it => ({
-          id: it.id, name: it.name, state: it.stateName || it.state,
-          county: it.county, mw: it.mw, stage: it.stage,
-          technology: it.technology, feasibilityScore: it.feasibilityScore,
-          ixDifficulty: it.ixDifficulty, csStatus: it.csStatus
-        }))
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return
+      fetch('/api/lens-insight', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({
+          action: 'compare',
+          projects: items.map(it => ({
+            id: it.id, name: it.name, state: it.stateName || it.state,
+            county: it.county, mw: it.mw, stage: it.stage,
+            technology: it.technology, feasibilityScore: it.feasibilityScore,
+            ixDifficulty: it.ixDifficulty, csStatus: it.csStatus
+          }))
+        })
       })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (!cancelled && data?.comparison) setAiCompare(data) })
+        .catch(() => {})
+        .finally(() => { if (!cancelled) setAiLoading(false) })
     })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (!cancelled && data) setAiCompare(data) })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setAiLoading(false) })
     return () => { cancelled = true }
   }, [items.length])
 
@@ -260,24 +267,43 @@ function CompareModal({ onClose }) {
         </div>
 
         {/* AI comparison + footer */}
-        <div className="px-6 py-3 rounded-b-xl" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
+        <div className="px-6 py-4 rounded-b-xl" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.02)' }}>
           {bestFor && (
-            <p className="text-[10px] font-medium mb-2" style={{ color: '#34D399' }}>
+            <p className="text-[10px] font-medium mb-3" style={{ color: '#34D399' }}>
               {bestFor}
             </p>
           )}
           {aiLoading ? (
-            <div className="mb-3 space-y-1.5">
-              <div className="h-2.5 w-48 rounded bg-white/5 animate-pulse" />
-              <div className="h-2.5 w-full rounded bg-white/5 animate-pulse" />
-              <div className="h-2.5 w-3/4 rounded bg-white/5 animate-pulse" />
+            <div className="mb-3 rounded-xl p-4" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.08)' }}>
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'rgba(52,211,153,0.2)' }} />
+                <div className="h-2.5 w-32 rounded bg-white/8 animate-pulse" />
+              </div>
+              <div className="space-y-2">
+                <div className="h-2.5 w-full rounded bg-white/5 animate-pulse" />
+                <div className="h-2.5 w-4/5 rounded bg-white/5 animate-pulse" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="h-14 rounded-lg bg-white/3 animate-pulse" />
+                <div className="h-14 rounded-lg bg-white/3 animate-pulse" />
+              </div>
             </div>
           ) : aiCompare?.comparison ? (
-            <div className="mb-3 rounded-lg px-3 py-2.5" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.12)' }}>
-              <p className="text-[9px] font-bold uppercase tracking-wider mb-1.5" style={{ color: '#34D399' }}>AI Comparison</p>
-              <p className="text-[11px] leading-relaxed text-white/60">{aiCompare.comparison}</p>
+            <div className="mb-3 rounded-xl overflow-hidden" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.10)' }}>
+              <div className="px-4 pt-3 pb-2 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(52,211,153,0.06)' }}>
+                <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.3), rgba(5,150,105,0.3))' }}>
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#34D399' }}>AI Comparison Analysis</p>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-[11px] leading-relaxed text-white/65">{aiCompare.comparison}</p>
+              </div>
               {aiCompare.reason && (
-                <p className="text-[10px] text-white/40 mt-1.5 italic">{aiCompare.reason}</p>
+                <div className="mx-4 mb-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.08)' }}>
+                  <svg className="w-3 h-3 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  <p className="text-[10px] text-white/50 leading-relaxed">{aiCompare.reason}</p>
+                </div>
               )}
             </div>
           ) : null}
