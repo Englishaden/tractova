@@ -792,7 +792,7 @@ function StagingTab() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { setError('Not authenticated'); setLoading(false); return }
-      const resp = await fetch(`/api/staging?status=${filter}`, {
+      const resp = await fetch(`/api/data-health?action=staging&status=${filter}`, {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
@@ -813,7 +813,7 @@ function StagingTab() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Session expired — please log in again')
-      const resp = await fetch('/api/staging', {
+      const resp = await fetch('/api/data-health?action=staging', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -977,7 +977,7 @@ function DataHealthTab() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Session expired — please log in again')
-      const resp = await fetch('/api/export', {
+      const resp = await fetch('/api/data-health?action=export', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       })
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
