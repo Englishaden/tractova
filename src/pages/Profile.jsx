@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { getStateProgramMap } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { Toggle, Input, Button } from '../components/ui'
+import { STAGE_COLORS, TECH_COLORS } from '../lib/v3Tokens'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -26,16 +27,7 @@ function timeAgo(dateStr) {
   return `${Math.floor(days / 30)}mo ago`
 }
 
-const STAGE_COLORS = {
-  'Prospecting':             '#A7F3D0',
-  'Site Control':            '#6EE7B7',
-  'Pre-Development':         '#34D399',
-  'Development':             '#10B981',
-  'NTP (Notice to Proceed)': '#059669',
-  'Construction':            '#047857',
-  'Operational':             '#065F46',
-}
-const TECH_COLORS = { 'Community Solar': '#0F6E56', 'C&I Solar': '#2563EB', 'BESS': '#7C3AED', 'Hybrid': '#059669' }
+// V3: STAGE_COLORS + TECH_COLORS now imported from src/lib/v3Tokens.js
 
 // ── Manage Billing ───────────────────────────────────────────────────────────
 function ManageBillingButton() {

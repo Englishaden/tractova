@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../components/ui/Dialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
+import { TECH_COLORS } from '../lib/v3Tokens'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
@@ -1788,7 +1789,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
 }
 
 // ── Weekly Summary Card ──────────────────────────────────────────────────────
-const TECH_COLORS = { 'Community Solar': '#0F6E56', 'C&I Solar': '#2563EB', 'BESS': '#7C3AED', 'Hybrid': '#059669' }
+// V3: TECH_COLORS now imported from lib/v3Tokens at top of file (kept name to avoid render-call churn).
 
 // V3: per-user-per-day cache so Library load doesn't re-spend tokens.
 // Mirrors the per-state news-pulse pattern. Date in key handles 24h TTL.
