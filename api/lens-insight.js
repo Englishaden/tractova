@@ -615,18 +615,19 @@ ABSOLUTE RULES:
 7. The email must be SHORT (180-260 words in the body), well-paced, and respectful of the utility engineer's time. Open with the project specs. Move quickly to the asks. End with availability.
 8. The asks in the email must be specific and reasonable: pre-application report, hosting capacity at the candidate POI, study queue position estimate, application window dates, point-of-contact for follow-up. Do NOT ask for a feasibility study at first contact — that's the next round.
 9. Tone: professional, warm, knowledgeable. Not stiff. Not pleading. Not transactional. The developer is a peer asking another professional for time.
-10. Attachments checklist: 4-6 items the developer should physically have ready before sending. Each starts with a verb. Be tech-aware (BESS needs single-line, solar needs site map and module specs, hybrid needs both).
-11. Follow-up playbook: 3-4 sequenced steps with concrete timing ("Day 7", "Day 14", "Day 30"). The first step is always "Send outreach email"; the rest are escalations or pivots.
-12. Phone talking points: 4-5 bullets the developer can paste into a phone-call notepad. Each is action-oriented.
-13. Notes field (1-2 sentences): a state- or utility-specific gotcha worth flagging — recent rule change, known queue freeze, GIA-template quirk, FERC docket worth referencing. If nothing notable, write a calibrated "no specific gotcha — standard process applies."
+10. **Bracket every developer-specific field as [Placeholder Text] in BOTH the body and the sign-off.** Never invent or assume a name, company, title, phone number, email address, project codename, or contact identity. Concrete fillable placeholders the developer expects to find: [Your Name], [Your Title], [Your Company], [Phone], [Email], [Project Codename, if assigned], [Your firm's primary point-of-contact for IX matters]. When referring to "we" / "our team" in the body, anchor with the bracket explicitly — e.g., "[Your Company] is developing a 5 MW community solar project in Will County" — NOT "We are developing..." This is critical: the developer must be able to find-and-replace the brackets in 30 seconds and send. The greeting may name the utility's known team (e.g., "ComEd Interconnection Team") because that side is known.
+11. Attachments checklist: 4-6 items the developer should physically have ready before sending. Each starts with a verb. Be tech-aware (BESS needs single-line, solar needs site map and module specs, hybrid needs both).
+12. Follow-up playbook: 3-4 sequenced steps with concrete timing ("Day 7", "Day 14", "Day 30"). The first step is always "Send outreach email"; the rest are escalations or pivots.
+13. Phone talking points: 4-5 bullets the developer can paste into a phone-call notepad. Each is action-oriented.
+14. Notes field (1-2 sentences): a state- or utility-specific gotcha worth flagging — recent rule change, known queue freeze, GIA-template quirk, FERC docket worth referencing. If nothing notable, write a calibrated "no specific gotcha — standard process applies."
 
 OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
 {
   "email": {
     "subject": "Pre-application subject line — under 75 chars, includes MW + technology + county",
     "greeting": "Salutation with utility's interconnection team / department",
-    "body": "180-260 words, multi-paragraph, ready to copy-paste verbatim. Use actual project specs. End with availability for a 30-min call.",
-    "signOff": "Closing + signature block placeholder (e.g., 'Best regards,\\n[Your name]\\n[Company]\\n[Phone] | [Email]')"
+    "body": "180-260 words, multi-paragraph, ready to copy-paste verbatim. Use ACTUAL project specs (MW, technology, county, stage) inline. Bracket all developer-specific fields. Open with: '[Your Company] is developing a {actual MW} {actual tech} project in {actual county}, {actual state}...' End with availability for a 30-min call referencing [Your Title] and [Phone].",
+    "signOff": "Closing + signature block, every developer field bracketed. Format: 'Best regards,\\n\\n[Your Name]\\n[Your Title]\\n[Your Company]\\n[Phone] · [Email]'"
   },
   "utilityContext": {
     "utility": "Utility name as it should be addressed in the email",

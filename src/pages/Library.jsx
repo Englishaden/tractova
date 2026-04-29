@@ -798,161 +798,250 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="max-w-3xl max-h-[88vh] overflow-y-auto"
+          className="!max-w-5xl !p-0 !w-[94vw] max-h-[92vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
           aria-describedby={undefined}
         >
           {kit && (
-            <div className="space-y-5">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-200">
-                <div>
-                  <p className="font-mono text-[9px] uppercase tracking-[0.22em] mb-1" style={{ color: '#0F766E' }}>
-                    ◆ Utility Outreach Kit
-                  </p>
-                  <DialogTitle>{project.name || `${project.county} County · ${project.mw} MW`}</DialogTitle>
-                  <p className="text-[12px] text-ink-muted mt-1">
-                    Tailored for <span className="font-medium text-ink">{kit.utilityContext?.utility}</span>
-                    {kit.utilityContext?.iso ? ` · ${kit.utilityContext.iso}` : ''}
-                  </p>
+            <div className="flex flex-col max-h-[92vh]">
+
+              {/* ── Flagship header — full-bleed navy gradient with topo accent ── */}
+              <div
+                className="relative px-8 pt-6 pb-7 flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 50%, #0F1A2E 100%)' }}
+              >
+                {/* Top teal rail — V3 brand signature */}
+                <div className="absolute top-0 left-0 right-0 h-px"
+                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 25%, rgba(20,184,166,0.95) 50%, rgba(20,184,166,0.55) 75%, transparent 100%)' }} />
+                {/* Subtle parcel-grid overlay echoing the Tractova mark */}
+                <div className="absolute inset-0 opacity-[0.06] pointer-events-none"
+                  style={{ backgroundImage: 'linear-gradient(to right, #5EEAD4 1px, transparent 1px), linear-gradient(to bottom, #5EEAD4 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+
+                <div className="relative flex items-start justify-between gap-6">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-[10px] uppercase tracking-[0.28em] font-semibold mb-2.5"
+                      style={{ color: '#5EEAD4' }}>
+                      ◆ Tractova · Utility Outreach Kit
+                    </p>
+                    <h2 className="font-serif text-3xl font-semibold text-white tracking-tight mb-1.5"
+                      style={{ letterSpacing: '-0.02em' }}>
+                      {project.name || `${project.county} County · ${project.mw} MW`}
+                    </h2>
+                    <p className="text-[13px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.62)' }}>
+                      Pre-application packet for{' '}
+                      <span className="font-semibold" style={{ color: '#FFFFFF' }}>{kit.utilityContext?.utility || 'Serving Utility'}</span>
+                      {kit.utilityContext?.iso ? <> · <span className="font-mono text-[12px]">{kit.utilityContext.iso}</span></> : null}
+                      {project.stage ? <> · {project.stage} stage</> : null}
+                    </p>
+                  </div>
+                  <DialogClose asChild>
+                    <button
+                      className="text-white/40 hover:text-white/90 transition-colors text-2xl leading-none w-8 h-8 flex items-center justify-center -mt-1 -mr-2 flex-shrink-0"
+                      aria-label="Close"
+                    >×</button>
+                  </DialogClose>
                 </div>
-                <DialogClose asChild>
-                  <button
-                    className="text-ink-muted hover:text-ink text-xl leading-none px-2"
-                    aria-label="Close"
-                  >×</button>
-                </DialogClose>
               </div>
 
-              {/* Utility context strip */}
-              {kit.utilityContext && (
-                <div className="rounded-lg px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5 text-[12px]"
-                  style={{ background: '#FAFAF7', border: '1px solid #E2E8F0' }}>
-                  {kit.utilityContext.studyProcess && (
-                    <ContextRow label="Study Process" value={kit.utilityContext.studyProcess} />
-                  )}
-                  {kit.utilityContext.typicalQueueWait && (
-                    <ContextRow label="Typical Queue Wait" value={kit.utilityContext.typicalQueueWait} />
-                  )}
-                  {kit.utilityContext.relevantTariffNote && (
-                    <div className="md:col-span-2">
-                      <ContextRow label="Tariff / Schedule" value={kit.utilityContext.relevantTariffNote} />
+              {/* ── Scrollable body — paper background, generous padding ── */}
+              <div
+                className="overflow-y-auto px-8 py-7 space-y-6 flex-1"
+                style={{ background: '#FAFAF7' }}
+              >
+
+                {/* Utility context — cartographic intel strip */}
+                {kit.utilityContext && (
+                  <div
+                    className="rounded-xl bg-white"
+                    style={{ border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(15, 26, 46, 0.04)' }}
+                  >
+                    <div className="px-5 py-2.5 border-b border-gray-100 flex items-center gap-2">
+                      <span className="w-1 h-3.5 rounded-full" style={{ background: '#14B8A6' }} />
+                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold text-ink-muted">
+                        Utility Intelligence
+                      </p>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Email block */}
-              {kit.email && (
-                <KitSection
-                  eyebrow="01 / Pre-Application Email"
-                  copyKey="email"
-                  copyText={fullEmailText}
-                  copyState={copyState.email}
-                  onCopy={copy}
-                >
-                  <div className="rounded-lg bg-white border border-gray-200 px-4 py-3.5 font-mono text-[12px] leading-relaxed text-ink whitespace-pre-wrap">
-                    <p className="font-semibold text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-2">Subject</p>
-                    <p className="text-ink mb-4">{kit.email.subject}</p>
-                    <p className="font-semibold text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-2">Body</p>
-                    <p className="mb-3">{kit.email.greeting}</p>
-                    <p className="mb-3">{kit.email.body}</p>
-                    <p>{kit.email.signOff}</p>
+                    <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                      {kit.utilityContext.studyProcess && (
+                        <ContextRow label="Study Process" value={kit.utilityContext.studyProcess} />
+                      )}
+                      {kit.utilityContext.typicalQueueWait && (
+                        <ContextRow label="Typical Queue Wait" value={kit.utilityContext.typicalQueueWait} />
+                      )}
+                      {kit.utilityContext.relevantTariffNote && (
+                        <ContextRow label="Tariff / Schedule" value={kit.utilityContext.relevantTariffNote} />
+                      )}
+                    </div>
                   </div>
-                </KitSection>
-              )}
+                )}
 
-              {/* Attachments checklist */}
-              {Array.isArray(kit.attachmentsChecklist) && kit.attachmentsChecklist.length > 0 && (
-                <KitSection
-                  eyebrow="02 / Attachments Checklist"
-                  copyKey="attach"
-                  copyText={kit.attachmentsChecklist.map((s, i) => `${i + 1}. ${s}`).join('\n')}
-                  copyState={copyState.attach}
-                  onCopy={copy}
-                >
-                  <ol className="space-y-1.5 text-[13px] text-ink">
-                    {kit.attachmentsChecklist.map((item, i) => (
-                      <li key={i} className="flex gap-2.5">
-                        <span className="font-mono text-[11px] tabular-nums text-ink-muted mt-0.5">{String(i + 1).padStart(2, '0')}</span>
-                        <span className="leading-relaxed">{item}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </KitSection>
-              )}
+                {/* Email block — letterhead treatment, the centerpiece */}
+                {kit.email && (
+                  <KitSection
+                    eyebrow="01 / Pre-Application Email"
+                    sublabel="Bracketed fields are placeholders — find-and-replace before sending"
+                    copyKey="email"
+                    copyText={fullEmailText}
+                    copyState={copyState.email}
+                    onCopy={copy}
+                  >
+                    <div
+                      className="rounded-xl bg-white relative overflow-hidden"
+                      style={{ border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(15, 26, 46, 0.04)' }}
+                    >
+                      {/* Subject strip */}
+                      <div className="px-6 py-3 border-b border-gray-100 flex items-baseline gap-3 flex-wrap"
+                        style={{ background: 'rgba(20, 184, 166, 0.04)' }}>
+                        <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold text-ink-muted flex-shrink-0">Subject</span>
+                        <span className="text-[13px] font-medium text-ink">{kit.email.subject}</span>
+                      </div>
+                      {/* Body — letterhead style */}
+                      <div className="px-6 py-5 text-[13.5px] leading-[1.7] text-ink whitespace-pre-wrap">
+                        <p className="mb-4">{kit.email.greeting}</p>
+                        <p className="mb-4">{kit.email.body}</p>
+                        <p className="font-mono text-[12px] leading-relaxed text-ink-muted whitespace-pre-wrap">{kit.email.signOff}</p>
+                      </div>
+                    </div>
+                  </KitSection>
+                )}
 
-              {/* Follow-up playbook */}
-              {Array.isArray(kit.followUpPlaybook) && kit.followUpPlaybook.length > 0 && (
-                <KitSection
-                  eyebrow="03 / Follow-Up Playbook"
-                  copyKey="followup"
-                  copyText={kit.followUpPlaybook.join('\n')}
-                  copyState={copyState.followup}
-                  onCopy={copy}
-                >
-                  <ol className="space-y-2 text-[13px] text-ink">
-                    {kit.followUpPlaybook.map((item, i) => (
-                      <li key={i} className="flex gap-3">
-                        <span className="w-5 h-5 rounded-full text-white text-[10px] font-mono font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
-                          style={{ background: '#0F766E' }}>
-                          {i + 1}
-                        </span>
-                        <span className="leading-relaxed">{item}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </KitSection>
-              )}
+                {/* Three-up bento: checklist · playbook · talking points */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-              {/* Phone talking points */}
-              {Array.isArray(kit.phoneTalkingPoints) && kit.phoneTalkingPoints.length > 0 && (
-                <KitSection
-                  eyebrow="04 / Phone Talking Points"
-                  copyKey="talk"
-                  copyText={kit.phoneTalkingPoints.map(s => `• ${s}`).join('\n')}
-                  copyState={copyState.talk}
-                  onCopy={copy}
-                >
-                  <ul className="space-y-1.5 text-[13px] text-ink">
-                    {kit.phoneTalkingPoints.map((item, i) => (
-                      <li key={i} className="flex gap-2.5">
-                        <span className="text-ink-muted mt-1.5 leading-none">▸</span>
-                        <span className="leading-relaxed">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </KitSection>
-              )}
+                  {/* Attachments checklist */}
+                  {Array.isArray(kit.attachmentsChecklist) && kit.attachmentsChecklist.length > 0 && (
+                    <KitSection
+                      eyebrow="02 / Attachments"
+                      compact
+                      copyKey="attach"
+                      copyText={kit.attachmentsChecklist.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+                      copyState={copyState.attach}
+                      onCopy={copy}
+                    >
+                      <div
+                        className="rounded-xl bg-white px-5 py-4 h-full"
+                        style={{ border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(15, 26, 46, 0.04)' }}
+                      >
+                        <ol className="space-y-2.5 text-[13px] text-ink">
+                          {kit.attachmentsChecklist.map((item, i) => (
+                            <li key={i} className="flex gap-2.5">
+                              <span className="font-mono text-[10px] tabular-nums font-semibold mt-1 flex-shrink-0" style={{ color: '#0F766E' }}>
+                                {String(i + 1).padStart(2, '0')}
+                              </span>
+                              <span className="leading-relaxed">{item}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </KitSection>
+                  )}
 
-              {/* Notes — amber callout */}
-              {kit.notes && (
-                <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.30)' }}>
-                  <p className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold mb-1.5" style={{ color: '#B45309' }}>
-                    ◆ Heads Up
-                  </p>
-                  <p className="text-[13px] text-ink leading-relaxed">{kit.notes}</p>
+                  {/* Follow-up playbook */}
+                  {Array.isArray(kit.followUpPlaybook) && kit.followUpPlaybook.length > 0 && (
+                    <KitSection
+                      eyebrow="03 / Follow-Up Playbook"
+                      compact
+                      copyKey="followup"
+                      copyText={kit.followUpPlaybook.join('\n')}
+                      copyState={copyState.followup}
+                      onCopy={copy}
+                    >
+                      <div
+                        className="rounded-xl bg-white px-5 py-4 h-full"
+                        style={{ border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(15, 26, 46, 0.04)' }}
+                      >
+                        <ol className="space-y-3 text-[13px] text-ink">
+                          {kit.followUpPlaybook.map((item, i) => (
+                            <li key={i} className="flex gap-2.5">
+                              <span className="w-5 h-5 rounded-full text-white text-[10px] font-mono font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
+                                style={{ background: '#0F766E' }}>
+                                {i + 1}
+                              </span>
+                              <span className="leading-relaxed">{item}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </KitSection>
+                  )}
+
+                  {/* Phone talking points */}
+                  {Array.isArray(kit.phoneTalkingPoints) && kit.phoneTalkingPoints.length > 0 && (
+                    <KitSection
+                      eyebrow="04 / Phone Talking Points"
+                      compact
+                      copyKey="talk"
+                      copyText={kit.phoneTalkingPoints.map(s => `• ${s}`).join('\n')}
+                      copyState={copyState.talk}
+                      onCopy={copy}
+                    >
+                      <div
+                        className="rounded-xl bg-white px-5 py-4 h-full"
+                        style={{ border: '1px solid #E2E8F0', boxShadow: '0 1px 2px rgba(15, 26, 46, 0.04)' }}
+                      >
+                        <ul className="space-y-2.5 text-[13px] text-ink">
+                          {kit.phoneTalkingPoints.map((item, i) => (
+                            <li key={i} className="flex gap-2.5">
+                              <span className="mt-1.5 leading-none flex-shrink-0" style={{ color: '#14B8A6' }}>▸</span>
+                              <span className="leading-relaxed">{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </KitSection>
+                  )}
+
                 </div>
-              )}
 
-              {/* Footer */}
-              <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-200">
-                <p className="text-[11px] text-ink-muted leading-relaxed">
+                {/* Notes — amber heads-up callout */}
+                {kit.notes && (
+                  <div
+                    className="rounded-xl px-5 py-4 flex gap-4"
+                    style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.28)' }}
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                      style={{ background: 'rgba(245,158,11,0.16)', color: '#B45309' }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold mb-1" style={{ color: '#B45309' }}>
+                        Heads Up · {kit.utilityContext?.utility || 'This Utility'}
+                      </p>
+                      <p className="text-[13px] text-ink leading-relaxed">{kit.notes}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Footer — full-bleed paper, primary CTA + dismiss ── */}
+              <div
+                className="px-8 py-4 flex items-center justify-between gap-4 flex-shrink-0"
+                style={{ background: '#FFFFFF', borderTop: '1px solid #E2E8F0' }}
+              >
+                <p className="text-[11px] text-ink-muted leading-relaxed flex-1">
                   Review carefully before sending. Tractova synthesizes from public ISO + utility data; verify specifics against the utility's own application portal.
                 </p>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => copy('all', fullKitText)}
-                    className="text-[11px] font-mono uppercase tracking-[0.16em] font-semibold px-3 py-1.5 rounded text-white"
-                    style={{ background: '#0F1A2E' }}
-                  >
-                    {copyState.all === 'copied' ? '✓ Copied entire kit' : 'Copy entire kit'}
-                  </button>
+                <div className="flex items-center gap-3 flex-shrink-0">
                   <DialogClose asChild>
-                    <button className="text-[11px] font-mono uppercase tracking-[0.16em] text-ink-muted hover:text-ink px-2 py-1.5">
+                    <button className="text-[11px] font-mono uppercase tracking-[0.18em] font-semibold text-ink-muted hover:text-ink px-3 py-2">
                       Close
                     </button>
                   </DialogClose>
+                  <button
+                    onClick={() => copy('all', fullKitText)}
+                    className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2 rounded-lg text-white transition-transform hover:-translate-y-px"
+                    style={{ background: '#0F1A2E', boxShadow: '0 1px 2px rgba(15, 26, 46, 0.18)' }}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    {copyState.all === 'copied' ? 'Copied' : 'Copy entire kit'}
+                  </button>
                 </div>
               </div>
             </div>
@@ -972,27 +1061,32 @@ function ContextRow({ label, value }) {
   )
 }
 
-function KitSection({ eyebrow, copyKey, copyText, copyState, onCopy, children }) {
+function KitSection({ eyebrow, sublabel, copyKey, copyText, copyState, onCopy, compact = false, children }) {
   return (
-    <section>
-      <div className="flex items-center justify-between mb-2">
-        <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
-          {eyebrow}
-        </p>
+    <section className={compact ? 'flex flex-col h-full' : ''}>
+      <div className={`flex items-center justify-between gap-3 ${compact ? 'mb-2' : 'mb-2.5'}`}>
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold" style={{ color: '#0F766E' }}>
+            {eyebrow}
+          </p>
+          {sublabel && (
+            <p className="text-[10px] text-ink-muted mt-0.5 italic">{sublabel}</p>
+          )}
+        </div>
         <button
           onClick={() => onCopy(copyKey, copyText)}
-          className="font-mono text-[10px] uppercase tracking-[0.16em] font-semibold px-2 py-1 rounded transition-colors"
+          className="font-mono text-[9.5px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-md transition-colors flex-shrink-0"
           style={{
             color: copyState === 'copied' ? '#0F766E' : '#5A6B7A',
             border: '1px solid',
-            borderColor: copyState === 'copied' ? 'rgba(15,118,110,0.40)' : 'rgba(90,107,122,0.25)',
-            background: copyState === 'copied' ? 'rgba(15,118,110,0.06)' : 'transparent',
+            borderColor: copyState === 'copied' ? 'rgba(15,118,110,0.40)' : 'rgba(90,107,122,0.22)',
+            background: copyState === 'copied' ? 'rgba(15,118,110,0.07)' : 'transparent',
           }}
         >
           {copyState === 'copied' ? '✓ Copied' : 'Copy'}
         </button>
       </div>
-      {children}
+      {compact ? <div className="flex-1">{children}</div> : children}
     </section>
   )
 }
