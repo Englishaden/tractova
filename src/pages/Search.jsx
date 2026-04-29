@@ -124,11 +124,17 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
         <div className="flex items-center gap-2">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 font-mono">Market Position</span>
-          {staleDays(stateProgram.lastVerified) && (
-            <span className="text-[9px] font-mono" style={{ color: 'rgba(251,191,36,0.55)' }}>
-              · verified {staleDays(stateProgram.lastVerified)}d ago
-            </span>
-          )}
+          {(() => {
+            const v = stateProgram.lastVerified ? new Date(stateProgram.lastVerified) : null
+            const u = stateProgram.updatedAt    ? new Date(stateProgram.updatedAt)    : null
+            const latest = (v && u) ? (v > u ? v : u) : (v || u)
+            const days = latest ? Math.floor((Date.now() - latest) / (1000 * 60 * 60 * 24)) : null
+            return days != null && days > 14 ? (
+              <span className="text-[9px] font-mono" style={{ color: 'rgba(251,191,36,0.55)' }}>
+                · verified {days}d ago
+              </span>
+            ) : null
+          })()}
         </div>
         <span
           className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
@@ -222,7 +228,7 @@ const ALL_STATES = [
 ]
 
 const STAGES = ['Prospecting', 'Site Control', 'Pre-Development', 'Development', 'NTP (Notice to Proceed)', 'Construction', 'Operational']
-const TECHNOLOGIES = ['Community Solar', 'C&I Solar', 'BESS', 'Hybrid']
+const TECHNOLOGIES = ['Community Solar', 'Hybrid', '---', 'C&I Solar', 'BESS']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small UI helpers
@@ -1231,51 +1237,45 @@ function generateMarketSummary({ stateProgram, countyData, form }) {
   const summary = headline + qualifier + lmiNote + stageNote
 
   // ── Signal chips ─────────────────────────────────────────────────────────────
+  // V3: cut signals that restate the header status badge, IX card badge, or score
+  // gauge. Only emit signals that add context not visible elsewhere on the page.
   const signals = []
 
-  // Program status
-  if (csStatus === 'active') {
-    signals.push({ label: `Active — ${capacityMW > 0 ? `${capacityMW.toLocaleString()}MW remaining` : csProgram}`, color: 'green' })
-  } else if (csStatus === 'limited') {
-    signals.push({ label: `Limited — ${capacityMW}MW left`, color: 'amber' })
-  } else if (csStatus === 'pending') {
-    signals.push({ label: 'Program pending launch', color: 'yellow' })
-  } else {
-    signals.push({ label: 'No CS program', color: 'gray' })
-  }
-
-  // IX difficulty
-  const ixLabel = { easy: 'Easy IX', moderate: 'Moderate IX', hard: 'Hard IX', very_hard: 'Very Hard IX' }
-  const ixColor = { easy: 'green', moderate: 'amber', hard: 'orange', very_hard: 'red' }
-  signals.push({ label: ixLabel[ixDifficulty] || 'IX Unknown', color: ixColor[ixDifficulty] || 'gray' })
-
-  // Queue
-  if (queueStatus !== 'unknown') {
-    const qLabel = { open: 'Queue Open', limited: 'Queue Limited', saturated: 'Queue Saturated' }
-    const qColor = { open: 'green', limited: 'amber', saturated: 'red' }
-    signals.push({ label: qLabel[queueStatus], color: qColor[queueStatus] || 'gray' })
-  }
-
-  // LMI (community solar only)
-  if (technology === 'Community Solar') {
-    if (!lmiRequired) {
-      signals.push({ label: 'No LMI requirement', color: 'green' })
-    } else if (lmiPercent >= 40) {
-      signals.push({ label: `${lmiPercent}% LMI required`, color: 'orange' })
-    } else {
-      signals.push({ label: `${lmiPercent}% LMI required`, color: 'amber' })
+  // Capacity-as-percentage of remaining program capacity (unique — not in any card)
+  if (csStatus === 'active' && capacityMW > 0 && mwNum > 0) {
+    const pct = (mwNum / capacityMW) * 100
+    if (pct >= 10) {
+      signals.push({ label: `${pct.toFixed(1)}% of remaining capacity`, color: 'red' })
+    } else if (pct >= 3) {
+      signals.push({ label: `${pct.toFixed(1)}% of remaining capacity`, color: 'amber' })
     }
   }
 
-  // Feasibility band
-  if (feasibilityScore >= 70) {
-    signals.push({ label: `Index ${feasibilityScore} — Top Tier`, color: 'green' })
-  } else if (feasibilityScore >= 55) {
-    signals.push({ label: `Index ${feasibilityScore} — Viable`, color: 'teal' })
-  } else if (feasibilityScore >= 38) {
-    signals.push({ label: `Index ${feasibilityScore} — Caution`, color: 'amber' })
-  } else {
-    signals.push({ label: `Index ${feasibilityScore} — Weak`, color: 'red' })
+  // Limited program with concrete MW left (urgency signal not in header)
+  if (csStatus === 'limited' && capacityMW > 0) {
+    signals.push({ label: `${capacityMW.toLocaleString()}MW left in program`, color: 'amber' })
+  }
+
+  // Pending program — urgency signal
+  if (csStatus === 'pending') {
+    signals.push({ label: 'No live offtake path yet', color: 'yellow' })
+  }
+
+  // Queue (only when status differs from IX difficulty signal — adds dimension)
+  if (queueStatus !== 'unknown') {
+    const qLabel = { open: 'Queue Open', limited: 'Queue Limited', saturated: 'Queue Saturated' }
+    const qColor = { open: 'green', limited: 'amber', saturated: 'red' }
+    if (qLabel[queueStatus]) {
+      signals.push({ label: qLabel[queueStatus], color: qColor[queueStatus] || 'gray' })
+    }
+  }
+
+  // LMI subscriber count derivative (concrete number — more useful than the % alone)
+  if (technology === 'Community Solar' && lmiRequired && lmiPercent > 0 && mwNum > 0) {
+    const lmiMW = mwNum * (lmiPercent / 100)
+    const approxSubscribers = Math.round(lmiMW * 1000 / 2)
+    const color = lmiPercent >= 40 ? 'orange' : 'amber'
+    signals.push({ label: `~${approxSubscribers.toLocaleString()} LMI subscribers to source`, color })
   }
 
   return { verdict, verdictBg, verdictText, summary, signals }
@@ -1338,11 +1338,16 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
   }
   if (ixIdx > 0) {
     const newLevel = IX_LEVELS[ixIdx - 1]
+    const savingsMap = { easy: 350000, moderate: 150000, hard: 85000 }
+    const estSavings = Math.round((savingsMap[newLevel] ?? 150000) * mwNum)
+    const timelineSavingsMap = { easy: '6–9 months', moderate: '9–14 months', hard: '14–20 months' }
     scenarios.push({
       id: 'ix_easier',
       label: 'What if IX improves?',
       override: { ixDifficulty: newLevel },
       detail: `If queue conditions ease to ${newLevel.replace('_', ' ')}, interconnection timelines compress and upgrade cost risk drops sharply. This is the upside case — valuable for sensitivity modeling but don't underwrite to it without a confirmed study result.`,
+      revenueImpact: `Est. savings: $${estSavings.toLocaleString()} on IX upgrades`,
+      timelineImpact: `Study timeline compresses to ~${timelineSavingsMap[newLevel] ?? '12–18 months'}`,
     })
   }
 
@@ -1355,6 +1360,8 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
       label: 'What if the program caps out?',
       override: { csStatus: 'limited' },
       detail: `${csProgram ?? stateName} moves to limited capacity.${pctStr} Enrollment windows for limited-capacity programs often close within 30–60 days of announcement. Submit your application now or risk missing the window — once capped, new blocks can take 6–18 months to open.`,
+      revenueImpact: `Risk: enrollment window closes in ~30–60 days`,
+      timelineImpact: `Re-open delay: 6–18 months until next block`,
     })
   }
   if (csStatus === 'limited' && technology === 'Community Solar') {
@@ -1363,17 +1370,23 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
       label: 'What if a new block opens?',
       override: { csStatus: 'active' },
       detail: `A new capacity block in ${stateName} would immediately unlock enrollment — historically these periods see 3–5x developer activity within the first 60 days. Position your project now so you can file on day one. Monitor the state PUC docket for block announcement filings.`,
+      revenueImpact: `Upside: full enrollment economics restored`,
+      timelineImpact: `First-mover advantage: ~60-day filing window`,
     })
   }
 
   // LMI scenarios (community solar only)
   if (technology === 'Community Solar') {
     if (!lmiRequired || lmiPercent < 50) {
+      const lmiSubs = Math.round(mwNum * 250)
+      const revenueHaircut = Math.round(mwNum * 8760 * 0.17 * 0.085 * 0.125) // ~12.5% of bill credit revenue
       scenarios.push({
         id: 'lmi_rises',
         label: 'What if LMI rises to 50%?',
         override: { lmiRequired: true, lmiPercent: 50 },
-        detail: `A 50% LMI requirement means sourcing ~${Math.round(mwNum * 250)} low-income subscriber households for a ${mwNum}MW project. Budget 6–9 months for aggregator contracting and expect a 10–15% revenue haircut to attract compliant subscribers. Verify whether adders or bill credits offset this drag before proceeding.`,
+        detail: `A 50% LMI requirement means sourcing ~${lmiSubs.toLocaleString()} low-income subscriber households for a ${mwNum}MW project. Budget 6–9 months for aggregator contracting and expect a 10–15% revenue haircut to attract compliant subscribers. Verify whether adders or bill credits offset this drag before proceeding.`,
+        revenueImpact: `Est. revenue haircut: ~$${revenueHaircut.toLocaleString()}/yr`,
+        timelineImpact: `Adds 6–9 months for aggregator contracting`,
       })
     }
     if (lmiRequired && lmiPercent > 0) {
@@ -1382,67 +1395,91 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
         label: 'What if LMI req. is removed?',
         override: { lmiRequired: false, lmiPercent: 0 },
         detail: `Removing the LMI requirement opens the full commercial and residential subscriber market — dramatically easier customer acquisition and stronger bill credit economics. This is the regulatory upside case; watch for pending state PUC proceedings on LMI carveout rules.`,
+        revenueImpact: `Upside: ~10–15% lift on bill credit revenue`,
+        timelineImpact: `Subscriber acquisition compresses by 4–6 months`,
       })
     }
   }
 
   // C&I Solar scenarios
   if (technology === 'C&I Solar') {
+    const ciAnnualMWh = mwNum * 8760 * 0.17
+    const ciDropRevenue = Math.round(ciAnnualMWh * 1000 * 0.07 * 0.15)
     scenarios.push({
       id: 'ci_ppa_drop',
       label: 'What if PPA rate drops 15%?',
       override: { ixDifficulty: ixDifficulty },
-      detail: `A 15% PPA rate reduction compresses annual revenue by ~${Math.round(mwNum * 8760 * 0.17 * 0.07 * 0.15).toLocaleString()} and weakens the 25-year NPV substantially. If the offtaker demands below-market rates, evaluate whether the project still clears your return threshold — below 5.5¢/kWh is typically uneconomic in most markets.`,
+      detail: `A 15% PPA rate reduction compresses annual revenue and weakens the 25-year NPV substantially. If the offtaker demands below-market rates, evaluate whether the project still clears your return threshold — below 5.5¢/kWh is typically uneconomic in most markets.`,
+      revenueImpact: `Annual revenue: -$${ciDropRevenue.toLocaleString()}`,
+      timelineImpact: `25-year NPV impact: significant downside`,
     })
     scenarios.push({
       id: 'ci_rate_rise',
       label: 'What if retail rates rise 3%/yr?',
       override: { ixDifficulty: ixDifficulty },
       detail: `Rising utility retail rates increase your offtaker's savings from the PPA and reduce re-contracting risk at term. At 3% annual escalation, the spread between your PPA and retail widens by ~50% over 10 years — this is the upside case for long-term C&I PPAs.`,
+      revenueImpact: `Spread widens ~50% over 10 years`,
+      timelineImpact: `Stronger re-contracting position at term`,
     })
+    const ciDefaultGWh = Math.round(ciAnnualMWh * 20 / 1000)
     scenarios.push({
       id: 'ci_default',
       label: 'What if the offtaker defaults?',
       override: { ixDifficulty: ixDifficulty },
-      detail: `Offtaker default in year 5 means re-contracting the remaining ~${Math.round(mwNum * 8760 * 0.17 * 20 / 1000).toLocaleString()} GWh of output. Re-contracting typically takes 3–6 months and may require a 5–10% rate concession. Credit risk is the #1 C&I concern — underwrite tenant creditworthiness before signing the PPA.`,
+      detail: `Offtaker default in year 5 means re-contracting the remaining output. Re-contracting typically takes 3–6 months and may require a 5–10% rate concession. Credit risk is the #1 C&I concern — underwrite tenant creditworthiness before signing the PPA.`,
+      revenueImpact: `Re-contracting concession: 5–10% rate haircut`,
+      timelineImpact: `Re-contracting takes 3–6 months · ~${ciDefaultGWh.toLocaleString()} GWh exposed`,
     })
   }
 
   // BESS scenarios
   if (technology === 'BESS') {
+    const bessCapDropPerYear = Math.round(mwNum * 1000 * 65 * 0.30) // 30% of $65/kW-yr
     scenarios.push({
       id: 'bess_cap_drop',
       label: 'What if capacity prices drop 30%?',
       override: { ixDifficulty: ixDifficulty },
       detail: `A 30% capacity market decline reduces the largest BESS revenue stream significantly. Historical PJM/ISO-NE capacity prices have swung 40–60% between auction cycles. If capacity revenue drops, demand charge reduction and arbitrage must carry the project — stress-test your pro forma with floor-case capacity pricing.`,
+      revenueImpact: `Capacity revenue: -$${bessCapDropPerYear.toLocaleString()}/yr`,
+      timelineImpact: `Persists through next ISO auction cycle (3 years)`,
     })
     scenarios.push({
       id: 'bess_degrade',
       label: 'What if degradation is 3%/yr?',
       override: { ixDifficulty: ixDifficulty },
       detail: `At 3% annual degradation vs the typical 2.5% assumption, you lose ~8% more throughput by year 10 and ~15% by year 15. This directly impacts arbitrage revenue and may trigger warranty-related capacity shortfalls. Ensure your EPC warranty guarantees a minimum round-trip efficiency floor through year 10.`,
+      revenueImpact: `~15% throughput loss by year 15`,
+      timelineImpact: `Warranty risk inflection: years 8–10`,
     })
+    const bessDemandUpside = Math.round(mwNum * 1000 * 12)
     scenarios.push({
       id: 'bess_demand_up',
       label: 'What if demand charges increase?',
       override: { ixDifficulty: ixDifficulty },
-      detail: `Rising demand charges are the BESS upside case — each $1/kW-month increase adds ~$${Math.round(mwNum * 1000 * 12).toLocaleString()} in annual revenue. Utilities in congested territories have been raising demand charges 3–8% annually. This trend favors behind-the-meter BESS economics.`,
+      detail: `Rising demand charges are the BESS upside case. Utilities in congested territories have been raising demand charges 3–8% annually. This trend favors behind-the-meter BESS economics.`,
+      revenueImpact: `Upside: +$${bessDemandUpside.toLocaleString()}/yr per $1/kW-mo increase`,
+      timelineImpact: `Compounds over 25-year asset life`,
     })
   }
 
   // Hybrid scenarios
   if (technology === 'Hybrid') {
+    const hybridITCLoss = Math.round(mwNum * 0.5 * 4 * 1000 * 380 * 0.10)
     scenarios.push({
       id: 'hybrid_itc_drop',
       label: 'What if storage ITC drops to 30%?',
       override: { ixDifficulty: ixDifficulty },
-      detail: `Losing the 10% co-location bonus reduces ITC value on the storage component by ~$${Math.round(mwNum * 0.5 * 4 * 1000 * 380 * 0.10).toLocaleString()}. The co-location bonus under IRA Section 48 requires the storage to be placed in service with the solar facility — timeline delays that decouple the assets risk this adder.`,
+      detail: `Losing the 10% co-location bonus reduces ITC value on the storage component. The co-location bonus under IRA Section 48 requires the storage to be placed in service with the solar facility — timeline delays that decouple the assets risk this adder.`,
+      revenueImpact: `One-time ITC loss: -$${hybridITCLoss.toLocaleString()}`,
+      timelineImpact: `Risk window: any decoupling of solar/storage COD`,
     })
     scenarios.push({
       id: 'hybrid_clip',
       label: 'What if solar clipping is 8%+?',
       override: { ixDifficulty: ixDifficulty },
       detail: `Solar clipping above 8% means the inverter is curtailing more generation than expected — reducing both bill credit revenue and the energy available for storage charging. Right-size the DC/AC ratio and storage duration to minimize clipping losses. Typical hybrid designs target 3–5% clipping.`,
+      revenueImpact: `~3–5% revenue reduction from clipping above target`,
+      timelineImpact: `Mitigated via DC/AC ratio + storage duration tuning`,
     })
   }
 
@@ -1464,11 +1501,59 @@ const CHIP_COLORS = {
 
 function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }) {
   const [activeScenario, setActiveScenario] = useState(null)
+  const [scenarioRationale, setScenarioRationale] = useState(null)
+  const [rationaleLoading, setRationaleLoading] = useState(false)
 
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
   const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology)
   effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
+  // Fetch AI rationale when a scenario activates. Cleared on deactivation.
+  useEffect(() => {
+    if (!activeScenario || !stateProgram) {
+      setScenarioRationale(null)
+      return
+    }
+    let cancelled = false
+    setRationaleLoading(true)
+    setScenarioRationale(null)
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) { setRationaleLoading(false); return }
+        const res = await fetch('/api/lens-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            action: 'sensitivity',
+            state: form.state,
+            county: form.county,
+            mw: form.mw,
+            stage: form.stage,
+            technology: form.technology,
+            scenario: activeScenario.label,
+            override: activeScenario.override,
+            baseScore: stateProgram.feasibilityScore,
+            newScore: effectiveProgram.feasibilityScore,
+            stateProgram,
+            countyData,
+          }),
+        })
+        if (cancelled) return
+        if (!res.ok) { setRationaleLoading(false); return }
+        const json = await res.json()
+        if (!cancelled) {
+          setScenarioRationale(json.rationale || null)
+          setRationaleLoading(false)
+        }
+      } catch {
+        if (!cancelled) setRationaleLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [activeScenario?.id])
+
   if (!data) return null
 
   const { verdict, verdictBg, verdictText, summary, signals } = data
@@ -1580,6 +1665,25 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
                       <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
                         {activeScenario.timelineImpact}
                       </span>
+                    )}
+                  </div>
+                )}
+                {/* AI rationale — fetched live for the active scenario */}
+                {(rationaleLoading || scenarioRationale) && (
+                  <div
+                    className="mt-3 pt-3 rounded px-3 py-2"
+                    style={{
+                      borderTop: '1px dashed rgba(124,58,237,0.25)',
+                      background: 'rgba(124,58,237,0.04)',
+                    }}
+                  >
+                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: 'rgba(124,58,237,0.75)' }}>
+                      AI Rationale
+                    </p>
+                    {rationaleLoading ? (
+                      <p className="text-[12px] italic text-gray-400">Analyzing scenario impact…</p>
+                    ) : (
+                      <p className="text-[12px] text-gray-700 leading-relaxed">{scenarioRationale}</p>
                     )}
                   </div>
                 )}
@@ -2051,6 +2155,12 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
           onClick={(e) => e.stopPropagation()}
         >
           {options.map((opt) => (
+            opt === '---' ? (
+              <li key="divider" className="px-3 py-1.5 pointer-events-none select-none">
+                <div className="border-t border-gray-200" />
+                <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mt-1.5">Other</p>
+              </li>
+            ) : (
             <li
               key={opt}
               onMouseDown={(e) => { e.preventDefault(); onChange(opt); setOpen(false) }}
@@ -2067,6 +2177,7 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
               </span>
               {opt}
             </li>
+            )
           ))}
         </ul>
       )}
@@ -2193,7 +2304,7 @@ function SaveToast({ visible }) {
     <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
       <div className="flex items-center gap-2.5 bg-gray-900 text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34B08A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Project saved to My Projects
+        Project saved to Library
       </div>
     </div>
   )
@@ -2628,7 +2739,17 @@ function SearchContent() {
                 </h2>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Intelligence as of {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                  {results.stateProgram?.lastUpdated && ` · Data last updated ${new Date(results.stateProgram.lastUpdated + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`}
+                  {(() => {
+                    const sp = results.stateProgram
+                    const v = sp?.lastVerified ? new Date(sp.lastVerified) : null
+                    const u = sp?.updatedAt    ? new Date(sp.updatedAt)    : null
+                    const latest = (v && u) ? (v > u ? v : u) : (v || u)
+                    if (!latest) return null
+                    const diffDays = Math.floor((Date.now() - latest) / (1000 * 60 * 60 * 24))
+                    const rel = diffDays === 0 ? 'today' : diffDays === 1 ? 'yesterday' : diffDays < 7 ? `${diffDays}d ago` : diffDays < 30 ? `${Math.floor(diffDays / 7)}w ago` : `${Math.floor(diffDays / 30)}mo ago`
+                    const full = latest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    return <span className="group relative cursor-default"> · Data verified {rel}<span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">{full}</span></span>
+                  })()}
                 </p>
               </div>
 

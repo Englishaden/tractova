@@ -1109,7 +1109,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
 export default function Library() {
   const { isPro, loading: subLoading } = useSubscription()
   if (subLoading) return <div className="min-h-screen bg-surface" />
-  if (!isPro)     return <UpgradePrompt feature="My Projects" />
+  if (!isPro)     return <UpgradePrompt feature="Library" />
   return <LibraryContent />
 }
 
@@ -1186,7 +1186,7 @@ function LibraryContent() {
       <div className="min-h-screen bg-surface">
         <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
           <div className="mt-4 mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">My Projects</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Library</h1>
             <p className="text-sm text-gray-500 mt-0.5">Your saved deals. Add projects from Tractova Lens results.</p>
           </div>
           <div className="flex flex-col items-center justify-center text-center py-24">
@@ -1217,7 +1217,7 @@ function LibraryContent() {
           <div className="flex items-end justify-between gap-4 mb-4">
             <div>
               <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-primary">Deal Tracker</p>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">My Projects</h1>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Library</h1>
               <p className="text-sm mt-1 text-gray-500">Your saved deals — tracked, scored, and monitored for policy changes.</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">

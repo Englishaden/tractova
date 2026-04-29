@@ -1,5 +1,16 @@
 import { Link } from 'react-router-dom'
 
+function formatRelativeDate(date) {
+  const now = new Date()
+  const diffMs = now - date
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'Updated today'
+  if (diffDays === 1) return 'Updated yesterday'
+  if (diffDays < 7)  return `Updated ${diffDays} days ago`
+  if (diffDays < 30) return `Updated ${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) > 1 ? 's' : ''} ago`
+  return `Updated ${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? 's' : ''} ago`
+}
+
 const STATUS_CONFIG = {
   active:  { label: 'Active Program',   cls: 'bg-primary-50 text-primary-700 border border-primary-300 ring-1 ring-primary-200' },
   limited: { label: 'Limited Capacity', cls: 'bg-amber-50 text-amber-700 border border-amber-300' },
@@ -73,8 +84,16 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
     (item) => (item.stateIds ?? item.tags ?? []).includes(state.id)
   ).slice(0, 4)
 
-  const lastUpdatedFmt = state.lastVerified
-    ? new Date(state.lastVerified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  // Use the most recent of lastVerified or updatedAt (Supabase auto-updates)
+  const latestDate = (() => {
+    const v = state.lastVerified ? new Date(state.lastVerified) : null
+    const u = state.updatedAt   ? new Date(state.updatedAt)   : null
+    if (v && u) return v > u ? v : u
+    return v || u
+  })()
+  const lastUpdatedFmt = latestDate ? formatRelativeDate(latestDate) : null
+  const lastUpdatedFull = latestDate
+    ? latestDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : null
 
   return (
@@ -199,7 +218,16 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
 
       {/* Footer */}
       <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between">
-        {lastUpdatedFmt && <p className="text-xs text-gray-400">Updated: {lastUpdatedFmt}</p>}
+        {lastUpdatedFmt && (
+          <p className="text-xs text-gray-400 group relative cursor-default">
+            {lastUpdatedFmt}
+            {lastUpdatedFull && (
+              <span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">
+                {lastUpdatedFull}
+              </span>
+            )}
+          </p>
+        )}
         <Link
           to={`/search?state=${state.id}`}
           className="text-xs font-medium text-primary hover:text-primary-700 transition-colors"

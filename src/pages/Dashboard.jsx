@@ -16,6 +16,14 @@ export default function Dashboard({ previewMode = false }) {
     getNewsFeed().then(setNews).catch(console.error)
   }, [])
 
+  // ESC key closes the state detail panel
+  useEffect(() => {
+    if (!selectedStateId) return
+    const handle = (e) => { if (e.key === 'Escape') setSelectedStateId(null) }
+    document.addEventListener('keydown', handle)
+    return () => document.removeEventListener('keydown', handle)
+  }, [selectedStateId])
+
   const selectedState = selectedStateId ? stateProgramMap[selectedStateId] : null
 
   const handleStateClick = (stateId) => {

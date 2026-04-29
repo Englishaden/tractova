@@ -65,7 +65,7 @@ export default function Nav() {
           {user && navLink('/', 'Dashboard')}
           {user && navLink('/search', 'Tractova Lens')}
           {user && navLink('/glossary', 'Glossary')}
-          {user && navLink('/library', 'My Projects')}
+          {user && navLink('/library', 'Library')}
         </div>
 
         {/* Auth */}

@@ -13,7 +13,7 @@ const FEATURE_CONFIG = {
       'Save results directly to your project library',
     ],
   },
-  'My Projects': {
+  'Library': {
     headline: 'Track every project in your pipeline.',
     sub: 'Your Project Library keeps all your saved Lens searches in one place — updated automatically as program conditions change.',
     bullets: [

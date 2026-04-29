@@ -4,6 +4,37 @@ export default {
   theme: {
     extend: {
       colors: {
+        // === V3 design tokens (added 2026-04-28) ===
+        // Adopt incrementally per Tractova_V3_Plan.md Step 5b. Tailwind built-ins
+        // teal-500 (#14B8A6), teal-700 (#0F766E), amber-500 (#F59E0B),
+        // red-600 (#DC2626), emerald-600 (#059669), slate-200 (#E2E8F0)
+        // already cover accent/caution/critical/success/border-subtle.
+        brand: {
+          DEFAULT: '#0F1A2E',
+          50:  '#E8EAEE',
+          100: '#C5C9D2',
+          200: '#9CA3AE',
+          300: '#6F7888',
+          400: '#404C61',
+          500: '#1F2D45',
+          600: '#0F1A2E',
+          700: '#0A132A',
+          800: '#070D1E',
+          900: '#040611',
+        },
+        ink: {
+          DEFAULT: '#0A1828',
+          muted: '#5A6B7A',
+        },
+        paper: '#FAFAF7',
+        feasibility: {
+          1: '#F0FDFA',
+          2: '#99F6E4',
+          3: '#2DD4BF',
+          4: '#14B8A6',
+          5: '#0F766E',
+        },
+        // === Legacy tokens (kept for backward compatibility during V3 rollout) ===
         primary: {
           DEFAULT: '#0F6E56',
           50:  '#E8F5F1',
@@ -35,6 +66,8 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        serif: ['"Source Serif 4"', 'Georgia', 'serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       maxWidth: {
         dashboard: '1440px',

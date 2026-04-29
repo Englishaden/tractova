@@ -314,6 +314,14 @@ export default function MetricsBar() {
     getNewsFeed().then(setNews).catch(console.error)
   }, [])
 
+  // ESC key closes the detail modal
+  useEffect(() => {
+    if (!openKey) return
+    const handle = (e) => { if (e.key === 'Escape') setOpenKey(null) }
+    document.addEventListener('keydown', handle)
+    return () => document.removeEventListener('keydown', handle)
+  }, [openKey])
+
   // Live values from Supabase with graceful defaults while loading
   const m = {
     statesWithActiveCS:     liveMetrics?.statesWithActiveCS     ?? '—',

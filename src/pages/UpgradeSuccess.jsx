@@ -71,7 +71,7 @@ export default function UpgradeSuccess() {
             to="/library"
             className="py-2.5 px-6 border border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-900 font-medium rounded-lg text-sm transition-colors"
           >
-            Go to My Projects
+            Go to Library
           </Link>
         </div>
 
