@@ -7,6 +7,7 @@ import {
   updateRevenueRates, upsertNewsItem, deleteNewsItem, updateIXQueueRow,
   computeFeasibilityScore, invalidateCache,
 } from '../lib/programData'
+import { Input, Select, Button } from '../components/ui'
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
 const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Queue', 'Staging', 'Data Health', 'Test Notifications']
@@ -15,28 +16,63 @@ const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Qu
 // Shared UI
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Admin Field — preserves the existing external API
+// (label, value, field, onChange, type, options, className) so the 30+
+// call sites elsewhere in this file need no changes. Internally delegates
+// to V3 Input/Select primitives where applicable; falls back to native
+// textarea + checkbox (those primitives don't exist yet).
 function Field({ label, value, field, onChange, type = 'text', options, className = '' }) {
-  const inputBase = 'text-sm border border-gray-300 rounded-md px-2.5 py-1.5 bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 outline-none transition-colors'
-  return (
-    <div className={className}>
-      <label className="text-[11px] font-medium text-gray-500 block mb-1">{label}</label>
-      {options ? (
-        <select value={value ?? ''} onChange={e => onChange(field, e.target.value)} className={`${inputBase} w-full`}>
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-      ) : type === 'boolean' ? (
-        <input type="checkbox" checked={!!value} onChange={e => onChange(field, e.target.checked)} className="h-4 w-4 accent-primary mt-1" />
-      ) : type === 'textarea' ? (
-        <textarea value={value ?? ''} onChange={e => onChange(field, e.target.value)} rows={2} className={`${inputBase} w-full resize-y`} />
-      ) : (
+  if (options) {
+    return (
+      <Select
+        label={label}
+        value={value ?? ''}
+        onChange={(next) => onChange(field, next)}
+        options={options}
+        className={className}
+      />
+    )
+  }
+  if (type === 'boolean') {
+    return (
+      <div className={className}>
+        <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted mb-1.5">
+          {label}
+        </label>
         <input
-          type={type}
-          value={value ?? ''}
-          onChange={e => onChange(field, type === 'number' ? (e.target.value === '' ? null : Number(e.target.value)) : e.target.value)}
-          className={`${inputBase} ${type === 'number' ? 'w-24 tabular-nums' : 'w-full'}`}
+          type="checkbox"
+          checked={!!value}
+          onChange={(e) => onChange(field, e.target.checked)}
+          className="h-4 w-4 accent-primary mt-1"
         />
-      )}
-    </div>
+      </div>
+    )
+  }
+  if (type === 'textarea') {
+    return (
+      <div className={className}>
+        <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-ink-muted mb-1.5">
+          {label}
+        </label>
+        <textarea
+          value={value ?? ''}
+          onChange={(e) => onChange(field, e.target.value)}
+          rows={2}
+          className="w-full text-sm rounded-lg px-3 py-2 bg-white border border-gray-200 text-ink resize-y focus:outline-none focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 transition-colors"
+        />
+      </div>
+    )
+  }
+  // text / number / url etc.
+  const isNumeric = type === 'number'
+  return (
+    <Input
+      label={label}
+      type={type}
+      value={value ?? ''}
+      onChange={(next) => onChange(field, isNumeric ? (next === '' ? null : Number(next)) : next)}
+      className={className}
+    />
   )
 }
 
@@ -52,12 +88,12 @@ function SaveBar({ dirty, saving, onSave, onCancel, error }) {
       {error && <p className="text-xs text-red-500 flex-1">{error}</p>}
       {dirty && (
         <>
-          <button onClick={onSave} disabled={saving} className="px-4 py-1.5 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
+          <Button variant="accent" size="sm" onClick={onSave} loading={saving}>
             {saving ? 'Saving...' : 'Save changes'}
-          </button>
-          <button onClick={onCancel} disabled={saving} className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+          </Button>
+          <Button variant="link" size="sm" onClick={onCancel} disabled={saving}>
             Cancel
-          </button>
+          </Button>
         </>
       )}
     </div>
@@ -176,10 +212,10 @@ function StateProgramsTab() {
           </div>
 
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
+            <Button variant="accent" onClick={handleSave} loading={saving}>
               {saving ? 'Saving...' : 'Save changes'}
-            </button>
-            <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+            </Button>
+            <Button variant="link" onClick={() => setEditId(null)} disabled={saving}>Cancel</Button>
           </div>
           {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
         </div>
@@ -316,10 +352,10 @@ function CountiesTab() {
             </div>
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
+              <Button variant="accent" onClick={handleSave} loading={saving}>
                 {saving ? 'Saving...' : 'Save changes'}
-              </button>
-              <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+              </Button>
+              <Button variant="link" onClick={() => setEditId(null)} disabled={saving}>Cancel</Button>
             </div>
             {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
           </div>
@@ -444,10 +480,10 @@ function RevenueRatesTab() {
             </div>
 
             <div className="flex gap-3 pt-4 mt-5 border-t border-gray-100">
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
+              <Button variant="accent" onClick={handleSave} loading={saving}>
                 {saving ? 'Saving...' : 'Save changes'}
-              </button>
-              <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+              </Button>
+              <Button variant="link" onClick={() => setEditId(null)} disabled={saving}>Cancel</Button>
             </div>
             {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
           </div>
@@ -599,10 +635,10 @@ function NewsFeedTab() {
             <Field label="Summary" value={editData.summary} field="summary" onChange={handleChange} type="textarea" className="md:col-span-2" />
           </div>
           <div className="flex gap-3 pt-4 mt-4 border-t border-gray-100">
-            <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
+            <Button variant="accent" onClick={handleSave} loading={saving}>
               {saving ? 'Saving...' : adding ? 'Add item' : 'Save changes'}
-            </button>
-            <button onClick={() => { setEditId(null); setAdding(false) }} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+            </Button>
+            <Button variant="link" onClick={() => { setEditId(null); setAdding(false) }} disabled={saving}>Cancel</Button>
           </div>
           {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
         </div>
@@ -708,10 +744,10 @@ function IXQueueTab() {
             </div>
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
+              <Button variant="accent" onClick={handleSave} loading={saving}>
                 {saving ? 'Saving...' : 'Save changes'}
-              </button>
-              <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
+              </Button>
+              <Button variant="link" onClick={() => setEditId(null)} disabled={saving}>Cancel</Button>
             </div>
             {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
           </div>
