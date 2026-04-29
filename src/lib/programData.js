@@ -310,6 +310,39 @@ export async function getComparableDeals({ state, technology, county, mwRange, i
   })
 }
 
+// ── getLmiData ────────────────────────────────────────────────────────────────
+// V3 Wave 2 — state-level LMI (≤80% AMI) household intelligence for the
+// Subscriber Acquisition Intel layer. Returns null if the state isn't seeded
+// (caller falls back to a nationwide median in the UI). Cached 1h via
+// withCache. Data source: US Census ACS 2018-2022 5-year estimates,
+// seeded in migration 025; Phase 2 cron will refresh annually.
+export async function getLmiData(stateId) {
+  if (!stateId) return null
+  return withCache(`lmi_data:${stateId}`, async () => {
+    const { data, error } = await supabase
+      .from('lmi_data')
+      .select('*')
+      .eq('state', stateId.toUpperCase())
+      .maybeSingle()
+    if (error) {
+      console.warn('[lmi_data] fetch failed:', error.message)
+      return null
+    }
+    if (!data) return null
+    return {
+      state:                 data.state,
+      stateName:             data.state_name,
+      totalHouseholds:       data.total_households,
+      lmiHouseholds:         data.lmi_households,
+      lmiPct:                Number(data.lmi_pct),
+      medianHouseholdIncome: data.median_household_income,
+      ami80Pct:              data.ami_80pct,
+      lastUpdated:           data.last_updated,
+      source:                data.source,
+    }
+  })
+}
+
 // ── getDashboardMetrics ───────────────────────────────────────────────────────
 // Calls the get_dashboard_metrics() Supabase RPC.
 // Returns live-computed aggregates — no manual metrics.js entry ever again.

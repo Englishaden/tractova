@@ -4,7 +4,7 @@ import * as RadixTabs from '@radix-ui/react-tabs'
 import { motion } from 'motion/react'
 import { supabase } from '../lib/supabase'
 import { useSubscription } from '../hooks/useSubscription'
-import { getPucDockets } from '../lib/programData'
+import { getPucDockets, getLmiData } from '../lib/programData'
 import RegulatoryActivityPanel from './RegulatoryActivityPanel'
 import CoverageBadge from './CoverageBadge'
 import PreviewSignupGate from './PreviewSignupGate'
@@ -210,41 +210,141 @@ function MarketTab({ state }) {
   )
 }
 
-// ── Subscribers tab (V3 Wave 2 placeholder) ────────────────────────────────
+// ── Subscribers tab — Subscriber Acquisition Intel slice (Wave 2) ──────────
+// Fetches state-level LMI intel from migration 025's `lmi_data` table and
+// renders a directive subscriber-sourcing analysis. State-level v1; per-
+// county density + CBO directory deferred to Phase 2.
 function SubscribersTab({ state }) {
+  const [lmi, setLmi] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    getLmiData(state.id).then(rows => {
+      if (!cancelled) { setLmi(rows); setLoading(false) }
+    }).catch(() => { if (!cancelled) { setLmi(null); setLoading(false) } })
+    return () => { cancelled = true }
+  }, [state.id])
+
+  // Useful demo MWs for the carve-out calculator. The first MW that
+  // triggers a non-zero subscriber requirement is what most early-stage
+  // CS developers actually plan around.
+  const DEMO_MW = [2, 5, 10]
+  const subscribersForMW = (mw) => {
+    // Same formula used by api/lens-insight.js: ~2 kW per residential
+    // subscription, lmi_percent of total capacity must be carved out.
+    const totalSubs = Math.round((mw * 1000) / 2)
+    const lmiSubs   = Math.round(totalSubs * (state.lmiPercent / 100))
+    return { totalSubs, lmiSubs }
+  }
+
+  const fmtNum = (n) => n == null ? '—' : n.toLocaleString()
+  const fmtUSD = (n) => n == null ? '—' : `$${n.toLocaleString()}`
+
   return (
     <div className="px-5 py-4 space-y-4">
+      {/* LMI carve-out requirement */}
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Requirement</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Carve-out Requirement</h3>
         <div className="bg-surface rounded-md p-3">
           {state.lmiRequired ? (
             <div className="space-y-1">
               <p className="text-sm font-semibold text-gray-800 font-mono tabular-nums">
-                {state.lmiPercent}% LMI carve-out
+                {state.lmiPercent}% of subscriber capacity
               </p>
               <p className="text-[11px] text-gray-500 leading-relaxed">
-                Of every project's capacity, {state.lmiPercent}% must be subscribed by qualifying low-to-moderate income households.
-                Plan for 6–9 months of subscriber sourcing through CBO partnerships and aggregator contracts.
+                Every project must allocate {state.lmiPercent}% of its capacity to qualifying low-to-moderate income households.
+                Plan for 6–9 months of LMI subscriber sourcing through CBO partnerships and aggregator contracts.
               </p>
             </div>
           ) : (
-            <p className="text-xs text-gray-600">No LMI requirement — full residential and commercial subscriber market is available.</p>
+            <p className="text-xs text-gray-600">No LMI carve-out requirement — full residential and commercial subscriber market is available.</p>
           )}
         </div>
       </div>
 
+      {/* LMI eligibility — population context */}
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Subscriber Intelligence</h3>
-        <div className="bg-surface rounded-md p-3 border border-dashed border-gray-300">
-          <p className="text-xs font-semibold text-gray-700 mb-1">Coming in next release</p>
-          <ul className="text-[11px] text-gray-500 leading-relaxed space-y-1 ml-3 list-disc">
-            <li>Per-county LMI household density (Census ACS)</li>
-            <li>CCA enrollment penetration</li>
-            <li>Top community-based organizations active in subscriber acquisition</li>
-            <li>Aggregator partner directory by state</li>
-          </ul>
-        </div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Eligibility · {state.name}</h3>
+        {loading ? (
+          <div className="bg-surface rounded-md p-3">
+            <div className="flex items-center gap-2 text-[11px] text-gray-500">
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
+              Loading Census data…
+            </div>
+          </div>
+        ) : !lmi ? (
+          <div className="bg-surface rounded-md p-3 border border-dashed border-gray-300">
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              Census ACS data not yet seeded for this state. State-program LMI requirements above still apply.
+            </p>
+          </div>
+        ) : (
+          <div className="bg-surface rounded-md p-3 space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <SubStat label="LMI households (≤80% AMI)" value={fmtNum(lmi.lmiHouseholds)} sub={`${lmi.lmiPct.toFixed(0)}% of all ${state.name} households`} />
+              <SubStat label="Total households (statewide)" value={fmtNum(lmi.totalHouseholds)} sub="2018-2022 ACS 5-yr estimate" />
+              <SubStat label="Median household income" value={fmtUSD(lmi.medianHouseholdIncome)} sub={`80% AMI: ${fmtUSD(lmi.ami80Pct)}`} />
+              <SubStat label="Source" value="US Census ACS" sub="2018-2022 5-year" mono={false} />
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Subscriber-count calculator — only when there's a carve-out to plan around */}
+      {state.lmiRequired && state.lmiPercent > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Subscribers per Project Size</h3>
+          <div className="bg-surface rounded-md p-3">
+            <p className="text-[11px] text-gray-500 leading-relaxed mb-2.5">
+              Approximate LMI households you'd need to enroll, assuming ~2 kW residential subscriptions and the {state.lmiPercent}% carve-out:
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {DEMO_MW.map(mw => {
+                const { lmiSubs, totalSubs } = subscribersForMW(mw)
+                return (
+                  <div key={mw} className="rounded-md px-3 py-2.5 bg-white border border-gray-200">
+                    <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400 mb-0.5">
+                      {mw} MW project
+                    </p>
+                    <p className="font-mono text-base font-bold tabular-nums text-ink leading-none">
+                      ~{fmtNum(lmiSubs)}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">
+                      LMI households (of ~{fmtNum(totalSubs)} total subscribers)
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+            {lmi && (
+              <p className="text-[10px] text-gray-400 mt-2.5 leading-relaxed">
+                {state.name} has ~{fmtNum(lmi.lmiHouseholds)} LMI households statewide, so subscriber sourcing volume is generally not the bottleneck — channel access (CBO partners, aggregator agreements) typically is.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Phase 2 placeholder — what's still coming */}
+      <div className="bg-surface rounded-md p-3 border border-dashed border-gray-300">
+        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-400 mb-1">Coming next</p>
+        <p className="text-[11px] text-gray-500 leading-relaxed">
+          Per-county LMI density (Census ACS county-level) · CCA enrollment penetration · CBO partner directory.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Sub-stat renderer for the LMI eligibility grid.
+function SubStat({ label, value, sub, mono = true }) {
+  return (
+    <div>
+      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400 mb-0.5">{label}</p>
+      <p className={`text-sm font-semibold text-gray-800 ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</p>
+      {sub && <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{sub}</p>}
     </div>
   )
 }
