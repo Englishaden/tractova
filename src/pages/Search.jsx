@@ -2555,16 +2555,46 @@ function SearchContent() {
         ix_difficulty:    results.stateProgram?.ixDifficulty || null,
         opportunity_score: results.stateProgram?.feasibilityScore ?? null,
       }
-      const { error } = await supabase.from('projects').insert(payload)
-      setSaving(false)
-      if (error) {
+
+      // Schema-cache-resilient insert: if the production projects table is
+      // missing a column (e.g. migration 011 hasn't been run yet), PostgREST
+      // returns a "Could not find the 'X' column" error. We detect that,
+      // strip the offending column from the payload, and retry. Worst case
+      // we save the bare-minimum core fields (user_id, name, state, county,
+      // mw, stage) and log which fields were dropped so we know what to
+      // backfill once the migration runs.
+      const droppedFields = []
+      let attempt = { ...payload }
+      // Cap retries so we can't loop forever on a different error class
+      for (let i = 0; i < 12; i++) {
+        const { error } = await supabase.from('projects').insert(attempt)
+        if (!error) {
+          setSaving(false)
+          setSaveModal(null)
+          setShowToast(true)
+          setTimeout(() => setShowToast(false), 3000)
+          if (droppedFields.length) {
+            console.warn('[Save to Library] saved without these fields (run migration 011 in Supabase to enable):', droppedFields)
+          }
+          return
+        }
+        // Match BOTH the PostgREST schema-cache error and the native PG missing-column error
+        const m = error.message?.match(/['"]([^'"]+)['"]\s+column/i)
+                 || error.message?.match(/column\s+['"]?([a-z_]+)['"]?\s+(?:of relation|does not exist)/i)
+        if (m && Object.prototype.hasOwnProperty.call(attempt, m[1])) {
+          droppedFields.push(m[1])
+          delete attempt[m[1]]
+          continue
+        }
+        // Different error -- surface it
         console.error('[Save to Library] insert failed:', error)
+        setSaving(false)
         setSaveError(error.message || 'Could not save project. Please try again.')
         return
       }
-      setSaveModal(null)
-      setShowToast(true)
-      setTimeout(() => setShowToast(false), 3000)
+      // Hit the retry cap without success
+      setSaving(false)
+      setSaveError('Save failed after multiple attempts. Please refresh and try again.')
     } catch (err) {
       console.error('[Save to Library] unexpected error:', err)
       setSaving(false)
