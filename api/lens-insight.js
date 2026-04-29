@@ -260,13 +260,65 @@ export default async function handler(req, res) {
     ['active', 'trialing'].includes(profile?.subscription_status)
   if (!isPro) return res.status(403).json({ error: 'Pro subscription required' })
 
+  // ── Rate limit — bound Anthropic spend per user ───────────────────────────
+  // Two-tier window: hard burst limit (10 calls / minute) catches scripted
+  // abuse; sustained limit (60 calls / hour) catches credential leaks.
+  // Heavy genuine users do ~30-60 calls/day total, so 60/hr is plenty of
+  // headroom while still flagging clear abuse. Silent fail if migration 015
+  // hasn't been applied (table missing) -- we don't want the audit/limit
+  // layer to break the actual feature.
+  const RL_BURST_PER_MIN = 10
+  const RL_SUSTAINED_PER_HOUR = 60
+  try {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { data: recentCalls, error: rlErr } = await supabaseAdmin
+      .from('api_call_log')
+      .select('called_at')
+      .eq('user_id', user.id)
+      .gte('called_at', oneHourAgo)
+      .order('called_at', { ascending: false })
+      .limit(RL_SUSTAINED_PER_HOUR + 1)
+    if (!rlErr && recentCalls) {
+      if (recentCalls.length >= RL_SUSTAINED_PER_HOUR) {
+        return res.status(429).json({
+          error: 'Rate limit exceeded',
+          reason: 'sustained_per_hour',
+          limit: RL_SUSTAINED_PER_HOUR,
+          retryAfterSec: 3600,
+        })
+      }
+      const oneMinAgo = Date.now() - 60 * 1000
+      const burstCount = recentCalls.filter(c => new Date(c.called_at).getTime() > oneMinAgo).length
+      if (burstCount >= RL_BURST_PER_MIN) {
+        return res.status(429).json({
+          error: 'Rate limit exceeded',
+          reason: 'burst_per_minute',
+          limit: RL_BURST_PER_MIN,
+          retryAfterSec: 60,
+        })
+      }
+    }
+  } catch (_err) {
+    // Rate-limit infrastructure failure must never block legitimate use.
+    // Log and continue.
+    console.warn('[lens-insight:ratelimit] check failed:', _err.message)
+  }
+
   // ── If no API key, return fallback immediately (no error) ──────────────────
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(200).json({ insight: null, fallback: true, reason: 'no_api_key' })
   }
 
-  // ── Action routing — multiplex specialized agents through this endpoint ────
+  // ── Log this call (best-effort, fire-and-forget) ───────────────────────────
+  // Insert before action routing so the call counts even if the action throws.
+  // No await so we don't slow down the response by the supabase round-trip.
   const action = body.action
+  supabaseAdmin
+    .from('api_call_log')
+    .insert([{ user_id: user.id, action: action || 'verdict', model: 'claude-sonnet-4-6' }])
+    .then(({ error }) => { if (error) console.warn('[lens-insight:log] insert failed:', error.message) })
+
+  // ── Action routing — multiplex specialized agents through this endpoint ────
   if (action === 'portfolio')    return handlePortfolio(body, res)
   if (action === 'compare')      return handleCompare(body, res)
   if (action === 'sensitivity')  return handleSensitivity(body, res)
