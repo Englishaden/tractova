@@ -119,10 +119,12 @@ function getAlerts(project, stateProgramMap) {
 }
 
 // ── Alert chip ───────────────────────────────────────────────────────────────
+// V3: deeper text colors for legibility (was red-700 / amber-700 / blue-600 -- fine
+// on the chip itself, but parent counters used too-light shades on too-light bgs).
 const ALERT_STYLES = {
-  urgent:  { chip: 'bg-red-50 border-red-200 text-red-700',       dot: 'bg-red-500'   },
-  warning: { chip: 'bg-amber-50 border-amber-200 text-amber-700', dot: 'bg-amber-400' },
-  info:    { chip: 'bg-blue-50 border-blue-200 text-blue-600',    dot: 'bg-blue-400'  },
+  urgent:  { chip: 'bg-red-50 border-red-300 text-red-800',         dot: 'bg-red-600'   },
+  warning: { chip: 'bg-amber-50 border-amber-300 text-amber-800',   dot: 'bg-amber-500' },
+  info:    { chip: 'bg-teal-50 border-teal-300 text-teal-800',      dot: 'bg-teal-500'  },
 }
 
 function AlertChip({ alert }) {
@@ -330,8 +332,11 @@ function StagePicker({ stage, projectId, onChange }) {
       </button>
       {open && (
         <ul
-          className="absolute z-50 top-full mt-1 left-0 rounded-lg overflow-hidden min-w-[210px]"
-          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
+          // V3: z-[100] to definitively sit above adjacent project cards.
+          // Parent card now drops overflow-hidden when collapsed so the
+          // dropdown can extend below the card boundary.
+          className="absolute z-[100] top-full mt-1 left-0 rounded-lg overflow-hidden min-w-[210px]"
+          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 12px 36px rgba(0,0,0,0.18)' }}
         >
           {PIPELINE_STAGES.map((s) => (
             <li key={s}>
@@ -500,13 +505,16 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
 
   return (
     <div
-      className="rounded-xl border transition-all duration-200 overflow-hidden"
+      // V3: overflow-hidden ONLY when expanded -- so the inner alert strip + bg fill
+      // clip cleanly to the rounded corners. When collapsed, no clipping so the
+      // StagePicker dropdown can escape the card boundary.
+      className={`rounded-xl border transition-all duration-200 ${expanded ? 'overflow-hidden' : ''}`}
       style={{
         background: '#FFFFFF',
-        borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(15,110,86,0.30)' : '#E5E7EB',
+        borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(20,184,166,0.40)' : '#E5E7EB',
         borderLeft: `3px solid ${accentColor}`,
         boxShadow: expanded
-          ? '0 4px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(15,110,86,0.08)'
+          ? '0 4px 24px rgba(0,0,0,0.08), 0 0 0 1px rgba(20,184,166,0.10)'
           : '0 1px 3px rgba(0,0,0,0.06)',
       }}
     >
@@ -541,11 +549,12 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
             )}
             {alerts.length > 0 && (
               <span
-                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border"
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1"
                 style={hasUrgent
-                  ? { background: 'rgba(220,38,38,0.15)', color: '#F87171', borderColor: 'rgba(220,38,38,0.30)' }
-                  : { background: 'rgba(217,119,6,0.15)',  color: '#FCD34D', borderColor: 'rgba(217,119,6,0.30)' }}
+                  ? { background: '#FEE2E2', color: '#991B1B', borderColor: '#FCA5A5' }
+                  : { background: '#FEF3C7', color: '#92400E', borderColor: '#FCD34D' }}
               >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: hasUrgent ? '#DC2626' : '#D97706' }} />
                 {alerts.length} alert{alerts.length > 1 ? 's' : ''}
               </span>
             )}
@@ -1475,17 +1484,23 @@ function LibraryContent() {
                     <div className="flex gap-2 mt-2">
                       {stageCounts.map(({ stage, count, mw, color }) => {
                         const isActive = filterStage === stage
+                        // V3 fix: stage labels need to be readable regardless of bar color.
+                        // The first two stages (Prospecting #F0FDFA, Site Control #99F6E4) are
+                        // very-light teals that disappear against white. Use ink for labels;
+                        // the colored count number below carries the visual identity.
                         return (
                           <div key={stage + 'l'} className="flex-1 text-center">
                             <p
                               className="text-[9px] leading-tight font-semibold"
-                              style={{ color: isActive ? '#0F6E56' : count > 0 ? color : '#9CA3AF' }}
+                              style={{ color: isActive ? '#0F766E' : count > 0 ? '#0A1828' : '#9CA3AF' }}
                             >
                               {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
                             </p>
                             {count > 0 && (
                               <>
-                                <p className="text-[10px] font-bold font-mono tabular-nums" style={{ color }}>{count}</p>
+                                {/* Count number takes the stage color -- but darken the very light shades
+                                    so they're readable on white. Stages 0/1 use teal-700 fallback. */}
+                                <p className="text-[10px] font-bold font-mono tabular-nums" style={{ color: ['#F0FDFA', '#99F6E4'].includes(color) ? '#0F766E' : color }}>{count}</p>
                                 <p className="text-[8px] font-mono tabular-nums text-gray-400">{mw.toFixed(0)} MW</p>
                               </>
                             )}
