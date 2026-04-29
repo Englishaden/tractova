@@ -27,50 +27,79 @@ function getMarketRank(stateId, programMap) {
   return { rank: rank || null, total: ranked.length }
 }
 
+// V3: Precision tachometer — feasibility index as a measured instrument, not a chart-library gauge.
+// Tick marks every 10 with majors at 0/50/100. Score in JetBrains Mono. Color follows the V3 teal ramp.
 function ArcGauge({ score }) {
   const s = (typeof score === 'number' && isFinite(score)) ? score : 0
   const pct = Math.max(0, Math.min(100, s)) / 100
-  const R = 44, cx = 58, cy = 54
-  // arc endpoint: sweep clockwise (sweep=1) from left to pct*180°
+  const R = 60, cx = 80, cy = 78
   const ex = cx - R * Math.cos(Math.PI * pct)
   const ey = cy - R * Math.sin(Math.PI * pct)
-  // fill is always ≤ 180° of the full circle → never a large-arc in SVG terms
-  const largeArc = 0
+  const trackPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
+  const fillPath  = pct > 0.005 ? `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${ex} ${ey}` : ''
 
-  const track = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
-  const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 ${largeArc} 1 ${ex} ${ey}` : ''
+  // V3 single-hue teal ramp — light at low scores, deep at high scores
+  let color = '#CBD5E1'
+  if (s >= 75)      color = '#0F766E'
+  else if (s >= 60) color = '#14B8A6'
+  else if (s >= 45) color = '#2DD4BF'
+  else if (s >= 25) color = '#5EEAD4'
 
-  let color = '#DC2626'
-  if (s >= 70)      color = '#059669'
-  else if (s >= 55) color = '#0F6E56'
-  else if (s >= 40) color = '#D97706'
-  else if (s >= 25) color = '#EA580C'
+  // 11 ticks (0..100 by 10), majors at 0/50/100
+  const ticks = Array.from({ length: 11 }, (_, i) => {
+    const angle = Math.PI * (1 - i / 10)
+    const inner = R - 6, outer = R + 2
+    return {
+      x1: cx + inner * Math.cos(angle),
+      y1: cy - inner * Math.sin(angle),
+      x2: cx + outer * Math.cos(angle),
+      y2: cy - outer * Math.sin(angle),
+      isMajor: i === 0 || i === 5 || i === 10,
+    }
+  })
 
   return (
-    <svg viewBox="0 0 116 62" className="w-full max-w-[130px]">
-      <path d={track} fill="none" stroke="#E5E7EB" strokeWidth="9" strokeLinecap="round" />
-      {fill && <path d={fill} fill="none" stroke={color} strokeWidth="9" strokeLinecap="round" />}
-      <text x="58" y="50" textAnchor="middle" fontSize="22" fontWeight="800" fill={color} fontFamily="system-ui">{s}</text>
+    <svg viewBox="0 0 160 92" className="w-full max-w-[220px]">
+      {/* Tick marks behind the track */}
+      {ticks.map((t, i) => (
+        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+          stroke={t.isMajor ? '#0A1828' : '#94A3B8'}
+          strokeWidth={t.isMajor ? 1.5 : 0.75}
+          strokeLinecap="round" />
+      ))}
+      {/* Tick value labels (0, 50, 100) */}
+      <text x={cx - R} y={cy + 14} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">0</text>
+      <text x={cx} y={cy - R - 6} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">50</text>
+      <text x={cx + R} y={cy + 14} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">100</text>
+      {/* Track */}
+      <path d={trackPath} fill="none" stroke="#E2E8F0" strokeWidth={5} strokeLinecap="round" />
+      {/* Fill */}
+      {fillPath && <path d={fillPath} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />}
+      {/* Score readout — large monospace */}
+      <text x={cx} y={cy - 8} textAnchor="middle" fontSize="36" fontWeight="700" fill="#0A1828" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="-1.5">{s}</text>
     </svg>
   )
 }
 
+// V3: Terminal-style sub-score row. Discrete █ glyph segments + monospace numerics
+// give a Bloomberg-terminal readout feel rather than a generic progress bar.
 function SubScoreBar({ label, weight, value, color }) {
+  const segments = 14
+  const filled = Math.round((value / 100) * segments)
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</span>
-          <span className="text-[9px] text-gray-400 font-mono">{weight}</span>
-        </div>
-        <span className="text-[10px] font-bold tabular-nums text-gray-700">{value}</span>
-      </div>
-      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{ width: `${value}%`, background: color }}
-        />
-      </div>
+    <div className="flex items-baseline gap-3 font-mono text-[11px] tabular-nums">
+      <span className="uppercase tracking-[0.12em] font-semibold w-[100px] flex-shrink-0" style={{ color: '#0A1828' }}>
+        {label}
+      </span>
+      <span className="text-[9px] w-8 flex-shrink-0" style={{ color: '#5A6B7A' }}>{weight}</span>
+      <span className="flex-1 leading-none" style={{ letterSpacing: '0px', fontSize: '11px' }}>
+        {Array.from({ length: segments }).map((_, i) => (
+          <span key={i} style={{ color: i < filled ? color : '#E2E8F0' }}>█</span>
+        ))}
+      </span>
+      <span className="font-bold w-8 text-right text-[12px]" style={{ color: '#0A1828' }}>
+        {value}
+      </span>
     </div>
   )
 }
@@ -104,6 +133,9 @@ function sanitizeBrief(text) {
   return m ? m[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').trim() : null
 }
 
+// V3 redesign: editorial-intelligence "research note" hero block.
+// Drops the dark gradient banner. Mono eyebrow strip up top with metadata,
+// then asymmetric two-column body: tachometer left, identity + sub-scores right.
 function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology }) {
   if (!stateProgram) return null
   const { offtake, ix, site } = computeSubScores(stateProgram, countyData, stage, technology)
@@ -111,88 +143,131 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
   const score = computeDisplayScore(offtake, ix, site)
 
+  // "AS OF" timestamp — institutional research-note convention
+  const latestDate = (() => {
+    const v = stateProgram.lastVerified ? new Date(stateProgram.lastVerified) : null
+    const u = stateProgram.updatedAt    ? new Date(stateProgram.updatedAt)    : null
+    return (v && u) ? (v > u ? v : u) : (v || u)
+  })()
+  const asOf = latestDate
+    ? latestDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
+    : null
+  const ageDays = latestDate ? Math.floor((Date.now() - latestDate) / 86400000) : null
+  const isStale = ageDays != null && ageDays > 14
+
+  // Verdict tag mapped to the score
+  const verdict = score >= 70 ? { label: 'Strong Fit',    color: '#0F766E' }
+                : score >= 55 ? { label: 'Viable',         color: '#0F766E' }
+                : score >= 38 ? { label: 'Caution',        color: '#D97706' }
+                : score >= 18 ? { label: 'High Friction',  color: '#DC2626' }
+                :               { label: 'Not Recommended', color: '#DC2626' }
+
   return (
-    <div
-      className="rounded-xl mb-5"
-      style={{ border: '1px solid rgba(20,184,166,0.20)', boxShadow: '0 2px 12px rgba(20,184,166,0.08), 0 1px 3px rgba(0,0,0,0.06)' }}
+    <article
+      className="bg-white rounded-lg mb-6 overflow-hidden relative"
+      style={{ border: '1px solid #E2E8F0' }}
     >
-      {/* Header band */}
-      <div
-        className="px-5 py-3 flex items-center justify-between rounded-t-xl"
-        style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
-      >
-        <div className="flex items-center gap-2">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70 font-mono">Market Position</span>
-          {(() => {
-            const v = stateProgram.lastVerified ? new Date(stateProgram.lastVerified) : null
-            const u = stateProgram.updatedAt    ? new Date(stateProgram.updatedAt)    : null
-            const latest = (v && u) ? (v > u ? v : u) : (v || u)
-            const days = latest ? Math.floor((Date.now() - latest) / (1000 * 60 * 60 * 24)) : null
-            return days != null && days > 14 ? (
-              <span className="text-[9px] font-mono" style={{ color: 'rgba(251,191,36,0.55)' }}>
-                · verified {days}d ago
+      {/* Top teal accent rail — V3 brand signature */}
+      <div className="absolute top-0 left-0 right-0 h-[2px]"
+        style={{ background: 'linear-gradient(90deg, transparent 0%, #14B8A6 30%, #14B8A6 70%, transparent 100%)' }} />
+
+      {/* Eyebrow metadata strip — research-note convention */}
+      <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: '#0F1A2E' }}>
+            Tractova Lens · Market Position
+          </span>
+          {asOf && (
+            <>
+              <span className="text-gray-300 text-[9px]">/</span>
+              <span className={`font-mono text-[9px] uppercase tracking-[0.16em] ${isStale ? 'text-amber-600' : 'text-gray-400'}`}>
+                As of {asOf}
               </span>
-            ) : null
-          })()}
+            </>
+          )}
+          {rank && (
+            <>
+              <span className="text-gray-300 text-[9px]">/</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
+                Rank <span className="font-bold text-gray-700">#{rank}</span> of {total}
+              </span>
+            </>
+          )}
+          <span className="text-gray-300 text-[9px]">/</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
+            {(technology || '').toUpperCase()}
+          </span>
         </div>
         <span
-          className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
-          style={{ background: status.bg, color: status.text, border: `1px solid ${status.border}`,
-            // On dark header, lighten the bg slightly
-            filter: 'brightness(1.4)',
-          }}
+          className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+          style={{ background: status.bg, color: status.text, border: `1px solid ${status.border}` }}
         >
           {status.label}
         </span>
       </div>
 
-      {/* Three-column body */}
-      <div className="bg-white grid grid-cols-3 divide-x divide-gray-100">
-
-        {/* Left — State identity */}
-        <div className="px-5 py-4 flex flex-col justify-center gap-1.5">
-          <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-gray-400">Target State</p>
-          <h3 className="text-xl font-extrabold text-gray-900 leading-tight">{stateProgram.name}</h3>
-          {stateProgram.csProgram && (
-            <p className="text-xs text-primary-700 font-medium leading-snug">{stateProgram.csProgram}</p>
-          )}
-          {rank && (
-            <p className="text-[10px] text-gray-400 mt-1">
-              Ranked <span className="font-bold text-gray-700">#{rank}</span> of {total} active CS markets
-            </p>
-          )}
-        </div>
-
-        {/* Center — Sub-score bars */}
-        <div className="px-5 py-4 flex flex-col justify-center gap-3">
-          <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F766E" />
-          <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#D97706" />
-          <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#2563EB" />
-        </div>
-
-        {/* Right — Arc gauge */}
-        <div className="px-5 py-4 flex flex-col items-center justify-center gap-1">
+      {/* Body — asymmetric grid: 5 cols gauge / 7 cols identity + sub-scores */}
+      <div className="grid grid-cols-1 md:grid-cols-12">
+        {/* Left — gauge */}
+        <div className="md:col-span-5 px-6 py-7 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.24em] mb-3 text-gray-400">
+            Feasibility Index
+          </p>
           <ArcGauge score={score} />
-          <div className="flex items-center justify-center gap-1">
-            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400">Feasibility Index</p>
-            <div className="relative group">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-              </svg>
-              <div className="absolute top-full right-0 mt-2 w-72 bg-gray-900 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-[100]">
-                <div className="absolute bottom-full right-3 w-2 h-2 bg-gray-900 rotate-45 mb-[-4px]" />
-                <p className="font-bold mb-1">Methodology</p>
-                <p><span className="text-emerald-300">Offtake (40%)</span> — Program status, capacity, LMI complexity, enrollment runway</p>
-                <p className="mt-0.5"><span className="text-amber-300">Interconnection (35%)</span> — Queue difficulty, study timelines, upgrade cost risk</p>
-                <p className="mt-0.5"><span className="text-blue-300">Site Control (25%)</span> — Land availability, wetland risk, zoning constraints</p>
-                <p className="mt-1.5 text-gray-400">Weights reflect typical decision priority: offtake viability is the first gate, IX risk is the primary capital risk, site control is increasingly commoditized.</p>
+          <div
+            className="mt-3 inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] font-bold"
+            style={{ color: verdict.color }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: verdict.color }} />
+            {verdict.label}
+          </div>
+        </div>
+
+        {/* Right — identity + sub-scores */}
+        <div className="md:col-span-7 px-6 py-7 flex flex-col gap-6">
+          {/* Identity */}
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400 mb-1.5">
+              Target State
+            </p>
+            <h2 className="font-serif font-semibold text-ink leading-[0.95]" style={{ fontSize: '34px', letterSpacing: '-0.02em' }}>
+              {stateProgram.name}
+            </h2>
+            {stateProgram.csProgram && (
+              <p className="text-sm font-medium mt-1.5" style={{ color: '#0F766E' }}>
+                {stateProgram.csProgram}
+              </p>
+            )}
+          </div>
+
+          {/* Sub-scores */}
+          <div className="pt-5 border-t border-gray-100 space-y-2.5">
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400">
+                Sub-Scores
+              </p>
+              <div className="relative group">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                <div className="absolute top-full right-0 mt-2 w-72 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-[100]"
+                     style={{ background: '#0F1A2E', border: '1px solid rgba(20,184,166,0.30)' }}>
+                  <div className="absolute bottom-full right-3 w-2 h-2 rotate-45 mb-[-4px]" style={{ background: '#0F1A2E' }} />
+                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Methodology</p>
+                  <p><span className="text-teal-300 font-mono">OFFTAKE 40%</span> — Program status, capacity, LMI complexity, enrollment runway</p>
+                  <p className="mt-0.5"><span className="text-amber-300 font-mono">INTERCONN 35%</span> — Queue difficulty, study timelines, upgrade cost risk</p>
+                  <p className="mt-0.5"><span className="text-blue-300 font-mono">SITE CTRL 25%</span> — Land availability, wetland risk, zoning constraints</p>
+                  <p className="mt-1.5 text-gray-400">Offtake viability is the first gate. IX risk is the primary capital risk. Site control is increasingly commoditized.</p>
+                </div>
               </div>
             </div>
+            <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F766E" />
+            <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#D97706" />
+            <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#2563EB" />
           </div>
         </div>
       </div>
-    </div>
+    </article>
   )
 }
 
@@ -428,20 +503,19 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
   ]
 
   return (
-    <div
-      className="bg-white border border-gray-200 rounded-lg flex flex-col"
-      style={{ borderLeft: '3px solid #2563EB' }}
-    >
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md bg-blue-50 flex items-center justify-center text-blue-600">
-          <PillarIcon type="site" />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900">Site Control</h3>
-          <p className="text-xs text-gray-400">{county} County, {stateName}</p>
-        </div>
-      </div>
+    <section className="bg-white border border-gray-200 rounded-lg flex flex-col overflow-hidden">
+      {/* V3 editorial header: numbered eyebrow → serif title → caption */}
+      <header className="px-5 pt-4 pb-3 border-b border-gray-100">
+        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#2563EB' }}>
+          03 / Site Control
+        </p>
+        <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
+          {county} County
+        </h3>
+        <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
+          {stateName.toUpperCase()}
+        </p>
+      </header>
 
       {/* Body */}
       <div className="px-5 py-4 flex-1">
@@ -573,7 +647,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
           )
         })()}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -591,17 +665,19 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #D97706' }}>
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(217,119,6,0.12)', color: '#D97706' }}>
-          <PillarIcon type="ix" />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900">Interconnection</h3>
-          <p className="text-xs text-gray-400">Queue status & utility conditions</p>
-        </div>
-      </div>
+    <section className="bg-white border border-gray-200 rounded-lg flex flex-col overflow-hidden">
+      {/* V3 editorial header: amber kept as semantic IX caution per V3 §7.4 */}
+      <header className="px-5 pt-4 pb-3 border-b border-gray-100">
+        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#D97706' }}>
+          02 / Interconnection
+        </p>
+        <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
+          {servingUtility || 'Utility TBD'}
+        </h3>
+        <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
+          QUEUE & UPGRADE COST CONDITIONS
+        </p>
+      </header>
 
       {/* Body */}
       <div className="px-5 py-4 space-y-4 flex-1">
@@ -711,7 +787,7 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -849,17 +925,19 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
   const isCS = technology === 'Community Solar'
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #0F766E' }}>
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md bg-primary-50 flex items-center justify-center text-primary">
-          <PillarIcon type="offtake" />
-        </div>
-        <div>
-          <h3 className="text-sm font-bold text-gray-900">Offtake</h3>
-          <p className="text-xs text-gray-400">{isCS ? 'Program status & revenue stack' : `${technology} revenue profile`}</p>
-        </div>
-      </div>
+    <section className="bg-white border border-gray-200 rounded-lg flex flex-col overflow-hidden">
+      {/* V3 editorial header */}
+      <header className="px-5 pt-4 pb-3 border-b border-gray-100">
+        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#0F766E' }}>
+          01 / Offtake
+        </p>
+        <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
+          {isCS ? (stateProgram?.csProgram || 'No CS Program') : `${technology}`}
+        </h3>
+        <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
+          {isCS ? 'PROGRAM STATUS · REVENUE STACK' : 'REVENUE PROFILE'}
+        </p>
+      </header>
 
       {/* Body */}
       <div className="px-5 py-4 space-y-4 flex-1">
@@ -1134,7 +1212,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
 }
 
@@ -1564,68 +1642,67 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
   const showAI = !!aiInsight && !!cleanBrief
 
   return (
-    <div
-      className="mb-5 rounded-lg overflow-hidden relative"
-      style={{
-        border: '1px solid rgba(20,184,166,0.20)',
-        borderLeft: '4px solid #14B8A6',
-        boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
-      }}
+    <article
+      className="mb-6 bg-white rounded-lg overflow-hidden relative"
+      style={{ border: '1px solid #E2E8F0' }}
     >
-      {/* V3: Brand-navy header band with teal accent rail (was purple gradient) */}
-      <div
-        className="px-5 py-3 flex items-center justify-between relative"
-        style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
-      >
-        {/* Top teal accent rail */}
-        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
-        <div className="flex items-center gap-2.5">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(45,212,191,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
-          </svg>
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
-            Market Intelligence
+      {/* V3 redesign: editorial-research-note pattern.
+          Top teal hairline rail, then mono eyebrow strip, then pull-quote AI brief
+          with drop-cap. Replaces the prior navy header band entirely. */}
+      <div className="absolute top-0 left-0 right-0 h-[2px]"
+        style={{ background: 'linear-gradient(90deg, transparent 0%, #14B8A6 30%, #14B8A6 70%, transparent 100%)' }} />
+
+      {/* Eyebrow metadata strip */}
+      <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100 flex-wrap gap-y-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: '#0F1A2E' }}>
+            Analyst Brief
           </span>
-          {/* V3: AI badge teal (was violet); scenario badge stays amber (caution semantic) */}
           {showAI && (
-            <span
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(20,184,166,0.20)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.40)' }}
-            >
-              AI Analysis
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+                  style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}>
+              ◆ Claude · Sonnet 4.6
             </span>
           )}
           {activeScenario && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.20)', color: '#FCD34D', border: '1px solid rgba(245,158,11,0.40)' }}>
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+                  style={{ background: 'rgba(245,158,11,0.10)', color: '#92400E', border: '1px solid rgba(245,158,11,0.30)' }}>
               Scenario Mode
             </span>
           )}
         </div>
         <span
-          className="text-[10px] font-bold uppercase tracking-[0.10em] px-2.5 py-1 rounded-full"
+          className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
           style={{ background: verdictBg, color: verdictText }}
         >
           {verdict}
         </span>
       </div>
 
-      {/* Body */}
-      <div className="bg-white px-5 py-4">
+      {/* Body — editorial composition */}
+      <div className="px-6 py-6">
 
-        {/* Analyst brief — AI when available, rule-based fallback otherwise */}
+        {/* AI brief as a pull-quote with serif drop-cap.
+            This is the differentiated value the user is paying for —
+            present it with conviction, not in a chrome-heavy chatbot tile. */}
         {showAI ? (
-          <div>
+          <div className={`relative ${activeScenario ? 'opacity-60' : ''}`}>
             {activeScenario && (
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: 'rgba(15,118,110,0.65)' }}>
-                Base Analysis
+              <p className="font-mono text-[9px] uppercase tracking-[0.24em] mb-2" style={{ color: '#0F766E' }}>
+                — Base Analysis —
               </p>
             )}
-            <p className={`text-[15px] font-medium leading-relaxed ${activeScenario ? 'text-gray-400' : 'text-gray-800'}`}>
+            <p
+              className="font-serif text-[17px] leading-[1.55] text-ink first-letter:text-[58px] first-letter:font-bold first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:leading-[0.85] first-letter:font-serif"
+              style={{ letterSpacing: '-0.005em' }}
+            >
               {cleanBrief}
             </p>
           </div>
         ) : (
-          <p className="text-[15px] font-medium text-gray-800 leading-relaxed">{summary}</p>
+          <p className="font-serif text-[17px] leading-[1.55] text-ink first-letter:text-[58px] first-letter:font-bold first-letter:float-left first-letter:mr-2 first-letter:mt-1 first-letter:leading-[0.85]">
+            {summary}
+          </p>
         )}
 
         {/* Scenario overlay — shown when a scenario is active */}
@@ -1694,76 +1771,63 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
           )
         })()}
 
-        {/* AI Spotlight tiles — Primary Risk + Top Opportunity — hide in scenario mode */}
+        {/* V3: AI Spotlight as side-rule blocks (no fill, just left rule + eyebrow + body)
+            Editorial pattern -- looks like a sidebar in a research note, not a colored card */}
         {showAI && !activeScenario && (aiInsight.primaryRisk || aiInsight.topOpportunity) && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-5 border-t border-gray-100">
             {aiInsight.primaryRisk && (
-              <div
-                className="rounded-lg px-4 py-3"
-                style={{
-                  background: 'rgba(220,38,38,0.05)',
-                  border: '1px solid rgba(220,38,38,0.15)',
-                  borderLeft: '3px solid #DC2626',
-                }}
-              >
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: '#DC2626' }}>
+              <div className="pl-4" style={{ borderLeft: '2px solid #DC2626' }}>
+                <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1.5" style={{ color: '#DC2626' }}>
                   Primary Risk
                 </p>
-                <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.primaryRisk}</p>
+                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.primaryRisk}</p>
               </div>
             )}
             {aiInsight.topOpportunity && (
-              <div
-                className="rounded-lg px-4 py-3"
-                style={{
-                  background: 'rgba(20,184,166,0.05)',
-                  border: '1px solid rgba(20,184,166,0.18)',
-                  borderLeft: '3px solid #0F766E',
-                }}
-              >
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: '#0F766E' }}>
+              <div className="pl-4" style={{ borderLeft: '2px solid #0F766E' }}>
+                <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1.5" style={{ color: '#0F766E' }}>
                   Top Opportunity
                 </p>
-                <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.topOpportunity}</p>
+                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.topOpportunity}</p>
               </div>
             )}
           </div>
         )}
 
-        {/* Signal tiles — always shown */}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {signals.map((sig, i) => {
-            const c = CHIP_COLORS[sig.color] || CHIP_COLORS.gray
-            return (
-              <div
-                key={i}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                style={{ background: c.bg, borderLeft: `3px solid ${c.dot}` }}
-              >
-                <span className="text-[11px] font-semibold leading-tight" style={{ color: c.text }}>{sig.label}</span>
-              </div>
-            )
-          })}
-        </div>
+        {/* V3: Ticker-tape signal strip -- mono caps, hairline-divided, no boxed cards */}
+        {signals.length > 0 && (
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400 mb-2">
+              Decision Signals
+            </p>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px]">
+              {signals.map((sig, i) => {
+                const c = CHIP_COLORS[sig.color] || CHIP_COLORS.gray
+                return (
+                  <span key={i} className="inline-flex items-center gap-1.5">
+                    <span className="w-1 h-3" style={{ background: c.dot }} />
+                    <span className="text-ink">{sig.label}</span>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
-        {/* V3: Immediate Action block — teal accent (was violet) */}
+        {/* V3: Immediate Action — editorial side-rule block (was filled tile) */}
         {showAI && aiInsight.immediateAction && (
-          <div
-            className="mt-4 flex items-start gap-3 rounded-lg px-4 py-3"
-            style={{
-              background: 'rgba(20,184,166,0.05)',
-              border: '1px solid rgba(20,184,166,0.18)',
-              borderLeft: '3px solid #14B8A6',
-            }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
-              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-            </svg>
-            <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>
-                Immediate Action — Next 30 Days
-              </p>
-              <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.immediateAction}</p>
+          <div className="mt-6 pt-5 border-t border-gray-100 pl-4" style={{ borderLeftWidth: 0, position: 'relative' }}>
+            <div className="absolute left-0 top-5 bottom-0 w-[2px]" style={{ background: '#14B8A6' }} />
+            <div className="flex items-start gap-3 ml-4">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-1">
+                <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              <div>
+                <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#0F766E' }}>
+                  Immediate Action — Next 30 Days
+                </p>
+                <p className="text-[14px] text-ink leading-[1.55] font-medium">{aiInsight.immediateAction}</p>
+              </div>
             </div>
           </div>
         )}
@@ -1881,7 +1945,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
           </div>
         )}
       </div>
-    </div>
+    </article>
   )
 }
 
