@@ -7,6 +7,7 @@ import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import { getStateProgramMap, getCountyData } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
+import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
@@ -240,22 +241,51 @@ function PipelineProgress({ stage }) {
 }
 
 // ── CSV export ───────────────────────────────────────────────────────────────
-function exportCSV(projects) {
+function exportCSV(projects, stateProgramMap = {}) {
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
-  const headers = ['Name', 'State', 'County', 'MW AC', 'Technology', 'Stage', 'CS Status', 'CS Program', 'Feasibility Index', 'Serving Utility', 'Saved Date']
-  const rows = projects.map(p => [
-    p.name,
-    p.stateName || p.state,
-    p.county,
-    p.mw,
-    p.technology || '',
-    p.stage || '',
-    CS_LABEL[p.csStatus] || p.csStatus || '',
-    p.csProgram || '',
-    p.feasibilityScore ?? '',
-    p.servingUtility || '',
-    p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
-  ])
+  const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
+  // V3: 18 columns (was 11). Adds IX detail, program runway, LMI %, revenue est, alert flags.
+  const headers = [
+    'Name', 'State', 'County', 'MW AC', 'Technology', 'Stage',
+    'CS Status', 'CS Program', 'Program Capacity Remaining (MW)', 'LMI Required (%)',
+    'Program Runway (months)', 'Feasibility Index',
+    'IX Difficulty', 'IX Notes (truncated)', 'Serving Utility',
+    'Est. Annual Revenue ($/MW/yr)', 'Risk Flags', 'Saved Date',
+  ]
+  const rows = projects.map(p => {
+    const sp = stateProgramMap[p.state] || {}
+    // Revenue estimate: per-MW per-year (current revenue engine returns total, divide by MW)
+    let revPerMWperYear = ''
+    try {
+      const mwNum = parseFloat(p.mw) || 0
+      if (mwNum > 0 && p.technology === 'Community Solar' && hasRevenueData(p.state)) {
+        const proj = computeRevenueProjection(p.state, mwNum)
+        if (proj?.year1Revenue) revPerMWperYear = Math.round(proj.year1Revenue / mwNum)
+      }
+    } catch {}
+    const alerts = getAlerts(p, stateProgramMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
+    const ixNotes = (sp.ixNotes || '').replace(/\s+/g, ' ').slice(0, 200)
+    return [
+      p.name,
+      p.stateName || p.state,
+      p.county,
+      p.mw,
+      p.technology || '',
+      p.stage || '',
+      CS_LABEL[p.csStatus] || p.csStatus || '',
+      p.csProgram || '',
+      sp.capacityMW ?? '',
+      sp.lmiRequired ? sp.lmiPercent : '',
+      sp.runway?.months ?? '',
+      p.feasibilityScore ?? '',
+      IX_LABEL[sp.ixDifficulty] || sp.ixDifficulty || '',
+      ixNotes,
+      p.servingUtility || '',
+      revPerMWperYear,
+      alerts,
+      p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
+    ]
+  })
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url  = URL.createObjectURL(blob)
@@ -390,6 +420,38 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
       await exportProjectPDF({ ...project, notes, stage }, current)
     } finally {
       setExporting(false)
+    }
+  }
+
+  // V3: Deal Memo — fetches AI commentary, then exports PDF with the memo embedded
+  const [memoExporting, setMemoExporting] = useState(false)
+  const handleExportDealMemo = async (e) => {
+    e.stopPropagation()
+    setMemoExporting(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      let memo = null
+      if (token) {
+        const res = await fetch('/api/lens-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            action: 'deal-memo',
+            project: { ...project, stage, technology: project.technology },
+            stateProgram: current,
+            countyData,
+          }),
+        })
+        if (res.ok) {
+          const json = await res.json()
+          memo = json.memo || null
+        }
+      }
+      const { exportProjectPDF } = await import('../components/ProjectPDFExport')
+      await exportProjectPDF({ ...project, notes, stage }, current, memo)
+    } finally {
+      setMemoExporting(false)
     }
   }
   const alerts    = getAlerts(project, stateProgramMap)
@@ -654,7 +716,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
             </Link>
             <button
               onClick={handleExportPDF}
-              disabled={exporting}
+              disabled={exporting || memoExporting}
               className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 border border-gray-200 bg-white hover:bg-gray-50"
             >
               {exporting ? (
@@ -671,6 +733,28 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
                     <polyline points="9 15 12 18 15 15"/>
                   </svg>
                   Export Summary PDF
+                </>
+              )}
+            </button>
+            {/* V3: Deal Memo — IC-grade analyst memo with AI commentary + recommendation */}
+            <button
+              onClick={handleExportDealMemo}
+              disabled={exporting || memoExporting}
+              className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white"
+              style={{ background: '#0F1A2E' }}
+              title="Generate IC-grade Deal Memo with AI analysis"
+            >
+              {memoExporting ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Synthesizing memo…
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                  </svg>
+                  Generate Deal Memo
                 </>
               )}
             </button>
@@ -830,12 +914,30 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
   }, [scored])
   const totalMW = techBreakdown.reduce((s, [, mw]) => s + mw, 0)
 
-  // Risk distribution
-  const riskDist = useMemo(() => {
-    let strong = 0, moderate = 0, atRisk = 0
-    scored.forEach(p => { if (p.score > 65) strong++; else if (p.score >= 40) moderate++; else atRisk++ })
-    return { strong, moderate, atRisk }
-  }, [scored])
+  // V3: Risk concentration — % of portfolio MW exposed to single state/program/tech
+  const concentration = useMemo(() => {
+    if (!scored.length) return null
+    const total = scored.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)
+    if (total === 0) return null
+    const groupBy = (keyFn) => {
+      const map = {}
+      scored.forEach(p => {
+        const k = keyFn(p) || 'Unknown'
+        map[k] = (map[k] || 0) + (parseFloat(p.mw) || 0)
+      })
+      const top = Object.entries(map).sort((a, b) => b[1] - a[1])[0]
+      return top ? { name: top[0], pct: Math.round((top[1] / total) * 100) } : null
+    }
+    return {
+      state:   groupBy(p => p.state),
+      program: groupBy(p => stateProgramMap[p.state]?.csProgram),
+      tech:    groupBy(p => p.technology || 'Community Solar'),
+    }
+  }, [scored, stateProgramMap])
+
+  const concColor = (pct) => pct >= 70 ? { text: '#DC2626', bg: '#FEE2E2', label: 'High' }
+    : pct >= 40 ? { text: '#B45309', bg: '#FEF3C7', label: 'Moderate' }
+    : { text: '#059669', bg: '#D1FAE5', label: 'Diversified' }
 
   const healthColor = healthScore > 65 ? 'text-primary-700' : healthScore >= 40 ? 'text-amber-600' : 'text-red-600'
   const healthBg = healthScore > 65 ? 'bg-primary-50' : healthScore >= 40 ? 'bg-amber-50' : 'bg-red-50'
@@ -905,66 +1007,65 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
 
       {!collapsed && (
         <div className="px-5 py-4 space-y-3" style={{ borderTop: '1px solid rgba(15,110,86,0.08)' }}>
-          {/* Row 1: Health score gauge + KPI widgets */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {/* Row 1: Health gauge + Total MW + Risk Concentration (V3: dropped Avg Score + Risk Spread) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Health Score — large gauge */}
-            <div className="col-span-2 sm:col-span-1 rounded-xl px-4 py-4 flex flex-col items-center justify-center" style={{ background: healthScore > 65 ? 'linear-gradient(135deg, #ECFDF5, #D1FAE5)' : healthScore >= 40 ? 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' : 'linear-gradient(135deg, #FEF2F2, #FEE2E2)' }}>
+            <div className="rounded-xl px-4 py-4 flex flex-col items-center justify-center" style={{ background: healthScore > 65 ? 'linear-gradient(135deg, #ECFDF5, #D1FAE5)' : healthScore >= 40 ? 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' : 'linear-gradient(135deg, #FEF2F2, #FEE2E2)' }}>
               <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 mb-1">Portfolio Health</p>
               <div className="relative w-16 h-16">
                 <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E7EB" strokeWidth="3" />
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626'} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
                 </svg>
-                <span className={`absolute inset-0 flex items-center justify-center text-xl font-bold tabular-nums ${healthColor}`}>{healthScore}</span>
+                <span className={`absolute inset-0 flex items-center justify-center text-xl font-bold font-mono tabular-nums ${healthColor}`}>{healthScore}</span>
               </div>
               <p className="text-[9px] font-medium mt-1" style={{ color: healthScore > 65 ? '#059669' : healthScore >= 40 ? '#B45309' : '#DC2626' }}>
                 {healthScore > 65 ? 'Strong' : healthScore >= 40 ? 'Moderate' : 'At Risk'}
               </p>
             </div>
 
-            {/* KPI: Total MW */}
-            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
+            {/* KPI: Total MW + project count combined */}
+            <div className="rounded-xl px-4 py-4 bg-gray-50 border border-gray-100 flex flex-col justify-center">
               <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Total Capacity</p>
-              <p className="text-2xl font-bold tabular-nums text-gray-900">{totalMW.toFixed(1)}</p>
-              <p className="text-[10px] text-gray-500 font-medium">MW AC</p>
+              <p className="text-3xl font-bold font-mono tabular-nums text-gray-900 leading-none">{totalMW.toFixed(1)}</p>
+              <p className="text-[10px] text-gray-500 font-medium mt-1">MW AC across {scored.length} project{scored.length !== 1 ? 's' : ''}</p>
             </div>
 
-            {/* KPI: Avg Score */}
+            {/* V3: Portfolio Risk Concentration — replaces Avg Score + Risk Spread */}
             <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Avg. Score</p>
-              <p className="text-2xl font-bold tabular-nums text-gray-900">{scored.length ? Math.round(scored.reduce((s, p) => s + p.score, 0) / scored.length) : 0}</p>
-              <p className="text-[10px] text-gray-500 font-medium">/ 100</p>
-            </div>
-
-            {/* KPI: Risk Distribution */}
-            <div className="rounded-xl px-4 py-3 bg-gray-50 border border-gray-100">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2">Risk Spread</p>
-              <div className="flex flex-col gap-1.5">
-                {riskDist.strong > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${(riskDist.strong / scored.length) * 100}%` }} />
+              <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-2">Risk Concentration</p>
+              {concentration ? (
+                <div className="space-y-1.5">
+                  {[
+                    { label: 'Single state',   data: concentration.state },
+                    { label: 'Single program', data: concentration.program },
+                    { label: 'Single tech',    data: concentration.tech },
+                  ].map(({ label, data }) => data && (
+                    <div key={label} className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-500 w-20 flex-shrink-0">{label}</span>
+                      <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full"
+                          style={{ width: `${data.pct}%`, background: concColor(data.pct).text }}
+                        />
+                      </div>
+                      <span
+                        className="text-[10px] font-bold font-mono tabular-nums w-9 text-right"
+                        style={{ color: concColor(data.pct).text }}
+                      >
+                        {data.pct}%
+                      </span>
                     </div>
-                    <span className="text-[10px] font-bold tabular-nums text-emerald-700 w-4 text-right">{riskDist.strong}</span>
-                  </div>
-                )}
-                {riskDist.moderate > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${(riskDist.moderate / scored.length) * 100}%` }} />
-                    </div>
-                    <span className="text-[10px] font-bold tabular-nums text-amber-700 w-4 text-right">{riskDist.moderate}</span>
-                  </div>
-                )}
-                {riskDist.atRisk > 0 && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
-                      <div className="h-full rounded-full bg-red-500" style={{ width: `${(riskDist.atRisk / scored.length) * 100}%` }} />
-                    </div>
-                    <span className="text-[10px] font-bold tabular-nums text-red-700 w-4 text-right">{riskDist.atRisk}</span>
-                  </div>
-                )}
-              </div>
+                  ))}
+                  {concentration.state && (
+                    <p className="text-[9px] text-gray-400 mt-1.5 leading-tight">
+                      Top exposure: {concentration.state.name} ({concentration.state.pct}% of MW)
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-[10px] text-gray-400">Add projects to compute</p>
+              )}
             </div>
           </div>
 
@@ -1223,7 +1324,7 @@ function LibraryContent() {
             <div className="flex items-center gap-2 flex-shrink-0">
               {projects.length > 0 && (
                 <button
-                  onClick={() => exportCSV(projects)}
+                  onClick={() => exportCSV(projects, stateProgramMap)}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors text-gray-600 bg-white border border-gray-200 hover:bg-gray-50"
                   title="Export all projects to CSV"
                 >
@@ -1260,54 +1361,101 @@ function LibraryContent() {
                 ))}
               </div>
 
-              {/* Pipeline distribution bar */}
+              {/* Pipeline distribution bar — V3: click to filter, weeks-in-stage stale flag */}
               {(() => {
                 const STAGE_COLORS = ['#A7F3D0', '#6EE7B7', '#34D399', '#10B981', '#059669', '#047857', '#065F46']
+                const now = Date.now()
                 const stageCounts = PIPELINE_STAGES.map((s, i) => {
                   const matching = projects.filter(p => p.stage === s)
+                  // V3: weeks-in-stage stale detection — flag stages where any project has been
+                  // sitting >180 days based on saved_at (proxy for last status change)
+                  const stale = matching.some(p => {
+                    if (!p.savedAt) return false
+                    const days = (now - new Date(p.savedAt).getTime()) / 86400000
+                    return days >= 180
+                  })
                   return {
                     stage: s,
                     count: matching.length,
                     mw: matching.reduce((sum, p) => sum + (parseFloat(p.mw) || 0), 0),
                     color: STAGE_COLORS[i],
+                    stale,
                   }
                 })
                 const maxCount = Math.max(...stageCounts.map(s => s.count), 1)
                 return (
                   <div className="mt-4 rounded-xl px-4 py-4 bg-white border border-gray-200">
-                    <p className="text-[10px] font-bold uppercase tracking-widest mb-3 text-gray-400">Pipeline Distribution</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pipeline Distribution</p>
+                      {filterStage && (
+                        <button
+                          onClick={() => setFilterStage('')}
+                          className="text-[10px] font-semibold text-primary hover:text-primary-700"
+                        >
+                          Clear filter ✕
+                        </button>
+                      )}
+                    </div>
                     <div className="flex items-end gap-2 h-16">
-                      {stageCounts.map(({ stage, count, mw, color }) => (
-                        <div key={stage} className="flex-1 flex flex-col items-center gap-1 group relative">
-                          <div
-                            className="w-full rounded-t-md transition-all duration-300"
-                            style={{
-                              height: count > 0 ? `${Math.max(6, (count / maxCount) * 56)}px` : '3px',
-                              background: count > 0 ? color : '#E5E7EB',
-                            }}
-                          />
-                          {count > 0 && (
-                            <span className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[10px] font-medium bg-gray-900 text-white shadow-lg pointer-events-none">
-                              {count} project{count > 1 ? 's' : ''} · {mw.toFixed(1)} MW
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                      {stageCounts.map(({ stage, count, mw, color, stale }) => {
+                        const isActive = filterStage === stage
+                        const isDimmed = filterStage && filterStage !== stage
+                        return (
+                          <button
+                            type="button"
+                            key={stage}
+                            onClick={() => count > 0 && setFilterStage(isActive ? '' : stage)}
+                            disabled={count === 0}
+                            className="flex-1 flex flex-col items-center gap-1 group relative transition-opacity"
+                            style={{ opacity: isDimmed ? 0.4 : 1, cursor: count > 0 ? 'pointer' : 'default' }}
+                          >
+                            <div
+                              className="w-full rounded-t-md transition-all duration-300 relative"
+                              style={{
+                                height: count > 0 ? `${Math.max(6, (count / maxCount) * 56)}px` : '3px',
+                                background: count > 0 ? color : '#E5E7EB',
+                                outline: isActive ? '2px solid #0F6E56' : 'none',
+                                outlineOffset: isActive ? '2px' : '0',
+                              }}
+                            >
+                              {stale && (
+                                <span
+                                  className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
+                                  style={{ background: '#F59E0B', boxShadow: '0 0 0 1.5px #FFFFFF' }}
+                                  title="A project has been in this stage 180+ days"
+                                />
+                              )}
+                            </div>
+                            {count > 0 && (
+                              <span className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[10px] font-medium bg-gray-900 text-white shadow-lg pointer-events-none font-mono">
+                                {count} project{count > 1 ? 's' : ''} · {mw.toFixed(1)} MW
+                                {stale ? ' · ⚠ stale' : ''}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
                     </div>
                     <div className="flex gap-2 mt-2">
-                      {stageCounts.map(({ stage, count, mw, color }) => (
-                        <div key={stage + 'l'} className="flex-1 text-center">
-                          <p className="text-[9px] leading-tight" style={{ color: count > 0 ? color : '#9CA3AF' }}>
-                            {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
-                          </p>
-                          {count > 0 && (
-                            <>
-                              <p className="text-[10px] font-bold tabular-nums" style={{ color }}>{count}</p>
-                              <p className="text-[8px] tabular-nums text-gray-400">{mw.toFixed(0)} MW</p>
-                            </>
-                          )}
-                        </div>
-                      ))}
+                      {stageCounts.map(({ stage, count, mw, color }) => {
+                        const isActive = filterStage === stage
+                        return (
+                          <div key={stage + 'l'} className="flex-1 text-center">
+                            <p
+                              className="text-[9px] leading-tight font-semibold"
+                              style={{ color: isActive ? '#0F6E56' : count > 0 ? color : '#9CA3AF' }}
+                            >
+                              {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
+                            </p>
+                            {count > 0 && (
+                              <>
+                                <p className="text-[10px] font-bold font-mono tabular-nums" style={{ color }}>{count}</p>
+                                <p className="text-[8px] font-mono tabular-nums text-gray-400">{mw.toFixed(0)} MW</p>
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )

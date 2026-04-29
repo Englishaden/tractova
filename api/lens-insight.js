@@ -271,6 +271,7 @@ export default async function handler(req, res) {
   if (action === 'compare')      return handleCompare(body, res)
   if (action === 'sensitivity')  return handleSensitivity(body, res)
   if (action === 'news-summary') return handleNewsSummary(body, res)
+  if (action === 'deal-memo')    return handleDealMemo(body, res)
 
   // ── Build context + call Claude (single-project analysis) ─────────────────
   const contextText = buildContext(body)
@@ -473,6 +474,62 @@ async function handleNewsSummary(body, res) {
     clearTimeout(timeoutId)
     console.error('[lens-insight:news-summary] error:', err.message)
     return res.status(200).json({ summary: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Deal Memo — IC-grade structured analysis for export to PDF / sales artifact
+// ─────────────────────────────────────────────────────────────────────────────
+const DEAL_MEMO_PROMPT = `You are a senior solar development analyst writing a one-page Investment Committee memo for a community solar / renewable energy project. Your audience: capital partners, financiers, and the developer's IC. Tone: directive, specific, quantified. No fluff, no hedging.
+
+For each section, write 2-3 sentences (no more). Be concrete, name programs and utilities, cite quantities. Do not summarize the data panel — interpret it.
+
+OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences. Exact schema:
+{
+  "siteControlSummary":  "2-3 sentences on land availability, wetland risk, zoning, parcel-level diligence priorities",
+  "ixSummary":           "2-3 sentences on interconnection difficulty, queue position, study timeline, upgrade cost exposure",
+  "revenueSummary":      "2-3 sentences on offtake mechanism, ITC eligibility, revenue stack, key economic drivers",
+  "recommendation":      "1-2 sentences with a directive next-30-day recommendation. Start with a verb."
+}`
+
+async function handleDealMemo(body, res) {
+  const { project, stateProgram, countyData, runway, ixQueue } = body
+  if (!project) return res.status(400).json({ error: 'project required' })
+
+  // Reuse buildContext if state/county/mw etc are provided
+  const contextBody = {
+    state: project.state,
+    county: project.county,
+    mw: project.mw,
+    stage: project.stage,
+    technology: project.technology,
+    stateProgram, countyData, runway, ixQueue,
+  }
+  const contextText = buildContext(contextBody)
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const message = await client.messages.create(
+      { model: 'claude-sonnet-4-6', max_tokens: 800, system: DEAL_MEMO_PROMPT, messages: [{ role: 'user', content: contextText }] },
+      { signal: controller.signal }
+    )
+    clearTimeout(timeoutId)
+    const raw = message.content?.[0]?.text || ''
+    try {
+      const match = raw.match(/\{[\s\S]*\}/)
+      const parsed = JSON.parse(match ? match[0] : raw)
+      if (parsed.siteControlSummary || parsed.ixSummary || parsed.revenueSummary || parsed.recommendation) {
+        return res.status(200).json({ memo: parsed })
+      }
+    } catch {}
+    return res.status(200).json({ memo: null, fallback: true, reason: 'parse_failed' })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[lens-insight:deal-memo] error:', err.message)
+    return res.status(200).json({ memo: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }
 

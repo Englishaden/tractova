@@ -202,8 +202,40 @@ function PipelineViz({ stage }) {
   )
 }
 
+// ── AI Memo block — IC-grade analyst commentary (V3 Deal Memo) ──────────────
+function AIMemoSection({ memo }) {
+  if (!memo) return null
+  const cards = [
+    { label: 'Site Control Assessment', text: memo.siteControlSummary },
+    { label: 'Interconnection Outlook', text: memo.ixSummary },
+    { label: 'Revenue Positioning',     text: memo.revenueSummary },
+  ].filter(c => c.text)
+  return (
+    <View style={{ marginBottom: 14 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+        <Text style={[s.sectionLabel, { marginBottom: 0, marginRight: 6 }]}>AI Deal Memo</Text>
+        <Text style={{ fontSize: 6, color: TEAL_DARK, fontFamily: 'Helvetica-Bold', backgroundColor: TEAL_LIGHT, paddingHorizontal: 4, paddingVertical: 1.5, borderRadius: 2 }}>
+          AI · CLAUDE
+        </Text>
+      </View>
+      {cards.map(({ label, text }) => (
+        <View key={label} style={{ marginBottom: 7 }}>
+          <Text style={{ fontSize: 7, fontFamily: 'Helvetica-Bold', color: TEAL_DARK, marginBottom: 2.5, letterSpacing: 0.5 }}>{label}</Text>
+          <Text style={{ fontSize: 9, color: GRAY_700, lineHeight: 1.45 }}>{text}</Text>
+        </View>
+      ))}
+      {memo.recommendation && (
+        <View style={{ marginTop: 4, paddingTop: 7, paddingBottom: 7, paddingLeft: 9, paddingRight: 9, borderLeftWidth: 2.5, borderLeftColor: TEAL, backgroundColor: TEAL_LIGHT, borderRadius: 2 }}>
+          <Text style={{ fontSize: 7, fontFamily: 'Helvetica-Bold', color: TEAL_DARK, marginBottom: 2.5, letterSpacing: 0.5 }}>Recommendation</Text>
+          <Text style={{ fontSize: 9.5, fontFamily: 'Helvetica-Bold', color: GRAY_900, lineHeight: 1.45 }}>{memo.recommendation}</Text>
+        </View>
+      )}
+    </View>
+  )
+}
+
 // ── PDF Document ──────────────────────────────────────────────────────────────
-function ProjectPDFDoc({ project, current }) {
+function ProjectPDFDoc({ project, current, aiMemo }) {
   const generatedDate = new Date().toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
   })
@@ -303,6 +335,14 @@ function ProjectPDFDoc({ project, current }) {
 
         <View style={s.divider} />
 
+        {/* ── AI Deal Memo (when memo provided) ── */}
+        {aiMemo && (
+          <>
+            <AIMemoSection memo={aiMemo} />
+            <View style={s.divider} />
+          </>
+        )}
+
         {/* ── Pipeline ── */}
         <Text style={s.sectionLabel}>Development Pipeline</Text>
         <View style={{ marginBottom: 16 }}>
@@ -334,13 +374,13 @@ function ProjectPDFDoc({ project, current }) {
 }
 
 // ── Export function ───────────────────────────────────────────────────────────
-export async function exportProjectPDF(project, current) {
-  const doc  = <ProjectPDFDoc project={project} current={current} />
+export async function exportProjectPDF(project, current, aiMemo = null) {
+  const doc  = <ProjectPDFDoc project={project} current={current} aiMemo={aiMemo} />
   const blob = await pdf(doc).toBlob()
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
   a.href     = url
-  a.download = `${(project.name || 'project').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-tractova.pdf`
+  a.download = `${(project.name || 'project').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-tractova${aiMemo ? '-deal-memo' : ''}.pdf`
   a.click()
   URL.revokeObjectURL(url)
 }
