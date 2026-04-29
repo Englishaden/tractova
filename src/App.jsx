@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompareProvider } from './context/CompareContext'
@@ -8,17 +9,38 @@ import CommandPalette from './components/CommandPalette'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
+
+// Eagerly loaded -- on the critical path for new visitors and most
+// signed-in returns (Dashboard is the home for authed users; Landing
+// for anon; auth pages are tiny and likely-next-step from Landing).
 import Dashboard from './pages/Dashboard'
 import Landing from './pages/Landing'
-import Search from './pages/Search'
-import Glossary from './pages/Glossary'
-import Library from './pages/Library'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
-import Profile from './pages/Profile'
-import UpgradeSuccess from './pages/UpgradeSuccess'
-import Admin from './pages/Admin'
-import MemoView from './pages/MemoView'
+
+// Lazy-loaded -- not on the initial-render critical path. Suspense
+// fallback is the same mono-caps + teal-pulse loading affordance used
+// by ProtectedRoute, so the visual language stays consistent.
+const Search          = lazy(() => import('./pages/Search'))
+const Library         = lazy(() => import('./pages/Library'))
+const Glossary        = lazy(() => import('./pages/Glossary'))
+const Profile         = lazy(() => import('./pages/Profile'))
+const Admin           = lazy(() => import('./pages/Admin'))
+const MemoView        = lazy(() => import('./pages/MemoView'))
+const UpgradeSuccess  = lazy(() => import('./pages/UpgradeSuccess'))
+
+// Branded route-level Suspense fallback. Matches ProtectedRoute's
+// loading state visually so transitions feel coherent.
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-paper flex items-center justify-center pt-14">
+      <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-muted">
+        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
+        Loading
+      </div>
+    </div>
+  )
+}
 
 // Shows Landing to logged-out visitors, Dashboard to signed-in users.
 // Blank surface during auth hydration prevents content flash.
@@ -36,44 +58,46 @@ export default function App() {
         <TooltipProvider delayDuration={200}>
         <ToastProvider>
         <Nav />
-        <Routes>
-          {/* Public routes */}
-          <Route path="/"       element={<HomeRoute />} />
-          <Route path="/signin"          element={<SignIn />} />
-          <Route path="/signup"          element={<SignUp />} />
-          <Route path="/upgrade-success" element={<UpgradeSuccess />} />
-          <Route path="/preview"         element={<Dashboard previewMode />} />
+        <Suspense fallback={<RouteFallback />}>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/"       element={<HomeRoute />} />
+            <Route path="/signin"          element={<SignIn />} />
+            <Route path="/signup"          element={<SignUp />} />
+            <Route path="/upgrade-success" element={<UpgradeSuccess />} />
+            <Route path="/preview"         element={<Dashboard previewMode />} />
 
-          {/* Gated routes — require sign-in */}
-          <Route
-            path="/search"
-            element={
-              <ProtectedRoute message="Sign in to access Tractova Lens intelligence reports.">
-                <Search />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/library"
-            element={
-              <ProtectedRoute message="Sign in to view and manage your saved projects.">
-                <Library />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="/glossary" element={<Glossary />} />
-          <Route path="/admin" element={<Admin />} />
-          {/* Public read-only Deal Memo by share token (no auth) */}
-          <Route path="/memo/:token" element={<MemoView />} />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute message="Sign in to view your profile.">
-                <Profile />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+            {/* Gated routes — require sign-in */}
+            <Route
+              path="/search"
+              element={
+                <ProtectedRoute message="Sign in to access Tractova Lens intelligence reports.">
+                  <Search />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/library"
+              element={
+                <ProtectedRoute message="Sign in to view and manage your saved projects.">
+                  <Library />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/glossary" element={<Glossary />} />
+            <Route path="/admin" element={<Admin />} />
+            {/* Public read-only Deal Memo by share token (no auth) */}
+            <Route path="/memo/:token" element={<MemoView />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute message="Sign in to view your profile.">
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </Suspense>
         <Footer />
         <CompareTray />
         <CommandPalette />
