@@ -255,6 +255,43 @@ there's a natural break.
   harbor if user-generated content ever appears (e.g. shared deal memos). $6
   filing fee, 3-year renewal.
 
+### Accepted dependency risks (audited 2026-04-29)
+
+After `npm audit fix` cleared the safe portion (postcss 8.5.9 → 8.5.12 patch),
+8 advisories remain. Reviewed and explicitly accepted for now:
+
+1. **`xlsx@0.18.5`** — Prototype Pollution + ReDoS, severity high, **no fix
+   available**. SheetJS removed their package from npm in 2023 and now
+   distribute via their own CDN (cdn.sheetjs.com). The version on npm is the
+   last public release and is permanently stuck.
+   - **Risk in our context: low.** Used only for owner-controlled portfolio
+     export in Library — the user's own saved projects, no untrusted input.
+   - **Future fix path:** swap to SheetJS's CDN distribution, or migrate to
+     `exceljs` if the bundle-size hit is acceptable.
+
+2. **`react-simple-maps@3.0.0`** (transitive d3-color < 3.1.0 ReDoS) —
+   severity high, **no upstream fix**. Library hasn't released past 3.0.0;
+   npm's "fix" is a downgrade to 1.0.0 (breaking API change).
+   - **Risk in our context: low.** USMap renders state colors from a fixed
+     teal ramp on controlled state data; no user-supplied color strings flow
+     into d3-color parsing functions.
+   - **Future fix path:** evaluate alternatives (`react-vis-leaflet`,
+     `topojson` direct, or a hand-rolled SVG choropleth) when we redo the
+     dashboard map for the Wave 2 IX Forecaster overlay.
+
+3. **`vite@5.4.21`** (with transitive `esbuild <= 0.24.2`) — severity
+   moderate, dev-only. The esbuild advisory says any website can send
+   requests to the **local dev server** and read the response. Production
+   builds are unaffected.
+   - **Risk in our context: low for prod, moderate for local dev.** Mitigate
+     by not running `npm run dev` while browsing untrusted sites.
+   - **Future fix path:** Vite 5 → 8 jump pairs naturally with the deferred
+     **Tailwind v3 → v4** upgrade (already on the V3 backlog as a dedicated
+     tooling session). Tackle them together — both are major refactors that
+     touch build chrome.
+
+GitHub Dependabot is on; will re-flag if any of these get an upstream patch.
+
 ### Recommended sequencing
 
 **This month:**
