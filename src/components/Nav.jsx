@@ -59,18 +59,18 @@ export default function Nav() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14">
-      <div className="max-w-dashboard mx-auto px-6 h-full flex items-center justify-between">
+      <div className="max-w-dashboard mx-auto px-4 md:px-6 h-full flex items-center justify-between gap-3">
 
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 select-none">
+        {/* Logo — wordmark hides on phone (mark stays) for tighter nav */}
+        <Link to="/" className="flex items-center gap-2 select-none flex-shrink-0">
           <TractovaMark />
-          <span className="text-xl font-serif font-semibold tracking-tight text-ink leading-none" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
+          <span className="hidden sm:inline text-xl font-serif font-semibold tracking-tight text-ink leading-none" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
         </Link>
 
-        {/* Nav links — only shown to signed-in users */}
-        <div className="flex items-center gap-7">
+        {/* Nav links — only shown to signed-in users; tighter gap on phone */}
+        <div className="flex items-center gap-3 sm:gap-5 md:gap-7 overflow-x-auto">
           {user && navLink('/', 'Dashboard')}
-          {user && navLink('/search', 'Tractova Lens')}
+          {user && navLink('/search', 'Lens')}
           {user && navLink('/glossary', 'Glossary')}
           {user && navLink('/library', 'Library')}
         </div>

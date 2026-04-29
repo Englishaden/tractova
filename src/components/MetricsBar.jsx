@@ -396,7 +396,7 @@ export default function MetricsBar() {
 
   return (
     <>
-      <div className="grid grid-cols-5 gap-3 mt-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
         {CARDS.map((c) => (
           <Tooltip key={c.key}>
             <TooltipTrigger asChild>

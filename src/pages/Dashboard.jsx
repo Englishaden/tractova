@@ -143,10 +143,10 @@ export default function Dashboard({ previewMode = false }) {
         {/* V3 §4.1: Markets on the Move — recently-updated states with score */}
         <MarketsOnTheMove stateProgramMap={stateProgramMap} onStateClick={handleStateClick} />
 
-        {/* Main two-panel layout */}
-        <div className="grid grid-cols-5 gap-5" style={{ minHeight: '600px' }}>
-          {/* Map — 60% */}
-          <div className="col-span-3">
+        {/* Main two-panel layout — stacks on mobile/tablet, side-by-side at lg+ */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {/* Map — full-width on mobile, 60% on lg+ */}
+          <div className="lg:col-span-3">
             <USMap
               onStateClick={handleStateClick}
               selectedStateId={selectedStateId}
@@ -154,8 +154,8 @@ export default function Dashboard({ previewMode = false }) {
             />
           </div>
 
-          {/* Side panel — 40% */}
-          <div className="col-span-2 flex flex-col" style={{ minHeight: '600px' }}>
+          {/* Side panel — full-width on mobile, 40% on lg+ */}
+          <div className="lg:col-span-2 flex flex-col" style={{ minHeight: '400px' }}>
             {selectedState ? (
               <StateDetailPanel
                 state={selectedState}

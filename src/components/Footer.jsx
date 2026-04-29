@@ -10,14 +10,14 @@ export default function Footer() {
 
   return (
     <footer className="border-t border-gray-200 bg-white mt-10">
-      <div className="max-w-dashboard mx-auto px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-6">
+      <div className="max-w-dashboard mx-auto px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-6">
+        <div className="flex items-center gap-3 md:gap-6 flex-wrap">
           <span className="text-base font-serif font-semibold tracking-tight text-ink" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
           <span className="text-xs text-gray-400">
             Intelligence for the moment that matters.
           </span>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3 md:gap-6 flex-wrap">
           <span className="text-xs font-mono tabular-nums text-gray-400">
             Data last updated: {lastUpdated ?? '—'}
           </span>
