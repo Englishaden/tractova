@@ -339,14 +339,14 @@ function StagePicker({ stage, projectId, onChange }) {
                 onMouseDown={(e) => { e.preventDefault(); handleSelect(s) }}
                 className="w-full text-left flex items-center gap-2 px-3 py-2 text-xs transition-colors"
                 style={s === stage
-                  ? { fontWeight: 600, background: 'rgba(15,110,86,0.08)', color: '#0F6E56' }
+                  ? { fontWeight: 600, background: 'rgba(20,184,166,0.08)', color: '#0F766E' }
                   : { color: '#374151' }}
                 onMouseEnter={(e) => { if (s !== stage) e.currentTarget.style.background = '#F9FAFB' }}
                 onMouseLeave={(e) => { if (s !== stage) e.currentTarget.style.background = 'transparent' }}
               >
                 <span
                   className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: s === stage ? '#0F6E56' : '#D1D5DB' }}
+                  style={{ background: s === stage ? '#0F766E' : '#D1D5DB' }}
                 />
                 {s}
               </button>
@@ -528,7 +528,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-sm font-bold leading-snug text-gray-900">{project.name}</h2>
+            <h2 className="font-serif text-base font-semibold leading-snug text-ink" style={{ letterSpacing: '-0.015em' }}>{project.name}</h2>
             <StagePicker stage={stage} projectId={project.id} onChange={(s) => { setStage(s); onStageChange?.(project.id, s) }} />
             {hasDataUpdate && !expanded && (
               <span
@@ -1396,9 +1396,10 @@ function LibraryContent() {
                 ))}
               </div>
 
-              {/* Pipeline distribution bar — V3: click to filter, weeks-in-stage stale flag */}
+              {/* Pipeline distribution bar — V3: click to filter, weeks-in-stage stale flag.
+                  Stage ramp uses V3 feasibility tokens (was hardcoded emerald cascade). */}
               {(() => {
-                const STAGE_COLORS = ['#A7F3D0', '#6EE7B7', '#34D399', '#10B981', '#059669', '#047857', '#065F46']
+                const STAGE_COLORS = ['#F0FDFA', '#99F6E4', '#5EEAD4', '#2DD4BF', '#14B8A6', '#0F766E', '#0F1A2E']
                 const now = Date.now()
                 const stageCounts = PIPELINE_STAGES.map((s, i) => {
                   const matching = projects.filter(p => p.stage === s)
@@ -1542,7 +1543,7 @@ function LibraryContent() {
                       onClick={() => setSortBy(s.key)}
                       className="text-[10px] font-semibold px-2 py-1 rounded transition-colors"
                       style={sortBy === s.key
-                        ? { background: 'rgba(15,110,86,0.08)', color: '#0F6E56', border: '1px solid rgba(15,110,86,0.25)' }
+                        ? { background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }
                         : { background: 'transparent', color: '#6B7280', border: '1px solid transparent' }}
                     >
                       {s.label}
@@ -1584,12 +1585,16 @@ function LibraryContent() {
               return (
                 <div
                   className="flex items-center gap-3 rounded-lg px-4 py-3 mb-4"
-                  style={{ background: 'rgba(37,99,235,0.06)', border: '1px solid rgba(37,99,235,0.15)' }}
+                  style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.20)' }}
                 >
-                  <span className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                  <p className="text-xs font-medium text-blue-700">
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#0F766E' }} />
+                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
+                    Recent Updates
+                  </p>
+                  <span className="text-gray-300">·</span>
+                  <p className="text-xs font-medium text-ink">
                     {updatedCount > 0 && <span>{updatedCount} project{updatedCount > 1 ? 's have' : ' has'} updated market data</span>}
-                    {updatedCount > 0 && alertCount > 0 && <span> · </span>}
+                    {updatedCount > 0 && alertCount > 0 && <span className="text-gray-400"> · </span>}
                     {alertCount > 0 && <span>{alertCount} alert{alertCount > 1 ? 's' : ''} across your portfolio</span>}
                   </p>
                 </div>
@@ -1612,7 +1617,10 @@ function LibraryContent() {
                 <p className="text-sm font-medium text-gray-500">No projects match current filters.</p>
                 <button
                   onClick={() => { setFilterState(''); setFilterTech(''); setFilterStage('') }}
-                  className="mt-2 text-xs font-medium transition-colors text-primary hover:text-primary-700"
+                  className="mt-2 text-xs font-medium transition-colors"
+                  style={{ color: '#0F766E' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#0A1828' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#0F766E' }}
                 >
                   Clear all filters
                 </button>
@@ -1621,18 +1629,22 @@ function LibraryContent() {
           </>
         ) : (
           <div className="flex flex-col items-center justify-center text-center py-20">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-primary-50 border border-primary-100">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+              style={{ background: 'rgba(20,184,166,0.08)', border: '1px solid rgba(20,184,166,0.25)' }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             </div>
-            <p className="text-sm font-semibold text-gray-700">No saved projects yet</p>
+            <p className="font-serif text-lg font-semibold text-ink" style={{ letterSpacing: '-0.015em' }}>No saved projects yet</p>
             <p className="text-xs mt-1 max-w-xs text-gray-400">
               Run a search in Tractova Lens, then click <span className="text-gray-600 font-medium">Save as Project</span> to add it here.
             </p>
             <Link
               to="/search"
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-colors"
+              style={{ background: '#14B8A6' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
               Open Tractova Lens

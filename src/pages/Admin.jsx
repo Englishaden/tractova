@@ -16,7 +16,7 @@ const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Qu
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Field({ label, value, field, onChange, type = 'text', options, className = '' }) {
-  const inputBase = 'text-sm border border-gray-300 rounded-md px-2.5 py-1.5 bg-white focus:border-primary focus:ring-1 focus:ring-primary/20 outline-none transition-colors'
+  const inputBase = 'text-sm border border-gray-300 rounded-md px-2.5 py-1.5 bg-white focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 outline-none transition-colors'
   return (
     <div className={className}>
       <label className="text-[11px] font-medium text-gray-500 block mb-1">{label}</label>
@@ -52,7 +52,7 @@ function SaveBar({ dirty, saving, onSave, onCancel, error }) {
       {error && <p className="text-xs text-red-500 flex-1">{error}</p>}
       {dirty && (
         <>
-          <button onClick={onSave} disabled={saving} className="px-4 py-1.5 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+          <button onClick={onSave} disabled={saving} className="px-4 py-1.5 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
             {saving ? 'Saving...' : 'Save changes'}
           </button>
           <button onClick={onCancel} disabled={saving} className="px-4 py-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
@@ -176,7 +176,7 @@ function StateProgramsTab() {
           </div>
 
           <div className="flex gap-3 pt-2 border-t border-gray-100">
-            <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : 'Save changes'}
             </button>
             <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
@@ -195,7 +195,7 @@ function StateProgramsTab() {
           <button
             key={p.id}
             onClick={() => startEdit(p)}
-            className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+            className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-teal-500/40 hover:bg-teal-50/30 transition-colors group"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
@@ -212,7 +212,7 @@ function StateProgramsTab() {
                 <span className={`text-sm font-bold tabular-nums w-8 text-right ${p.feasibilityScore >= 60 ? 'text-emerald-600' : 'text-amber-600'}`}>
                   {p.feasibilityScore}
                 </span>
-                <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                <span className="text-xs text-gray-300 group-hover:text-teal-700 transition-colors">Edit →</span>
               </div>
             </div>
           </button>
@@ -316,7 +316,7 @@ function CountiesTab() {
             </div>
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
               <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
@@ -330,7 +330,7 @@ function CountiesTab() {
             <button
               key={c.id}
               onClick={() => startEdit(c)}
-              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-2.5 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-2.5 hover:border-teal-500/40 hover:bg-teal-50/30 transition-colors group"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -342,7 +342,7 @@ function CountiesTab() {
                     {c.queue_status_code || '—'}
                   </Badge>
                   <span className="text-xs text-gray-400 tabular-nums w-6 text-right">{c.ease_score ?? '—'}</span>
-                  <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                  <span className="text-xs text-gray-300 group-hover:text-teal-700 transition-colors">Edit →</span>
                 </div>
               </div>
             </button>
@@ -444,7 +444,7 @@ function RevenueRatesTab() {
             </div>
 
             <div className="flex gap-3 pt-4 mt-5 border-t border-gray-100">
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
               <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
@@ -458,7 +458,7 @@ function RevenueRatesTab() {
             <button
               key={r.state_id}
               onClick={() => startEdit(r)}
-              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-teal-500/40 hover:bg-teal-50/30 transition-colors group"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
@@ -473,7 +473,7 @@ function RevenueRatesTab() {
                     <span className="text-xs text-gray-300">|</span>
                     <span className="text-xs text-gray-400 tabular-nums">{r.itc_pct}%+{r.itc_adder_pct}%</span>
                   </div>
-                  <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                  <span className="text-xs text-gray-300 group-hover:text-teal-700 transition-colors">Edit →</span>
                 </div>
               </div>
             </button>
@@ -582,7 +582,7 @@ function NewsFeedTab() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <span className="text-xs text-gray-400">{items.length} active items</span>
-        <button onClick={startAdd} className="text-xs font-medium text-primary hover:text-primary-700 transition-colors">+ Add item</button>
+        <button onClick={startAdd} className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors">+ Add item</button>
       </div>
 
       {isFormOpen && (
@@ -599,7 +599,7 @@ function NewsFeedTab() {
             <Field label="Summary" value={editData.summary} field="summary" onChange={handleChange} type="textarea" className="md:col-span-2" />
           </div>
           <div className="flex gap-3 pt-4 mt-4 border-t border-gray-100">
-            <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : adding ? 'Add item' : 'Save changes'}
             </button>
             <button onClick={() => { setEditId(null); setAdding(false) }} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
@@ -708,7 +708,7 @@ function IXQueueTab() {
             </div>
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-              <button onClick={handleSave} disabled={saving} className="px-5 py-2 bg-primary text-white text-sm font-medium rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors">
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2 text-white text-sm font-medium rounded-lg bg-teal-600 hover:bg-teal-700 disabled:opacity-50 transition-colors">
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
               <button onClick={() => setEditId(null)} className="px-5 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">Cancel</button>
@@ -722,7 +722,7 @@ function IXQueueTab() {
             <button
               key={r.id}
               onClick={() => startEdit(r)}
-              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+              className="w-full text-left bg-white border border-gray-200 rounded-lg px-4 py-3 hover:border-teal-500/40 hover:bg-teal-50/30 transition-colors group"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
@@ -738,7 +738,7 @@ function IXQueueTab() {
                     <span className="text-xs text-gray-300">|</span>
                     <span className={`text-xs font-medium ${trendColor[r.queue_trend] || ''}`}>{r.queue_trend}</span>
                   </div>
-                  <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Edit →</span>
+                  <span className="text-xs text-gray-300 group-hover:text-teal-700 transition-colors">Edit →</span>
                 </div>
               </div>
             </button>
@@ -845,7 +845,7 @@ function StagingTab() {
               onClick={() => setFilter(s)}
               className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
                 filter === s
-                  ? 'bg-primary text-white border-primary'
+                  ? 'text-white' /* navy active state */ + ' bg-brand border-brand'
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
               }`}
             >
@@ -1183,19 +1183,19 @@ export default function Admin() {
   const [tab, setTab] = useState(0)
 
   if (authLoading) {
-    return <div className="min-h-screen bg-surface flex items-center justify-center"><p className="text-sm text-gray-400">Loading...</p></div>
+    return <div className="min-h-screen bg-paper flex items-center justify-center"><p className="text-sm text-gray-400">Loading...</p></div>
   }
 
   if (!user || user.email !== ADMIN_EMAIL) {
     return (
-      <div className="min-h-screen bg-surface flex items-center justify-center">
+      <div className="min-h-screen bg-paper flex items-center justify-center">
         <p className="text-sm text-gray-500">Access denied.</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-paper">
       <main className="max-w-6xl mx-auto px-6 pt-20 pb-16">
         <div className="mt-4">
           <h1 className="text-2xl font-bold text-gray-900">Data Admin</h1>
@@ -1208,7 +1208,7 @@ export default function Admin() {
                 onClick={() => setTab(i)}
                 className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === i
-                    ? 'border-primary text-primary'
+                    ? 'border-teal-500 text-teal-700'
                     : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >

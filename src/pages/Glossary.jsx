@@ -239,11 +239,13 @@ const terms = [
   },
 ]
 
+// V3: pillar badges aligned to V3 palette — teal for offtake, amber for IX
+// (semantic caution per V3 §7.4), blue for site, slate-navy for stage, gray for all.
 const PILLAR_BADGE = {
-  offtake: 'bg-primary-50 text-primary-700 border-primary-200',
-  ix:      'bg-accent-50 text-accent-700 border-accent-200',
+  offtake: 'bg-teal-50 text-teal-800 border-teal-200',
+  ix:      'bg-amber-50 text-amber-800 border-amber-200',
   site:    'bg-blue-50 text-blue-700 border-blue-200',
-  stage:   'bg-purple-50 text-purple-700 border-purple-200',
+  stage:   'bg-slate-100 text-slate-700 border-slate-200',
   all:     'bg-gray-100 text-gray-600 border-gray-200',
 }
 
@@ -263,7 +265,7 @@ function MatchHighlight({ text, query }) {
   return (
     <span>
       {text.slice(0, idx)}
-      <span className="font-bold text-primary">{text.slice(idx, idx + query.length)}</span>
+      <span className="font-bold" style={{ color: '#0F766E' }}>{text.slice(idx, idx + query.length)}</span>
       {text.slice(idx + query.length)}
     </span>
   )
@@ -276,12 +278,12 @@ const PILLAR_FILTERS = [
   { key: 'stage',   label: 'Dev Stages' },
 ]
 
-// Active pillar filter button style per pillar
+// V3: active pillar filter button styles — teal/amber/blue/navy aligned with V3 palette
 const PILLAR_ACTIVE = {
-  offtake: 'bg-primary-600 text-white border-primary-600',
-  ix:      'bg-accent-500 text-white border-accent-500',
-  site:    'bg-blue-600 text-white border-blue-600',
-  stage:   'bg-purple-600 text-white border-purple-600',
+  offtake: 'bg-teal-600 text-white border-teal-700',
+  ix:      'bg-amber-600 text-white border-amber-700',
+  site:    'bg-blue-600 text-white border-blue-700',
+  stage:   'bg-brand text-white border-brand',
 }
 
 export default function Glossary() {
@@ -368,34 +370,44 @@ export default function Glossary() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-paper">
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
-        {/* Page header */}
+        {/* V3 hero — brand navy with teal accent rail; replaces legacy emerald-on-amber */}
         <div className="mt-6 mb-8">
-          <div className="relative bg-gradient-to-br from-[#063629] via-[#0a4a38] to-[#0d5c47] rounded-2xl px-8 py-7 overflow-hidden">
-            {/* Subtle grid texture */}
-            <div className="absolute inset-0 opacity-[0.04]" style={{backgroundImage:'repeating-linear-gradient(0deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px),repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px)'}} />
-            {/* Amber accent glow */}
-            <div className="absolute -top-8 -right-8 w-40 h-40 bg-accent-400 opacity-10 rounded-full blur-3xl" />
+          <div className="relative rounded-xl px-8 py-7 overflow-hidden"
+            style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+            {/* Top teal accent rail */}
+            <div className="absolute top-0 left-0 right-0 h-px"
+              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.55) 70%, transparent 100%)' }} />
+            {/* Subtle grid texture (kept) */}
+            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'repeating-linear-gradient(0deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px),repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px)' }} />
+            {/* Teal accent glow (was amber) */}
+            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl"
+              style={{ background: 'rgba(20,184,166,0.20)' }} />
 
             <div className="relative flex items-start justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
-                  <span className="text-xs font-semibold tracking-widest text-accent-400 uppercase">Reference</span>
-                  <span className="w-px h-3 bg-accent-400/40" />
-                  <span className="text-xs font-medium text-emerald-300/60">{terms.length} terms</span>
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em]"
+                    style={{ color: '#5EEAD4' }}>Reference</span>
+                  <span className="w-px h-3" style={{ background: 'rgba(20,184,166,0.40)' }} />
+                  <span className="font-mono text-[10px] tracking-wider"
+                    style={{ color: 'rgba(255,255,255,0.55)' }}>{terms.length} TERMS</span>
                 </div>
-                <h1 className="text-2xl font-bold text-white tracking-tight">Industry Glossary</h1>
-                <p className="text-sm text-emerald-100/70 mt-2 leading-relaxed max-w-xl">
+                <h1 className="font-serif text-3xl font-semibold text-white tracking-tight"
+                  style={{ letterSpacing: '-0.02em' }}>Industry Glossary</h1>
+                <p className="text-sm mt-2 leading-relaxed max-w-xl"
+                  style={{ color: 'rgba(255,255,255,0.65)' }}>
                   Definitions for every key term used across Tractova — from program structures and dev stages to interconnection mechanics. Built for practitioners, not generalists.
                 </p>
               </div>
-              {/* Decorative monospace tag */}
+              {/* Decorative monospace tag — V3 teal */}
               <div className="hidden sm:block flex-shrink-0 text-right">
-                <div className="font-mono text-[10px] text-emerald-400/40 leading-5 select-none">
+                <div className="font-mono text-[10px] leading-5 select-none"
+                  style={{ color: 'rgba(94,234,212,0.40)' }}>
                   <div>offtake · ix · site</div>
                   <div>stage · program</div>
-                  <div className="text-accent-400/50">v{new Date().getFullYear()}.1</div>
+                  <div style={{ color: 'rgba(20,184,166,0.55)' }}>v{new Date().getFullYear()}.1</div>
                 </div>
               </div>
             </div>
@@ -413,7 +425,7 @@ export default function Glossary() {
             onChange={handleQueryChange}
             onFocus={() => { if (query.trim()) setShowDropdown(true) }}
             placeholder="Search terms..."
-            className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+            className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
           />
           {query && (
             <button
@@ -433,7 +445,7 @@ export default function Glossary() {
                 <li key={t.term} className="border-b border-gray-50 last:border-0">
                   <button
                     onMouseDown={(e) => { e.preventDefault(); handleSuggestionClick(t.term) }}
-                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-primary-50 flex items-center justify-between gap-3 transition-colors"
+                    className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-teal-50 flex items-center justify-between gap-3 transition-colors"
                   >
                     <MatchHighlight text={t.term} query={query} />
                     <span className={`text-xs px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${PILLAR_BADGE[t.pillar]}`}>
@@ -484,7 +496,7 @@ export default function Glossary() {
                 ref={(el) => { cardRefs.current[t.term] = el }}
                 className={`bg-white border rounded-lg px-6 py-5 transition-all duration-700 ${
                   highlighted === t.term
-                    ? 'border-primary ring-2 ring-primary/25 bg-primary-50/40'
+                    ? 'border-teal-500 ring-2 ring-teal-500/25 bg-teal-50/40'
                     : 'border-gray-200'
                 }`}
               >
@@ -494,7 +506,8 @@ export default function Glossary() {
                       <button
                         onClick={() => copyAnchorLink(t.term)}
                         title="Copy link to this term"
-                        className="group flex items-center gap-1.5 text-sm font-bold text-gray-900 hover:text-primary transition-colors"
+                        className="group flex items-center gap-1.5 font-serif text-lg font-semibold text-ink hover:text-teal-700 transition-colors"
+                        style={{ letterSpacing: '-0.015em' }}
                       >
                         {t.term}
                         <svg
@@ -514,12 +527,15 @@ export default function Glossary() {
                     {/* Related terms */}
                     {t.related?.length > 0 && (
                       <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-gray-100">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">See also:</span>
+                        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.20em] text-ink-muted">See also</span>
                         {t.related.map((r) => (
                           <button
                             key={r}
                             onClick={() => scrollToTerm(r)}
-                            className="text-xs text-primary hover:text-primary-700 hover:underline transition-colors"
+                            className="text-xs hover:underline transition-colors"
+                            style={{ color: '#0F766E' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.color = '#0A1828' }}
+                            onMouseLeave={(e) => { e.currentTarget.style.color = '#0F766E' }}
                           >
                             {r}
                           </button>
