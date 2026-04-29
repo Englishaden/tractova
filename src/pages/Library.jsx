@@ -10,6 +10,8 @@ import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
+import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
@@ -330,8 +332,20 @@ function StagePicker({ stage, projectId, onChange }) {
   const handleSelect = async (newStage) => {
     setOpen(false)
     if (newStage === stage) return
+    const previous = stage || '(unset)'
     await supabase.from('projects').update({ stage: newStage }).eq('id', projectId)
     onChange(newStage)
+    // Audit log -- silent on failure (migration may not be applied yet).
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      await logProjectEvent({
+        projectId,
+        userId: user.id,
+        kind: 'stage_change',
+        detail: `Stage advanced: ${previous} → ${newStage}`,
+        meta: { previous, next: newStage },
+      })
+    }
   }
 
   const stageCls = STAGE_BADGE[stage] || 'bg-gray-100 text-gray-600 border-gray-200'
@@ -414,6 +428,76 @@ function CompareChip({ project }) {
         <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
       </svg>
     </button>
+  )
+}
+
+// ── Audit timeline -- reverse-chrono event log per project ────────────────
+// Surfaces the project_events table as a timeline. Lazy-loads on first
+// open of the Audit tab so most users never spend the supabase round-trip.
+const EVENT_KIND_META = {
+  created:         { color: '#0F766E', label: 'Created' },
+  stage_change:    { color: '#2563EB', label: 'Stage' },
+  score_change:    { color: '#D97706', label: 'Score' },
+  alert_triggered: { color: '#DC2626', label: 'Alert' },
+  note_updated:    { color: '#5A6B7A', label: 'Note' },
+}
+
+function ProjectAuditTimeline({ projectId }) {
+  const [events, setEvents] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    fetchProjectEvents(projectId).then((rows) => {
+      if (!cancelled) { setEvents(rows); setLoading(false) }
+    })
+    return () => { cancelled = true }
+  }, [projectId])
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 text-[11px] text-ink-muted">
+        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
+        Loading audit trail…
+      </div>
+    )
+  }
+
+  if (!events || events.length === 0) {
+    return (
+      <p className="text-xs text-ink-muted italic">
+        No events logged yet. Stage changes and notes update this timeline. Older projects (created before audit logging shipped) will only show new events from now on.
+      </p>
+    )
+  }
+
+  return (
+    <ol className="relative ml-3 border-l border-gray-200">
+      {events.map((e) => {
+        const meta = EVENT_KIND_META[e.kind] || { color: '#5A6B7A', label: e.kind }
+        const dt = new Date(e.created_at)
+        const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        return (
+          <li key={e.id} className="ml-4 pb-4 last:pb-0">
+            <span
+              className="absolute -left-[5px] w-[9px] h-[9px] rounded-full"
+              style={{ background: meta.color, boxShadow: '0 0 0 3px #F9FAFB' }}
+            />
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold" style={{ color: meta.color }}>
+                {meta.label}
+              </span>
+              <span className="font-mono text-[10px] text-ink-muted tabular-nums">
+                {dateStr} · {timeStr}
+              </span>
+            </div>
+            <p className="text-[12px] text-ink mt-0.5 leading-relaxed">{e.detail}</p>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
 
@@ -658,6 +742,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="diligence">Diligence</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="audit">Audit</TabsTrigger>
             </TabsList>
 
             {/* ── Tab 1: Overview — score + sub-scores + status badges ─── */}
@@ -765,6 +850,21 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
             {/* ── Tab 3: Notes — user's own deal log ───────────────────── */}
             <TabsContent value="notes">
               <YourDealSection project={project} stage={stage} setStage={setStage} notes={notes} setNotes={setNotes} saveStatus={saveStatus} />
+            </TabsContent>
+
+            {/* ── Tab 4: Audit — append-only event timeline (V3 §4.3) ── */}
+            <TabsContent value="audit">
+              <div className="flex flex-col gap-3">
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted">
+                  Status thread · {project.name}
+                </p>
+                <p className="text-[11px] text-ink-muted leading-relaxed -mt-1">
+                  Append-only log of stage changes, score shifts, and material updates. Useful as a paper trail for capital partners and IC review.
+                </p>
+                <div className="rounded-lg px-4 py-4" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                  <ProjectAuditTimeline projectId={project.id} />
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
 
@@ -1689,37 +1789,43 @@ function LibraryContent() {
         )}
       </main>
 
-      {/* Remove confirmation modal */}
-      {confirmRemove && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmRemove(null)} />
-          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-sm p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                </svg>
-              </div>
-              <h3 className="text-sm font-bold text-gray-900">Remove project?</h3>
+      {/* V3: Radix Dialog -- portal-rendered, focus-trapped, ESC-to-close,
+          a11y-correct (Title + Description). Replaces the hand-rolled modal. */}
+      <Dialog open={!!confirmRemove} onOpenChange={(open) => { if (!open) setConfirmRemove(null) }}>
+        <DialogContent>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
             </div>
-            <p className="text-xs text-gray-500 mb-1 leading-relaxed">
-              Are you sure you want to remove <span className="font-semibold text-gray-700">{confirmRemove.name}</span>?
-            </p>
-            <p className="text-xs text-gray-400 mb-5">This cannot be undone.</p>
-            <div className="flex items-center justify-end gap-2">
-              <button onClick={() => setConfirmRemove(null)} className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2 rounded-lg transition-colors">
-                No, keep it
-              </button>
-              <button onClick={handleConfirmRemove} className="flex items-center gap-2 bg-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
-                Yes, remove
-              </button>
-            </div>
+            <DialogTitle>Remove project?</DialogTitle>
           </div>
-        </div>
-      )}
+          <DialogDescription>
+            Are you sure you want to remove <span className="font-semibold text-ink">{confirmRemove?.name}</span>? This cannot be undone.
+          </DialogDescription>
+          <div className="flex items-center justify-end gap-2 mt-5">
+            <button
+              onClick={() => setConfirmRemove(null)}
+              className="text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-lg transition-colors"
+            >
+              Keep it
+            </button>
+            <button
+              onClick={handleConfirmRemove}
+              className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              style={{ background: '#DC2626' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#B91C1C'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#DC2626'}
+            >
+              Remove
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

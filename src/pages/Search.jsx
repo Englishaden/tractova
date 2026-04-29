@@ -2866,7 +2866,10 @@ function SearchContent() {
       let attempt = { ...payload }
       // Cap retries so we can't loop forever on a different error class
       for (let i = 0; i < 12; i++) {
-        const { error } = await supabase.from('projects').insert(attempt)
+        const { data: insertedRows, error } = await supabase
+          .from('projects')
+          .insert(attempt)
+          .select('id')
         if (!error) {
           setSaving(false)
           setSaveModal(null)
@@ -2874,6 +2877,21 @@ function SearchContent() {
           setTimeout(() => setShowToast(false), 3000)
           if (droppedFields.length) {
             console.warn('[Save to Library] saved without these fields (run migration 011 in Supabase to enable):', droppedFields)
+          }
+          // Audit log: emit a 'created' event so the Library Audit tab has
+          // a record of project birth. Silent on failure.
+          const newId = insertedRows?.[0]?.id
+          if (newId) {
+            try {
+              const { logProjectEvent } = await import('../lib/projectEvents')
+              await logProjectEvent({
+                projectId: newId,
+                userId: user.id,
+                kind: 'created',
+                detail: `Project saved: ${payload.name} · ${payload.county} County, ${payload.state} · ${payload.mw} MW · ${payload.stage || 'no stage'}`,
+                meta: { stage: payload.stage, mw: payload.mw, score: payload.opportunity_score },
+              })
+            } catch (_err) { /* audit failure must not block save */ }
           }
           return
         }
