@@ -683,6 +683,11 @@ function PucDocketsTab() {
   const [error, setError]       = useState(null)
   const [adding, setAdding]     = useState(false)
   const [filterState, setFilterState] = useState('')
+  // AI Classify Quick-Add state
+  const [classifyText, setClassifyText] = useState('')
+  const [classifying, setClassifying]   = useState(false)
+  const [classifyError, setClassifyError] = useState(null)
+  const [classifyHint, setClassifyHint]   = useState(null)  // 'cached' | null after success
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -778,6 +783,64 @@ function PucDocketsTab() {
     } catch (e) { setError(e.message) }
   }
 
+  // AI Classify — paste docket URL + page contents, Sonnet extracts the
+  // structured fields and pre-fills the edit form for review.
+  const handleClassify = async () => {
+    if (!classifyText || classifyText.trim().length < 40) {
+      setClassifyError('Paste at least 40 characters of docket page content.')
+      return
+    }
+    setClassifying(true)
+    setClassifyError(null)
+    setClassifyHint(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) { setClassifyError('Sign-in required'); setClassifying(false); return }
+      const res = await fetch('/api/lens-insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'classify-docket', rawText: classifyText }),
+      })
+      const rawBody = await res.text()
+      let json = null
+      try { json = JSON.parse(rawBody) } catch {}
+      if (!res.ok) {
+        setClassifyError(json?.error || `Server error (${res.status})`)
+        setClassifying(false)
+        return
+      }
+      if (!json?.classification) {
+        setClassifyError(json?.reason || 'Classification failed -- try again or fall back to manual add.')
+        setClassifying(false)
+        return
+      }
+      const c = json.classification
+      // Pre-fill the edit form with AI extraction. User reviews + saves.
+      setEditData({
+        state:            (c.state || '').toUpperCase(),
+        puc_name:         c.puc_name || '',
+        docket_number:    c.docket_number || '',
+        title:            c.title || '',
+        status:           c.status || 'filed',
+        pillar:           c.pillar || 'offtake',
+        impact_tier:      c.impact_tier || 'medium',
+        filed_date:       c.filed_date || '',
+        comment_deadline: c.comment_deadline || '',
+        decision_target:  c.decision_target || '',
+        summary:          c.summary || '',
+        source_url:       c.source_url || '',
+      })
+      setAdding(true)
+      setEditId(null)
+      setClassifyText('')
+      setClassifyHint(json.cached ? 'cached' : 'fresh')
+    } catch (e) {
+      setClassifyError(`Network error: ${e.message}`)
+    }
+    setClassifying(false)
+  }
+
   if (loading) return <p className="text-sm text-gray-400 py-8 text-center">Loading PUC dockets...</p>
 
   const isFormOpen = editId || adding
@@ -803,7 +866,92 @@ function PucDocketsTab() {
             className="text-xs px-2.5 py-1.5 rounded border border-gray-200 bg-white font-mono uppercase tracking-wider w-40"
           />
         </div>
-        <button onClick={startAdd} className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors">+ Add docket</button>
+        <button onClick={startAdd} className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors">+ Add manually</button>
+      </div>
+
+      {/* AI Classify — Quick Add. Paste docket URL + page contents,
+          Sonnet extracts the structured fields, user reviews + saves. */}
+      <div
+        className="rounded-xl mb-5 px-5 py-4 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
+      >
+        {/* V3 teal rail */}
+        <div className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 30%, rgba(20,184,166,0.95) 50%, rgba(20,184,166,0.55) 70%, transparent 100%)' }} />
+        <div className="flex items-start justify-between gap-3 mb-2.5">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold mb-1" style={{ color: '#5EEAD4' }}>
+              ◆ AI Classify · Quick Add
+            </p>
+            <p className="font-serif text-[15px] font-semibold text-white tracking-tight" style={{ letterSpacing: '-0.01em' }}>
+              Paste a PUC docket — Tractova fills in the rest
+            </p>
+          </div>
+          {classifyHint && (
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}>
+              {classifyHint === 'cached' ? '✓ cached · free' : '✓ classified'}
+            </span>
+          )}
+        </div>
+        <p className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
+          Paste the docket URL on the first line, then copy-paste the page contents from your state's PUC e-filing portal. AI extracts state, docket number, status, pillar, impact tier, dates, and a Tractova analyst summary — you review and save.
+        </p>
+        <textarea
+          value={classifyText}
+          onChange={(e) => setClassifyText(e.target.value)}
+          placeholder="https://documents.dps.ny.gov/public/MatterManagement/CaseMaster.aspx?MatterCaseNo=15-E-0751&#10;&#10;In the Matter of the Value of Distributed Energy Resources..."
+          rows={5}
+          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-none resize-y mb-3"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            color: '#FFFFFF',
+            fontFeatureSettings: '"tnum"',
+          }}
+        />
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+            ~$0.011/docket · cached 24h
+          </p>
+          <div className="flex items-center gap-2">
+            {classifyText && (
+              <button
+                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null) }}
+                disabled={classifying}
+                className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md transition-colors"
+                style={{ color: 'rgba(255,255,255,0.55)' }}
+              >
+                Clear
+              </button>
+            )}
+            <button
+              onClick={handleClassify}
+              disabled={classifying || !classifyText.trim()}
+              className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2 rounded-lg text-white transition-transform hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#14B8A6' }}
+            >
+              {classifying ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Classifying…
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/>
+                  </svg>
+                  Classify with AI
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        {classifyError && (
+          <p className="text-[11px] mt-3 leading-relaxed" style={{ color: '#FCA5A5' }}>
+            {classifyError}
+          </p>
+        )}
       </div>
 
       {isFormOpen && (

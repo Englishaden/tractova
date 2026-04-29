@@ -385,6 +385,7 @@ export default async function handler(req, res) {
   if (action === 'news-summary') return handleNewsSummary(body, res)
   if (action === 'deal-memo')    return handleDealMemo(body, res)
   if (action === 'utility-outreach') return handleUtilityOutreach(body, res, user)
+  if (action === 'classify-docket') return handleClassifyDocket(body, res)
   if (action === 'memo-create')  return handleMemoCreate(body, res, user)
 
   // ── Cache check (verdict, 6h TTL, shared across users) ────────────────────
@@ -816,6 +817,120 @@ async function handleUtilityOutreach(body, res, _user) {
     clearTimeout(timeoutId)
     console.error('[lens-insight:utility-outreach] error:', err.message)
     return res.status(200).json({ kit: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUC Docket Classifier — admin-side AI assist for the docket tracker
+// ─────────────────────────────────────────────────────────────────────────────
+// User pastes raw text (URL line + copy of the docket page contents) from
+// any state's PUC e-filing portal. Sonnet extracts the structured fields
+// for the puc_dockets schema so the admin can review + save in seconds
+// instead of hand-typing each row.
+//
+// Cached 24h on a SHA-256 of the rawText so repeat classifications of the
+// same paste are free. Uses the same dataVersion-free key shape as the
+// rest of the cache layer.
+const CLASSIFY_DOCKET_PROMPT = `You are a senior regulatory analyst for Tractova, a market intelligence platform for solar developers. The user has pasted raw text (typically a URL plus a copy of the docket page contents) from a state Public Utility Commission (PUC) e-filing portal. Your job: extract structured fields so the docket can be saved into Tractova's PUC docket tracker.
+
+CRITICAL RULES:
+1. The state field must be a 2-letter US state code (uppercase). If you cannot determine the state with confidence, return an empty string "".
+2. ALL date fields (filed_date, comment_deadline, decision_target) must be ISO YYYY-MM-DD format or null. If a date is referenced relatively or ambiguously, return null rather than guessing.
+3. Status must be exactly one of:
+   - "comment_open" — the docket is currently accepting public comments / a comment window is open
+   - "pending_decision" — comments closed, awaiting commission ruling or order
+   - "filed" — docket is open with no specific comment window or active decision phase
+   - "closed" — final order issued; no further activity expected
+4. Pillar must be exactly one of:
+   - "offtake" — program rules, REC values, net-metering, capacity allocations, retail rates, PPA-relevant tariff
+   - "ix" — interconnection rules, queue management, IX-tariff revisions affecting cost or timing
+   - "site" — zoning, permitting, environmental review (rare at PUC level)
+   - "cross-cutting" — rate cases, RPS revisions, integrated resource planning, anything affecting two or more pillars
+5. Impact tier must be exactly one of:
+   - "high" — outcome materially changes economics for ≥10% of CS / DER projects in the state
+   - "medium" — affects a subset of project types or has indirect effect
+   - "low" — process-only, narrow scope, or already-resolved questions
+6. Title: the docket's published title (under 120 characters). If the published title is longer, summarize it faithfully without rewriting the substance.
+7. Summary: 1-2 sentences in Tractova analyst voice. Open with WHAT the docket changes for developers ("ICC reviewing capacity reallocation that...", "PSC weighing successor compensation framework that..."). Cite the specific rule, program, or financial mechanism. End with the "so what" for an active CS / DER developer. Do NOT copy verbatim from the docket text — interpret it.
+8. source_url: extract the full URL from the user's input if present. Empty string if not.
+9. If the pasted text is clearly NOT a PUC docket (random article, marketing copy, irrelevant content, or unparseable), return all fields blank/null and set summary to: "Could not classify -- text does not appear to be a PUC docket."
+
+OUTPUT: Respond ONLY with a valid JSON object, no markdown fences, no preamble. Exact schema:
+{
+  "state": "2-letter state code or empty string",
+  "puc_name": "Full PUC name (e.g. 'Illinois Commerce Commission')",
+  "docket_number": "Docket / case number as published",
+  "title": "Docket title (under 120 chars)",
+  "status": "comment_open | pending_decision | filed | closed",
+  "pillar": "offtake | ix | site | cross-cutting",
+  "impact_tier": "high | medium | low",
+  "filed_date": "YYYY-MM-DD or null",
+  "comment_deadline": "YYYY-MM-DD or null",
+  "decision_target": "YYYY-MM-DD or null",
+  "source_url": "URL extracted from text, or empty string",
+  "summary": "1-2 sentence Tractova analyst note"
+}`
+
+async function handleClassifyDocket(body, res) {
+  const { rawText } = body
+  if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 40) {
+    return res.status(400).json({ error: 'rawText required (paste at least 40 characters of docket page content)' })
+  }
+
+  // Cache check (24h TTL, keyed on hash of rawText). Repeat pastes are free.
+  const classifyKey = buildCacheKey('classify-docket', { rawText: rawText.trim() })
+  const cached = await cacheGet(classifyKey)
+  if (cached) {
+    return res.status(200).json({ classification: cached, cached: true })
+  }
+
+  // Cap at 8K chars to keep input tokens bounded and stay well under the
+  // 60s function timeout. PUC docket pages rarely exceed 8K chars of
+  // useful content; anything more is noise (footer, nav, related links).
+  const trimmed = rawText.trim().slice(0, 8000)
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const message = await client.messages.create(
+      {
+        model: 'claude-sonnet-4-6',
+        max_tokens: 600,
+        system: CLASSIFY_DOCKET_PROMPT,
+        messages: [{ role: 'user', content: trimmed }],
+      },
+      { signal: controller.signal }
+    )
+    clearTimeout(timeoutId)
+
+    const raw = message.content?.[0]?.text || ''
+    let parsed = null
+    try { parsed = JSON.parse(raw.trim()) } catch (_) {}
+    if (!parsed) {
+      try {
+        const match = raw.match(/\{[\s\S]*\}/)
+        if (match) parsed = JSON.parse(match[0])
+      } catch (_) {}
+    }
+
+    if (!parsed || typeof parsed !== 'object') {
+      return res.status(200).json({ classification: null, fallback: true, reason: 'parse_failed' })
+    }
+
+    // Normalize empty-string dates to null so the form's date inputs
+    // stay clean (date inputs misparse '' as today's date in some browsers).
+    for (const k of ['filed_date', 'comment_deadline', 'decision_target']) {
+      if (parsed[k] === '') parsed[k] = null
+    }
+
+    cacheSet(classifyKey, 'classify-docket', parsed, 24 * 60 * 60)
+    return res.status(200).json({ classification: parsed })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[lens-insight:classify-docket] error:', err.message)
+    return res.status(200).json({ classification: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }
 
