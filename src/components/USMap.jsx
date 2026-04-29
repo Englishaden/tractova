@@ -14,15 +14,25 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
-// V3 Strategy A — coverage tier stroke encoding.
-// Full = vivid teal stroke (~1.5px), Mid = amber stroke (~1.2px),
-// Light = default white stroke (0.7px). Choropleth fill stays for
-// feasibility-index encoding -- orthogonal visual channels, no competition.
-function getStateStroke(stateId, stateProgramMap) {
+// ─────────────────────────────────────────────────────────────────────────────
+// V3 Strategy A — Coverage tier as fill TEXTURE (hatch overlay), not stroke.
+//
+// Cartographic convention: hatching encodes data confidence / coverage,
+// while strokes are reserved for boundaries. Three-state mapping by texture
+// density:
+//   Full  = clean fill (no overlay)        — strongest data, cleanest visual
+//   Mid   = sparse 45° diagonal hatch      — partial-data texture
+//   Light = cross-hatch (two diagonals)    — least-data, busiest texture
+//
+// All hatch lines are V3 navy at low opacity so they layer over any choropleth
+// color without shifting perceived hue. "Tractova" derives from Latin tractus
+// (surveyed land) — hatching is the survey vocabulary, brand-aligned.
+// ─────────────────────────────────────────────────────────────────────────────
+function getTierOverlayFill(stateId, stateProgramMap) {
   const tier = stateProgramMap[stateId]?.coverageTier || 'light'
-  if (tier === 'full') return { stroke: '#0F766E', strokeWidth: 1.5 }
-  if (tier === 'mid')  return { stroke: '#B45309', strokeWidth: 1.2 }
-  return { stroke: '#FFFFFF', strokeWidth: 0.7 }
+  if (tier === 'full') return null
+  if (tier === 'mid')  return 'url(#tier-hatch-mid)'
+  return 'url(#tier-hatch-light)'
 }
 
 // V3 5-bucket single-hue teal ramp — light teal (low score) -> deep teal (high score).
@@ -112,40 +122,95 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
           projectionConfig={{ scale: 1000 }}
           style={{ width: '100%', height: 'auto' }}
         >
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
-                const fips = String(geo.id).padStart(2, '0')
-                const stateId = FIPS[fips]
-                const isHovered  = hoveredId === stateId
-                const isSelected = selectedStateId === stateId
+          {/* ── Pattern defs for coverage-tier overlay ───────────────────────
+              Cartographic hatching — V3 navy at low opacity so the underlying
+              choropleth fill reads through. patternUnits="userSpaceOnUse"
+              keeps the texture scale stable across zoom levels. */}
+          <defs>
+            {/* Mid coverage — sparse 45° diagonal */}
+            <pattern
+              id="tier-hatch-mid"
+              patternUnits="userSpaceOnUse"
+              width="6" height="6"
+              patternTransform="rotate(45)"
+            >
+              <line x1="0" y1="0" x2="0" y2="6" stroke="#0F1A2E" strokeWidth="0.7" strokeOpacity="0.22" />
+            </pattern>
 
-                const strokeStyle = getStateStroke(stateId, stateProgramMap)
-                const stateInfo = stateProgramMap[stateId]
-                const ariaLabel = stateInfo
-                  ? `${stateInfo.name}: ${stateInfo.csStatus} community solar program${stateInfo.feasibilityScore ? `, feasibility index ${stateInfo.feasibilityScore} of 100` : ''}. Press Enter to view details.`
-                  : `${stateId || 'Unknown state'}. Press Enter to view details.`
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    fill={getStateColor(stateId, isHovered, isSelected, stateProgramMap)}
-                    stroke={strokeStyle.stroke}
-                    strokeWidth={strokeStyle.strokeWidth}
-                    style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
-                    onMouseMove={(evt) => handleMouseMove(geo, evt)}
-                    onMouseLeave={handleMouseLeave}
-                    onClick={() => handleClick(geo)}
-                    onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); handleClick(geo) } }}
-                    className="cursor-pointer transition-all duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                    role="button"
-                    tabIndex={stateInfo ? 0 : -1}
-                    aria-label={ariaLabel}
-                    aria-pressed={isSelected}
-                  />
-                )
-              })
-            }
+            {/* Light coverage — denser cross-hatch (two diagonals) */}
+            <pattern
+              id="tier-hatch-light"
+              patternUnits="userSpaceOnUse"
+              width="5" height="5"
+            >
+              <line x1="0" y1="0" x2="5" y2="5" stroke="#0F1A2E" strokeWidth="0.5" strokeOpacity="0.18" />
+              <line x1="5" y1="0" x2="0" y2="5" stroke="#0F1A2E" strokeWidth="0.5" strokeOpacity="0.18" />
+            </pattern>
+          </defs>
+
+          <Geographies geography={GEO_URL}>
+            {({ geographies }) => (
+              <>
+                {/* ── Layer 1: choropleth fill + interactivity ─────────────
+                    Uniform white 0.5px stroke for boundaries (the channel
+                    strokes are MEANT for). All event handlers live here. */}
+                {geographies.map((geo) => {
+                  const fips = String(geo.id).padStart(2, '0')
+                  const stateId = FIPS[fips]
+                  const isHovered  = hoveredId === stateId
+                  const isSelected = selectedStateId === stateId
+                  const stateInfo = stateProgramMap[stateId]
+                  const ariaLabel = stateInfo
+                    ? `${stateInfo.name}: ${stateInfo.csStatus} community solar program${stateInfo.feasibilityScore ? `, feasibility index ${stateInfo.feasibilityScore} of 100` : ''}. Press Enter to view details.`
+                    : `${stateId || 'Unknown state'}. Press Enter to view details.`
+                  return (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={getStateColor(stateId, isHovered, isSelected, stateProgramMap)}
+                      stroke="#FFFFFF"
+                      strokeWidth={0.5}
+                      style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
+                      onMouseMove={(evt) => handleMouseMove(geo, evt)}
+                      onMouseLeave={handleMouseLeave}
+                      onClick={() => handleClick(geo)}
+                      onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); handleClick(geo) } }}
+                      className="cursor-pointer transition-all duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                      role="button"
+                      tabIndex={stateInfo ? 0 : -1}
+                      aria-label={ariaLabel}
+                      aria-pressed={isSelected}
+                    />
+                  )
+                })}
+
+                {/* ── Layer 2: coverage-tier hatch overlay ─────────────────
+                    Renders ONLY for Mid + Light tier states. Pointer events
+                    pass through so clicks land on Layer 1. Stroke none so
+                    we don't double-up on boundary lines. */}
+                {geographies.map((geo) => {
+                  const fips = String(geo.id).padStart(2, '0')
+                  const stateId = FIPS[fips]
+                  const overlayFill = getTierOverlayFill(stateId, stateProgramMap)
+                  if (!overlayFill) return null
+                  return (
+                    <Geography
+                      key={`${geo.rsmKey}-tier-overlay`}
+                      geography={geo}
+                      fill={overlayFill}
+                      stroke="none"
+                      style={{
+                        default:  { pointerEvents: 'none', outline: 'none' },
+                        hover:    { pointerEvents: 'none', outline: 'none' },
+                        pressed:  { pointerEvents: 'none', outline: 'none' },
+                      }}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  )
+                })}
+              </>
+            )}
           </Geographies>
         </ComposableMap>
       </div>
@@ -239,6 +304,35 @@ function StatusPill({ status }) {
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Coverage swatches for the legend — tiny inline SVGs that show the EXACT
+// hatch treatment users see on the map. Self-contained patterns scoped to
+// each swatch (separate IDs from the map's patterns).
+// ─────────────────────────────────────────────────────────────────────────────
+function CoverageSwatch({ tier }) {
+  const swatchId = `legend-${tier}`
+  const baseFill = '#14B8A6'  // teal-500 — neutral feasibility shade for legend
+  return (
+    <svg width="22" height="11" className="rounded-sm flex-shrink-0" style={{ border: '1px solid rgba(15,118,110,0.20)' }}>
+      <defs>
+        {tier === 'mid' && (
+          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3.5" height="3.5" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="3.5" stroke="#0F1A2E" strokeWidth="0.5" strokeOpacity="0.40" />
+          </pattern>
+        )}
+        {tier === 'light' && (
+          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3" height="3">
+            <line x1="0" y1="0" x2="3" y2="3" stroke="#0F1A2E" strokeWidth="0.4" strokeOpacity="0.32" />
+            <line x1="3" y1="0" x2="0" y2="3" stroke="#0F1A2E" strokeWidth="0.4" strokeOpacity="0.32" />
+          </pattern>
+        )}
+      </defs>
+      <rect width="22" height="11" fill={baseFill} />
+      {tier !== 'full' && <rect width="22" height="11" fill={`url(#${swatchId})`} />}
+    </svg>
+  )
+}
+
 function Legend() {
   // V3: 5 score buckets that match getStateColor() exactly + 2 status states
   const items = [
@@ -264,20 +358,20 @@ function Legend() {
           </div>
         ))}
       </div>
-      {/* V3 Strategy A — coverage tier guide. The map's state strokes
-          encode this; the legend explains it. Subtle, supplementary. */}
+      {/* V3 Strategy A — coverage tier guide. Hatch patterns mirror exactly
+          what users see on the map (less data = more texture). */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted font-semibold mr-1">Coverage</span>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-1.5 rounded-sm flex-shrink-0" style={{ background: '#0F766E' }} />
+          <CoverageSwatch tier="full" />
           <span className="text-xs text-gray-500">Full</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-1.5 rounded-sm flex-shrink-0" style={{ background: '#B45309' }} />
+          <CoverageSwatch tier="mid" />
           <span className="text-xs text-gray-500">Mid</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-3 h-1.5 rounded-sm flex-shrink-0" style={{ background: '#E2E8F0', border: '1px solid rgba(0,0,0,0.12)' }} />
+          <CoverageSwatch tier="light" />
           <span className="text-xs text-gray-500">Light</span>
         </div>
       </div>
