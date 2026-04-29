@@ -1107,7 +1107,11 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
                     </div>
                   ) : (
                     <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                      <p className="text-xs text-gray-500">Enter project MW to see C&I PPA revenue projection.</p>
+                      <p className="text-xs text-gray-500">
+                        {(parseFloat(mw) || 0) === 0
+                          ? 'Enter project MW above to see C&I PPA revenue projection.'
+                          : `C&I PPA revenue model not available for ${stateProgram?.name || 'this state'}. Tractova currently covers IL, NY, MA, MN, CO, NJ, ME, MD for C&I; coverage is expanding.`}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1173,7 +1177,11 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
                     </div>
                   ) : (
                     <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                      <p className="text-xs text-gray-500">Enter project MW to see BESS revenue projection.</p>
+                      <p className="text-xs text-gray-500">
+                        {(parseFloat(mw) || 0) === 0
+                          ? 'Enter project MW above to see BESS revenue projection.'
+                          : `BESS revenue model not available for ${stateProgram?.name || 'this state'}. Tractova currently covers IL, NY, MA, MN, CO, NJ, ME, MD for BESS; coverage is expanding.`}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1230,7 +1238,11 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
                     </div>
                   ) : (
                     <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                      <p className="text-xs text-gray-500">Enter project MW to see hybrid revenue projection.</p>
+                      <p className="text-xs text-gray-500">
+                        {(parseFloat(mw) || 0) === 0
+                          ? 'Enter project MW above to see hybrid revenue projection.'
+                          : `Hybrid revenue model not available for ${stateProgram?.name || 'this state'}. Tractova currently covers IL, NY, MA, MN, CO, NJ, ME, MD for hybrid; coverage is expanding.`}
+                      </p>
                     </div>
                   )}
                 </div>
