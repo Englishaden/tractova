@@ -59,7 +59,9 @@ function ArcGauge({ score }) {
   })
 
   return (
-    <svg viewBox="0 0 160 92" className="w-full max-w-[220px]">
+    // viewBox extended height (was 92, now 100) to give 0/100 tick labels at y=92 enough vertical room
+    // and add 4px headroom above for the "50" tick label.
+    <svg viewBox="0 0 160 100" className="w-full max-w-[220px]" style={{ overflow: 'visible' }}>
       {/* Tick marks behind the track */}
       {ticks.map((t, i) => (
         <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
@@ -67,10 +69,10 @@ function ArcGauge({ score }) {
           strokeWidth={t.isMajor ? 1.5 : 0.75}
           strokeLinecap="round" />
       ))}
-      {/* Tick value labels (0, 50, 100) */}
-      <text x={cx - R} y={cy + 14} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">0</text>
+      {/* Tick value labels (0, 50, 100) — moved 2px lower so they have full visible room within viewBox */}
+      <text x={cx - R} y={cy + 16} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">0</text>
       <text x={cx} y={cy - R - 6} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">50</text>
-      <text x={cx + R} y={cy + 14} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">100</text>
+      <text x={cx + R} y={cy + 16} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">100</text>
       {/* Track */}
       <path d={trackPath} fill="none" stroke="#E2E8F0" strokeWidth={5} strokeLinecap="round" />
       {/* Fill */}
@@ -81,25 +83,26 @@ function ArcGauge({ score }) {
   )
 }
 
-// V3: Terminal-style sub-score row. Discrete █ glyph segments + monospace numerics
-// give a Bloomberg-terminal readout feel rather than a generic progress bar.
+// V3: Terminal-style sub-score row. Discrete █ glyph segments + monospace numerics.
+// Layout reordered so the value sits next to its label (not stranded on the far right):
+// [LABEL] [VALUE bold] [████ segments fill] [weight%]
 function SubScoreBar({ label, weight, value, color }) {
   const segments = 14
   const filled = Math.round((value / 100) * segments)
   return (
-    <div className="flex items-baseline gap-3 font-mono text-[11px] tabular-nums">
-      <span className="uppercase tracking-[0.12em] font-semibold w-[100px] flex-shrink-0" style={{ color: '#0A1828' }}>
+    <div className="flex items-baseline gap-2.5 font-mono text-[11px] tabular-nums">
+      <span className="uppercase tracking-[0.12em] font-semibold w-[100px] flex-shrink-0 text-ink">
         {label}
       </span>
-      <span className="text-[9px] w-8 flex-shrink-0" style={{ color: '#5A6B7A' }}>{weight}</span>
-      <span className="flex-1 leading-none" style={{ letterSpacing: '0px', fontSize: '11px' }}>
+      <span className="font-bold w-7 text-[13px] flex-shrink-0 text-ink leading-none">
+        {value}
+      </span>
+      <span className="flex-1 leading-none ml-1" style={{ letterSpacing: '0px', fontSize: '11px' }}>
         {Array.from({ length: segments }).map((_, i) => (
           <span key={i} style={{ color: i < filled ? color : '#E2E8F0' }}>█</span>
         ))}
       </span>
-      <span className="font-bold w-8 text-right text-[12px]" style={{ color: '#0A1828' }}>
-        {value}
-      </span>
+      <span className="text-[9px] w-9 text-right flex-shrink-0 text-ink-muted">{weight}</span>
     </div>
   )
 }
@@ -136,12 +139,20 @@ function sanitizeBrief(text) {
 // V3 redesign: editorial-intelligence "research note" hero block.
 // Drops the dark gradient banner. Mono eyebrow strip up top with metadata,
 // then asymmetric two-column body: tachometer left, identity + sub-scores right.
-function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology }) {
+// §7.4: accepts activeScenario prop. When active, gauge renders the override score
+// with a delta indicator. Toggle row renders below this panel via the parent.
+function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, activeScenario }) {
   if (!stateProgram) return null
-  const { offtake, ix, site } = computeSubScores(stateProgram, countyData, stage, technology)
+  // Apply scenario override if active — recompute sub-scores from the override state
+  const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
+  const { offtake, ix, site } = computeSubScores(effectiveProgram, countyData, stage, technology)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
-  const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
+  const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
   const score = computeDisplayScore(offtake, ix, site)
+  // Base-case score for delta calculation
+  const baseSubs = computeSubScores(stateProgram, countyData, stage, technology)
+  const baseScore = computeDisplayScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
+  const delta = activeScenario ? score - baseScore : 0
 
   // "AS OF" timestamp — institutional research-note convention
   const latestDate = (() => {
@@ -197,6 +208,16 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
             {(technology || '').toUpperCase()}
           </span>
+          {/* §7.4: scenario indicator in the eyebrow when active */}
+          {activeScenario && (
+            <>
+              <span className="text-gray-300 text-[9px]">/</span>
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold"
+                style={{ background: 'rgba(245,158,11,0.12)', color: '#92400E', border: '1px solid rgba(245,158,11,0.40)' }}>
+                ◆ Scenario · {activeScenario.label.replace('What if ', '').replace('?', '')}
+              </span>
+            </>
+          )}
         </div>
         <span
           className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
@@ -209,11 +230,20 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
       {/* Body — asymmetric grid: 5 cols gauge / 7 cols identity + sub-scores */}
       <div className="grid grid-cols-1 md:grid-cols-12">
         {/* Left — gauge */}
-        <div className="md:col-span-5 px-6 py-7 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-100">
+        <div className="md:col-span-5 px-6 py-7 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-100 relative">
           <p className="font-mono text-[9px] uppercase tracking-[0.24em] mb-3 text-gray-400">
             Feasibility Index
           </p>
           <ArcGauge score={score} />
+          {/* §7.4: delta indicator when a scenario is active */}
+          {activeScenario && delta !== 0 && (
+            <span
+              className="mt-1 font-mono text-[12px] font-bold tabular-nums"
+              style={{ color: delta > 0 ? '#0F766E' : '#DC2626' }}
+            >
+              {delta > 0 ? '↑' : '↓'} {delta > 0 ? '+' : ''}{delta} vs base ({baseScore})
+            </span>
+          )}
           <div
             className="mt-3 inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] font-bold"
             style={{ color: verdict.color }}
@@ -250,8 +280,8 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
                 </svg>
-                <div className="absolute top-full right-0 mt-2 w-72 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-[100]"
-                     style={{ background: '#0F1A2E', border: '1px solid rgba(20,184,166,0.30)' }}>
+                <div className="absolute top-full right-0 mt-2 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-[100]"
+                     style={{ background: '#0F1A2E', border: '1px solid rgba(20,184,166,0.30)', width: 'min(280px, calc(100vw - 2rem))' }}>
                   <div className="absolute bottom-full right-3 w-2 h-2 rotate-45 mb-[-4px]" style={{ background: '#0F1A2E' }} />
                   <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Methodology</p>
                   <p><span className="text-teal-300 font-mono">OFFTAKE 40%</span> — Program status, capacity, LMI complexity, enrollment runway</p>
@@ -1577,11 +1607,8 @@ const CHIP_COLORS = {
   gray:   { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
 }
 
-function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }) {
-  const [activeScenario, setActiveScenario] = useState(null)
-  const [scenarioRationale, setScenarioRationale] = useState(null)
-  const [rationaleLoading, setRationaleLoading] = useState(false)
-
+// §7.4: scenario state lifted to SearchContent; we read it from props now.
+function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading }) {
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
   const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology)
   effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
@@ -1876,76 +1903,154 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
           </div>
         )}
 
-        {/* Sensitivity Analysis — structured scenario panel */}
-        {scenarios.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 20V10M12 20V4M6 20v-6"/>
-                </svg>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">Sensitivity Analysis</p>
-              </div>
-              {activeScenario && (
-                <button
-                  onClick={() => setActiveScenario(null)}
-                  className="text-[10px] font-medium text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  Reset to base case
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {scenarios.map((s) => {
-                const delta = computeScoreDelta(stateProgram, s.override)
-                const isActive = activeScenario?.id === s.id
-                const positive = delta > 0
-                const direction = positive ? 'upside' : delta < 0 ? 'downside' : 'neutral'
-                const dirColors = {
-                  upside:   { border: 'rgba(20,184,166,0.40)', bg: isActive ? 'rgba(20,184,166,0.06)' : 'white', accent: '#0F766E' },
-                  downside: { border: 'rgba(220,38,38,0.25)', bg: isActive ? 'rgba(220,38,38,0.04)' : 'white', accent: '#DC2626' },
-                  neutral:  { border: 'rgba(107,114,128,0.25)', bg: isActive ? 'rgba(107,114,128,0.04)' : 'white', accent: '#6B7280' },
-                }
-                const dc = dirColors[direction]
-                const oneLiner = s.detail.split(/[.!—]/)[0].trim()
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => setActiveScenario(isActive ? null : s)}
-                    className="text-left rounded-lg p-3 transition-all duration-150"
-                    style={{
-                      border: `1px solid ${isActive ? dc.accent : dc.border}`,
-                      background: dc.bg,
-                      boxShadow: isActive ? `0 0 0 1px ${dc.accent}` : 'none',
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <span className="text-[11px] font-semibold text-gray-700 leading-snug">{s.label}</span>
-                      <span className={`flex-shrink-0 font-bold tabular-nums text-[10px] px-1.5 py-0.5 rounded ${
-                        positive ? 'bg-green-100 text-green-700' : delta < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
-                      }`}>
-                        {positive ? '+' : ''}{delta} pts
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-gray-500 leading-relaxed line-clamp-2">{oneLiner}</p>
-                    {isActive && (
-                      <div className="mt-1.5 flex items-center gap-1 text-[9px] font-medium" style={{ color: dc.accent }}>
-                        <span className="w-1 h-1 rounded-full" style={{ background: dc.accent }} />
-                        Active — details shown above
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
+        {/* §7.4: Sensitivity panel + CustomScenarioBuilder MOVED to LensScenarioRow
+            (rendered next to the gauge in MarketPositionPanel) so toggling
+            updates the score in place — no scroll-up required. The rationale
+            (when a scenario is active) still surfaces via the scenario overlay
+            block above. */}
+      </div>
+    </article>
+  )
+}
 
-            {/* Custom Scenario builder */}
-            <CustomScenarioBuilder stateProgram={stateProgram} technology={form.technology} />
+// V3 §7.4: Scenario toggle row — sits directly under MarketPositionPanel.
+// Toggling a scenario lifts the override into shared state so the gauge above
+// re-renders with the new score in place. No more scroll-up to see impact.
+function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActiveScenario, countyData, formForApi }) {
+  const [customOpen, setCustomOpen] = useState(false)
+  if (!stateProgram) return null
+  const scenarios = buildSensitivityScenarios(stateProgram, technology, mw)
+  const isCustomActive = activeScenario?.id === 'custom'
+  if (scenarios.length === 0 && !stateProgram) return null
+
+  return (
+    <div className="mb-6 bg-white rounded-lg border border-gray-200 px-5 py-4">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-y-2">
+        <div className="flex items-center gap-2">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#5A6B7A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
+          <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold text-ink">
+            What If — Sensitivity Scenarios
+          </p>
+        </div>
+        {activeScenario && (
+          <button
+            onClick={() => { setActiveScenario(null); setCustomOpen(false) }}
+            className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold px-2 py-0.5 rounded transition-colors"
+            style={{ color: '#0F766E' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.08)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            ✕ Clear
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {scenarios.map(scn => {
+          const isActive = activeScenario?.id === scn.id
+          return (
+            <button
+              key={scn.id}
+              onClick={() => setActiveScenario(isActive ? null : scn)}
+              className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all"
+              style={isActive
+                ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
+                : { background: 'white', color: '#0A1828', border: '1px solid #E2E8F0' }}
+              onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.borderColor = '#14B8A6'; e.currentTarget.style.color = '#0F766E' } }}
+              onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = '#E2E8F0'; e.currentTarget.style.color = '#0A1828' } }}
+            >
+              {scn.label.replace('What if ', '').replace('?', '')}
+            </button>
+          )
+        })}
+        {/* + Custom toggle — opens inline popover */}
+        <button
+          onClick={() => { setCustomOpen(o => !o); if (isCustomActive) setActiveScenario(null) }}
+          className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all"
+          style={isCustomActive
+            ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
+            : { background: 'white', color: '#0A1828', border: '1px dashed #94A3B8' }}
+        >
+          {customOpen || isCustomActive ? '− Custom' : '+ Custom'}
+        </button>
+      </div>
+
+      {/* Inline custom builder — drives the same lifted state */}
+      {customOpen && (
+        <CustomScenarioInline
+          stateProgram={stateProgram}
+          technology={technology}
+          activeScenario={activeScenario}
+          setActiveScenario={setActiveScenario}
+        />
+      )}
+    </div>
+  )
+}
+
+// V3 §7.5: Inline custom scenario builder. Drives the same activeScenario state
+// so toggling a custom override updates the gauge above just like preset scenarios.
+function CustomScenarioInline({ stateProgram, technology, activeScenario, setActiveScenario }) {
+  const isActive = activeScenario?.id === 'custom'
+  const initialIX = isActive ? activeScenario.override.ixDifficulty : (stateProgram?.ixDifficulty || 'moderate')
+  const initialCS = isActive ? activeScenario.override.csStatus : (stateProgram?.csStatus || 'active')
+  const [customIX, setCustomIX] = useState(initialIX)
+  const [customCS, setCustomCS] = useState(initialCS)
+
+  const apply = (ixVal, csVal) => {
+    setActiveScenario({
+      id: 'custom',
+      label: `Custom: IX ${ixVal.replace('_', ' ')} · CS ${csVal}`,
+      override: { ixDifficulty: ixVal, csStatus: csVal },
+      detail: `Custom what-if: setting interconnection to ${ixVal.replace('_', ' ')} and program status to ${csVal}.`,
+    })
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100">
+      <p className="font-mono text-[9px] uppercase tracking-[0.20em] text-ink-muted mb-2">
+        Override Two Variables
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted block mb-1">
+            IX Difficulty
+          </label>
+          <select
+            value={customIX}
+            onChange={e => { setCustomIX(e.target.value); apply(e.target.value, customCS) }}
+            className="w-full text-sm font-mono bg-white border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+          >
+            <option value="easy">Easy</option>
+            <option value="moderate">Moderate</option>
+            <option value="hard">Hard</option>
+            <option value="very_hard">Very Hard</option>
+          </select>
+        </div>
+        {technology === 'Community Solar' && (
+          <div>
+            <label className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted block mb-1">
+              CS Program Status
+            </label>
+            <select
+              value={customCS}
+              onChange={e => { setCustomCS(e.target.value); apply(customIX, e.target.value) }}
+              className="w-full text-sm font-mono bg-white border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+            >
+              <option value="active">Active</option>
+              <option value="limited">Limited</option>
+              <option value="pending">Pending</option>
+              <option value="none">None</option>
+            </select>
           </div>
         )}
       </div>
-    </article>
+      <p className="font-mono text-[9px] text-ink-muted mt-2">
+        Index updates live in the gauge above. Toggle "Custom" off or pick a preset to clear.
+      </p>
+    </div>
   )
 }
 
@@ -2190,7 +2295,7 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
     <div
       ref={ref}
       onClick={() => setOpen((o) => !o)}
-      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm cursor-pointer relative transition-all focus-within:border-primary/60"
+      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm cursor-pointer relative transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15"
     >
       {/* Label */}
       <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
@@ -2300,7 +2405,7 @@ function CountyCombobox({ stateId, value, onValueChange }) {
     <div
       ref={containerRef}
       onClick={() => { if (!disabled && !open) { setOpen(true); setTimeout(() => inputRef.current?.focus(), 0) } }}
-      className={`bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm relative transition-all focus-within:border-primary/60 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+      className={`bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm relative transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
       {/* Label */}
       <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
@@ -2486,6 +2591,14 @@ function SearchContent() {
   const [saving, setSaving]       = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [confirmClear, setConfirmClear] = useState(false)
+  // V3 §7.4: lift sensitivity scenario state to SearchContent so both
+  // MarketPositionPanel (gauge) and MarketIntelligenceSummary (rationale) read the same live state.
+  // Toggling a scenario re-renders the gauge in place — no scroll-up needed.
+  const [activeScenario, setActiveScenario] = useState(null)
+  const [scenarioRationale, setScenarioRationale] = useState(null)
+  const [rationaleLoading, setRationaleLoading] = useState(false)
+  // Reset scenario on a new analysis
+  useEffect(() => { setActiveScenario(null); setScenarioRationale(null) }, [results?.form?.state, results?.form?.county, results?.form?.mw, results?.form?.stage, results?.form?.technology])
   const resultsRef = useRef(null)
   const abortRef = useRef(null)
 
@@ -2706,33 +2819,41 @@ function SearchContent() {
           className="rounded-xl border border-gray-200/80"
           style={{ boxShadow: '0 2px 12px rgba(20,184,166,0.08), 0 1px 3px rgba(0,0,0,0.06)' }}
         >
-          {/* Form header band */}
+          {/* V3: Brand-navy header band (was old dark-emerald). Matches Library banner / MetricsBar. */}
           <div
-            className="px-6 py-4 flex items-center gap-4 rounded-t-xl"
-            style={{ background: 'linear-gradient(135deg, #0A5240 0%, #063629 100%)' }}
+            className="px-6 py-5 flex items-center gap-4 rounded-t-xl relative"
+            style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
           >
+            {/* Top teal accent rail — V3 brand signature */}
+            <div className="absolute top-0 left-0 right-0 h-px rounded-t-xl"
+              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.55) 70%, transparent 100%)' }} />
 
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.10)' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: 'rgba(20,184,166,0.18)', border: '1px solid rgba(20,184,166,0.32)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
               </svg>
             </div>
 
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/60 leading-none mb-1">
-                Project Intelligence Search
+              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] leading-none mb-1.5"
+                style={{ color: '#5EEAD4' }}>
+                Tractova Lens · New Analysis
               </p>
-              <p className="text-sm font-bold text-white leading-snug">
-                Enter project parameters below to run a targeted Lens analysis
-              </p>
+              <h2 className="font-serif text-lg font-semibold text-white leading-tight" style={{ letterSpacing: '-0.01em' }}>
+                Run a targeted feasibility report
+              </h2>
             </div>
 
             {/* Required field hint */}
-            <p className="text-[10px] text-white/40 flex-shrink-0 hidden lg:block">All fields required</p>
+            <p className="font-mono text-[10px] flex-shrink-0 hidden lg:block uppercase tracking-[0.16em]"
+              style={{ color: 'rgba(255,255,255,0.40)' }}>
+              All fields required
+            </p>
           </div>
 
-          {/* Fields */}
-          <div className="px-5 py-5" style={{ background: '#EEF4F2' }}>
+          {/* Fields — V3 paper background, no longer green-tinted */}
+          <div className="px-5 py-5 bg-paper rounded-b-xl">
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
 
               {/* State */}
@@ -2757,7 +2878,7 @@ function SearchContent() {
               />
 
               {/* MW */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 focus-within:ring-2 focus-within:ring-primary/10">
                 <label className={labelCls + ' flex items-center gap-1.5'}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   Project Size (MW AC)
@@ -2895,6 +3016,18 @@ function SearchContent() {
               programMap={programMap}
               stage={results.form.stage}
               technology={results.form.technology}
+              activeScenario={activeScenario}
+            />
+
+            {/* §7.4: Scenario toggle row — sits with the gauge so toggling updates the gauge in place */}
+            <LensScenarioRow
+              stateProgram={results.stateProgram}
+              technology={results.form.technology}
+              mw={results.form.mw}
+              activeScenario={activeScenario}
+              setActiveScenario={setActiveScenario}
+              countyData={results.countyData}
+              formForApi={results.form}
             />
 
             {/* Market Intelligence Summary */}
@@ -2904,19 +3037,22 @@ function SearchContent() {
               countyData={results.countyData}
               form={results.form}
               aiInsight={results.aiInsight ?? null}
+              activeScenario={activeScenario}
+              scenarioRationale={scenarioRationale}
+              setScenarioRationale={setScenarioRationale}
+              rationaleLoading={rationaleLoading}
+              setRationaleLoading={setRationaleLoading}
             />
 
-            {/* Three pillar cards */}
+            {/* Three pillar cards — V3 order: Offtake (01) → IX (02) → Site Control (03), left-to-right reading flow */}
             <SectionDivider />
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <SiteControlCard
-                siteControl={results.countyData?.siteControl}
-                interconnection={results.countyData?.interconnection}
-                stateName={results.stateProgram?.name || results.form.state}
-                county={results.form.county}
-                stateId={results.stateProgram?.id}
+              <OfftakeCard
+                stateProgram={results.stateProgram}
+                revenueStack={results.revenueStack}
+                technology={results.form.technology}
                 mw={results.form.mw}
-                substations={results.substations}
+                rates={results.revenueRates}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
@@ -2925,12 +3061,14 @@ function SearchContent() {
                 mw={results.form.mw}
                 queueSummary={results.ixQueueSummary}
               />
-              <OfftakeCard
-                stateProgram={results.stateProgram}
-                revenueStack={results.revenueStack}
-                technology={results.form.technology}
+              <SiteControlCard
+                siteControl={results.countyData?.siteControl}
+                interconnection={results.countyData?.interconnection}
+                stateName={results.stateProgram?.name || results.form.state}
+                county={results.form.county}
+                stateId={results.stateProgram?.id}
                 mw={results.form.mw}
-                rates={results.revenueRates}
+                substations={results.substations}
               />
             </div>
 
