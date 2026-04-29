@@ -100,6 +100,113 @@ Pricing is anchored to the **CS/Hybrid origination buyer at a 1-10 person shop**
 
 ---
 
+## 🔒 Security + IP — Future Track (added 2026-04-29)
+
+User asked to consider this in parallel with V3 buildout. Not blocking the
+roadmap; track these items as a separate workstream and slot them in when
+there's a natural break.
+
+### Free / cheap security wins (concrete tools)
+
+**Already in place (verified):**
+- Supabase Row-Level Security on `projects`, `profiles`, `project_events`
+- Server-only Anthropic / Resend / Stripe / service-role keys via Vercel env vars
+- HTTPS enforced by Vercel default
+- Security headers in `vercel.json` (HSTS, X-Frame-Options, X-Content-Type-Options,
+  Referrer-Policy, Permissions-Policy, X-Robots-Tag on /api/*)
+
+**Quick wins to ship (ranked by leverage):**
+1. **GitHub Dependabot** — flip on in repo Settings → Security; auto-PRs for
+   vulnerable npm deps. **Free. 1-click. Highest ROI.**
+2. **GitHub Secret Scanning + Push Protection** — same Settings page; blocks
+   pushes containing detected API keys. **Free. Should be on now.**
+3. **GitHub CodeQL** — Settings → Code security; SAST runs on every PR.
+   **Free for public repos / orgs. Non-trivial signal-to-noise but worth the
+   default scan.**
+4. **Vercel BotID** — public beta product (per knowledge update). Bot
+   detection on `/api/lens-insight.js` to prevent Anthropic-key abuse via
+   scraping. **~$0 unless you hit the paid tier.**
+5. **Rate limiting on `lens-insight.js`** — currently zero. A user with auth
+   could burn the Anthropic budget. Add per-user rolling window (e.g. 30
+   calls / 10 min) using Supabase as state. **~30 min build. Real cost
+   protection.**
+6. **Snyk free tier** — alternative to Dependabot+CodeQL with better DX.
+   **Free for personal repos. Pick this OR GitHub-native — not both.**
+7. **GitGuardian free tier** — secret-scanning across full git history (catches
+   keys committed years ago). **Free. One-time scan worth running.**
+8. **CSP (Content-Security-Policy) header** — restrict where scripts can load
+   from. Tricky to get right with Stripe + Resend + Anthropic; defer until
+   we have time to whitelist all third-party origins.
+9. **Supabase 2FA on your own account** — protects the database. Settings →
+   Account. **Free. Do today.**
+10. **Stripe radar (default)** — already on if using Stripe. Verify in Stripe
+    dashboard.
+
+**Larger items (paid or significant effort):**
+- WAF rules (Vercel paid tier) — wait until traffic justifies
+- Penetration test (HackerOne / external) — ~$3-10K; defer to post-product-market-fit
+- SOC 2 Type 1 — only when enterprise customers ask; ~$15-30K + months of audit prep
+- Privacy policy + Terms of Service — **legal requirement once you take paying
+  users**; Termly / Iubenda generators are ~$10-30/mo. **Ship before first paid
+  customer.**
+
+### IP / Trademark / Brand protection
+
+**Tier 1 — Do soon (low cost, high protection):**
+- **USPTO trademark for "Tractova"** wordmark. ~$250-350 application fee per
+  class. File **Class 9** (downloadable software) AND **Class 42** (SaaS /
+  Software as a Service). Use a service like LegalZoom (~$200 + filing fees)
+  or a flat-fee trademark attorney (~$500-800 all-in). Timeline: 8-12 months
+  to registration. **The earlier you file, the stronger your priority date.**
+- **Domain defensive registrations** — already own `tractova.com`?
+  Pick up `.io`, `.app`, `.ai`, `.co`, common typos (e.g. `tractovaa.com`).
+  ~$50-100/year for the bundle. Cloudflare or Namecheap.
+- **Logo trademark** — once the mark is finalized via Claude Design (currently
+  placeholder), file as a separate USPTO class application or as a combined
+  word+design mark. ~$250-350 additional.
+
+**Tier 2 — Defer until revenue:**
+- **Trade-secret protection** for the scoring methodology + curated state
+  data. No filing required; just don't publish the formulas externally. Add
+  internal NDA template for any future contractor / contributor. Free.
+- **Provisional patent** for novel work like the IX Queue Forecaster
+  algorithm (Wave 2). $130 filing fee, gives 12-month priority. Probably
+  not worth pursuing — algorithmic patents are weakening, defensibility
+  comes from data + execution, not patent walls.
+- **Copyright registration** for the codebase. Automatic at creation; formal
+  registration ($65/work) only matters if you ever need to sue someone.
+  Defer indefinitely.
+
+**Tier 3 — Critical legal items separate from IP:**
+- Privacy Policy + Terms of Service (see security #11 above) — **before first
+  paid customer**.
+- Form an LLC or C-Corp if not already — Stripe-friendly, liability-limiting,
+  IP-holding entity. Stripe Atlas (~$500), Clerky, or local incorporation
+  service. **Before significant revenue.**
+- DMCA agent registration with the US Copyright Office — required for safe
+  harbor if user-generated content ever appears (e.g. shared deal memos). $6
+  filing fee, 3-year renewal.
+
+### Recommended sequencing
+
+**This month:**
+- GitHub Dependabot + Secret Scanning + Push Protection (5 min)
+- Supabase 2FA on your own account (2 min)
+- Add rate-limiting to `lens-insight.js` (30 min — the most concrete cost
+  exposure today)
+- File USPTO trademark for "Tractova" word mark (or hire flat-fee attorney
+  to file)
+
+**Before first paid customer:**
+- Privacy Policy + Terms of Service
+- LLC formation if not already
+
+**Pre-Wave-2:**
+- BotID on `/api/*` once Anthropic spend grows
+- Reconsider CSP header
+
+---
+
 ## What's Already Shipped (Verified through 2026-04-28)
 
 ### V2-Refactored — All Complete
