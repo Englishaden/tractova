@@ -27,58 +27,54 @@ function getMarketRank(stateId, programMap) {
   return { rank: rank || null, total: ranked.length }
 }
 
-// V3: Precision tachometer — feasibility index as a measured instrument, not a chart-library gauge.
-// Tick marks every 10 with majors at 0/50/100. Score in JetBrains Mono. Color follows the V3 teal ramp.
+// V3: Precision tachometer — feasibility index as a measured instrument.
+// ViewBox sized generously so labels never crowd the arc or the score.
 function ArcGauge({ score }) {
   const s = (typeof score === 'number' && isFinite(score)) ? score : 0
   const pct = Math.max(0, Math.min(100, s)) / 100
-  const R = 60, cx = 80, cy = 78
+  // Wider + taller viewBox: 180x118 (was 160x100). Bigger radius too. Lots of breathing room.
+  const R = 64, cx = 90, cy = 84
   const ex = cx - R * Math.cos(Math.PI * pct)
   const ey = cy - R * Math.sin(Math.PI * pct)
   const trackPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
   const fillPath  = pct > 0.005 ? `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${ex} ${ey}` : ''
 
-  // V3 single-hue teal ramp — light at low scores, deep at high scores
+  // V3 single-hue teal ramp
   let color = '#CBD5E1'
   if (s >= 75)      color = '#0F766E'
   else if (s >= 60) color = '#14B8A6'
   else if (s >= 45) color = '#2DD4BF'
   else if (s >= 25) color = '#5EEAD4'
 
-  // 11 ticks (0..100 by 10), majors at 0/50/100
-  const ticks = Array.from({ length: 11 }, (_, i) => {
-    const angle = Math.PI * (1 - i / 10)
-    const inner = R - 6, outer = R + 2
-    return {
-      x1: cx + inner * Math.cos(angle),
-      y1: cy - inner * Math.sin(angle),
-      x2: cx + outer * Math.cos(angle),
-      y2: cy - outer * Math.sin(angle),
-      isMajor: i === 0 || i === 5 || i === 10,
-    }
-  })
+  // Cleaner: 5 majors at 0/25/50/75/100 (instead of 11 ticks every 10).
+  // Reads as a real instrument, less noise.
+  const tickPositions = [0, 0.25, 0.5, 0.75, 1.0]
 
   return (
-    // viewBox extended height (was 92, now 100) to give 0/100 tick labels at y=92 enough vertical room
-    // and add 4px headroom above for the "50" tick label.
-    <svg viewBox="0 0 160 100" className="w-full max-w-[220px]" style={{ overflow: 'visible' }}>
-      {/* Tick marks behind the track */}
-      {ticks.map((t, i) => (
-        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-          stroke={t.isMajor ? '#0A1828' : '#94A3B8'}
-          strokeWidth={t.isMajor ? 1.5 : 0.75}
-          strokeLinecap="round" />
-      ))}
-      {/* Tick value labels (0, 50, 100) — moved 2px lower so they have full visible room within viewBox */}
-      <text x={cx - R} y={cy + 16} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">0</text>
-      <text x={cx} y={cy - R - 6} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">50</text>
-      <text x={cx + R} y={cy + 16} textAnchor="middle" fontSize="8" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="0.5">100</text>
+    <svg viewBox="0 0 180 118" className="w-full max-w-[240px]">
+      {/* Tick marks — 5 evenly-spaced majors */}
+      {tickPositions.map((p, i) => {
+        const angle = Math.PI * (1 - p)
+        const inner = R - 7, outer = R + 2
+        return (
+          <line key={i}
+            x1={cx + inner * Math.cos(angle)} y1={cy - inner * Math.sin(angle)}
+            x2={cx + outer * Math.cos(angle)} y2={cy - outer * Math.sin(angle)}
+            stroke="#0A1828" strokeWidth={1.4} strokeLinecap="round" />
+        )
+      })}
+      {/* Tick labels — pushed well clear of the arc with generous viewBox margin
+          0/100 at y=cy+20 (= 104) inside viewBox 118 with 14px clearance.
+          50 at y=cy-R-10 (= 10) inside viewBox with full clearance. */}
+      <text x={cx - R} y={cy + 20} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">0</text>
+      <text x={cx}     y={cy - R - 10} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">50</text>
+      <text x={cx + R} y={cy + 20} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">100</text>
       {/* Track */}
-      <path d={trackPath} fill="none" stroke="#E2E8F0" strokeWidth={5} strokeLinecap="round" />
+      <path d={trackPath} fill="none" stroke="#E2E8F0" strokeWidth={6} strokeLinecap="round" />
       {/* Fill */}
-      {fillPath && <path d={fillPath} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />}
-      {/* Score readout — large monospace */}
-      <text x={cx} y={cy - 8} textAnchor="middle" fontSize="36" fontWeight="700" fill="#0A1828" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="-1.5">{s}</text>
+      {fillPath && <path d={fillPath} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" />}
+      {/* Score readout — slightly trimmed from 36 to 32 so it sits clear of the arc apex */}
+      <text x={cx} y={cy - 8} textAnchor="middle" fontSize="32" fontWeight="700" fill="#0A1828" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="-1">{s}</text>
     </svg>
   )
 }
