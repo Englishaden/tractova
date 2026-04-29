@@ -137,6 +137,85 @@ async function sendEmail(to, subject, html) {
   return res.json()
 }
 
+// V3 Wave 1.3: Slack incoming-webhook delivery using Block Kit format.
+// Best-effort -- Slack failures don't fail the alert. We catch and log.
+function buildSlackBlocks(project, alerts, userName) {
+  const hasUrgent = alerts.some(a => a.level === 'urgent')
+  const headerEmoji = hasUrgent ? ':rotating_light:' : ':warning:'
+  const headerText = hasUrgent
+    ? `Action Required — ${project.name}`
+    : `Policy Alert — ${project.name}`
+
+  const meta = [
+    project.state_name ?? project.state,
+    project.county,
+    project.mw ? `${project.mw} MW` : null,
+    project.stage,
+  ].filter(Boolean).join(' · ')
+
+  const alertLines = alerts
+    .map(a => `• *${a.label}* — ${a.detail || a.level}`)
+    .join('\n')
+
+  return {
+    text: `${headerEmoji} ${headerText}`,
+    blocks: [
+      {
+        type: 'header',
+        text: { type: 'plain_text', text: `${headerEmoji} ${headerText}` },
+      },
+      {
+        type: 'context',
+        elements: [{ type: 'mrkdwn', text: `*${meta}*` }],
+      },
+      { type: 'divider' },
+      {
+        type: 'section',
+        text: { type: 'mrkdwn', text: alertLines },
+      },
+      {
+        type: 'actions',
+        elements: [{
+          type: 'button',
+          text: { type: 'plain_text', text: 'Review in Library →' },
+          url: `${APP_URL}/library`,
+          style: hasUrgent ? 'danger' : 'primary',
+        }],
+      },
+      {
+        type: 'context',
+        elements: [{
+          type: 'mrkdwn',
+          text: `Tractova · sent to ${userName || 'subscriber'} · <${APP_URL}/profile|Manage notifications>`,
+        }],
+      },
+    ],
+  }
+}
+
+async function sendSlack(webhookUrl, payload) {
+  // 8s timeout so a hung Slack endpoint can't stall the cron
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    })
+    clearTimeout(timeout)
+    if (!res.ok) {
+      const err = await res.text()
+      throw new Error(`Slack ${res.status}: ${err.slice(0, 200)}`)
+    }
+    return true
+  } catch (err) {
+    clearTimeout(timeout)
+    throw err
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
@@ -153,19 +232,41 @@ export default async function handler(req, res) {
     if (stateErr) throw stateErr
     const stateMap = buildStateMap(stateRows ?? [])
 
-    const { data: profiles, error: profileErr } = await supabaseAdmin
-      .from('profiles')
-      .select('id, subscription_tier, subscription_status, alert_urgent')
-      .eq('subscription_tier', 'pro')
-      .in('subscription_status', ['active', 'trialing'])
-
+    // V3 Wave 1.3: pull slack_webhook_url + alert_slack alongside email prefs.
+    // Schema-cache-resilient: if migration 013 hasn't run, those columns
+    // come back as undefined and we silently skip Slack delivery.
+    const profileColumns = 'id, subscription_tier, subscription_status, alert_urgent, slack_webhook_url, alert_slack'
+    let profilesData, profileErr
+    try {
+      const result = await supabaseAdmin
+        .from('profiles')
+        .select(profileColumns)
+        .eq('subscription_tier', 'pro')
+        .in('subscription_status', ['active', 'trialing'])
+      profilesData = result.data
+      profileErr = result.error
+    } catch (e) {
+      profileErr = e
+    }
+    // Fallback if Slack columns not yet migrated
+    if (profileErr && /slack_webhook_url|alert_slack/.test(profileErr.message || '')) {
+      const fallback = await supabaseAdmin
+        .from('profiles')
+        .select('id, subscription_tier, subscription_status, alert_urgent')
+        .eq('subscription_tier', 'pro')
+        .in('subscription_status', ['active', 'trialing'])
+      profilesData = fallback.data
+      profileErr = fallback.error
+    }
     if (profileErr) throw profileErr
 
     const results = []
+    const slackResults = { sent: 0, failed: 0 }
 
-    for (const profile of profiles ?? []) {
-      // Respect alert preference — default on if column not yet set
-      if (profile.alert_urgent === false) continue
+    for (const profile of profilesData ?? []) {
+      const wantsEmail = profile.alert_urgent !== false  // default on
+      const wantsSlack = profile.alert_slack === true && profile.slack_webhook_url
+      if (!wantsEmail && !wantsSlack) continue
 
       const { data: { user }, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id)
       if (userErr || !user?.email) continue
@@ -182,17 +283,37 @@ export default async function handler(req, res) {
         if (!alerts.length) continue
 
         const hasUrgent = alerts.some(a => a.level === 'urgent')
-        const subject = hasUrgent
-          ? `Action required: Program alert for "${project.name}"`
-          : `Policy update for your project "${project.name}"`
 
-        const html = buildAlertHtml(user, project, alerts)
-        await sendEmail(user.email, subject, html)
-        results.push({ email: user.email, project: project.name, alerts: alerts.map(a => a.label) })
+        // Email delivery
+        if (wantsEmail) {
+          const subject = hasUrgent
+            ? `Action required: Program alert for "${project.name}"`
+            : `Policy update for your project "${project.name}"`
+          const html = buildAlertHtml(user, project, alerts)
+          try {
+            await sendEmail(user.email, subject, html)
+            results.push({ email: user.email, project: project.name, alerts: alerts.map(a => a.label) })
+          } catch (err) {
+            console.error(`[send-alerts] email failed for ${user.email}:`, err.message)
+          }
+        }
+
+        // Slack delivery — best effort, don't let failures stop email
+        if (wantsSlack) {
+          try {
+            const userName = user.user_metadata?.full_name || user.email?.split('@')[0]
+            const payload = buildSlackBlocks(project, alerts, userName)
+            await sendSlack(profile.slack_webhook_url, payload)
+            slackResults.sent++
+          } catch (err) {
+            slackResults.failed++
+            console.error(`[send-alerts] slack failed for ${profile.id}:`, err.message)
+          }
+        }
       }
     }
 
-    return res.status(200).json({ sent: results.length, results })
+    return res.status(200).json({ sent: results.length, slack: slackResults, results })
   } catch (err) {
     console.error('Alerts error:', err)
     return res.status(500).json({ error: err.message })

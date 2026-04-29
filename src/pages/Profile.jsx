@@ -88,41 +88,66 @@ function ToggleSwitch({ on, onClick }) {
 }
 
 function AlertPreferences({ userId }) {
-  const [prefs, setPrefs] = useState({ digest: true, alerts: true, positive: true })
+  const [prefs, setPrefs] = useState({ digest: true, alerts: true, positive: true, slack: false })
+  const [slackUrl, setSlackUrl] = useState('')
+  const [slackUrlDirty, setSlackUrlDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     supabase.from('profiles')
-      .select('alert_digest, alert_urgent, alert_positive')
+      .select('alert_digest, alert_urgent, alert_positive, alert_slack, slack_webhook_url')
       .eq('id', userId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setPrefs({
-          digest: data.alert_digest ?? true,
-          alerts: data.alert_urgent ?? true,
-          positive: data.alert_positive ?? true,
-        })
+        if (data) {
+          setPrefs({
+            digest: data.alert_digest ?? true,
+            alerts: data.alert_urgent ?? true,
+            positive: data.alert_positive ?? true,
+            slack: data.alert_slack ?? false,
+          })
+          setSlackUrl(data.slack_webhook_url || '')
+        }
         setLoaded(true)
       })
   }, [userId])
+
+  // Schema-cache-resilient update: if a column hasn't been migrated yet,
+  // strip the offending field and retry. Loop caps at 5.
+  const safeUpdate = async (payload) => {
+    let attempt = { ...payload }
+    for (let i = 0; i < 5; i++) {
+      const { error } = await supabase.from('profiles').update(attempt).eq('id', userId)
+      if (!error) return { ok: true }
+      const m = error.message?.match(/['"]([a-z_]+)['"].*column|column.*['"]?([a-z_]+)['"]?.*(?:not exist|of relation)/i)
+      const missing = m && (m[1] || m[2])
+      if (missing && Object.prototype.hasOwnProperty.call(attempt, missing)) {
+        delete attempt[missing]
+        continue
+      }
+      return { ok: false, error }
+    }
+    return { ok: false, error: new Error('retry cap') }
+  }
 
   const toggle = async (field) => {
     const next = { ...prefs, [field]: !prefs[field] }
     setPrefs(next)
     setSaving(true)
-    // Graceful-fallback: if alert_positive column hasn't been migrated yet,
-    // strip it from the payload and retry. Avoids 400s on unmigrated DBs.
-    const payload = {
+    await safeUpdate({
       alert_digest: next.digest,
       alert_urgent: next.alerts,
       alert_positive: next.positive,
-    }
-    const { error } = await supabase.from('profiles').update(payload).eq('id', userId)
-    if (error && /column.*alert_positive.*not exist/i.test(error.message || '')) {
-      delete payload.alert_positive
-      await supabase.from('profiles').update(payload).eq('id', userId)
-    }
+      alert_slack: next.slack,
+    })
+    setSaving(false)
+  }
+
+  const saveSlackUrl = async () => {
+    setSaving(true)
+    await safeUpdate({ slack_webhook_url: slackUrl.trim() || null })
+    setSlackUrlDirty(false)
     setSaving(false)
   }
 
@@ -156,6 +181,45 @@ function AlertPreferences({ userId }) {
           </div>
           <ToggleSwitch on={prefs.positive} onClick={() => toggle('positive')} />
         </label>
+      </div>
+
+      {/* V3 Wave 1.3: Slack delivery — opt-in, requires user-provided webhook URL */}
+      <div className="mt-5 pt-4 border-t border-gray-100">
+        <p className="font-mono text-[9px] uppercase tracking-[0.20em] font-bold text-ink-muted mb-3">
+          Slack Delivery
+        </p>
+        <label className="flex items-center justify-between cursor-pointer group mb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Slack alerts</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Push policy alerts to a Slack channel via incoming webhook</p>
+          </div>
+          <ToggleSwitch on={prefs.slack} onClick={() => toggle('slack')} />
+        </label>
+        {prefs.slack && (
+          <div>
+            <input
+              type="url"
+              value={slackUrl}
+              onChange={(e) => { setSlackUrl(e.target.value); setSlackUrlDirty(true) }}
+              placeholder="https://hooks.slack.com/services/..."
+              className="w-full text-xs font-mono bg-paper border border-gray-200 rounded-md px-3 py-2 text-ink placeholder-gray-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
+            />
+            <div className="flex items-center justify-between mt-1.5">
+              <p className="text-[10px] text-gray-400">
+                Create one in your Slack workspace at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline">api.slack.com/apps</a> → Incoming Webhooks.
+              </p>
+              {slackUrlDirty && (
+                <button
+                  onClick={saveSlackUrl}
+                  className="text-[10px] font-semibold px-2.5 py-1 rounded-md text-white"
+                  style={{ background: '#14B8A6' }}
+                >
+                  Save URL
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
