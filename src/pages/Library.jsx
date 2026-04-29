@@ -21,14 +21,14 @@ const STAGE_BADGE = {
   'Prospecting':            'bg-gray-100 text-gray-600 border-gray-200',
   'Site Control':           'bg-blue-50 text-blue-700 border-blue-200',
   'Pre-Development':        'bg-yellow-50 text-yellow-700 border-yellow-200',
-  'Development':            'bg-primary-50 text-primary-700 border-primary-200',
+  'Development':            'bg-teal-50 text-teal-800 border-teal-200',
   'NTP (Notice to Proceed)':'bg-purple-50 text-purple-700 border-purple-200',
   'Construction':           'bg-accent-50 text-accent-700 border-accent-200',
-  'Operational':            'bg-emerald-50 text-emerald-700 border-emerald-200',
+  'Operational':            'bg-teal-50 text-teal-800 border-teal-200',
 }
 
 const TECH_BADGE = {
-  'Community Solar': 'bg-primary-50 text-primary-700 border-primary-200',
+  'Community Solar': 'bg-teal-50 text-teal-800 border-teal-200',
   'C&I Solar':       'bg-blue-50 text-blue-700 border-blue-200',
   'BESS':            'bg-accent-50 text-accent-700 border-accent-200',
   'Hybrid':          'bg-purple-50 text-purple-700 border-purple-200',
@@ -201,7 +201,7 @@ function ScoreGauge({ score }) {
 
 // ── IX difficulty display ────────────────────────────────────────────────────
 const IX_STYLES = {
-  easy:      'bg-emerald-50 text-emerald-700 border-emerald-200',
+  easy:      'bg-teal-50 text-teal-800 border-teal-200',
   moderate:  'bg-yellow-50 text-yellow-700 border-yellow-200',
   hard:      'bg-orange-50 text-orange-700 border-orange-200',
   very_hard: 'bg-red-50 text-red-700 border-red-200',
@@ -210,7 +210,7 @@ const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 
 
 // ── CS status display ────────────────────────────────────────────────────────
 const CS_STATUS_STYLES = {
-  active:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+  active:  'bg-teal-50 text-teal-800 border-teal-200',
   limited: 'bg-amber-50 text-amber-700 border-amber-200',
   pending: 'bg-blue-50 text-blue-700 border-blue-200',
   none:    'bg-red-50 text-red-700 border-red-200',
@@ -231,8 +231,8 @@ function PipelineProgress({ stage }) {
               <div className="flex flex-col items-center">
                 <div
                   className={`w-3 h-3 rounded-full border-2 flex-shrink-0 transition-colors ${
-                    done    ? 'bg-primary border-primary' :
-                    current ? 'border-primary ring-2 ring-primary/30' :
+                    done    ? 'bg-teal-700 border-teal-700' :
+                    current ? 'border-teal-700 ring-2 ring-teal-700/30' :
                               ''
                   }`}
                   style={(!done && !current) ? { background: '#F3F4F6', borderColor: '#D1D5DB' } :
@@ -241,7 +241,7 @@ function PipelineProgress({ stage }) {
               </div>
               {i < PIPELINE_STAGES.length - 1 && (
                 <div
-                  className={`flex-1 h-0.5 mx-0.5 ${done ? 'bg-primary' : ''}`}
+                  className={`flex-1 h-0.5 mx-0.5 ${done ? 'bg-teal-700' : ''}`}
                   style={!done ? { background: '#E5E7EB' } : {}}
                 />
               )}
@@ -255,7 +255,7 @@ function PipelineProgress({ stage }) {
           return (
             <div
               key={label}
-              className={`flex-1 last:flex-none text-center text-[8.5px] leading-tight font-medium truncate px-0.5 ${current ? 'text-primary font-bold' : ''}`}
+              className={`flex-1 last:flex-none text-center text-[8.5px] leading-tight font-medium truncate px-0.5 ${current ? 'text-teal-700 font-bold' : ''}`}
               style={!current ? { color: '#9CA3AF' } : {}}
             >
               {label}
@@ -475,10 +475,10 @@ function CompareChip({ project }) {
       disabled={atLimit}
       className={`group relative p-1 transition-colors ${
         inCompare
-          ? 'text-primary'
+          ? 'text-teal-700'
           : atLimit
             ? 'text-gray-200 cursor-not-allowed'
-            : 'text-gray-300 hover:text-primary'
+            : 'text-gray-300 hover:text-teal-700'
       }`}
     >
       <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded bg-gray-900 text-white text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10">
@@ -1357,7 +1357,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
   const accentColor = hasUrgent          ? '#EF4444' :
                       liveScore == null   ? '#D1D5DB' :
-                      liveScore >= 70     ? '#0F6E56' :
+                      liveScore >= 70     ? '#0F766E' :
                       liveScore >= 50     ? '#D97706' :
                                             '#EF4444'
 
@@ -1366,7 +1366,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                   liveScore >= 50   ? 'rgba(217,119,6,0.12)'   :
                                       'rgba(220,38,38,0.12)'
   const scoreText = liveScore == null ? '#6B7280' :
-                    liveScore >= 70   ? '#0F6E56'  :
+                    liveScore >= 70   ? '#0F766E'  :
                     liveScore >= 50   ? '#B45309'  :
                                         '#DC2626'
 
@@ -1627,7 +1627,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
           <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #E5E7EB' }}>
             <Link
               to={`/search?state=${project.state}&county=${encodeURIComponent(project.county || '')}&mw=${project.mw || ''}&stage=${encodeURIComponent(project.stage || '')}&technology=${encodeURIComponent(project.technology || '')}`}
-              className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary-700 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium text-teal-700 hover:text-teal-800 transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -1762,7 +1762,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
                     key={hint}
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setNotes(`${hint}: `) }}
-                    className="text-[10px] px-2 py-0.5 rounded transition-colors border border-gray-200 text-gray-500 bg-white hover:border-primary hover:text-primary"
+                    className="text-[10px] px-2 py-0.5 rounded transition-colors border border-gray-200 text-gray-500 bg-white hover:border-teal-700 hover:text-teal-700"
                   >
                     + {hint}
                   </button>
@@ -1854,8 +1854,8 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
     : pct >= 40 ? { text: '#B45309', bg: '#FEF3C7', label: 'Moderate' }
     : { text: '#059669', bg: '#D1FAE5', label: 'Diversified' }
 
-  const healthColor = healthScore > 65 ? 'text-primary-700' : healthScore >= 40 ? 'text-amber-600' : 'text-red-600'
-  const healthBg = healthScore > 65 ? 'bg-primary-50' : healthScore >= 40 ? 'bg-amber-50' : 'bg-red-50'
+  const healthColor = healthScore > 65 ? 'text-teal-800' : healthScore >= 40 ? 'text-amber-600' : 'text-red-600'
+  const healthBg = healthScore > 65 ? 'bg-teal-50' : healthScore >= 40 ? 'bg-amber-50' : 'bg-red-50'
 
   const handleGenerateInsight = async () => {
     setAiLoading(true)
@@ -1951,7 +1951,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
               <div className="relative w-16 h-16">
                 <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
                   <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E7EB" strokeWidth="3" />
-                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626'} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={healthScore > 65 ? '#0F766E' : healthScore >= 40 ? '#D97706' : '#DC2626'} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
                 </svg>
                 <span className={`absolute inset-0 flex items-center justify-center text-xl font-bold font-mono tabular-nums ${healthColor}`}>{healthScore}</span>
               </div>
@@ -2072,20 +2072,20 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
             {aiInsight ? (
               <div className="px-4 py-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }}>
+                  <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F766E, #10B981)' }}>
                     <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   </div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary-700">AI Portfolio Insight</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-teal-800">AI Portfolio Insight</p>
                 </div>
                 <p className="text-xs leading-relaxed text-gray-700">{aiInsight.summary}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {aiInsight.topRecommendation && (
-                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-primary-100">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-primary-100 flex-shrink-0 mt-0.5">
-                        <svg className="w-3 h-3 text-primary-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-teal-100">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-teal-100 flex-shrink-0 mt-0.5">
+                        <svg className="w-3 h-3 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold uppercase tracking-wider text-primary-600 mb-0.5">Top Recommendation</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wider text-teal-700 mb-0.5">Top Recommendation</p>
                         <p className="text-[11px] leading-relaxed text-gray-700">{aiInsight.topRecommendation}</p>
                       </div>
                     </div>
@@ -2104,7 +2104,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                 </div>
                 <button
                   onClick={handleGenerateInsight}
-                  className="text-[10px] font-medium text-primary-500 hover:text-primary-700 transition-colors"
+                  className="text-[10px] font-medium text-teal-600 hover:text-teal-800 transition-colors"
                 >
                   Regenerate
                 </button>
@@ -2112,11 +2112,11 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
             ) : aiLoading ? (
               <div className="px-4 py-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }} />
-                  <div className="h-3 w-28 rounded bg-primary-200/50 animate-pulse" />
+                  <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'linear-gradient(135deg, #0F766E, #10B981)' }} />
+                  <div className="h-3 w-28 rounded bg-teal-200/50 animate-pulse" />
                 </div>
-                <div className="h-3 w-full rounded bg-primary-100/40 animate-pulse" />
-                <div className="h-3 w-4/5 rounded bg-primary-100/40 animate-pulse" />
+                <div className="h-3 w-full rounded bg-teal-100/40 animate-pulse" />
+                <div className="h-3 w-4/5 rounded bg-teal-100/40 animate-pulse" />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
                   <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
@@ -2125,9 +2125,9 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
             ) : (
               <button
                 onClick={handleGenerateInsight}
-                className="w-full flex items-center justify-center gap-2.5 px-4 py-4 text-xs font-semibold text-primary-700 hover:bg-primary-50/50 transition-colors"
+                className="w-full flex items-center justify-center gap-2.5 px-4 py-4 text-xs font-semibold text-teal-800 hover:bg-teal-50/50 transition-colors"
               >
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }}>
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F766E, #10B981)' }}>
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                   </svg>
@@ -2399,8 +2399,8 @@ function LibraryContent() {
             <p className="text-sm text-gray-500 mt-0.5">Your saved deals. Add projects from Tractova Lens results.</p>
           </div>
           <div className="flex flex-col items-center justify-center text-center py-24">
-            <div className="w-12 h-12 bg-primary-50 rounded-xl flex items-center justify-center mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center mb-4">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
@@ -2408,7 +2408,7 @@ function LibraryContent() {
             <p className="text-sm font-semibold text-gray-700">Sign in to view your projects</p>
             <p className="text-xs text-gray-400 mt-1 max-w-xs">Your saved projects are tied to your account and sync across devices.</p>
             <div className="flex items-center gap-3 mt-5">
-              <Link to="/signin" className="text-sm font-semibold text-white bg-primary px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors">Sign In</Link>
+              <Link to="/signin" className="text-sm font-semibold text-white bg-teal-700 px-4 py-2 rounded-lg hover:bg-teal-800 transition-colors">Sign In</Link>
               <Link to="/signup" className="text-sm font-medium text-gray-600 border border-gray-200 bg-white px-4 py-2 rounded-lg hover:border-gray-300 transition-colors">Create Account</Link>
             </div>
           </div>
@@ -2547,7 +2547,7 @@ function LibraryContent() {
                       {filterStage && (
                         <button
                           onClick={() => setFilterStage('')}
-                          className="text-[10px] font-semibold text-primary hover:text-primary-700"
+                          className="text-[10px] font-semibold text-teal-700 hover:text-teal-800"
                         >
                           Clear filter ✕
                         </button>
@@ -2571,7 +2571,7 @@ function LibraryContent() {
                               style={{
                                 height: count > 0 ? `${Math.max(6, (count / maxCount) * 56)}px` : '3px',
                                 background: count > 0 ? color : '#E5E7EB',
-                                outline: isActive ? '2px solid #0F6E56' : 'none',
+                                outline: isActive ? '2px solid #0F766E' : 'none',
                                 outlineOffset: isActive ? '2px' : '0',
                               }}
                             >
@@ -2629,7 +2629,7 @@ function LibraryContent() {
                 <select
                   value={filterState}
                   onChange={e => setFilterState(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterState ? 'text-primary' : 'text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterState ? 'text-teal-700' : 'text-gray-500'}`}
                 >
                   <option value="">All States</option>
                   {[...new Set(projects.map(p => p.state))].sort().map(s => (
@@ -2639,7 +2639,7 @@ function LibraryContent() {
                 <select
                   value={filterTech}
                   onChange={e => setFilterTech(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterTech ? 'text-primary' : 'text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterTech ? 'text-teal-700' : 'text-gray-500'}`}
                 >
                   <option value="">All Tech</option>
                   {[...new Set(projects.map(p => p.technology).filter(Boolean))].sort().map(t => (
@@ -2649,7 +2649,7 @@ function LibraryContent() {
                 <select
                   value={filterStage}
                   onChange={e => setFilterStage(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterStage ? 'text-primary' : 'text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterStage ? 'text-teal-700' : 'text-gray-500'}`}
                 >
                   <option value="">All Stages</option>
                   {PIPELINE_STAGES.map(s => (

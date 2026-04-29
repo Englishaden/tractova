@@ -668,7 +668,7 @@ function NewsFeedTab() {
               </div>
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
+              <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
               <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
             </div>
           </div>
@@ -1013,7 +1013,7 @@ function PucDocketsTab() {
               </div>
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
+              <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
               <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
             </div>
           </div>
