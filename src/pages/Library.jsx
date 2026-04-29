@@ -9,6 +9,7 @@ import { getStateProgramMap, getCountyData } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
@@ -648,28 +649,33 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1px_1fr] gap-6">
+          {/* V3: Tabbed expanded panel — replaces single giant 2-col scroll.
+              Overview = top-line score + breakdown.
+              Diligence = deep state context (IX notes, program notes, capacity).
+              Notes = the user's own deal log. */}
+          <Tabs defaultValue="overview">
+            <TabsList className="mb-2">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="diligence">Diligence</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+            </TabsList>
 
-            {/* ── Left: Market Intelligence ──────────────────────────────── */}
-            <div className="flex flex-col gap-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Market Intelligence</p>
-
+            {/* ── Tab 1: Overview — score + sub-scores + status badges ─── */}
+            <TabsContent value="overview">
               {current ? (
-                <>
-                  {/* Score gauge */}
+                <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-start">
+                  {/* Score gauge + status pills */}
                   <div className="flex items-center gap-5">
                     <ScoreGauge score={liveScore} />
                     <div className="flex flex-col gap-2">
-                      {/* CS status */}
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1 text-gray-500">Program Status</p>
+                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">Program Status</p>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {CS_STATUS_LABEL[current.csStatus] ?? current.csStatus}
                         </span>
                       </div>
-                      {/* IX difficulty */}
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-1 text-gray-500">IX Difficulty</p>
+                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">IX Difficulty</p>
                         <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
                         </span>
@@ -678,79 +684,89 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
                   </div>
 
                   {/* Sub-score breakdown */}
-                  <div className="flex flex-col gap-2 rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
-                    <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-gray-500">Index Breakdown</p>
+                  <div className="flex flex-col gap-2 rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                    <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">Index Breakdown</p>
                     {[
-                      { label: 'Offtake',  value: offtake, weight: '40%', color: '#34D399' },
-                      { label: 'IX Risk',   value: ix,      weight: '35%', color: '#FBBF24' },
-                      { label: 'Site',      value: site,    weight: '25%', color: '#60A5FA' },
+                      { label: 'Offtake', value: offtake, weight: '40%', color: '#0F766E' },
+                      { label: 'IX Risk', value: ix,      weight: '35%', color: '#D97706' },
+                      { label: 'Site',    value: site,    weight: '25%', color: '#2563EB' },
                     ].map(s => (
                       <div key={s.label} className="flex items-center gap-2">
-                        <span className="text-[10px] w-14 text-right font-medium text-gray-500">{s.label}</span>
-                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: '#E5E7EB' }}>
-                          <div className="h-full rounded-full transition-all" style={{ width: `${s.value}%`, background: s.color, opacity: 0.75 }} />
+                        <span className="text-[10px] w-14 text-right font-medium text-ink-muted">{s.label}</span>
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: '#F1F5F9' }}>
+                          <div className="h-full rounded-full transition-all" style={{ width: `${s.value}%`, background: s.color, opacity: 0.85 }} />
                         </div>
-                        <span className="text-[10px] w-7 font-mono font-medium" style={{ color: s.color }}>{s.value}</span>
-                        <span className="text-[8px] font-mono text-gray-400">{s.weight}</span>
+                        <span className="text-[10px] w-7 font-mono font-semibold" style={{ color: s.color }}>{s.value}</span>
+                        <span className="text-[9px] font-mono text-gray-400">{s.weight}</span>
                       </div>
                     ))}
                   </div>
+                </div>
+              ) : (
+                <p className="text-xs text-ink-muted">No market data available for this state.</p>
+              )}
+            </TabsContent>
 
-                  {/* Program details */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
+            {/* ── Tab 2: Diligence — deep state context ────────────────── */}
+            <TabsContent value="diligence">
+              {current ? (
+                <div className="flex flex-col gap-4">
+                  {/* Program details grid */}
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5 text-gray-500">CS Program</p>
-                      <p className="font-medium text-gray-900">{current.csProgram ?? '—'}</p>
+                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">CS Program</p>
+                      <p className="font-medium text-ink">{current.csProgram ?? '—'}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5 text-gray-500">LMI Required</p>
+                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">LMI Required</p>
                       <p className="font-medium">
                         {current.lmiRequired
-                          ? <span className="text-primary">{current.lmiPercent}% minimum</span>
+                          ? <span className="text-teal-700">{current.lmiPercent}% minimum</span>
                           : <span className="text-gray-400">Not required</span>}
                       </p>
                     </div>
                     {current.capacityMW && (
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5 text-gray-500">Program Capacity</p>
-                        <p className="font-medium text-gray-900">{current.capacityMW} MW</p>
+                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">Program Capacity</p>
+                        <p className="font-medium text-ink">{current.capacityMW} MW</p>
                       </div>
                     )}
                     {current.lastUpdated && (
                       <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5 text-gray-500">Data As Of</p>
+                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">Data As Of</p>
                         <p className="text-gray-400">{current.lastUpdated}</p>
                       </div>
                     )}
                   </div>
 
-                  {/* IX notes */}
                   {current.ixNotes && (
-                    <div className="rounded-lg px-3 py-2.5 bg-amber-50 border border-amber-200">
-                      <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-amber-600">IX Notes</p>
-                      <p className="text-[11px] leading-relaxed text-gray-700">{current.ixNotes}</p>
+                    <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.20)' }}>
+                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1" style={{ color: '#B45309' }}>IX Notes</p>
+                      <p className="text-[12px] leading-relaxed text-ink">{current.ixNotes}</p>
                     </div>
                   )}
 
-                  {/* Program notes */}
                   {current.programNotes && (
-                    <div className="rounded-lg px-3 py-2.5 bg-primary-50 border border-primary-100">
-                      <p className="text-[9px] font-bold uppercase tracking-wider mb-1 text-primary">Program Context</p>
-                      <p className="text-[11px] leading-relaxed text-gray-700">{current.programNotes}</p>
+                    <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(15,118,110,0.06)', border: '1px solid rgba(15,118,110,0.20)' }}>
+                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>Program Context</p>
+                      <p className="text-[12px] leading-relaxed text-ink">{current.programNotes}</p>
                     </div>
                   )}
-                </>
+
+                  {!current.ixNotes && !current.programNotes && (
+                    <p className="text-xs text-ink-muted italic">No additional diligence notes for this state. Run a fresh Lens analysis for AI commentary.</p>
+                  )}
+                </div>
               ) : (
-                <p className="text-xs text-gray-500">No market data available for this state.</p>
+                <p className="text-xs text-ink-muted">No market data available for this state.</p>
               )}
-            </div>
+            </TabsContent>
 
-            {/* ── Column divider ── */}
-            <div className="hidden md:block" style={{ background: '#E5E7EB' }} />
-
-            {/* ── Right: Your Deal (collapsible) ─────────────────────────── */}
-            <YourDealSection project={project} stage={stage} setStage={setStage} notes={notes} setNotes={setNotes} saveStatus={saveStatus} />
-          </div>
+            {/* ── Tab 3: Notes — user's own deal log ───────────────────── */}
+            <TabsContent value="notes">
+              <YourDealSection project={project} stage={stage} setStage={setStage} notes={notes} setNotes={setNotes} saveStatus={saveStatus} />
+            </TabsContent>
+          </Tabs>
 
           {/* ── Action footer ── */}
           <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #E5E7EB' }}>
@@ -795,11 +811,10 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
   )
 }
 
-// ── Your Deal Section (collapsible) ──────────────────────────────────────────
+// ── Your Deal Section ────────────────────────────────────────────────────────
+// V3: Lives inside the "Notes" tab. Tab activation IS the open state, so
+// the previous collapsible toggle is redundant and was removed.
 function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus }) {
-  const hasNotes = notes && notes.trim().length > 0
-  const [dealOpen, setDealOpen] = useState(hasNotes)
-
   // "Last analyzed X days ago"
   const daysAgo = project.savedAt
     ? Math.max(0, Math.round((Date.now() - new Date(project.savedAt).getTime()) / 86400000))
@@ -807,37 +822,23 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
 
   return (
     <div className="flex flex-col gap-3">
-      <button
-        type="button"
-        onClick={(e) => { e.stopPropagation(); setDealOpen(o => !o) }}
-        className="flex items-center justify-between w-full"
-      >
-        <div className="flex items-center gap-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Your Deal</p>
-          {daysAgo != null && (
-            <span className="text-[9px] font-mono text-gray-400">
-              · {daysAgo === 0 ? 'Saved today' : daysAgo === 1 ? 'Saved yesterday' : `Saved ${daysAgo}d ago`}
-            </span>
-          )}
+      {/* Header strip — saved-on caption + always-visible meta + stage picker */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap text-xs">
+          <span className="font-medium text-ink">{project.mw} MW AC</span>
+          {project.technology && <><span className="text-gray-300">·</span><span className="text-ink-muted">{project.technology}</span></>}
+          <span className="text-gray-300">·</span>
+          <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
         </div>
-        <svg
-          className={`transition-transform duration-200 text-gray-400 ${dealOpen ? 'rotate-180' : ''}`}
-          width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-        >
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      </button>
-
-      {/* Always-visible summary strip */}
-      <div className="flex items-center gap-3 flex-wrap text-xs">
-        <span className="font-medium text-gray-700">{project.mw} MW AC</span>
-        {project.technology && <><span className="text-gray-300">·</span><span className="text-gray-700">{project.technology}</span></>}
-        <span className="text-gray-300">·</span>
-        <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
+        {daysAgo != null && (
+          <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-muted">
+            {daysAgo === 0 ? 'Saved today' : daysAgo === 1 ? 'Saved yesterday' : `Saved ${daysAgo}d ago`}
+          </span>
+        )}
       </div>
 
-      {dealOpen && (
-        <div className="flex flex-col gap-4 mt-1">
+      {/* Always-expanded content — replaces the legacy collapsible */}
+      <div className="flex flex-col gap-4 mt-1">
           {/* Pipeline progress */}
           <div className="rounded-lg px-4 py-3 bg-white border border-gray-200">
             <p className="text-[9px] font-bold uppercase tracking-wider mb-3 text-gray-500">Pipeline Progress</p>
@@ -903,8 +904,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
               }}
             />
           </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
