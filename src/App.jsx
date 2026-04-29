@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompareProvider } from './context/CompareContext'
 import { TooltipProvider } from './components/ui/Tooltip'
+import { ToastProvider } from './components/ui/Toast'
 import CompareTray from './components/CompareTray'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
@@ -31,6 +32,7 @@ export default function App() {
       <AuthProvider>
         <CompareProvider>
         <TooltipProvider delayDuration={200}>
+        <ToastProvider>
         <Nav />
         <Routes>
           {/* Public routes */}
@@ -70,6 +72,7 @@ export default function App() {
         </Routes>
         <Footer />
         <CompareTray />
+        </ToastProvider>
         </TooltipProvider>
         </CompareProvider>
       </AuthProvider>

@@ -9,6 +9,7 @@ import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
+import { useToast } from '../components/ui/Toast'
 import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2592,17 +2593,6 @@ function CountyCombobox({ stateId, value, onValueChange }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Save confirmation toast
 // ─────────────────────────────────────────────────────────────────────────────
-function SaveToast({ visible }) {
-  return (
-    <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'}`}>
-      <div className="flex items-center gap-2.5 bg-gray-900 text-white text-sm font-medium px-4 py-3 rounded-lg shadow-lg">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34B08A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Project saved to Library
-      </div>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Add-to-compare button (wired to CompareContext)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2707,7 +2697,7 @@ function SearchContent() {
   const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
   const [analyzing, setAnalyzing]     = useState(false)
-  const [showToast, setShowToast]     = useState(false)
+  const toast = useToast()
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
   const [saving, setSaving]       = useState(false)
@@ -2873,8 +2863,10 @@ function SearchContent() {
         if (!error) {
           setSaving(false)
           setSaveModal(null)
-          setShowToast(true)
-          setTimeout(() => setShowToast(false), 3000)
+          toast.success('Project saved to Library', {
+            eyebrow: '◆ Saved',
+            description: `${payload.name} · ${payload.county} County, ${payload.state}`,
+          })
           if (droppedFields.length) {
             console.warn('[Save to Library] saved without these fields (run migration 011 in Supabase to enable):', droppedFields)
           }
@@ -3225,7 +3217,8 @@ function SearchContent() {
         )}
       </main>
 
-      <SaveToast visible={showToast} />
+      {/* V3: SaveToast replaced by global ToastProvider (Radix Toast +
+          Motion). Removed import of legacy SaveToast component below. */}
 
       {/* Save modal — sign-in prompt if not authed, name input if authed */}
       {saveModal && (
