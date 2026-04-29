@@ -422,7 +422,6 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
   const [stage,      setStage]      = useState(project.stage || '')
-  const [exporting,  setExporting]  = useState(false)
   const [countyData, setCountyData] = useState(null)
   const idleTimerRef = useRef(null)
 
@@ -433,44 +432,56 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
 
   const current   = stateProgramMap[project.state]
 
-  const handleExportPDF = async (e) => {
-    e.stopPropagation()
-    setExporting(true)
-    try {
-      const { exportProjectPDF } = await import('../components/ProjectPDFExport')
-      await exportProjectPDF({ ...project, notes, stage }, current)
-    } finally {
-      setExporting(false)
-    }
-  }
-
-  // V3: Deal Memo — fetches AI commentary, then exports PDF with the memo embedded
+  // V3: consolidated single PDF export. Was previously two buttons
+  // ("Export Summary PDF" + "Generate Deal Memo") that produced near-identical
+  // outputs -- the only difference was the AI section. User flagged the
+  // redundancy. Now there's one path: it tries the AI memo, falls back
+  // gracefully if the AI call fails or times out.
   const [memoExporting, setMemoExporting] = useState(false)
   const handleExportDealMemo = async (e) => {
     e.stopPropagation()
     setMemoExporting(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      let memo = null
-      if (token) {
-        const res = await fetch('/api/lens-insight', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            action: 'deal-memo',
-            project: { ...project, stage, technology: project.technology },
-            stateProgram: current,
-            countyData,
-          }),
-        })
-        if (res.ok) {
-          const json = await res.json()
-          memo = json.memo || null
-        }
+      // Recompute the LIVE score the same way the card displays it.
+      // Without this, the PDF would print current.feasibilityScore (bare
+      // state value) which can differ from what the user sees on the card
+      // by 20+ points for non-CS technologies. Fixes the Cumberland ME
+      // mismatch the user reported.
+      let liveScore = null
+      if (current) {
+        const subs = computeSubScores(current, countyData, stage, project.technology)
+        liveScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
       }
+      const stateOverride = current ? { ...current, feasibilityScore: liveScore } : current
+
+      // Try to fetch the AI memo (Sonnet); fall back to data-only PDF if it fails.
+      let memo = null
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (token) {
+          const res = await fetch('/api/lens-insight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              action: 'deal-memo',
+              project: { ...project, stage, technology: project.technology },
+              stateProgram: current,
+              countyData,
+            }),
+          })
+          if (res.ok) {
+            const json = await res.json()
+            memo = json.memo || null
+          }
+        }
+      } catch (err) {
+        // Best-effort: AI memo failure shouldn't block the PDF
+        console.warn('[Deal Memo] AI fetch failed; exporting data-only PDF:', err.message)
+      }
+
       const { exportProjectPDF } = await import('../components/ProjectPDFExport')
-      await exportProjectPDF({ ...project, notes, stage }, current, memo)
+      await exportProjectPDF({ ...project, notes, stage }, stateOverride, memo)
     } finally {
       setMemoExporting(false)
     }
@@ -752,35 +763,13 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
               </svg>
               Re-Analyze in Lens →
             </Link>
-            <button
-              onClick={handleExportPDF}
-              disabled={exporting || memoExporting}
-              className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-gray-600 border border-gray-200 bg-white hover:bg-gray-50"
-            >
-              {exporting ? (
-                <>
-                  <span className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-primary animate-spin" />
-                  Generating…
-                </>
-              ) : (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="18" x2="12" y2="12"/>
-                    <polyline points="9 15 12 18 15 15"/>
-                  </svg>
-                  Export Summary PDF
-                </>
-              )}
-            </button>
-            {/* V3: Deal Memo — IC-grade analyst memo with AI commentary + recommendation */}
+            {/* V3: Single PDF export — IC-grade Deal Memo. Tries AI first; falls back to data-only PDF if AI unavailable. */}
             <button
               onClick={handleExportDealMemo}
-              disabled={exporting || memoExporting}
+              disabled={memoExporting}
               className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white"
               style={{ background: '#0F1A2E' }}
-              title="Generate IC-grade Deal Memo with AI analysis"
+              title="Generate IC-grade Deal Memo PDF with AI analysis"
             >
               {memoExporting ? (
                 <>
@@ -790,9 +779,12 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
               ) : (
                 <>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <polyline points="9 15 12 18 15 15"/>
                   </svg>
-                  Generate Deal Memo
+                  Export Deal Memo PDF
                 </>
               )}
             </button>
