@@ -1,5 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import * as RadixTabs from '@radix-ui/react-tabs'
+import { motion } from 'motion/react'
+import { supabase } from '../lib/supabase'
+
+// Module-level cache: per-state AI summary, 24h TTL. Survives page-internal
+// remounts so flipping between states + back doesn't re-spend tokens.
+// Keyed by `${stateId}::${YYYY-MM-DD}` so the day rolls forward automatically.
+const _stateNewsSummaryCache = new Map()
+const todayKey = () => new Date().toISOString().slice(0, 10)
 
 function formatRelativeDate(date) {
   const now = new Date()
@@ -72,33 +81,34 @@ const TABS = [
   { id: 'news',        label: 'News' },
 ]
 
-function TabBar({ active, onChange, newsCount }) {
+// V3: Radix-driven tab trigger with mono uppercase eyebrow + teal underline.
+// Same visual language as Library tabs and Lens AI commentary -- one shared
+// editorial pattern across data surfaces.
+function StateTabTrigger({ value, label, count }) {
   return (
-    <div className="flex border-b border-gray-200 px-3 bg-gray-50">
-      {TABS.map((tab) => {
-        const isActive = active === tab.id
-        return (
-          <button
-            key={tab.id}
-            onClick={() => onChange(tab.id)}
-            className={`relative px-3 py-2 text-xs font-semibold transition-colors ${
-              isActive ? 'text-brand' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <span>{tab.label}</span>
-            {tab.id === 'news' && newsCount > 0 && (
-              <span className="ml-1 text-[10px] text-gray-400 font-mono">({newsCount})</span>
-            )}
-            {isActive && (
-              <span
-                className="absolute left-0 right-0 -bottom-px h-0.5 rounded-t"
-                style={{ background: '#14B8A6' }}
-              />
-            )}
-          </button>
-        )
-      })}
-    </div>
+    <RadixTabs.Trigger
+      value={value}
+      className="relative px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted transition-colors hover:text-ink data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:rounded-t data-[state=active]:after:bg-[#0F766E] outline-none focus-visible:bg-gray-100"
+    >
+      <span>{label}</span>
+      {count != null && count > 0 && (
+        <span className="ml-1.5 text-[9px] text-gray-400 font-mono normal-case tracking-normal">({count})</span>
+      )}
+    </RadixTabs.Trigger>
+  )
+}
+
+function StateTabContent({ value, children }) {
+  return (
+    <RadixTabs.Content value={value} className="outline-none">
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+      >
+        {children}
+      </motion.div>
+    </RadixTabs.Content>
   )
 }
 
@@ -235,6 +245,52 @@ function SubscribersTab({ state }) {
 
 // ── News tab ───────────────────────────────────────────────────────────────
 function NewsTab({ state, news }) {
+  const cacheKey = `${state.id}::${todayKey()}`
+  const [summary, setSummary] = useState(_stateNewsSummaryCache.get(cacheKey) ?? null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+
+  // Fetch a state-scoped AI pulse the first time the user lands on this tab.
+  // Cached per-state per-day so revisiting is free; one paragraph synthesizing
+  // the recent items into "what matters for this state's developers."
+  useEffect(() => {
+    if (summary || summaryLoading || news.length === 0) return
+    if (_stateNewsSummaryCache.has(cacheKey)) {
+      setSummary(_stateNewsSummaryCache.get(cacheKey))
+      return
+    }
+    let cancelled = false
+    setSummaryLoading(true)
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) { setSummaryLoading(false); return }
+        const items = news.slice(0, 12).map(n => ({
+          headline: n.headline,
+          summary: n.summary,
+          pillar: n.pillar,
+          source: n.source,
+        }))
+        const res = await fetch('/api/lens-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ action: 'news-summary', items, state: state.name }),
+        })
+        if (cancelled) return
+        if (!res.ok) { setSummaryLoading(false); return }
+        const json = await res.json()
+        if (!cancelled && json.summary) {
+          _stateNewsSummaryCache.set(cacheKey, json.summary)
+          setSummary(json.summary)
+        }
+        setSummaryLoading(false)
+      } catch {
+        if (!cancelled) setSummaryLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [cacheKey, news.length])
+
   if (news.length === 0) {
     return (
       <div className="px-5 py-6 text-center">
@@ -243,8 +299,29 @@ function NewsTab({ state, news }) {
       </div>
     )
   }
+
   return (
     <div className="px-5 py-4">
+      {/* AI pulse — state-scoped synthesis (Pro only; free users silently skip) */}
+      {(summary || summaryLoading) && (
+        <div
+          className="mb-4 px-3 py-2.5 rounded-md"
+          style={{ background: 'rgba(15,118,110,0.05)', border: '1px solid rgba(15,118,110,0.18)' }}
+        >
+          <p className="font-mono text-[9px] uppercase tracking-[0.20em] mb-1.5" style={{ color: '#0F766E' }}>
+            ◆ Market Pulse · {state.name}
+          </p>
+          {summaryLoading && !summary ? (
+            <div className="flex items-center gap-2 text-[11px] text-ink-muted">
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
+              Synthesizing recent activity…
+            </div>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-ink">{summary}</p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-2">
         {news.map((item) => (
           <a
@@ -267,7 +344,6 @@ function NewsTab({ state, news }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function StateDetailPanel({ state, news = [], onClose }) {
-  const [activeTab, setActiveTab] = useState('program')
   if (!state) return null
 
   const status = STATUS_CONFIG[state.csStatus] || STATUS_CONFIG.none
@@ -330,16 +406,23 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <TabBar active={activeTab} onChange={setActiveTab} newsCount={relatedNews.length} />
+      {/* V3: Radix-driven tabs — replaces hand-rolled TabBar. Adds keyboard
+          navigation (arrow keys), focus management, and Motion fade. */}
+      <RadixTabs.Root defaultValue="program" className="flex-1 flex flex-col min-h-0">
+        <RadixTabs.List className="flex border-b border-gray-200 px-3 bg-gray-50 flex-shrink-0">
+          <StateTabTrigger value="program"     label="Program" />
+          <StateTabTrigger value="market"      label="Market" />
+          <StateTabTrigger value="subscribers" label="Subscribers" />
+          <StateTabTrigger value="news"        label="News" count={relatedNews.length} />
+        </RadixTabs.List>
 
-      {/* Tab body */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'program'     && <ProgramTab state={state} runway={runway} />}
-        {activeTab === 'market'      && <MarketTab state={state} />}
-        {activeTab === 'subscribers' && <SubscribersTab state={state} />}
-        {activeTab === 'news'        && <NewsTab state={state} news={relatedNews} />}
-      </div>
+        <div className="flex-1 overflow-y-auto">
+          <StateTabContent value="program"><ProgramTab state={state} runway={runway} /></StateTabContent>
+          <StateTabContent value="market"><MarketTab state={state} /></StateTabContent>
+          <StateTabContent value="subscribers"><SubscribersTab state={state} /></StateTabContent>
+          <StateTabContent value="news"><NewsTab state={state} news={relatedNews} /></StateTabContent>
+        </div>
+      </RadixTabs.Root>
 
       {/* Footer */}
       <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between">
