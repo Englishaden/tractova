@@ -1,7 +1,7 @@
 # Tractova — 4-Week Premium Buildout Plan
 
 > Last updated: April 29, 2026
-> Status: V3 BUILD DAY 4 — Share trio shipped, deps cleaned, ui/* primitive sweep through Profile + Admin, audit-timeline view counts, MetricsBar KPI tooltips, **Wave 2 Utility Outreach Kit shipped (first Wave 2 feature)**. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
+> Status: V3 BUILD DAY 4 — Share trio · ui/* sweep · audit view counts · MetricsBar tooltips · **Wave 2 Utility Outreach Kit** · **AI response cache (cost discipline)** · **Wave 2 PUC Docket Tracker MVP**. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
 
 ---
 
@@ -11,7 +11,11 @@ Picked up from Day 3's "Next-Session Pickup" P2 list. All shipped + pushed to `o
 
 ### Late-evening supplement (after Day 4 wrap-up commit)
 
-Four more items closed before EOD — including the **first Wave 2 feature** and an **AI cost-discipline pass**:
+Five more items closed before EOD — including the **first two Wave 2 features** and an **AI cost-discipline pass**:
+
+- **`<PUC-COMMIT>`** **Wave 2 — PUC Docket Tracker MVP** (V3 §Wave 2). New `puc_dockets` table (migration 020) tracking active state Public Utility Commission proceedings: docket number, title, status (`comment_open` / `pending_decision` / `filed` / `closed`), pillar, impact tier, filed date, comment deadline, decision target, summary, source URL. Public read via RLS; writes admin-only via service role. New `getPucDockets({ state, includeClosed })` accessor + `upsertPucDocket` / `deletePucDocket` admin write helpers (cache invalidation on `puc_dockets:*`). New shared `RegulatoryActivityPanel` component (`src/components/RegulatoryActivityPanel.jsx`, ~290 lines) handles both surfaces — Lens "Regulatory Activity" section after the pillar cards (Pro-gated; Lens itself is already Pro-gated so always shows full detail) and Dashboard StateDetailPanel "Regulatory" tab (5th tab, Pro-teaser for free users with live count, full detail for Pro). Status pills color-coded: comment-open = teal (most actionable, V3 brand), pending-decision = amber, filed = navy, closed = gray. Impact-tier dot + pillar tag complete the metadata strip. Comment-deadline urgency: <14 days highlights amber. Empty-state copy is honest ("No active PUC dockets currently tracked for {state}; Tractova reviews state PUC filings weekly"). New "PUC Dockets" tab in /admin lets the admin (you) curate real, verified dockets — no synthetic seed data per the data-accuracy bar. ~530 lines net across migration + accessor + component + Lens wiring + Dashboard wiring + Admin tab.
+
+Four earlier shipments:
 
 - **`2b5fef7`** **AI response cache (cost discipline before Wave 2 scale)**. New `ai_response_cache` table (migration 019, service-role only via RLS-with-no-policies) + `buildCacheKey` / `cacheGet` / `cacheSet` helpers in `lens-insight.js`. Three actions now cache: **verdict** (6h TTL, keyed on `{state, county, mw_rounded_1dp, stage, technology, dataVersion}`), **deal-memo** (24h TTL, keyed on `{projectId, stage, technology, mw_rounded_1dp, dataVersion}`), **utility-outreach** (24h TTL, same key shape as deal-memo). `dataVersion` is `stateProgram.lastUpdated` so admin program edits invalidate stale entries automatically. Cache hits cross users — two Pro accounts running Lens on `IL/Will/5MW/Prospecting/CommunitySolar` share one Sonnet call until either the 6h window closes or the IL state program is edited. Cross-user sharing is safe for outreach + deal-memo because their outputs are project-derived, not user-derived (the kit's bracketed-placeholder rule was already designed for this). Expected impact at 100 Pro users: COGS drops from ~$1.51/user/mo → ~$1.10/user/mo (94% gross margin instead of 90%). Failures on cache read/write are logged but never block the user-facing call. Sensitivity / portfolio / compare / news-summary skipped intentionally — sensitivity is too small + scenario-specific to benefit, portfolio is user-specific by design, compare is project-pair-specific, news-summary already has a per-state daily cache pattern.
 
@@ -56,7 +60,7 @@ Two earlier shipments:
 - 2FA on GitHub account verified
 
 ### Pending Supabase migrations to run (cumulative across all 4 days)
-✅ **Applied** through 018. ⏳ **019 pending** (run before cache becomes operational):
+✅ **Applied** through 019 (per user confirmation). ⏳ **020 pending** (run before PUC Docket Tracker becomes operational):
 - `010_alert_positive.sql` (Day 1)
 - `011_projects_columns_backfill.sql` (Day 1)
 - `012_ix_queue_snapshots.sql` (Day 1)
@@ -66,7 +70,8 @@ Two earlier shipments:
 - `016_projects_last_score.sql` (Day 3)
 - `017_share_tokens.sql` (Day 3)
 - `018_project_events_shared.sql` (Day 4)
-- ⏳ `019_ai_response_cache.sql` (Day 4 cost-discipline pass — **must run before cache fires**; until then `cacheGet` returns null on every call and the system falls back to fresh Sonnet calls. No regression — just no savings until applied.)
+- ✅ `019_ai_response_cache.sql` (Day 4 cost-discipline pass — applied; cache now active)
+- ⏳ `020_puc_dockets.sql` (Day 4 Wave 2 — **must run before PUC Docket Tracker is queryable**; until then Lens / Dashboard regulatory surfaces show empty-state "No active dockets currently tracked." No regression — just empty surfaces until applied + admin curates dockets via `/admin > PUC Dockets`.)
 
 ### Deferred / decisions
 - **Search.jsx form inputs ui/* refactor** — plan explicitly says "let it happen as surfaces are touched, not as a bulk pass." Search is the biggest surface AND the most recently churned (gauge/sensitivity rearchitecture is fresh on Day 1). Deferred to natural touches.
@@ -82,7 +87,7 @@ Most P2 items now closed. Remaining backlog in `Tractova_V3_Plan.md`:
 - Tailwind v3 → v4 + Vite 5 → 8 dedicated tooling-refresh session (trigger: V3 Wave 3 Deal Calendar needing shadcn Calendar primitive)
 
 ### Day 4 commit summary
-9 commits, ~830 lines net change. Three visible feature shipments (share-trio + privacy fix · MetricsBar tooltips · audit-timeline view counts) plus the first Wave 2 feature (Utility Outreach Kit + post-ship timeout fix + dialog redesign + bracket-placeholder prompt) plus the AI response cache (Wave 2 cost discipline). The rest are zero-visible-behavior-change refactors (Profile / Admin ui/* sweep, deps cleanup, doc updates).
+10+ commits, ~1,360 lines net change. Visible features: share-trio + privacy fix · MetricsBar tooltips · audit-timeline view counts · **Utility Outreach Kit (Wave 2 #1)** + flagship dialog redesign + bracket-placeholder prompt · **AI response cache (cost discipline)** · **PUC Docket Tracker MVP (Wave 2 #2)**. Zero-visible-behavior-change refactors: Profile / Admin ui/* sweep, deps cleanup, doc updates.
 
 ---
 

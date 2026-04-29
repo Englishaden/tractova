@@ -119,10 +119,10 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 - `016_projects_last_score.sql` — **CONFIRMED RUN** — `score_change` audit events fire ✅
 - `017_share_tokens.sql` — **CONFIRMED RUN** — Deal Memo Share Link fully live ✅
 
-⏳ **Pending — run to activate AI response cache:**
-- `019_ai_response_cache.sql` — AI response cache table (Day 4 cost-discipline pass). Until run, `cacheGet` returns null on every call and Sonnet runs fresh on each request — no regression, just no savings.
+⏳ **Pending — run to activate PUC Docket Tracker MVP:**
+- `020_puc_dockets.sql` — PUC docket table (Day 4 Wave 2 #2). Until run, Lens / Dashboard regulatory surfaces show empty-state. No regression — just empty surfaces until applied + admin curates dockets via `/admin > PUC Dockets`.
 
-(`018_project_events_shared.sql` already applied alongside the share-trio.)
+(`018_project_events_shared.sql` already applied alongside the share-trio. `019_ai_response_cache.sql` confirmed applied — cache live.)
 
 > Note on the "destructive" warning Supabase shows on 014/017: false positive. The `drop policy if exists` lines are the standard idempotent pattern for RLS — Supabase's own docs use them. Your data is not at risk.
 
@@ -153,7 +153,9 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 **P3 — V3 Wave 2 (defensible data layer):**
 - **IX Queue Forecaster** — needs ≥12 weekly snapshots (Q3 launch). P50/P90 study completion modeling.
 - ✅ **Utility Outreach Kit** — shipped Day 4 late-evening. New `'utility-outreach'` action through `lens-insight.js` (multiplexed, 11/12 function count holds). Generates a tailored pre-application email + utility context (study process / queue wait / tariff schedule) + attachments checklist + 30/60/90-day follow-up playbook + phone talking points + state-specific gotcha note. Renders in a Radix Dialog with per-section + entire-kit copy actions. Pro-gated.
-- Remaining: Comparable Deals DB, PUC Docket Tracker MVP, Subscriber Acquisition Intel.
+- ✅ **AI response cache** — shipped Day 4 late-evening. Cross-user shared cache (migration 019) on verdict / deal-memo / utility-outreach. ~30% Anthropic cost reduction expected (~$1.51 → ~$1.10 per Pro user / mo).
+- ✅ **PUC Docket Tracker MVP** — shipped Day 4 late-evening. Migration 020 + `getPucDockets` accessor + shared `RegulatoryActivityPanel` component used in Lens (per-project state) + Dashboard StateDetailPanel "Regulatory" tab + Admin "PUC Dockets" tab for curation. Pro-gated on Dashboard with live-count teaser; Lens already Pro-gated at page level. No synthetic seed data per data-accuracy bar — admin curates real verified dockets.
+- Remaining: Comparable Deals DB, Subscriber Acquisition Intel.
 
 ---
 
@@ -502,8 +504,9 @@ Only after V2-Refactored ships and at least 20-50 Pro users are paying.
 ### Wave 2 — Defensible data layer (8-10 weeks)
 - IX Queue Forecaster (needs ≥12 weekly snapshots)
 - Comparable Deals DB (anonymized; ISO IX + EIA Form 860)
-- PUC Docket Tracker MVP
+- ✅ PUC Docket Tracker MVP — shipped Day 4 late-evening (migration 020 + RegulatoryActivityPanel + Admin curation tab)
 - ✅ Utility Outreach Kit (`action: 'utility-outreach'`) — shipped Day 4 late-evening
+- ✅ AI response cache (cost discipline; pre-scale unit-economics fix) — shipped Day 4 late-evening
 - **Premium tier $39 launches when Wave 2 ships**
 
 ### Wave 3 — Workflow layer (8-12 weeks)

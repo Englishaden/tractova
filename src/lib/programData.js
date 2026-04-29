@@ -225,6 +225,44 @@ export async function getNewsFeed() {
   })
 }
 
+// ── getPucDockets ─────────────────────────────────────────────────────────────
+// V3 Wave 2 — returns active PUC dockets, optionally filtered to a state.
+// Cached for 1h via withCache (puc_dockets:{state} or puc_dockets:all).
+// Closed / inactive dockets are filtered out by default.
+export async function getPucDockets({ state, includeClosed = false } = {}) {
+  const cacheKey = state ? `puc_dockets:${state}` : 'puc_dockets:all'
+  return withCache(cacheKey, async () => {
+    let query = supabase
+      .from('puc_dockets')
+      .select('*')
+      .eq('is_active', true)
+      .order('filed_date', { ascending: false, nullsFirst: false })
+    if (state) query = query.eq('state', state)
+    if (!includeClosed) query = query.neq('status', 'closed')
+    const { data, error } = await query
+    if (error) {
+      console.warn('[puc_dockets] fetch failed:', error.message)
+      return []
+    }
+    return (data || []).map(row => ({
+      id:               row.id,
+      state:            row.state,
+      pucName:          row.puc_name,
+      docketNumber:     row.docket_number,
+      title:            row.title,
+      status:           row.status,
+      pillar:           row.pillar,
+      impactTier:       row.impact_tier,
+      filedDate:        row.filed_date,
+      commentDeadline:  row.comment_deadline,
+      decisionTarget:   row.decision_target,
+      summary:          row.summary,
+      sourceUrl:        row.source_url,
+      lastUpdated:      row.last_updated,
+    }))
+  })
+}
+
 // ── getDashboardMetrics ───────────────────────────────────────────────────────
 // Calls the get_dashboard_metrics() Supabase RPC.
 // Returns live-computed aggregates — no manual metrics.js entry ever again.
@@ -431,6 +469,26 @@ export async function deleteNewsItem(id) {
   if (error) throw error
   invalidateCache('news_feed')
   invalidateCache('dashboard_metrics')
+}
+
+// ── PUC Docket admin write helpers ───────────────────────────────────────────
+export async function upsertPucDocket(fields) {
+  const payload = { ...fields, last_updated: new Date().toISOString() }
+  const { error } = await supabase
+    .from('puc_dockets')
+    .upsert(payload)
+  if (error) throw error
+  invalidateCache('puc_dockets:*')
+}
+
+export async function deletePucDocket(id) {
+  // Soft-delete via is_active=false so the audit trail is preserved.
+  const { error } = await supabase
+    .from('puc_dockets')
+    .update({ is_active: false, last_updated: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache('puc_dockets:*')
 }
 
 export async function updateIXQueueRow(id, fields) {

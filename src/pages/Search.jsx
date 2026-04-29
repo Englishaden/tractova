@@ -8,6 +8,7 @@ import { useSubscription } from '../hooks/useSubscription'
 import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
+import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
 import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
@@ -3203,6 +3204,16 @@ function SearchContent() {
                 substations={results.substations}
               />
             </div>
+
+            {/* V3 Wave 2 — Regulatory Activity panel (PUC docket tracker).
+                Pro-gated; non-Pro users see a teaser with a live count. */}
+            <SectionDivider />
+            <RegulatoryActivityPanel
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
+              isPro={isPro}
+              mode="lens"
+            />
 
             {/* Bottom CTA / disclaimer */}
             <div className="mt-5 flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-5 py-4">

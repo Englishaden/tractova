@@ -5,12 +5,13 @@ import {
   getStatePrograms, getNewsFeed, getAllCountyData, getAllRevenueRates, getAllIXQueueData,
   updateStateProgram, updateCountyIntelligence, upsertCountyIntelligence,
   updateRevenueRates, upsertNewsItem, deleteNewsItem, updateIXQueueRow,
+  getPucDockets, upsertPucDocket, deletePucDocket,
   computeFeasibilityScore, invalidateCache,
 } from '../lib/programData'
 import { Input, Select, Button } from '../components/ui'
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
-const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Queue', 'Staging', 'Data Health', 'Test Notifications']
+const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Queue', 'PUC Dockets', 'Staging', 'Data Health', 'Test Notifications']
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI
@@ -653,6 +654,203 @@ function NewsFeedTab() {
                 <Badge color={item.pillar === 'offtake' ? 'green' : item.pillar === 'ix' ? 'yellow' : 'blue'}>{item.pillar}</Badge>
                 <Badge>{item.type}</Badge>
                 <span className="text-[10px] text-gray-400">{item.source} — {item.date}</span>
+              </div>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-primary transition-colors">Edit</button>
+              <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUC Dockets Tab — V3 Wave 2 PUC Docket Tracker MVP
+// ─────────────────────────────────────────────────────────────────────────────
+// Curate active state Public Utility Commission proceedings that materially
+// affect community-solar / DER programs. Surfaces in Lens (per-project state)
+// and Dashboard StateDetailPanel (Regulatory tab).
+
+function PucDocketsTab() {
+  const [items, setItems]       = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [editId, setEditId]     = useState(null)
+  const [editData, setEditData] = useState({})
+  const [saving, setSaving]     = useState(false)
+  const [error, setError]       = useState(null)
+  const [adding, setAdding]     = useState(false)
+  const [filterState, setFilterState] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      invalidateCache('puc_dockets:*')
+      const data = await getPucDockets({ includeClosed: true })
+      setItems(data)
+    } catch (e) { setError(e.message) }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const blank = {
+    state: '',
+    puc_name: '',
+    docket_number: '',
+    title: '',
+    status: 'filed',
+    pillar: 'offtake',
+    impact_tier: 'medium',
+    filed_date: new Date().toISOString().split('T')[0],
+    comment_deadline: '',
+    decision_target: '',
+    summary: '',
+    source_url: '',
+  }
+
+  const startAdd = () => {
+    setAdding(true)
+    setEditData({ ...blank })
+    setEditId(null)
+    setError(null)
+  }
+
+  const startEdit = (item) => {
+    setEditId(item.id)
+    setEditData({
+      id:               item.id,
+      state:            item.state,
+      puc_name:         item.pucName,
+      docket_number:    item.docketNumber,
+      title:            item.title,
+      status:           item.status,
+      pillar:           item.pillar,
+      impact_tier:      item.impactTier,
+      filed_date:       item.filedDate || '',
+      comment_deadline: item.commentDeadline || '',
+      decision_target:  item.decisionTarget || '',
+      summary:          item.summary,
+      source_url:       item.sourceUrl || '',
+    })
+    setAdding(false)
+    setError(null)
+  }
+
+  const handleChange = (field, value) => setEditData(prev => ({ ...prev, [field]: value }))
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError(null)
+    try {
+      // Normalize empty date strings to null so the DB column stays clean.
+      const payload = {
+        state:            editData.state.toUpperCase(),
+        puc_name:         editData.puc_name,
+        docket_number:    editData.docket_number,
+        title:            editData.title,
+        status:           editData.status,
+        pillar:           editData.pillar,
+        impact_tier:      editData.impact_tier,
+        filed_date:       editData.filed_date       || null,
+        comment_deadline: editData.comment_deadline || null,
+        decision_target:  editData.decision_target  || null,
+        summary:          editData.summary,
+        source_url:       editData.source_url       || null,
+        is_active:        true,
+      }
+      if (editId) payload.id = editId
+      await upsertPucDocket(payload)
+      setEditId(null)
+      setAdding(false)
+      await load()
+    } catch (e) { setError(e.message) }
+    setSaving(false)
+  }
+
+  const handleDeactivate = async (id) => {
+    if (!window.confirm('Remove this docket from the active feed? (Soft-deactivates; not destructive.)')) return
+    try {
+      await deletePucDocket(id)
+      await load()
+    } catch (e) { setError(e.message) }
+  }
+
+  if (loading) return <p className="text-sm text-gray-400 py-8 text-center">Loading PUC dockets...</p>
+
+  const isFormOpen = editId || adding
+
+  const visible = filterState
+    ? items.filter(i => i.state?.toUpperCase() === filterState.toUpperCase())
+    : items
+
+  const STATUS_OPTIONS = ['comment_open', 'pending_decision', 'filed', 'closed']
+  const PILLAR_OPTIONS = ['offtake', 'ix', 'site', 'cross-cutting']
+  const IMPACT_OPTIONS = ['high', 'medium', 'low']
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-400">{visible.length} of {items.length} dockets</span>
+          <input
+            type="text"
+            placeholder="Filter by state (e.g. IL)"
+            value={filterState}
+            onChange={(e) => setFilterState(e.target.value.toUpperCase())}
+            className="text-xs px-2.5 py-1.5 rounded border border-gray-200 bg-white font-mono uppercase tracking-wider w-40"
+          />
+        </div>
+        <button onClick={startAdd} className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors">+ Add docket</button>
+      </div>
+
+      {isFormOpen && (
+        <div className="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-4">
+            {adding ? 'New docket' : `Editing: ${editData.title?.slice(0, 40) || editData.docket_number}`}
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="State (2-letter)" value={editData.state} field="state" onChange={handleChange} />
+            <Field label="PUC Name" value={editData.puc_name} field="puc_name" onChange={handleChange} />
+            <Field label="Docket Number" value={editData.docket_number} field="docket_number" onChange={handleChange} />
+            <Field label="Status" value={editData.status} field="status" onChange={handleChange} options={STATUS_OPTIONS} />
+            <Field label="Pillar" value={editData.pillar} field="pillar" onChange={handleChange} options={PILLAR_OPTIONS} />
+            <Field label="Impact Tier" value={editData.impact_tier} field="impact_tier" onChange={handleChange} options={IMPACT_OPTIONS} />
+            <Field label="Title" value={editData.title} field="title" onChange={handleChange} className="md:col-span-2" />
+            <Field label="Filed Date" value={editData.filed_date} field="filed_date" onChange={handleChange} type="date" />
+            <Field label="Comment Deadline" value={editData.comment_deadline} field="comment_deadline" onChange={handleChange} type="date" />
+            <Field label="Decision Target" value={editData.decision_target} field="decision_target" onChange={handleChange} type="date" />
+            <Field label="Source URL" value={editData.source_url} field="source_url" onChange={handleChange} type="url" />
+            <Field label="Summary (1-2 sentences why developers care)" value={editData.summary} field="summary" onChange={handleChange} type="textarea" className="md:col-span-2" />
+          </div>
+          <div className="flex gap-3 pt-4 mt-4 border-t border-gray-100">
+            <Button variant="accent" onClick={handleSave} loading={saving}>
+              {saving ? 'Saving...' : adding ? 'Add docket' : 'Save changes'}
+            </Button>
+            <Button variant="link" onClick={() => { setEditId(null); setAdding(false) }} disabled={saving}>Cancel</Button>
+          </div>
+          {error && <p className="text-xs text-red-500 mt-3">{error}</p>}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {visible.length === 0 && (
+          <p className="text-xs text-gray-400 italic py-6 text-center">
+            No dockets match. Add one to begin populating the feed.
+          </p>
+        )}
+        {visible.map(item => (
+          <div key={item.id} className="flex items-start justify-between gap-3 py-2.5 border-b border-gray-100">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-gray-900 font-medium truncate">{item.title}</p>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <Badge>{item.state}</Badge>
+                <Badge color={item.status === 'comment_open' ? 'green' : item.status === 'pending_decision' ? 'yellow' : 'blue'}>{item.status}</Badge>
+                <Badge color={item.impactTier === 'high' ? 'red' : item.impactTier === 'medium' ? 'yellow' : 'gray'}>{item.impactTier}</Badge>
+                <Badge>{item.pillar}</Badge>
+                <span className="text-[10px] text-gray-400 truncate">{item.pucName} · {item.docketNumber}</span>
               </div>
             </div>
             <div className="flex gap-2 flex-shrink-0">
@@ -1396,9 +1594,10 @@ export default function Admin() {
             {tab === 2 && <RevenueRatesTab />}
             {tab === 3 && <NewsFeedTab />}
             {tab === 4 && <IXQueueTab />}
-            {tab === 5 && <StagingTab />}
-            {tab === 6 && <DataHealthTab />}
-            {tab === 7 && <TestNotificationsTab />}
+            {tab === 5 && <PucDocketsTab />}
+            {tab === 6 && <StagingTab />}
+            {tab === 7 && <DataHealthTab />}
+            {tab === 8 && <TestNotificationsTab />}
           </div>
         </div>
       </main>

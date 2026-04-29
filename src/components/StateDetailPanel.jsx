@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import * as RadixTabs from '@radix-ui/react-tabs'
 import { motion } from 'motion/react'
 import { supabase } from '../lib/supabase'
+import { useSubscription } from '../hooks/useSubscription'
+import { getPucDockets } from '../lib/programData'
+import RegulatoryActivityPanel from './RegulatoryActivityPanel'
 
 // Module-level cache: per-state AI summary, 24h TTL. Survives page-internal
 // remounts so flipping between states + back doesn't re-spend tokens.
@@ -79,6 +82,7 @@ const TABS = [
   { id: 'market',      label: 'Market' },
   { id: 'subscribers', label: 'Subscribers' },
   { id: 'news',        label: 'News' },
+  { id: 'regulatory',  label: 'Regulatory' },
 ]
 
 // V3: Radix-driven tab trigger with mono uppercase eyebrow + teal underline.
@@ -344,6 +348,21 @@ function NewsTab({ state, news }) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function StateDetailPanel({ state, news = [], onClose }) {
+  // V3 Wave 2 — fetch live PUC docket count for the regulatory tab badge
+  // and the panel content. Cached at the data-layer (1h TTL) so flipping
+  // states + back is free.
+  const [docketCount, setDocketCount] = useState(null)
+  const { isPro } = useSubscription()
+
+  useEffect(() => {
+    if (!state?.id) { setDocketCount(null); return }
+    let cancelled = false
+    getPucDockets({ state: state.id }).then(rows => {
+      if (!cancelled) setDocketCount((rows || []).length)
+    }).catch(() => { if (!cancelled) setDocketCount(0) })
+    return () => { cancelled = true }
+  }, [state?.id])
+
   if (!state) return null
 
   const status = STATUS_CONFIG[state.csStatus] || STATUS_CONFIG.none
@@ -414,6 +433,7 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
           <StateTabTrigger value="market"      label="Market" />
           <StateTabTrigger value="subscribers" label="Subscribers" />
           <StateTabTrigger value="news"        label="News" count={relatedNews.length} />
+          <StateTabTrigger value="regulatory"  label="Regulatory" count={docketCount} />
         </RadixTabs.List>
 
         <div className="flex-1 overflow-y-auto">
@@ -421,6 +441,14 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
           <StateTabContent value="market"><MarketTab state={state} /></StateTabContent>
           <StateTabContent value="subscribers"><SubscribersTab state={state} /></StateTabContent>
           <StateTabContent value="news"><NewsTab state={state} news={relatedNews} /></StateTabContent>
+          <StateTabContent value="regulatory">
+            <RegulatoryActivityPanel
+              state={state.id}
+              stateName={state.name}
+              isPro={isPro}
+              mode="tab"
+            />
+          </StateTabContent>
         </div>
       </RadixTabs.Root>
 
