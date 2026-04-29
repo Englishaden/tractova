@@ -5,6 +5,7 @@ import { useSubscription } from '../hooks/useSubscription'
 import { supabase } from '../lib/supabase'
 import { getStateProgramMap } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
+import { Toggle, Input, Button } from '../components/ui'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -68,54 +69,6 @@ function ManageBillingButton() {
         {loading ? 'Loading...' : 'Manage subscription →'}
       </button>
     </div>
-  )
-}
-
-// V3: Toggle switch with inline styles (was Tailwind arbitrary values --
-// some build configurations didn't pick up `translate-x-[18px]` reliably,
-// causing the dot to overlap the track edge). Inline styles guarantee
-// the math regardless of Tailwind JIT state.
-//
-// Track: 44px × 24px. Dot: 18px × 18px, 3px from top.
-// OFF: dot.left = 3px (3px gap on left, 23px gap on right).
-// ON:  dot.left = 23px (23px gap on left, 3px gap on right).
-// Symmetric padding both states. Dot fully inside track always.
-function ToggleSwitch({ on, onClick, ariaLabel }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={ariaLabel}
-      onClick={onClick}
-      style={{
-        position: 'relative',
-        width: '44px',
-        height: '24px',
-        borderRadius: '9999px',
-        transition: 'background-color 150ms ease',
-        backgroundColor: on ? '#14B8A6' : '#E2E8F0',
-        flexShrink: 0,
-        border: 'none',
-        cursor: 'pointer',
-        padding: 0,
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          top: '3px',
-          left: on ? '23px' : '3px',
-          width: '18px',
-          height: '18px',
-          borderRadius: '9999px',
-          backgroundColor: '#FFFFFF',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.10)',
-          transition: 'left 150ms ease',
-          display: 'block',
-        }}
-      />
-    </button>
   )
 }
 
@@ -197,21 +150,21 @@ function AlertPreferences({ userId }) {
             <p className="text-sm font-medium text-gray-800">Weekly digest</p>
             <p className="text-[11px] text-gray-400 mt-0.5">Portfolio summary + market updates every Monday</p>
           </div>
-          <ToggleSwitch on={prefs.digest} onClick={() => toggle('digest')} />
+          <Toggle on={prefs.digest} onChange={() => toggle('digest')} ariaLabel="Weekly digest" />
         </label>
         <label className="flex items-center justify-between cursor-pointer group">
           <div>
             <p className="text-sm font-medium text-gray-800">Urgent alerts</p>
             <p className="text-[11px] text-gray-400 mt-0.5">Immediate email when a project's market conditions worsen</p>
           </div>
-          <ToggleSwitch on={prefs.alerts} onClick={() => toggle('alerts')} />
+          <Toggle on={prefs.alerts} onChange={() => toggle('alerts')} ariaLabel="Urgent alerts" />
         </label>
         <label className="flex items-center justify-between cursor-pointer group">
           <div>
             <p className="text-sm font-medium text-gray-800">Opportunity alerts</p>
             <p className="text-[11px] text-gray-400 mt-0.5">Capacity additions, new program launches, and score improvements ≥10 pts that benefit your portfolio</p>
           </div>
-          <ToggleSwitch on={prefs.positive} onClick={() => toggle('positive')} />
+          <Toggle on={prefs.positive} onChange={() => toggle('positive')} ariaLabel="Opportunity alerts" />
         </label>
       </div>
 
@@ -225,29 +178,26 @@ function AlertPreferences({ userId }) {
             <p className="text-sm font-medium text-gray-800">Slack alerts</p>
             <p className="text-[11px] text-gray-400 mt-0.5">Push policy alerts to a Slack channel via incoming webhook</p>
           </div>
-          <ToggleSwitch on={prefs.slack} onClick={() => toggle('slack')} />
+          <Toggle on={prefs.slack} onChange={() => toggle('slack')} ariaLabel="Slack alerts" />
         </label>
         {prefs.slack && (
           <div>
-            <input
+            <Input
               type="url"
               value={slackUrl}
-              onChange={(e) => { setSlackUrl(e.target.value); setSlackUrlDirty(true) }}
+              onChange={(val) => { setSlackUrl(val); setSlackUrlDirty(true) }}
               placeholder="https://hooks.slack.com/services/..."
-              className="w-full text-xs font-mono bg-paper border border-gray-200 rounded-md px-3 py-2 text-ink placeholder-gray-400 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
+              paper
+              inputClassName="text-xs font-mono"
             />
-            <div className="flex items-center justify-between mt-1.5">
+            <div className="flex items-center justify-between mt-1.5 gap-3">
               <p className="text-[10px] text-gray-400">
                 Create one in your Slack workspace at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline">api.slack.com/apps</a> → Incoming Webhooks.
               </p>
               {slackUrlDirty && (
-                <button
-                  onClick={saveSlackUrl}
-                  className="text-[10px] font-semibold px-2.5 py-1 rounded-md text-white"
-                  style={{ background: '#14B8A6' }}
-                >
+                <Button variant="accent" size="sm" onClick={saveSlackUrl} loading={saving} className="flex-shrink-0">
                   Save URL
-                </button>
+                </Button>
               )}
             </div>
           </div>
