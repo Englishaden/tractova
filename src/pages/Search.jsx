@@ -2418,6 +2418,7 @@ function SearchContent() {
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
   const [saving, setSaving]       = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const resultsRef = useRef(null)
   const abortRef = useRef(null)
@@ -2517,32 +2518,55 @@ function SearchContent() {
     if (!results) return
     const defaultName = `${results.form.county} ${results.form.mw}MW ${results.form.technology}`
     setSaveName(defaultName)
+    setSaveError(null)
     setSaveModal({ defaultName })
   }
 
   const handleSaveConfirm = async () => {
-    if (!results || !user) return
+    if (!results) return
     setSaving(true)
-    const { error } = await supabase.from('projects').insert({
-      user_id:          user.id,
-      name:             saveName.trim() || `${results.form.county} ${results.form.mw}MW ${results.form.technology}`,
-      state:            results.form.state,
-      state_name:       results.stateProgram?.name || results.form.state,
-      county:           results.form.county,
-      mw:               results.form.mw,
-      stage:            results.form.stage,
-      technology:       results.form.technology,
-      cs_program:       results.stateProgram?.csProgram || null,
-      cs_status:        results.stateProgram?.csStatus || 'none',
-      serving_utility:  results.countyData?.interconnection?.servingUtility || null,
-      ix_difficulty:    results.stateProgram?.ixDifficulty || null,
-      opportunity_score: results.stateProgram?.feasibilityScore || null,
-    })
-    setSaving(false)
-    if (!error) {
+    setSaveError(null)
+    try {
+      // Re-fetch the live session at click time. The `user` from context can be
+      // stale if the supabase auth session expired silently while the tab was idle.
+      const { data: { session } } = await supabase.auth.getSession()
+      const liveUser = session?.user
+      if (!liveUser) {
+        setSaveError('Your session expired. Please sign in again.')
+        setSaving(false)
+        return
+      }
+
+      const mwNum = parseFloat(results.form.mw)
+      const payload = {
+        user_id:          liveUser.id,
+        name:             saveName.trim() || `${results.form.county} ${results.form.mw}MW ${results.form.technology}`,
+        state:            results.form.state,
+        state_name:       results.stateProgram?.name || results.form.state,
+        county:           results.form.county,
+        mw:               isNaN(mwNum) ? null : mwNum,
+        stage:            results.form.stage,
+        technology:       results.form.technology,
+        cs_program:       results.stateProgram?.csProgram || null,
+        cs_status:        results.stateProgram?.csStatus || 'none',
+        serving_utility:  results.countyData?.interconnection?.servingUtility || null,
+        ix_difficulty:    results.stateProgram?.ixDifficulty || null,
+        opportunity_score: results.stateProgram?.feasibilityScore ?? null,
+      }
+      const { error } = await supabase.from('projects').insert(payload)
+      setSaving(false)
+      if (error) {
+        console.error('[Save to Library] insert failed:', error)
+        setSaveError(error.message || 'Could not save project. Please try again.')
+        return
+      }
       setSaveModal(null)
       setShowToast(true)
       setTimeout(() => setShowToast(false), 3000)
+    } catch (err) {
+      console.error('[Save to Library] unexpected error:', err)
+      setSaving(false)
+      setSaveError(err?.message || 'Unexpected error. Please try again.')
     }
   }
 
@@ -2881,6 +2905,12 @@ function SearchContent() {
                   autoFocus
                   className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-4"
                 />
+                {saveError && (
+                  <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200">
+                    <p className="text-xs text-red-700 font-medium">Save failed</p>
+                    <p className="text-xs text-red-600 mt-0.5 leading-snug">{saveError}</p>
+                  </div>
+                )}
                 <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={() => setSaveModal(null)}
