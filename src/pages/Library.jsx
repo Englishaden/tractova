@@ -11,6 +11,7 @@ import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
@@ -143,21 +144,24 @@ const ALERT_STYLES = {
 
 function AlertChip({ alert }) {
   const s = ALERT_STYLES[alert.level] || ALERT_STYLES.info
-  // Hover tooltip widened from w-52 (208px) to w-64 (256px) so the new
-  // longer score-drop detail string ("...recomputed for Hybrid at Pre-Dev")
-  // doesn't truncate awkwardly.
+  // V3: Radix Tooltip portal -- prevents clipping inside flex/grid containers
+  // (the chip lives inside the alert strip which has overflow contexts).
   return (
-    <div className={`group relative inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-default ${s.chip}`} style={{ lineHeight: 1 }}>
-      <span
-        className={s.dot}
-        style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '9999px', flexShrink: 0 }}
-      />
-      {alert.pillar && <span className="opacity-60">{alert.pillar}</span>}
-      {alert.label}
-      <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-64 bg-gray-900 text-white text-[10px] rounded px-2 py-1.5 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-default ${s.chip}`} style={{ lineHeight: 1 }}>
+          <span
+            className={s.dot}
+            style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '9999px', flexShrink: 0 }}
+          />
+          {alert.pillar && <span className="opacity-60">{alert.pillar}</span>}
+          {alert.label}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[280px]">
         {alert.detail}
-      </span>
-    </div>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
