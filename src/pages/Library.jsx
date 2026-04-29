@@ -261,21 +261,22 @@ function PipelineProgress({ stage }) {
   )
 }
 
-// ── CSV export ───────────────────────────────────────────────────────────────
-function exportCSV(projects, stateProgramMap = {}) {
+// ── Export shared schema ─────────────────────────────────────────────────────
+// Single source of truth for both CSV + XLSX export. Adds a column once and
+// both files inherit the change automatically.
+const EXPORT_HEADERS = [
+  'Name', 'State', 'County', 'MW AC', 'Technology', 'Stage',
+  'CS Status', 'CS Program', 'Program Capacity Remaining (MW)', 'LMI Required (%)',
+  'Program Runway (months)', 'Feasibility Index',
+  'IX Difficulty', 'IX Notes (truncated)', 'Serving Utility',
+  'Est. Annual Revenue ($/MW/yr)', 'Risk Flags', 'Saved Date',
+]
+
+function buildExportRows(projects, stateProgramMap) {
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
   const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
-  // V3: 18 columns (was 11). Adds IX detail, program runway, LMI %, revenue est, alert flags.
-  const headers = [
-    'Name', 'State', 'County', 'MW AC', 'Technology', 'Stage',
-    'CS Status', 'CS Program', 'Program Capacity Remaining (MW)', 'LMI Required (%)',
-    'Program Runway (months)', 'Feasibility Index',
-    'IX Difficulty', 'IX Notes (truncated)', 'Serving Utility',
-    'Est. Annual Revenue ($/MW/yr)', 'Risk Flags', 'Saved Date',
-  ]
-  const rows = projects.map(p => {
+  return projects.map(p => {
     const sp = stateProgramMap[p.state] || {}
-    // Revenue estimate: per-MW per-year (current revenue engine returns total, divide by MW)
     let revPerMWperYear = ''
     try {
       const mwNum = parseFloat(p.mw) || 0
@@ -290,7 +291,7 @@ function exportCSV(projects, stateProgramMap = {}) {
       p.name,
       p.stateName || p.state,
       p.county,
-      p.mw,
+      p.mw ? Number(p.mw) : '',
       p.technology || '',
       p.stage || '',
       CS_LABEL[p.csStatus] || p.csStatus || '',
@@ -307,7 +308,12 @@ function exportCSV(projects, stateProgramMap = {}) {
       p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
     ]
   })
-  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
+}
+
+// ── CSV export ───────────────────────────────────────────────────────────────
+function exportCSV(projects, stateProgramMap = {}) {
+  const rows = buildExportRows(projects, stateProgramMap)
+  const csv = [EXPORT_HEADERS, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
@@ -315,6 +321,54 @@ function exportCSV(projects, stateProgramMap = {}) {
   a.download = `tractova-projects-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
+}
+
+// ── XLSX export ──────────────────────────────────────────────────────────────
+// Lazy-loads the xlsx library on first click so the dependency doesn't bloat
+// the main bundle. Output is a properly-formatted .xlsx with column widths,
+// number formatting on numeric columns, and a frozen header row -- ready to
+// drop into a developer's internal model spreadsheet.
+async function exportXLSX(projects, stateProgramMap = {}) {
+  const rows = buildExportRows(projects, stateProgramMap)
+  const XLSX = await import('xlsx')
+
+  // Build worksheet from arrays (header + rows).
+  const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...rows])
+
+  // Column widths in chars -- tuned to typical content lengths.
+  ws['!cols'] = [
+    { wch: 28 }, // Name
+    { wch: 12 }, // State
+    { wch: 16 }, // County
+    { wch: 8 },  // MW AC
+    { wch: 16 }, // Technology
+    { wch: 18 }, // Stage
+    { wch: 10 }, // CS Status
+    { wch: 22 }, // CS Program
+    { wch: 14 }, // Program Capacity
+    { wch: 10 }, // LMI %
+    { wch: 12 }, // Runway
+    { wch: 10 }, // Feas Idx
+    { wch: 12 }, // IX Diff
+    { wch: 50 }, // IX Notes
+    { wch: 22 }, // Serving Utility
+    { wch: 14 }, // Revenue
+    { wch: 36 }, // Alerts
+    { wch: 12 }, // Saved
+  ]
+
+  // Freeze header row.
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+
+  // Apply number format on revenue column (P) -- USD whole dollars.
+  for (let r = 2; r <= rows.length + 1; r++) {
+    const cell = ws[`P${r}`]
+    if (cell && typeof cell.v === 'number') cell.z = '"$"#,##0'
+  }
+
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Projects')
+  XLSX.writeFile(wb, `tractova-projects-${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
 // ── Inline stage picker ───────────────────────────────────────────────────────
@@ -1474,21 +1528,38 @@ function LibraryContent() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {projects.length > 0 && (
-                <button
-                  onClick={() => exportCSV(projects, stateProgramMap)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-                  style={{
-                    color: 'rgba(255,255,255,0.85)',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                  title="Export all projects to CSV"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Export CSV
-                </button>
+                <>
+                  <button
+                    onClick={() => exportCSV(projects, stateProgramMap)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                    title="Export all projects to CSV (universal format)"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    CSV
+                  </button>
+                  <button
+                    onClick={() => exportXLSX(projects, stateProgramMap)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+                    style={{
+                      color: 'rgba(255,255,255,0.85)',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.12)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                    title="Export to Excel with column widths + number formatting"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    XLSX
+                  </button>
+                </>
               )}
               <Link
                 to="/search"
