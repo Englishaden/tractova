@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
@@ -61,18 +61,6 @@ function getStateColor(stateId, isHovered, isSelected, stateProgramMap) {
 export default function USMap({ onStateClick, selectedStateId, stateProgramMap = {} }) {
   const [tooltip, setTooltip] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
-
-  // Respect prefers-reduced-motion. We use SMIL <animateTransform> which
-  // can't be CSS-gated easily, so we conditionally render the animation.
-  const [reducedMotion, setReducedMotion] = useState(false)
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    setReducedMotion(mq.matches)
-    const onChange = (e) => setReducedMotion(e.matches)
-    mq.addEventListener?.('change', onChange)
-    return () => mq.removeEventListener?.('change', onChange)
-  }, [])
 
   const handleMouseMove = (geo, evt) => {
     const fips = String(geo.id).padStart(2, '0')
@@ -143,75 +131,25 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
               Two distinct visual families: lines (Mid) vs dots (Light).
               Color: deep institutional blue (#1E3A8A) -- a subtle warmer
               shift from pure navy that doesn't fight the teal choropleth.
-
-              SEAMLESS-LOOP DRIFT animation: each pattern's inner <g> translates
-              by exactly one pattern unit over the cycle. At t=duration, every
-              element has moved into the position originally held by an element
-              from the next cell over, so the pattern at t=0 is visually
-              identical to t=duration -- the loop is invisible. Linear easing
-              (calcMode="linear") makes the motion feel continuous like
-              flowing water, not oscillating.
-
-              Different durations (18s hatch / 22s stipple) prevent visual
-              synchronization between adjacent Mid and Light states.
-
-              All gated on prefers-reduced-motion via the reducedMotion state. */}
+              Static; no motion. */}
           <defs>
-            {/* Mid coverage — 45° diagonal hatch lines (drifts along rotated axis) */}
+            {/* Mid coverage — 45° diagonal hatch lines */}
             <pattern
               id="tier-hatch-mid"
               patternUnits="userSpaceOnUse"
               width="5.5" height="5.5"
               patternTransform="rotate(45)"
             >
-              <g>
-                {!reducedMotion && (
-                  <animateTransform
-                    attributeName="transform"
-                    attributeType="XML"
-                    type="translate"
-                    from="0 0"
-                    to="0 5.5"
-                    dur="18s"
-                    repeatCount="indefinite"
-                    calcMode="linear"
-                  />
-                )}
-                {/* Two lines: one in the cell, one above (offset by -unit).
-                    As the group translates down by one unit, the offset line
-                    arrives at the cell's home position -- seamless loop. */}
-                <line x1="0" y1="0"    x2="0" y2="5.5" stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.32" />
-                <line x1="0" y1="-5.5" x2="0" y2="0"   stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.32" />
-              </g>
+              <line x1="0" y1="0" x2="0" y2="5.5" stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.32" />
             </pattern>
 
-            {/* Light coverage — stipple / dot grid (drifts diagonally) */}
+            {/* Light coverage — stipple / dot grid (cartographic stippling) */}
             <pattern
               id="tier-stipple-light"
               patternUnits="userSpaceOnUse"
               width="4" height="4"
             >
-              <g>
-                {!reducedMotion && (
-                  <animateTransform
-                    attributeName="transform"
-                    attributeType="XML"
-                    type="translate"
-                    from="0 0"
-                    to="4 4"
-                    dur="22s"
-                    repeatCount="indefinite"
-                    calcMode="linear"
-                  />
-                )}
-                {/* 2x2 grid of dots offset around the cell origin. As the
-                    group drifts by (4, 4), each offset dot arrives at the
-                    next dot's home position -- seamless loop. */}
-                <circle cx="2"  cy="2"  r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
-                <circle cx="-2" cy="2"  r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
-                <circle cx="2"  cy="-2" r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
-                <circle cx="-2" cy="-2" r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
-              </g>
+              <circle cx="2" cy="2" r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
             </pattern>
           </defs>
 
