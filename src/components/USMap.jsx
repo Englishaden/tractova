@@ -140,59 +140,78 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
           style={{ width: '100%', height: 'auto' }}
         >
           {/* ── Pattern defs for coverage-tier overlay ───────────────────────
-              Two distinct visual families: lines (Mid) vs dots (Light). All
-              V3 navy at low opacity so the underlying choropleth fill reads
-              through. patternUnits="userSpaceOnUse" keeps the texture scale
-              stable across zoom levels.
+              Two distinct visual families: lines (Mid) vs dots (Light).
+              Color: deep institutional blue (#1E3A8A) -- a subtle warmer
+              shift from pure navy that doesn't fight the teal choropleth.
 
-              Continuous-drift animation gives the map a subtle "alive data"
-              feel -- Mid hatch oscillates +/- 3 degrees over 14s; Light
-              stipple translates by ~0.6 px over 12s. Both gated on
-              prefers-reduced-motion via the reducedMotion state above. */}
+              SEAMLESS-LOOP DRIFT animation: each pattern's inner <g> translates
+              by exactly one pattern unit over the cycle. At t=duration, every
+              element has moved into the position originally held by an element
+              from the next cell over, so the pattern at t=0 is visually
+              identical to t=duration -- the loop is invisible. Linear easing
+              (calcMode="linear") makes the motion feel continuous like
+              flowing water, not oscillating.
+
+              Different durations (18s hatch / 22s stipple) prevent visual
+              synchronization between adjacent Mid and Light states.
+
+              All gated on prefers-reduced-motion via the reducedMotion state. */}
           <defs>
-            {/* Mid coverage — 45° diagonal hatch lines */}
+            {/* Mid coverage — 45° diagonal hatch lines (drifts along rotated axis) */}
             <pattern
               id="tier-hatch-mid"
               patternUnits="userSpaceOnUse"
               width="5.5" height="5.5"
               patternTransform="rotate(45)"
             >
-              {!reducedMotion && (
-                <animateTransform
-                  attributeName="patternTransform"
-                  attributeType="XML"
-                  type="rotate"
-                  values="42; 48; 42"
-                  keyTimes="0; 0.5; 1"
-                  dur="14s"
-                  repeatCount="indefinite"
-                  calcMode="spline"
-                  keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"
-                />
-              )}
-              <line x1="0" y1="0" x2="0" y2="5.5" stroke="#0F1A2E" strokeWidth="0.75" strokeOpacity="0.28" />
+              <g>
+                {!reducedMotion && (
+                  <animateTransform
+                    attributeName="transform"
+                    attributeType="XML"
+                    type="translate"
+                    from="0 0"
+                    to="0 5.5"
+                    dur="18s"
+                    repeatCount="indefinite"
+                    calcMode="linear"
+                  />
+                )}
+                {/* Two lines: one in the cell, one above (offset by -unit).
+                    As the group translates down by one unit, the offset line
+                    arrives at the cell's home position -- seamless loop. */}
+                <line x1="0" y1="0"    x2="0" y2="5.5" stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.32" />
+                <line x1="0" y1="-5.5" x2="0" y2="0"   stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.32" />
+              </g>
             </pattern>
 
-            {/* Light coverage — stipple / dot grid (cartographic stippling) */}
+            {/* Light coverage — stipple / dot grid (drifts diagonally) */}
             <pattern
               id="tier-stipple-light"
               patternUnits="userSpaceOnUse"
               width="4" height="4"
             >
-              {!reducedMotion && (
-                <animateTransform
-                  attributeName="patternTransform"
-                  attributeType="XML"
-                  type="translate"
-                  values="0 0; 0.6 0.6; 0 0"
-                  keyTimes="0; 0.5; 1"
-                  dur="12s"
-                  repeatCount="indefinite"
-                  calcMode="spline"
-                  keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"
-                />
-              )}
-              <circle cx="2" cy="2" r="0.55" fill="#0F1A2E" fillOpacity="0.32" />
+              <g>
+                {!reducedMotion && (
+                  <animateTransform
+                    attributeName="transform"
+                    attributeType="XML"
+                    type="translate"
+                    from="0 0"
+                    to="4 4"
+                    dur="22s"
+                    repeatCount="indefinite"
+                    calcMode="linear"
+                  />
+                )}
+                {/* 2x2 grid of dots offset around the cell origin. As the
+                    group drifts by (4, 4), each offset dot arrives at the
+                    next dot's home position -- seamless loop. */}
+                <circle cx="2"  cy="2"  r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
+                <circle cx="-2" cy="2"  r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
+                <circle cx="2"  cy="-2" r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
+                <circle cx="-2" cy="-2" r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
+              </g>
             </pattern>
           </defs>
 
@@ -368,12 +387,12 @@ function CoverageSwatch({ tier }) {
       <defs>
         {tier === 'mid' && (
           <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3.5" height="3.5" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="3.5" stroke="#0F1A2E" strokeWidth="0.6" strokeOpacity="0.62" />
+            <line x1="0" y1="0" x2="0" y2="3.5" stroke="#1E3A8A" strokeWidth="0.6" strokeOpacity="0.66" />
           </pattern>
         )}
         {tier === 'light' && (
           <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3" height="3">
-            <circle cx="1.5" cy="1.5" r="0.55" fill="#0F1A2E" fillOpacity="0.65" />
+            <circle cx="1.5" cy="1.5" r="0.55" fill="#1E3A8A" fillOpacity="0.70" />
           </pattern>
         )}
       </defs>
