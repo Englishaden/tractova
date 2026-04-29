@@ -50,10 +50,12 @@ function DashboardPreview({ activeCount, metrics }) {
 
   return (
     <div className="relative w-full max-w-md ml-auto">
-      {/* Outer glow */}
-      <div className="absolute -inset-1 bg-primary/20 rounded-xl blur-xl" />
+      {/* V3: teal outer glow on brand-navy chrome */}
+      <div className="absolute -inset-1 rounded-xl blur-xl" style={{ background: 'rgba(20,184,166,0.25)' }} />
 
-      <div className="relative bg-[#0a2f25] border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+      <div className="relative border rounded-xl overflow-hidden shadow-2xl" style={{ background: '#0F1A2E', borderColor: 'rgba(20,184,166,0.15)' }}>
+        {/* Top teal accent rail */}
+        <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
         {/* Simulated browser bar */}
         <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/10 bg-white/5">
           <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
@@ -69,8 +71,8 @@ function DashboardPreview({ activeCount, metrics }) {
             { label: 'IX Headroom', value: `${metrics?.utilitiesWithIXHeadroom ?? '—'}+` },
             { label: 'Policy Alerts', value: metrics?.policyAlertsThisWeek ?? '—' },
           ].map(m => (
-            <div key={m.label} className="bg-[#0a2f25] px-4 py-3">
-              <div className="text-2xl font-bold text-white tabular-nums">{m.value}</div>
+            <div key={m.label} className="px-4 py-3" style={{ background: '#0F1A2E' }}>
+              <div className="text-2xl font-bold font-mono text-white tabular-nums">{m.value}</div>
               <div className="text-[10px] text-white/40 mt-0.5 leading-tight">{m.label}</div>
             </div>
           ))}
@@ -90,11 +92,11 @@ function DashboardPreview({ activeCount, metrics }) {
                     className="h-full rounded-full"
                     style={{
                       width: `${s.score}%`,
-                      backgroundColor: s.status === 'active' ? '#0F6E56' : '#BA7517',
+                      backgroundColor: s.status === 'active' ? '#14B8A6' : '#F59E0B',
                     }}
                   />
                 </div>
-                <span className="text-xs text-white/60 w-6 text-right">{s.score}</span>
+                <span className="text-xs font-mono tabular-nums text-white/60 w-6 text-right">{s.score}</span>
               </div>
             ))}
           </div>
@@ -112,9 +114,12 @@ function DashboardPreview({ activeCount, metrics }) {
               { tag: 'IX',      state: 'MN', text: 'Xcel Solar Garden queue moving — new block open' },
             ].map((a, i) => (
               <div key={i} className="flex items-start gap-2">
-                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0 ${
-                  a.tag === 'IX' ? 'bg-accent/20 text-accent-300' : 'bg-primary/30 text-primary-200'
-                }`}>
+                <span
+                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
+                  style={a.tag === 'IX'
+                    ? { background: 'rgba(245,158,11,0.18)', color: '#FCD34D' }
+                    : { background: 'rgba(20,184,166,0.20)', color: '#5EEAD4' }}
+                >
                   {a.tag}
                 </span>
                 <p className="text-[10px] text-white/50 leading-tight">{a.text}</p>
@@ -143,20 +148,22 @@ export default function Landing() {
   return (
     <div className="pt-14">
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="bg-[#063629] text-white">
+      {/* ── Hero — V3 brand navy with teal accents ───────────────────────── */}
+      <section className="text-white relative" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+        {/* Top teal accent rail */}
+        <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.6) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.6) 70%, transparent 100%)' }} />
         <div className="max-w-dashboard mx-auto px-6 py-20 lg:py-28 grid lg:grid-cols-2 gap-16 items-center">
 
           {/* Left — copy */}
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-medium text-white/70 mb-6">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-6" style={{ background: 'rgba(20,184,166,0.10)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(20,184,166,0.25)' }}>
+              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
               Community Solar Market Intelligence
             </div>
 
-            <h1 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight mb-6">
+            <h1 className="text-4xl lg:text-5xl font-serif font-semibold leading-tight tracking-tight mb-6" style={{ letterSpacing: '-0.02em' }}>
               The intelligence edge most small developers{' '}
-              <span className="text-accent">don't have.</span>
+              <span style={{ color: '#2DD4BF' }}>don't have.</span>
             </h1>
 
             <p className="text-lg text-white/70 leading-relaxed mb-8 max-w-lg">
@@ -170,7 +177,10 @@ export default function Landing() {
                 <div className="flex flex-wrap items-center gap-4">
                   <Link
                     to="/signup"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent-400 text-white font-semibold rounded-lg transition-colors text-sm shadow-lg shadow-accent/20"
+                    className="inline-flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-lg transition-colors text-sm"
+                    style={{ background: '#14B8A6', boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
                   >
                     Get Started Free
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -185,7 +195,7 @@ export default function Landing() {
                     Preview live data →
                   </Link>
                 </div>
-                <span className="text-xs text-white/30">Pro plans from $9.99/mo</span>
+                <span className="text-xs font-mono text-white/30">Pro plans from $9.99/mo</span>
               </div>
             </div>
 
@@ -196,7 +206,7 @@ export default function Landing() {
                 'Real state program data',
               ].map(t => (
                 <span key={t} className="flex items-center gap-1.5">
-                  <IconCheck />
+                  <span style={{ color: '#2DD4BF' }}><IconCheck /></span>
                   {t}
                 </span>
               ))}
@@ -218,7 +228,7 @@ export default function Landing() {
             { value: '3',                                label: 'Intelligence Pillars',         sub: 'site · IX · offtake'  },
           ].map(m => (
             <div key={m.label} className="text-center lg:text-left">
-              <div className="text-3xl font-bold text-primary">{m.value}</div>
+              <div className="text-3xl font-bold font-mono tabular-nums" style={{ color: '#0F1A2E' }}>{m.value}</div>
               <div className="text-sm font-semibold text-gray-800 mt-1">{m.label}</div>
               <div className="text-xs text-gray-400 mt-0.5">{m.sub}</div>
             </div>
@@ -227,10 +237,10 @@ export default function Landing() {
       </section>
 
       {/* ── Three pillars ────────────────────────────────────────────────── */}
-      <section className="bg-surface py-20">
+      <section className="bg-paper py-20">
         <div className="max-w-dashboard mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">
+            <h2 className="text-3xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>
               Three pillars. Every project stage covered.
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto">
@@ -260,9 +270,9 @@ export default function Landing() {
                 icon: <IconIX />,
                 number: '02',
                 title: 'Interconnection',
-                color: 'text-accent',
-                bg: 'bg-accent-50',
-                border: 'border-accent-100',
+                color: 'text-brand',
+                bg: 'bg-slate-50',
+                border: 'border-slate-200',
                 description:
                   'Queue status, ease scores (1–10), and average study timelines for utilities across every active CS state. The most differentiated data layer in the platform — built because nobody has done this cleanly.',
                 bullets: [
@@ -316,10 +326,10 @@ export default function Landing() {
 
           {/* Left — copy */}
           <div>
-            <div className="text-xs font-semibold text-primary uppercase tracking-widest mb-4">
+            <div className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: '#0F766E' }}>
               Built for who, exactly
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-5">
+            <h2 className="text-3xl font-serif font-semibold text-ink mb-5" style={{ letterSpacing: '-0.02em' }}>
               The under-100-person shop.<br />
               The developer who has real projects<br />
               and no research team.
@@ -386,10 +396,10 @@ export default function Landing() {
       </section>
 
       {/* ── How it works ─────────────────────────────────────────────────── */}
-      <section className="bg-surface py-20 border-t border-gray-100">
+      <section className="bg-paper py-20 border-t border-gray-100">
         <div className="max-w-dashboard mx-auto px-6">
           <div className="text-center mb-14">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">How it works</h2>
+            <h2 className="text-3xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>How it works</h2>
             <p className="text-gray-500 max-w-lg mx-auto">
               From a raw site address to a three-pillar intelligence report in under two minutes.
             </p>
@@ -417,10 +427,13 @@ export default function Landing() {
               },
             ].map((s, i) => (
               <div key={i} className="relative flex flex-col items-center text-center lg:items-start lg:text-left">
-                <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold mb-5 relative z-10 shadow-lg shadow-primary/20">
+                <div
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold font-mono mb-5 relative z-10"
+                  style={{ background: '#0F1A2E', boxShadow: '0 8px 24px rgba(15,26,46,0.20), 0 0 0 1px rgba(20,184,166,0.30)' }}
+                >
                   {s.step}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">{s.title}</h3>
+                <h3 className="text-lg font-bold text-ink mb-2">{s.title}</h3>
                 <p className="text-sm text-gray-500 leading-relaxed">{s.body}</p>
               </div>
             ))}
@@ -432,10 +445,10 @@ export default function Landing() {
       <section className="bg-white border-t border-gray-100 py-14">
         <div className="max-w-dashboard mx-auto px-6 flex flex-col lg:flex-row items-center justify-between gap-8">
           <div>
-            <div className="text-xs font-semibold text-accent uppercase tracking-widest mb-2">
+            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: '#0F766E' }}>
               From the same team
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">The Adder Newsletter</h3>
+            <h3 className="text-xl font-serif font-semibold text-ink mb-2" style={{ letterSpacing: '-0.02em' }}>The Adder Newsletter</h3>
             <p className="text-sm text-gray-500 max-w-lg">
               A bi-weekly newsletter covering community solar policy, interconnection trends, and
               market moves for independent developers. Free and opinionated.
@@ -445,17 +458,21 @@ export default function Landing() {
             href="https://theadder.substack.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 border border-accent text-accent hover:bg-accent hover:text-white text-sm font-semibold rounded-lg transition-colors"
+            className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors"
+            style={{ border: '1px solid #14B8A6', color: '#0F766E' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#14B8A6'; e.currentTarget.style.color = '#FFFFFF' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#0F766E' }}
           >
             Read The Adder ↗
           </a>
         </div>
       </section>
 
-      {/* ── Final CTA ────────────────────────────────────────────────────── */}
-      <section className="bg-[#063629] text-white py-20">
+      {/* ── Final CTA — V3 brand navy with teal accents ──────────────────── */}
+      <section className="text-white py-20 relative" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.6) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.6) 70%, transparent 100%)' }} />
         <div className="max-w-dashboard mx-auto px-6 text-center">
-          <h2 className="text-3xl lg:text-4xl font-bold mb-4">
+          <h2 className="text-3xl lg:text-4xl font-serif font-semibold mb-4" style={{ letterSpacing: '-0.02em' }}>
             Start building smarter.
           </h2>
           <p className="text-white/60 text-lg mb-8 max-w-md mx-auto">
@@ -464,7 +481,10 @@ export default function Landing() {
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
               to="/signup"
-              className="px-8 py-3 bg-accent hover:bg-accent-400 text-white font-semibold rounded-lg transition-colors shadow-lg shadow-accent/20"
+              className="px-8 py-3 text-white font-semibold rounded-lg transition-colors"
+              style={{ background: '#14B8A6', boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
             >
               Create Free Account
             </Link>
