@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getDashboardMetrics, getStatePrograms, getNewsFeed } from '../lib/programData'
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 
 // ── Modal detail content per card ────────────────────────────────────────────
 
@@ -342,6 +343,7 @@ export default function MetricsBar() {
       sub: `${m.statesWithAnyCS} with any program`,
       icon: <IconMap />,
       modalTitle: 'CS Coverage — Active Markets',
+      hint: 'States with funded community solar programs currently accepting new project applications. The denominator counts any state that has a CS statute on the books — including pending and limited.',
       ModalContent: () => <ActiveCSDetail programs={programs} />,
     },
     {
@@ -351,6 +353,7 @@ export default function MetricsBar() {
       sub: 'open queue capacity',
       icon: <IconZap />,
       modalTitle: 'IX Headroom — Open Queues',
+      hint: 'Utilities estimated to have meaningful interconnection queue capacity for ≤5 MW projects, derived from FERC Form 1 data and ISO/RTO queue reports.',
       ModalContent: IXCapacityDetail,
     },
     {
@@ -360,6 +363,7 @@ export default function MetricsBar() {
       sub: 'this week · all pillars',
       icon: <IconBell />,
       modalTitle: 'Policy Pulse — This Week',
+      hint: 'Count of news-feed items published in the last 7 days across the three pillars (offtake, interconnection, site). Click for the underlying headlines.',
       ModalContent: () => <PolicyAlertsDetail news={news} />,
     },
     {
@@ -373,6 +377,7 @@ export default function MetricsBar() {
       sub: 'avg remaining · active states',
       icon: <IconGauge />,
       modalTitle: 'Average Capacity Remaining — Active Programs',
+      hint: 'Mean MW of program capacity still open across active and limited states, equally weighted. A leading indicator of how much addressable runway is left in each market.',
       ModalContent: () => <AvgCapacityDetail programs={programs} />,
     },
     {
@@ -382,6 +387,7 @@ export default function MetricsBar() {
       sub: 'active + limited states',
       icon: <IconTrendingUp />,
       modalTitle: 'Pipeline Load — Active + Limited',
+      hint: 'Total MW of remaining capacity across all active and limited CS programs — the addressable pipeline for independent developers today.',
       ModalContent: () => <MWPipelineDetail programs={programs} />,
     },
   ]
@@ -392,44 +398,52 @@ export default function MetricsBar() {
     <>
       <div className="grid grid-cols-5 gap-3 mt-6">
         {CARDS.map((c) => (
-          <button
-            key={c.key}
-            onClick={() => setOpenKey(c.key)}
-            className="relative overflow-hidden rounded-xl text-left transition-all duration-200 group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
-            style={{ background: CARD_BG }}
-          >
-            {/* Top accent line — V3 teal */}
-            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
+          <Tooltip key={c.key}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setOpenKey(c.key)}
+                className="relative overflow-hidden rounded-xl text-left transition-all duration-200 group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
+                style={{ background: CARD_BG }}
+              >
+                {/* Top accent line — V3 teal */}
+                <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
 
-            {/* Icon */}
-            <div className="absolute top-3 right-3 pointer-events-none select-none" style={{ color: 'rgba(20,184,166,0.55)' }}>
-              {c.icon}
-            </div>
+                {/* Icon */}
+                <div className="absolute top-3 right-3 pointer-events-none select-none" style={{ color: 'rgba(20,184,166,0.55)' }}>
+                  {c.icon}
+                </div>
 
-            <div className="relative px-5 py-5">
-              {/* Label */}
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70 mb-2.5 leading-none">
-                {c.label}
-              </p>
+                <div className="relative px-5 py-5">
+                  {/* Label */}
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/70 mb-2.5 leading-none">
+                    {c.label}
+                  </p>
 
-              {/* Value */}
-              <div className="text-2xl font-bold font-mono text-white leading-none tabular-nums">
-                {c.value}
-              </div>
+                  {/* Value */}
+                  <div className="text-2xl font-bold font-mono text-white leading-none tabular-nums">
+                    {c.value}
+                  </div>
 
-              {/* Sub */}
-              <div className="text-[11px] text-white/60 mt-2 leading-none">{c.sub}</div>
+                  {/* Sub */}
+                  <div className="text-[11px] text-white/60 mt-2 leading-none">{c.sub}</div>
 
-              {/* Hover CTA */}
-              <div className="flex items-center gap-1 mt-4 text-[10px] font-medium text-white/0 group-hover:text-white/55 transition-all duration-200 uppercase tracking-wider">
-                <span>Details</span>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
-            </div>
+                  {/* Hover CTA */}
+                  <div className="flex items-center gap-1 mt-4 text-[10px] font-medium text-white/0 group-hover:text-white/55 transition-all duration-200 uppercase tracking-wider">
+                    <span>Details</span>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  </div>
+                </div>
 
-            {/* Bottom shimmer on hover — V3 teal */}
-            <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.4) 50%, transparent 100%)' }} />
-          </button>
+                {/* Bottom shimmer on hover — V3 teal */}
+                <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.4) 50%, transparent 100%)' }} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={8}>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/50 mb-1">{c.label}</p>
+              <p className="text-[12px] leading-relaxed">{c.hint}</p>
+              <p className="text-[10px] text-white/40 mt-2">Click for full breakdown.</p>
+            </TooltipContent>
+          </Tooltip>
         ))}
       </div>
 
