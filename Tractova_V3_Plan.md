@@ -115,11 +115,11 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 - `012_ix_queue_snapshots.sql` — IX history accumulation
 - `013_profile_slack.sql` — Slack webhook + toggle
 - `014_project_events.sql` — **CONFIRMED RUN** — audit log populates ✅
+- `015_api_call_log.sql` — **CONFIRMED RUN** — rate limiter live on `lens-insight.js` ✅
+- `016_projects_last_score.sql` — **CONFIRMED RUN** — `score_change` audit events fire ✅
+- `017_share_tokens.sql` — **CONFIRMED RUN** — Deal Memo Share Link fully live ✅
 
-⏳ Still to run (Day 3 late additions):
-1. `015_api_call_log.sql` — rate-limit window for `lens-insight.js`. Limiter activates silently the moment the table exists. Without it, the limit logic skips and any user can hammer Anthropic. **Recommended ASAP** for cost protection.
-2. `016_projects_last_score.sql` — `score_change` audit events. Column backfills from `opportunity_score` automatically. Without it, `score_change` events never fire.
-3. `017_share_tokens.sql` — **REQUIRED for Deal Memo Share Link feature.** Without it, clicking "Share Link" returns a 500 from the create endpoint. Just adds the table + RLS policies; idempotent if you re-run it.
+⏳ Still to run: none. All V3 migrations through Day 3 are applied.
 
 > Note on the "destructive" warning Supabase shows on 014/017: false positive. The `drop policy if exists` lines are the standard idempotent pattern for RLS — Supabase's own docs use them. Your data is not at risk.
 

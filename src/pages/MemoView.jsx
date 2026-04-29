@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'motion/react'
+import { supabase } from '../lib/supabase'
 
 // V3 §4.7 Deal Memo shareable URL — public read-only memo view.
 // No auth required. Token validation + view-cap enforcement happens in the
@@ -10,6 +11,7 @@ export default function MemoView() {
   const [snapshot, setSnapshot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [isOwner, setIsOwner] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -29,6 +31,18 @@ export default function MemoView() {
         }
         setSnapshot(json.memo)
         setLoading(false)
+
+        // Owner-detection: snapshot embeds ownerUserId at create time, so
+        // we can check ownership with a single auth call -- no DB round-trip
+        // and no RLS dependency. Anonymous viewers (no session) skip this
+        // entirely; the common case is fast.
+        const ownerUserId = json.memo?.ownerUserId
+        if (ownerUserId) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!cancelled && user && user.id === ownerUserId) setIsOwner(true)
+          } catch { /* not signed in -- public viewer flow */ }
+        }
       } catch (err) {
         if (!cancelled) {
           setError('Network error -- please try again')
@@ -63,7 +77,10 @@ export default function MemoView() {
     )
   }
 
-  const { memo, project, stateProgram, sharedAt, sharedBy } = snapshot
+  const { memo, project, stateProgram, sharedAt, sharedByName } = snapshot
+  // Older tokens stored sharedBy: <email>; we deliberately ignore that field
+  // here so the shared URL never leaks the owner's email to recipients.
+  // Only sharedByName (display name) is rendered.
   const sharedDate = sharedAt ? new Date(sharedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null
 
   return (
@@ -86,7 +103,7 @@ export default function MemoView() {
             </p>
             {sharedDate && (
               <div className="font-mono text-[10px] tracking-[0.18em] mt-4" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                Shared {sharedDate}{sharedBy ? ` · by ${sharedBy}` : ''}
+                Shared {sharedDate}{sharedByName ? ` · by ${sharedByName}` : ''}
               </div>
             )}
           </div>
@@ -132,6 +149,35 @@ export default function MemoView() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Owner CTA -- only renders if the signed-in viewer owns this
+              project. Quick path back into Library so the owner can re-open
+              the live (un-frozen) view, edit notes, or share again. */}
+          {isOwner && (
+            <div
+              className="rounded-lg px-5 py-4 mb-6 flex items-center justify-between gap-4"
+              style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(15,118,110,0.22)' }}
+            >
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.20em] mb-1" style={{ color: '#0F766E' }}>
+                  ◆ You own this project
+                </p>
+                <p className="text-[13px] text-ink leading-relaxed">
+                  This is the snapshot recipients see. The live view in Library reflects current market data.
+                </p>
+              </div>
+              <Link
+                to="/library"
+                className="shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-colors"
+                style={{ background: '#0F1A2E' }}
+              >
+                Open in Library
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </Link>
             </div>
           )}
 

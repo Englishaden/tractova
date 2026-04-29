@@ -11,6 +11,7 @@ const VALID_KINDS = new Set([
   'score_change',
   'alert_triggered',
   'note_updated',
+  'shared',
 ])
 
 export async function logProjectEvent({ projectId, userId, kind, detail, meta = null }) {

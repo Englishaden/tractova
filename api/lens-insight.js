@@ -664,6 +664,11 @@ async function handleMemoCreate(body, res, user) {
 
   // Freeze the memo + a project snapshot so the shared link shows what the
   // owner saw at share time, even if the underlying state data changes later.
+  // ownerUserId is embedded so MemoView can detect "this viewer owns this
+  // project" without an extra DB round-trip; sharedByName uses the user's
+  // display name (never raw email -- email is PII and the shared URL is
+  // public, so anyone with the link could otherwise harvest it).
+  const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || null
   const snapshot = {
     memo,
     project: {
@@ -681,7 +686,8 @@ async function handleMemoCreate(body, res, user) {
     stateProgram: stateProgram || null,
     countyData: countyData || null,
     sharedAt: new Date().toISOString(),
-    sharedBy: user.email || null,
+    sharedByName: displayName,
+    ownerUserId: user.id,
   }
 
   const { data: inserted, error: insertErr } = await supabaseAdmin
@@ -694,6 +700,24 @@ async function handleMemoCreate(body, res, user) {
     console.error('[lens-insight:memo-create] insert error:', insertErr.message)
     return res.status(500).json({ error: 'Failed to create share token' })
   }
+
+  // Audit-log the share so the V3 project Audit tab shows who shared / when.
+  // Fire-and-forget: a failure here must not break the share flow.
+  // Migration 018 widens project_events.kind to include 'shared'; if the
+  // migration hasn't run yet, the insert silently fails on the check
+  // constraint (matches the existing fail-soft pattern for audit writes).
+  supabaseAdmin
+    .from('project_events')
+    .insert([{
+      project_id: project.id,
+      user_id: user.id,
+      kind: 'shared',
+      detail: `Shared deal memo · expires ${new Date(inserted.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+      meta: { token: inserted.token, sharedBy: user.email || null },
+    }])
+    .then(({ error: auditErr }) => {
+      if (auditErr) console.warn('[lens-insight:memo-create] audit log failed:', auditErr.message)
+    })
 
   return res.status(200).json({
     token: inserted.token,
