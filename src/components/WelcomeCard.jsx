@@ -1,24 +1,27 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
 
 // V3-extension — guided first-run onboarding card.
 //
-// Renders ONCE per browser for new authed users on the Dashboard. Three
-// step explanations + a "Run an example Lens analysis" CTA that pre-
-// fills a known-good demo (IL / Will County / 5 MW / Prospecting / CS).
-// The pre-fill auto-submits in Search.jsx since all 5 params are present.
+// Renders ONCE PER USER on the Dashboard. Persistence is in
+// profiles.welcome_dismissed_at (migration 024) so the card stays
+// dismissed across devices, browsers, and incognito sessions for
+// the same authenticated account.
 //
-// Storage: localStorage key `tractova_welcome_dismissed`. Per-device,
-// not per-user, intentionally -- we want the welcome to disappear after
-// first session even if the user signs out + back in. If they switch
-// devices, they see it again -- usually fine for a 3-step intro that
-// reinforces basics.
+// Hybrid storage:
+//   - localStorage 'tractova_welcome_dismissed' is the FAST PATH --
+//     read synchronously on mount so we don't flash the card while
+//     waiting for the Supabase profile fetch.
+//   - profiles.welcome_dismissed_at is the SOURCE OF TRUTH -- if
+//     localStorage is empty (e.g. new device for an existing user),
+//     we fall back to the DB and sync localStorage forward.
 //
-// Dismissal happens on:
-//   - Explicit X click
-//   - Click on the "Try Lens" CTA (they're already off the dashboard)
-//   - Click on any step's secondary CTA
+// On dismissal we write BOTH stores. If migration 024 hasn't been
+// applied yet (column doesn't exist), the DB write fails soft and
+// localStorage still wins -- no regression vs the old behavior.
 
 const STORAGE_KEY = 'tractova_welcome_dismissed'
 
@@ -27,22 +30,62 @@ const STORAGE_KEY = 'tractova_welcome_dismissed'
 const DEMO_HREF = '/search?state=IL&county=Will&mw=5&stage=Prospecting&technology=Community%20Solar'
 
 export default function WelcomeCard() {
-  const [visible, setVisible] = useState(false)
+  const { user } = useAuth()
+  // null = checking, false = hide, true = show
+  const [visible, setVisible] = useState(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    try {
-      const dismissed = window.localStorage.getItem(STORAGE_KEY)
-      if (!dismissed) setVisible(true)
-    } catch { /* localStorage blocked -- just don't show, fail silent */ }
-  }, [])
 
-  const dismiss = () => {
+    // Fast path: localStorage already says dismissed -> never show.
+    let localDismissed = false
+    try { localDismissed = window.localStorage.getItem(STORAGE_KEY) === '1' } catch {}
+    if (localDismissed) { setVisible(false); return }
+
+    // No user yet (auth still resolving) -- defer decision.
+    if (!user?.id) return
+
+    // Slow path: check DB. If DB has a dismissal timestamp, sync
+    // localStorage forward so future page loads hit the fast path.
+    let cancelled = false
+    supabase
+      .from('profiles')
+      .select('welcome_dismissed_at')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        // Column missing (migration not run) or any other error -> show
+        // the card. Fail-soft so onboarding still works pre-migration.
+        if (error || !data) { setVisible(true); return }
+        if (data.welcome_dismissed_at) {
+          setVisible(false)
+          try { window.localStorage.setItem(STORAGE_KEY, '1') } catch {}
+        } else {
+          setVisible(true)
+        }
+      })
+    return () => { cancelled = true }
+  }, [user?.id])
+
+  const dismiss = async () => {
+    // Optimistic UI: hide immediately + write localStorage fast path.
     setVisible(false)
     try { window.localStorage.setItem(STORAGE_KEY, '1') } catch {}
+    // Source of truth: persist to DB. Fail-soft on missing column.
+    if (user?.id) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ welcome_dismissed_at: new Date().toISOString() })
+          .eq('id', user.id)
+      } catch (e) {
+        console.warn('[WelcomeCard] dismiss persist failed:', e?.message)
+      }
+    }
   }
 
-  if (!visible) return null
+  if (visible !== true) return null
 
   return (
     <motion.div
