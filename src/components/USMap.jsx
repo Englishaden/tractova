@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
@@ -61,6 +61,18 @@ function getStateColor(stateId, isHovered, isSelected, stateProgramMap) {
 export default function USMap({ onStateClick, selectedStateId, stateProgramMap = {} }) {
   const [tooltip, setTooltip] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
+
+  // Respect prefers-reduced-motion. We use SMIL <animateTransform> which
+  // can't be CSS-gated easily, so we conditionally render the animation.
+  const [reducedMotion, setReducedMotion] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setReducedMotion(mq.matches)
+    const onChange = (e) => setReducedMotion(e.matches)
+    mq.addEventListener?.('change', onChange)
+    return () => mq.removeEventListener?.('change', onChange)
+  }, [])
 
   const handleMouseMove = (geo, evt) => {
     const fips = String(geo.id).padStart(2, '0')
@@ -131,7 +143,12 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
               Two distinct visual families: lines (Mid) vs dots (Light). All
               V3 navy at low opacity so the underlying choropleth fill reads
               through. patternUnits="userSpaceOnUse" keeps the texture scale
-              stable across zoom levels. */}
+              stable across zoom levels.
+
+              Continuous-drift animation gives the map a subtle "alive data"
+              feel -- Mid hatch oscillates +/- 3 degrees over 14s; Light
+              stipple translates by ~0.6 px over 12s. Both gated on
+              prefers-reduced-motion via the reducedMotion state above. */}
           <defs>
             {/* Mid coverage — 45° diagonal hatch lines */}
             <pattern
@@ -140,6 +157,19 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
               width="5.5" height="5.5"
               patternTransform="rotate(45)"
             >
+              {!reducedMotion && (
+                <animateTransform
+                  attributeName="patternTransform"
+                  attributeType="XML"
+                  type="rotate"
+                  values="42; 48; 42"
+                  keyTimes="0; 0.5; 1"
+                  dur="14s"
+                  repeatCount="indefinite"
+                  calcMode="spline"
+                  keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"
+                />
+              )}
               <line x1="0" y1="0" x2="0" y2="5.5" stroke="#0F1A2E" strokeWidth="0.75" strokeOpacity="0.28" />
             </pattern>
 
@@ -149,6 +179,19 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
               patternUnits="userSpaceOnUse"
               width="4" height="4"
             >
+              {!reducedMotion && (
+                <animateTransform
+                  attributeName="patternTransform"
+                  attributeType="XML"
+                  type="translate"
+                  values="0 0; 0.6 0.6; 0 0"
+                  keyTimes="0; 0.5; 1"
+                  dur="12s"
+                  repeatCount="indefinite"
+                  calcMode="spline"
+                  keySplines="0.4 0 0.6 1; 0.4 0 0.6 1"
+                />
+              )}
               <circle cx="2" cy="2" r="0.55" fill="#0F1A2E" fillOpacity="0.32" />
             </pattern>
           </defs>
