@@ -686,12 +686,33 @@ const EVENT_KIND_META = {
 function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
   const [events, setEvents] = useState(null)
   const [loading, setLoading] = useState(true)
+  // token → view_count map for `shared` events. Owners see how many times each
+  // shared link has actually been opened, turning the audit log into a soft
+  // engagement signal ("the IC opened it 4 times" beats "you sent the link").
+  const [shareViews, setShareViews] = useState({})
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    fetchProjectEvents(projectId).then((rows) => {
-      if (!cancelled) { setEvents(rows); setLoading(false) }
+    fetchProjectEvents(projectId).then(async (rows) => {
+      if (cancelled) return
+      setEvents(rows)
+      setLoading(false)
+
+      const tokens = (rows || [])
+        .filter(e => e.kind === 'shared' && e.meta?.token)
+        .map(e => e.meta.token)
+      if (tokens.length === 0) { setShareViews({}); return }
+
+      const { data, error } = await supabase
+        .from('share_tokens')
+        .select('token, view_count')
+        .in('token', tokens)
+      if (cancelled) return
+      if (error) { console.warn('[audit] share view counts fetch failed:', error.message); return }
+      const map = {}
+      for (const row of data || []) map[row.token] = row.view_count
+      setShareViews(map)
     })
     return () => { cancelled = true }
   }, [projectId, refreshKey])
@@ -720,6 +741,7 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
         const dt = new Date(e.created_at)
         const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        const viewCount = e.kind === 'shared' && e.meta?.token ? shareViews[e.meta.token] : undefined
         return (
           <li key={e.id} className="ml-4 pb-4 last:pb-0">
             <span
@@ -733,6 +755,15 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
               <span className="font-mono text-[10px] text-ink-muted tabular-nums">
                 {dateStr} · {timeStr}
               </span>
+              {typeof viewCount === 'number' && (
+                <span
+                  className="font-mono text-[9px] uppercase tracking-[0.18em] tabular-nums px-1.5 py-[1px] rounded-sm border"
+                  style={{ color: '#7C3AED', borderColor: 'rgba(124, 58, 237, 0.25)', background: 'rgba(124, 58, 237, 0.06)' }}
+                  title={viewCount === 0 ? 'Link not yet opened' : `Recipient opened the link ${viewCount} time${viewCount === 1 ? '' : 's'}`}
+                >
+                  {viewCount} {viewCount === 1 ? 'view' : 'views'}
+                </span>
+              )}
             </div>
             <p className="text-[12px] text-ink mt-0.5 leading-relaxed">{e.detail}</p>
           </li>
