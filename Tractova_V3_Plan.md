@@ -7,13 +7,29 @@
 
 ---
 
-## ⚡ Status Snapshot — Where We Left Off (2026-04-29 Day 3 EOD)
+## ⚡ Status Snapshot — Where We Left Off (2026-04-29 Day 3 LATE EOD)
 
 **V2-Refactored Steps 0-7 all SHIPPED.**
 **V3 Wave 1 — Items 1.1, 1.2, 1.3, 1.5 SHIPPED.** (1.4 deferred — needs accumulated snapshot data.)
-**V3 §4.3 Status Thread (Project Audit Log) SHIPPED.**
+**V3 §4.3 Status Thread (Project Audit Log) — fully SHIPPED with all 4 event kinds.**
+**V3 §4.7 Deal Memo Shareable URL — SHIPPED.**
 
-### Day 3 long-session deliverables (this session)
+### 🟢 Audit log is feature-complete
+All four kinds now log automatically:
+- `created` — fires on save (Search.jsx)
+- `stage_change` — fires when StagePicker changes stage
+- `score_change` — fires on Library load OR immediately after stage change (paired)
+- `alert_triggered` — fires on Library load when a new alert appears (deduped to last 30 days)
+
+### 🟢 Deal Memo Shareable URL is live
+- Click "Share Link" on any Library project → AI memo generates → token created → URL copied to clipboard → toast confirms
+- Recipient hits `/memo/:token` → no sign-in → frozen snapshot of memo + project → V3 brand chrome
+- 90-day expiry, 100-view cap per token
+- Server-side via `api/lens-insight.js` with new public `memo-view` action and auth'd `memo-create` action — no new function added (still 11/12)
+
+### Day 3 long-session deliverables (FINAL — full session)
+
+This was a **22-commit session**, the most productive single day on the V3 build.
 
 **Foundation (UI primitives + animation):**
 - `2dae05c` Motion installed (animation library, tree-shaken until used)
@@ -52,6 +68,25 @@
 - `e621dc1` Rate limiting on lens-insight.js (migration 015) — per-user
   burst limit (10/min) + sustained limit (60/hr) prevents Anthropic spend abuse
 
+**Bug fixes + quality polish:**
+- `5626a00` Library sort-by-score parity (was using bare-state score; now uses
+  same county-aware liveScore as the visible card) + immediate score_change
+  on stage change (don't wait for next reload)
+- `b79bd9d` Auto-fire AI Portfolio Insight on Library load (cached per
+  user-per-day; mirrors news-pulse pattern)
+- `5be7e1b` alert_triggered audit events with 30-day dedupe — completes the
+  V3 §4.3 audit log spec
+- `e4d412f` Library AlertChip → Radix Tooltip (portal-rendered, no clipping)
+
+**Big product feature:**
+- `991ebcc` **Deal Memo Shareable URL** (V3 §4.7) — most-requested item:
+  - Public `memo-view` action in lens-insight.js (no auth)
+  - Auth'd `memo-create` action freezes a snapshot
+  - Migration 017 share_tokens (90-day expiry, 100 view cap)
+  - New /memo/:token public route + MemoView page with V3 brand chrome
+  - Share Link button in Library expanded card → clipboard copy + Toast
+  - Toast component listens for window-dispatched `tractova:toast` events
+
 ### Tooling decisions made this session
 - **Motion** (motion/react) — installed; drives Lens gauge + tab cross-fades.
 - **Radix UI primitives** (`@radix-ui/react-{tabs,dialog,tooltip}`) — installed; wrapped
@@ -73,13 +108,20 @@ Latest commits on `origin/main` (Day 3):
 Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surface.
 
 **Action items pending — run in Supabase SQL editor:**
-1. `010_alert_positive.sql` — Profile good-news toggle persistence
-2. `011_projects_columns_backfill.sql` — Library project columns (save handler self-heals if missing)
-3. `012_ix_queue_snapshots.sql` — IX history accumulation (Wave 2 prereq)
-4. `013_profile_slack.sql` — Slack alert webhook URL + opt-in toggle
-5. `014_project_events.sql` *(Day 3)* — Audit tab populates only after this runs; helper logs warn and continues without it
-6. `015_api_call_log.sql` *(Day 3)* — rate-limit window for lens-insight.js; limiter activates silently the moment the table exists
-7. `016_projects_last_score.sql` *(Day 3)* — score_change audit events; column backfills from opportunity_score on first run
+
+✅ Already run (per user confirmation):
+- `010_alert_positive.sql` — Opportunity alerts toggle
+- `011_projects_columns_backfill.sql` — Library save columns
+- `012_ix_queue_snapshots.sql` — IX history accumulation
+- `013_profile_slack.sql` — Slack webhook + toggle
+- `014_project_events.sql` — **CONFIRMED RUN** — audit log populates ✅
+
+⏳ Still to run (Day 3 late additions):
+1. `015_api_call_log.sql` — rate-limit window for `lens-insight.js`. Limiter activates silently the moment the table exists. Without it, the limit logic skips and any user can hammer Anthropic. **Recommended ASAP** for cost protection.
+2. `016_projects_last_score.sql` — `score_change` audit events. Column backfills from `opportunity_score` automatically. Without it, `score_change` events never fire.
+3. `017_share_tokens.sql` — **REQUIRED for Deal Memo Share Link feature.** Without it, clicking "Share Link" returns a 500 from the create endpoint. Just adds the table + RLS policies; idempotent if you re-run it.
+
+> Note on the "destructive" warning Supabase shows on 014/017: false positive. The `drop policy if exists` lines are the standard idempotent pattern for RLS — Supabase's own docs use them. Your data is not at risk.
 
 **Surfaces 100% V3-cohesive:** Dashboard · Lens (form + results) · Library · Glossary · Profile · Compare · Sign-in/up · Upgrade · Landing · Admin · Email templates (digest + alerts) · Slack alerts.
 
@@ -89,13 +131,20 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 - **1.4 Derived metrics** — IX Velocity Index + Program Saturation Index. Needs ≥4 weeks of `ix_queue_snapshots` (so accumulate first; revisit late May / early June). Mostly query work; surfaces in Lens + Library. ~3-4h when data exists.
 
 **P2 — V3 deferred polish + product extension:**
-- **Deal Memo shareable URL** — token-based read-only memo links. Needs `share_tokens` table + RLS policy + new public route. ~3h. High product value (sales artifact).
-- **score_change / alert_triggered audit events** — extend the new audit log. Score changes need delta detection (cron-side); alerts plug into the existing alert engine. ~1-2h once cron is touched.
-- **Cmd-K palette enrichment** — index counties, utilities, and saved projects. Currently states + nav routes only. ~1-2h.
-- **XLSX export with formulas** — extends CSV with native NPV/payback formulas. Adds the `xlsx` dependency (~100KB). ~1.5h.
 - **Markets on the Move → real score deltas** — currently ranks by recency. When `dashboard_metrics` history accumulates ≥4 weeks, swap to true week-over-week delta ranking. ~2h.
-- **Refactor existing surfaces to use ui/* primitives** — as surfaces are naturally touched. Gradual.
-- **Tailwind v3 → v4 upgrade** — dedicated future session (~2-4h: 76 utility-class hits, default border/ring color changes). Unlocks shadcn permanently and matches V3 token philosophy better.
+- **Trend chips on KPIs** (V3 §7.2) — "↑ +3 (7d)" next to every metric. Same blocker as Markets on the Move (needs history).
+- **Refactor existing surfaces to use ui/* primitives** — as surfaces are naturally touched. Gradual. Candidates: Search.jsx form inputs, Profile toggles, Admin tabs, MetricsBar tooltip.
+- **MemoView "Open in Library" CTA for owner viewers** — if the recipient happens to be the project owner, show an extra CTA. Minor.
+- **Per-user "shared X times" stat in Library** — query `share_tokens` for owner's tokens. Trust signal.
+- **Audit log shows who shared / when** — extend logProjectEvent on memo-create to log a `shared` event. Tiny addition.
+- **Tailwind v3 → v4 upgrade** — dedicated future session (~2-4h: 76 utility-class hits, default border/ring color changes). Unlocks shadcn permanently and matches V3 token philosophy better. **Trigger: V3 Wave 3 Deal Calendar** (needs shadcn Calendar primitive).
+- **Cybersec quick wins from the §Security plan track** (top of this file):
+  - GitHub Dependabot + Secret Scanning + Push Protection (5 min, free)
+  - Supabase 2FA on your own account (2 min)
+  - Privacy Policy + ToS before first paid customer (Termly ~$15/mo)
+- **IP track:**
+  - File USPTO trademark for "Tractova" wordmark (Class 9 + 42; ~$500-800 with flat-fee attorney)
+  - Defensive domain registrations (.io / .app / .ai / common typos; ~$50/yr)
 
 **P3 — V3 Wave 2 (defensible data layer):**
 - **IX Queue Forecaster** — needs ≥12 weekly snapshots (Q3 launch). P50/P90 study completion modeling.
@@ -261,13 +310,10 @@ there's a natural break.
 ## What's NOT Shipped (Deferred — see "Next-Session Pickup" above)
 
 - **Markets on the Move with TRUE score deltas** — ships v1 with recency ranking; awaits ≥4 weeks of dashboard_metrics history for week-over-week delta ranking
-- **Deal Memo shareable URL** — needs `share_tokens` table
-- **score_change / alert_triggered audit events** — extends the shipped audit log
-- **XLSX export with formulas** — extra dependency
-- **Cmd-K palette enrichment** — counties + utilities + saved projects (states + nav routes ship in v1)
-- **V3 Wave 2** — Forecaster, Comparable Deals DB, PUC Docket Tracker, Utility Outreach Kit (waits on accumulated history)
-- **V3 Wave 3** — Subscriber Acquisition Intel, Capital Stack Pre-Flight, Deal Calendar, multi-county batch Lens
-- **Tailwind v4 upgrade** — dedicated future session
+- **Trend chips on KPIs** (V3 §7.2) — same blocker as above
+- **V3 Wave 2** — Forecaster, Comparable Deals DB, PUC Docket Tracker, Utility Outreach Kit, Subscriber Acquisition Intel (waits on accumulated history)
+- **V3 Wave 3** — Capital Stack Pre-Flight, Deal Calendar, multi-county batch Lens
+- **Tailwind v4 upgrade** — dedicated future session (trigger: Wave 3 Deal Calendar needing shadcn Calendar primitive)
 - **Mobile UI** — email + PDF responsive is sufficient for now
 
 ---
