@@ -14,22 +14,22 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
-// Dark jewel-tone fills against a light background — classic cartography contrast
+// V3 5-bucket single-hue teal ramp — light teal (low score) -> deep teal (high score).
+// Color-blind safe, matches Tailwind feasibility tokens, legend below uses same buckets.
 function getStateColor(stateId, isHovered, isSelected, stateProgramMap) {
-  if (isSelected) return '#7C3AED'    // violet — intelligence highlight
+  if (isSelected) return '#7C3AED'    // violet — intelligence highlight (kept)
   const state = stateProgramMap[stateId]
-  if (isHovered) return '#D97706'     // amber on hover
-  if (!state) return '#CBD5E1'        // light muted — blank territory
+  if (isHovered) return '#0F766E'     // deepest teal on hover
 
-  if (state.csStatus === 'pending') return '#B45309'  // rich burnt orange
-  if (state.csStatus === 'none')    return '#CBD5E1'  // light muted neutral
+  if (!state || state.csStatus === 'none') return '#E2E8F0'  // slate-200 — no program
+  if (state.csStatus === 'pending')        return '#F59E0B'  // amber — caution / pending
 
   const score = state.feasibilityScore
-  if (score >= 75) return '#059669'   // rich emerald — top markets
-  if (score >= 65) return '#047857'
-  if (score >= 55) return '#065F46'
-  if (score >= 45) return '#064E3B'
-  return '#053D2E'
+  if (score >= 75) return '#0F766E'   // teal-700 — strong (75+)
+  if (score >= 60) return '#14B8A6'   // teal-500 — viable (60-74)
+  if (score >= 45) return '#2DD4BF'   // teal-400 — moderate (45-59)
+  if (score >= 25) return '#99F6E4'   // teal-200 — weak (25-44)
+  return '#F0FDFA'                     // teal-50 — non-viable (<25)
 }
 
 export default function USMap({ onStateClick, selectedStateId, stateProgramMap = {} }) {
@@ -195,12 +195,15 @@ function StatusPill({ status }) {
 }
 
 function Legend() {
+  // V3: 5 score buckets that match getStateColor() exactly + 2 status states
   const items = [
-    { color: '#059669', label: 'High opp (75+)' },
-    { color: '#065F46', label: 'Moderate (45–74)' },
-    { color: '#053D2E', label: 'Low / limited' },
-    { color: '#B45309', label: 'Pending launch' },
-    { color: '#CBD5E1', label: 'No program', border: 'rgba(15,110,86,0.20)' },
+    { color: '#0F766E', label: 'Strong (75+)' },
+    { color: '#14B8A6', label: 'Viable (60–74)' },
+    { color: '#2DD4BF', label: 'Moderate (45–59)' },
+    { color: '#99F6E4', label: 'Weak (25–44)' },
+    { color: '#F0FDFA', label: 'Non-viable (<25)', border: 'rgba(15,118,110,0.30)' },
+    { color: '#F59E0B', label: 'Pending' },
+    { color: '#E2E8F0', label: 'No program', border: 'rgba(0,0,0,0.12)' },
   ]
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
@@ -208,7 +211,7 @@ function Legend() {
         <div key={i.label} className="flex items-center gap-1.5">
           <span
             className="w-3 h-3 rounded-sm flex-shrink-0"
-            style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.12)'}` }}
+            style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.10)'}` }}
           />
           <span className="text-xs text-gray-500">{i.label}</span>
         </div>

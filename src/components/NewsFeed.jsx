@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import { getNewsFeed } from '../lib/programData'
+import { supabase } from '../lib/supabase'
+
+// Module-level session cache so the Market Pulse fetches once per session,
+// not on every NewsFeed mount/unmount.
+let _pulseCache = null
 
 const PILLAR_STYLES = {
   offtake: { dot: 'bg-primary',     badge: 'bg-primary-50 text-primary-700 border-primary-200',     label: 'Offtake' },
@@ -23,6 +28,8 @@ export default function NewsFeed({ news: newsProp }) {
   const [filter,   setFilter]   = useState('all')
   const [page,     setPage]     = useState(0)
   const [liveNews, setLiveNews] = useState(null)
+  const [pulse,    setPulse]    = useState(_pulseCache)
+  const [pulseLoading, setPulseLoading] = useState(false)
 
   // If news wasn't passed as a prop (e.g. used standalone), fetch it ourselves
   useEffect(() => {
@@ -30,6 +37,43 @@ export default function NewsFeed({ news: newsProp }) {
   }, [newsProp])
 
   const newsData = newsProp ?? liveNews ?? []
+
+  // Fetch Market Pulse AI summary once per session (Pro-gated; silently no-ops for free)
+  useEffect(() => {
+    if (_pulseCache || pulseLoading || !newsData.length) return
+    let cancelled = false
+    setPulseLoading(true)
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (!token) { setPulseLoading(false); return }
+        const items = newsData.slice(0, 12).map(n => ({
+          headline: n.headline,
+          summary: n.summary,
+          pillar: n.pillar,
+          source: n.source,
+        }))
+        const res = await fetch('/api/lens-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ action: 'news-summary', items }),
+        })
+        if (cancelled) return
+        // Pro-only: free users get 403, just silently skip
+        if (!res.ok) { setPulseLoading(false); return }
+        const json = await res.json()
+        if (!cancelled && json.summary) {
+          _pulseCache = json.summary
+          setPulse(json.summary)
+        }
+        setPulseLoading(false)
+      } catch {
+        if (!cancelled) setPulseLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [newsData.length])
 
   const filtered = filter === 'all'
     ? newsData
@@ -66,6 +110,31 @@ export default function NewsFeed({ news: newsProp }) {
           ))}
         </div>
       </div>
+
+      {/* Market Pulse — AI-summarized rollup of recent news (Pro only) */}
+      {(pulse || pulseLoading) && (
+        <div
+          className="px-5 py-3 border-b border-gray-100"
+          style={{ background: 'rgba(20,184,166,0.04)' }}
+        >
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 12h4l2-7 4 14 2-7h4"/>
+            </svg>
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0F766E' }}>
+              Market Pulse
+            </span>
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded text-teal-700" style={{ background: 'rgba(20,184,166,0.12)' }}>
+              AI
+            </span>
+          </div>
+          {pulseLoading ? (
+            <p className="text-[12px] italic text-gray-400">Synthesizing this week's signal…</p>
+          ) : (
+            <p className="text-[12px] leading-relaxed text-gray-700">{pulse}</p>
+          )}
+        </div>
+      )}
 
       {/* Feed items */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">

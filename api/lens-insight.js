@@ -265,11 +265,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ insight: null, fallback: true, reason: 'no_api_key' })
   }
 
-  // ── Action routing — portfolio, compare, sensitivity use different prompts ──
+  // ── Action routing — multiplex specialized agents through this endpoint ────
   const action = body.action
-  if (action === 'portfolio') return handlePortfolio(body, res)
-  if (action === 'compare') return handleCompare(body, res)
-  if (action === 'sensitivity') return handleSensitivity(body, res)
+  if (action === 'portfolio')    return handlePortfolio(body, res)
+  if (action === 'compare')      return handleCompare(body, res)
+  if (action === 'sensitivity')  return handleSensitivity(body, res)
+  if (action === 'news-summary') return handleNewsSummary(body, res)
 
   // ── Build context + call Claude (single-project analysis) ─────────────────
   const contextText = buildContext(body)
@@ -421,6 +422,57 @@ async function handleSensitivity(body, res) {
     clearTimeout(timeoutId)
     console.error('[lens-insight:sensitivity] error:', err.message)
     return res.status(200).json({ rationale: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// News pulse summary — 2-3 sentence rollup of recent items for a state or feed
+// ─────────────────────────────────────────────────────────────────────────────
+const NEWS_SUMMARY_PROMPT = `You are a senior solar development analyst writing a market pulse for a developer who has 60 seconds. Given a list of recent community solar / interconnection / policy news items, produce a single paragraph (2-3 sentences) summarizing the developments that matter for project decisions. Highlight policy changes, capacity shifts, IX queue events, and developer implications. Do not list each item — synthesize the signal.
+
+OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences. Exact schema:
+{
+  "summary": "2-3 sentences synthesizing the news"
+}`
+
+async function handleNewsSummary(body, res) {
+  const { items, state } = body
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'items required' })
+  }
+
+  const lines = []
+  if (state) lines.push(`STATE FOCUS: ${state}`)
+  lines.push(`RECENT NEWS (${items.length} items):\n`)
+  items.slice(0, 12).forEach((it, i) => {
+    lines.push(`${i + 1}. [${it.pillar || 'general'}] ${it.headline || ''}${it.source ? ` — ${it.source}` : ''}`)
+    if (it.summary) lines.push(`   ${it.summary}`)
+  })
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const message = await client.messages.create(
+      { model: 'claude-sonnet-4-6', max_tokens: 300, system: NEWS_SUMMARY_PROMPT, messages: [{ role: 'user', content: lines.join('\n') }] },
+      { signal: controller.signal }
+    )
+    clearTimeout(timeoutId)
+    const raw = message.content?.[0]?.text || ''
+    try {
+      const match = raw.match(/\{[\s\S]*\}/)
+      const parsed = JSON.parse(match ? match[0] : raw)
+      if (parsed.summary) return res.status(200).json(parsed)
+    } catch {}
+    if (raw && raw.length > 20 && raw.length < 600) {
+      return res.status(200).json({ summary: raw.trim().replace(/^["{]|["}]$/g, '').slice(0, 500) })
+    }
+    return res.status(200).json({ summary: null, fallback: true, reason: 'parse_failed' })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[lens-insight:news-summary] error:', err.message)
+    return res.status(200).json({ summary: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }
 

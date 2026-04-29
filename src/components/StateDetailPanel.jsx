@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 function formatRelativeDate(date) {
@@ -27,31 +28,23 @@ const IX_CONFIG = {
 
 function ScoreBar({ score }) {
   const pct = Math.max(0, Math.min(100, score))
-  let barColor = 'bg-gray-300'
-  if (pct >= 75) barColor = 'bg-primary'
-  else if (pct >= 55) barColor = 'bg-primary-400'
-  else if (pct >= 40) barColor = 'bg-accent-400'
-  else if (pct >= 25) barColor = 'bg-amber-300'
+  // V3: align fill color with the choropleth ramp
+  let barColor = '#F0FDFA'
+  if (pct >= 75) barColor = '#0F766E'
+  else if (pct >= 60) barColor = '#14B8A6'
+  else if (pct >= 45) barColor = '#2DD4BF'
+  else if (pct >= 25) barColor = '#99F6E4'
 
   return (
     <div>
       <div className="flex items-end gap-2 mb-1">
-        <span className="text-3xl font-bold text-gray-900">{pct}</span>
+        <span className="text-3xl font-bold font-mono text-gray-900 tabular-nums">{pct}</span>
         <span className="text-sm text-gray-400 mb-1">/ 100</span>
-        <span className="text-xs text-gray-400 mb-1 ml-1">feasibility score</span>
+        <span className="text-xs text-gray-400 mb-1 ml-1">feasibility index</span>
       </div>
       <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
       </div>
-    </div>
-  )
-}
-
-function Section({ title, children }) {
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{title}</h3>
-      {children}
     </div>
   )
 }
@@ -60,7 +53,7 @@ function StatRow({ label, value, highlight }) {
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
       <span className="text-xs text-gray-500">{label}</span>
-      <span className={`text-xs font-semibold ${highlight ? 'text-primary' : 'text-gray-800'}`}>{value}</span>
+      <span className={`text-xs font-semibold ${highlight ? 'text-primary' : 'text-gray-800'} font-mono tabular-nums`}>{value}</span>
     </div>
   )
 }
@@ -72,19 +65,218 @@ const RUNWAY_COLORS = {
   urgent:   { bg: '#FEE2E2', text: '#7F1D1D' },
 }
 
+const TABS = [
+  { id: 'program',     label: 'Program' },
+  { id: 'market',      label: 'Market' },
+  { id: 'subscribers', label: 'Subscribers' },
+  { id: 'news',        label: 'News' },
+]
+
+function TabBar({ active, onChange, newsCount }) {
+  return (
+    <div className="flex border-b border-gray-200 px-3 bg-gray-50">
+      {TABS.map((tab) => {
+        const isActive = active === tab.id
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={`relative px-3 py-2 text-xs font-semibold transition-colors ${
+              isActive ? 'text-brand' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <span>{tab.label}</span>
+            {tab.id === 'news' && newsCount > 0 && (
+              <span className="ml-1 text-[10px] text-gray-400 font-mono">({newsCount})</span>
+            )}
+            {isActive && (
+              <span
+                className="absolute left-0 right-0 -bottom-px h-0.5 rounded-t"
+                style={{ background: '#14B8A6' }}
+              />
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Program tab ────────────────────────────────────────────────────────────
+function ProgramTab({ state, runway }) {
+  if (state.csStatus === 'none') {
+    return (
+      <div className="px-5 py-6 text-center">
+        <p className="text-xs text-gray-500">No community solar program in {state.name}.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Monitor for legislative activity or pivot to C&I/PPA structures.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="px-5 py-4 space-y-4">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Program Identity</h3>
+        <div className="bg-surface rounded-md p-3 space-y-0.5">
+          <StatRow label="Program name" value={state.csProgram || '—'} />
+          <StatRow label="Status" value={STATUS_CONFIG[state.csStatus]?.label || '—'} />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Capacity</h3>
+        <div className="bg-surface rounded-md p-3 space-y-0.5">
+          <StatRow label="Remaining capacity" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : '—'} highlight />
+          {runway && (
+            <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+              <span className="text-xs text-gray-500">Est. program runway</span>
+              <span
+                className="text-xs font-semibold px-2 py-0.5 rounded font-mono tabular-nums"
+                style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
+              >
+                ~{runway.months} mo{runway.urgency === 'watch' ? ' · watch' : runway.urgency === 'urgent' ? ' · act now' : ''}
+              </span>
+            </div>
+          )}
+          {state.enrollmentRateMWPerMonth && (
+            <StatRow label="Enrollment pace" value={`~${state.enrollmentRateMWPerMonth} MW/mo`} />
+          )}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Eligibility</h3>
+        <div className="bg-surface rounded-md p-3 space-y-0.5">
+          <StatRow label="LMI allocation required" value={state.lmiRequired ? `Yes — ${state.lmiPercent}%` : 'No'} />
+        </div>
+      </div>
+
+      {state.programNotes && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Notes</h3>
+          <div className="bg-surface rounded-md p-3">
+            <p className="text-xs text-gray-600 leading-relaxed">{state.programNotes}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Market tab ─────────────────────────────────────────────────────────────
+function MarketTab({ state }) {
+  const ixCfg = IX_CONFIG[state.ixDifficulty] || IX_CONFIG.moderate
+  return (
+    <div className="px-5 py-4 space-y-4">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Interconnection</h3>
+        <div className="bg-surface rounded-md p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs text-gray-500">Difficulty rating:</span>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${ixCfg.cls}`}>
+              {ixCfg.label}
+            </span>
+          </div>
+          {state.ixNotes && <p className="text-xs text-gray-600 leading-relaxed">{state.ixNotes}</p>}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Feasibility Index</h3>
+        <div className="bg-surface rounded-md p-3">
+          <ScoreBar score={state.feasibilityScore} />
+          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+            Composite of Offtake (40%), Interconnection (35%), and Site Control (25%).
+            Per-county breakdown available in <Link to={`/search?state=${state.id}`} className="text-primary hover:underline">Lens</Link>.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Subscribers tab (V3 Wave 2 placeholder) ────────────────────────────────
+function SubscribersTab({ state }) {
+  return (
+    <div className="px-5 py-4 space-y-4">
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Requirement</h3>
+        <div className="bg-surface rounded-md p-3">
+          {state.lmiRequired ? (
+            <div className="space-y-1">
+              <p className="text-sm font-semibold text-gray-800 font-mono tabular-nums">
+                {state.lmiPercent}% LMI carve-out
+              </p>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Of every project's capacity, {state.lmiPercent}% must be subscribed by qualifying low-to-moderate income households.
+                Plan for 6–9 months of subscriber sourcing through CBO partnerships and aggregator contracts.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-600">No LMI requirement — full residential and commercial subscriber market is available.</p>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Subscriber Intelligence</h3>
+        <div className="bg-surface rounded-md p-3 border border-dashed border-gray-300">
+          <p className="text-xs font-semibold text-gray-700 mb-1">Coming in next release</p>
+          <ul className="text-[11px] text-gray-500 leading-relaxed space-y-1 ml-3 list-disc">
+            <li>Per-county LMI household density (Census ACS)</li>
+            <li>CCA enrollment penetration</li>
+            <li>Top community-based organizations active in subscriber acquisition</li>
+            <li>Aggregator partner directory by state</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── News tab ───────────────────────────────────────────────────────────────
+function NewsTab({ state, news }) {
+  if (news.length === 0) {
+    return (
+      <div className="px-5 py-6 text-center">
+        <p className="text-xs text-gray-400">No recent activity for {state.name}.</p>
+        <p className="text-[11px] text-gray-300 mt-1">Check back as policy developments are tracked.</p>
+      </div>
+    )
+  }
+  return (
+    <div className="px-5 py-4">
+      <div className="space-y-2">
+        {news.map((item) => (
+          <a
+            key={item.id}
+            href={item.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block bg-surface rounded-md p-3 hover:bg-gray-100 transition-colors"
+          >
+            <p className="text-xs font-medium text-gray-800 leading-snug">{item.headline}</p>
+            <p className="text-[11px] text-gray-400 mt-1 font-mono">
+              {item.source} · {new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </p>
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
 export default function StateDetailPanel({ state, news = [], onClose }) {
+  const [activeTab, setActiveTab] = useState('program')
   if (!state) return null
 
   const status = STATUS_CONFIG[state.csStatus] || STATUS_CONFIG.none
-  const ixCfg  = IX_CONFIG[state.ixDifficulty] || IX_CONFIG.moderate
   const runway = state.runway ?? null
 
-  // Relevant news items for this state — passed from Dashboard (already live)
   const relatedNews = news.filter(
     (item) => (item.stateIds ?? item.tags ?? []).includes(state.id)
-  ).slice(0, 4)
+  ).slice(0, 6)
 
-  // Use the most recent of lastVerified or updatedAt (Supabase auto-updates)
   const latestDate = (() => {
     const v = state.lastVerified ? new Date(state.lastVerified) : null
     const u = state.updatedAt   ? new Date(state.updatedAt)   : null
@@ -132,88 +324,21 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
           </div>
         </div>
 
-        {/* Opportunity score */}
+        {/* Score header */}
         <div className="mt-4">
           <ScoreBar score={state.feasibilityScore} />
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+      {/* Tab bar */}
+      <TabBar active={activeTab} onChange={setActiveTab} newsCount={relatedNews.length} />
 
-        {/* Offtake / CS Program */}
-        <Section title="Offtake — Community Solar">
-          {state.csStatus === 'none' ? (
-            <p className="text-xs text-gray-400 italic">No community solar program in this state.</p>
-          ) : (
-            <div className="bg-surface rounded-md p-3 space-y-0.5">
-              <StatRow label="Program capacity remaining" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : '—'} highlight />
-              {runway && (
-                <div className="flex items-center justify-between py-1.5 border-b border-gray-100">
-                  <span className="text-xs text-gray-500">Est. program runway</span>
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className="text-xs font-semibold px-2 py-0.5 rounded"
-                      style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
-                    >
-                      ~{runway.months} months{runway.urgency === 'watch' ? ' — watch' : runway.urgency === 'urgent' ? ' — act now' : ''}
-                    </span>
-                    <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">est.</span>
-                  </div>
-                </div>
-              )}
-              <StatRow label="LMI allocation required"    value={state.lmiRequired ? `Yes — ${state.lmiPercent}%` : 'No'} />
-              {state.programNotes && (
-                <p className="text-xs text-gray-500 pt-1 leading-relaxed">{state.programNotes}</p>
-              )}
-            </div>
-          )}
-        </Section>
-
-        {/* Interconnection */}
-        <Section title="Interconnection">
-          <div className="bg-surface rounded-md p-3 space-y-0.5">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs text-gray-500">Difficulty rating:</span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${ixCfg.cls}`}>
-                {ixCfg.label}
-              </span>
-            </div>
-            {state.ixNotes && (
-              <p className="text-xs text-gray-500 leading-relaxed">{state.ixNotes}</p>
-            )}
-          </div>
-        </Section>
-
-        {/* Related news */}
-        {relatedNews.length > 0 && (
-          <Section title={`Recent News — ${state.id}`}>
-            <div className="space-y-2">
-              {relatedNews.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block bg-surface rounded-md p-3 hover:bg-gray-100 transition-colors"
-                >
-                  <p className="text-xs font-medium text-gray-800 leading-snug">{item.headline}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {item.source} · {new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
-                </a>
-              ))}
-            </div>
-          </Section>
-        )}
-
-        {/* No program placeholder */}
-        {state.csStatus === 'none' && relatedNews.length === 0 && (
-          <div className="text-center py-6">
-            <p className="text-xs text-gray-400">No recent activity for {state.name}.</p>
-            <p className="text-xs text-gray-300 mt-1">Check back as policy developments are tracked.</p>
-          </div>
-        )}
+      {/* Tab body */}
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === 'program'     && <ProgramTab state={state} runway={runway} />}
+        {activeTab === 'market'      && <MarketTab state={state} />}
+        {activeTab === 'subscribers' && <SubscribersTab state={state} />}
+        {activeTab === 'news'        && <NewsTab state={state} news={relatedNews} />}
       </div>
 
       {/* Footer */}
