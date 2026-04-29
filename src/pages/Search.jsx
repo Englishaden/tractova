@@ -1990,14 +1990,16 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Sensitivity scenarios">
         {scenarios.map(scn => {
           const isActive = activeScenario?.id === scn.id
           return (
             <button
               key={scn.id}
               onClick={() => setActiveScenario(isActive ? null : scn)}
-              className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all"
+              aria-pressed={isActive}
+              aria-label={`Sensitivity scenario: ${scn.label}`}
+              className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
               style={isActive
                 ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
                 : { background: 'white', color: '#0A1828', border: '1px solid #E2E8F0' }}
@@ -2011,7 +2013,10 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
         {/* + Custom toggle — opens inline popover */}
         <button
           onClick={() => { setCustomOpen(o => !o); if (isCustomActive) setActiveScenario(null) }}
-          className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all"
+          aria-expanded={customOpen}
+          aria-pressed={isCustomActive}
+          aria-label="Build a custom sensitivity scenario"
+          className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
           style={isCustomActive
             ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
             : { background: 'white', color: '#0A1828', border: '1px dashed #94A3B8' }}
