@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { motion, AnimatePresence } from 'motion/react'
 import { getStateProgramMap } from '../lib/programData'
+import allCounties from '../data/allCounties.json'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 // V3: Global Cmd-K command palette. Power-user shortcut signaling "data
 // product, not consumer SaaS". Indexes states + core nav routes; future
@@ -22,14 +25,50 @@ export default function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [stateMap, setStateMap] = useState({})
+  const [savedProjects, setSavedProjects] = useState([])
   const [activeIndex, setActiveIndex] = useState(0)
   const navigate = useNavigate()
   const inputRef = useRef(null)
+  const { user } = useAuth()
 
   // Lazy-load states once on mount
   useEffect(() => {
     getStateProgramMap().then(setStateMap).catch(() => {})
   }, [])
+
+  // Load saved projects when user authenticates -- enables jump-to-project.
+  useEffect(() => {
+    if (!user) { setSavedProjects([]); return }
+    supabase
+      .from('projects')
+      .select('id, name, state, county, mw, stage')
+      .eq('user_id', user.id)
+      .order('saved_at', { ascending: false })
+      .limit(40)
+      .then(({ data, error }) => {
+        if (!error && data) setSavedProjects(data)
+      })
+  }, [user])
+
+  // Flatten counties into searchable items. Lazy-built but cheap (one map +
+  // ~3000 rows) so we only do it when the palette opens for the first time.
+  const countyItems = useMemo(() => {
+    if (!Object.keys(stateMap).length) return []
+    const stateNameById = Object.fromEntries(Object.values(stateMap).map(s => [s.id, s.name]))
+    const out = []
+    for (const stateId of Object.keys(allCounties)) {
+      const stateName = stateNameById[stateId] || stateId
+      for (const county of allCounties[stateId]) {
+        out.push({
+          kind: 'county',
+          label: `${county}, ${stateId}`,
+          hint: `${stateName} · run Lens`,
+          path: `/search?state=${stateId}&county=${encodeURIComponent(county)}`,
+        })
+      }
+    }
+    return out
+  }, [stateMap])
 
   // Global Cmd/Ctrl-K hotkey
   useEffect(() => {
@@ -61,13 +100,29 @@ export default function CommandPalette() {
       path: `/search?state=${s.id}`,
       stateId: s.id,
     }))
-    const all = [...NAV_ROUTES.map(r => ({ kind: 'nav', ...r })), ...states]
-    if (!q.trim()) return all.slice(0, 12)
+    const projects = savedProjects.map(p => ({
+      kind: 'project',
+      label: p.name,
+      hint: `${p.county || '—'}, ${p.state || '?'} · ${p.mw || '?'} MW · ${p.stage || 'no stage'}`,
+      path: '/library',
+    }))
+    // Default view (no query): nav + states + projects, no counties (too noisy).
+    if (!q.trim()) {
+      return [
+        ...NAV_ROUTES.map(r => ({ kind: 'nav', ...r })),
+        ...projects.slice(0, 4),
+        ...states.slice(0, 8),
+      ].slice(0, 14)
+    }
+    // Active search: include counties (large set) but rank states + projects first.
     const needle = q.trim().toLowerCase()
-    return all
-      .filter(it => it.label.toLowerCase().includes(needle) || it.hint?.toLowerCase().includes(needle))
-      .slice(0, 16)
-  }, [q, stateMap])
+    const matchFn = (it) => it.label.toLowerCase().includes(needle) || it.hint?.toLowerCase().includes(needle)
+    const navMatch     = NAV_ROUTES.map(r => ({ kind: 'nav', ...r })).filter(matchFn)
+    const projectMatch = projects.filter(matchFn)
+    const stateMatch   = states.filter(matchFn)
+    const countyMatch  = needle.length >= 2 ? countyItems.filter(matchFn).slice(0, 12) : []
+    return [...navMatch, ...projectMatch, ...stateMatch, ...countyMatch].slice(0, 18)
+  }, [q, stateMap, savedProjects, countyItems])
 
   // Clamp activeIndex when items change
   useEffect(() => {
@@ -145,10 +200,18 @@ export default function CommandPalette() {
                               style={{ background: active ? 'rgba(15,118,110,0.08)' : 'transparent' }}
                             >
                               <span
-                                className="font-mono text-[9px] uppercase tracking-[0.20em] flex-shrink-0 w-12"
-                                style={{ color: it.kind === 'state' ? '#0F766E' : '#5A6B7A' }}
+                                className="font-mono text-[9px] uppercase tracking-[0.20em] flex-shrink-0 w-14"
+                                style={{
+                                  color:
+                                    it.kind === 'state'   ? '#0F766E' :
+                                    it.kind === 'county'  ? '#14B8A6' :
+                                    it.kind === 'project' ? '#0F1A2E' :
+                                                            '#5A6B7A',
+                                }}
                               >
-                                {it.kind === 'state' ? 'State' : 'Page'}
+                                {it.kind === 'state'   ? 'State' :
+                                 it.kind === 'county'  ? 'County' :
+                                 it.kind === 'project' ? 'Project' : 'Page'}
                               </span>
                               <div className="flex-1 min-w-0">
                                 <p className="font-serif text-sm font-semibold text-ink leading-tight truncate">{it.label}</p>
