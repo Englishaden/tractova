@@ -1,9 +1,52 @@
 # Tractova V3 — Build Plan
 
 > Reviewer: Opus 4.7 (high effort)
-> Last updated: 2026-04-28
+> Last updated: 2026-04-28 (end of Day 1 build)
 > Supersedes: `Tractova_V2_Plan.md` for Phases 2-7. Phase 1 of V2 is shipped — no rework.
 > Companion strategic critique: `~/.claude/plans/read-tractova-v3-prop-plan-md-file-functional-penguin.md`
+
+---
+
+## ⚡ Status Snapshot — Where We Left Off (2026-04-28 EOD)
+
+**V2-Refactored Steps 0-5 + Step 6 + Step 7 (Sessions A & B) all SHIPPED to production.**
+**V3 Wave 1 — Items 1.1 (queue history) + 1.2 (branded emails) SHIPPED.**
+
+Latest commits on `origin/main`:
+- `45d1e91` V3 Wave 1.1+1.2 — IX queue snapshots + V3-branded weekly digest & alert emails
+- `e76e14e` Hybrid placeholder copy fix (Alaska/unseeded states)
+- `eae38f1` Library follow-ups (alerts chip legibility, StagePicker dropdown clipping, pipeline labels)
+- `1da46f6` Step 7 Session B — Glossary + Library + Admin V3 pass
+- `9ea468e` ArcGauge spacing
+- `c05f055` SubScoreBar overflow fix
+- `4c7d903` Step 7 Session A — Lens form chrome + bug fixes + sensitivity-on-gauge architecture
+- `2c1a048` Lens redesign (Editorial Intelligence)
+
+**Action items pending — run in Supabase SQL editor:**
+1. `010_alert_positive.sql` — enables Profile "good-news alerts" toggle persistence
+2. `011_projects_columns_backfill.sql` — restores all Library columns (save handler self-heals via app-level fallback if not run)
+3. `012_ix_queue_snapshots.sql` — enables IX queue history accumulation (foundational for V3 Wave 2 Forecaster)
+
+**Surfaces are 100% V3-cohesive:** Dashboard, Lens (form + results), Library, Glossary, Profile, Compare, Sign-in/up, Upgrade, Landing, Admin, Email templates (digest + alerts).
+
+### 🚀 Next-Session Pickup Options (priority-ranked)
+
+**P1 — V3 Wave 1 remainder (recurring engagement):**
+- **1.3 Slack alerts** — webhook-based push from existing alert engine. ~2h, no new functions (extend `send-alerts.js`).
+- **1.4 Derived metrics** — IX Velocity Index + Program Saturation Index. Computed from `ix_queue_snapshots` once we have ≥4 weeks of data. Mostly query work; surfaces in Lens + Library. ~3-4h.
+- **1.5 "Markets-on-the-move" digest section** — top 3 portfolio states with score deltas this week. Adds the V3 §3.6 enrichment to the now-V3-branded weekly email. ~2h.
+
+**P2 — V3 deferred items from Step 7:**
+- **7.9 Form component extraction** (Input/Select/Button) — structural debt cleanup. ~2h.
+- **Lens Zone A/B/C/D structural refactor** — polish on already-working code. ~5-7h.
+- **Deal Memo shareable URL** — token-based read-only memo links. Needs `share_tokens` table. ~3h.
+- **Status thread audit log** — append-only project event log. Needs `project_events` table. ~3h.
+
+**P3 — V3 Wave 2 (defensible data layer):**
+- **IX Queue Forecaster** — needs ≥12 weekly snapshots (so realistically Q3 launch). When we get there: P50/P90 study completion modeling.
+- Comparable Deals DB, PUC Docket Tracker MVP, Utility Outreach Kit.
+
+---
 
 ---
 
@@ -21,21 +64,46 @@ Pricing is anchored to the **CS/Hybrid origination buyer at a 1-10 person shop**
 
 ---
 
-## What's Already Shipped (Verified)
+## What's Already Shipped (Verified through 2026-04-28)
 
-- **V2 Phase 1 — fully complete.** Tech reorder, automated freshness, ESC handlers, "Library" rename trail (`Nav.jsx:68`, `UpgradePrompt.jsx:16`, `UpgradeSuccess.jsx:74`).
-- **Compare Tray "Best For" + "Open in Lens"** already in `CompareTray.jsx:150-159` and `:248-266`. V2 wrongly framed these as new work.
-- **Profile portfolio stats + 2-toggle alert prefs** (commit 860c77d).
+### V2-Refactored — All Complete
+- ✅ **Step 0** — V3 plan committed to repo (this file)
+- ✅ **Step 1 (V2-A)** — Lens AI sensitivity action + signal cleanup + scenario quantification + form chrome navy + bug fixes + pillar order reflow + sensitivity-on-gauge architecture
+- ✅ **Step 2 (V2-B)** — Dashboard tabbed StateDetailPanel (Program/Market/Subscribers/News) + 5-bucket teal choropleth + Market Pulse AI summary
+- ✅ **Step 3 (V2-C)** — Library polish: Risk Concentration widget, pipeline filter-on-click, weeks-in-stage stale flag, CSV → 18 cols, Deal Memo Generator
+- ✅ **Step 4 (V2-D)** — Profile two-column + good-news toggle + Glossary 10 platform terms
+- ✅ **Step 5a/b/c** — Design tokens + brand rollout across Nav/Footer/MetricsBar/USMap + Library institutional depth + auth surface palette
+- ✅ **Step 6** — Save-to-Library bug fix (migration 011 + app-level fallback) + Landing How-it-works connector + Lens theme rollout
+- ✅ **Step 7 Session A** — Lens form chrome navy/teal, ArcGauge clipping fix, SubScoreBar overflow fix, methodology tooltip clamp, sensitivity scenarios moved to gauge surface, CustomScenarioBuilder rewired
+- ✅ **Step 7 Session B** — Glossary full V3 revamp + Library legacy cleanup (filter bar, pipeline ramp, project card serifs) + Admin V3 pass
+- ✅ **Step 7 Library follow-ups** — alerts chip legibility, StagePicker dropdown clipping fix, pipeline label readability
+- ✅ **Hybrid placeholder copy** — distinguishes "MW missing" from "state has no seeded model"
+
+### V3 Wave 1 — In Progress
+- ✅ **1.1** IX queue history accumulation — migration 012 + cron append snapshots (foundational for Wave 2 Forecaster)
+- ✅ **1.2** Weekly digest + policy alert emails — V3-branded with navy/teal, Source Serif 4 wordmark, JetBrains Mono numerics, portfolio meta strip
+- ⬜ 1.3 Slack alert integration
+- ⬜ 1.4 Derived metrics (IX Velocity Index, Program Saturation Index)
+- ⬜ 1.5 "Markets-on-the-move" digest enrichment
+
+### Pre-V3 Foundation (Verified shipped, not re-touched)
+- V2 Phase 1 (tech reorder, automated freshness, ESC handlers, "Library" rename)
+- Compare Tray "Best For" + "Open in Lens"
+- Profile portfolio stats + alert preferences
 
 ---
 
-## What's NOT Shipped (Carry Forward)
+## What's NOT Shipped (Deferred — see "Next-Session Pickup" above)
 
-- Profile toggle dot overflow at `Profile.jsx:122` (`translate-x-4` on `w-9`)
-- Single-column `max-w-lg` layout in Profile
-- 3rd "positive events" alert toggle
-- Glossary platform terms (only "Feasibility Index" is in the array today)
-- All of V2 Phase 2-7
+- **Lens Zone A/B/C/D structural refactor** — deferred polish on already-working code
+- **Deal Memo shareable URL** — needs `share_tokens` table
+- **Status thread audit log per project** — needs `project_events` table
+- **XLSX export with formulas** — extra dependency, low ROI vs CSV
+- **Form component extraction** (`src/components/ui/Input.jsx` etc.) — structural debt
+- **V3 Wave 1.3-1.5** — Slack, derived metrics, briefing enrichment
+- **V3 Wave 2** — Forecaster, Comparable Deals DB, PUC Docket Tracker, Utility Outreach Kit (waits on accumulated history)
+- **V3 Wave 3** — Subscriber Acquisition Intel, Capital Stack Pre-Flight, Deal Calendar, Cmd-K
+- **Mobile UI** — email + PDF responsive is sufficient for now
 
 ---
 
@@ -299,3 +367,10 @@ After Wave 1:
 11. Vercel Hobby + multiplex through `lens-insight.js`. No paid upgrades.
 12. Sonnet 4.6 everywhere. Opus 4.7 reserved for Premium tier.
 13. Brand: deep navy + teal + serif wordmark + JetBrains Mono numerics.
+14. **Sensitivity scenarios on the gauge surface, not in the AI panel** — toggling updates the score in place; no scroll-up. Custom scenario popover drives the same lifted state.
+15. **Editorial Intelligence aesthetic over "polished SaaS dashboard"** — Bloomberg/Linear/Stripe direction. Mono eyebrow → serif title → mono caption pattern across every surface. Drop-cap on AI commentary.
+16. **Pillar order = reading order** — Offtake → IX → Site Control left-to-right (was Site → IX → Offtake). Maps to the actual decision sequence: viable market? → IX feasible? → site buildable?
+17. **Migration `if not exists` lesson** — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` for changes to existing tables. `CREATE TABLE IF NOT EXISTS` silently no-ops if the table exists, stranding column additions.
+18. **Save handler is schema-cache-resilient** — detects PostgREST "column not found" errors and retries without that field. Decouples save UX from migration timing.
+19. **Hybrid/C&I/BESS placeholder copy** distinguishes "MW missing" from "state not seeded" — names the gap honestly, signals it's a roadmap item.
+20. **Append-only IX snapshots over upsert** — `ix_queue_data` stays as the "latest" UI table, `ix_queue_snapshots` accumulates history. The Wave 2 Forecaster needs ≥12 weeks of trajectory; cheapest data-moat investment in the plan.

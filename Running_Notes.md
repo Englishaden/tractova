@@ -1,7 +1,57 @@
 # Tractova — 4-Week Premium Buildout Plan
 
-> Last updated: April 25, 2026
-> Status: ALL 4 WEEKS COMPLETE + Hybrid Data Pipeline (4 phases) built. All data now served from Supabase.
+> Last updated: April 28, 2026
+> Status: V3 (Editorial Intelligence) BUILD DAY 1 COMPLETE. See `Tractova_V3_Plan.md` for current build plan.
+
+---
+
+## V3 Build Log (April 28, 2026)
+
+Spent the day taking the product from "polished V2" through a full "Editorial Intelligence" V3 redesign + bug-fix sweep + recurring-engagement scaffolding. Everything is on `origin/main` and Vercel-deployed. See `Tractova_V3_Plan.md` for the live status snapshot.
+
+### Shipped today (in commit order)
+- **`742a12f`** V2 Phase 1 + V3 foundations — design tokens (brand navy `#0F1A2E`, teal `#14B8A6`, paper `#FAFAF7`, ink, feasibility ramp), Source Serif 4 + JetBrains Mono fonts, sensitivity AI action, signal cleanup, scenario $ + months quantification.
+- **`704dd8d`** Step 2 — Dashboard tabbed StateDetailPanel (Program/Market/Subscribers/News), 5-bucket teal choropleth, Market Pulse AI summary in NewsFeed.
+- **`ae8c3d3`** Step 3 — Library: dropped redundant Avg Score + Risk Spread widgets, added Risk Concentration widget, pipeline filter-on-click + 180-day stale flag, CSV → 18 cols, Deal Memo Generator (`action: 'deal-memo'`).
+- **`ca58114`** Step 4 — Profile two-column layout, toggle dot fix, good-news alert toggle (migration 010), Glossary 7 V2 + 3 V3 platform terms.
+- **`3b9c62e`** Step 5b — Brand rollout to Nav (Source Serif 4 wordmark + navy/teal mark), Footer, MetricsBar (navy chrome), USMap (teal palette).
+- **`e5ab968`** Step 5c — Library institutional depth (navy hero banner, paper bg, navy stat-strip rails, navy WeeklySummary header). Profile banner gradient updated. UpgradePrompt + SignIn + SignUp V3 palette.
+- **`8b8359d`** Save-to-Library hardening — surfaces DB errors inline; re-fetches session at click time; mw cast to number.
+- **`ba1e6ad`** Landing palette — hero/final-CTA navy, monospace metrics, serif headlines, teal CTAs.
+- **`d2cf23c`** Step 6 — migration `011_projects_columns_backfill.sql`, Landing How-it-works connector with chevron arrows, Lens theme rollout.
+- **`c29cb83`** Schema-cache-resilient save handler — detects PostgREST "column not found" and retries without that field. Save works whether or not migration 011 ran.
+- **`2c1a048`** Lens redesign (Editorial Intelligence) — used the frontend-design plugin to commit to a Bloomberg/Linear/Stripe aesthetic. Tachometer ArcGauge, terminal-style SubScoreBar with █ glyph segments, Source Serif 4 drop-cap on AI brief, mono eyebrow strips, side-rule AI tiles, ticker-tape signal strip, numbered editorial pillar headers (`01 / OFFTAKE`).
+- **`4c7d903`** Step 7 Session A — Lens form chrome navy/teal (was dark emerald), ArcGauge clipping fix, SubScoreBar reorder, methodology tooltip clamp, pillar order reflow (Offtake → IX → Site Control left-to-right), **sensitivity-on-gauge architecture** (lifted state to SearchContent, toggle row sits below gauge, gauge animates to new score in place with delta indicator).
+- **`c05f055`** SubScoreBar overflow fix — "INTERCONNECTION" was 148px wide overflowing a 100px container. Switched to CSS grid with `minmax(0, max-content)`; weight inlined next to label as gray meta.
+- **`9ea468e`** ArcGauge spacing — viewBox 180×118, 5 majors at 0/25/50/75/100 instead of 11 ticks, generous breathing room.
+- **`1da46f6`** Step 7 Session B — Glossary full revamp (navy hero, serif term titles, V3 pillar palette), Library legacy cleanup (filter+sort emerald → teal, project card names serif, **pipeline distribution stage ramp swapped from hardcoded emerald to V3 feasibility teal tokens**), Admin V3 pass.
+- **`eae38f1`** Library follow-ups — alerts chip readability (deeper text colors with leading status dot), StagePicker dropdown clipping fix (drop overflow-hidden when collapsed; z-[100]), pipeline stage labels readable (separated label color from bar color so very-light teal stages still have ink labels).
+- **`e76e14e`** Hybrid placeholder copy — Alaska/Hybrid no longer says "Enter project MW" when MW is entered. Distinguishes "MW missing" from "state has no seeded model" and names the coverage gap.
+- **`45d1e91`** V3 Wave 1.1 + 1.2:
+  - **1.1** New `ix_queue_snapshots` table (migration 012) + cron now appends snapshots alongside the existing upsert into `ix_queue_data`. Foundational for the Wave 2 IX Queue Forecaster (P50/P90 study completion modeling needs ≥12 weeks of trajectory).
+  - **1.2** Weekly digest + policy alert email templates rebranded to V3 — brand navy header with teal/amber accent rail, Source Serif 4 "Tractova" wordmark, JetBrains Mono caps for project meta, deeper alert chip text colors, V3 teal CTA. Digest gains a Tracked / Capacity / States meta strip with hairline rules — reads like a Bloomberg portfolio summary.
+
+### Pending Supabase migrations to run in SQL editor
+- `010_alert_positive.sql` — Profile good-news toggle persistence (app handles missing column gracefully)
+- `011_projects_columns_backfill.sql` — restores all Library project columns (save handler self-heals if not run)
+- `012_ix_queue_snapshots.sql` — enables IX queue history accumulation (foundational for Wave 2)
+
+### Where to pick up tomorrow
+See `Tractova_V3_Plan.md` "Status Snapshot" section at the top for next-session priority list. P1 is **V3 Wave 1 remainder** (Slack alerts via webhook, derived metrics, "Markets-on-the-move" digest enrichment). P2 is deferred Step 7 polish (Lens Zone refactor, form component extraction, Deal Memo shareable URL, status thread audit log).
+
+### Surfaces audit — fully V3-cohesive
+Dashboard · Lens (form + results) · Library · Glossary · Profile · Compare · Sign-in/up · Upgrade · Landing · Admin · Email templates (digest + alerts).
+
+### Infra constraints holding
+- Vercel Hobby: 11/12 functions (no upgrade needed — all new AI actions multiplex through `lens-insight.js`)
+- Supabase Free
+- Anthropic Sonnet 4.6 only (Opus 4.7 reserved for future Premium tier Deal Memos)
+- Resend Free (3K/mo)
+- **Net infra cost increase from V3 Day 1 work: $0/mo**
+
+---
+
+## (Pre-V3 logs preserved below)
 
 ### Progress Log
 - **Week 1** (commit 562627a): All placeholder text removed, typography unified, revenue colors overhauled (ITC→blue, credits→emerald, REC→violet), Profile page upgraded with avatar banner + recent activity, Library dark theme refined with column divider + bordered sections + stronger alerts, Landing page pricing + freshness added, bidirectional nav (Library→Lens carries all params) pulled forward from Week 4. **COMPLETE.**
