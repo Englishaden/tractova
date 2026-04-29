@@ -18,6 +18,7 @@ import SignUp from './pages/SignUp'
 import Profile from './pages/Profile'
 import UpgradeSuccess from './pages/UpgradeSuccess'
 import Admin from './pages/Admin'
+import MemoView from './pages/MemoView'
 
 // Shows Landing to logged-out visitors, Dashboard to signed-in users.
 // Blank surface during auth hydration prevents content flash.
@@ -62,6 +63,8 @@ export default function App() {
           />
           <Route path="/glossary" element={<Glossary />} />
           <Route path="/admin" element={<Admin />} />
+          {/* Public read-only Deal Memo by share token (no auth) */}
+          <Route path="/memo/:token" element={<MemoView />} />
           <Route
             path="/profile"
             element={

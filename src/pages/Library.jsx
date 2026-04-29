@@ -490,6 +490,106 @@ function CompareChip({ project }) {
   )
 }
 
+// ── Share Deal Memo button -- generates token-protected public URL ───────
+// Posts to /api/lens-insight 'memo-create' with a pre-generated AI memo +
+// project snapshot. Server returns { token, url, expiresAt }. We copy the
+// fully-qualified URL to clipboard and show a toast.
+function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveScore }) {
+  const [sharing, setSharing] = useState(false)
+
+  const handleShare = async (e) => {
+    e.stopPropagation()
+    setSharing(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) { setSharing(false); return }
+
+      // Step 1: generate AI memo (re-uses the existing 'deal-memo' action).
+      let memo = null
+      try {
+        const memoRes = await fetch('/api/lens-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            action: 'deal-memo',
+            project: { ...project, stage, technology: project.technology },
+            stateProgram,
+            countyData,
+          }),
+        })
+        if (memoRes.ok) {
+          const json = await memoRes.json()
+          memo = json.memo || null
+        }
+      } catch { /* fall through with null memo -- still creates a shareable snapshot */ }
+
+      // Step 2: store snapshot + get token.
+      const stateOverride = stateProgram ? { ...stateProgram, feasibilityScore: liveScore ?? stateProgram.feasibilityScore } : stateProgram
+      const createRes = await fetch('/api/lens-insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'memo-create',
+          project,
+          stateProgram: stateOverride,
+          countyData,
+          memo: memo || { recommendation: 'No AI memo generated; viewing project context only.' },
+        }),
+      })
+      if (!createRes.ok) {
+        const errJson = await createRes.json().catch(() => ({}))
+        console.error('[Memo Share] create failed:', errJson)
+        setSharing(false)
+        return
+      }
+      const { url } = await createRes.json()
+      const fullUrl = `${window.location.origin}${url}`
+      try {
+        await navigator.clipboard.writeText(fullUrl)
+      } catch { /* clipboard may be blocked; the link is still valid */ }
+
+      // Reuse global Toast if available; fall back to alert.
+      try {
+        const evt = new CustomEvent('tractova:toast', { detail: {
+          kind: 'success',
+          eyebrow: '◆ Memo Link Copied',
+          title: 'Shareable URL copied to clipboard',
+          description: `${fullUrl}  ·  expires in 90 days · capped at 100 views`,
+        } })
+        window.dispatchEvent(evt)
+      } catch {}
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleShare}
+      disabled={sharing}
+      className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      style={{ background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.30)' }}
+      title="Copy a read-only shareable link to this Deal Memo (90-day expiry)"
+    >
+      {sharing ? (
+        <>
+          <span className="w-3 h-3 rounded-full border-2 border-teal-300 border-t-teal-700 animate-spin" />
+          Building link…
+        </>
+      ) : (
+        <>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          Share Link
+        </>
+      )}
+    </button>
+  )
+}
+
 // ── Audit timeline -- reverse-chrono event log per project ────────────────
 // Surfaces the project_events table as a timeline. Lazy-loads on first
 // open of the Audit tab so most users never spend the supabase round-trip.
@@ -948,31 +1048,44 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
               </svg>
               Re-Analyze in Lens →
             </Link>
-            {/* V3: Single PDF export — IC-grade Deal Memo. Tries AI first; falls back to data-only PDF if AI unavailable. */}
-            <button
-              onClick={handleExportDealMemo}
-              disabled={memoExporting}
-              className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white"
-              style={{ background: '#0F1A2E' }}
-              title="Generate IC-grade Deal Memo PDF with AI analysis"
-            >
-              {memoExporting ? (
-                <>
-                  <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Synthesizing memo…
-                </>
-              ) : (
-                <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="18" x2="12" y2="12"/>
-                    <polyline points="9 15 12 18 15 15"/>
-                  </svg>
-                  Export Deal Memo PDF
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              {/* V3 §4.7: shareable read-only memo URL. Generates a token-protected
+                  link the user can send to investors / capital partners. The
+                  recipient lands on /memo/:token and sees a frozen snapshot
+                  without needing to sign in. */}
+              <ShareDealMemoButton
+                project={project}
+                stateProgram={current}
+                countyData={countyData}
+                stage={stage}
+                liveScore={liveScore}
+              />
+              {/* V3: Single PDF export — IC-grade Deal Memo. */}
+              <button
+                onClick={handleExportDealMemo}
+                disabled={memoExporting}
+                className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white"
+                style={{ background: '#0F1A2E' }}
+                title="Generate IC-grade Deal Memo PDF with AI analysis"
+              >
+                {memoExporting ? (
+                  <>
+                    <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                    Synthesizing memo…
+                  </>
+                ) : (
+                  <>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="12" y1="18" x2="12" y2="12"/>
+                      <polyline points="9 15 12 18 15 15"/>
+                    </svg>
+                    Export PDF
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

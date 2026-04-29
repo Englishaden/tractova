@@ -246,6 +246,11 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Invalid request body' })
   }
 
+  // ── Public actions (no auth) — must be before the auth gate ───────────────
+  // memo-view: token-gated read of a frozen memo snapshot. Token validation
+  // + view-cap enforcement happens inside handleMemoView via service-role.
+  if (body.action === 'memo-view') return handleMemoView(body, res)
+
   // ── Auth gate — Pro subscribers only ──────────────────────────────────────
   const token = req.headers.authorization?.slice(7)
   if (!token) return res.status(401).json({ error: 'Unauthorized' })
@@ -324,6 +329,7 @@ export default async function handler(req, res) {
   if (action === 'sensitivity')  return handleSensitivity(body, res)
   if (action === 'news-summary') return handleNewsSummary(body, res)
   if (action === 'deal-memo')    return handleDealMemo(body, res)
+  if (action === 'memo-create')  return handleMemoCreate(body, res, user)
 
   // ── Build context + call Claude (single-project analysis) ─────────────────
   const contextText = buildContext(body)
@@ -625,4 +631,107 @@ async function handleCompare(body, res) {
     console.error('[lens-insight:compare] error:', err.message)
     return res.status(200).json({ comparison: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Memo Share — frozen Deal Memo snapshot accessible via opaque token URL
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Two paths:
+//   handleMemoCreate (auth'd): owner generates a token + stores frozen memo +
+//                              project snapshot. Returns { token, url, expiresAt }.
+//   handleMemoView (public):   recipient hits with token, gets memo if not expired
+//                              and view_count < max_views. Increments view_count.
+//
+// Tokens self-expire (90 days) and have a view cap (100) to bound abuse.
+//
+async function handleMemoCreate(body, res, user) {
+  const { project, stateProgram, countyData, memo } = body
+  if (!project?.id) return res.status(400).json({ error: 'project.id required' })
+  if (!memo) return res.status(400).json({ error: 'memo required' })
+
+  // Verify the project actually belongs to this user (defense in depth -- the
+  // RLS policy also enforces this, but explicit check returns a cleaner error).
+  const { data: projectRow, error: projectErr } = await supabaseAdmin
+    .from('projects')
+    .select('id, user_id, name')
+    .eq('id', project.id)
+    .maybeSingle()
+  if (projectErr || !projectRow || projectRow.user_id !== user.id) {
+    return res.status(403).json({ error: 'Project not found or access denied' })
+  }
+
+  // Freeze the memo + a project snapshot so the shared link shows what the
+  // owner saw at share time, even if the underlying state data changes later.
+  const snapshot = {
+    memo,
+    project: {
+      id: project.id,
+      name: project.name,
+      state: project.state,
+      stateName: project.stateName,
+      county: project.county,
+      mw: project.mw,
+      stage: project.stage,
+      technology: project.technology,
+      servingUtility: project.servingUtility,
+      feasibilityScore: project.feasibilityScore,
+    },
+    stateProgram: stateProgram || null,
+    countyData: countyData || null,
+    sharedAt: new Date().toISOString(),
+    sharedBy: user.email || null,
+  }
+
+  const { data: inserted, error: insertErr } = await supabaseAdmin
+    .from('share_tokens')
+    .insert([{ project_id: project.id, user_id: user.id, memo: snapshot }])
+    .select('token, expires_at')
+    .single()
+
+  if (insertErr) {
+    console.error('[lens-insight:memo-create] insert error:', insertErr.message)
+    return res.status(500).json({ error: 'Failed to create share token' })
+  }
+
+  return res.status(200).json({
+    token: inserted.token,
+    url: `/memo/${inserted.token}`,
+    expiresAt: inserted.expires_at,
+  })
+}
+
+async function handleMemoView(body, res) {
+  const { token } = body
+  if (!token || typeof token !== 'string' || token.length < 16) {
+    return res.status(400).json({ error: 'Invalid token' })
+  }
+
+  const { data: row, error } = await supabaseAdmin
+    .from('share_tokens')
+    .select('token, memo, expires_at, view_count, max_views')
+    .eq('token', token)
+    .maybeSingle()
+
+  if (error || !row) return res.status(404).json({ error: 'Memo not found' })
+
+  if (new Date(row.expires_at) < new Date()) {
+    return res.status(410).json({ error: 'This memo link has expired' })
+  }
+
+  if (row.view_count >= row.max_views) {
+    return res.status(410).json({ error: 'This memo link has reached its view limit' })
+  }
+
+  // Increment view count fire-and-forget (don't slow the response).
+  supabaseAdmin
+    .from('share_tokens')
+    .update({ view_count: row.view_count + 1 })
+    .eq('token', token)
+    .then(({ error: updErr }) => {
+      if (updErr) console.warn('[lens-insight:memo-view] view_count bump failed:', updErr.message)
+    })
+
+  return res.status(200).json({ memo: row.memo, expiresAt: row.expires_at })
 }

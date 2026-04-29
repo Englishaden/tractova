@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect } from 'react'
 import * as RadixToast from '@radix-ui/react-toast'
 import { motion, AnimatePresence } from 'motion/react'
 
@@ -40,6 +40,17 @@ export function ToastProvider({ children }) {
   }, [])
 
   const value = { push, dismiss, success: (msg, opts) => push({ kind: 'success', title: msg, ...opts }), info: (msg, opts) => push({ kind: 'info', title: msg, ...opts }), warn: (msg, opts) => push({ kind: 'warn', title: msg, ...opts }), error: (msg, opts) => push({ kind: 'error', title: msg, ...opts }) }
+
+  // Listen for window-dispatched toasts so non-React code (or components
+  // that don't want to thread useToast) can fire them via:
+  //   window.dispatchEvent(new CustomEvent('tractova:toast', { detail: {...} }))
+  useEffect(() => {
+    const handler = (e) => {
+      if (e?.detail) push(e.detail)
+    }
+    window.addEventListener('tractova:toast', handler)
+    return () => window.removeEventListener('tractova:toast', handler)
+  }, [push])
 
   return (
     <ToastContext.Provider value={value}>
