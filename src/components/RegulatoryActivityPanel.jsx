@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { getPucDockets } from '../lib/programData'
+import { getPucPortal } from '../lib/pucPortals'
 import { LoadingDot } from './ui'
 
 // V3 Wave 2 — PUC Docket Tracker MVP
@@ -192,6 +193,29 @@ function DocketCard({ docket }) {
   )
 }
 
+// V3 Wave 2 — Explore PUC button. The user-facing escape hatch from
+// Tractova's selective curation to the comprehensive long tail. Always
+// visible in both empty-state AND populated-state -- signals honestly
+// that we curate signal, the source has the universe.
+function ExplorePucButton({ state }) {
+  const portal = getPucPortal(state)
+  return (
+    <a
+      href={portal.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded"
+    >
+      Explore {portal.name}
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+    </a>
+  )
+}
+
 function MetaItem({ label, value, hint, urgent }) {
   return (
     <div className="flex flex-col">
@@ -311,17 +335,19 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
         <div className={`rounded-xl px-5 py-6 text-center ${mode === 'lens' ? 'mt-4' : ''}`}
           style={{ background: '#FAFAF7', border: '1px dashed #E2E8F0' }}>
           <p className="text-[13px] text-ink-muted leading-relaxed">
-            No active PUC dockets currently tracked for <span className="font-medium text-ink">{labelName}</span>.
+            No Tractova-flagged proceedings in <span className="font-medium text-ink">{labelName}</span> right now.
           </p>
-          <p className="text-[11px] text-ink-muted mt-1.5">
-            Tractova reviews state PUC filings weekly. Check back, or contact the {labelName} PUC e-filing portal directly for the latest proceedings.
+          <p className="text-[11px] text-ink-muted mt-1.5 mb-3">
+            We surface only the dockets we've assessed as material — drill into the state PUC e-filing portal directly for the comprehensive index.
           </p>
+          <ExplorePucButton state={state} />
         </div>
       </div>
     )
   }
 
-  // Normal render
+  // Normal render — populated list + a footer-row "Explore source" link
+  // so users always have an escape hatch to the comprehensive long tail.
   return (
     <div className={mode === 'lens' ? '' : 'px-5 py-4'}>
       {mode === 'lens' && <PanelHeader stateName={labelName} count={docketsArr.length} />}
@@ -333,6 +359,12 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
       >
         {docketsArr.map(d => <DocketCard key={d.id} docket={d} />)}
       </motion.div>
+      <div className="mt-3 pt-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: '1px solid #E2E8F0' }}>
+        <p className="text-[11px] text-ink-muted leading-relaxed">
+          Tractova-flagged signal. <span className="text-ink-muted">For the full docket index:</span>
+        </p>
+        <ExplorePucButton state={state} />
+      </div>
     </div>
   )
 }
@@ -350,7 +382,7 @@ function PanelHeader({ stateName, count }) {
           Active PUC Dockets
         </h3>
         <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-          Public Utility Commission proceedings shaping {stateName}'s community-solar / DER market.
+          Tractova-flagged proceedings shaping {stateName}'s community-solar / DER market — selective, not exhaustive. Drill to source for the full docket index.
         </p>
       </div>
       {count != null && count > 0 && (

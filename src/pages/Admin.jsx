@@ -867,6 +867,15 @@ function PucDocketsTab() {
 
   return (
     <div>
+      {/* Curation cadence banner — admin-only sanity check on scope. */}
+      <div className="rounded-lg px-4 py-3 mb-5" style={{ background: '#FAFAF7', borderLeft: '3px solid #14B8A6', border: '1px solid #E2E8F0' }}>
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 mb-1">
+          ◆ Curation cadence
+        </p>
+        <p className="text-[12px] text-ink leading-relaxed">
+          Highlight 1–3 high-impact dockets per active state, refresh quarterly. Tractova surfaces signal, not exhaustive coverage — users see an "Explore PUC portal →" link in every empty / populated panel to drill into the long tail themselves. Don't chase comprehensiveness here.
+        </p>
+      </div>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-400">{visible.length} of {items.length} dockets</span>
@@ -1167,6 +1176,15 @@ function ComparableDealsTab() {
 
   return (
     <div>
+      {/* Curation cadence banner — admin-only sanity check on scope. */}
+      <div className="rounded-lg px-4 py-3 mb-5" style={{ background: '#FAFAF7', borderLeft: '3px solid #14B8A6', border: '1px solid #E2E8F0' }}>
+        <p className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 mb-1">
+          ◆ Curation cadence
+        </p>
+        <p className="text-[12px] text-ink leading-relaxed">
+          3–6 representative comps per state × technology, refresh quarterly. Tractova curates highlights — users see "Explore FERC Form 1 / EIA Form 860 →" links in every empty / populated panel to drill into the long tail themselves. Don't chase comprehensiveness here.
+        </p>
+      </div>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs text-gray-400">{visible.length} of {items.length} deals</span>

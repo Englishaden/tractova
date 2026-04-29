@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { getComparableDeals } from '../lib/programData'
+import { COMPARABLE_DEAL_SOURCES } from '../lib/pucPortals'
 import { LoadingDot } from './ui'
 
 // V3 Wave 2 — Comparable Deals panel.
@@ -172,6 +173,34 @@ function DealCard({ deal, targetMW }) {
   )
 }
 
+// V3 Wave 2 — Explore deal-source buttons. Pair of links to FERC Form 1 +
+// EIA Form 860 -- the federal datasets where the comprehensive long
+// tail of comparable deals lives. Tractova curates highlights; these
+// buttons are the user's escape hatch when they want to drill deeper.
+function ExploreDealSourcesButton() {
+  return (
+    <div className="inline-flex items-center gap-3 flex-wrap">
+      {COMPARABLE_DEAL_SOURCES.map((src) => (
+        <a
+          key={src.name}
+          href={src.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={src.desc}
+          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded"
+        >
+          Explore {src.name}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function MetaItem({ label, value, mono }) {
   return (
     <div className="flex flex-col">
@@ -235,13 +264,14 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
           style={{ background: '#FAFAF7', border: '1px dashed #E2E8F0' }}
         >
           <p className="text-[13px] text-ink-muted leading-relaxed">
-            No comparable deals currently tracked for{' '}
+            No Tractova-flagged comps for{' '}
             <span className="font-medium text-ink">{technology}</span> in{' '}
-            <span className="font-medium text-ink">{labelName}</span>{mw ? ` near ${mw} MW` : ''}.
+            <span className="font-medium text-ink">{labelName}</span>{mw ? ` near ${mw} MW` : ''} right now.
           </p>
-          <p className="text-[11px] text-ink-muted mt-1.5">
-            Tractova curates comps from FERC Form 1, EIA Form 860, and state PUC docket approvals — coverage expands as we seed each market.
+          <p className="text-[11px] text-ink-muted mt-1.5 mb-3">
+            We curate selective benchmarks from federal filings — drill into FERC Form 1 or EIA Form 860 directly for the comprehensive deal universe.
           </p>
+          <ExploreDealSourcesButton />
         </div>
       </div>
     )
@@ -258,6 +288,12 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
       >
         {dealsArr.map(d => <DealCard key={d.id} deal={d} targetMW={mw} />)}
       </motion.div>
+      <div className="mt-3 pt-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: '1px solid #E2E8F0' }}>
+        <p className="text-[11px] text-ink-muted leading-relaxed">
+          Tractova-flagged benchmarks. <span className="text-ink-muted">For the full deal universe:</span>
+        </p>
+        <ExploreDealSourcesButton />
+      </div>
     </div>
   )
 }
@@ -275,7 +311,7 @@ function PanelHeader({ stateName, count }) {
           Market Benchmarks
         </h3>
         <p className="text-[12px] text-ink-muted mt-1 leading-relaxed">
-          Recently-filed and operational projects in {stateName} sized similarly to your project. Validate sizing, offtake structure, and market saturation against actual activity.
+          Tractova-flagged comps in {stateName} near your project size — selective benchmarks, not a complete index. Drill to source for the full universe.
         </p>
       </div>
       {count != null && count > 0 && (
