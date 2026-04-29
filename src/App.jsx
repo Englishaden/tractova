@@ -4,6 +4,7 @@ import { CompareProvider } from './context/CompareContext'
 import { TooltipProvider } from './components/ui/Tooltip'
 import { ToastProvider } from './components/ui/Toast'
 import CompareTray from './components/CompareTray'
+import CommandPalette from './components/CommandPalette'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -72,6 +73,7 @@ export default function App() {
         </Routes>
         <Footer />
         <CompareTray />
+        <CommandPalette />
         </ToastProvider>
         </TooltipProvider>
         </CompareProvider>

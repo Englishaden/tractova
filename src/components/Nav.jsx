@@ -70,6 +70,23 @@ export default function Nav() {
 
         {/* Auth */}
         <div className="flex items-center gap-3">
+          {/* V3: Cmd-K hint -- power-user discovery cue. Click also opens
+              the palette via dispatched keyboard event so non-keyboard
+              users can find it. */}
+          {user && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true }))}
+              className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-ink-muted hover:text-ink"
+              style={{ background: '#F9FAFB', border: '1px solid #E2E8F0' }}
+              title="Open command palette"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+              <span className="font-mono text-[10px] tracking-wide">⌘K</span>
+            </button>
+          )}
           {loading ? (
             <div className="w-32 h-7 bg-gray-100 rounded animate-pulse" />
           ) : user ? (
