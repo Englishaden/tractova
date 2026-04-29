@@ -405,11 +405,8 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-8 relative">
-            {/* Connector line (desktop) */}
-            <div className="hidden lg:block absolute top-8 left-1/3 right-1/3 h-px bg-gray-200" />
-
-            {[
+          {(() => {
+            const steps = [
               {
                 step: '1',
                 title: 'Search your project',
@@ -425,19 +422,61 @@ export default function Landing() {
                 title: 'Track your pipeline',
                 body: 'Save projects to your library. Get alerts when program capacity drops, interconnection queue status changes, or policy shifts in your project\'s state.',
               },
-            ].map((s, i) => (
-              <div key={i} className="relative flex flex-col items-center text-center lg:items-start lg:text-left">
-                <div
-                  className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold font-mono mb-5 relative z-10"
-                  style={{ background: '#0F1A2E', boxShadow: '0 8px 24px rgba(15,26,46,0.20), 0 0 0 1px rgba(20,184,166,0.30)' }}
-                >
-                  {s.step}
+            ]
+            return (
+              <>
+                {/* Desktop: circles in a single row with a teal connector + chevron markers, text below in a 3-col grid */}
+                <div className="hidden lg:block">
+                  {/* Circle row */}
+                  <div className="relative flex justify-between items-center px-12 mb-10">
+                    {/* Connector line behind circles -- inset-x-12 matches the px-12 on this row, so the line spans circle-1-center to circle-3-center */}
+                    <div className="absolute inset-x-12 top-1/2 h-[2px] -translate-y-1/2" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.45) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.45) 100%)' }} />
+                    {/* Chevron markers between circles */}
+                    <svg className="absolute left-[33.33%] top-1/2 -translate-x-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 6 15 12 9 18" />
+                    </svg>
+                    <svg className="absolute left-[66.67%] top-1/2 -translate-x-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 6 15 12 9 18" />
+                    </svg>
+                    {steps.map((s) => (
+                      <div
+                        key={s.step}
+                        className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold font-mono relative z-10"
+                        style={{ background: '#0F1A2E', boxShadow: '0 8px 24px rgba(15,26,46,0.20), 0 0 0 1px rgba(20,184,166,0.30)' }}
+                      >
+                        {s.step}
+                      </div>
+                    ))}
+                  </div>
+                  {/* Text row */}
+                  <div className="grid grid-cols-3 gap-8 px-12">
+                    {steps.map((s) => (
+                      <div key={s.step} className="text-center">
+                        <h3 className="text-lg font-bold text-ink mb-2">{s.title}</h3>
+                        <p className="text-sm text-gray-500 leading-relaxed">{s.body}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <h3 className="text-lg font-bold text-ink mb-2">{s.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{s.body}</p>
-              </div>
-            ))}
-          </div>
+
+                {/* Mobile: stacked, no connector */}
+                <div className="lg:hidden space-y-8">
+                  {steps.map((s) => (
+                    <div key={s.step} className="flex flex-col items-center text-center">
+                      <div
+                        className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold font-mono mb-5"
+                        style={{ background: '#0F1A2E', boxShadow: '0 8px 24px rgba(15,26,46,0.20), 0 0 0 1px rgba(20,184,166,0.30)' }}
+                      >
+                        {s.step}
+                      </div>
+                      <h3 className="text-lg font-bold text-ink mb-2">{s.title}</h3>
+                      <p className="text-sm text-gray-500 leading-relaxed">{s.body}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )
+          })()}
         </div>
       </section>
 

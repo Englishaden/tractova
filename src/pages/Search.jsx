@@ -114,7 +114,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   return (
     <div
       className="rounded-xl mb-5"
-      style={{ border: '1px solid rgba(15,110,86,0.18)', boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
+      style={{ border: '1px solid rgba(20,184,166,0.20)', boxShadow: '0 2px 12px rgba(20,184,166,0.08), 0 1px 3px rgba(0,0,0,0.06)' }}
     >
       {/* Header band */}
       <div
@@ -166,8 +166,8 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
 
         {/* Center — Sub-score bars */}
         <div className="px-5 py-4 flex flex-col justify-center gap-3">
-          <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F6E56" />
-          <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#BA7517" />
+          <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F766E" />
+          <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#D97706" />
           <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#2563EB" />
         </div>
 
@@ -265,7 +265,7 @@ function EaseArcGauge({ score }) {
 
   let color = '#DC2626'
   if (s >= 7)      color = '#0F6E56'
-  else if (s >= 5) color = '#BA7517'
+  else if (s >= 5) color = '#D97706'
   else if (s >= 3) color = '#EA580C'
 
   return (
@@ -453,7 +453,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
               ? { color: '#7C3AED', background: 'rgba(124,58,237,0.06)', borderColor: 'rgba(124,58,237,0.20)' }
               : populationDensity === 'suburban'
               ? { color: '#2563EB', background: 'rgba(37,99,235,0.06)', borderColor: 'rgba(37,99,235,0.20)' }
-              : { color: '#0F6E56', background: 'rgba(15,110,86,0.06)', borderColor: 'rgba(15,110,86,0.20)' })
+              : { color: '#0F766E', background: 'rgba(20,184,166,0.06)', borderColor: 'rgba(20,184,166,0.25)' })
           }}>
             {populationDensity.charAt(0).toUpperCase() + populationDensity.slice(1)}
           </span>
@@ -542,8 +542,8 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
                       key={i}
                       className="flex items-center justify-between px-3 py-2 rounded-lg text-xs"
                       style={{
-                        background: isUtilityMatch ? 'rgba(15,110,86,0.08)' : highlight ? 'rgba(37,99,235,0.06)' : 'rgba(243,244,246,0.8)',
-                        borderLeft: isUtilityMatch ? '3px solid #0F6E56' : highlight ? '3px solid #2563EB' : '3px solid transparent',
+                        background: isUtilityMatch ? 'rgba(20,184,166,0.08)' : highlight ? 'rgba(37,99,235,0.06)' : 'rgba(243,244,246,0.8)',
+                        borderLeft: isUtilityMatch ? '3px solid #0F766E' : highlight ? '3px solid #2563EB' : '3px solid transparent',
                       }}
                     >
                       <div className="flex items-center gap-2 min-w-0">
@@ -591,10 +591,10 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #BA7517' }}>
+    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #D97706' }}>
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
-        <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(186,117,23,0.10)', color: '#BA7517' }}>
+        <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(217,119,6,0.12)', color: '#D97706' }}>
           <PillarIcon type="ix" />
         </div>
         <div>
@@ -639,7 +639,7 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
             <SectionLabel>Queue Data · {queueSummary.iso}</SectionLabel>
             <div
               className="rounded-lg overflow-hidden"
-              style={{ border: '1px solid rgba(186,117,23,0.25)', borderLeft: '3px solid #BA7517' }}
+              style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
             >
               {/* Congestion headline */}
               <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: CONGESTION[queueSummary.congestionLevel].bg }}>
@@ -664,7 +664,7 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">withdrawal</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-lg font-bold tabular-nums" style={{ color: '#BA7517' }}>{fmt(queueSummary.estimatedUpgradeCost)}</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#D97706' }}>{fmt(queueSummary.estimatedUpgradeCost)}</p>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">est. upgrade</p>
                 </div>
               </div>
@@ -773,22 +773,22 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
       <SectionLabel>Revenue Projection</SectionLabel>
       <div
         className="rounded-lg overflow-hidden"
-        style={{ border: '1px solid rgba(15,110,86,0.25)', borderLeft: '3px solid #0F6E56' }}
+        style={{ border: '1px solid rgba(20,184,166,0.25)', borderLeft: '3px solid #0F766E' }}
       >
         {/* Headline */}
-        <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(15,110,86,0.06)' }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(20,184,166,0.06)' }}>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual Revenue</p>
             <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(total)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Per MW</p>
-            <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#0F6E56' }}>{fmt(proj.revenuePerMW)}</p>
+            <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#0F766E' }}>{fmt(proj.revenuePerMW)}</p>
           </div>
         </div>
 
         {/* Stream breakdown bar */}
-        <div className="px-4 py-2" style={{ background: 'rgba(15,110,86,0.03)' }}>
+        <div className="px-4 py-2" style={{ background: 'rgba(20,184,166,0.03)' }}>
           <div className="flex h-2.5 rounded-full overflow-hidden gap-px">
             {streams.map(s => s.value > 0 && (
               <div
@@ -849,7 +849,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
   const isCS = technology === 'Community Solar'
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #0F6E56' }}>
+    <div className="bg-white border border-gray-200 rounded-lg flex flex-col" style={{ borderLeft: '3px solid #0F766E' }}>
       {/* Header */}
       <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2.5">
         <div className="w-7 h-7 rounded-md bg-primary-50 flex items-center justify-center text-primary">
@@ -1565,36 +1565,38 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
 
   return (
     <div
-      className="mb-5 rounded-lg overflow-hidden"
+      className="mb-5 rounded-lg overflow-hidden relative"
       style={{
-        border: '1px solid rgba(124,58,237,0.18)',
-        borderLeft: '4px solid #7C3AED',
+        border: '1px solid rgba(20,184,166,0.20)',
+        borderLeft: '4px solid #14B8A6',
         boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
       }}
     >
-      {/* Dark header band */}
+      {/* V3: Brand-navy header band with teal accent rail (was purple gradient) */}
       <div
-        className="px-5 py-3 flex items-center justify-between"
-        style={{ background: 'linear-gradient(135deg, #1E0A3C 0%, #2D1657 100%)' }}
+        className="px-5 py-3 flex items-center justify-between relative"
+        style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
       >
+        {/* Top teal accent rail */}
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
         <div className="flex items-center gap-2.5">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(45,212,191,0.85)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"/>
           </svg>
           <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.55)' }}>
             Market Intelligence
           </span>
-          {/* Badge: AI-powered vs scenario mode */}
+          {/* V3: AI badge teal (was violet); scenario badge stays amber (caution semantic) */}
           {showAI && (
             <span
               className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(124,58,237,0.28)', color: '#C4B5FD', border: '1px solid rgba(124,58,237,0.45)' }}
+              style={{ background: 'rgba(20,184,166,0.20)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.40)' }}
             >
               AI Analysis
             </span>
           )}
           {activeScenario && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(217,119,6,0.20)', color: '#FCD34D', border: '1px solid rgba(217,119,6,0.35)' }}>
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.20)', color: '#FCD34D', border: '1px solid rgba(245,158,11,0.40)' }}>
               Scenario Mode
             </span>
           )}
@@ -1614,7 +1616,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
         {showAI ? (
           <div>
             {activeScenario && (
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: 'rgba(124,58,237,0.55)' }}>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: 'rgba(15,118,110,0.65)' }}>
                 Base Analysis
               </p>
             )}
@@ -1668,16 +1670,16 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
                     )}
                   </div>
                 )}
-                {/* AI rationale — fetched live for the active scenario */}
+                {/* V3: AI rationale block -- teal accent (was violet) */}
                 {(rationaleLoading || scenarioRationale) && (
                   <div
                     className="mt-3 pt-3 rounded px-3 py-2"
                     style={{
-                      borderTop: '1px dashed rgba(124,58,237,0.25)',
-                      background: 'rgba(124,58,237,0.04)',
+                      borderTop: '1px dashed rgba(20,184,166,0.30)',
+                      background: 'rgba(20,184,166,0.04)',
                     }}
                   >
-                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: 'rgba(124,58,237,0.75)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: 'rgba(15,118,110,0.85)' }}>
                       AI Rationale
                     </p>
                     {rationaleLoading ? (
@@ -1714,12 +1716,12 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
               <div
                 className="rounded-lg px-4 py-3"
                 style={{
-                  background: 'rgba(15,110,86,0.05)',
-                  border: '1px solid rgba(15,110,86,0.15)',
-                  borderLeft: '3px solid #0F6E56',
+                  background: 'rgba(20,184,166,0.05)',
+                  border: '1px solid rgba(20,184,166,0.18)',
+                  borderLeft: '3px solid #0F766E',
                 }}
               >
-                <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: '#0F6E56' }}>
+                <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1.5" style={{ color: '#0F766E' }}>
                   Top Opportunity
                 </p>
                 <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.topOpportunity}</p>
@@ -1744,21 +1746,21 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
           })}
         </div>
 
-        {/* Immediate Action block — AI only */}
+        {/* V3: Immediate Action block — teal accent (was violet) */}
         {showAI && aiInsight.immediateAction && (
           <div
             className="mt-4 flex items-start gap-3 rounded-lg px-4 py-3"
             style={{
-              background: 'rgba(124,58,237,0.05)',
-              border: '1px solid rgba(124,58,237,0.15)',
-              borderLeft: '3px solid #7C3AED',
+              background: 'rgba(20,184,166,0.05)',
+              border: '1px solid rgba(20,184,166,0.18)',
+              borderLeft: '3px solid #14B8A6',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7C3AED" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
               <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
             </svg>
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#7C3AED' }}>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>
                 Immediate Action — Next 30 Days
               </p>
               <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.immediateAction}</p>
@@ -1766,21 +1768,21 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
           </div>
         )}
 
-        {/* Stage-Specific Guidance — AI only */}
+        {/* V3: Stage-Specific Guidance -- teal-700 (was legacy primary teal) */}
         {showAI && aiInsight.stageSpecificGuidance && (
           <div
             className="mt-4 flex items-start gap-3 rounded-lg px-4 py-3"
             style={{
-              background: 'rgba(15,110,86,0.05)',
-              border: '1px solid rgba(15,110,86,0.15)',
-              borderLeft: '3px solid #0F6E56',
+              background: 'rgba(20,184,166,0.05)',
+              border: '1px solid rgba(20,184,166,0.18)',
+              borderLeft: '3px solid #0F766E',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F6E56' }}>
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>
                 Stage Guidance — {form.stage || 'General'}
               </p>
               <p className="text-xs text-gray-700 leading-relaxed">{aiInsight.stageSpecificGuidance}</p>
@@ -1836,7 +1838,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight }
                 const positive = delta > 0
                 const direction = positive ? 'upside' : delta < 0 ? 'downside' : 'neutral'
                 const dirColors = {
-                  upside:   { border: 'rgba(15,110,86,0.35)', bg: isActive ? 'rgba(15,110,86,0.06)' : 'white', accent: '#0F6E56' },
+                  upside:   { border: 'rgba(20,184,166,0.40)', bg: isActive ? 'rgba(20,184,166,0.06)' : 'white', accent: '#0F766E' },
                   downside: { border: 'rgba(220,38,38,0.25)', bg: isActive ? 'rgba(220,38,38,0.04)' : 'white', accent: '#DC2626' },
                   neutral:  { border: 'rgba(107,114,128,0.25)', bg: isActive ? 'rgba(107,114,128,0.04)' : 'white', accent: '#6B7280' },
                 }
@@ -2581,7 +2583,8 @@ function SearchContent() {
   const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.technology
   const hasAnyInput = form.state || form.county || form.mw || form.stage || form.technology || results
 
-  const labelCls = "block text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5"
+  // V3: form labels use ink-muted for institutional feel (was text-primary-700 emerald)
+  const labelCls = "block text-[10px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5"
 
   return (
     <div className="min-h-screen bg-surface">
@@ -2607,7 +2610,7 @@ function SearchContent() {
           ref={formRef}
           onSubmit={handleSubmit}
           className="rounded-xl border border-gray-200/80"
-          style={{ boxShadow: '0 2px 12px rgba(15,110,86,0.07), 0 1px 3px rgba(0,0,0,0.06)' }}
+          style={{ boxShadow: '0 2px 12px rgba(20,184,166,0.08), 0 1px 3px rgba(0,0,0,0.06)' }}
         >
           {/* Form header band */}
           <div
@@ -2839,7 +2842,7 @@ function SearchContent() {
 
             {/* Bottom CTA / disclaimer */}
             <div className="mt-5 flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-5 py-4">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#BA7517" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <p className="text-xs text-gray-500 leading-relaxed">
                 <span className="font-semibold text-gray-700">Tractova intelligence is a research accelerator, not a substitute for site-specific due diligence.</span>{' '}
                 Verify interconnection conditions with the serving utility, confirm wetland boundaries with a site survey, and validate program capacity with your state PUC before committing capital.
@@ -2863,7 +2866,7 @@ function SearchContent() {
               <>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
                   </div>
