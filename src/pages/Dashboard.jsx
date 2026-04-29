@@ -168,15 +168,6 @@ export default function Dashboard({ previewMode = false }) {
           </div>
         </div>
 
-        {/* Hint when nothing is selected */}
-        {!selectedState && (
-          <>
-            <SectionDivider />
-            <p className="text-xs text-gray-400 text-center">
-              Click any state on the map to view its program details
-            </p>
-          </>
-        )}
       </main>
     </div>
   )
