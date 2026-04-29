@@ -148,6 +148,7 @@ function StateProgramsTab() {
       ix_notes: p.ixNotes,
       program_notes: p.programNotes,
       enrollment_rate_mw_per_month: p.enrollmentRateMWPerMonth,
+      coverage_tier: p.coverageTier || 'light',
     })
     setError(null)
   }
@@ -200,6 +201,7 @@ function StateProgramsTab() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
             <Field label="CS Status" value={editData.cs_status} field="cs_status" onChange={handleChange} options={['active', 'limited', 'pending', 'none']} />
+            <Field label="Coverage Tier" value={editData.coverage_tier || 'light'} field="coverage_tier" onChange={handleChange} options={['full', 'mid', 'light']} />
             <Field label="Program Name" value={editData.cs_program} field="cs_program" onChange={handleChange} />
             <Field label="Capacity (MW)" value={editData.capacity_mw} field="capacity_mw" onChange={handleChange} type="number" />
             <Field label="LMI %" value={editData.lmi_percent} field="lmi_percent" onChange={handleChange} type="number" />
@@ -225,10 +227,18 @@ function StateProgramsTab() {
   }
 
   // List view
+  // Show states that have any CS activity OR are explicitly Tier 1/2 coverage
+  // (so admin can manage BESS/C&I-relevant Tier 2 states even when csStatus='none').
+  const visiblePrograms = programs.filter(p =>
+    p.csStatus !== 'none' || ['full', 'mid'].includes(p.coverageTier)
+  )
+
+  const tierBadgeColor = { full: 'green', mid: 'yellow', light: 'gray' }
+
   return (
     <div>
       <div className="space-y-1.5">
-        {programs.filter(p => p.csStatus !== 'none').map(p => (
+        {visiblePrograms.map(p => (
           <button
             key={p.id}
             onClick={() => startEdit(p)}
@@ -239,6 +249,7 @@ function StateProgramsTab() {
                 <span className="text-sm font-bold text-gray-900 w-7">{p.id}</span>
                 <span className="text-sm text-gray-600 truncate">{p.name}</span>
                 <Badge color={statusColor[p.csStatus]}>{p.csStatus}</Badge>
+                <Badge color={tierBadgeColor[p.coverageTier] || 'gray'}>{p.coverageTier || 'light'}</Badge>
               </div>
               <div className="flex items-center gap-4 flex-shrink-0">
                 <div className="text-right hidden sm:block">

@@ -88,6 +88,7 @@ function normalize(row) {
     enrollmentRateMWPerMonth:  row.enrollment_rate_mw_per_month ?? null,
     lastVerified:              row.last_verified,
     updatedAt:                 row.updated_at,
+    coverageTier:              row.coverage_tier ?? 'light',
     // Computed — never stored
     feasibilityScore:          computeFeasibilityScore(row),
     runway:                    computeRunway(row),

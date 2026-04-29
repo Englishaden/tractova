@@ -9,6 +9,7 @@ import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
+import CoverageBadge from '../components/CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
 import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
@@ -296,9 +297,12 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
         <div className="md:col-span-7 px-6 py-7 flex flex-col gap-6">
           {/* Identity */}
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400 mb-1.5">
-              Target State
-            </p>
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400">
+                Target State
+              </p>
+              <CoverageBadge tier={stateProgram.coverageTier} />
+            </div>
             <h2 className="font-serif font-semibold text-ink leading-[0.95]" style={{ fontSize: '34px', letterSpacing: '-0.02em' }}>
               {stateProgram.name}
             </h2>

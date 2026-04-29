@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useSubscription } from '../hooks/useSubscription'
 import { getPucDockets } from '../lib/programData'
 import RegulatoryActivityPanel from './RegulatoryActivityPanel'
+import CoverageBadge from './CoverageBadge'
 
 // Module-level cache: per-state AI summary, 24h TTL. Survives page-internal
 // remounts so flipping between states + back doesn't re-spend tokens.
@@ -394,6 +395,7 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.cls}`}>
                 {status.label}
               </span>
+              <CoverageBadge tier={state.coverageTier} />
             </div>
             {state.csProgram && (
               <p className="text-xs text-gray-500 mt-0.5">{state.csProgram}</p>
