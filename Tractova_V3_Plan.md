@@ -28,6 +28,12 @@
 - `1e28963` Project audit log (V3 §4.3): migration 014 + `lib/projectEvents.js`
   helper + 4th "Audit" tab in Library + `created` and `stage_change` events
   + Library remove modal ported to Radix Dialog
+- `3534b65` Markets on the Move strip on Dashboard (V3 §4.1) — top 3 recently
+  active CS states with score + click-to-drill
+- `58722c0` Global Toast primitive (Radix Toast + Motion) — replaces hand-rolled
+  SaveToast in Search; navy chrome + kind-colored accent rail + serif title
+- `4d9db79` Cmd-K command palette (V3 Wave 3 brought forward) — power-user
+  shortcut indexing states + nav routes; ⌘K hint button in Nav
 
 ### Tooling decisions made this session
 - **Motion** (motion/react) — installed; drives Lens gauge + tab cross-fades.
@@ -64,12 +70,11 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 - **1.4 Derived metrics** — IX Velocity Index + Program Saturation Index. Needs ≥4 weeks of `ix_queue_snapshots` (so accumulate first; revisit late May / early June). Mostly query work; surfaces in Lens + Library. ~3-4h when data exists.
 
 **P2 — V3 deferred polish + product extension:**
-- **Markets on the Move strip** (Dashboard) — top 3 states with score deltas this week. Needs history reads + delta computation; surfaces above the map. ~2-3h.
 - **Deal Memo shareable URL** — token-based read-only memo links. Needs `share_tokens` table + RLS policy + new public route. ~3h. High product value (sales artifact).
 - **score_change / alert_triggered audit events** — extend the new audit log. Score changes need delta detection (cron-side); alerts plug into the existing alert engine. ~1-2h once cron is touched.
+- **Cmd-K palette enrichment** — index counties, utilities, and saved projects. Currently states + nav routes only. ~1-2h.
 - **XLSX export with formulas** — extends CSV with native NPV/payback formulas. Adds the `xlsx` dependency (~100KB). ~1.5h.
-- **Cmd-K command palette** — global search states/counties/utilities + shortcuts. Uses Radix Dialog. ~3-4h.
-- **SaveToast → Radix Toast** primitive — small surface, structural cleanup. ~30min.
+- **Markets on the Move → real score deltas** — currently ranks by recency. When `dashboard_metrics` history accumulates ≥4 weeks, swap to true week-over-week delta ranking. ~2h.
 - **Refactor existing surfaces to use ui/* primitives** — as surfaces are naturally touched. Gradual.
 - **Tailwind v3 → v4 upgrade** — dedicated future session (~2-4h: 76 utility-class hits, default border/ring color changes). Unlocks shadcn permanently and matches V3 token philosophy better.
 
@@ -129,11 +134,11 @@ Pricing is anchored to the **CS/Hybrid origination buyer at a 1-10 person shop**
 
 ## What's NOT Shipped (Deferred — see "Next-Session Pickup" above)
 
-- **Markets on the Move strip** (Dashboard top-3 states with weekly score deltas) — needs history reads
+- **Markets on the Move with TRUE score deltas** — ships v1 with recency ranking; awaits ≥4 weeks of dashboard_metrics history for week-over-week delta ranking
 - **Deal Memo shareable URL** — needs `share_tokens` table
 - **score_change / alert_triggered audit events** — extends the shipped audit log
 - **XLSX export with formulas** — extra dependency
-- **Cmd-K command palette** — V3 Wave 3
+- **Cmd-K palette enrichment** — counties + utilities + saved projects (states + nav routes ship in v1)
 - **V3 Wave 2** — Forecaster, Comparable Deals DB, PUC Docket Tracker, Utility Outreach Kit (waits on accumulated history)
 - **V3 Wave 3** — Subscriber Acquisition Intel, Capital Stack Pre-Flight, Deal Calendar, multi-county batch Lens
 - **Tailwind v4 upgrade** — dedicated future session
