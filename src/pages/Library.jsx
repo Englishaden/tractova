@@ -557,18 +557,28 @@ function ProjectAuditTimeline({ projectId }) {
 }
 
 // ── Project card ─────────────────────────────────────────────────────────────
-function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap }) {
+// V3 fix: countyData now comes from LibraryContent's centralized map (the
+// same instance the sort + score-change logic reads), so the card's visible
+// score and the sort's ranking score are guaranteed identical. Local fetch
+// fallback retained for safety in case map hasn't populated yet.
+function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {} }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
   const [stage,      setStage]      = useState(project.stage || '')
-  const [countyData, setCountyData] = useState(null)
+  const [localCountyData, setLocalCountyData] = useState(null)
   const idleTimerRef = useRef(null)
 
+  // Prefer the centralized countyDataMap; fall back to local fetch only if
+  // the map hasn't yet populated for this (state, county) pair.
+  const mappedCountyData = countyDataMap[`${project.state}::${project.county}`] || null
+  const countyData = mappedCountyData || localCountyData
+
   useEffect(() => {
+    if (mappedCountyData) return
     if (project.state && project.county)
-      getCountyData(project.state, project.county).then(setCountyData).catch(() => {})
-  }, [project.state, project.county])
+      getCountyData(project.state, project.county).then(setLocalCountyData).catch(() => {})
+  }, [project.state, project.county, mappedCountyData])
 
   const current   = stateProgramMap[project.state]
 
@@ -1411,6 +1421,7 @@ function LibraryContent() {
   const [error,           setError]           = useState(null)
   const [confirmRemove,   setConfirmRemove]   = useState(null)
   const [stateProgramMap, setStateProgramMap] = useState({})
+  const [countyDataMap,   setCountyDataMap]   = useState({}) // key `${state}::${county}` -> countyData
   const [sortBy,          setSortBy]          = useState('saved')    // saved|score|mw|alerts
   const [filterState,     setFilterState]     = useState('')
   const [filterTech,      setFilterTech]      = useState('')
@@ -1420,6 +1431,29 @@ function LibraryContent() {
   useEffect(() => {
     getStateProgramMap().then(setStateProgramMap).catch(console.error)
   }, [])
+
+  // Centralize county data fetch -- previously each ProjectCard fetched its
+  // own, leaving the sort logic with no county info and ranking projects
+  // by a different score than the cards displayed. Single map fixes that
+  // and serves as the canonical source for sort + score_change + cards.
+  useEffect(() => {
+    if (!projects.length) return
+    const seen = new Set()
+    const pending = []
+    for (const p of projects) {
+      if (!p.state || !p.county) continue
+      const key = `${p.state}::${p.county}`
+      if (seen.has(key) || countyDataMap[key]) continue
+      seen.add(key)
+      pending.push(getCountyData(p.state, p.county).then(d => [key, d]).catch(() => null))
+    }
+    if (!pending.length) return
+    Promise.all(pending).then(results => {
+      const updates = {}
+      for (const r of results) { if (r) updates[r[0]] = r[1] }
+      if (Object.keys(updates).length) setCountyDataMap(prev => ({ ...prev, ...updates }))
+    })
+  }, [projects.length])
 
   useEffect(() => {
     if (authLoading) return
@@ -1456,7 +1490,8 @@ function LibraryContent() {
         const sp = stateProgramMap[p.state]
         if (!sp) continue
         try {
-          const subs = computeSubScores(sp, null, p.stage, p.technology)
+          const cd = countyDataMap[`${p.state}::${p.county}`] || null
+          const subs = computeSubScores(sp, cd, p.stage, p.technology)
           const liveScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
           const previous = p.lastObservedScore
           if (previous == null) {
@@ -1480,7 +1515,20 @@ function LibraryContent() {
       }
     })()
     return () => { cancelled = true }
-  }, [user, projects.length, Object.keys(stateProgramMap).length])
+  }, [user, projects.length, Object.keys(stateProgramMap).length, Object.keys(countyDataMap).length])
+
+  // V3 fix: sort by score now uses the SAME inputs as the card display
+  // (state map + countyData + stage + technology). Previously sort passed
+  // null for countyData while cards passed real data, so a card showing
+  // "84" could sort below a card showing "76" -- which is what the user
+  // saw and rightly flagged as broken.
+  const liveScoreFor = (p) => {
+    const sp = stateProgramMap[p.state]
+    if (!sp) return -1
+    const cd = countyDataMap[`${p.state}::${p.county}`] || null
+    const subs = computeSubScores(sp, cd, p.stage, p.technology)
+    return computeDisplayScore(subs.offtake, subs.ix, subs.site)
+  }
 
   const displayProjects = useMemo(() => {
     let filtered = projects
@@ -1488,20 +1536,47 @@ function LibraryContent() {
     if (filterTech)  filtered = filtered.filter(p => p.technology === filterTech)
     if (filterStage) filtered = filtered.filter(p => p.stage === filterStage)
     return [...filtered].sort((a, b) => {
-      if (sortBy === 'score') {
-        const aS = computeSubScores(stateProgramMap[a.state], null, a.stage, a.technology)
-        const bS = computeSubScores(stateProgramMap[b.state], null, b.stage, b.technology)
-        return computeDisplayScore(bS.offtake, bS.ix, bS.site) - computeDisplayScore(aS.offtake, aS.ix, aS.site)
-      }
-      if (sortBy === 'mw')    return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
+      if (sortBy === 'score')  return liveScoreFor(b) - liveScoreFor(a)
+      if (sortBy === 'mw')     return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
       if (sortBy === 'alerts') return getAlerts(b, stateProgramMap).length - getAlerts(a, stateProgramMap).length
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
-  }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap])
+  }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap, countyDataMap])
 
-  const handleStageChange = useCallback((id, newStage) => {
+  // Stage change locally + immediate score-change check (don't wait for next
+  // Library reload). User feedback: stage changes the visible score, so the
+  // audit log should reflect that pairing in the same moment.
+  const handleStageChange = useCallback(async (id, newStage) => {
     setProjects(prev => prev.map(p => p.id === id ? { ...p, stage: newStage } : p))
-  }, [])
+    if (!user) return
+    const project = projects.find(p => p.id === id)
+    if (!project) return
+    const sp = stateProgramMap[project.state]
+    if (!sp) return
+    try {
+      const cd = countyDataMap[`${project.state}::${project.county}`] || null
+      const subs = computeSubScores(sp, cd, newStage, project.technology)
+      const newScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
+      const previous = project.lastObservedScore
+      if (previous == null) {
+        await supabase.from('projects').update({ last_observed_score: newScore }).eq('id', id)
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, lastObservedScore: newScore } : p))
+        return
+      }
+      const delta = newScore - previous
+      if (Math.abs(delta) >= 5) {
+        await logProjectEvent({
+          projectId: id,
+          userId: user.id,
+          kind: 'score_change',
+          detail: `Index ${delta > 0 ? 'rose' : 'fell'}: ${previous} → ${newScore} (${delta > 0 ? '+' : ''}${delta} pts) following stage change to ${newStage}`,
+          meta: { previous, current: newScore, delta, trigger: 'stage_change', stage: newStage },
+        })
+        await supabase.from('projects').update({ last_observed_score: newScore }).eq('id', id)
+        setProjects(prev => prev.map(p => p.id === id ? { ...p, lastObservedScore: newScore } : p))
+      }
+    } catch { /* per-project failure must not block UI */ }
+  }, [user, projects, stateProgramMap, countyDataMap])
 
   const handleRequestRemove = (id, name) => setConfirmRemove({ id, name })
 
@@ -1859,7 +1934,7 @@ function LibraryContent() {
             {displayProjects.length > 0 ? (
               <div className="grid gap-3">
                 {displayProjects.map((p) => (
-                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} onStageChange={handleStageChange} stateProgramMap={stateProgramMap} />
+                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} onStageChange={handleStageChange} stateProgramMap={stateProgramMap} countyDataMap={countyDataMap} />
                 ))}
               </div>
             ) : (
