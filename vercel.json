@@ -24,6 +24,9 @@
   "functions": {
     "api/lens-insight.js": {
       "maxDuration": 60
+    },
+    "api/refresh-data.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -50,6 +53,10 @@
     {
       "path": "/api/refresh-capacity-factors",
       "schedule": "0 7 1 1,4,7,10 *"
+    },
+    {
+      "path": "/api/refresh-data?source=all",
+      "schedule": "0 7 * * 0"
     }
   ]
 }

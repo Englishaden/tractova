@@ -1595,6 +1595,10 @@ function DataHealthTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [exporting, setExporting] = useState(false)
+  // Manual data-refresh trigger -- alternative to waiting for the weekly
+  // cron. Fans out to every supported source via /api/refresh-data?source=all.
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshResult, setRefreshResult] = useState(null)
 
   useEffect(() => {
     async function fetchHealth() {
@@ -1614,6 +1618,29 @@ function DataHealthTab() {
     }
     fetchHealth()
   }, [])
+
+  const handleRefreshData = async () => {
+    setRefreshing(true)
+    setRefreshResult(null)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Not authenticated')
+      const resp = await fetch('/api/refresh-data?source=all', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const body = await resp.text()
+      let json = null
+      try { json = JSON.parse(body) } catch {}
+      if (!resp.ok) throw new Error(json?.error || `HTTP ${resp.status}`)
+      setRefreshResult(json)
+    } catch (err) {
+      setRefreshResult({ ok: false, error: err.message })
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   const handleExport = async () => {
     setExporting(true)
@@ -1649,8 +1676,38 @@ function DataHealthTab() {
   return (
     <div className="space-y-8">
 
-      {/* ── Export Button ── */}
-      <div className="flex justify-end">
+      {/* ── Action buttons + manual data-refresh trigger ── */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={handleRefreshData}
+            disabled={refreshing}
+            className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-semibold rounded-lg text-white transition-colors disabled:opacity-50"
+            style={{ background: '#14B8A6' }}
+          >
+            {refreshing ? (
+              <>
+                <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                Refreshing live data…
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                Refresh data from sources
+              </>
+            )}
+          </button>
+          {refreshResult && (
+            <span className={`text-xs ${refreshResult.ok ? 'text-emerald-700' : 'text-red-600'}`}>
+              {refreshResult.ok
+                ? `✓ Refreshed: ${Object.entries(refreshResult.sources || {}).map(([k, v]) => `${k} (${v.states_refreshed ?? 'done'})`).join(', ')} · ${refreshResult.total_duration_ms}ms`
+                : `Refresh failed: ${refreshResult.error || 'see logs'}`}
+            </span>
+          )}
+        </div>
         <button
           onClick={handleExport}
           disabled={exporting}
@@ -1659,6 +1716,13 @@ function DataHealthTab() {
           {exporting ? 'Exporting...' : 'Export All Data (JSON)'}
         </button>
       </div>
+
+      {/* Source attribution help */}
+      <p className="text-[11px] text-ink-muted leading-relaxed">
+        Live-pulled sources: <span className="font-mono">lmi</span> (Census ACS 2018-2022 5-yr).
+        Cron-pulled: IX queue (ISO/RTOs, weekly), substations (EIA Form 860, monthly), capacity factors + retail rates (NREL + EIA, quarterly).
+        Other layers (state programs, county intel, news feed) are admin-curated pending dedicated source pipelines.
+      </p>
 
       {/* ── Section 1: Freshness Grid ── */}
       <div>
