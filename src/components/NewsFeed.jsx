@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getNewsFeed } from '../lib/programData'
 import { supabase } from '../lib/supabase'
+import PreviewSignupGate from './PreviewSignupGate'
 
 // Module-level session cache so the Market Pulse fetches once per session,
 // not on every NewsFeed mount/unmount.
@@ -25,8 +26,9 @@ function formatDate(dateStr) {
 }
 
 const PAGE_SIZE = 4
+const PREVIEW_LIMIT = 3
 
-export default function NewsFeed({ news: newsProp }) {
+export default function NewsFeed({ news: newsProp, previewMode = false }) {
   const [filter,   setFilter]   = useState('all')
   const [page,     setPage]     = useState(0)
   const [liveNews, setLiveNews] = useState(null)
@@ -82,7 +84,11 @@ export default function NewsFeed({ news: newsProp }) {
     : newsData.filter((item) => item.pillar === filter)
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated  = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+  // Preview mode: show first PREVIEW_LIMIT items + gate; no pagination.
+  const paginated  = previewMode
+    ? filtered.slice(0, PREVIEW_LIMIT)
+    : filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE)
+  const previewHidden = previewMode ? Math.max(0, filtered.length - PREVIEW_LIMIT) : 0
 
   // Reset to page 0 when filter changes
   const handleFilter = (f) => { setFilter(f); setPage(0) }
@@ -197,9 +203,19 @@ export default function NewsFeed({ news: newsProp }) {
             </article>
           )
         })}
+        {previewMode && previewHidden > 0 && (
+          <div className="px-5 py-4">
+            <PreviewSignupGate
+              compact
+              message={`Plus ${previewHidden} more recent policy & market alert${previewHidden === 1 ? '' : 's'} — sign up to read them all.`}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Footer — pagination */}
+      {/* Footer — pagination (hidden in preview mode; we don't paginate
+          when only showing the first 3 items) */}
+      {!previewMode && (
       <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between">
         <p className="text-xs text-gray-400">
           {page * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE + PAGE_SIZE, filtered.length)} of {filtered.length}
@@ -224,6 +240,7 @@ export default function NewsFeed({ news: newsProp }) {
           </button>
         </div>
       </div>
+      )}
     </div>
   )
 }

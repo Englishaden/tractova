@@ -7,6 +7,7 @@ import { useSubscription } from '../hooks/useSubscription'
 import { getPucDockets } from '../lib/programData'
 import RegulatoryActivityPanel from './RegulatoryActivityPanel'
 import CoverageBadge from './CoverageBadge'
+import PreviewSignupGate from './PreviewSignupGate'
 
 // Module-level cache: per-state AI summary, 24h TTL. Survives page-internal
 // remounts so flipping between states + back doesn't re-spend tokens.
@@ -348,7 +349,7 @@ function NewsTab({ state, news }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function StateDetailPanel({ state, news = [], onClose }) {
+export default function StateDetailPanel({ state, news = [], onClose, previewMode = false }) {
   // V3 Wave 2 — fetch live PUC docket count for the regulatory tab badge
   // and the panel content. Cached at the data-layer (1h TTL) so flipping
   // states + back is free.
@@ -446,9 +447,21 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
 
         <div className="flex-1 overflow-y-auto">
           <StateTabContent value="program"><ProgramTab state={state} runway={runway} /></StateTabContent>
-          <StateTabContent value="market"><MarketTab state={state} /></StateTabContent>
-          <StateTabContent value="subscribers"><SubscribersTab state={state} /></StateTabContent>
-          <StateTabContent value="news"><NewsTab state={state} news={relatedNews} /></StateTabContent>
+          <StateTabContent value="market">
+            {previewMode
+              ? <div className="px-5 py-5"><PreviewSignupGate message={`Market intelligence for ${state.name} — interconnection difficulty, serving utilities, sub-score breakdowns. Sign up free to explore.`} /></div>
+              : <MarketTab state={state} />}
+          </StateTabContent>
+          <StateTabContent value="subscribers">
+            {previewMode
+              ? <div className="px-5 py-5"><PreviewSignupGate message={`Subscriber-acquisition intelligence for ${state.name} — LMI density, CCA penetration, CBO partner directory. Sign up free to explore.`} /></div>
+              : <SubscribersTab state={state} />}
+          </StateTabContent>
+          <StateTabContent value="news">
+            {previewMode
+              ? <div className="px-5 py-5"><PreviewSignupGate message={`Recent ${state.name} policy & market news with AI-summarized market pulse. Sign up free to read all the items.`} /></div>
+              : <NewsTab state={state} news={relatedNews} />}
+          </StateTabContent>
           {(docketCount ?? 0) > 0 && (
             <StateTabContent value="regulatory">
               <RegulatoryActivityPanel

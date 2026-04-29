@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react'
 import { getDashboardMetrics, getStatePrograms, getNewsFeed } from '../lib/programData'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
+import PreviewSignupGate from './PreviewSignupGate'
+
+// In preview mode, modal-content panels render this many rows + a gate.
+// Picked low enough that visitors see the SHAPE of the data without
+// getting all of it, high enough they get a real taste.
+const PREVIEW_ROW_LIMIT = 3
 
 // ── Modal detail content per card ────────────────────────────────────────────
 
-function ActiveCSDetail({ programs = [] }) {
+function ActiveCSDetail({ programs = [], previewMode = false }) {
   const active = programs
     .filter((s) => s.csStatus === 'active')
     .sort((a, b) => b.feasibilityScore - a.feasibilityScore)
+  const visible = previewMode ? active.slice(0, PREVIEW_ROW_LIMIT) : active
+  const hidden  = previewMode ? Math.max(0, active.length - PREVIEW_ROW_LIMIT) : 0
   return (
     <div>
       <p className="text-xs text-white/45 mb-3">
@@ -23,7 +31,7 @@ function ActiveCSDetail({ programs = [] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.04]">
-          {active.map((s) => (
+          {visible.map((s) => (
             <tr key={s.id} className="hover:bg-white/[0.025] transition-colors">
               <td className="py-2 font-semibold text-white/80">{s.name}</td>
               <td className="py-2 text-white/45">{s.csProgram}</td>
@@ -33,11 +41,14 @@ function ActiveCSDetail({ programs = [] }) {
           ))}
         </tbody>
       </table>
+      {previewMode && hidden > 0 && (
+        <PreviewSignupGate compact message={`Plus ${hidden} more state${hidden === 1 ? '' : 's'} with active programs. Sign up to see the full breakdown.`} />
+      )}
     </div>
   )
 }
 
-function IXCapacityDetail() {
+function IXCapacityDetail({ previewMode = false }) {
   const notes = [
     { utility: 'Xcel Energy (CO, MN)', territory: 'WECC / MISO', status: 'Headroom available' },
     { utility: 'ComEd (IL)', territory: 'MISO', status: 'Headroom available' },
@@ -47,6 +58,8 @@ function IXCapacityDetail() {
     { utility: 'Puget Sound Energy (WA)', territory: 'WECC', status: 'Moderate headroom' },
     { utility: 'CMP / Versant (ME)', territory: 'ISO-NE', status: 'Improving' },
   ]
+  const visible = previewMode ? notes.slice(0, PREVIEW_ROW_LIMIT) : notes
+  const hidden  = previewMode ? Math.max(0, notes.length - PREVIEW_ROW_LIMIT) : 0
   return (
     <div>
       <p className="text-xs text-white/45 mb-3">
@@ -68,7 +81,7 @@ function IXCapacityDetail() {
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.04]">
-          {notes.map((n) => (
+          {visible.map((n) => (
             <tr key={n.utility} className="hover:bg-white/[0.025] transition-colors">
               <td className="py-2 font-medium text-white/80">{n.utility}</td>
               <td className="py-2 text-white/40">{n.territory}</td>
@@ -77,15 +90,21 @@ function IXCapacityDetail() {
           ))}
         </tbody>
       </table>
-      <p className="text-xs text-white/30 mt-3">Full utility-level data with ease scores updated as queue reports are published.</p>
+      {previewMode && hidden > 0 ? (
+        <PreviewSignupGate compact message={`Plus ${hidden} more utilities with IX headroom analysis. Sign up to see the full list.`} />
+      ) : (
+        <p className="text-xs text-white/30 mt-3">Full utility-level data with ease scores updated as queue reports are published.</p>
+      )}
     </div>
   )
 }
 
-function PolicyAlertsDetail({ news = [] }) {
-  const recent = [...news]
+function PolicyAlertsDetail({ news = [], previewMode = false }) {
+  const allRecent = [...news]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 7)
+  const recent = previewMode ? allRecent.slice(0, PREVIEW_ROW_LIMIT) : allRecent
+  const hidden = previewMode ? Math.max(0, allRecent.length - PREVIEW_ROW_LIMIT) : 0
 
   const PILLAR_BADGE = {
     offtake: 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20',
@@ -120,15 +139,20 @@ function PolicyAlertsDetail({ news = [] }) {
           </div>
         </a>
       ))}
+      {previewMode && hidden > 0 && (
+        <PreviewSignupGate compact message={`Plus ${hidden} more recent policy / market alert${hidden === 1 ? '' : 's'}. Sign up to read all the headlines.`} />
+      )}
     </div>
   )
 }
 
-function AvgCapacityDetail({ programs = [] }) {
+function AvgCapacityDetail({ programs = [], previewMode = false }) {
   const states = programs
     .filter((s) => s.csStatus === 'active' || s.csStatus === 'limited')
     .sort((a, b) => b.capacityMW - a.capacityMW)
   const total = states.reduce((sum, s) => sum + s.capacityMW, 0)
+  const visible = previewMode ? states.slice(0, PREVIEW_ROW_LIMIT) : states
+  const hidden  = previewMode ? Math.max(0, states.length - PREVIEW_ROW_LIMIT) : 0
 
   const STATUS_BADGE = {
     active:  'bg-emerald-400/10 text-emerald-400 border-emerald-400/20',
@@ -149,7 +173,7 @@ function AvgCapacityDetail({ programs = [] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-white/[0.04]">
-          {states.map((s) => (
+          {visible.map((s) => (
             <tr key={s.id} className="hover:bg-white/[0.025] transition-colors">
               <td className="py-2 font-medium text-white/80">{s.name}</td>
               <td className="py-2">
@@ -160,21 +184,28 @@ function AvgCapacityDetail({ programs = [] }) {
               <td className="py-2 text-right font-mono text-emerald-400">{s.capacityMW.toLocaleString()}</td>
             </tr>
           ))}
-          <tr className="border-t border-white/[0.08]">
-            <td colSpan={2} className="py-2 font-semibold text-white/60">Total</td>
-            <td className="py-2 text-right font-mono font-bold text-white/90">{total.toLocaleString()} MW</td>
-          </tr>
+          {!previewMode && (
+            <tr className="border-t border-white/[0.08]">
+              <td colSpan={2} className="py-2 font-semibold text-white/60">Total</td>
+              <td className="py-2 text-right font-mono font-bold text-white/90">{total.toLocaleString()} MW</td>
+            </tr>
+          )}
         </tbody>
       </table>
+      {previewMode && hidden > 0 && (
+        <PreviewSignupGate compact message={`Plus ${hidden} more state${hidden === 1 ? '' : 's'} (totaling ${total.toLocaleString()} MW of remaining capacity). Sign up to see the full breakdown.`} />
+      )}
     </div>
   )
 }
 
-function MWPipelineDetail({ programs = [] }) {
+function MWPipelineDetail({ programs = [], previewMode = false }) {
   const states = programs
     .filter((s) => s.csStatus === 'active' || s.csStatus === 'limited')
     .sort((a, b) => b.capacityMW - a.capacityMW)
   const total = states.reduce((sum, s) => sum + s.capacityMW, 0)
+  const visible = previewMode ? states.slice(0, PREVIEW_ROW_LIMIT) : states
+  const hidden  = previewMode ? Math.max(0, states.length - PREVIEW_ROW_LIMIT) : 0
 
   return (
     <div>
@@ -182,7 +213,7 @@ function MWPipelineDetail({ programs = [] }) {
         Total megawatts of remaining capacity across all active and limited community solar programs. This represents the addressable pipeline for independent developers today.
       </p>
       <div className="space-y-2.5">
-        {states.map((s) => {
+        {visible.map((s) => {
           const pct = Math.round((s.capacityMW / total) * 100)
           return (
             <div key={s.id}>
@@ -197,10 +228,14 @@ function MWPipelineDetail({ programs = [] }) {
           )
         })}
       </div>
-      <div className="mt-4 pt-3 flex justify-between text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <span className="font-semibold text-white/60">Total addressable pipeline</span>
-        <span className="font-mono font-bold text-white/90">{total.toLocaleString()} MW</span>
-      </div>
+      {previewMode && hidden > 0 ? (
+        <PreviewSignupGate compact message={`Plus ${hidden} more state${hidden === 1 ? '' : 's'} (totaling ${total.toLocaleString()} MW addressable). Sign up to see the full pipeline.`} />
+      ) : (
+        <div className="mt-4 pt-3 flex justify-between text-xs" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <span className="font-semibold text-white/60">Total addressable pipeline</span>
+          <span className="font-mono font-bold text-white/90">{total.toLocaleString()} MW</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -304,7 +339,7 @@ function staleDays(dateStr) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function MetricsBar() {
+export default function MetricsBar({ previewMode = false }) {
   const [openKey, setOpenKey]     = useState(null)
   const [liveMetrics, setLiveMetrics] = useState(null)
   const [programs, setPrograms]   = useState([])
@@ -344,7 +379,7 @@ export default function MetricsBar() {
       icon: <IconMap />,
       modalTitle: 'CS Coverage — Active Markets',
       hint: 'States with funded community solar programs currently accepting new project applications. The denominator counts any state that has a CS statute on the books — including pending and limited.',
-      ModalContent: () => <ActiveCSDetail programs={programs} />,
+      ModalContent: () => <ActiveCSDetail programs={programs} previewMode={previewMode} />,
     },
     {
       key: 'ixCapacity',
@@ -354,7 +389,7 @@ export default function MetricsBar() {
       icon: <IconZap />,
       modalTitle: 'IX Headroom — Open Queues',
       hint: 'Utilities estimated to have meaningful interconnection queue capacity for ≤5 MW projects, derived from FERC Form 1 data and ISO/RTO queue reports.',
-      ModalContent: IXCapacityDetail,
+      ModalContent: () => <IXCapacityDetail previewMode={previewMode} />,
     },
     {
       key: 'policyAlerts',
@@ -364,7 +399,7 @@ export default function MetricsBar() {
       icon: <IconBell />,
       modalTitle: 'Policy Pulse — This Week',
       hint: 'Count of news-feed items published in the last 7 days across the three pillars (offtake, interconnection, site). Click for the underlying headlines.',
-      ModalContent: () => <PolicyAlertsDetail news={news} />,
+      ModalContent: () => <PolicyAlertsDetail news={news} previewMode={previewMode} />,
     },
     {
       key: 'avgCapacity',
@@ -378,7 +413,7 @@ export default function MetricsBar() {
       icon: <IconGauge />,
       modalTitle: 'Average Capacity Remaining — Active Programs',
       hint: 'Mean MW of program capacity still open across active and limited states, equally weighted. A leading indicator of how much addressable runway is left in each market.',
-      ModalContent: () => <AvgCapacityDetail programs={programs} />,
+      ModalContent: () => <AvgCapacityDetail programs={programs} previewMode={previewMode} />,
     },
     {
       key: 'mwPipeline',
@@ -388,7 +423,7 @@ export default function MetricsBar() {
       icon: <IconTrendingUp />,
       modalTitle: 'Pipeline Load — Active + Limited',
       hint: 'Total MW of remaining capacity across all active and limited CS programs — the addressable pipeline for independent developers today.',
-      ModalContent: () => <MWPipelineDetail programs={programs} />,
+      ModalContent: () => <MWPipelineDetail programs={programs} previewMode={previewMode} />,
     },
   ]
 

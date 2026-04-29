@@ -81,6 +81,11 @@ export default function Dashboard({ previewMode = false }) {
   const [stateProgramMap,  setStateProgramMap]  = useState({})
   const [news,             setNews]             = useState([])
   const { user } = useAuth()
+  // Effective preview mode: only ON if route is /preview AND visitor is
+  // unauth. Authed users who navigate to /preview manually see the real
+  // Dashboard (no banner, no gates) since marketing UX is irrelevant
+  // to them.
+  const effectivePreviewMode = previewMode && !user
 
   useEffect(() => {
     getStateProgramMap().then(setStateProgramMap).catch(console.error)
@@ -107,15 +112,15 @@ export default function Dashboard({ previewMode = false }) {
 
   return (
     <div className="min-h-screen bg-paper">
-      {previewMode && (
+      {effectivePreviewMode && (
         <div
           className="sticky top-14 z-30 flex items-center justify-between px-6 py-2.5"
           style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)', borderBottom: '1px solid rgba(20,184,166,0.22)' }}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em]" style={{ color: '#5EEAD4' }}>◆ Live Preview</span>
             <span className="text-xs" style={{ color: 'rgba(255,255,255,0.72)' }}>
-              You're viewing live market intelligence. Sign up for Tractova Lens AI analysis and project tracking.
+              You're seeing the same intelligence Pro users get. Create a free account to drill into states, save projects, and run Tractova Lens AI analysis.
             </span>
           </div>
           <a
@@ -123,15 +128,16 @@ export default function Dashboard({ previewMode = false }) {
             className="flex-shrink-0 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors"
             style={{ background: '#14B8A6' }}
           >
-            Get full access →
+            Create free account →
           </a>
         </div>
       )}
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* V3-extension — first-run welcome card. Renders ONCE per
-            browser for authed users, dismisses to localStorage. Shown
-            above page header to be the first thing a new user sees. */}
-        {user && !previewMode && <WelcomeCard />}
+            user (DB-backed dismissal) for authed users on Dashboard.
+            Shown above page header to be the first thing a new user
+            sees. Skipped on /preview unauth surface. */}
+        {user && !effectivePreviewMode && <WelcomeCard />}
 
         {/* Page header */}
         <div className="mt-4 mb-1">
@@ -144,7 +150,7 @@ export default function Dashboard({ previewMode = false }) {
         <SectionDivider />
 
         {/* Metrics bar */}
-        <MetricsBar />
+        <MetricsBar previewMode={effectivePreviewMode} />
 
         <SectionDivider />
 
@@ -169,9 +175,10 @@ export default function Dashboard({ previewMode = false }) {
                 state={selectedState}
                 news={news}
                 onClose={handleClosePanel}
+                previewMode={effectivePreviewMode}
               />
             ) : (
-              <NewsFeed news={news} />
+              <NewsFeed news={news} previewMode={effectivePreviewMode} />
             )}
           </div>
         </div>
