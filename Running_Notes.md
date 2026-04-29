@@ -11,7 +11,11 @@ Picked up from Day 3's "Next-Session Pickup" P2 list. All shipped + pushed to `o
 
 ### Late-evening supplement (after Day 4 wrap-up commit)
 
-Three more items closed before EOD — including the **first Wave 2 feature**:
+Four more items closed before EOD — including the **first Wave 2 feature** and an **AI cost-discipline pass**:
+
+- **`<CACHE-COMMIT>`** **AI response cache (cost discipline before Wave 2 scale)**. New `ai_response_cache` table (migration 019, service-role only via RLS-with-no-policies) + `buildCacheKey` / `cacheGet` / `cacheSet` helpers in `lens-insight.js`. Three actions now cache: **verdict** (6h TTL, keyed on `{state, county, mw_rounded_1dp, stage, technology, dataVersion}`), **deal-memo** (24h TTL, keyed on `{projectId, stage, technology, mw_rounded_1dp, dataVersion}`), **utility-outreach** (24h TTL, same key shape as deal-memo). `dataVersion` is `stateProgram.lastUpdated` so admin program edits invalidate stale entries automatically. Cache hits cross users — two Pro accounts running Lens on `IL/Will/5MW/Prospecting/CommunitySolar` share one Sonnet call until either the 6h window closes or the IL state program is edited. Cross-user sharing is safe for outreach + deal-memo because their outputs are project-derived, not user-derived (the kit's bracketed-placeholder rule was already designed for this). Expected impact at 100 Pro users: COGS drops from ~$1.51/user/mo → ~$1.10/user/mo (94% gross margin instead of 90%). Failures on cache read/write are logged but never block the user-facing call. Sensitivity / portfolio / compare / news-summary skipped intentionally — sensitivity is too small + scenario-specific to benefit, portfolio is user-specific by design, compare is project-pair-specific, news-summary already has a per-state daily cache pattern.
+
+Three earlier shipments:
 
 - **`7f9f210`** **Wave 2 — Utility Outreach Kit** (V3 §Wave 2 first ship). New `'utility-outreach'` action through `lens-insight.js` (multiplexed, function count holds at 11/12). Sonnet 4.6, 2,400-token cap, ~35s timeout. Output schema covers a copy-pasteable pre-application email (subject / greeting / body / sign-off), utility context (study process, typical queue wait, relevant tariff schedule), an attachments checklist, a 30/60/90-day follow-up playbook, phone talking points, and a state/utility-specific gotcha note. The system prompt enforces consultant-grade specificity: utility named, ISO/RTO inferred, project MW + tech + county + stage referenced, IX queue intelligence woven into the email, conservative timeline ranges, peer-tone (not pleading or transactional). Ships as a new "Outreach Kit" button in the Library expanded card, opens a Radix Dialog with per-section copy buttons + a "Copy entire kit" action that serializes a plain-text version for paste-into-Notion. Pro-gated automatically via the existing `isPro` check on `lens-insight.js`. ~225 lines added (server prompt + handler + client component + plain-text serializer).
 
@@ -52,7 +56,7 @@ Two earlier shipments:
 - 2FA on GitHub account verified
 
 ### Pending Supabase migrations to run (cumulative across all 4 days)
-✅ **All applied** through 018:
+✅ **Applied** through 018. ⏳ **019 pending** (run before cache becomes operational):
 - `010_alert_positive.sql` (Day 1)
 - `011_projects_columns_backfill.sql` (Day 1)
 - `012_ix_queue_snapshots.sql` (Day 1)
@@ -62,6 +66,7 @@ Two earlier shipments:
 - `016_projects_last_score.sql` (Day 3)
 - `017_share_tokens.sql` (Day 3)
 - `018_project_events_shared.sql` (Day 4)
+- ⏳ `019_ai_response_cache.sql` (Day 4 cost-discipline pass — **must run before cache fires**; until then `cacheGet` returns null on every call and the system falls back to fresh Sonnet calls. No regression — just no savings until applied.)
 
 ### Deferred / decisions
 - **Search.jsx form inputs ui/* refactor** — plan explicitly says "let it happen as surfaces are touched, not as a bulk pass." Search is the biggest surface AND the most recently churned (gauge/sensitivity rearchitecture is fresh on Day 1). Deferred to natural touches.
@@ -77,7 +82,7 @@ Most P2 items now closed. Remaining backlog in `Tractova_V3_Plan.md`:
 - Tailwind v3 → v4 + Vite 5 → 8 dedicated tooling-refresh session (trigger: V3 Wave 3 Deal Calendar needing shadcn Calendar primitive)
 
 ### Day 4 commit summary
-7 commits, ~635 lines net change. Three visible feature shipments (share-trio + privacy fix · MetricsBar tooltips · audit-timeline view counts) plus the first Wave 2 feature (Utility Outreach Kit). The rest are zero-visible-behavior-change refactors (Profile / Admin ui/* sweep, deps cleanup, doc updates).
+9 commits, ~830 lines net change. Three visible feature shipments (share-trio + privacy fix · MetricsBar tooltips · audit-timeline view counts) plus the first Wave 2 feature (Utility Outreach Kit + post-ship timeout fix + dialog redesign + bracket-placeholder prompt) plus the AI response cache (Wave 2 cost discipline). The rest are zero-visible-behavior-change refactors (Profile / Admin ui/* sweep, deps cleanup, doc updates).
 
 ---
 

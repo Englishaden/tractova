@@ -1,10 +1,65 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI response cache — shared across users, time-bounded
+// ─────────────────────────────────────────────────────────────────────────────
+// Backed by `ai_response_cache` (migration 019). Keys are SHA-256 of a stable
+// JSON of prompt-relevant params; identical requests across DIFFERENT users
+// collapse to a single Sonnet call. Silent fail in both directions: cache
+// failures must never block the actual feature (we'd rather pay for a
+// duplicate API call than show the user an error). Logs warn so we can
+// see degradation without alerting.
+function buildCacheKey(action, params) {
+  // Deterministic stringify -- sort keys so { a, b } and { b, a } collapse.
+  const keys = Object.keys(params).sort()
+  const stable = keys.map(k => `${k}=${JSON.stringify(params[k])}`).join('|')
+  return crypto.createHash('sha256').update(`${action}::${stable}`).digest('hex').slice(0, 32)
+}
+
+async function cacheGet(key) {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('ai_response_cache')
+      .select('payload, expires_at')
+      .eq('cache_key', key)
+      .maybeSingle()
+    if (error || !data) return null
+    if (new Date(data.expires_at) < new Date()) return null
+    return data.payload
+  } catch (e) {
+    console.warn('[cache:get] failed:', e.message)
+    return null
+  }
+}
+
+async function cacheSet(key, action, payload, ttlSeconds) {
+  try {
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString()
+    const { error } = await supabaseAdmin
+      .from('ai_response_cache')
+      .upsert({ cache_key: key, action, payload, expires_at: expiresAt })
+    if (error) console.warn('[cache:set] failed:', error.message)
+  } catch (e) {
+    console.warn('[cache:set] threw:', e.message)
+  }
+}
+
+// Cross-action: a "data version" bucket so cached entries auto-invalidate
+// when an admin updates the underlying state program. If lastUpdated is
+// missing we fall back to a coarse (per-day) bucket so stale data doesn't
+// hang around indefinitely.
+function dataVersionFor(stateProgram) {
+  if (stateProgram?.lastUpdated) return String(stateProgram.lastUpdated)
+  const today = new Date().toISOString().slice(0, 10)
+  return `unknown:${today}`
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // System prompt — analyst persona + strict output rules
@@ -332,6 +387,22 @@ export default async function handler(req, res) {
   if (action === 'utility-outreach') return handleUtilityOutreach(body, res, user)
   if (action === 'memo-create')  return handleMemoCreate(body, res, user)
 
+  // ── Cache check (verdict, 6h TTL, shared across users) ────────────────────
+  // Round MW to 1 decimal so 4.99 vs 5.00 share a hit. Data-version baked in
+  // so admin program edits invalidate stale entries automatically.
+  const verdictKey = buildCacheKey('verdict', {
+    state:       body.state,
+    county:      body.county,
+    mw:          Math.round((parseFloat(body.mw) || 0) * 10) / 10,
+    stage:       body.stage,
+    technology:  body.technology,
+    dataVersion: dataVersionFor(body.stateProgram),
+  })
+  const cachedVerdict = await cacheGet(verdictKey)
+  if (cachedVerdict) {
+    return res.status(200).json({ insight: cachedVerdict, cached: true })
+  }
+
   // ── Build context + call Claude (single-project analysis) ─────────────────
   const contextText = buildContext(body)
   const controller = new AbortController()
@@ -358,6 +429,10 @@ export default async function handler(req, res) {
     if (!insight) {
       return res.status(200).json({ insight: null, fallback: true, reason: 'parse_failed' })
     }
+
+    // Fire-and-forget cache write. Don't block the response on it; if the
+    // upsert fails we just pay for the next call.
+    cacheSet(verdictKey, 'verdict', insight, 6 * 60 * 60)
 
     return res.status(200).json({ insight })
 
@@ -555,6 +630,23 @@ async function handleDealMemo(body, res) {
   const { project, stateProgram, countyData, runway, ixQueue } = body
   if (!project) return res.status(400).json({ error: 'project required' })
 
+  // Cache check (24h TTL, keyed on project_id + stage + data version).
+  // Re-opening the same project to share / re-export hits the cache; an
+  // admin program update or a stage change invalidates automatically.
+  const memoKey = buildCacheKey('deal-memo', {
+    projectId:   project.id || null,
+    stage:       project.stage || null,
+    technology:  project.technology || null,
+    mw:          Math.round((parseFloat(project.mw) || 0) * 10) / 10,
+    dataVersion: dataVersionFor(stateProgram),
+  })
+  if (project.id) {
+    const cachedMemo = await cacheGet(memoKey)
+    if (cachedMemo) {
+      return res.status(200).json({ memo: cachedMemo, cached: true })
+    }
+  }
+
   // Reuse buildContext if state/county/mw etc are provided
   const contextBody = {
     state: project.state,
@@ -581,6 +673,7 @@ async function handleDealMemo(body, res) {
       const match = raw.match(/\{[\s\S]*\}/)
       const parsed = JSON.parse(match ? match[0] : raw)
       if (parsed.siteControlSummary || parsed.ixSummary || parsed.revenueSummary || parsed.recommendation) {
+        if (project.id) cacheSet(memoKey, 'deal-memo', parsed, 24 * 60 * 60)
         return res.status(200).json({ memo: parsed })
       }
     } catch {}
@@ -646,6 +739,23 @@ async function handleUtilityOutreach(body, res, _user) {
   const { project, stateProgram, countyData, ixQueue, runway } = body
   if (!project) return res.status(400).json({ error: 'project required' })
 
+  // Cache check (24h TTL, keyed on project + stage + data version).
+  // The kit's bracketed-placeholder design means there's nothing user-
+  // specific in the output, so cross-user sharing is safe and intended.
+  const outreachKey = buildCacheKey('utility-outreach', {
+    projectId:   project.id || null,
+    stage:       project.stage || null,
+    technology:  project.technology || null,
+    mw:          Math.round((parseFloat(project.mw) || 0) * 10) / 10,
+    dataVersion: dataVersionFor(stateProgram),
+  })
+  if (project.id) {
+    const cachedKit = await cacheGet(outreachKey)
+    if (cachedKit) {
+      return res.status(200).json({ kit: cachedKit, cached: true })
+    }
+  }
+
   // Reuse buildContext so the model sees the same data panel as the verdict
   // and Deal Memo flows -- consistency across artifacts is part of the
   // perceived quality.
@@ -698,6 +808,8 @@ async function handleUtilityOutreach(body, res, _user) {
     if (!parsed?.email?.body) {
       return res.status(200).json({ kit: null, fallback: true, reason: 'parse_failed' })
     }
+
+    if (project.id) cacheSet(outreachKey, 'utility-outreach', parsed, 24 * 60 * 60)
 
     return res.status(200).json({ kit: parsed })
   } catch (err) {

@@ -1,7 +1,7 @@
 # Tractova V3 — Build Plan
 
 > Reviewer: Opus 4.7 (high effort)
-> Last updated: 2026-04-29 (Day 4 late-evening — audit view counts + MetricsBar tooltips)
+> Last updated: 2026-04-29 (Day 4 late-evening — Wave 2 Utility Outreach Kit + AI response cache)
 > Supersedes: `Tractova_V2_Plan.md` for Phases 2-7. Phase 1 of V2 is shipped — no rework.
 > Companion strategic critique: `~/.claude/plans/read-tractova-v3-prop-plan-md-file-functional-penguin.md`
 
@@ -119,7 +119,10 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 - `016_projects_last_score.sql` — **CONFIRMED RUN** — `score_change` audit events fire ✅
 - `017_share_tokens.sql` — **CONFIRMED RUN** — Deal Memo Share Link fully live ✅
 
-⏳ Still to run: none. All V3 migrations through Day 3 are applied.
+⏳ **Pending — run to activate AI response cache:**
+- `019_ai_response_cache.sql` — AI response cache table (Day 4 cost-discipline pass). Until run, `cacheGet` returns null on every call and Sonnet runs fresh on each request — no regression, just no savings.
+
+(`018_project_events_shared.sql` already applied alongside the share-trio.)
 
 > Note on the "destructive" warning Supabase shows on 014/017: false positive. The `drop policy if exists` lines are the standard idempotent pattern for RLS — Supabase's own docs use them. Your data is not at risk.
 
