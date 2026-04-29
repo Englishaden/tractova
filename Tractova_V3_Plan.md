@@ -1,29 +1,60 @@
 # Tractova V3 — Build Plan
 
 > Reviewer: Opus 4.7 (high effort)
-> Last updated: 2026-04-29 (Day 2 build session)
+> Last updated: 2026-04-29 (Day 3 long session — UX primitives + Audit log)
 > Supersedes: `Tractova_V2_Plan.md` for Phases 2-7. Phase 1 of V2 is shipped — no rework.
 > Companion strategic critique: `~/.claude/plans/read-tractova-v3-prop-plan-md-file-functional-penguin.md`
 
 ---
 
-## ⚡ Status Snapshot — Where We Left Off (2026-04-29 EOD)
+## ⚡ Status Snapshot — Where We Left Off (2026-04-29 Day 3 EOD)
 
-**V2-Refactored Steps 0-5 + Step 6 + Step 7 (Sessions A & B + 7.9) all SHIPPED.**
+**V2-Refactored Steps 0-7 all SHIPPED.**
 **V3 Wave 1 — Items 1.1, 1.2, 1.3, 1.5 SHIPPED.** (1.4 deferred — needs accumulated snapshot data.)
+**V3 §4.3 Status Thread (Project Audit Log) SHIPPED.**
 
-Latest commits on `origin/main` (Day 2):
-- `0024705` §7.9 form primitives (Button/Input/Select) — shared V3 design system surface
-- `a685d54` Wave 1.5 — Markets-in-Motion section in weekly digest
-- `e4f64bf` Wave 1.3 — Slack alert integration via incoming webhooks (migration 013)
+### Day 3 long-session deliverables (this session)
+- `2dae05c` Motion installed (animation library, tree-shaken until used)
+- `07f3977` Radix-based UI primitives wrapped in V3 styling: Tabs / Dialog / Tooltip
+  (chose this over shadcn after scoping a Tailwind v3→v4 migration: 76 utility-class
+  hits across 18 files; default border/ring color changes globally — wrong time)
+- `8d21feb` Library expanded card → Tabs (Overview / Diligence / Notes); solves the
+  "giant scroll" issue per V3 §4.3
+- `1bb31d2` Motion wired to Lens ArcGauge (spring-animated score readout +
+  strokeDashoffset arc tween) + Tabs cross-fade + methodology tooltip ported
+  to portal-rendered Radix Tooltip
+- `2c5755c` StateDetailPanel → Radix Tabs + per-state cached AI news pulse
+  (state-scoped Market Pulse, ~1 token call per user/state/day)
+- `1e28963` Project audit log (V3 §4.3): migration 014 + `lib/projectEvents.js`
+  helper + 4th "Audit" tab in Library + `created` and `stage_change` events
+  + Library remove modal ported to Radix Dialog
 
-Day 1 commits (still latest on each surface): `45d1e91 e76e14e eae38f1 1da46f6 9ea468e c05f055 4c7d903 2c1a048` (see Day 1 build log in Running_Notes.md).
+### Tooling decisions made this session
+- **Motion** (motion/react) — installed; drives Lens gauge + tab cross-fades.
+- **Radix UI primitives** (`@radix-ui/react-{tabs,dialog,tooltip}`) — installed; wrapped
+  in `src/components/ui/{Tabs,Dialog,Tooltip}.jsx` with V3 tokens baked in. The
+  durable long-run answer instead of shadcn (whose preset system assumes v4).
+- **shadcn** — skipped. Components we need are wrappers over Radix anyway.
+- **Tailwind v4 upgrade** — deferred to a dedicated future session. Not blocking V3.
+- **Claude Design** — reserved for the actual logo file when ready.
+
+Latest commits on `origin/main` (Day 3):
+- `1e28963` Project audit log (V3 §4.3 status thread)
+- `2c5755c` StateDetailPanel: Radix tabs + per-state AI news pulse
+- `1bb31d2` Motion on Lens gauge + Tabs; methodology tooltip → Radix portal
+- `8d21feb` Library expanded card → Tabs
+- `07f3977` Radix V3 UI primitives
+- `2dae05c` Motion install
+- `6e688fa` PDF score parity fix + button consolidation
+
+Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surface.
 
 **Action items pending — run in Supabase SQL editor:**
 1. `010_alert_positive.sql` — Profile good-news toggle persistence
 2. `011_projects_columns_backfill.sql` — Library project columns (save handler self-heals if missing)
 3. `012_ix_queue_snapshots.sql` — IX history accumulation (Wave 2 prereq)
 4. `013_profile_slack.sql` — Slack alert webhook URL + opt-in toggle
+5. **`014_project_events.sql`** *(new — Day 3)* — Audit tab populates only after this runs; helper logs warn and continues without it
 
 **Surfaces 100% V3-cohesive:** Dashboard · Lens (form + results) · Library · Glossary · Profile · Compare · Sign-in/up · Upgrade · Landing · Admin · Email templates (digest + alerts) · Slack alerts.
 
@@ -32,15 +63,19 @@ Day 1 commits (still latest on each surface): `45d1e91 e76e14e eae38f1 1da46f6 9
 **P1 — V3 Wave 1 remainder:**
 - **1.4 Derived metrics** — IX Velocity Index + Program Saturation Index. Needs ≥4 weeks of `ix_queue_snapshots` (so accumulate first; revisit late May / early June). Mostly query work; surfaces in Lens + Library. ~3-4h when data exists.
 
-**P2 — V3 deferred items:**
-- **Lens Zone A/B/C/D structural refactor** — polish on already-working code. ~5-7h.
+**P2 — V3 deferred polish + product extension:**
+- **Markets on the Move strip** (Dashboard) — top 3 states with score deltas this week. Needs history reads + delta computation; surfaces above the map. ~2-3h.
 - **Deal Memo shareable URL** — token-based read-only memo links. Needs `share_tokens` table + RLS policy + new public route. ~3h. High product value (sales artifact).
-- **Status thread audit log** — append-only project event log. Needs `project_events` table + UI section in Library expanded panel. ~3h.
-- **Refactor existing surfaces to use new ui/* primitives** — as surfaces are naturally touched. Gradual.
+- **score_change / alert_triggered audit events** — extend the new audit log. Score changes need delta detection (cron-side); alerts plug into the existing alert engine. ~1-2h once cron is touched.
+- **XLSX export with formulas** — extends CSV with native NPV/payback formulas. Adds the `xlsx` dependency (~100KB). ~1.5h.
+- **Cmd-K command palette** — global search states/counties/utilities + shortcuts. Uses Radix Dialog. ~3-4h.
+- **SaveToast → Radix Toast** primitive — small surface, structural cleanup. ~30min.
+- **Refactor existing surfaces to use ui/* primitives** — as surfaces are naturally touched. Gradual.
+- **Tailwind v3 → v4 upgrade** — dedicated future session (~2-4h: 76 utility-class hits, default border/ring color changes). Unlocks shadcn permanently and matches V3 token philosophy better.
 
 **P3 — V3 Wave 2 (defensible data layer):**
 - **IX Queue Forecaster** — needs ≥12 weekly snapshots (Q3 launch). P50/P90 study completion modeling.
-- Comparable Deals DB, PUC Docket Tracker MVP, Utility Outreach Kit.
+- Comparable Deals DB, PUC Docket Tracker MVP, Utility Outreach Kit, Subscriber Acquisition Intel.
 
 ---
 
@@ -94,14 +129,14 @@ Pricing is anchored to the **CS/Hybrid origination buyer at a 1-10 person shop**
 
 ## What's NOT Shipped (Deferred — see "Next-Session Pickup" above)
 
-- **Lens Zone A/B/C/D structural refactor** — deferred polish on already-working code
+- **Markets on the Move strip** (Dashboard top-3 states with weekly score deltas) — needs history reads
 - **Deal Memo shareable URL** — needs `share_tokens` table
-- **Status thread audit log per project** — needs `project_events` table
-- **XLSX export with formulas** — extra dependency, low ROI vs CSV
-- **Form component extraction** (`src/components/ui/Input.jsx` etc.) — structural debt
-- **V3 Wave 1.3-1.5** — Slack, derived metrics, briefing enrichment
+- **score_change / alert_triggered audit events** — extends the shipped audit log
+- **XLSX export with formulas** — extra dependency
+- **Cmd-K command palette** — V3 Wave 3
 - **V3 Wave 2** — Forecaster, Comparable Deals DB, PUC Docket Tracker, Utility Outreach Kit (waits on accumulated history)
-- **V3 Wave 3** — Subscriber Acquisition Intel, Capital Stack Pre-Flight, Deal Calendar, Cmd-K
+- **V3 Wave 3** — Subscriber Acquisition Intel, Capital Stack Pre-Flight, Deal Calendar, multi-county batch Lens
+- **Tailwind v4 upgrade** — dedicated future session
 - **Mobile UI** — email + PDF responsive is sufficient for now
 
 ---

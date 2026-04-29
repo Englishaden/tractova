@@ -1,10 +1,78 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import MetricsBar from '../components/MetricsBar'
 import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
 import SectionDivider from '../components/SectionDivider'
 import { getStateProgramMap, getNewsFeed } from '../lib/programData'
+
+// V3 §4.1: top-of-dashboard strip surfacing recently-active states.
+// Pragmatic v1 -- ranks by max(lastVerified, updatedAt). When weekly
+// `dashboard_metrics` history accumulates, swap to true score-delta deltas
+// (this hook just needs to start consuming a deltas-aware payload).
+function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
+  const movers = useMemo(() => {
+    const states = Object.values(stateProgramMap || {})
+    if (!states.length) return []
+    const now = Date.now()
+    return states
+      .filter(s => s.csStatus && s.csStatus !== 'none')
+      .map(s => {
+        const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
+        const u = s.updatedAt   ? new Date(s.updatedAt).getTime()   : 0
+        return { ...s, recencyTs: Math.max(v, u) }
+      })
+      .filter(s => s.recencyTs > 0 && (now - s.recencyTs) < 1000 * 60 * 60 * 24 * 30)
+      .sort((a, b) => b.recencyTs - a.recencyTs)
+      .slice(0, 3)
+  }, [stateProgramMap])
+
+  if (movers.length === 0) return null
+
+  const formatAgo = (ts) => {
+    const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24))
+    if (days === 0) return 'today'
+    if (days === 1) return '1d ago'
+    if (days < 7)   return `${days}d ago`
+    return `${Math.floor(days / 7)}w ago`
+  }
+
+  return (
+    <div className="rounded-xl px-5 py-3.5 mb-4" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
+          <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
+            Markets on the Move
+          </p>
+          <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">· past 30 days</span>
+        </div>
+        <span className="hidden sm:inline-block w-px h-4" style={{ background: '#E2E8F0' }} />
+        <div className="flex items-center gap-2 flex-wrap">
+          {movers.map((s) => {
+            const score = s.feasibilityScore ?? 0
+            return (
+              <button
+                key={s.id}
+                onClick={() => onStateClick(s.id)}
+                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
+                style={{ background: '#F9FAFB', border: '1px solid #E2E8F0' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(15,118,110,0.06)'; e.currentTarget.style.borderColor = 'rgba(15,118,110,0.30)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = '#E2E8F0' }}
+              >
+                <span className="font-serif text-sm font-semibold text-ink leading-none">{s.name}</span>
+                <span className="font-mono text-[11px] font-bold tabular-nums leading-none" style={{ color: score >= 60 ? '#0F766E' : '#5A6B7A' }}>
+                  {score}
+                </span>
+                <span className="font-mono text-[9px] text-ink-muted leading-none">{formatAgo(s.recencyTs)}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function Dashboard({ previewMode = false }) {
   const [selectedStateId,  setSelectedStateId]  = useState(null)
@@ -70,6 +138,9 @@ export default function Dashboard({ previewMode = false }) {
         <MetricsBar />
 
         <SectionDivider />
+
+        {/* V3 §4.1: Markets on the Move — recently-updated states with score */}
+        <MarketsOnTheMove stateProgramMap={stateProgramMap} onStateClick={handleStateClick} />
 
         {/* Main two-panel layout */}
         <div className="grid grid-cols-5 gap-5" style={{ minHeight: '600px' }}>
