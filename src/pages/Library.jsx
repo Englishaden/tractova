@@ -1388,8 +1388,13 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
       {/* ── Collapsed header (always visible) ──────────────────────────────── */}
       <div
-        className="px-5 py-4 flex items-center gap-4 cursor-pointer select-none"
+        className="px-5 py-4 flex items-center gap-4 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-t-xl"
         onClick={() => setExpanded(e => !e)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(prev => !prev) } }}
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={`${project.name || `${project.county} County · ${project.mw} MW`} · feasibility index ${liveScore ?? 'unknown'} of 100. Press Enter to ${expanded ? 'collapse' : 'expand'} project details.`}
       >
         {/* Score bubble */}
         <div

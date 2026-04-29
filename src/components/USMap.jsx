@@ -121,6 +121,10 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                 const isSelected = selectedStateId === stateId
 
                 const strokeStyle = getStateStroke(stateId, stateProgramMap)
+                const stateInfo = stateProgramMap[stateId]
+                const ariaLabel = stateInfo
+                  ? `${stateInfo.name}: ${stateInfo.csStatus} community solar program${stateInfo.feasibilityScore ? `, feasibility index ${stateInfo.feasibilityScore} of 100` : ''}. Press Enter to view details.`
+                  : `${stateId || 'Unknown state'}. Press Enter to view details.`
                 return (
                   <Geography
                     key={geo.rsmKey}
@@ -132,7 +136,12 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                     onMouseMove={(evt) => handleMouseMove(geo, evt)}
                     onMouseLeave={handleMouseLeave}
                     onClick={() => handleClick(geo)}
-                    className="cursor-pointer transition-all duration-100"
+                    onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); handleClick(geo) } }}
+                    className="cursor-pointer transition-all duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                    role="button"
+                    tabIndex={stateInfo ? 0 : -1}
+                    aria-label={ariaLabel}
+                    aria-pressed={isSelected}
                   />
                 )
               })

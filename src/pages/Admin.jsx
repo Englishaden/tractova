@@ -905,7 +905,7 @@ function PucDocketsTab() {
             </span>
           )}
         </div>
-        <p className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
+        <p id="classify-helper" className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
           Paste the docket URL on the first line, then copy-paste the page contents from your state's PUC e-filing portal. AI extracts state, docket number, status, pillar, impact tier, dates, and a Tractova analyst summary — you review and save.
         </p>
         <textarea
@@ -913,7 +913,9 @@ function PucDocketsTab() {
           onChange={(e) => setClassifyText(e.target.value)}
           placeholder="https://documents.dps.ny.gov/public/MatterManagement/CaseMaster.aspx?MatterCaseNo=15-E-0751&#10;&#10;In the Matter of the Value of Distributed Energy Resources..."
           rows={5}
-          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-none resize-y mb-3"
+          aria-label="Paste docket URL and page contents for AI classification"
+          aria-describedby="classify-helper"
+          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-none resize-y mb-3 focus:ring-2 focus:ring-teal-500/40"
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.10)',
