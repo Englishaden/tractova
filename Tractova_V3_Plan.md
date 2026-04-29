@@ -1,7 +1,7 @@
 # Tractova V3 — Build Plan
 
 > Reviewer: Opus 4.7 (high effort)
-> Last updated: 2026-04-29 (Day 3 long session — UX primitives + Audit log)
+> Last updated: 2026-04-29 (Day 4 late-evening — audit view counts + MetricsBar tooltips)
 > Supersedes: `Tractova_V2_Plan.md` for Phases 2-7. Phase 1 of V2 is shipped — no rework.
 > Companion strategic critique: `~/.claude/plans/read-tractova-v3-prop-plan-md-file-functional-penguin.md`
 
@@ -133,10 +133,11 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 **P2 — V3 deferred polish + product extension:**
 - **Markets on the Move → real score deltas** — currently ranks by recency. When `dashboard_metrics` history accumulates ≥4 weeks, swap to true week-over-week delta ranking. ~2h.
 - **Trend chips on KPIs** (V3 §7.2) — "↑ +3 (7d)" next to every metric. Same blocker as Markets on the Move (needs history).
-- **Refactor existing surfaces to use ui/* primitives** — as surfaces are naturally touched. Gradual. Candidates: Search.jsx form inputs, Profile toggles, Admin tabs, MetricsBar tooltip.
-- **MemoView "Open in Library" CTA for owner viewers** — if the recipient happens to be the project owner, show an extra CTA. Minor.
-- **Per-user "shared X times" stat in Library** — query `share_tokens` for owner's tokens. Trust signal.
-- **Audit log shows who shared / when** — extend logProjectEvent on memo-create to log a `shared` event. Tiny addition.
+- **Refactor existing surfaces to use ui/* primitives** — as surfaces are naturally touched. Gradual. Remaining candidate: Search.jsx form inputs (deferred — biggest surface, most recently churned). Profile toggles + Admin Field/SaveBar + MetricsBar KPI tooltips ✅ shipped Day 4.
+- ✅ **MemoView "Open in Library" CTA for owner viewers** — shipped Day 4 (`3d96822`).
+- ✅ **Per-user "shared X times" pill in Library** — shipped Day 4 (`3d96822`).
+- ✅ **Audit log shows who shared / when** — shipped Day 4 (`3d96822` for the event, `ae65af2` for the recipient view-count pill on the timeline).
+- ✅ **MetricsBar KPI tooltips** — shipped Day 4 late-evening (`34e0136`).
 - **Tailwind v3 → v4 upgrade** — dedicated future session (~2-4h: 76 utility-class hits, default border/ring color changes). Unlocks shadcn permanently and matches V3 token philosophy better. **Trigger: V3 Wave 3 Deal Calendar** (needs shadcn Calendar primitive).
 - **Cybersec quick wins from the §Security plan track** (top of this file):
   - GitHub Dependabot + Secret Scanning + Push Protection (5 min, free)

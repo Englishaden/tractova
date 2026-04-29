@@ -1,13 +1,21 @@
 # Tractova — 4-Week Premium Buildout Plan
 
 > Last updated: April 29, 2026
-> Status: V3 BUILD DAY 4 — Share trio shipped, deps cleaned, ui/* primitive sweep through Profile + Admin. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
+> Status: V3 BUILD DAY 4 — Share trio shipped, deps cleaned, ui/* primitive sweep through Profile + Admin, audit-timeline view counts, MetricsBar KPI tooltips. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
 
 ---
 
 ## V3 Build Log (Day 4 — April 29, 2026)
 
 Picked up from Day 3's "Next-Session Pickup" P2 list. All shipped + pushed to `origin/main`.
+
+### Late-evening supplement (after Day 4 wrap-up commit)
+
+Two more P2-list items closed before EOD:
+
+- **`ae65af2`** Audit timeline surfaces recipient view counts. After fetching `project_events`, batch-look-up `share_tokens.view_count` for any `shared` events; render an inline violet "X views" mono pill next to the timestamp. Owners now get a passive engagement signal — "the IC opened it 4 times" is meaningfully different from "you sent the link." Reads through RLS (owner-only `select` on `share_tokens`), so no service-role exposure. Refreshes whenever the audit timeline does, including the post-share `auditRefreshKey` bump.
+
+- **`34e0136`** MetricsBar Radix Tooltip on each KPI card. Hovering any of the 5 cards (CS Coverage / IX Headroom / Policy Pulse / Avg Capacity / Pipeline Load) surfaces a navy/teal tooltip with the metric's definition + methodology in one breath — closes the gap for free-tier users who don't think to click into the rich detail modal. Each tooltip shows the label as a mono eyebrow, a 1-2 sentence hint, and a "Click for full breakdown" nudge. Uses the existing TooltipProvider at App root (200ms delay) so no behavioral conflict with the click-to-modal interaction; `asChild` on `TooltipTrigger` preserves the button as the rendered DOM node.
 
 ### Shipped today
 - **`3d96822`** V3 share-trio (3 features in one themed commit):
@@ -57,14 +65,15 @@ Picked up from Day 3's "Next-Session Pickup" P2 list. All shipped + pushed to `o
 - **Vite 5 → 8 + Tailwind v3 → v4** — both deferred to a dedicated tooling-refresh session. They go together.
 
 ### Where to pick up next session
-P2 list in `Tractova_V3_Plan.md` "Next-Session Pickup" still has:
-- MemoView feature polish (recipient view-count surfaced in audit timeline, etc.)
-- Add tooltips to MetricsBar KPIs (feature add — explains derived metrics for free users)
-- Privacy Policy + ToS (Termly/Iubenda; before first paid customer)
-- Per-state IX queue accumulation will hit 4 weeks late May / early June → Wave 1.4 derived metrics unblock then
+Most P2 items now closed. Remaining backlog in `Tractova_V3_Plan.md`:
+- Privacy Policy + ToS (Termly/Iubenda; before first paid customer — non-code)
+- USPTO trademark for "Tractova" word mark (Class 9 + 42; flat-fee attorney)
+- Search.jsx form-input ui/* refactor still deferred — biggest surface, most recently churned, plan says "let it happen as surfaces are touched, not as a bulk pass"
+- Per-state IX queue accumulation will hit 4 weeks late May / early June → Wave 1.4 derived metrics + true Markets-on-the-Move deltas + KPI trend chips all unblock then
+- Tailwind v3 → v4 + Vite 5 → 8 dedicated tooling-refresh session (trigger: V3 Wave 3 Deal Calendar needing shadcn Calendar primitive)
 
 ### Day 4 commit summary
-4 commits, ~325 lines net change. All zero-visible-behavior-change refactors except for the share-trio (which adds 3 new visible features + a privacy fix).
+6 commits, ~410 lines net change. All zero-visible-behavior-change refactors except for the share-trio (3 visible features + a privacy fix), MetricsBar tooltips (feature add), and audit-timeline view counts (feature add on top of the share-trio).
 
 ---
 
