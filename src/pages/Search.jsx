@@ -83,26 +83,35 @@ function ArcGauge({ score }) {
   )
 }
 
-// V3: Terminal-style sub-score row. Discrete █ glyph segments + monospace numerics.
-// Layout reordered so the value sits next to its label (not stranded on the far right):
-// [LABEL] [VALUE bold] [████ segments fill] [weight%]
+// V3: Terminal-style sub-score row.
+// Grid layout fixes prior overflow: "INTERCONNECTION" (~148px wide at 11px / 0.12em
+// tracking) was overflowing a w-[100px] container and colliding with the value.
+// New: CSS grid with label column that grows to fit content (minmax) + tight gap.
+// Weight inlined next to label as gray meta — no more stranded far-right %.
+//
+// Layout: [LABEL · weight]  [value bold]  [████ segments fill]
 function SubScoreBar({ label, weight, value, color }) {
   const segments = 14
   const filled = Math.round((value / 100) * segments)
+  // Use shorter label form for the longest one to avoid grid overflow on narrow cards
+  const displayLabel = label === 'Interconnection' ? 'Interconn' : label
   return (
-    <div className="flex items-baseline gap-2.5 font-mono text-[11px] tabular-nums">
-      <span className="uppercase tracking-[0.12em] font-semibold w-[100px] flex-shrink-0 text-ink">
-        {label}
+    <div
+      className="font-mono text-[11px] tabular-nums items-baseline"
+      style={{ display: 'grid', gridTemplateColumns: 'minmax(0, max-content) 28px 1fr', columnGap: '12px' }}
+    >
+      <span className="uppercase tracking-[0.10em] font-semibold text-ink leading-tight whitespace-nowrap">
+        {displayLabel}
+        <span className="ml-1.5 text-[9px] text-ink-muted font-normal">{weight}</span>
       </span>
-      <span className="font-bold w-7 text-[13px] flex-shrink-0 text-ink leading-none">
+      <span className="font-bold text-[13px] text-ink leading-none text-right tabular-nums">
         {value}
       </span>
-      <span className="flex-1 leading-none ml-1" style={{ letterSpacing: '0px', fontSize: '11px' }}>
+      <span className="leading-none whitespace-nowrap" style={{ letterSpacing: '0px' }}>
         {Array.from({ length: segments }).map((_, i) => (
           <span key={i} style={{ color: i < filled ? color : '#E2E8F0' }}>█</span>
         ))}
       </span>
-      <span className="text-[9px] w-9 text-right flex-shrink-0 text-ink-muted">{weight}</span>
     </div>
   )
 }
