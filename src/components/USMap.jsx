@@ -15,24 +15,29 @@ const FIPS = {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// V3 Strategy A — Coverage tier as fill TEXTURE (hatch overlay), not stroke.
+// V3 Strategy A — Coverage tier as fill TEXTURE (cartographic overlay).
 //
-// Cartographic convention: hatching encodes data confidence / coverage,
-// while strokes are reserved for boundaries. Three-state mapping by texture
-// density:
-//   Full  = clean fill (no overlay)        — strongest data, cleanest visual
-//   Mid   = sparse 45° diagonal hatch      — partial-data texture
-//   Light = cross-hatch (two diagonals)    — least-data, busiest texture
+// Cartographic convention: hatching / stippling encode data confidence,
+// while strokes are reserved for boundaries. Three-state mapping using
+// distinct visual families (not just density variants — easier to scan):
+//   Full  = clean fill (no overlay)         — strongest data, cleanest visual
+//   Mid   = 45° diagonal hatch (lines)      — "ruled" texture, partial data
+//   Light = stipple / dot grid (points)     — "scattered" texture, least data
 //
-// All hatch lines are V3 navy at low opacity so they layer over any choropleth
-// color without shifting perceived hue. "Tractova" derives from Latin tractus
-// (surveyed land) — hatching is the survey vocabulary, brand-aligned.
+// Lines vs dots are immediately distinguishable at any swatch size —
+// where the previous sparse-vs-dense-hatch scheme looked confusingly similar
+// in the legend. All overlays are V3 navy at low opacity so they layer over
+// any choropleth color without shifting perceived hue.
+//
+// Brand alignment: "Tractova" derives from Latin tractus (surveyed land);
+// hatching + stippling are the cartographic-survey vocabulary, same lineage
+// as the TopoBackground contour lines and the Tractova mark's survey ticks.
 // ─────────────────────────────────────────────────────────────────────────────
 function getTierOverlayFill(stateId, stateProgramMap) {
   const tier = stateProgramMap[stateId]?.coverageTier || 'light'
   if (tier === 'full') return null
   if (tier === 'mid')  return 'url(#tier-hatch-mid)'
-  return 'url(#tier-hatch-light)'
+  return 'url(#tier-stipple-light)'
 }
 
 // V3 5-bucket single-hue teal ramp — light teal (low score) -> deep teal (high score).
@@ -123,28 +128,28 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
           style={{ width: '100%', height: 'auto' }}
         >
           {/* ── Pattern defs for coverage-tier overlay ───────────────────────
-              Cartographic hatching — V3 navy at low opacity so the underlying
-              choropleth fill reads through. patternUnits="userSpaceOnUse"
-              keeps the texture scale stable across zoom levels. */}
+              Two distinct visual families: lines (Mid) vs dots (Light). All
+              V3 navy at low opacity so the underlying choropleth fill reads
+              through. patternUnits="userSpaceOnUse" keeps the texture scale
+              stable across zoom levels. */}
           <defs>
-            {/* Mid coverage — sparse 45° diagonal */}
+            {/* Mid coverage — 45° diagonal hatch lines */}
             <pattern
               id="tier-hatch-mid"
               patternUnits="userSpaceOnUse"
-              width="6" height="6"
+              width="5.5" height="5.5"
               patternTransform="rotate(45)"
             >
-              <line x1="0" y1="0" x2="0" y2="6" stroke="#0F1A2E" strokeWidth="0.7" strokeOpacity="0.22" />
+              <line x1="0" y1="0" x2="0" y2="5.5" stroke="#0F1A2E" strokeWidth="0.75" strokeOpacity="0.28" />
             </pattern>
 
-            {/* Light coverage — denser cross-hatch (two diagonals) */}
+            {/* Light coverage — stipple / dot grid (cartographic stippling) */}
             <pattern
-              id="tier-hatch-light"
+              id="tier-stipple-light"
               patternUnits="userSpaceOnUse"
-              width="5" height="5"
+              width="4" height="4"
             >
-              <line x1="0" y1="0" x2="5" y2="5" stroke="#0F1A2E" strokeWidth="0.5" strokeOpacity="0.18" />
-              <line x1="5" y1="0" x2="0" y2="5" stroke="#0F1A2E" strokeWidth="0.5" strokeOpacity="0.18" />
+              <circle cx="2" cy="2" r="0.55" fill="#0F1A2E" fillOpacity="0.32" />
             </pattern>
           </defs>
 
@@ -306,29 +311,31 @@ function StatusPill({ status }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Coverage swatches for the legend — tiny inline SVGs that show the EXACT
-// hatch treatment users see on the map. Self-contained patterns scoped to
-// each swatch (separate IDs from the map's patterns).
+// hatch / stipple treatment users see on the map. Larger than the previous
+// 22×11 (now 30×14) for pattern legibility, and higher overlay opacity than
+// the map (legend job is pedagogy; map job is subtlety).
+// Self-contained patterns scoped to each swatch (separate IDs from the
+// map's patterns to avoid conflicts).
 // ─────────────────────────────────────────────────────────────────────────────
 function CoverageSwatch({ tier }) {
   const swatchId = `legend-${tier}`
   const baseFill = '#14B8A6'  // teal-500 — neutral feasibility shade for legend
   return (
-    <svg width="22" height="11" className="rounded-sm flex-shrink-0" style={{ border: '1px solid rgba(15,118,110,0.20)' }}>
+    <svg width="30" height="14" className="rounded-sm flex-shrink-0" style={{ border: '1px solid rgba(15,118,110,0.22)' }}>
       <defs>
         {tier === 'mid' && (
           <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3.5" height="3.5" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="3.5" stroke="#0F1A2E" strokeWidth="0.5" strokeOpacity="0.40" />
+            <line x1="0" y1="0" x2="0" y2="3.5" stroke="#0F1A2E" strokeWidth="0.6" strokeOpacity="0.62" />
           </pattern>
         )}
         {tier === 'light' && (
           <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3" height="3">
-            <line x1="0" y1="0" x2="3" y2="3" stroke="#0F1A2E" strokeWidth="0.4" strokeOpacity="0.32" />
-            <line x1="3" y1="0" x2="0" y2="3" stroke="#0F1A2E" strokeWidth="0.4" strokeOpacity="0.32" />
+            <circle cx="1.5" cy="1.5" r="0.55" fill="#0F1A2E" fillOpacity="0.65" />
           </pattern>
         )}
       </defs>
-      <rect width="22" height="11" fill={baseFill} />
-      {tier !== 'full' && <rect width="22" height="11" fill={`url(#${swatchId})`} />}
+      <rect width="30" height="14" fill={baseFill} />
+      {tier !== 'full' && <rect width="30" height="14" fill={`url(#${swatchId})`} />}
     </svg>
   )
 }
