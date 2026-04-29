@@ -264,6 +264,52 @@ export async function getPucDockets({ state, includeClosed = false } = {}) {
   })
 }
 
+// ── getComparableDeals ────────────────────────────────────────────────────────
+// V3 Wave 2 — comparable / market deal database. Returns active deals,
+// optionally filtered by state, technology, county, or MW range. Sorted
+// by recency (filing_date desc) by default. Cached for 1h via withCache.
+//
+// Common usage from Lens: getComparableDeals({ state, technology, mwRange: [mw*0.5, mw*2] })
+// Common usage from admin panel: getComparableDeals({ includeInactive: true }) for bulk view.
+export async function getComparableDeals({ state, technology, county, mwRange, includeInactive = false } = {}) {
+  const cacheKey = `comparable_deals:${state || 'all'}:${technology || 'all'}:${county || 'all'}:${mwRange ? mwRange.join('-') : 'all'}:${includeInactive ? 'all' : 'active'}`
+  return withCache(cacheKey, async () => {
+    let query = supabase
+      .from('comparable_deals')
+      .select('*')
+      .order('filing_date', { ascending: false, nullsFirst: false })
+    if (!includeInactive) query = query.eq('is_active', true)
+    if (state)            query = query.eq('state', state)
+    if (technology)       query = query.eq('technology', technology)
+    if (county)           query = query.ilike('county', county)
+    if (mwRange)          query = query.gte('mw', mwRange[0]).lte('mw', mwRange[1])
+    const { data, error } = await query
+    if (error) {
+      console.warn('[comparable_deals] fetch failed:', error.message)
+      return []
+    }
+    return (data || []).map(row => ({
+      id:                   row.id,
+      state:                row.state,
+      county:               row.county,
+      technology:           row.technology,
+      mw:                   row.mw,
+      status:               row.status,
+      developer:            row.developer,
+      estimatedCapexPerW:   row.estimated_capex_per_w,
+      offtakeSummary:       row.offtake_summary,
+      ixDifficulty:         row.ix_difficulty,
+      servingUtility:       row.serving_utility,
+      source:               row.source,
+      sourceUrl:            row.source_url,
+      filingDate:           row.filing_date,
+      codTarget:            row.cod_target,
+      notes:                row.notes,
+      lastUpdated:          row.last_updated,
+    }))
+  })
+}
+
 // ── getDashboardMetrics ───────────────────────────────────────────────────────
 // Calls the get_dashboard_metrics() Supabase RPC.
 // Returns live-computed aggregates — no manual metrics.js entry ever again.
@@ -470,6 +516,25 @@ export async function deleteNewsItem(id) {
   if (error) throw error
   invalidateCache('news_feed')
   invalidateCache('dashboard_metrics')
+}
+
+// ── Comparable Deals admin write helpers ─────────────────────────────────────
+export async function upsertComparableDeal(fields) {
+  const payload = { ...fields, last_updated: new Date().toISOString() }
+  const { error } = await supabase
+    .from('comparable_deals')
+    .upsert(payload)
+  if (error) throw error
+  invalidateCache('comparable_deals:*')
+}
+
+export async function deleteComparableDeal(id) {
+  const { error } = await supabase
+    .from('comparable_deals')
+    .update({ is_active: false, last_updated: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache('comparable_deals:*')
 }
 
 // ── PUC Docket admin write helpers ───────────────────────────────────────────

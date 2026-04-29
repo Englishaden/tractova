@@ -9,6 +9,7 @@ import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
+import ComparableDealsPanel from '../components/ComparableDealsPanel'
 import CoverageBadge from '../components/CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
@@ -3224,6 +3225,17 @@ function SearchContent() {
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
               mode="lens"
+            />
+
+            {/* V3 Wave 2 — Comparable Deals panel (market benchmarks).
+                Filters comps by state + tech + ±50% MW range.
+                Pro-gated upstream (Lens itself is Pro). */}
+            <SectionDivider />
+            <ComparableDealsPanel
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
+              technology={results.form.technology}
+              mw={results.form.mw}
             />
 
             {/* Bottom CTA / disclaimer */}
