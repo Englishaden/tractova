@@ -216,13 +216,40 @@ async function sendSlack(webhookUrl, payload) {
   }
 }
 
+const ADMIN_EMAIL = 'aden.walker67@gmail.com'
+
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
+  // Three valid auth paths (matches send-digest):
+  //   1. Vercel cron header
+  //   2. Bearer CRON_SECRET
+  //   3. Admin JWT -> TEST MODE (synthesizes a sample alert for the admin's
+  //      first project; ignores alert_urgent preference; bypasses the
+  //      "no real alerts -> skip" guard so we always get a deliverable)
   const isVercelCron     = req.headers['x-vercel-cron'] === '1'
   const isManualWithSecret = process.env.CRON_SECRET &&
     req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
-  if (!isVercelCron && !isManualWithSecret) return res.status(401).json({ error: 'Unauthorized' })
+
+  let testMode = false
+  let testUserId = null
+  let testChannel = 'email'  // 'email' | 'slack'
+  if (!isVercelCron && !isManualWithSecret) {
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
+    if (authErr || !user || user.email !== ADMIN_EMAIL) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+    testMode = true
+    testUserId = user.id
+    // Channel selector via query string OR JSON body
+    const url = new URL(req.url, `https://${req.headers.host}`)
+    const qChannel = url.searchParams.get('channel')
+    let bChannel = null
+    try { bChannel = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body)?.channel } catch {}
+    testChannel = (qChannel || bChannel || 'email') === 'slack' ? 'slack' : 'email'
+  }
 
   try {
     // Load live state data — replaces the former hardcoded STATE_STATUS object
@@ -237,12 +264,17 @@ export default async function handler(req, res) {
     // come back as undefined and we silently skip Slack delivery.
     const profileColumns = 'id, subscription_tier, subscription_status, alert_urgent, slack_webhook_url, alert_slack'
     let profilesData, profileErr
+    const buildQuery = (cols) => {
+      let q = supabaseAdmin.from('profiles').select(cols)
+      if (testMode) {
+        q = q.eq('id', testUserId)
+      } else {
+        q = q.eq('subscription_tier', 'pro').in('subscription_status', ['active', 'trialing'])
+      }
+      return q
+    }
     try {
-      const result = await supabaseAdmin
-        .from('profiles')
-        .select(profileColumns)
-        .eq('subscription_tier', 'pro')
-        .in('subscription_status', ['active', 'trialing'])
+      const result = await buildQuery(profileColumns)
       profilesData = result.data
       profileErr = result.error
     } catch (e) {
@@ -250,11 +282,7 @@ export default async function handler(req, res) {
     }
     // Fallback if Slack columns not yet migrated
     if (profileErr && /slack_webhook_url|alert_slack/.test(profileErr.message || '')) {
-      const fallback = await supabaseAdmin
-        .from('profiles')
-        .select('id, subscription_tier, subscription_status, alert_urgent')
-        .eq('subscription_tier', 'pro')
-        .in('subscription_status', ['active', 'trialing'])
+      const fallback = await buildQuery('id, subscription_tier, subscription_status, alert_urgent')
       profilesData = fallback.data
       profileErr = fallback.error
     }
@@ -264,9 +292,17 @@ export default async function handler(req, res) {
     const slackResults = { sent: 0, failed: 0 }
 
     for (const profile of profilesData ?? []) {
-      const wantsEmail = profile.alert_urgent !== false  // default on
-      const wantsSlack = profile.alert_slack === true && profile.slack_webhook_url
-      if (!wantsEmail && !wantsSlack) continue
+      // In test mode, ignore the user's preferences and bypass channel gating.
+      const wantsEmail = testMode ? testChannel === 'email' : profile.alert_urgent !== false
+      const wantsSlack = testMode
+        ? (testChannel === 'slack' && profile.slack_webhook_url)
+        : (profile.alert_slack === true && profile.slack_webhook_url)
+      if (!wantsEmail && !wantsSlack) {
+        if (testMode && testChannel === 'slack' && !profile.slack_webhook_url) {
+          return res.status(400).json({ error: 'No Slack webhook URL configured. Save one in Profile -> Slack delivery first.' })
+        }
+        continue
+      }
 
       const { data: { user }, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id)
       if (userErr || !user?.email) continue
@@ -279,22 +315,35 @@ export default async function handler(req, res) {
       if (projErr || !projects?.length) continue
 
       for (const project of projects) {
-        const alerts = getUrgentAlerts(project, stateMap)
+        let alerts = getUrgentAlerts(project, stateMap)
+        // In test mode, synthesize a representative alert if the user has no
+        // real alerts firing -- otherwise the test silently sends nothing.
+        if (testMode && !alerts.length) {
+          alerts = [{
+            level: 'urgent',
+            label: '[TEST] Capacity Limited',
+            detail: `This is a TEST alert sent from the Admin panel. Your project "${project.name}" has not actually been flagged. The program is currently ${stateMap[project.state]?.csStatus || 'active'} in ${project.state_name || project.state}.`,
+          }]
+        }
         if (!alerts.length) continue
 
         const hasUrgent = alerts.some(a => a.level === 'urgent')
 
         // Email delivery
         if (wantsEmail) {
-          const subject = hasUrgent
+          const baseSubject = hasUrgent
             ? `Action required: Program alert for "${project.name}"`
             : `Policy update for your project "${project.name}"`
+          const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject
           const html = buildAlertHtml(user, project, alerts)
           try {
             await sendEmail(user.email, subject, html)
             results.push({ email: user.email, project: project.name, alerts: alerts.map(a => a.label) })
           } catch (err) {
             console.error(`[send-alerts] email failed for ${user.email}:`, err.message)
+            if (testMode) {
+              return res.status(500).json({ error: `Email send failed: ${err.message}` })
+            }
           }
         }
 
@@ -308,12 +357,22 @@ export default async function handler(req, res) {
           } catch (err) {
             slackResults.failed++
             console.error(`[send-alerts] slack failed for ${profile.id}:`, err.message)
+            if (testMode) {
+              return res.status(500).json({ error: `Slack send failed: ${err.message}` })
+            }
           }
+        }
+
+        // In test mode we only need ONE delivery to verify the flow works.
+        if (testMode) {
+          return res.status(200).json({
+            sent: results.length, slack: slackResults, testMode, channel: testChannel, results,
+          })
         }
       }
     }
 
-    return res.status(200).json({ sent: results.length, slack: slackResults, results })
+    return res.status(200).json({ sent: results.length, slack: slackResults, testMode, results })
   } catch (err) {
     console.error('Alerts error:', err)
     return res.status(500).json({ error: err.message })

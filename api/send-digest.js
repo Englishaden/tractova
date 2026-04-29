@@ -280,15 +280,34 @@ async function sendEmail(to, subject, html) {
   return res.json()
 }
 
+const ADMIN_EMAIL = 'aden.walker67@gmail.com'
+
 export default async function handler(req, res) {
-  // Allow manual trigger via POST, or scheduled GET from Vercel cron
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
-  // Cron secret guard — skip if no secret configured
+  // Three valid auth paths:
+  //   1. Vercel cron header                        -> full run, all Pro users
+  //   2. Bearer CRON_SECRET (manual cron trigger)  -> full run, all Pro users
+  //   3. Authenticated admin user via Supabase JWT -> TEST MODE, sends only
+  //                                                   to the admin email
   const isVercelCron       = req.headers['x-vercel-cron'] === '1'
   const isManualWithSecret = process.env.CRON_SECRET &&
     req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
-  if (!isVercelCron && !isManualWithSecret) return res.status(401).json({ error: 'Unauthorized' })
+
+  let testMode = false
+  let testUserId = null
+
+  if (!isVercelCron && !isManualWithSecret) {
+    // Try admin JWT (test path)
+    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
+    if (!token) return res.status(401).json({ error: 'Unauthorized' })
+    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
+    if (authErr || !user || user.email !== ADMIN_EMAIL) {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+    testMode = true
+    testUserId = user.id
+  }
 
   try {
     // Load live state data — replaces the former hardcoded STATE_STATUS object
@@ -341,20 +360,28 @@ export default async function handler(req, res) {
       console.warn('[send-digest] motion fetch failed (section will be empty):', motionErr.message)
     }
 
-    // Fetch all Pro users
-    const { data: profiles, error: profileErr } = await supabaseAdmin
+    // Fetch profiles. In test mode, ONLY the admin's profile.
+    let profilesQuery = supabaseAdmin
       .from('profiles')
       .select('id, stripe_customer_id, subscription_tier, subscription_status, alert_digest')
-      .eq('subscription_tier', 'pro')
-      .in('subscription_status', ['active', 'trialing'])
+    if (testMode) {
+      profilesQuery = profilesQuery.eq('id', testUserId)
+    } else {
+      profilesQuery = profilesQuery
+        .eq('subscription_tier', 'pro')
+        .in('subscription_status', ['active', 'trialing'])
+    }
+    const { data: profiles, error: profileErr } = await profilesQuery
 
     if (profileErr) throw profileErr
 
     const results = []
 
     for (const profile of profiles ?? []) {
-      // Respect digest preference — default on if column not yet set
-      if (profile.alert_digest === false) continue
+      // Respect digest preference — default on if column not yet set.
+      // In test mode, IGNORE the preference (otherwise we can't test
+      // when we've turned ourselves off).
+      if (!testMode && profile.alert_digest === false) continue
 
       // Get user email from auth
       const { data: { user }, error: userErr } = await supabaseAdmin.auth.admin.getUserById(profile.id)
@@ -370,13 +397,14 @@ export default async function handler(req, res) {
       if (projErr || !projects?.length) continue
 
       const html = buildDigestHtml(user, projects, stateMap, activity)
-      const subject = `Your weekly Tractova digest — ${projects.length} project${projects.length !== 1 ? 's' : ''}`
+      const baseSubject = `Your weekly Tractova digest — ${projects.length} project${projects.length !== 1 ? 's' : ''}`
+      const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject
 
       await sendEmail(user.email, subject, html)
       results.push({ email: user.email, projects: projects.length })
     }
 
-    return res.status(200).json({ sent: results.length, results })
+    return res.status(200).json({ sent: results.length, testMode, results })
   } catch (err) {
     console.error('Digest error:', err)
     return res.status(500).json({ error: err.message })

@@ -71,18 +71,50 @@ function ManageBillingButton() {
   )
 }
 
-// ── Alert Preferences Toggle ─────────────────────────────────────────────────
-// V3: 3 toggles — digest, urgent (negative), positive (good-news).
-// Toggle dot positions use translate-x-[18px] for symmetric padding inside w-9 container.
-function ToggleSwitch({ on, onClick }) {
+// V3: Toggle switch with inline styles (was Tailwind arbitrary values --
+// some build configurations didn't pick up `translate-x-[18px]` reliably,
+// causing the dot to overlap the track edge). Inline styles guarantee
+// the math regardless of Tailwind JIT state.
+//
+// Track: 44px × 24px. Dot: 18px × 18px, 3px from top.
+// OFF: dot.left = 3px (3px gap on left, 23px gap on right).
+// ON:  dot.left = 23px (23px gap on left, 3px gap on right).
+// Symmetric padding both states. Dot fully inside track always.
+function ToggleSwitch({ on, onClick, ariaLabel }) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={on}
+      aria-label={ariaLabel}
       onClick={onClick}
-      className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-primary' : 'bg-gray-200'}`}
+      style={{
+        position: 'relative',
+        width: '44px',
+        height: '24px',
+        borderRadius: '9999px',
+        transition: 'background-color 150ms ease',
+        backgroundColor: on ? '#14B8A6' : '#E2E8F0',
+        flexShrink: 0,
+        border: 'none',
+        cursor: 'pointer',
+        padding: 0,
+      }}
     >
-      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+      <span
+        style={{
+          position: 'absolute',
+          top: '3px',
+          left: on ? '23px' : '3px',
+          width: '18px',
+          height: '18px',
+          borderRadius: '9999px',
+          backgroundColor: '#FFFFFF',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.10)',
+          transition: 'left 150ms ease',
+          display: 'block',
+        }}
+      />
     </button>
   )
 }
