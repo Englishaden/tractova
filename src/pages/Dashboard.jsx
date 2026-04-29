@@ -4,6 +4,8 @@ import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
 import SectionDivider from '../components/SectionDivider'
+import WelcomeCard from '../components/WelcomeCard'
+import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed } from '../lib/programData'
 
 // V3 §4.1: top-of-dashboard strip surfacing recently-active states.
@@ -78,6 +80,7 @@ export default function Dashboard({ previewMode = false }) {
   const [selectedStateId,  setSelectedStateId]  = useState(null)
   const [stateProgramMap,  setStateProgramMap]  = useState({})
   const [news,             setNews]             = useState([])
+  const { user } = useAuth()
 
   useEffect(() => {
     getStateProgramMap().then(setStateProgramMap).catch(console.error)
@@ -125,6 +128,11 @@ export default function Dashboard({ previewMode = false }) {
         </div>
       )}
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
+        {/* V3-extension — first-run welcome card. Renders ONCE per
+            browser for authed users, dismisses to localStorage. Shown
+            above page header to be the first thing a new user sees. */}
+        {user && !previewMode && <WelcomeCard />}
+
         {/* Page header */}
         <div className="mt-4 mb-1">
           <h1 className="text-2xl font-serif font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>Market Dashboard</h1>

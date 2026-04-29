@@ -259,7 +259,7 @@ function PortfolioStats({ projects, stateProgramMap }) {
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Portfolio Overview</p>
 
       {/* Health + KPIs row */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Health gauge */}
         <div className="rounded-xl px-4 py-4 flex flex-col items-center justify-center" style={{ background: healthBg }}>
           <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Health</p>

@@ -1553,7 +1553,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
               {current ? (
                 <div className="flex flex-col gap-4">
                   {/* Program details grid */}
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-xs rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
                     <div>
                       <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">CS Program</p>
                       <p className="font-medium text-ink">{current.csProgram ?? '—'}</p>
@@ -1726,14 +1726,14 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
           </div>
 
           {/* Deal details */}
-          <div className="rounded-lg px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-3 text-xs bg-white border border-gray-200">
+          <div className="rounded-lg px-4 py-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs bg-white border border-gray-200">
             {project.servingUtility && (
-              <div className="col-span-2">
+              <div className="sm:col-span-2">
                 <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5 text-gray-500">Serving Utility</p>
                 <p className="font-medium text-gray-900">{project.servingUtility}</p>
               </div>
             )}
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <p className="text-[9px] font-semibold uppercase tracking-wider mb-0.5 text-gray-500">Saved</p>
               <p className="text-gray-400">{project.savedAt ? new Date(project.savedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}</p>
             </div>
@@ -2503,7 +2503,7 @@ function LibraryContent() {
           {projects.length > 0 && (
             <>
               {/* V3 stat strip: navy chrome with teal accent rail; monospace numerics */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     valColor: '#0F1A2E' },
                   { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', valColor: '#0F1A2E' },
