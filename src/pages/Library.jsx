@@ -96,8 +96,18 @@ function getAlerts(project, stateProgramMap) {
     }
   }
 
-  if (project.feasibilityScore != null && current.feasibilityScore < project.feasibilityScore - 10) {
-    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility index fell from ${project.feasibilityScore} → ${current.feasibilityScore}` })
+  // BUGFIX: previously this compared current.feasibilityScore (bare state value)
+  // to project.feasibilityScore (bare state value at save time). But the Library
+  // card itself displays a tech-aware recomputed score via computeSubScores +
+  // computeDisplayScore. Those numbers can differ by 20+ points for non-CS
+  // technologies, causing alerts that don't match what the user sees on the
+  // card (Gila County AZ: bare dropped 41→4, but card showed tech-aware ~35).
+  // Now we recompute current using the same path the card uses, so the alert
+  // delta matches the displayed liveScore.
+  const currentSubs = computeSubScores(current, null, project.stage, project.technology)
+  const currentLiveScore = computeDisplayScore(currentSubs.offtake, currentSubs.ix, currentSubs.site)
+  if (project.feasibilityScore != null && currentLiveScore < project.feasibilityScore - 10) {
+    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility index fell from ${project.feasibilityScore} → ${currentLiveScore} (recomputed for ${project.technology || 'CS'} at ${project.stage || 'current stage'})` })
   }
 
   const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
@@ -129,12 +139,18 @@ const ALERT_STYLES = {
 
 function AlertChip({ alert }) {
   const s = ALERT_STYLES[alert.level] || ALERT_STYLES.info
+  // Hover tooltip widened from w-52 (208px) to w-64 (256px) so the new
+  // longer score-drop detail string ("...recomputed for Hybrid at Pre-Dev")
+  // doesn't truncate awkwardly.
   return (
-    <div className={`group relative inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-default ${s.chip}`}>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${s.dot}`} />
+    <div className={`group relative inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold cursor-default ${s.chip}`} style={{ lineHeight: 1 }}>
+      <span
+        className={s.dot}
+        style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '9999px', flexShrink: 0 }}
+      />
       {alert.pillar && <span className="opacity-60">{alert.pillar}</span>}
       {alert.label}
-      <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-52 bg-gray-900 text-white text-[10px] rounded px-2 py-1.5 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+      <span className="pointer-events-none absolute bottom-full left-0 mb-1.5 w-64 bg-gray-900 text-white text-[10px] rounded px-2 py-1.5 leading-snug opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
         {alert.detail}
       </span>
     </div>
@@ -549,12 +565,25 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap 
             )}
             {alerts.length > 0 && (
               <span
-                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1"
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center"
                 style={hasUrgent
-                  ? { background: '#FEE2E2', color: '#991B1B', borderColor: '#FCA5A5' }
-                  : { background: '#FEF3C7', color: '#92400E', borderColor: '#FCD34D' }}
+                  ? { background: '#FEE2E2', color: '#991B1B', borderColor: '#FCA5A5', lineHeight: 1 }
+                  : { background: '#FEF3C7', color: '#92400E', borderColor: '#FCD34D', lineHeight: 1 }}
               >
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: hasUrgent ? '#DC2626' : '#D97706' }} />
+                <span
+                  // Inline-block + explicit margin keeps the dot reliably centered
+                  // with the cap-height of the 10px label across browsers; flex
+                  // gap + small dot can sit a half-pixel low otherwise.
+                  style={{
+                    display: 'inline-block',
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '9999px',
+                    marginRight: '5px',
+                    background: hasUrgent ? '#DC2626' : '#D97706',
+                    flexShrink: 0,
+                  }}
+                />
                 {alerts.length} alert{alerts.length > 1 ? 's' : ''}
               </span>
             )}

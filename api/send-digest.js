@@ -251,8 +251,14 @@ function buildDigestHtml(user, projects, stateMap, activity) {
         </a>
       </div>
 
+      <!-- Platform note -->
+      <p style="margin:24px 0 0;padding:12px 14px;background:${PAPER};border:1px solid #E2E8F0;border-radius:6px;font-size:11px;color:${INK_MUTED};font-family:${FONT_SANS};line-height:1.5;">
+        <span style="font-family:${FONT_MONO};font-weight:700;letter-spacing:0.16em;text-transform:uppercase;font-size:9px;color:${INK};">Note ·</span>
+        Tractova is currently optimized for desktop browsers. A mobile experience is on the roadmap — for now, links open best from a laptop or larger screen.
+      </p>
+
       <!-- Footer -->
-      <p style="margin:32px 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:${INK_MUTED};text-align:center;font-family:${FONT_SANS};line-height:1.6;">
+      <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:${INK_MUTED};text-align:center;font-family:${FONT_SANS};line-height:1.6;">
         You're receiving this because you have a Tractova Pro subscription.<br>
         <a href="${APP_URL}/profile" style="color:${TEAL_DEEP};text-decoration:none;font-weight:500;">Manage notifications</a>
         &nbsp;·&nbsp;
