@@ -70,6 +70,7 @@ function normalize(row) {
     ixDifficulty:     row.ix_difficulty,
     notes:            row.notes || '',
     savedAt:          row.saved_at,
+    lastObservedScore: row.last_observed_score ?? null,
   }
 }
 
@@ -1438,6 +1439,48 @@ function LibraryContent() {
         setHasFetched(true)
       })
   }, [user, authLoading])
+
+  // V3 §4.3 audit log: detect score shifts since last observation and log
+  // them as 'score_change' events. Runs once when both projects + state map
+  // are loaded; updates last_observed_score in the same op so we don't
+  // re-fire on subsequent loads. Threshold: 5 points absolute. Migration 016
+  // backs this; if it hasn't run, the column is missing and the update
+  // call silently fails -- no event logged but the app keeps working.
+  useEffect(() => {
+    if (!user || !projects.length || !Object.keys(stateProgramMap).length) return
+    let cancelled = false
+    const SCORE_DELTA_THRESHOLD = 5
+    ;(async () => {
+      for (const p of projects) {
+        if (cancelled) return
+        const sp = stateProgramMap[p.state]
+        if (!sp) continue
+        try {
+          const subs = computeSubScores(sp, null, p.stage, p.technology)
+          const liveScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
+          const previous = p.lastObservedScore
+          if (previous == null) {
+            // First observation -- just seed the column, don't log an event.
+            await supabase.from('projects').update({ last_observed_score: liveScore }).eq('id', p.id)
+            continue
+          }
+          const delta = liveScore - previous
+          if (Math.abs(delta) >= SCORE_DELTA_THRESHOLD) {
+            const direction = delta > 0 ? 'rose' : 'fell'
+            await logProjectEvent({
+              projectId: p.id,
+              userId: user.id,
+              kind: 'score_change',
+              detail: `Index ${direction}: ${previous} → ${liveScore} (${delta > 0 ? '+' : ''}${delta} pts) for ${p.technology || 'project'} at ${p.stage || 'no stage'}`,
+              meta: { previous, current: liveScore, delta, technology: p.technology, stage: p.stage },
+            })
+            await supabase.from('projects').update({ last_observed_score: liveScore }).eq('id', p.id)
+          }
+        } catch { /* per-project failure must not block others */ }
+      }
+    })()
+    return () => { cancelled = true }
+  }, [user, projects.length, Object.keys(stateProgramMap).length])
 
   const displayProjects = useMemo(() => {
     let filtered = projects
