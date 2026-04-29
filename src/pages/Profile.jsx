@@ -350,12 +350,13 @@ export default function Profile() {
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
         <div className="mt-6 max-w-3xl">
 
-          {/* Profile banner — full width above the 2-col grid */}
-          <div className="rounded-xl overflow-hidden mb-6" style={{ background: 'linear-gradient(135deg, #0A3D2E 0%, #0C1220 100%)' }}>
+          {/* V3: Profile banner — brand navy with teal accent rail (matches Library banner) */}
+          <div className="rounded-xl overflow-hidden mb-6 relative" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
             <div className="px-6 py-6 flex items-center gap-4">
               <div
                 className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #0F6E56 0%, #0A4D3A 100%)', boxShadow: '0 4px 12px rgba(15,110,86,0.3)' }}
+                style={{ background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}
               >
                 {initials}
               </div>

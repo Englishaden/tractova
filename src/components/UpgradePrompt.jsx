@@ -61,19 +61,19 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex items-start justify-center pt-24 pb-16 px-6">
+    <div className="min-h-screen bg-paper flex items-start justify-center pt-24 pb-16 px-6">
       <div className="max-w-lg w-full">
 
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 bg-accent-50 border border-accent-200 rounded-full text-xs font-semibold text-accent mb-6">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        {/* V3: Pro badge — brand navy with teal star accent */}
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-6" style={{ background: '#0F1A2E', color: '#FFFFFF', border: '1px solid rgba(20,184,166,0.30)' }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#14B8A6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
           </svg>
           Tractova Pro
         </div>
 
-        {/* Headline */}
-        <h1 className="text-2xl font-bold text-gray-900 mb-3">{config.headline}</h1>
+        {/* Headline — serif treatment matches V3 brand */}
+        <h1 className="text-2xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>{config.headline}</h1>
         <p className="text-gray-500 text-sm leading-relaxed mb-7">{config.sub}</p>
 
         {/* Bullet list */}
@@ -90,10 +90,11 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
           ))}
         </ul>
 
-        {/* Price + CTA */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <div className="flex items-end gap-1 mb-1">
-            <span className="text-3xl font-bold text-gray-900">$9.99</span>
+        {/* V3: Price + CTA — navy/teal accent rail at top */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
+          <div className="flex items-end gap-1 mb-1 mt-1">
+            <span className="text-3xl font-bold font-mono tabular-nums text-ink">$9.99</span>
             <span className="text-gray-400 text-sm mb-1">/ month</span>
           </div>
           <p className="text-xs text-gray-400 mb-5">Cancel anytime. No long-term commitment.</p>

@@ -982,31 +982,35 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
 
   return (
     <div className="rounded-xl overflow-hidden mb-4 bg-white border border-gray-200 shadow-sm">
+      {/* V3: Navy header chrome — institutional treatment matching MetricsBar */}
       <button
         onClick={() => setCollapsed(c => !c)}
-        className="w-full flex items-center justify-between px-5 py-3.5 text-left bg-gradient-to-r from-primary-50 to-white"
+        className="w-full flex items-center justify-between px-5 py-3.5 text-left relative"
+        style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
       >
+        {/* Top teal accent rail */}
+        <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0F6E56, #10B981)' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'rgba(20,184,166,0.18)', border: '1px solid rgba(20,184,166,0.30)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2DD4BF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
             </svg>
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-900">Portfolio Intelligence</p>
-            <p className="text-[10px] font-mono text-gray-500 mt-0.5">{projects.length} projects · {totalMW.toFixed(1)} MW across {geoBreakdown.length} state{geoBreakdown.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm font-bold text-white">Portfolio Intelligence</p>
+            <p className="text-[10px] font-mono mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>{projects.length} projects · {totalMW.toFixed(1)} MW across {geoBreakdown.length} state{geoBreakdown.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
         <svg
-          className={`transition-transform duration-200 text-gray-400 ${collapsed ? '' : 'rotate-180'}`}
-          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          className={`transition-transform duration-200 ${collapsed ? '' : 'rotate-180'}`}
+          width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
         >
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </button>
 
       {!collapsed && (
-        <div className="px-5 py-4 space-y-3" style={{ borderTop: '1px solid rgba(15,110,86,0.08)' }}>
+        <div className="px-5 py-4 space-y-3" style={{ borderTop: '1px solid rgba(15,26,46,0.08)' }}>
           {/* Row 1: Health gauge + Total MW + Risk Concentration (V3: dropped Avg Score + Risk Spread) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* Health Score — large gauge */}
@@ -1310,22 +1314,46 @@ function LibraryContent() {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-paper">
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
-        {/* Page header */}
-        <div className="mt-4 mb-8">
-          <div className="flex items-end justify-between gap-4 mb-4">
+        {/* V3: Brand-navy hero banner — adds institutional depth, replaces stark white-on-white */}
+        <div
+          className="mt-4 rounded-xl overflow-hidden mb-6 relative"
+          style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
+        >
+          {/* Top teal accent rail */}
+          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
+          <div className="px-6 py-5 flex items-end justify-between gap-4">
             <div>
-              <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-primary">Deal Tracker</p>
-              <h1 className="text-2xl font-bold tracking-tight text-gray-900">Library</h1>
-              <p className="text-sm mt-1 text-gray-500">Your saved deals — tracked, scored, and monitored for policy changes.</p>
+              <p className="text-[10px] font-bold tracking-widest uppercase mb-1.5" style={{ color: '#2DD4BF' }}>Deal Tracker</p>
+              <h1 className="text-2xl font-serif font-semibold tracking-tight text-white" style={{ letterSpacing: '-0.02em' }}>Library</h1>
+              <p className="text-sm mt-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {projects.length > 0 ? (
+                  <>
+                    <span className="font-mono tabular-nums">{projects.length}</span> project{projects.length !== 1 ? 's' : ''}
+                    <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+                    <span className="font-mono tabular-nums">{projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)}</span> MW tracked
+                    <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+                    monitored for policy changes
+                  </>
+                ) : (
+                  'Your saved deals — tracked, scored, and monitored for policy changes.'
+                )}
+              </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {projects.length > 0 && (
                 <button
                   onClick={() => exportCSV(projects, stateProgramMap)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors text-gray-600 bg-white border border-gray-200 hover:bg-gray-50"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+                  style={{
+                    color: 'rgba(255,255,255,0.85)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
                   title="Export all projects to CSV"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1334,28 +1362,35 @@ function LibraryContent() {
               )}
               <Link
                 to="/search"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-3.5 py-2 rounded-lg transition-colors"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white px-3.5 py-2 rounded-lg transition-colors"
+                style={{ background: '#14B8A6' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New Lens Search
               </Link>
             </div>
           </div>
+        </div>
 
-          <SectionDivider />
+        {/* Page content */}
+        <div className="mb-8">
 
           {/* Stat strip + pipeline overview */}
           {projects.length > 0 && (
             <>
+              {/* V3 stat strip: navy chrome with teal accent rail; monospace numerics */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     topColor: '#0F6E56', valColor: '#0F6E56' },
-                  { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', topColor: '#B45309', valColor: '#B45309' },
-                  { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap).length, 0), sub: 'policy or market flags', topColor: '#6B7280', valColor: '#374151' },
-                ].map(({ label, value, sub, topColor, valColor }) => (
-                  <div key={label} className="rounded-xl px-4 py-3 bg-white border border-gray-200" style={{ borderTop: `3px solid ${topColor}` }}>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500">{label}</p>
-                    <p className="text-xl font-bold mt-0.5" style={{ color: valColor }}>{value}</p>
+                  { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     valColor: '#0F1A2E' },
+                  { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', valColor: '#0F1A2E' },
+                  { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap).length, 0), sub: 'policy or market flags', valColor: '#0F1A2E' },
+                ].map(({ label, value, sub, valColor }) => (
+                  <div key={label} className="rounded-xl px-4 py-3 bg-white border border-gray-200 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">{label}</p>
+                    <p className="text-xl font-bold font-mono tabular-nums mt-0.5" style={{ color: valColor }}>{value}</p>
                     <p className="text-[10px] mt-0.5 text-gray-400">{sub}</p>
                   </div>
                 ))}

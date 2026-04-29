@@ -56,13 +56,13 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen bg-surface flex items-center justify-center px-4 pt-14">
+    <div className="min-h-screen bg-paper flex items-center justify-center px-4 pt-14">
       <div className="w-full max-w-sm">
 
-        {/* Wordmark */}
+        {/* Wordmark — V3 serif */}
         <div className="flex flex-col items-center gap-2 mb-8">
           <TractovaMark />
-          <span className="text-xl font-semibold tracking-tight text-gray-900">tractova</span>
+          <span className="text-2xl font-serif font-semibold tracking-tight text-ink" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
         </div>
 
         {/* ── Reset sent confirmation ─────────────────────────────────────── */}
@@ -224,9 +224,11 @@ function humanizeError(msg) {
 function TractovaMark() {
   return (
     <svg width="40" height="40" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="26" height="26" rx="5" fill="#0F6E56" />
-      <rect x="5" y="7" width="16" height="2.5" rx="1.25" fill="white" />
-      <rect x="11.75" y="9.5" width="2.5" height="10" rx="1.25" fill="white" />
+      <rect width="26" height="26" rx="5" fill="#0F1A2E" />
+      <rect x="5" y="7" width="16" height="2.5" rx="1.25" fill="#14B8A6" />
+      <rect x="11.75" y="9.5" width="2.5" height="10" rx="1.25" fill="#14B8A6" />
+      <rect x="6" y="10" width="0.8" height="2" rx="0.4" fill="#14B8A6" opacity="0.6" />
+      <rect x="19.2" y="10" width="0.8" height="2" rx="0.4" fill="#14B8A6" opacity="0.6" />
     </svg>
   )
 }
