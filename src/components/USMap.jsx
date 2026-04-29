@@ -14,6 +14,17 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
+// V3 Strategy A — coverage tier stroke encoding.
+// Full = vivid teal stroke (~1.5px), Mid = amber stroke (~1.2px),
+// Light = default white stroke (0.7px). Choropleth fill stays for
+// feasibility-index encoding -- orthogonal visual channels, no competition.
+function getStateStroke(stateId, stateProgramMap) {
+  const tier = stateProgramMap[stateId]?.coverageTier || 'light'
+  if (tier === 'full') return { stroke: '#0F766E', strokeWidth: 1.5 }
+  if (tier === 'mid')  return { stroke: '#B45309', strokeWidth: 1.2 }
+  return { stroke: '#FFFFFF', strokeWidth: 0.7 }
+}
+
 // V3 5-bucket single-hue teal ramp — light teal (low score) -> deep teal (high score).
 // Color-blind safe, matches Tailwind feasibility tokens, legend below uses same buckets.
 function getStateColor(stateId, isHovered, isSelected, stateProgramMap) {
@@ -109,13 +120,14 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                 const isHovered  = hoveredId === stateId
                 const isSelected = selectedStateId === stateId
 
+                const strokeStyle = getStateStroke(stateId, stateProgramMap)
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
                     fill={getStateColor(stateId, isHovered, isSelected, stateProgramMap)}
-                    stroke="#FFFFFF"
-                    strokeWidth={0.7}
+                    stroke={strokeStyle.stroke}
+                    strokeWidth={strokeStyle.strokeWidth}
                     style={{ default: { outline: 'none' }, hover: { outline: 'none' }, pressed: { outline: 'none' } }}
                     onMouseMove={(evt) => handleMouseMove(geo, evt)}
                     onMouseLeave={handleMouseLeave}
@@ -147,7 +159,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
             {tooltipState.csProgram && (
               <div className="mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{tooltipState.csProgram}</div>
             )}
-            <div className="mt-1.5 flex items-center gap-2">
+            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
               <StatusPill status={tooltipState.csStatus} />
               {tooltipState.feasibilityScore > 0 && (
                 <span className="font-mono tabular-nums" style={{ color: '#2DD4BF', fontWeight: 700 }}>
@@ -155,6 +167,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                 </span>
               )}
             </div>
+            <CoverageTooltipLine tier={tooltipState.coverageTier} />
           </div>
         </div>
       )}
@@ -172,6 +185,29 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// V3 Strategy A — coverage tier line in the map tooltip. Tiny dot + label
+// + 1-line description. Doesn't try to compete with status / score; it's
+// a quiet "by the way" data-honesty signal.
+function CoverageTooltipLine({ tier }) {
+  const cfg = {
+    full:  { color: '#5EEAD4', label: 'Full',  desc: 'County intel · IX queue · dockets' },
+    mid:   { color: '#FBBF24', label: 'Mid',   desc: 'State-level · IX summaries · dockets' },
+    light: { color: '#9CA3AF', label: 'Light', desc: 'State-program data only' },
+  }
+  const c = cfg[tier] || cfg.light
+  return (
+    <div className="mt-1.5 pt-1.5 flex items-center gap-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
+      <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold" style={{ color: c.color }}>
+        {c.label}
+      </span>
+      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+        · {c.desc}
+      </span>
     </div>
   )
 }
@@ -206,16 +242,36 @@ function Legend() {
     { color: '#E2E8F0', label: 'No program', border: 'rgba(0,0,0,0.12)' },
   ]
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-      {items.map((i) => (
-        <div key={i.label} className="flex items-center gap-1.5">
-          <span
-            className="w-3 h-3 rounded-sm flex-shrink-0"
-            style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.10)'}` }}
-          />
-          <span className="text-xs text-gray-500">{i.label}</span>
+    <div className="space-y-1.5 mt-2">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted font-semibold mr-1">Feasibility</span>
+        {items.map((i) => (
+          <div key={i.label} className="flex items-center gap-1.5">
+            <span
+              className="w-3 h-3 rounded-sm flex-shrink-0"
+              style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.10)'}` }}
+            />
+            <span className="text-xs text-gray-500">{i.label}</span>
+          </div>
+        ))}
+      </div>
+      {/* V3 Strategy A — coverage tier guide. The map's state strokes
+          encode this; the legend explains it. Subtle, supplementary. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted font-semibold mr-1">Coverage</span>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-1.5 rounded-sm flex-shrink-0" style={{ background: '#0F766E' }} />
+          <span className="text-xs text-gray-500">Full</span>
         </div>
-      ))}
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-1.5 rounded-sm flex-shrink-0" style={{ background: '#B45309' }} />
+          <span className="text-xs text-gray-500">Mid</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-1.5 rounded-sm flex-shrink-0" style={{ background: '#E2E8F0', border: '1px solid rgba(0,0,0,0.12)' }} />
+          <span className="text-xs text-gray-500">Light</span>
+        </div>
+      </div>
     </div>
   )
 }
