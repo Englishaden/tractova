@@ -15,13 +15,13 @@ export default function Footer() {
     <footer className={dark ? 'border-t border-white/[0.08] bg-[#080C14]' : 'border-t border-gray-200 bg-white mt-10'}>
       <div className="max-w-dashboard mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <span className={`text-sm font-semibold ${dark ? 'text-white/80' : 'text-gray-700'}`}>tractova</span>
+          <span className={`text-base font-serif font-semibold tracking-tight ${dark ? 'text-white/85' : 'text-ink'}`} style={{ letterSpacing: '-0.02em' }}>Tractova</span>
           <span className={`text-xs ${dark ? 'text-white/35' : 'text-gray-400'}`}>
             Intelligence for the moment that matters.
           </span>
         </div>
         <div className="flex items-center gap-6">
-          <span className={`text-xs ${dark ? 'text-white/35' : 'text-gray-400'}`}>
+          <span className={`text-xs font-mono tabular-nums ${dark ? 'text-white/35' : 'text-gray-400'}`}>
             Data last updated: {lastUpdated ?? '—'}
           </span>
           <a
@@ -32,7 +32,7 @@ export default function Footer() {
           >
             The Adder Newsletter ↗
           </a>
-          <span className={`text-xs ${dark ? 'text-white/20' : 'text-gray-300'}`}>© 2025 Tractova</span>
+          <span className={`text-xs font-mono ${dark ? 'text-white/20' : 'text-gray-300'}`}>© 2025 Tractova</span>
         </div>
       </div>
     </footer>

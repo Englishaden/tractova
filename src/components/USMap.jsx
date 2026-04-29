@@ -60,20 +60,20 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        background: 'linear-gradient(160deg, #FFFFFF 0%, #EDF7F2 100%)',
-        border: '1px solid rgba(15,110,86,0.18)',
-        boxShadow: '0 0 0 1px rgba(15,110,86,0.06), 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05)',
+        background: 'linear-gradient(160deg, #FFFFFF 0%, #F0FDFA 100%)',
+        border: '1px solid rgba(20,184,166,0.18)',
+        boxShadow: '0 0 0 1px rgba(20,184,166,0.06), 0 8px 32px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.05)',
       }}
     >
-      {/* Subtle watercolor teal wash — very low opacity on light bg */}
+      {/* V3: subtle teal watercolor wash — aligned with new choropleth ramp */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none"
         style={{
           background: [
-            'radial-gradient(ellipse at 85% 10%, rgba(15,110,86,0.07) 0%, transparent 50%)',
-            'radial-gradient(ellipse at 10% 85%, rgba(15,110,86,0.09) 0%, transparent 52%)',
-            'radial-gradient(ellipse at 50% 50%, rgba(52,176,138,0.04) 0%, transparent 60%)',
+            'radial-gradient(ellipse at 85% 10%, rgba(20,184,166,0.07) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 10% 85%, rgba(15,118,110,0.08) 0%, transparent 52%)',
+            'radial-gradient(ellipse at 50% 50%, rgba(45,212,191,0.04) 0%, transparent 60%)',
           ].join(', '),
         }}
       />
@@ -81,7 +81,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
       {/* Header */}
       <div
         className="relative z-10 px-5 pt-3 pb-2"
-        style={{ borderBottom: '1px solid rgba(15,110,86,0.10)', background: 'rgba(15,110,86,0.04)' }}
+        style={{ borderBottom: '1px solid rgba(20,184,166,0.10)', background: 'rgba(20,184,166,0.04)' }}
       >
         <div className="flex items-baseline justify-between">
           <h2 className="text-sm font-semibold text-gray-800">
@@ -139,7 +139,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
             className="text-xs rounded-lg px-3 py-2 shadow-2xl max-w-[200px]"
             style={{
               background: 'rgba(7,17,12,0.95)',
-              border: '1px solid rgba(15,110,86,0.30)',
+              border: '1px solid rgba(20,184,166,0.30)',
               backdropFilter: 'blur(8px)',
             }}
           >
@@ -150,7 +150,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
             <div className="mt-1.5 flex items-center gap-2">
               <StatusPill status={tooltipState.csStatus} />
               {tooltipState.feasibilityScore > 0 && (
-                <span style={{ color: '#34D399', fontWeight: 600 }}>
+                <span className="font-mono tabular-nums" style={{ color: '#2DD4BF', fontWeight: 700 }}>
                   {tooltipState.feasibilityScore}
                 </span>
               )}
@@ -165,7 +165,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
         >
           <div
             className="text-xs rounded-lg px-3 py-2"
-            style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(15,110,86,0.30)' }}
+            style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(20,184,166,0.30)' }}
           >
             <div className="font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>{tooltip.stateId || 'Unknown'}</div>
             <div style={{ color: 'rgba(255,255,255,0.35)' }}>No data</div>

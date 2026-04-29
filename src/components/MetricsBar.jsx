@@ -214,13 +214,13 @@ function MetricsModal({ title, onClose, children }) {
         className="relative rounded-lg w-full max-w-lg flex flex-col"
         style={{
           background: '#080E1A',
-          border: '1px solid rgba(52,211,153,0.18)',
-          boxShadow: '0 0 0 1px rgba(52,211,153,0.08), 0 32px 64px rgba(0,0,0,0.8)',
+          border: '1px solid rgba(20,184,166,0.20)',
+          boxShadow: '0 0 0 1px rgba(20,184,166,0.08), 0 32px 64px rgba(0,0,0,0.8)',
           maxHeight: '80vh',
         }}
       >
-        {/* Top accent bar */}
-        <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-lg bg-gradient-to-r from-emerald-500/50 via-emerald-400/90 to-emerald-500/50" />
+        {/* Top accent bar — V3 teal */}
+        <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-lg" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.5) 0%, rgba(20,184,166,0.95) 50%, rgba(20,184,166,0.5) 100%)' }} />
 
         {/* Header */}
         <div
@@ -228,7 +228,7 @@ function MetricsModal({ title, onClose, children }) {
           style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#0D1424', borderRadius: '0.5rem 0.5rem 0 0' }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-[3px] h-3.5 rounded-full bg-emerald-400/70 flex-shrink-0" />
+            <div className="w-[3px] h-3.5 rounded-full flex-shrink-0" style={{ background: 'rgba(20,184,166,0.75)' }} />
             <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/85">{title}</h3>
           </div>
           <button
@@ -291,7 +291,8 @@ function IconTrendingUp() {
   )
 }
 
-const CARD_BG = 'linear-gradient(145deg, #0F6E56 0%, #0A5240 100%)'
+// V3: brand navy chrome with teal accent rails (replaces dark emerald cards)
+const CARD_BG = 'linear-gradient(145deg, #0F1A2E 0%, #0A132A 100%)'
 
 // Returns days-since if > 14, otherwise null (signal only shown when stale)
 function staleDays(dateStr) {
@@ -397,11 +398,11 @@ export default function MetricsBar() {
             className="relative overflow-hidden rounded-xl text-left transition-all duration-200 group hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20"
             style={{ background: CARD_BG }}
           >
-            {/* Top accent line */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-primary-400/60 via-primary-300/80 to-primary-400/60" />
+            {/* Top accent line — V3 teal */}
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
 
             {/* Icon */}
-            <div className="absolute top-3 right-3 text-white pointer-events-none select-none">
+            <div className="absolute top-3 right-3 pointer-events-none select-none" style={{ color: 'rgba(20,184,166,0.55)' }}>
               {c.icon}
             </div>
 
@@ -412,7 +413,7 @@ export default function MetricsBar() {
               </p>
 
               {/* Value */}
-              <div className="text-2xl font-bold text-white leading-none tabular-nums">
+              <div className="text-2xl font-bold font-mono text-white leading-none tabular-nums">
                 {c.value}
               </div>
 
@@ -420,14 +421,14 @@ export default function MetricsBar() {
               <div className="text-[11px] text-white/60 mt-2 leading-none">{c.sub}</div>
 
               {/* Hover CTA */}
-              <div className="flex items-center gap-1 mt-4 text-[10px] font-medium text-white/0 group-hover:text-white/50 transition-all duration-200 uppercase tracking-wider">
+              <div className="flex items-center gap-1 mt-4 text-[10px] font-medium text-white/0 group-hover:text-white/55 transition-all duration-200 uppercase tracking-wider">
                 <span>Details</span>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               </div>
             </div>
 
-            {/* Bottom shimmer on hover */}
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary-400/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+            {/* Bottom shimmer on hover — V3 teal */}
+            <div className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-200" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.4) 50%, transparent 100%)' }} />
           </button>
         ))}
       </div>
