@@ -12,6 +12,7 @@ import { useCompare, libraryProjectToCompareItem } from '../context/CompareConte
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../components/ui/Dialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
+import { LoadingDot } from '../components/ui'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 import { TECH_COLORS } from '../lib/v3Tokens'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
@@ -1183,12 +1184,7 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
   }, [projectId, refreshKey])
 
   if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-[11px] text-ink-muted">
-        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
-        Loading audit trail…
-      </div>
-    )
+    return <LoadingDot message="Loading audit trail" />
   }
 
   if (!events || events.length === 0) {

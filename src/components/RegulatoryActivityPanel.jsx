@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { getPucDockets } from '../lib/programData'
+import { LoadingDot } from './ui'
 
 // V3 Wave 2 — PUC Docket Tracker MVP
 //
@@ -281,9 +282,8 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
     return (
       <div className={mode === 'lens' ? '' : 'px-5 py-6'}>
         {mode === 'lens' && <PanelHeader stateName={labelName} count={null} />}
-        <div className={`flex items-center gap-2 text-[11px] text-ink-muted ${mode === 'lens' ? 'mt-4' : ''}`}>
-          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
-          Loading regulatory activity…
+        <div className={mode === 'lens' ? 'mt-4' : ''}>
+          <LoadingDot message="Loading regulatory activity" />
         </div>
       </div>
     )

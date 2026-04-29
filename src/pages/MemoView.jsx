@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { supabase } from '../lib/supabase'
+import { LoadingDot } from '../components/ui'
 
 // V3 §4.7 Deal Memo shareable URL — public read-only memo view.
 // No auth required. Token validation + view-cap enforcement happens in the
@@ -56,10 +57,7 @@ export default function MemoView() {
   if (loading) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center">
-        <div className="flex items-center gap-3 text-ink-muted">
-          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
-          <span className="font-mono text-xs uppercase tracking-[0.18em]">Loading memo</span>
-        </div>
+        <LoadingDot message="Loading memo" />
       </div>
     )
   }

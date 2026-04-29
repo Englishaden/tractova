@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompareProvider } from './context/CompareContext'
 import { TooltipProvider } from './components/ui/Tooltip'
 import { ToastProvider } from './components/ui/Toast'
+import { LoadingDot } from './components/ui'
 import CompareTray from './components/CompareTray'
 import CommandPalette from './components/CommandPalette'
 import Nav from './components/Nav'
@@ -34,10 +35,7 @@ const UpgradeSuccess  = lazy(() => import('./pages/UpgradeSuccess'))
 function RouteFallback() {
   return (
     <div className="min-h-screen bg-paper flex items-center justify-center pt-14">
-      <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-muted">
-        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
-        Loading
-      </div>
+      <LoadingDot />
     </div>
   )
 }
