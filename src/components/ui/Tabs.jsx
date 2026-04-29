@@ -1,4 +1,5 @@
 import * as RadixTabs from '@radix-ui/react-tabs'
+import { motion } from 'motion/react'
 
 export const Tabs = RadixTabs.Root
 
@@ -21,11 +22,16 @@ export function TabsTrigger({ className = '', ...props }) {
   )
 }
 
-export function TabsContent({ className = '', ...props }) {
+export function TabsContent({ className = '', children, ...props }) {
   return (
-    <RadixTabs.Content
-      className={`pt-4 outline-none ${className}`}
-      {...props}
-    />
+    <RadixTabs.Content className={`pt-4 outline-none ${className}`} {...props}>
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.18, ease: 'easeOut' }}
+      >
+        {children}
+      </motion.div>
+    </RadixTabs.Content>
   )
 }

@@ -8,6 +8,8 @@ import { useSubscription } from '../hooks/useSubscription'
 import { useCompare, lensResultToCompareItem } from '../context/CompareContext'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
+import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
+import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Market Position Panel — replaces the old mini state map
@@ -29,15 +31,28 @@ function getMarketRank(stateId, programMap) {
 
 // V3: Precision tachometer — feasibility index as a measured instrument.
 // ViewBox sized generously so labels never crowd the arc or the score.
+// Animated number readout — counts up/down to target on score change.
+// Uses Motion's spring so the response feels like a real instrument needle
+// settling, not a linear tween. Renders inside SVG <text>.
+function AnimatedScoreText({ value, ...textProps }) {
+  const mv = useMotionValue(value)
+  const spring = useSpring(mv, { stiffness: 110, damping: 22, mass: 0.6 })
+  const [display, setDisplay] = useState(value)
+  useEffect(() => { mv.set(value) }, [value, mv])
+  useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
+  return <text {...textProps}>{display}</text>
+}
+
 function ArcGauge({ score }) {
   const s = (typeof score === 'number' && isFinite(score)) ? score : 0
   const pct = Math.max(0, Math.min(100, s)) / 100
   // Wider + taller viewBox: 180x118 (was 160x100). Bigger radius too. Lots of breathing room.
   const R = 64, cx = 90, cy = 84
-  const ex = cx - R * Math.cos(Math.PI * pct)
-  const ey = cy - R * Math.sin(Math.PI * pct)
-  const trackPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
-  const fillPath  = pct > 0.005 ? `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${ex} ${ey}` : ''
+  // Full half-arc path (left to right). We always render the whole path and use
+  // strokeDasharray to reveal a portion of it -- motion can then tween that
+  // single number smoothly when score changes (vs swapping path strings).
+  const fullPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
+  const arcLength = Math.PI * R // half-circle circumference
 
   // V3 single-hue teal ramp
   let color = '#CBD5E1'
@@ -63,18 +78,35 @@ function ArcGauge({ score }) {
             stroke="#0A1828" strokeWidth={1.4} strokeLinecap="round" />
         )
       })}
-      {/* Tick labels — pushed well clear of the arc with generous viewBox margin
-          0/100 at y=cy+20 (= 104) inside viewBox 118 with 14px clearance.
-          50 at y=cy-R-10 (= 10) inside viewBox with full clearance. */}
+      {/* Tick labels — pushed well clear of the arc with generous viewBox margin */}
       <text x={cx - R} y={cy + 20} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">0</text>
       <text x={cx}     y={cy - R - 10} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">50</text>
       <text x={cx + R} y={cy + 20} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">100</text>
       {/* Track */}
-      <path d={trackPath} fill="none" stroke="#E2E8F0" strokeWidth={6} strokeLinecap="round" />
-      {/* Fill */}
-      {fillPath && <path d={fillPath} fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" />}
-      {/* Score readout — slightly trimmed from 36 to 32 so it sits clear of the arc apex */}
-      <text x={cx} y={cy - 8} textAnchor="middle" fontSize="32" fontWeight="700" fill="#0A1828" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="-1">{s}</text>
+      <path d={fullPath} fill="none" stroke="#E2E8F0" strokeWidth={6} strokeLinecap="round" />
+      {/* Fill — Motion-animated. strokeDashoffset tweens; color crossfades. */}
+      <motion.path
+        d={fullPath}
+        fill="none"
+        strokeWidth={6}
+        strokeLinecap="round"
+        strokeDasharray={arcLength}
+        initial={false}
+        animate={{
+          strokeDashoffset: arcLength * (1 - pct),
+          stroke: color,
+        }}
+        transition={{
+          strokeDashoffset: { type: 'spring', stiffness: 110, damping: 22, mass: 0.6 },
+          stroke: { duration: 0.4, ease: 'easeOut' },
+        }}
+      />
+      {/* Score readout — animated count-up/down */}
+      <AnimatedScoreText
+        value={s}
+        x={cx} y={cy - 8} textAnchor="middle" fontSize="32" fontWeight="700"
+        fill="#0A1828" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="-1"
+      />
     </svg>
   )
 }
@@ -281,20 +313,25 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
               <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400">
                 Sub-Scores
               </p>
-              <div className="relative group">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="cursor-help">
-                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                </svg>
-                <div className="absolute top-full right-0 mt-2 text-white text-[10px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-opacity z-[100]"
-                     style={{ background: '#0F1A2E', border: '1px solid rgba(20,184,166,0.30)', width: 'min(280px, calc(100vw - 2rem))' }}>
-                  <div className="absolute bottom-full right-3 w-2 h-2 rotate-45 mb-[-4px]" style={{ background: '#0F1A2E' }} />
+              {/* V3: Radix-portal tooltip — was a hand-rolled absolute-positioned div
+                  that overflowed on narrow viewports. Portal renders to document.body
+                  and Radix handles viewport collision avoidance. */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button type="button" aria-label="Methodology" className="cursor-help" onClick={(e) => e.preventDefault()}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end" className="text-[10px]">
                   <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Methodology</p>
                   <p><span className="text-teal-300 font-mono">OFFTAKE 40%</span> — Program status, capacity, LMI complexity, enrollment runway</p>
                   <p className="mt-0.5"><span className="text-amber-300 font-mono">INTERCONN 35%</span> — Queue difficulty, study timelines, upgrade cost risk</p>
                   <p className="mt-0.5"><span className="text-blue-300 font-mono">SITE CTRL 25%</span> — Land availability, wetland risk, zoning constraints</p>
                   <p className="mt-1.5 text-gray-400">Offtake viability is the first gate. IX risk is the primary capital risk. Site control is increasingly commoditized.</p>
-                </div>
-              </div>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F766E" />
             <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#D97706" />
