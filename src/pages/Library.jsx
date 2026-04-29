@@ -10,7 +10,7 @@ import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../components/ui/Dialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
@@ -671,6 +671,346 @@ function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveSco
   )
 }
 
+// ── Utility Outreach Kit — consultant-grade pre-application packet ──────────
+// Generates a project-tailored outreach packet (email + study-process intel +
+// attachments checklist + follow-up playbook + phone talking points + notes)
+// the developer can send to the serving utility within minutes. Pro-gated
+// via the existing isPro check on /api/lens-insight.
+//
+// V3 §Wave 2 — workflow artifacts, not just analysis. The output is a tool
+// the developer literally uses, not another summary.
+function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
+  const [generating, setGenerating] = useState(false)
+  const [open, setOpen]             = useState(false)
+  const [kit, setKit]               = useState(null)
+  const [error, setError]           = useState(null)
+  // copyKey -> 'idle' | 'copied'  (shared across copy buttons via a small map)
+  const [copyState, setCopyState]   = useState({})
+
+  const flashCopy = (key) => {
+    setCopyState((s) => ({ ...s, [key]: 'copied' }))
+    setTimeout(() => setCopyState((s) => ({ ...s, [key]: 'idle' })), 1800)
+  }
+
+  const copy = async (key, text) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      flashCopy(key)
+    } catch { /* clipboard blocked -- soft-fail */ }
+  }
+
+  const handleGenerate = async (e) => {
+    e.stopPropagation()
+    if (kit) { setOpen(true); return }   // already generated -- just re-open
+    setGenerating(true)
+    setError(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) { setError('Sign-in required'); setGenerating(false); return }
+
+      const res = await fetch('/api/lens-insight', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action: 'utility-outreach',
+          project: { ...project, stage, technology: project.technology },
+          stateProgram,
+          countyData,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.kit) {
+        setError(json?.reason || json?.error || 'Generation failed')
+        setGenerating(false)
+        return
+      }
+      setKit(json.kit)
+      setOpen(true)
+    } catch (err) {
+      setError(`Network error: ${err.message}`)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const fullEmailText = kit ? `Subject: ${kit.email?.subject || ''}\n\n${kit.email?.greeting || ''}\n\n${kit.email?.body || ''}\n\n${kit.email?.signOff || ''}` : ''
+  const fullKitText = kit ? buildPlainTextKit(kit) : ''
+
+  return (
+    <>
+      <button
+        onClick={handleGenerate}
+        disabled={generating}
+        className="flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        style={{ background: 'rgba(37,99,235,0.08)', color: '#1D4ED8', border: '1px solid rgba(37,99,235,0.30)' }}
+        title="Generate a tailored utility outreach packet (email + study intel + checklists)"
+      >
+        {generating ? (
+          <>
+            <span className="w-3 h-3 rounded-full border-2 border-blue-300 border-t-blue-700 animate-spin" />
+            Drafting kit…
+          </>
+        ) : (
+          <>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            Outreach Kit
+          </>
+        )}
+      </button>
+
+      {error && (
+        <span className="text-[10px] font-mono uppercase tracking-[0.16em] text-red-600">{error}</span>
+      )}
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className="max-w-3xl max-h-[88vh] overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+          aria-describedby={undefined}
+        >
+          {kit && (
+            <div className="space-y-5">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-3 pb-3 border-b border-gray-200">
+                <div>
+                  <p className="font-mono text-[9px] uppercase tracking-[0.22em] mb-1" style={{ color: '#0F766E' }}>
+                    ◆ Utility Outreach Kit
+                  </p>
+                  <DialogTitle>{project.name || `${project.county} County · ${project.mw} MW`}</DialogTitle>
+                  <p className="text-[12px] text-ink-muted mt-1">
+                    Tailored for <span className="font-medium text-ink">{kit.utilityContext?.utility}</span>
+                    {kit.utilityContext?.iso ? ` · ${kit.utilityContext.iso}` : ''}
+                  </p>
+                </div>
+                <DialogClose asChild>
+                  <button
+                    className="text-ink-muted hover:text-ink text-xl leading-none px-2"
+                    aria-label="Close"
+                  >×</button>
+                </DialogClose>
+              </div>
+
+              {/* Utility context strip */}
+              {kit.utilityContext && (
+                <div className="rounded-lg px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5 text-[12px]"
+                  style={{ background: '#FAFAF7', border: '1px solid #E2E8F0' }}>
+                  {kit.utilityContext.studyProcess && (
+                    <ContextRow label="Study Process" value={kit.utilityContext.studyProcess} />
+                  )}
+                  {kit.utilityContext.typicalQueueWait && (
+                    <ContextRow label="Typical Queue Wait" value={kit.utilityContext.typicalQueueWait} />
+                  )}
+                  {kit.utilityContext.relevantTariffNote && (
+                    <div className="md:col-span-2">
+                      <ContextRow label="Tariff / Schedule" value={kit.utilityContext.relevantTariffNote} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Email block */}
+              {kit.email && (
+                <KitSection
+                  eyebrow="01 / Pre-Application Email"
+                  copyKey="email"
+                  copyText={fullEmailText}
+                  copyState={copyState.email}
+                  onCopy={copy}
+                >
+                  <div className="rounded-lg bg-white border border-gray-200 px-4 py-3.5 font-mono text-[12px] leading-relaxed text-ink whitespace-pre-wrap">
+                    <p className="font-semibold text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-2">Subject</p>
+                    <p className="text-ink mb-4">{kit.email.subject}</p>
+                    <p className="font-semibold text-[11px] uppercase tracking-[0.16em] text-ink-muted mb-2">Body</p>
+                    <p className="mb-3">{kit.email.greeting}</p>
+                    <p className="mb-3">{kit.email.body}</p>
+                    <p>{kit.email.signOff}</p>
+                  </div>
+                </KitSection>
+              )}
+
+              {/* Attachments checklist */}
+              {Array.isArray(kit.attachmentsChecklist) && kit.attachmentsChecklist.length > 0 && (
+                <KitSection
+                  eyebrow="02 / Attachments Checklist"
+                  copyKey="attach"
+                  copyText={kit.attachmentsChecklist.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+                  copyState={copyState.attach}
+                  onCopy={copy}
+                >
+                  <ol className="space-y-1.5 text-[13px] text-ink">
+                    {kit.attachmentsChecklist.map((item, i) => (
+                      <li key={i} className="flex gap-2.5">
+                        <span className="font-mono text-[11px] tabular-nums text-ink-muted mt-0.5">{String(i + 1).padStart(2, '0')}</span>
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </KitSection>
+              )}
+
+              {/* Follow-up playbook */}
+              {Array.isArray(kit.followUpPlaybook) && kit.followUpPlaybook.length > 0 && (
+                <KitSection
+                  eyebrow="03 / Follow-Up Playbook"
+                  copyKey="followup"
+                  copyText={kit.followUpPlaybook.join('\n')}
+                  copyState={copyState.followup}
+                  onCopy={copy}
+                >
+                  <ol className="space-y-2 text-[13px] text-ink">
+                    {kit.followUpPlaybook.map((item, i) => (
+                      <li key={i} className="flex gap-3">
+                        <span className="w-5 h-5 rounded-full text-white text-[10px] font-mono font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
+                          style={{ background: '#0F766E' }}>
+                          {i + 1}
+                        </span>
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </KitSection>
+              )}
+
+              {/* Phone talking points */}
+              {Array.isArray(kit.phoneTalkingPoints) && kit.phoneTalkingPoints.length > 0 && (
+                <KitSection
+                  eyebrow="04 / Phone Talking Points"
+                  copyKey="talk"
+                  copyText={kit.phoneTalkingPoints.map(s => `• ${s}`).join('\n')}
+                  copyState={copyState.talk}
+                  onCopy={copy}
+                >
+                  <ul className="space-y-1.5 text-[13px] text-ink">
+                    {kit.phoneTalkingPoints.map((item, i) => (
+                      <li key={i} className="flex gap-2.5">
+                        <span className="text-ink-muted mt-1.5 leading-none">▸</span>
+                        <span className="leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </KitSection>
+              )}
+
+              {/* Notes — amber callout */}
+              {kit.notes && (
+                <div className="rounded-lg px-4 py-3" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.30)' }}>
+                  <p className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold mb-1.5" style={{ color: '#B45309' }}>
+                    ◆ Heads Up
+                  </p>
+                  <p className="text-[13px] text-ink leading-relaxed">{kit.notes}</p>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-200">
+                <p className="text-[11px] text-ink-muted leading-relaxed">
+                  Review carefully before sending. Tractova synthesizes from public ISO + utility data; verify specifics against the utility's own application portal.
+                </p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    onClick={() => copy('all', fullKitText)}
+                    className="text-[11px] font-mono uppercase tracking-[0.16em] font-semibold px-3 py-1.5 rounded text-white"
+                    style={{ background: '#0F1A2E' }}
+                  >
+                    {copyState.all === 'copied' ? '✓ Copied entire kit' : 'Copy entire kit'}
+                  </button>
+                  <DialogClose asChild>
+                    <button className="text-[11px] font-mono uppercase tracking-[0.16em] text-ink-muted hover:text-ink px-2 py-1.5">
+                      Close
+                    </button>
+                  </DialogClose>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+function ContextRow({ label, value }) {
+  return (
+    <div>
+      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted mb-0.5">{label}</p>
+      <p className="text-[12px] text-ink leading-relaxed">{value}</p>
+    </div>
+  )
+}
+
+function KitSection({ eyebrow, copyKey, copyText, copyState, onCopy, children }) {
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-2">
+        <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
+          {eyebrow}
+        </p>
+        <button
+          onClick={() => onCopy(copyKey, copyText)}
+          className="font-mono text-[10px] uppercase tracking-[0.16em] font-semibold px-2 py-1 rounded transition-colors"
+          style={{
+            color: copyState === 'copied' ? '#0F766E' : '#5A6B7A',
+            border: '1px solid',
+            borderColor: copyState === 'copied' ? 'rgba(15,118,110,0.40)' : 'rgba(90,107,122,0.25)',
+            background: copyState === 'copied' ? 'rgba(15,118,110,0.06)' : 'transparent',
+          }}
+        >
+          {copyState === 'copied' ? '✓ Copied' : 'Copy'}
+        </button>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+// Plain-text serializer for the entire kit -- used by the "Copy entire kit"
+// button so the developer can paste the whole packet into Notion / Docs.
+function buildPlainTextKit(kit) {
+  const lines = []
+  if (kit.utilityContext) {
+    lines.push(`UTILITY: ${kit.utilityContext.utility || ''}${kit.utilityContext.iso ? ` (${kit.utilityContext.iso})` : ''}`)
+    if (kit.utilityContext.studyProcess)      lines.push(`Study process: ${kit.utilityContext.studyProcess}`)
+    if (kit.utilityContext.typicalQueueWait)  lines.push(`Typical queue wait: ${kit.utilityContext.typicalQueueWait}`)
+    if (kit.utilityContext.relevantTariffNote) lines.push(`Tariff/schedule: ${kit.utilityContext.relevantTariffNote}`)
+    lines.push('')
+  }
+  if (kit.email) {
+    lines.push('--- PRE-APPLICATION EMAIL ---')
+    lines.push(`Subject: ${kit.email.subject || ''}`)
+    lines.push('')
+    lines.push(kit.email.greeting || '')
+    lines.push('')
+    lines.push(kit.email.body || '')
+    lines.push('')
+    lines.push(kit.email.signOff || '')
+    lines.push('')
+  }
+  if (Array.isArray(kit.attachmentsChecklist) && kit.attachmentsChecklist.length) {
+    lines.push('--- ATTACHMENTS CHECKLIST ---')
+    kit.attachmentsChecklist.forEach((s, i) => lines.push(`${i + 1}. ${s}`))
+    lines.push('')
+  }
+  if (Array.isArray(kit.followUpPlaybook) && kit.followUpPlaybook.length) {
+    lines.push('--- FOLLOW-UP PLAYBOOK ---')
+    kit.followUpPlaybook.forEach((s, i) => lines.push(`${i + 1}. ${s}`))
+    lines.push('')
+  }
+  if (Array.isArray(kit.phoneTalkingPoints) && kit.phoneTalkingPoints.length) {
+    lines.push('--- PHONE TALKING POINTS ---')
+    kit.phoneTalkingPoints.forEach((s) => lines.push(`• ${s}`))
+    lines.push('')
+  }
+  if (kit.notes) {
+    lines.push('--- NOTES ---')
+    lines.push(kit.notes)
+  }
+  return lines.join('\n')
+}
+
 // ── Audit timeline -- reverse-chrono event log per project ────────────────
 // Surfaces the project_events table as a timeline. Lazy-loads on first
 // open of the Audit tab so most users never spend the supabase round-trip.
@@ -1182,6 +1522,15 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                 liveScore={liveScore}
                 shareCount={shareCount}
                 onShareSuccess={handleShareSuccess}
+              />
+              {/* V3 §Wave 2: Utility Outreach Kit -- consultant-grade pre-app
+                  packet (email + study intel + checklists). Pro-gated via
+                  the existing isPro check on /api/lens-insight. */}
+              <UtilityOutreachButton
+                project={project}
+                stateProgram={current}
+                countyData={countyData}
+                stage={stage}
               />
               {/* V3: Single PDF export — IC-grade Deal Memo. */}
               <button
