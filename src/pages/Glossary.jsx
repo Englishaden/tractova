@@ -136,6 +136,71 @@ const terms = [
     related: ['IX Queue (Interconnection Queue)', 'Active Program', 'ITC (Investment Tax Credit)'],
   },
 
+  // ── Platform terms (Tractova-specific concepts) ─────────────────────────────
+  {
+    term: 'Lens Analysis',
+    pillar: 'all',
+    definition:
+      'Tractova\'s core intelligence tool. Enter a state, county, MW size, development stage, and technology to generate a full feasibility assessment with AI-powered market intelligence. Lens combines the Feasibility Index with three pillar cards (Site Control, Interconnection, Offtake), sensitivity scenarios, and a Claude-generated analyst brief tailored to the project\'s specifics.',
+    related: ['Feasibility Index', 'Market Intelligence', 'Sensitivity Analysis'],
+  },
+  {
+    term: 'Market Intelligence',
+    pillar: 'all',
+    definition:
+      'The AI-generated analysis section in Lens results — a Claude-powered brief covering immediate action, stage-specific guidance, primary risk, top opportunity, and competitive context. Market Intelligence is the differentiated layer that turns raw program and queue data into directive, project-specific commentary. Rebuilt for each Lens run, never cached across projects.',
+    related: ['Lens Analysis', 'Feasibility Index', 'Sensitivity Analysis'],
+  },
+  {
+    term: 'Sensitivity Analysis',
+    pillar: 'all',
+    definition:
+      'Interactive scenario testing in Lens results. Toggle market conditions (IX difficulty, CS status, LMI requirement) to see how the Feasibility Index changes, with quantified dollar and timeline impacts plus an AI rationale explaining the mechanism behind the score change. Available scenarios are tech-aware: Community Solar exposes program/LMI scenarios, BESS exposes capacity-market scenarios, etc.',
+    related: ['Lens Analysis', 'Market Intelligence', 'Feasibility Index'],
+  },
+  {
+    term: 'Add to Compare',
+    pillar: 'all',
+    definition:
+      'Save a Lens result or Library project to the comparison tray. Compare up to 4 projects side-by-side across Feasibility Index, IX difficulty, program status, MW, and revenue economics. The Compare tray includes an auto-generated "Best for" tradeoff summary and an "Open in Lens" shortcut per column to dive back into any project with all parameters pre-filled.',
+    related: ['Lens Analysis', 'Library'],
+  },
+  {
+    term: 'Portfolio Intelligence',
+    pillar: 'all',
+    definition:
+      'The AI-powered portfolio summary in the Library, available when 3 or more projects are saved. Combines a Portfolio Health gauge (MW-weighted average score), a Risk Concentration widget (% of MW exposed to single state / single program / single technology), MW-by-technology breakdown, and a Claude-generated portfolio insight covering diversification, market timing, and the most impactful next action.',
+    related: ['Library', 'Feasibility Index', 'Lens Analysis'],
+  },
+  {
+    term: 'Program Runway',
+    pillar: 'offtake',
+    definition:
+      'The estimated months until a community solar program\'s remaining capacity is fully enrolled, computed from current enrollment rate (MW/month). Programs with runway under 6 months are flagged as "urgent" — submit your application before the block closes. Programs with 7–12 months are "watch" status. Tractova tracks runway per state and surfaces it on Lens, Library, and the Dashboard state panel.',
+    related: ['Active Program', 'Limited Capacity', 'Lens Analysis'],
+  },
+  {
+    term: 'Deal Memo',
+    pillar: 'all',
+    definition:
+      'An IC-grade analyst memo generated from a saved project. Tractova\'s Deal Memo combines structured project data with four AI-written sections: site control assessment, interconnection outlook, revenue positioning, and a directive recommendation for the next 30 days. Designed as a sales artifact developers can send to financiers, capital partners, or their own investment committee — branded, dated, and exportable to PDF.',
+    related: ['Library', 'Lens Analysis', 'Market Intelligence'],
+  },
+  {
+    term: 'Comparable Project',
+    pillar: 'all',
+    definition:
+      'An anonymized prior project matched to the current project by state, utility, MW size range, and development stage. Tractova surfaces comparable projects in Lens results to ground the analysis in real-world outcomes — typical revenue actuals, study timelines, LMI fill rates, and time-from-NTP-to-COD. Sourced from public ISO interconnection filings and EIA Form 860 commercial-operation data.',
+    related: ['Lens Analysis', 'Feasibility Index'],
+  },
+  {
+    term: 'Subscriber Acquisition',
+    pillar: 'offtake',
+    definition:
+      'The operational process of signing up household and small-business subscribers for a community solar project. For projects with LMI requirements, subscriber acquisition is typically the binding execution constraint — sourcing qualifying low-to-moderate income subscribers takes 6–9 months through aggregator contracting and CBO partnerships. The economics often include a 10–15% revenue haircut to attract compliant subscribers.',
+    related: ['LMI (Low-to-Moderate Income)', 'Active Program', 'Offtake'],
+  },
+
   // ── Additional industry terms ────────────────────────────────────────────────
   {
     term: 'SREC (Solar Renewable Energy Certificate)',

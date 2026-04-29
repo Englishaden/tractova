@@ -72,18 +72,37 @@ function ManageBillingButton() {
 }
 
 // ── Alert Preferences Toggle ─────────────────────────────────────────────────
+// V3: 3 toggles — digest, urgent (negative), positive (good-news).
+// Toggle dot positions use translate-x-[18px] for symmetric padding inside w-9 container.
+function ToggleSwitch({ on, onClick }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      onClick={onClick}
+      className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-primary' : 'bg-gray-200'}`}
+    >
+      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+    </button>
+  )
+}
+
 function AlertPreferences({ userId }) {
-  const [prefs, setPrefs] = useState({ digest: true, alerts: true })
+  const [prefs, setPrefs] = useState({ digest: true, alerts: true, positive: true })
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     supabase.from('profiles')
-      .select('alert_digest, alert_urgent')
+      .select('alert_digest, alert_urgent, alert_positive')
       .eq('id', userId)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setPrefs({ digest: data.alert_digest ?? true, alerts: data.alert_urgent ?? true })
+        if (data) setPrefs({
+          digest: data.alert_digest ?? true,
+          alerts: data.alert_urgent ?? true,
+          positive: data.alert_positive ?? true,
+        })
         setLoaded(true)
       })
   }, [userId])
@@ -92,10 +111,18 @@ function AlertPreferences({ userId }) {
     const next = { ...prefs, [field]: !prefs[field] }
     setPrefs(next)
     setSaving(true)
-    await supabase.from('profiles').update({
+    // Graceful-fallback: if alert_positive column hasn't been migrated yet,
+    // strip it from the payload and retry. Avoids 400s on unmigrated DBs.
+    const payload = {
       alert_digest: next.digest,
       alert_urgent: next.alerts,
-    }).eq('id', userId)
+      alert_positive: next.positive,
+    }
+    const { error } = await supabase.from('profiles').update(payload).eq('id', userId)
+    if (error && /column.*alert_positive.*not exist/i.test(error.message || '')) {
+      delete payload.alert_positive
+      await supabase.from('profiles').update(payload).eq('id', userId)
+    }
     setSaving(false)
   }
 
@@ -113,28 +140,21 @@ function AlertPreferences({ userId }) {
             <p className="text-sm font-medium text-gray-800">Weekly digest</p>
             <p className="text-[11px] text-gray-400 mt-0.5">Portfolio summary + market updates every Monday</p>
           </div>
-          <button
-            role="switch"
-            aria-checked={prefs.digest}
-            onClick={() => toggle('digest')}
-            className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${prefs.digest ? 'bg-primary' : 'bg-gray-200'}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs.digest ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
+          <ToggleSwitch on={prefs.digest} onClick={() => toggle('digest')} />
         </label>
         <label className="flex items-center justify-between cursor-pointer group">
           <div>
             <p className="text-sm font-medium text-gray-800">Urgent alerts</p>
             <p className="text-[11px] text-gray-400 mt-0.5">Immediate email when a project's market conditions worsen</p>
           </div>
-          <button
-            role="switch"
-            aria-checked={prefs.alerts}
-            onClick={() => toggle('alerts')}
-            className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${prefs.alerts ? 'bg-primary' : 'bg-gray-200'}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${prefs.alerts ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
+          <ToggleSwitch on={prefs.alerts} onClick={() => toggle('alerts')} />
+        </label>
+        <label className="flex items-center justify-between cursor-pointer group">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Good-news alerts</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Capacity additions, new program launches, score improvements ≥10 pts</p>
+          </div>
+          <ToggleSwitch on={prefs.positive} onClick={() => toggle('positive')} />
         </label>
       </div>
     </div>
@@ -328,9 +348,9 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-surface">
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
-        <div className="mt-6 max-w-lg">
+        <div className="mt-6 max-w-3xl">
 
-          {/* Profile banner */}
+          {/* Profile banner — full width above the 2-col grid */}
           <div className="rounded-xl overflow-hidden mb-6" style={{ background: 'linear-gradient(135deg, #0A3D2E 0%, #0C1220 100%)' }}>
             <div className="px-6 py-6 flex items-center gap-4">
               <div
@@ -355,7 +375,7 @@ export default function Profile() {
                   <span className="text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>Member since {memberSince}</span>
                 </div>
                 {allProjects.length > 0 && (
-                  <p className="text-xs mt-2" style={{ color: 'rgba(52,211,153,0.7)' }}>
+                  <p className="text-xs mt-2 font-mono" style={{ color: 'rgba(52,211,153,0.7)' }}>
                     {allProjects.length} project{allProjects.length !== 1 ? 's' : ''} tracked
                     {allProjects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0) > 0 && (
                       <> · {allProjects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW total</>
@@ -366,84 +386,94 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Portfolio Stats (Pro) */}
-          {isPro && allProjects.length >= 2 && (
-            <PortfolioStats projects={allProjects} stateProgramMap={stateProgramMap} />
-          )}
-
-          {/* Account card */}
-          <div className={`bg-white border border-gray-200 rounded-lg px-6 py-2 ${isPro && allProjects.length >= 2 ? 'mt-4' : ''}`}>
-            <div className="py-3 border-b border-gray-100">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
-              <p className="text-sm text-gray-900">{email}</p>
-            </div>
-            <div className="py-3">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Projects saved</p>
-              <p className="text-sm text-gray-900">{allProjects.length || '—'}</p>
-            </div>
-          </div>
-
-          {/* Subscription card */}
-          <div className="mt-4 bg-white border border-gray-200 rounded-lg px-6 py-2">
-            <div className="py-3 border-b border-gray-100">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Plan</p>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {isPro ? (
-                    <>
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-primary-50 border border-primary-200 rounded-full text-xs font-semibold text-primary">
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                        Pro
-                      </span>
-                      <span className="text-sm text-gray-500">$9.99 / month</span>
-                    </>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-500">Free</span>
-                  )}
+          {/* V3: Two-column layout on desktop. Left = account / subscription / alerts.
+              Right = portfolio stats / recent activity. Stacks on mobile. */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* LEFT COLUMN */}
+            <div className="space-y-4">
+              {/* Account card */}
+              <div className="bg-white border border-gray-200 rounded-lg px-6 py-2">
+                <div className="py-3 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Email</p>
+                  <p className="text-sm text-gray-900">{email}</p>
                 </div>
-                {isPro ? <ManageBillingButton /> : (
-                  <Link to="/search" className="text-sm font-medium text-primary hover:text-primary-700 transition-colors">
-                    Upgrade to Pro →
-                  </Link>
+                <div className="py-3">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Projects saved</p>
+                  <p className="text-sm text-gray-900 font-mono tabular-nums">{allProjects.length || '—'}</p>
+                </div>
+              </div>
+
+              {/* Subscription card */}
+              <div className="bg-white border border-gray-200 rounded-lg px-6 py-2">
+                <div className="py-3 border-b border-gray-100">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Plan</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {isPro ? (
+                        <>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-primary-50 border border-primary-200 rounded-full text-xs font-semibold text-primary">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            Pro
+                          </span>
+                          <span className="text-sm text-gray-500 font-mono tabular-nums">$9.99 / month</span>
+                        </>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-500">Free</span>
+                      )}
+                    </div>
+                    {isPro ? <ManageBillingButton /> : (
+                      <Link to="/search" className="text-sm font-medium text-primary hover:text-primary-700 transition-colors">
+                        Upgrade to Pro →
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                {status && (
+                  <div className="py-3">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Status</p>
+                    <p className="text-sm text-gray-900 capitalize">{status.replace('_', ' ')}</p>
+                  </div>
                 )}
               </div>
+
+              {/* Alert preferences (Pro only) */}
+              {isPro && <AlertPreferences userId={user.id} />}
             </div>
-            {status && (
-              <div className="py-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Status</p>
-                <p className="text-sm text-gray-900 capitalize">{status.replace('_', ' ')}</p>
-              </div>
-            )}
-          </div>
 
-          {/* Alert preferences (Pro only) */}
-          {isPro && <AlertPreferences userId={user.id} />}
+            {/* RIGHT COLUMN */}
+            <div className="space-y-4">
+              {/* Portfolio Stats (Pro) */}
+              {isPro && allProjects.length >= 2 && (
+                <PortfolioStats projects={allProjects} stateProgramMap={stateProgramMap} />
+              )}
 
-          {/* Recent activity */}
-          {recentProjects.length > 0 && (
-            <div className="mt-4 bg-white border border-gray-200 rounded-lg px-6 py-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Activity</p>
-              <div className="space-y-2.5">
-                {recentProjects.map(p => (
-                  <div key={p.id} className="flex items-center justify-between group">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0" style={{ background: 'rgba(15,110,86,0.08)', color: '#0F6E56' }}>
-                        {p.state || '—'}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-800 font-medium truncate">{p.name || `${p.state} ${p.county || ''}`}</p>
-                        <p className="text-[10px] text-gray-400">{[p.county && `${p.county} Co.`, p.stage].filter(Boolean).join(' · ')}</p>
+              {/* Recent activity */}
+              {recentProjects.length > 0 && (
+                <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Activity</p>
+                  <div className="space-y-2.5">
+                    {recentProjects.map(p => (
+                      <div key={p.id} className="flex items-center justify-between group">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0 font-mono" style={{ background: 'rgba(15,110,86,0.08)', color: '#0F6E56' }}>
+                            {p.state || '—'}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-800 font-medium truncate">{p.name || `${p.state} ${p.county || ''}`}</p>
+                            <p className="text-[10px] text-gray-400">{[p.county && `${p.county} Co.`, p.stage].filter(Boolean).join(' · ')}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums font-mono">{timeAgo(p.saved_at)}</span>
                       </div>
-                    </div>
-                    <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums">{timeAgo(p.saved_at)}</span>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <Link to="/library" className="block mt-3 pt-3 border-t border-gray-100 text-xs font-medium text-primary hover:text-primary-700 transition-colors">
-                View all projects →
-              </Link>
+                  <Link to="/library" className="block mt-3 pt-3 border-t border-gray-100 text-xs font-medium text-primary hover:text-primary-700 transition-colors">
+                    View all projects →
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Admin access */}
           {email === 'aden.walker67@gmail.com' && (
