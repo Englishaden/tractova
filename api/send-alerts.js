@@ -65,35 +65,55 @@ function buildAlertHtml(user, project, alerts) {
     </div>`
   }).join('')
 
+  // V3 brand tokens (matches send-digest.js)
+  const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, serif`
+  const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+  const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace`
+
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    body { margin: 0; padding: 0; }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#FAFAF7;font-family:${FONT_SANS};-webkit-font-smoothing:antialiased;">
   <div style="max-width:600px;margin:32px auto;padding:0 16px;">
 
-    <div style="background:#063629;border-radius:12px 12px 0 0;padding:28px 32px;">
-      <p style="margin:0;font-size:22px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">tractova</p>
-      <p style="margin:6px 0 0;font-size:13px;color:#6ee7b7;">Policy Alert</p>
+    <!-- V3 header: navy with teal rail + amber-tinted "Policy Alert" eyebrow (semantic) -->
+    <div style="background:linear-gradient(135deg,#0F1A2E 0%,#0A132A 100%);border-radius:10px 10px 0 0;padding:28px 32px;border-top:2px solid #F59E0B;">
+      <p style="margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:#FCD34D;font-family:${FONT_MONO};">
+        ◆ Policy Alert · Action Required
+      </p>
+      <p style="margin:0;font-size:26px;font-weight:600;color:#FFFFFF;letter-spacing:-0.02em;font-family:${FONT_SERIF};line-height:1.1;">
+        Tractova
+      </p>
     </div>
 
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 12px 12px;padding:28px 32px;">
-      <p style="margin:0 0 4px;font-size:15px;color:#0f172a;">Hi ${user.email?.split('@')[0] ?? 'there'},</p>
-      <p style="margin:0 0 20px;font-size:14px;color:#475569;">There are updates affecting one of your saved projects that may impact your underwriting.</p>
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 10px 10px;padding:28px 32px;">
+      <p style="margin:0 0 6px;font-size:15px;color:#0A1828;font-family:${FONT_SANS};">Good morning ${user.email?.split('@')[0] ?? 'there'},</p>
+      <p style="margin:0 0 20px;font-size:14px;color:#5A6B7A;line-height:1.5;font-family:${FONT_SANS};">There are updates affecting one of your saved projects that may impact your underwriting.</p>
 
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
-        <p style="margin:0;font-weight:700;font-size:15px;color:#0f172a;">${project.name}</p>
-        <p style="margin:2px 0 0;font-size:12px;color:#6b7280;">${project.state_name ?? project.state} · ${project.county ?? ''} · ${project.mw ?? '—'} MW</p>
+      <!-- Project identity card -->
+      <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-left:3px solid #D97706;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+        <p style="margin:0;font-weight:600;font-size:18px;color:#0A1828;font-family:${FONT_SERIF};letter-spacing:-0.015em;line-height:1.2;">${project.name}</p>
+        <p style="margin:6px 0 0;font-size:11px;color:#5A6B7A;font-family:${FONT_MONO};letter-spacing:0.04em;">${(project.state_name ?? project.state ?? '').toUpperCase()} · ${(project.county ?? '').toUpperCase()} · ${project.mw ?? '—'} MW</p>
       </div>
 
       ${alertRows}
 
       <div style="margin-top:24px;text-align:center;">
-        <a href="${APP_URL}/library" style="display:inline-block;background:#063629;color:#ffffff;text-decoration:none;padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;">Review Project →</a>
+        <a href="${APP_URL}/library" style="display:inline-block;background:#14B8A6;color:#FFFFFF;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;font-family:${FONT_SANS};box-shadow:0 4px 12px rgba(20,184,166,0.25);">
+          Review Project →
+        </a>
       </div>
 
-      <p style="margin:28px 0 0;font-size:11px;color:#94a3b8;text-align:center;">
+      <p style="margin:32px 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#5A6B7A;text-align:center;font-family:${FONT_SANS};line-height:1.6;">
         You're receiving this because you have a Tractova Pro subscription.<br>
-        <a href="${APP_URL}/profile" style="color:#94a3b8;">Manage account</a>
+        <a href="${APP_URL}/profile" style="color:#0F766E;text-decoration:none;font-weight:500;">Manage notifications</a>
       </p>
     </div>
   </div>

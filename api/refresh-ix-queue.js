@@ -373,6 +373,29 @@ export default async function handler(req, res) {
     } else {
       results.unchanged++
     }
+
+    // V3 Wave 1: append a snapshot row to ix_queue_snapshots regardless of
+    // whether the value changed. This builds the time-series the Wave 2
+    // Forecaster needs (P50/P90 study completion modeling). Snapshot is
+    // best-effort -- if it fails, we don't fail the cron, just log.
+    const snapshotRow = {
+      state_id:            update.stateId,
+      iso:                 update.iso,
+      utility_name:        update.utilityName,
+      projects_in_queue:   update.projectsInQueue,
+      mw_pending:          update.mwPending,
+      queue_trend:         trend,
+      avg_study_months:    update.avgStudyMonths ?? null,
+      withdrawal_pct:      update.withdrawalPct ?? null,
+      avg_upgrade_cost_mw: update.avgUpgradeCostMW ?? null,
+      data_source:         'scraper',
+    }
+    const { error: snapErr } = await supabaseAdmin.from('ix_queue_snapshots').insert(snapshotRow)
+    if (snapErr) {
+      console.warn(`[ix-queue] snapshot insert failed for ${update.stateId}:${update.utilityName}:`, snapErr.message)
+    } else {
+      results.snapshotsRecorded = (results.snapshotsRecorded || 0) + 1
+    }
   }
 
   // Log cron run for observability
