@@ -111,11 +111,72 @@ function projectCard(project, stateMap) {
   </div>`
 }
 
-function buildDigestHtml(user, projects, stateMap) {
+// V3 Wave 1.5: build a "Markets in Motion" section -- top 3 portfolio states
+// ranked by activity (news items + data updates) in the past 7 days.
+// Falls back to empty if no activity (we just hide the section).
+function buildMotionSection(projects, stateMap, activity) {
+  const portfolioStateIds = [...new Set(projects.map(p => p.state).filter(Boolean))]
+  const ranked = portfolioStateIds
+    .map(id => {
+      const a = activity[id] || { newsCount: 0, updateCount: 0, headline: null, lastChange: null }
+      return {
+        id,
+        name: stateMap[id]?.name || id,
+        score: stateMap[id]?.opportunityScore ?? null,
+        status: stateMap[id]?.csStatus,
+        newsCount: a.newsCount,
+        updateCount: a.updateCount,
+        total: a.newsCount + a.updateCount,
+        headline: a.headline,
+        lastChange: a.lastChange,
+      }
+    })
+    .filter(s => s.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 3)
+
+  if (ranked.length === 0) return ''
+
+  const rows = ranked.map(s => {
+    const meta = [
+      s.newsCount ? `${s.newsCount} news` : null,
+      s.updateCount ? `${s.updateCount} update${s.updateCount > 1 ? 's' : ''}` : null,
+    ].filter(Boolean).join(' · ')
+    const callout = s.headline
+      ? `<p style="margin:6px 0 0;font-size:12px;color:${INK};line-height:1.45;font-family:${FONT_SANS};">${s.headline}</p>`
+      : (s.lastChange ? `<p style="margin:6px 0 0;font-size:11px;color:${INK_MUTED};font-family:${FONT_MONO};">${s.lastChange}</p>` : '')
+    return `
+      <div style="padding:14px 0;border-bottom:1px solid #E5E7EB;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+          <div style="flex:1;min-width:0;">
+            <p style="margin:0;font-family:${FONT_SERIF};font-size:16px;font-weight:600;color:${INK};letter-spacing:-0.015em;line-height:1.2;">${s.name}</p>
+            <p style="margin:4px 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.16em;text-transform:uppercase;">${meta}</p>
+          </div>
+          ${s.score != null ? `<div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-family:${FONT_MONO};font-size:9px;color:${INK_MUTED};text-transform:uppercase;letter-spacing:0.18em;font-weight:700;">Idx</p><p style="margin:2px 0 0;font-family:${FONT_MONO};font-size:18px;font-weight:700;color:${INK};letter-spacing:-0.01em;">${s.score}</p></div>` : ''}
+        </div>
+        ${callout}
+      </div>`
+  }).join('')
+
+  // Section eyebrow + header + body, hairline-ruled
+  return `
+    <p style="margin:0 0 4px;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:${INK_MUTED};">
+      Markets in Motion · Past 7 Days
+    </p>
+    <p style="margin:0 0 12px;font-family:${FONT_SERIF};font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.02em;line-height:1.2;">
+      Where your portfolio shifted
+    </p>
+    <div style="border-top:1px solid #E5E7EB;margin-bottom:24px;">
+      ${rows}
+    </div>`
+}
+
+function buildDigestHtml(user, projects, stateMap, activity) {
   const hasAlerts   = projects.some(p => getAlerts(p, stateMap).length > 0)
   const totalMW     = projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)
   const stateSet    = new Set(projects.map(p => p.state).filter(Boolean))
   const projectsHtml = projects.map(p => projectCard(p, stateMap)).join('')
+  const motionHtml  = buildMotionSection(projects, stateMap, activity || {})
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
   return `<!DOCTYPE html>
@@ -172,6 +233,9 @@ function buildDigestHtml(user, projects, stateMap) {
           </div>
         </div>
       </div>
+
+      <!-- V3 Wave 1.5: Markets in Motion (only renders when there's activity) -->
+      ${motionHtml}
 
       <!-- Section eyebrow -->
       <p style="margin:0 0 12px;font-size:9px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:${INK_MUTED};font-family:${FONT_MONO};">
@@ -234,6 +298,49 @@ export default async function handler(req, res) {
     if (stateErr) throw stateErr
     const stateMap = buildStateMap(stateRows ?? [])
 
+    // V3 Wave 1.5: pre-fetch the past 7 days of activity once, indexed by state.
+    // Each user's digest filters this to their portfolio. Best-effort -- if any
+    // table query fails, motion section just renders empty.
+    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+    const activity = {}  // { [stateId]: { newsCount, updateCount, headline, lastChange } }
+    try {
+      const [newsRes, updRes] = await Promise.all([
+        supabaseAdmin.from('news_feed')
+          .select('headline, tags, state_ids, date, type')
+          .gte('date', sevenDaysAgo.slice(0, 10))
+          .order('date', { ascending: false }),
+        supabaseAdmin.from('data_updates')
+          .select('row_id, table_name, field, old_value, new_value, created_at')
+          .eq('table_name', 'state_programs')
+          .gte('created_at', sevenDaysAgo)
+          .order('created_at', { ascending: false }),
+      ])
+      // Bucket news by state. Tags or state_ids may carry the state ID.
+      for (const item of newsRes.data ?? []) {
+        const stateIds = Array.isArray(item.state_ids) ? item.state_ids
+          : Array.isArray(item.tags) ? item.tags.filter(t => typeof t === 'string' && t.length === 2 && t === t.toUpperCase())
+          : []
+        for (const sid of stateIds) {
+          if (!activity[sid]) activity[sid] = { newsCount: 0, updateCount: 0, headline: null, lastChange: null }
+          activity[sid].newsCount++
+          if (!activity[sid].headline) activity[sid].headline = item.headline
+        }
+      }
+      // Bucket data_updates by state. row_id for state_programs is just the state code.
+      for (const upd of updRes.data ?? []) {
+        const sid = upd.row_id
+        if (!sid) continue
+        if (!activity[sid]) activity[sid] = { newsCount: 0, updateCount: 0, headline: null, lastChange: null }
+        activity[sid].updateCount++
+        if (!activity[sid].lastChange) {
+          const fieldLabel = (upd.field || '').replace(/_/g, ' ')
+          activity[sid].lastChange = `${fieldLabel}: ${upd.old_value} → ${upd.new_value}`
+        }
+      }
+    } catch (motionErr) {
+      console.warn('[send-digest] motion fetch failed (section will be empty):', motionErr.message)
+    }
+
     // Fetch all Pro users
     const { data: profiles, error: profileErr } = await supabaseAdmin
       .from('profiles')
@@ -262,7 +369,7 @@ export default async function handler(req, res) {
 
       if (projErr || !projects?.length) continue
 
-      const html = buildDigestHtml(user, projects, stateMap)
+      const html = buildDigestHtml(user, projects, stateMap, activity)
       const subject = `Your weekly Tractova digest — ${projects.length} project${projects.length !== 1 ? 's' : ''}`
 
       await sendEmail(user.email, subject, html)
