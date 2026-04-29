@@ -55,8 +55,8 @@ export default function SignUp() {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center px-4 pt-14">
         <div className="w-full max-w-sm text-center">
-          <div className="w-14 h-14 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-5">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(20,184,166,0.10)' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
             </svg>
@@ -69,7 +69,8 @@ export default function SignUp() {
           </p>
           <Link
             to="/signin"
-            className="inline-block mt-6 text-sm text-primary font-medium hover:underline"
+            className="inline-block mt-6 text-sm font-medium hover:underline"
+            style={{ color: '#0F766E' }}
           >
             Back to Sign In →
           </Link>
@@ -115,7 +116,7 @@ export default function SignUp() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10
+                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -132,7 +133,7 @@ export default function SignUp() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10
+                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -149,7 +150,7 @@ export default function SignUp() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 6 characters"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10
+                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -166,7 +167,7 @@ export default function SignUp() {
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="••••••••"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10
+                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -174,8 +175,10 @@ export default function SignUp() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary text-white text-sm font-medium py-2.5 rounded-md
-                         hover:bg-primary-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: '#14B8A6' }}
+              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
+              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}
             >
               {loading ? 'Creating account…' : 'Get started'}
             </button>
@@ -184,7 +187,7 @@ export default function SignUp() {
 
         <p className="text-center text-xs text-gray-500 mt-5">
           Already have an account?{' '}
-          <Link to="/signin" className="text-primary font-medium hover:underline">
+          <Link to="/signin" className="font-medium hover:underline" style={{ color: '#0F766E' }}>
             Sign in →
           </Link>
         </p>

@@ -65,7 +65,14 @@ function ManageBillingButton() {
   return (
     <div>
       {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
-      <button onClick={handlePortal} disabled={loading} className="text-sm font-medium text-primary hover:text-primary-700 disabled:opacity-50 transition-colors">
+      <button
+        onClick={handlePortal}
+        disabled={loading}
+        className="text-sm font-medium disabled:opacity-50 transition-colors"
+        style={{ color: '#0F766E' }}
+        onMouseEnter={(e) => { if (!loading) e.currentTarget.style.color = '#0A1828' }}
+        onMouseLeave={(e) => { if (!loading) e.currentTarget.style.color = '#0F766E' }}
+      >
         {loading ? 'Loading...' : 'Manage subscription →'}
       </button>
     </div>

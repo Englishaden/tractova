@@ -6,10 +6,12 @@ import { supabase } from '../lib/supabase'
 // not on every NewsFeed mount/unmount.
 let _pulseCache = null
 
+// V3 brand palette: offtake = teal (V3 brand), ix = amber (V3 caution),
+// site = blue. Matches RegulatoryActivityPanel + every other pillar surface.
 const PILLAR_STYLES = {
-  offtake: { dot: 'bg-primary',     badge: 'bg-primary-50 text-primary-700 border-primary-200',     label: 'Offtake' },
-  ix:      { dot: 'bg-accent-500',  badge: 'bg-accent-50 text-accent-700 border-accent-200',         label: 'Interconnection' },
-  site:    { dot: 'bg-blue-500',    badge: 'bg-blue-50 text-blue-700 border-blue-200',               label: 'Site Control' },
+  offtake: { dot: 'bg-teal-700',  badge: 'bg-teal-50 text-teal-800 border-teal-200',    label: 'Offtake' },
+  ix:      { dot: 'bg-amber-600', badge: 'bg-amber-50 text-amber-800 border-amber-200', label: 'Interconnection' },
+  site:    { dot: 'bg-blue-600',  badge: 'bg-blue-50 text-blue-800 border-blue-200',    label: 'Site Control' },
 }
 
 const TYPE_STYLES = {

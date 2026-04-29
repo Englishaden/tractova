@@ -26,14 +26,21 @@ export default function Nav() {
 
   const navLink = (to, label) => {
     const active = location.pathname === to
+    if (active) {
+      return (
+        <Link
+          to={to}
+          className="text-sm font-medium transition-colors px-1 pb-0.5"
+          style={{ color: '#0F766E', borderBottom: '2px solid #0F766E' }}
+        >
+          {label}
+        </Link>
+      )
+    }
     return (
       <Link
         to={to}
-        className={`text-sm font-medium transition-colors px-1 pb-0.5 ${
-          active
-            ? 'text-primary border-b-2 border-primary'
-            : 'text-gray-500 hover:text-gray-900'
-        }`}
+        className="text-sm font-medium transition-colors px-1 pb-0.5 text-gray-500 hover:text-gray-900"
       >
         {label}
       </Link>

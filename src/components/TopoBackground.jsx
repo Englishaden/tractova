@@ -7,7 +7,7 @@
  *
  * Usage: place as first child inside a `relative overflow-hidden` container.
  */
-export default function TopoBackground({ opacity = 0.09, color = '#0F6E56' }) {
+export default function TopoBackground({ opacity = 0.09, color = '#0F766E' }) {
   // 15 organic paths across a 1440×900 viewBox.
   // Irregular vertical spacing (tight clusters = "steep terrain", wide gaps = "plateau")
   // gives the feel of real USGS elevation data rather than decorative stripes.

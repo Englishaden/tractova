@@ -80,7 +80,7 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
         <ul className="space-y-3 mb-8">
           {config.bullets.map((b) => (
             <li key={b} className="flex items-start gap-3 text-sm text-gray-700">
-              <span className="text-primary mt-0.5 flex-shrink-0">
+              <span className="mt-0.5 flex-shrink-0" style={{ color: '#0F766E' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
@@ -108,7 +108,10 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
           <button
             onClick={handleUpgrade}
             disabled={loading}
-            className="w-full py-3 bg-primary hover:bg-primary-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            className="w-full py-3 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors text-sm flex items-center justify-center gap-2"
+            style={{ background: '#14B8A6', boxShadow: '0 4px 12px rgba(20,184,166,0.20)' }}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}
           >
             {loading ? (
               <>

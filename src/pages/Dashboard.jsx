@@ -103,21 +103,22 @@ export default function Dashboard({ previewMode = false }) {
   }
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-paper">
       {previewMode && (
         <div
           className="sticky top-14 z-30 flex items-center justify-between px-6 py-2.5"
-          style={{ background: '#063629', borderBottom: '1px solid rgba(52,211,153,0.20)' }}
+          style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)', borderBottom: '1px solid rgba(20,184,166,0.22)' }}
         >
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-400">Live Preview</span>
-            <span className="text-xs text-white/75">
+          <div className="flex items-center gap-2.5">
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.22em]" style={{ color: '#5EEAD4' }}>◆ Live Preview</span>
+            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.72)' }}>
               You're viewing live market intelligence. Sign up for Tractova Lens AI analysis and project tracking.
             </span>
           </div>
           <a
             href="/signup"
-            className="flex-shrink-0 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 transition-colors px-3 py-1.5 rounded-lg"
+            className="flex-shrink-0 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors"
+            style={{ background: '#14B8A6' }}
           >
             Get full access →
           </a>
@@ -126,7 +127,7 @@ export default function Dashboard({ previewMode = false }) {
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* Page header */}
         <div className="mt-4 mb-1">
-          <h1 className="text-2xl font-bold text-gray-900">Market Dashboard</h1>
+          <h1 className="text-2xl font-serif font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>Market Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">
             Community solar program status, interconnection conditions, and policy alerts — updated weekly.
           </p>

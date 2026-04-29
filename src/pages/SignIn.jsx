@@ -68,8 +68,8 @@ export default function SignIn() {
         {/* ── Reset sent confirmation ─────────────────────────────────────── */}
         {view === 'reset_sent' ? (
           <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-sm text-center">
-            <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(20,184,166,0.10)' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
               </svg>
@@ -82,7 +82,8 @@ export default function SignIn() {
             </p>
             <button
               onClick={switchToSignIn}
-              className="mt-5 text-xs text-primary font-medium hover:underline"
+              className="mt-5 text-xs font-medium hover:underline"
+              style={{ color: '#0F766E' }}
             >
               ← Back to sign in
             </button>
@@ -107,8 +108,8 @@ export default function SignIn() {
 
           {/* Redirect message */}
           {view === 'signin' && redirectMessage && (
-            <div className="mb-5 px-3 py-2.5 bg-accent-50 border border-accent-200 rounded-md">
-              <p className="text-xs text-accent-700">{redirectMessage}</p>
+            <div className="mb-5 px-3 py-2.5 rounded-md" style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.30)' }}>
+              <p className="text-xs" style={{ color: '#B45309' }}>{redirectMessage}</p>
             </div>
           )}
 
@@ -129,7 +130,7 @@ export default function SignIn() {
                   value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                             focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10 transition-colors"
+                             focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />
               </div>
 
@@ -139,7 +140,8 @@ export default function SignIn() {
                   <button
                     type="button"
                     onClick={switchToReset}
-                    className="text-xs text-primary hover:underline"
+                    className="text-xs hover:underline"
+                    style={{ color: '#0F766E' }}
                   >
                     Forgot your password?
                   </button>
@@ -149,14 +151,16 @@ export default function SignIn() {
                   value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                             focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10 transition-colors"
+                             focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />
               </div>
 
               <button
                 type="submit" disabled={loading}
-                className="w-full bg-primary text-white text-sm font-medium py-2.5 rounded-md
-                           hover:bg-primary-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: '#14B8A6' }}
+                onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
+                onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}
               >
                 {loading ? 'Signing in…' : 'Sign in'}
               </button>
@@ -173,14 +177,16 @@ export default function SignIn() {
                   value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                             focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-10 transition-colors"
+                             focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />
               </div>
 
               <button
                 type="submit" disabled={loading}
-                className="w-full bg-primary text-white text-sm font-medium py-2.5 rounded-md
-                           hover:bg-primary-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: '#14B8A6' }}
+                onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
+                onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}
               >
                 {loading ? 'Sending…' : 'Send reset email'}
               </button>
@@ -200,7 +206,7 @@ export default function SignIn() {
           <>
             <p className="text-center text-xs text-gray-500 mt-5">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-primary font-medium hover:underline">
+              <Link to="/signup" className="font-medium hover:underline" style={{ color: '#0F766E' }}>
                 Get started free →
               </Link>
             </p>

@@ -69,7 +69,7 @@ const terms = [
     term: 'Limited Capacity',
     pillar: 'offtake',
     definition:
-      'The program exists and is operational, but available capacity is nearly exhausted. Developers should monitor closely for new tranches or block openings. A Limited state may become Active again when the program administrator authorizes additional MW.',
+      'The program exists and is operational, but available capacity is nearly exhausted. New tranches or block openings can re-open the queue — track program-administrator filings and PUC dockets to catch the reopening before competitors. A Limited state flips back to Active when additional MW is authorized.',
     related: ['Active Program', 'Offtake', 'Feasibility Index'],
   },
   {
