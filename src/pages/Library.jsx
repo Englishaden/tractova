@@ -719,12 +719,42 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
           countyData,
         }),
       })
-      const json = await res.json()
-      if (!res.ok || !json.kit) {
-        setError(json?.reason || json?.error || 'Generation failed')
+
+      // Defensive parse: a Vercel platform timeout (504) returns an HTML
+      // error page, not JSON. Read the body once as text, then try to
+      // parse -- if it fails, surface a clean message instead of "Unexpected
+      // token 'A'" from a raw JSON.parse error.
+      const rawBody = await res.text()
+      let json = null
+      try { json = JSON.parse(rawBody) } catch {}
+
+      if (!res.ok) {
+        if (res.status === 504) {
+          setError('Generation timed out. The model took too long — please retry.')
+        } else if (res.status === 429) {
+          setError('Rate limit hit. Wait a minute and retry.')
+        } else if (res.status === 403) {
+          setError('Pro subscription required.')
+        } else {
+          setError(json?.error || `Server error (${res.status}). Please retry.`)
+        }
         setGenerating(false)
         return
       }
+
+      if (!json) {
+        // 200 OK but body wasn't JSON -- shouldn't happen, but be loud if it does.
+        setError('Server returned a non-JSON response. Please retry.')
+        setGenerating(false)
+        return
+      }
+
+      if (!json.kit) {
+        setError(json.reason || 'Generation failed. Please retry.')
+        setGenerating(false)
+        return
+      }
+
       setKit(json.kit)
       setOpen(true)
     } catch (err) {

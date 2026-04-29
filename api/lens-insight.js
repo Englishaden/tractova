@@ -658,15 +658,23 @@ async function handleUtilityOutreach(body, res, _user) {
   }
   const contextText = buildContext(contextBody)
 
+  // Internal abort 50s gives a 10s buffer under the 60s platform timeout
+  // (configured in vercel.json under functions["api/lens-insight.js"]).
+  // If Sonnet legitimately exceeds 50s, we return a JSON fallback rather
+  // than letting the platform serve its default HTML error page (which
+  // would break res.json() on the client).
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 35000)
+  const timeoutId = setTimeout(() => controller.abort(), 50000)
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const message = await client.messages.create(
       {
         model: 'claude-sonnet-4-6',
-        max_tokens: 2400,
+        // 1,800 fits the full schema with comfortable headroom (full kit
+        // serializes to ~900 tokens at the 260-word email ceiling).
+        // Lower than 2,400 keeps p95 latency under the 50s abort.
+        max_tokens: 1800,
         system: UTILITY_OUTREACH_PROMPT,
         messages: [{ role: 'user', content: contextText }],
       },
