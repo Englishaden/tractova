@@ -129,27 +129,28 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
         >
           {/* ── Pattern defs for coverage-tier overlay ───────────────────────
               Two distinct visual families: lines (Mid) vs dots (Light).
-              Color: deep institutional blue (#1E3A8A) -- a subtle warmer
-              shift from pure navy that doesn't fight the teal choropleth.
-              Static; no motion. */}
+              Color: deep institutional blue (#1E3A8A).
+              Density: ~30% lower than first pass — pattern unit sizes
+              bumped to give each state more breathing room without
+              changing the visual grammar. Static; no motion. */}
           <defs>
             {/* Mid coverage — 45° diagonal hatch lines */}
             <pattern
               id="tier-hatch-mid"
               patternUnits="userSpaceOnUse"
-              width="5.5" height="5.5"
+              width="7.5" height="7.5"
               patternTransform="rotate(45)"
             >
-              <line x1="0" y1="0" x2="0" y2="5.5" stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.32" />
+              <line x1="0" y1="0" x2="0" y2="7.5" stroke="#1E3A8A" strokeWidth="0.75" strokeOpacity="0.34" />
             </pattern>
 
             {/* Light coverage — stipple / dot grid (cartographic stippling) */}
             <pattern
               id="tier-stipple-light"
               patternUnits="userSpaceOnUse"
-              width="4" height="4"
+              width="5" height="5"
             >
-              <circle cx="2" cy="2" r="0.6" fill="#1E3A8A" fillOpacity="0.38" />
+              <circle cx="2.5" cy="2.5" r="0.6" fill="#1E3A8A" fillOpacity="0.42" />
             </pattern>
           </defs>
 
@@ -324,13 +325,13 @@ function CoverageSwatch({ tier }) {
     <svg width="30" height="14" className="rounded-sm flex-shrink-0" style={{ border: '1px solid rgba(15,118,110,0.22)' }}>
       <defs>
         {tier === 'mid' && (
-          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3.5" height="3.5" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="3.5" stroke="#1E3A8A" strokeWidth="0.6" strokeOpacity="0.66" />
+          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="4.5" height="4.5" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="4.5" stroke="#1E3A8A" strokeWidth="0.6" strokeOpacity="0.68" />
           </pattern>
         )}
         {tier === 'light' && (
-          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3" height="3">
-            <circle cx="1.5" cy="1.5" r="0.55" fill="#1E3A8A" fillOpacity="0.70" />
+          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3.6" height="3.6">
+            <circle cx="1.8" cy="1.8" r="0.55" fill="#1E3A8A" fillOpacity="0.74" />
           </pattern>
         )}
       </defs>
