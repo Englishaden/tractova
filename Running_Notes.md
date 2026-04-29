@@ -1,7 +1,7 @@
 # Tractova — 4-Week Premium Buildout Plan
 
 > Last updated: April 29, 2026
-> Status: V3 BUILD DAY 4 — Share trio shipped, deps cleaned, ui/* primitive sweep through Profile + Admin, audit-timeline view counts, MetricsBar KPI tooltips. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
+> Status: V3 BUILD DAY 4 — Share trio shipped, deps cleaned, ui/* primitive sweep through Profile + Admin, audit-timeline view counts, MetricsBar KPI tooltips, **Wave 2 Utility Outreach Kit shipped (first Wave 2 feature)**. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
 
 ---
 
@@ -11,7 +11,11 @@ Picked up from Day 3's "Next-Session Pickup" P2 list. All shipped + pushed to `o
 
 ### Late-evening supplement (after Day 4 wrap-up commit)
 
-Two more P2-list items closed before EOD:
+Three more items closed before EOD — including the **first Wave 2 feature**:
+
+- **`7f9f210`** **Wave 2 — Utility Outreach Kit** (V3 §Wave 2 first ship). New `'utility-outreach'` action through `lens-insight.js` (multiplexed, function count holds at 11/12). Sonnet 4.6, 2,400-token cap, ~35s timeout. Output schema covers a copy-pasteable pre-application email (subject / greeting / body / sign-off), utility context (study process, typical queue wait, relevant tariff schedule), an attachments checklist, a 30/60/90-day follow-up playbook, phone talking points, and a state/utility-specific gotcha note. The system prompt enforces consultant-grade specificity: utility named, ISO/RTO inferred, project MW + tech + county + stage referenced, IX queue intelligence woven into the email, conservative timeline ranges, peer-tone (not pleading or transactional). Ships as a new "Outreach Kit" button in the Library expanded card, opens a Radix Dialog with per-section copy buttons + a "Copy entire kit" action that serializes a plain-text version for paste-into-Notion. Pro-gated automatically via the existing `isPro` check on `lens-insight.js`. ~225 lines added (server prompt + handler + client component + plain-text serializer).
+
+Two earlier shipments:
 
 - **`ae65af2`** Audit timeline surfaces recipient view counts. After fetching `project_events`, batch-look-up `share_tokens.view_count` for any `shared` events; render an inline violet "X views" mono pill next to the timestamp. Owners now get a passive engagement signal — "the IC opened it 4 times" is meaningfully different from "you sent the link." Reads through RLS (owner-only `select` on `share_tokens`), so no service-role exposure. Refreshes whenever the audit timeline does, including the post-share `auditRefreshKey` bump.
 
@@ -73,7 +77,7 @@ Most P2 items now closed. Remaining backlog in `Tractova_V3_Plan.md`:
 - Tailwind v3 → v4 + Vite 5 → 8 dedicated tooling-refresh session (trigger: V3 Wave 3 Deal Calendar needing shadcn Calendar primitive)
 
 ### Day 4 commit summary
-6 commits, ~410 lines net change. All zero-visible-behavior-change refactors except for the share-trio (3 visible features + a privacy fix), MetricsBar tooltips (feature add), and audit-timeline view counts (feature add on top of the share-trio).
+7 commits, ~635 lines net change. Three visible feature shipments (share-trio + privacy fix · MetricsBar tooltips · audit-timeline view counts) plus the first Wave 2 feature (Utility Outreach Kit). The rest are zero-visible-behavior-change refactors (Profile / Admin ui/* sweep, deps cleanup, doc updates).
 
 ---
 

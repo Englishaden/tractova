@@ -149,7 +149,8 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 
 **P3 — V3 Wave 2 (defensible data layer):**
 - **IX Queue Forecaster** — needs ≥12 weekly snapshots (Q3 launch). P50/P90 study completion modeling.
-- Comparable Deals DB, PUC Docket Tracker MVP, Utility Outreach Kit, Subscriber Acquisition Intel.
+- ✅ **Utility Outreach Kit** — shipped Day 4 late-evening. New `'utility-outreach'` action through `lens-insight.js` (multiplexed, 11/12 function count holds). Generates a tailored pre-application email + utility context (study process / queue wait / tariff schedule) + attachments checklist + 30/60/90-day follow-up playbook + phone talking points + state-specific gotcha note. Renders in a Radix Dialog with per-section + entire-kit copy actions. Pro-gated.
+- Remaining: Comparable Deals DB, PUC Docket Tracker MVP, Subscriber Acquisition Intel.
 
 ---
 
@@ -499,7 +500,7 @@ Only after V2-Refactored ships and at least 20-50 Pro users are paying.
 - IX Queue Forecaster (needs ≥12 weekly snapshots)
 - Comparable Deals DB (anonymized; ISO IX + EIA Form 860)
 - PUC Docket Tracker MVP
-- Utility Outreach Kit (`action: 'utility-outreach'`)
+- ✅ Utility Outreach Kit (`action: 'utility-outreach'`) — shipped Day 4 late-evening
 - **Premium tier $39 launches when Wave 2 ships**
 
 ### Wave 3 — Workflow layer (8-12 weeks)
