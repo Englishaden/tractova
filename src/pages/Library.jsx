@@ -1508,6 +1508,25 @@ function LibraryContent() {
     let cancelled = false
     const SCORE_DELTA_THRESHOLD = 5
     ;(async () => {
+      // Pre-fetch alert_triggered events from last 30 days to dedupe.
+      // One query for all projects beats N round-trips.
+      let recentAlertKeys = new Set()
+      try {
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+        const { data: rows } = await supabase
+          .from('project_events')
+          .select('project_id, meta')
+          .eq('user_id', user.id)
+          .eq('kind', 'alert_triggered')
+          .gte('created_at', since)
+        if (rows) {
+          for (const r of rows) {
+            const fp = r?.meta?.fingerprint
+            if (fp) recentAlertKeys.add(`${r.project_id}::${fp}`)
+          }
+        }
+      } catch { /* dedupe table missing -> we'll just log a few duplicates once */ }
+
       for (const p of projects) {
         if (cancelled) return
         const sp = stateProgramMap[p.state]
@@ -1520,19 +1539,39 @@ function LibraryContent() {
           if (previous == null) {
             // First observation -- just seed the column, don't log an event.
             await supabase.from('projects').update({ last_observed_score: liveScore }).eq('id', p.id)
-            continue
+          } else {
+            const delta = liveScore - previous
+            if (Math.abs(delta) >= SCORE_DELTA_THRESHOLD) {
+              const direction = delta > 0 ? 'rose' : 'fell'
+              await logProjectEvent({
+                projectId: p.id,
+                userId: user.id,
+                kind: 'score_change',
+                detail: `Index ${direction}: ${previous} → ${liveScore} (${delta > 0 ? '+' : ''}${delta} pts) for ${p.technology || 'project'} at ${p.stage || 'no stage'}`,
+                meta: { previous, current: liveScore, delta, technology: p.technology, stage: p.stage },
+              })
+              await supabase.from('projects').update({ last_observed_score: liveScore }).eq('id', p.id)
+            }
           }
-          const delta = liveScore - previous
-          if (Math.abs(delta) >= SCORE_DELTA_THRESHOLD) {
-            const direction = delta > 0 ? 'rose' : 'fell'
+
+          // alert_triggered audit events: log each NEW alert (not seen in
+          // the last 30 days for this project). Skip 'info' level alerts
+          // ('Data Refreshed') -- they're noise for an audit trail; the
+          // audit log captures material risk events, not data freshness.
+          const alerts = getAlerts(p, stateProgramMap)
+          for (const alert of alerts) {
+            if (alert.level === 'info') continue
+            const fingerprint = `${alert.level}::${alert.pillar || 'general'}::${alert.label}`
+            const key = `${p.id}::${fingerprint}`
+            if (recentAlertKeys.has(key)) continue
+            recentAlertKeys.add(key) // suppress duplicates within this same load
             await logProjectEvent({
               projectId: p.id,
               userId: user.id,
-              kind: 'score_change',
-              detail: `Index ${direction}: ${previous} → ${liveScore} (${delta > 0 ? '+' : ''}${delta} pts) for ${p.technology || 'project'} at ${p.stage || 'no stage'}`,
-              meta: { previous, current: liveScore, delta, technology: p.technology, stage: p.stage },
+              kind: 'alert_triggered',
+              detail: `${alert.label} (${alert.pillar || 'general'}): ${alert.detail}`,
+              meta: { fingerprint, level: alert.level, pillar: alert.pillar, label: alert.label },
             })
-            await supabase.from('projects').update({ last_observed_score: liveScore }).eq('id', p.id)
           }
         } catch { /* per-project failure must not block others */ }
       }
