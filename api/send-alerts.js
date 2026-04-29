@@ -9,6 +9,23 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'alerts@tractova.com'
 const APP_URL = 'https://tractova.com'
 
+// V3 design tokens — matched with send-digest.js for cross-template consistency
+const BRAND_NAVY = '#0F1A2E'
+const TEAL = '#14B8A6'
+const TEAL_DEEP = '#0F766E'
+const TEAL_LIGHT = '#5EEAD4'
+const AMBER = '#D97706'
+const AMBER_LIGHT = '#FCD34D'
+const URGENT = '#DC2626'
+const INK = '#0A1828'
+const INK_MUTED = '#5A6B7A'
+const PAPER = '#FAFAF7'
+const BORDER = '#E2E8F0'
+
+const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif`
+const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif`
+const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace`
+
 const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
 const IX_RANK     = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
 
@@ -52,77 +69,307 @@ function getUrgentAlerts(project, stateMap) {
   return alerts
 }
 
+// V3 email-safe alert detail row — table-based, no flexbox.
+function alertDetailRow(a) {
+  const isUrgent = a.level === 'urgent'
+  const tone = isUrgent
+    ? { bg: '#FEE2E2', tone: '#991B1B', rule: URGENT, label: 'URGENT' }
+    : { bg: '#FEF3C7', tone: '#92400E', rule: AMBER, label: 'WARNING' }
+  return `
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;margin:0 0 10px 0;">
+    <tr>
+      <td width="3" style="background:${tone.rule};line-height:1;font-size:0;border-top-left-radius:6px;border-bottom-left-radius:6px;">&nbsp;</td>
+      <td style="padding:14px 16px;">
+        <p style="margin:0 0 6px 0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${tone.tone};letter-spacing:0.22em;text-transform:uppercase;line-height:1;">${tone.label} · ${a.label}</p>
+        <p style="margin:0;font-family:${FONT_SANS};font-size:13px;color:${INK};line-height:1.5;">${a.detail}</p>
+      </td>
+    </tr>
+  </table>`
+}
+
+// Email-safe full alert email.
 function buildAlertHtml(user, project, alerts) {
-  const alertRows = alerts.map(a => {
-    const isUrgent = a.level === 'urgent'
-    const bg    = isUrgent ? '#fef2f2' : '#fffbeb'
-    const color = isUrgent ? '#991b1b' : '#92400e'
-    const icon  = isUrgent ? '🔴' : '⚠️'
-    return `
-    <div style="background:${bg};border-radius:8px;padding:14px 16px;margin-bottom:10px;">
-      <p style="margin:0;font-weight:700;font-size:13px;color:${color};">${icon} ${a.label}</p>
-      <p style="margin:4px 0 0;font-size:13px;color:#374151;">${a.detail}</p>
-    </div>`
-  }).join('')
+  const alertRows = alerts.map(alertDetailRow).join('')
+  const greeting = (user.email?.split('@')[0] ?? 'there').split('.')[0]
+  const hasUrgent = alerts.some(a => a.level === 'urgent')
+  const accentRail = hasUrgent ? URGENT : AMBER
+  const eyebrowColor = hasUrgent ? '#FCA5A5' : AMBER_LIGHT
+  const eyebrowText = hasUrgent ? 'Urgent · Action Required' : 'Policy Alert · Action Required'
+  const projectMeta = [
+    (project.state_name ?? project.state ?? '').toUpperCase(),
+    (project.county ?? '').toUpperCase(),
+    project.mw != null ? `${project.mw} MW` : null,
+  ].filter(Boolean).join(' · ')
 
-  // V3 brand tokens (matches send-digest.js)
-  const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, serif`
-  const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
-  const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace`
-
-  return `<!DOCTYPE html>
-<html>
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-    body { margin: 0; padding: 0; }
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>Tractova Policy Alert</title>
+  <!--[if mso]>
+  <style type="text/css">
+    table, td { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
   </style>
+  <![endif]-->
 </head>
-<body style="margin:0;padding:0;background:#FAFAF7;font-family:${FONT_SANS};-webkit-font-smoothing:antialiased;">
-  <div style="max-width:600px;margin:32px auto;padding:0 16px;">
+<body style="margin:0;padding:0;background:${PAPER};font-family:${FONT_SANS};color:${INK};-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;">
 
-    <!-- V3 header: navy with teal rail + amber-tinted "Policy Alert" eyebrow (semantic) -->
-    <div style="background:linear-gradient(135deg,#0F1A2E 0%,#0A132A 100%);border-radius:10px 10px 0 0;padding:28px 32px;border-top:2px solid #F59E0B;">
-      <p style="margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:#FCD34D;font-family:${FONT_MONO};">
-        ◆ Policy Alert · Action Required
-      </p>
-      <p style="margin:0;font-size:26px;font-weight:600;color:#FFFFFF;letter-spacing:-0.02em;font-family:${FONT_SERIF};line-height:1.1;">
-        Tractova
-      </p>
-    </div>
-
-    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 10px 10px;padding:28px 32px;">
-      <p style="margin:0 0 6px;font-size:15px;color:#0A1828;font-family:${FONT_SANS};">Good morning ${user.email?.split('@')[0] ?? 'there'},</p>
-      <p style="margin:0 0 20px;font-size:14px;color:#5A6B7A;line-height:1.5;font-family:${FONT_SANS};">There are updates affecting one of your saved projects that may impact your underwriting.</p>
-
-      <!-- Project identity card -->
-      <div style="background:#FFFFFF;border:1px solid #E5E7EB;border-left:3px solid #D97706;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
-        <p style="margin:0;font-weight:600;font-size:18px;color:#0A1828;font-family:${FONT_SERIF};letter-spacing:-0.015em;line-height:1.2;">${project.name}</p>
-        <p style="margin:6px 0 0;font-size:11px;color:#5A6B7A;font-family:${FONT_MONO};letter-spacing:0.04em;">${(project.state_name ?? project.state ?? '').toUpperCase()} · ${(project.county ?? '').toUpperCase()} · ${project.mw ?? '—'} MW</p>
-      </div>
-
-      ${alertRows}
-
-      <div style="margin-top:24px;text-align:center;">
-        <a href="${APP_URL}/library" style="display:inline-block;background:#14B8A6;color:#FFFFFF;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;font-family:${FONT_SANS};box-shadow:0 4px 12px rgba(20,184,166,0.25);">
-          Review Project →
-        </a>
-      </div>
-
-      <!-- Platform note -->
-      <p style="margin:20px 0 0;padding:12px 14px;background:#FAFAF7;border:1px solid #E2E8F0;border-radius:6px;font-size:11px;color:#5A6B7A;font-family:${FONT_SANS};line-height:1.5;">
-        <span style="font-family:${FONT_MONO};font-weight:700;letter-spacing:0.16em;text-transform:uppercase;font-size:9px;color:#0A1828;">Note ·</span>
-        Tractova is currently optimized for desktop browsers. A mobile experience is on the roadmap — for now, links open best from a laptop or larger screen.
-      </p>
-
-      <p style="margin:20px 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:#5A6B7A;text-align:center;font-family:${FONT_SANS};line-height:1.6;">
-        You're receiving this because you have a Tractova Pro subscription.<br>
-        <a href="${APP_URL}/profile" style="color:#0F766E;text-decoration:none;font-weight:500;">Manage notifications</a>
-      </p>
-    </div>
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${PAPER};">
+    Policy alert for ${project.name} — ${alerts[0]?.label || 'review required'}.
   </div>
+
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${PAPER};">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="640" style="max-width:640px;width:100%;">
+
+          <!-- Top accent rail (amber for warning, red for urgent) -->
+          <tr>
+            <td style="background:${accentRail};line-height:3px;font-size:0;height:3px;border-radius:8px 8px 0 0;mso-line-height-rule:exactly;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:${BRAND_NAVY};padding:28px 32px;">
+              <p style="margin:0 0 8px 0;font-family:${FONT_MONO};font-size:10px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:${eyebrowColor};line-height:1;">
+                ◆ ${eyebrowText.toUpperCase()}
+              </p>
+              <p style="margin:0;font-family:${FONT_SERIF};font-size:30px;font-weight:600;color:#FFFFFF;letter-spacing:-0.025em;line-height:1.05;">
+                Tractova
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background:#FFFFFF;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 8px 8px;padding:28px 32px;">
+
+              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">Good morning ${greeting},</p>
+              <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;color:${INK_MUTED};line-height:1.6;">
+                There ${alerts.length === 1 ? 'is an update' : 'are updates'} affecting one of your saved projects that may impact your underwriting.
+              </p>
+
+              <!-- Project identity card -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;margin:0 0 20px 0;">
+                <tr>
+                  <td width="3" style="background:${accentRail};line-height:1;font-size:0;border-top-left-radius:6px;border-bottom-left-radius:6px;">&nbsp;</td>
+                  <td style="padding:14px 16px;">
+                    <p style="margin:0;font-family:${FONT_SERIF};font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.018em;line-height:1.25;">${project.name}</p>
+                    <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">${projectMeta}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Alert rows -->
+              ${alertRows}
+
+              <!-- CTA -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
+                <tr>
+                  <td align="center">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${APP_URL}/library" style="height:46px;v-text-anchor:middle;width:200px;" arcsize="18%" stroke="f" fillcolor="${TEAL}">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;">Review Project →</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${APP_URL}/library" style="background:${TEAL};color:#FFFFFF;text-decoration:none;display:inline-block;padding:14px 36px;border-radius:8px;font-family:${FONT_SANS};font-size:14px;font-weight:600;letter-spacing:0.01em;border:1px solid ${TEAL};">
+                      Review Project →
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Platform note -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:24px 0 0 0;background:${PAPER};border:1px solid ${BORDER};border-radius:6px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <p style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${INK_MUTED};line-height:1.55;">
+                      <span style="font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:${INK};margin-right:6px;">Note ·</span>
+                      Tractova is currently optimized for desktop browsers. A mobile experience is on the roadmap — for now, links open best from a laptop or larger screen.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Footer -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px;border-top:1px solid ${BORDER};">
+                <tr>
+                  <td align="center" style="padding-top:14px;">
+                    <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:11px;color:${INK_MUTED};line-height:1.55;">
+                      You're receiving this because you have a Tractova Pro subscription.
+                    </p>
+                    <p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.10em;line-height:1.6;">
+                      <a href="${APP_URL}/profile" style="color:${TEAL_DEEP};text-decoration:none;font-weight:600;">MANAGE NOTIFICATIONS</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr><td style="line-height:24px;font-size:0;height:24px;">&nbsp;</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
+}
+
+// V3 §8.2 Opportunity alert template — TEAL accent rail (positive semantic),
+// "MARKET OPPORTUNITY" eyebrow, ↑ delta indicator.
+function buildOpportunityAlertHtml(user, project, opportunity) {
+  const greeting = (user.email?.split('@')[0] ?? 'there').split('.')[0]
+  const projectMeta = [
+    (project.state_name ?? project.state ?? '').toUpperCase(),
+    (project.county ?? '').toUpperCase(),
+    project.mw != null ? `${project.mw} MW` : null,
+  ].filter(Boolean).join(' · ')
+  const delta = opportunity?.delta ?? '+upside'
+  const detail = opportunity?.detail ?? 'A favorable market shift was detected in one of your tracked states.'
+  const mechanism = opportunity?.mechanism ?? null
+
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <title>Tractova Market Opportunity</title>
+  <!--[if mso]>
+  <style type="text/css">table,td{border-collapse:collapse;mso-table-lspace:0pt;mso-table-rspace:0pt;}</style>
+  <![endif]-->
+</head>
+<body style="margin:0;padding:0;background:${PAPER};font-family:${FONT_SANS};color:${INK};-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${PAPER};">
+    Market opportunity in ${project.state_name ?? project.state} — ${opportunity?.label ?? 'review the upside'}.
+  </div>
+
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${PAPER};">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="640" style="max-width:640px;width:100%;">
+
+          <!-- Top teal accent rail (positive semantic) -->
+          <tr>
+            <td style="background:${TEAL};line-height:3px;font-size:0;height:3px;border-radius:8px 8px 0 0;mso-line-height-rule:exactly;">&nbsp;</td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="background:${BRAND_NAVY};padding:28px 32px;">
+              <p style="margin:0 0 8px 0;font-family:${FONT_MONO};font-size:10px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:${TEAL_LIGHT};line-height:1;">
+                ◆ Market Opportunity · Upside Detected
+              </p>
+              <p style="margin:0;font-family:${FONT_SERIF};font-size:30px;font-weight:600;color:#FFFFFF;letter-spacing:-0.025em;line-height:1.05;">
+                Tractova
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="background:#FFFFFF;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 8px 8px;padding:28px 32px;">
+
+              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">Good morning ${greeting},</p>
+              <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;color:${INK_MUTED};line-height:1.6;">
+                A market shift in your portfolio creates new upside on a tracked project.
+              </p>
+
+              <!-- Project identity card with TEAL rule -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;margin:0 0 16px 0;">
+                <tr>
+                  <td width="3" style="background:${TEAL_DEEP};line-height:1;font-size:0;border-top-left-radius:6px;border-bottom-left-radius:6px;">&nbsp;</td>
+                  <td style="padding:14px 16px;">
+                    <p style="margin:0;font-family:${FONT_SERIF};font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.018em;line-height:1.25;">${project.name}</p>
+                    <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">${projectMeta}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Opportunity card -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;margin:0 0 16px 0;">
+                <tr>
+                  <td width="3" style="background:${TEAL};line-height:1;font-size:0;border-top-left-radius:6px;border-bottom-left-radius:6px;">&nbsp;</td>
+                  <td style="padding:16px 18px;">
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                      <tr>
+                        <td valign="top" style="padding-right:12px;">
+                          <p style="margin:0 0 6px 0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${TEAL_DEEP};letter-spacing:0.22em;text-transform:uppercase;line-height:1;">Upside · ${opportunity?.label ?? 'Capacity Expansion'}</p>
+                          <p style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${INK};line-height:1.55;">${detail}</p>
+                          ${mechanism ? `<p style="margin:8px 0 0 0;font-family:${FONT_SANS};font-size:12px;color:${INK_MUTED};line-height:1.5;font-style:italic;">${mechanism}</p>` : ''}
+                        </td>
+                        <td valign="top" align="right" width="80" style="white-space:nowrap;">
+                          <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${INK_MUTED};letter-spacing:0.20em;text-transform:uppercase;">DELTA</p>
+                          <p style="margin:4px 0 0 0;font-family:${FONT_MONO};font-size:18px;font-weight:700;color:${TEAL_DEEP};letter-spacing:-0.01em;line-height:1;">↑ ${delta}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- CTA -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;">
+                <tr>
+                  <td align="center">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${APP_URL}/library" style="height:46px;v-text-anchor:middle;width:240px;" arcsize="18%" stroke="f" fillcolor="${TEAL}">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;">Review Opportunity →</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${APP_URL}/library" style="background:${TEAL};color:#FFFFFF;text-decoration:none;display:inline-block;padding:14px 36px;border-radius:8px;font-family:${FONT_SANS};font-size:14px;font-weight:600;letter-spacing:0.01em;border:1px solid ${TEAL};">
+                      Review Opportunity →
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Platform note -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:24px 0 0 0;background:${PAPER};border:1px solid ${BORDER};border-radius:6px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <p style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${INK_MUTED};line-height:1.55;">
+                      <span style="font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:${INK};margin-right:6px;">Note ·</span>
+                      Tractova is currently optimized for desktop browsers. A mobile experience is on the roadmap — for now, links open best from a laptop or larger screen.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:20px;border-top:1px solid ${BORDER};">
+                <tr>
+                  <td align="center" style="padding-top:14px;">
+                    <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:11px;color:${INK_MUTED};line-height:1.55;">
+                      You're receiving this because you opted into opportunity alerts.
+                    </p>
+                    <p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.10em;line-height:1.6;">
+                      <a href="${APP_URL}/profile" style="color:${TEAL_DEEP};text-decoration:none;font-weight:600;">MANAGE NOTIFICATIONS</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr><td style="line-height:24px;font-size:0;height:24px;">&nbsp;</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`
 }
@@ -239,7 +486,8 @@ export default async function handler(req, res) {
 
   let testMode = false
   let testUserId = null
-  let testChannel = 'email'  // 'email' | 'slack'
+  let testChannel = 'email'    // 'email' | 'slack'
+  let testType    = 'alert'    // 'alert' | 'opportunity'
   if (!isVercelCron && !isManualWithSecret) {
     const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
     if (!token) return res.status(401).json({ error: 'Unauthorized' })
@@ -249,12 +497,18 @@ export default async function handler(req, res) {
     }
     testMode = true
     testUserId = user.id
-    // Channel selector via query string OR JSON body
+    // Channel + type selectors via query string OR JSON body
     const url = new URL(req.url, `https://${req.headers.host}`)
     const qChannel = url.searchParams.get('channel')
-    let bChannel = null
-    try { bChannel = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body)?.channel } catch {}
+    const qType    = url.searchParams.get('type')
+    let bChannel = null, bType = null
+    try {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+      bChannel = body?.channel
+      bType = body?.type
+    } catch {}
     testChannel = (qChannel || bChannel || 'email') === 'slack' ? 'slack' : 'email'
+    testType    = (qType    || bType    || 'alert') === 'opportunity' ? 'opportunity' : 'alert'
   }
 
   try {
@@ -321,6 +575,38 @@ export default async function handler(req, res) {
       if (projErr || !projects?.length) continue
 
       for (const project of projects) {
+        // Opportunity-test path: skip alert detection entirely and synthesize
+        // a positive-event email instead.
+        if (testMode && testType === 'opportunity') {
+          const opp = {
+            label: '[TEST] Program Capacity Expansion',
+            detail: `Illinois Shines added 250MW of capacity to the next REC block for ${stateMap[project.state]?.name || project.state}. Your project "${project.name}" sits inside the eligible window — submitting an enrollment package this month maximizes likelihood of placement.`,
+            mechanism: 'Capacity expansion increases enrollment likelihood and shifts your project earlier in the queue.',
+            delta: '+15 idx',
+          }
+          if (wantsEmail) {
+            const subject = `[TEST] Market opportunity for "${project.name}"`
+            const html = buildOpportunityAlertHtml(user, project, opp)
+            try {
+              await sendEmail(user.email, subject, html)
+              results.push({ email: user.email, project: project.name, type: 'opportunity' })
+            } catch (err) {
+              return res.status(500).json({ error: `Email send failed: ${err.message}` })
+            }
+          }
+          if (wantsSlack) {
+            try {
+              const userName = user.user_metadata?.full_name || user.email?.split('@')[0]
+              const blocks = buildSlackBlocks(project, [{ level: 'warning', label: opp.label, detail: opp.detail }], userName)
+              await sendSlack(profile.slack_webhook_url, blocks)
+              slackResults.sent++
+            } catch (err) {
+              return res.status(500).json({ error: `Slack send failed: ${err.message}` })
+            }
+          }
+          return res.status(200).json({ sent: results.length, slack: slackResults, testMode, testType, results })
+        }
+
         let alerts = getUrgentAlerts(project, stateMap)
         // In test mode, synthesize a representative alert if the user has no
         // real alerts firing -- otherwise the test silently sends nothing.

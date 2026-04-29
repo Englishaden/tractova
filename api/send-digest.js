@@ -15,22 +15,25 @@ const STATUS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending',
 const STATUS_COLOR = { active: '#0F766E', limited: '#D97706', pending: '#6366f1', none: '#DC2626' }
 const IX_RANK      = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
 
-// V3 design tokens (inlined for the email — fonts/colors must match the platform)
+// V3 design tokens — inlined for the email, fonts/colors match the platform.
+// EMAIL-CLIENT NOTE: Outlook silently drops @import Google Fonts. We rely on
+// real font fallback stacks: Source Serif 4 -> Georgia (graceful serif),
+// JetBrains Mono -> Consolas (gracefully monospace on Outlook), Inter -> system.
 const BRAND_NAVY = '#0F1A2E'
-const BRAND_NAVY_DARK = '#0A132A'
 const TEAL = '#14B8A6'
 const TEAL_DEEP = '#0F766E'
 const TEAL_LIGHT = '#5EEAD4'
 const INK = '#0A1828'
 const INK_MUTED = '#5A6B7A'
 const PAPER = '#FAFAF7'
+const BORDER = '#E2E8F0'
+const STATUS_ACTIVE = '#047857'
+const STATUS_LIMITED = '#B45309'
+const STATUS_NONE = '#B91C1C'
 
-// Source Serif 4 / JetBrains Mono / Inter via Google Fonts CSS — many email
-// clients ignore <link rel="stylesheet"> but Gmail and Apple Mail support
-// <style> with @import. Fallback stack handles the rest.
-const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, serif`
-const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
-const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace`
+const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif`
+const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif`
+const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace`
 
 // Deterministic feasibility score — mirrors programData.js formula exactly.
 // Inlined here so this serverless function has no client-side import dependency.
@@ -72,48 +75,65 @@ function getAlerts(project, stateMap) {
   return alerts
 }
 
+// V3 email-safe alert pill: table-based, no flexbox.
+// Dot rendered via padding+background trick instead of inline-block flex.
 function alertPill(alert) {
   const cfg = alert.level === 'urgent'
-    ? { bg: '#FEE2E2', color: '#991B1B', dot: '#DC2626' }
-    : { bg: '#FEF3C7', color: '#92400E', dot: '#D97706' }
-  return `<span style="display:inline-flex;align-items:center;gap:5px;background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.color}33;border-radius:9999px;padding:3px 10px;font-size:11px;font-weight:600;font-family:${FONT_SANS};">
-    <span style="width:6px;height:6px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${alert.label}
-  </span>`
+    ? { bg: '#FEE2E2', color: '#991B1B', border: '#FCA5A5' }
+    : { bg: '#FEF3C7', color: '#92400E', border: '#FCD34D' }
+  return `<span style="background:${cfg.bg};color:${cfg.color};border:1px solid ${cfg.border};border-radius:99px;padding:3px 10px;font-size:11px;font-weight:600;font-family:${FONT_SANS};line-height:1;display:inline-block;mso-line-height-rule:exactly;">${alert.label}</span>`
 }
 
-// V3 project card — institutional research-note pattern: serif name, mono meta,
-// hairline rule between identity and metrics, status pill + score on the right.
+// V3 project card — TABLE-based for email-client safety.
+// Left teal/red rule via 3px-wide td. Two-column inner table for identity
+// (left) and status+score (right). Alerts below in their own row.
 function projectCard(project, stateMap) {
   const alerts  = getAlerts(project, stateMap)
   const state   = stateMap[project.state]
   const status  = state?.csStatus ?? project.cs_status ?? 'active'
   const score   = state?.opportunityScore ?? project.opportunity_score ?? '—'
   const hasUrgent = alerts.some(a => a.level === 'urgent')
-  const borderColor = hasUrgent ? '#FCA5A5' : '#E5E7EB'
-  const accentColor = hasUrgent ? '#DC2626' : score >= 70 ? TEAL_DEEP : score >= 50 ? '#D97706' : '#DC2626'
-  const alertsHtml = alerts.length
-    ? `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;">${alerts.map(alertPill).join('')}</div>`
+  const accentColor = hasUrgent ? '#DC2626' : (typeof score === 'number' && score >= 60) ? TEAL_DEEP : '#94A3B8'
+  const statusLabel = STATUS_LABEL[status] ?? status
+  const statusColor = STATUS_COLOR[status] ?? INK_MUTED
+  const meta = [
+    (project.state_name ?? project.state ?? '').toUpperCase(),
+    (project.county ?? '').toUpperCase(),
+    project.mw != null ? `${project.mw} MW` : null,
+    (project.stage ?? '').toUpperCase(),
+  ].filter(Boolean).join(' · ')
+
+  const alertsRow = alerts.length
+    ? `<tr><td colspan="2" style="padding:10px 16px 14px 16px;font-family:${FONT_SANS};">${alerts.map(alertPill).join('&nbsp;&nbsp;')}</td></tr>`
     : ''
 
   return `
-  <div style="background:#FFFFFF;border:1px solid ${borderColor};border-left:3px solid ${accentColor};border-radius:8px;padding:16px 20px;margin-bottom:10px;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-      <div style="flex:1;min-width:0;">
-        <p style="margin:0;font-weight:600;font-size:16px;color:${INK};font-family:${FONT_SERIF};letter-spacing:-0.015em;line-height:1.25;">${project.name}</p>
-        <p style="margin:4px 0 0;font-size:11px;color:${INK_MUTED};font-family:${FONT_MONO};letter-spacing:0.04em;">${(project.state_name ?? project.state ?? '').toUpperCase()} · ${(project.county ?? '').toUpperCase()} · ${project.mw ?? '—'} MW · ${(project.stage ?? '—').toUpperCase()}</p>
-      </div>
-      <div style="text-align:right;flex-shrink:0;">
-        <p style="margin:0;font-size:10px;color:${STATUS_COLOR[status] ?? INK_MUTED};font-weight:700;font-family:${FONT_MONO};text-transform:uppercase;letter-spacing:0.16em;">${STATUS_LABEL[status] ?? status}</p>
-        <p style="margin:6px 0 0;font-size:11px;color:${INK_MUTED};font-family:${FONT_MONO};">Idx <strong style="color:${INK};font-weight:700;font-size:14px;">${score}</strong></p>
-      </div>
-    </div>
-    ${alertsHtml}
-  </div>`
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;margin:0 0 10px 0;">
+    <tr>
+      <td width="3" style="background:${accentColor};border-top-left-radius:6px;border-bottom-left-radius:6px;line-height:1;font-size:0;">&nbsp;</td>
+      <td style="padding:14px 16px 12px 16px;">
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td valign="top" style="padding-right:12px;">
+              <p style="margin:0;font-family:${FONT_SERIF};font-size:16px;font-weight:600;color:${INK};letter-spacing:-0.015em;line-height:1.25;">${project.name}</p>
+              <p style="margin:4px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">${meta}</p>
+            </td>
+            <td valign="top" align="right" width="90" style="white-space:nowrap;">
+              <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${statusColor};letter-spacing:0.18em;text-transform:uppercase;">${statusLabel}</p>
+              <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">IDX <span style="color:${INK};font-weight:700;font-size:15px;letter-spacing:-0.01em;">${score}</span></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    ${alertsRow}
+  </table>`
 }
 
-// V3 Wave 1.5: build a "Markets in Motion" section -- top 3 portfolio states
-// ranked by activity (news items + data updates) in the past 7 days.
-// Falls back to empty if no activity (we just hide the section).
+// V3 Wave 1.5: TABLE-based "Markets in Motion" section. Top 3 portfolio
+// states ranked by activity (news + data updates) in the past 7 days.
+// Returns empty string when no activity, so the calling template can omit
+// the section without leaving an empty heading.
 function buildMotionSection(projects, stateMap, activity) {
   const portfolioStateIds = [...new Set(projects.map(p => p.state).filter(Boolean))]
   const ranked = portfolioStateIds
@@ -137,135 +157,214 @@ function buildMotionSection(projects, stateMap, activity) {
 
   if (ranked.length === 0) return ''
 
-  const rows = ranked.map(s => {
+  const rows = ranked.map((s, i) => {
     const meta = [
-      s.newsCount ? `${s.newsCount} news` : null,
-      s.updateCount ? `${s.updateCount} update${s.updateCount > 1 ? 's' : ''}` : null,
-    ].filter(Boolean).join(' · ')
+      s.newsCount ? `${s.newsCount} NEWS` : null,
+      s.updateCount ? `${s.updateCount} UPDATE${s.updateCount > 1 ? 'S' : ''}` : null,
+    ].filter(Boolean).join('  ·  ')
     const callout = s.headline
-      ? `<p style="margin:6px 0 0;font-size:12px;color:${INK};line-height:1.45;font-family:${FONT_SANS};">${s.headline}</p>`
-      : (s.lastChange ? `<p style="margin:6px 0 0;font-size:11px;color:${INK_MUTED};font-family:${FONT_MONO};">${s.lastChange}</p>` : '')
+      ? `<tr><td colspan="2" style="padding:6px 0 0 0;font-family:${FONT_SANS};font-size:13px;color:${INK};line-height:1.45;">${s.headline}</td></tr>`
+      : s.lastChange
+        ? `<tr><td colspan="2" style="padding:6px 0 0 0;font-family:${FONT_MONO};font-size:11px;color:${INK_MUTED};letter-spacing:0.04em;">${s.lastChange}</td></tr>`
+        : ''
+    const isLast = i === ranked.length - 1
     return `
-      <div style="padding:14px 0;border-bottom:1px solid #E5E7EB;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-          <div style="flex:1;min-width:0;">
-            <p style="margin:0;font-family:${FONT_SERIF};font-size:16px;font-weight:600;color:${INK};letter-spacing:-0.015em;line-height:1.2;">${s.name}</p>
-            <p style="margin:4px 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.16em;text-transform:uppercase;">${meta}</p>
-          </div>
-          ${s.score != null ? `<div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-family:${FONT_MONO};font-size:9px;color:${INK_MUTED};text-transform:uppercase;letter-spacing:0.18em;font-weight:700;">Idx</p><p style="margin:2px 0 0;font-family:${FONT_MONO};font-size:18px;font-weight:700;color:${INK};letter-spacing:-0.01em;">${s.score}</p></div>` : ''}
-        </div>
-        ${callout}
-      </div>`
+      <tr>
+        <td colspan="2" style="padding:0;">
+          <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-bottom:${isLast ? 'none' : `1px solid ${BORDER}`};">
+            <tr>
+              <td valign="top" style="padding:14px 0 ${callout ? '0' : '14px'} 0;">
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                  <tr>
+                    <td valign="top">
+                      <p style="margin:0;font-family:${FONT_SERIF};font-size:17px;font-weight:600;color:${INK};letter-spacing:-0.018em;line-height:1.2;">${s.name}</p>
+                      <p style="margin:4px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.18em;font-weight:600;">${meta}</p>
+                    </td>
+                    ${s.score != null ? `<td valign="top" align="right" width="60" style="white-space:nowrap;">
+                      <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${INK_MUTED};letter-spacing:0.20em;text-transform:uppercase;">IDX</p>
+                      <p style="margin:3px 0 0 0;font-family:${FONT_MONO};font-size:20px;font-weight:700;color:${INK};letter-spacing:-0.02em;line-height:1;">${s.score}</p>
+                    </td>` : ''}
+                  </tr>
+                  ${callout}
+                </table>
+                ${callout ? `<div style="height:14px;line-height:14px;font-size:0;">&nbsp;</div>` : ''}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>`
   }).join('')
 
-  // Section eyebrow + header + body, hairline-ruled
   return `
-    <p style="margin:0 0 4px;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:${INK_MUTED};">
-      Markets in Motion · Past 7 Days
-    </p>
-    <p style="margin:0 0 12px;font-family:${FONT_SERIF};font-size:18px;font-weight:600;color:${INK};letter-spacing:-0.02em;line-height:1.2;">
-      Where your portfolio shifted
-    </p>
-    <div style="border-top:1px solid #E5E7EB;margin-bottom:24px;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 28px 0;">
+      <tr>
+        <td style="padding:0 0 8px 0;">
+          <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:${INK_MUTED};">Markets in Motion · Past 7 Days</p>
+          <p style="margin:6px 0 12px 0;font-family:${FONT_SERIF};font-size:20px;font-weight:600;color:${INK};letter-spacing:-0.02em;line-height:1.2;">Where your portfolio shifted</p>
+        </td>
+      </tr>
+      <tr><td style="border-top:1px solid ${BORDER};padding:0;">&nbsp;</td></tr>
       ${rows}
-    </div>`
+    </table>`
 }
 
 function buildDigestHtml(user, projects, stateMap, activity) {
-  const hasAlerts   = projects.some(p => getAlerts(p, stateMap).length > 0)
-  const totalMW     = projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)
-  const stateSet    = new Set(projects.map(p => p.state).filter(Boolean))
+  const hasAlerts    = projects.some(p => getAlerts(p, stateMap).length > 0)
+  const flaggedCount = projects.filter(p => getAlerts(p, stateMap).length > 0).length
+  const totalMW      = projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)
+  const stateSet     = new Set(projects.map(p => p.state).filter(Boolean))
   const projectsHtml = projects.map(p => projectCard(p, stateMap)).join('')
-  const motionHtml  = buildMotionSection(projects, stateMap, activity || {})
+  const motionHtml   = buildMotionSection(projects, stateMap, activity || {})
   const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const greeting = (user.email?.split('@')[0] ?? 'there').split('.')[0]
 
-  return `<!DOCTYPE html>
-<html>
+  // Single style block for hover state on the CTA only -- everything else
+  // is inline. mso-line-height-rule:exactly forces Outlook to respect line-height.
+  return `<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-    body { margin: 0; padding: 0; }
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>Tractova Weekly Briefing</title>
+  <!--[if mso]>
+  <style type="text/css">
+    table, td { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    body { -webkit-font-smoothing: antialiased; }
   </style>
+  <![endif]-->
 </head>
-<body style="margin:0;padding:0;background:${PAPER};font-family:${FONT_SANS};-webkit-font-smoothing:antialiased;">
-  <div style="max-width:640px;margin:32px auto;padding:0 16px;">
+<body style="margin:0;padding:0;background:${PAPER};font-family:${FONT_SANS};color:${INK};-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;">
 
-    <!-- V3 header: brand navy with top teal accent rail -->
-    <div style="background:linear-gradient(135deg,${BRAND_NAVY} 0%,${BRAND_NAVY_DARK} 100%);border-radius:10px 10px 0 0;padding:28px 32px;border-top:2px solid ${TEAL};">
-      <p style="margin:0 0 6px;font-size:10px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:${TEAL_LIGHT};font-family:${FONT_MONO};">
-        Weekly Briefing · ${today}
-      </p>
-      <p style="margin:0;font-size:28px;font-weight:600;color:#FFFFFF;letter-spacing:-0.02em;font-family:${FONT_SERIF};line-height:1.1;">
-        Tractova
-      </p>
-      <p style="margin:8px 0 0;font-size:13px;color:rgba(255,255,255,0.55);font-family:${FONT_SANS};">
-        Your portfolio, monitored for policy changes.
-      </p>
-    </div>
-
-    <!-- Body -->
-    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-top:none;border-radius:0 0 10px 10px;padding:28px 32px;">
-
-      <!-- Greeting -->
-      <p style="margin:0 0 6px;font-size:15px;color:${INK};font-family:${FONT_SANS};">
-        Good morning ${user.email?.split('@')[0] ?? 'there'},
-      </p>
-      <p style="margin:0 0 24px;font-size:14px;color:${INK_MUTED};line-height:1.5;font-family:${FONT_SANS};">
-        Here's your snapshot of ${projects.length} tracked project${projects.length !== 1 ? 's' : ''}${hasAlerts ? ` — <strong style="color:#92400E;">${projects.filter(p => getAlerts(p, stateMap).length > 0).length} flagged for attention</strong>` : ''}.
-      </p>
-
-      <!-- Portfolio meta strip -->
-      <div style="display:table;width:100%;border-collapse:collapse;margin:0 0 24px;border-top:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;">
-        <div style="display:table-row;">
-          <div style="display:table-cell;padding:14px 16px 14px 0;border-right:1px solid #E2E8F0;">
-            <p style="margin:0;font-size:9px;font-weight:700;letter-spacing:0.20em;text-transform:uppercase;color:${INK_MUTED};font-family:${FONT_MONO};">Tracked</p>
-            <p style="margin:4px 0 0;font-size:18px;font-weight:700;color:${INK};font-family:${FONT_MONO};letter-spacing:-0.01em;">${projects.length}</p>
-          </div>
-          <div style="display:table-cell;padding:14px 16px;border-right:1px solid #E2E8F0;">
-            <p style="margin:0;font-size:9px;font-weight:700;letter-spacing:0.20em;text-transform:uppercase;color:${INK_MUTED};font-family:${FONT_MONO};">Capacity</p>
-            <p style="margin:4px 0 0;font-size:18px;font-weight:700;color:${INK};font-family:${FONT_MONO};letter-spacing:-0.01em;">${totalMW.toFixed(1)} <span style="font-size:11px;font-weight:500;color:${INK_MUTED};">MW</span></p>
-          </div>
-          <div style="display:table-cell;padding:14px 0 14px 16px;">
-            <p style="margin:0;font-size:9px;font-weight:700;letter-spacing:0.20em;text-transform:uppercase;color:${INK_MUTED};font-family:${FONT_MONO};">States</p>
-            <p style="margin:4px 0 0;font-size:18px;font-weight:700;color:${INK};font-family:${FONT_MONO};letter-spacing:-0.01em;">${stateSet.size}</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- V3 Wave 1.5: Markets in Motion (only renders when there's activity) -->
-      ${motionHtml}
-
-      <!-- Section eyebrow -->
-      <p style="margin:0 0 12px;font-size:9px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;color:${INK_MUTED};font-family:${FONT_MONO};">
-        Portfolio
-      </p>
-
-      ${projectsHtml}
-
-      <!-- CTA -->
-      <div style="margin-top:28px;text-align:center;">
-        <a href="${APP_URL}/library" style="display:inline-block;background:${TEAL};color:#FFFFFF;text-decoration:none;padding:13px 32px;border-radius:8px;font-size:14px;font-weight:600;font-family:${FONT_SANS};box-shadow:0 4px 12px rgba(20,184,166,0.25);">
-          Open Library →
-        </a>
-      </div>
-
-      <!-- Platform note -->
-      <p style="margin:24px 0 0;padding:12px 14px;background:${PAPER};border:1px solid #E2E8F0;border-radius:6px;font-size:11px;color:${INK_MUTED};font-family:${FONT_SANS};line-height:1.5;">
-        <span style="font-family:${FONT_MONO};font-weight:700;letter-spacing:0.16em;text-transform:uppercase;font-size:9px;color:${INK};">Note ·</span>
-        Tractova is currently optimized for desktop browsers. A mobile experience is on the roadmap — for now, links open best from a laptop or larger screen.
-      </p>
-
-      <!-- Footer -->
-      <p style="margin:24px 0 0;padding-top:16px;border-top:1px solid #E2E8F0;font-size:11px;color:${INK_MUTED};text-align:center;font-family:${FONT_SANS};line-height:1.6;">
-        You're receiving this because you have a Tractova Pro subscription.<br>
-        <a href="${APP_URL}/profile" style="color:${TEAL_DEEP};text-decoration:none;font-weight:500;">Manage notifications</a>
-        &nbsp;·&nbsp;
-        <a href="${APP_URL}/library" style="color:${TEAL_DEEP};text-decoration:none;font-weight:500;">View Library</a>
-      </p>
-    </div>
+  <!-- Hidden preheader for inbox preview text -->
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:${PAPER};">
+    Weekly briefing · ${projects.length} project${projects.length !== 1 ? 's' : ''} tracked${hasAlerts ? `, ${flaggedCount} flagged for attention` : ''}.
   </div>
+
+  <!-- Outer wrapper -->
+  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:${PAPER};">
+    <tr>
+      <td align="center" style="padding:32px 12px;">
+
+        <!-- Container -->
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="640" style="max-width:640px;width:100%;">
+
+          <!-- Top teal accent rail -->
+          <tr>
+            <td style="background:${TEAL};line-height:3px;font-size:0;height:3px;border-radius:8px 8px 0 0;mso-line-height-rule:exactly;">&nbsp;</td>
+          </tr>
+
+          <!-- Header (navy band) -->
+          <tr>
+            <td style="background:${BRAND_NAVY};padding:28px 32px;">
+              <p style="margin:0 0 8px 0;font-family:${FONT_MONO};font-size:10px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:${TEAL_LIGHT};line-height:1;">
+                Weekly Briefing · ${today.toUpperCase()}
+              </p>
+              <p style="margin:0;font-family:${FONT_SERIF};font-size:32px;font-weight:600;color:#FFFFFF;letter-spacing:-0.025em;line-height:1.05;">
+                Tractova
+              </p>
+              <p style="margin:10px 0 0 0;font-family:${FONT_SANS};font-size:13px;color:#94B3CC;line-height:1.4;">
+                Your portfolio, monitored for policy changes.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Body container -->
+          <tr>
+            <td style="background:#FFFFFF;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 8px 8px;padding:28px 32px;">
+
+              <!-- Greeting -->
+              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">
+                Good morning ${greeting},
+              </p>
+              <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;color:${INK_MUTED};line-height:1.6;">
+                Here's your snapshot of <strong style="color:${INK};font-weight:600;">${projects.length} tracked project${projects.length !== 1 ? 's' : ''}</strong>${hasAlerts ? ` — <strong style="color:#92400E;font-weight:600;">${flaggedCount} flagged for attention</strong>` : ''}.
+              </p>
+
+              <!-- Portfolio meta strip (3-cell table, hairline rules) -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid ${BORDER};border-bottom:1px solid ${BORDER};margin:0 0 28px 0;">
+                <tr>
+                  <td valign="top" width="33%" style="padding:14px 16px 14px 0;border-right:1px solid ${BORDER};">
+                    <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:${INK_MUTED};line-height:1;">Tracked</p>
+                    <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:22px;font-weight:700;color:${INK};letter-spacing:-0.02em;line-height:1;">${projects.length}</p>
+                  </td>
+                  <td valign="top" width="34%" style="padding:14px 16px;border-right:1px solid ${BORDER};">
+                    <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:${INK_MUTED};line-height:1;">Capacity</p>
+                    <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:22px;font-weight:700;color:${INK};letter-spacing:-0.02em;line-height:1;">${totalMW.toFixed(1)} <span style="font-size:11px;font-weight:500;color:${INK_MUTED};letter-spacing:0;">MW</span></p>
+                  </td>
+                  <td valign="top" width="33%" style="padding:14px 0 14px 16px;">
+                    <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:${INK_MUTED};line-height:1;">States</p>
+                    <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:22px;font-weight:700;color:${INK};letter-spacing:-0.02em;line-height:1;">${stateSet.size}</p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Markets in Motion (renders empty when no activity) -->
+              ${motionHtml}
+
+              <!-- Portfolio section eyebrow -->
+              <p style="margin:0 0 14px 0;font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.26em;text-transform:uppercase;color:${INK_MUTED};line-height:1;">Portfolio · ${projects.length} Project${projects.length !== 1 ? 's' : ''}</p>
+
+              ${projectsHtml}
+
+              <!-- CTA (rounded button via VML for Outlook) -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:28px;">
+                <tr>
+                  <td align="center">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${APP_URL}/library" style="height:46px;v-text-anchor:middle;width:200px;" arcsize="18%" stroke="f" fillcolor="${TEAL}">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;">Open Library →</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${APP_URL}/library" style="background:${TEAL};color:#FFFFFF;text-decoration:none;display:inline-block;padding:14px 36px;border-radius:8px;font-family:${FONT_SANS};font-size:14px;font-weight:600;letter-spacing:0.01em;border:1px solid ${TEAL};">
+                      Open Library →
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Platform note (paper-tinted, hairline border, mono eyebrow) -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin:28px 0 0 0;background:${PAPER};border:1px solid ${BORDER};border-radius:6px;">
+                <tr>
+                  <td style="padding:14px 16px;">
+                    <p style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${INK_MUTED};line-height:1.55;">
+                      <span style="font-family:${FONT_MONO};font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:${INK};margin-right:6px;">Note ·</span>
+                      Tractova is currently optimized for desktop browsers. A mobile experience is on the roadmap — for now, links open best from a laptop or larger screen.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Footer -->
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="margin-top:24px;border-top:1px solid ${BORDER};">
+                <tr>
+                  <td align="center" style="padding-top:16px;">
+                    <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:11px;color:${INK_MUTED};line-height:1.55;">
+                      You're receiving this because you have a Tractova Pro subscription.
+                    </p>
+                    <p style="margin:0;font-family:${FONT_MONO};font-size:10px;letter-spacing:0.10em;line-height:1.6;">
+                      <a href="${APP_URL}/profile" style="color:${TEAL_DEEP};text-decoration:none;font-weight:600;">MANAGE NOTIFICATIONS</a>
+                      <span style="color:${BORDER};margin:0 8px;">·</span>
+                      <a href="${APP_URL}/library" style="color:${TEAL_DEEP};text-decoration:none;font-weight:600;">VIEW LIBRARY</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Bottom whitespace -->
+          <tr><td style="line-height:24px;font-size:0;height:24px;">&nbsp;</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`
 }

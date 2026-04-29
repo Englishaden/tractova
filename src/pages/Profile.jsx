@@ -208,8 +208,8 @@ function AlertPreferences({ userId }) {
         </label>
         <label className="flex items-center justify-between cursor-pointer group">
           <div>
-            <p className="text-sm font-medium text-gray-800">Good-news alerts</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">Capacity additions, new program launches, score improvements ≥10 pts</p>
+            <p className="text-sm font-medium text-gray-800">Opportunity alerts</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Capacity additions, new program launches, and score improvements ≥10 pts that benefit your portfolio</p>
           </div>
           <ToggleSwitch on={prefs.positive} onClick={() => toggle('positive')} />
         </label>

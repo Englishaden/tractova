@@ -1195,7 +1195,9 @@ function TestNotificationsTab() {
 
       const endpoint = kind === 'digest'
         ? '/api/send-digest'
-        : `/api/send-alerts${kind === 'slack' ? '?channel=slack' : '?channel=email'}`
+        : kind === 'opportunity'
+          ? '/api/send-alerts?channel=email&type=opportunity'
+          : `/api/send-alerts${kind === 'slack' ? '?channel=slack' : '?channel=email'}`
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -1215,7 +1217,9 @@ function TestNotificationsTab() {
         ? `Email sent to ${ADMIN_EMAIL}`
         : kind === 'email'
           ? `Email sent to ${ADMIN_EMAIL} (${sent} message${sent !== 1 ? 's' : ''})`
-          : `Slack message posted to your saved webhook (${slackSent} sent)`
+          : kind === 'opportunity'
+            ? `Opportunity email sent to ${ADMIN_EMAIL} (${sent} message${sent !== 1 ? 's' : ''})`
+            : `Slack message posted to your saved webhook (${slackSent} sent)`
       setResult({ kind, ok: true, message: `✓ ${where}. Check inbox / channel — subject prefixed with [TEST].` })
     } catch (err) {
       setResult({ kind, ok: false, message: `✗ ${err.message}` })
@@ -1236,6 +1240,12 @@ function TestNotificationsTab() {
       label: 'Send Test Email Alert',
       desc: 'Fires the policy-alert email template. Synthesizes a sample urgent alert if no real alerts exist on your saved projects.',
       bg: '#D97706',
+    },
+    {
+      kind: 'opportunity',
+      label: 'Send Test Opportunity Alert',
+      desc: 'Fires the positive-event email template — capacity expansions, new program launches, score improvements. Synthesizes a sample upside opportunity (teal accent rail, "MARKET OPPORTUNITY" eyebrow, ↑ delta).',
+      bg: '#0F766E',
     },
     {
       kind: 'slack',
