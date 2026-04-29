@@ -1,7 +1,70 @@
 # Tractova — 4-Week Premium Buildout Plan
 
 > Last updated: April 29, 2026
-> Status: V3 BUILD DAY 2 — Wave 1 mostly complete (1.1, 1.2, 1.3, 1.5 shipped; 1.4 deferred). Form primitives extracted (§7.9). See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
+> Status: V3 BUILD DAY 4 — Share trio shipped, deps cleaned, ui/* primitive sweep through Profile + Admin. See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
+
+---
+
+## V3 Build Log (Day 4 — April 29, 2026)
+
+Picked up from Day 3's "Next-Session Pickup" P2 list. All shipped + pushed to `origin/main`.
+
+### Shipped today
+- **`3d96822`** V3 share-trio (3 features in one themed commit):
+  1. **`shared` audit event** — migration 018 widens `project_events.kind` to include `'shared'`. `handleMemoCreate` fires a fire-and-forget service-role insert after the share token is minted. Library's `EVENT_KIND_META` gets a violet "Shared" row so the Audit timeline renders the new kind. `projectEvents.js` `VALID_KINDS` extended.
+  2. **"Shared X×" trust pill** — new `shareCountMap` state in Library populated from `share_tokens` where `expires_at > now()`. RLS limits to owner. Renders a small mono pill next to the Share Link button when count > 0. `onShareSuccess` callback bumps the count optimistically.
+  3. **MemoView "Open in Library" owner CTA** — server now embeds `ownerUserId` directly in the snapshot at create time so MemoView can detect ownership with one `auth.getUser()` call (no DB round-trip, no RLS race condition that the prior projects-table-lookup approach hit).
+  - **Bonus privacy fix**: snapshot used to store `sharedBy: user.email` and surface it on the public memo header — leaking the sender's email to anyone with the link. Now stores `sharedByName: user.user_metadata.full_name` (display name only). MemoView deliberately ignores the legacy `sharedBy` field, so existing tokens stop leaking too.
+  - **UX fix**: persistent share-success panel inside the card showing the URL with Copy / dismiss; the transient toast was easy to miss. Audit timeline takes a `refreshKey` prop and re-fetches when bumped, so the new `Shared` event appears without a full Library reload.
+
+- **`3aac3ec`** Dependency cleanup: `postcss` 8.5.9 → 8.5.12 (XSS-via-stringify fix). The 8 remaining advisories all require breaking-change upgrades (Vite 5→8, react-simple-maps downgrade) or have no upstream fix at all (xlsx is permanently stuck since SheetJS left npm in 2023). Risk-context for each documented in `Tractova_V3_Plan.md` under "Accepted dependency risks":
+  - `xlsx` — owner-controlled portfolio export only, no untrusted input
+  - `react-simple-maps` — fixed teal ramp on controlled state data, no user-supplied color strings
+  - `vite`/`esbuild` — dev-server-only advisory; production unaffected; pairs with deferred Tailwind v4 upgrade
+  - GitHub Dependabot is on; will re-flag if any get an upstream patch.
+
+- **`2a84539`** `ui/Toggle` primitive + Profile AlertPreferences refactor:
+  - New `src/components/ui/Toggle.jsx` — promotes the inline `ToggleSwitch` from Profile.jsx. Size variants (sm 36×20, md 44×24), `disabled`, `ariaLabel`, `onChange(next, evt)` signature. Inline-style geometry preserved (Tailwind JIT was unreliable for the dot's translate math under different build configs).
+  - Barrel exports Toggle alongside Button/Input/Select.
+  - Profile AlertPreferences now consumes `Toggle ×4` (digest / urgent / opportunity / slack), `Input` (Slack webhook URL with paper bg + mono font), `Button` (Save URL, accent variant with built-in spinner). Local `ToggleSwitch` fn deleted (~37 lines).
+
+- **`841d2be`** Admin: route Field + SaveBar through ui/* primitives:
+  - `Field` preserves its `(label, value, field, onChange, type, options)` external API so the 30+ call sites across all 8 admin tabs need zero changes. Internally now delegates to `ui/Input` (text, number, url, date) and `ui/Select` (options[]). Boolean checkbox + textarea cases keep native chrome but pick up the V3 mono-caps eyebrow label for visual parity.
+  - `SaveBar` swaps inline Save/Cancel for `ui/Button` (accent / link).
+  - All 5 inline Save+Cancel button blocks across State Programs / Counties / Revenue Rates / News Feed / IX Queue tabs replaced with `ui/Button`. News Feed variant preserved: 'Add item' vs 'Save changes' text + combined `setEditId(null) / setAdding(false)` Cancel handler.
+
+### Cybersec quick wins (executed by user)
+- Supabase 2FA enabled
+- GitHub Dependabot active (already firing — confirmed by push-time advisory output)
+- GitHub Secret Scanning + Push Protection enabled
+- 2FA on GitHub account verified
+
+### Pending Supabase migrations to run (cumulative across all 4 days)
+✅ **All applied** through 018:
+- `010_alert_positive.sql` (Day 1)
+- `011_projects_columns_backfill.sql` (Day 1)
+- `012_ix_queue_snapshots.sql` (Day 1)
+- `013_profile_slack.sql` (Day 2)
+- `014_project_events.sql` (Day 3)
+- `015_api_call_log.sql` (Day 3)
+- `016_projects_last_score.sql` (Day 3)
+- `017_share_tokens.sql` (Day 3)
+- `018_project_events_shared.sql` (Day 4)
+
+### Deferred / decisions
+- **Search.jsx form inputs ui/* refactor** — plan explicitly says "let it happen as surfaces are touched, not as a bulk pass." Search is the biggest surface AND the most recently churned (gauge/sensitivity rearchitecture is fresh on Day 1). Deferred to natural touches.
+- **MetricsBar tooltip** — listed as a refactor candidate in the plan, but inspection showed there's no existing tooltip to refactor. Would be a feature add (wrap each KPI with `(?)` → Radix Tooltip explaining IX Headroom / Policy Pulse / etc.). Skipped this session.
+- **Vite 5 → 8 + Tailwind v3 → v4** — both deferred to a dedicated tooling-refresh session. They go together.
+
+### Where to pick up next session
+P2 list in `Tractova_V3_Plan.md` "Next-Session Pickup" still has:
+- MemoView feature polish (recipient view-count surfaced in audit timeline, etc.)
+- Add tooltips to MetricsBar KPIs (feature add — explains derived metrics for free users)
+- Privacy Policy + ToS (Termly/Iubenda; before first paid customer)
+- Per-state IX queue accumulation will hit 4 weeks late May / early June → Wave 1.4 derived metrics unblock then
+
+### Day 4 commit summary
+4 commits, ~325 lines net change. All zero-visible-behavior-change refactors except for the share-trio (which adds 3 new visible features + a privacy fix).
 
 ---
 
