@@ -14,10 +14,16 @@
 **V3 §4.3 Status Thread (Project Audit Log) SHIPPED.**
 
 ### Day 3 long-session deliverables (this session)
+
+**Foundation (UI primitives + animation):**
 - `2dae05c` Motion installed (animation library, tree-shaken until used)
 - `07f3977` Radix-based UI primitives wrapped in V3 styling: Tabs / Dialog / Tooltip
   (chose this over shadcn after scoping a Tailwind v3→v4 migration: 76 utility-class
   hits across 18 files; default border/ring color changes globally — wrong time)
+- `58722c0` Global Toast primitive (Radix Toast + Motion) — replaces hand-rolled
+  SaveToast in Search; navy chrome + kind-colored accent rail + serif title
+
+**Surface restructures:**
 - `8d21feb` Library expanded card → Tabs (Overview / Diligence / Notes); solves the
   "giant scroll" issue per V3 §4.3
 - `1bb31d2` Motion wired to Lens ArcGauge (spring-animated score readout +
@@ -25,15 +31,26 @@
   to portal-rendered Radix Tooltip
 - `2c5755c` StateDetailPanel → Radix Tabs + per-state cached AI news pulse
   (state-scoped Market Pulse, ~1 token call per user/state/day)
+
+**New product features:**
 - `1e28963` Project audit log (V3 §4.3): migration 014 + `lib/projectEvents.js`
   helper + 4th "Audit" tab in Library + `created` and `stage_change` events
   + Library remove modal ported to Radix Dialog
 - `3534b65` Markets on the Move strip on Dashboard (V3 §4.1) — top 3 recently
   active CS states with score + click-to-drill
-- `58722c0` Global Toast primitive (Radix Toast + Motion) — replaces hand-rolled
-  SaveToast in Search; navy chrome + kind-colored accent rail + serif title
-- `4d9db79` Cmd-K command palette (V3 Wave 3 brought forward) — power-user
-  shortcut indexing states + nav routes; ⌘K hint button in Nav
+- `4d9db79` / `0a68a65` Cmd-K command palette (V3 Wave 3 brought forward) — power-user
+  shortcut indexing states + counties + saved projects + nav routes; ⌘K hint in Nav
+- `e7a2d2f` XLSX export (Library) — sheetjs lazy-loaded; column widths,
+  frozen header, USD format on revenue
+- `ff33f72` score_change audit events — migration 016; Library load detects
+  shifts >=5 pts vs last_observed_score and logs to the Audit tab
+
+**Security + cost protection:**
+- `64c3f09` Security headers in vercel.json (HSTS / X-Frame-Options /
+  X-Content-Type-Options / Referrer-Policy / Permissions-Policy / X-Robots-Tag
+  on /api/*) + cybersec & IP plan track at top of this file
+- `e621dc1` Rate limiting on lens-insight.js (migration 015) — per-user
+  burst limit (10/min) + sustained limit (60/hr) prevents Anthropic spend abuse
 
 ### Tooling decisions made this session
 - **Motion** (motion/react) — installed; drives Lens gauge + tab cross-fades.
@@ -60,7 +77,9 @@ Day 2 commits (`0024705 a685d54 e4f64bf`) and Day 1 commits remain on each surfa
 2. `011_projects_columns_backfill.sql` — Library project columns (save handler self-heals if missing)
 3. `012_ix_queue_snapshots.sql` — IX history accumulation (Wave 2 prereq)
 4. `013_profile_slack.sql` — Slack alert webhook URL + opt-in toggle
-5. **`014_project_events.sql`** *(new — Day 3)* — Audit tab populates only after this runs; helper logs warn and continues without it
+5. `014_project_events.sql` *(Day 3)* — Audit tab populates only after this runs; helper logs warn and continues without it
+6. `015_api_call_log.sql` *(Day 3)* — rate-limit window for lens-insight.js; limiter activates silently the moment the table exists
+7. `016_projects_last_score.sql` *(Day 3)* — score_change audit events; column backfills from opportunity_score on first run
 
 **Surfaces 100% V3-cohesive:** Dashboard · Lens (form + results) · Library · Glossary · Profile · Compare · Sign-in/up · Upgrade · Landing · Admin · Email templates (digest + alerts) · Slack alerts.
 
