@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -2683,6 +2683,54 @@ export default function Search() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Curation-gated panel wrappers — hide both panel AND its preceding divider
+// until at least one row exists for that state. Avoids empty-state UI while
+// curation cadence is light (pre-revenue). Admin tabs stay available so
+// curation infrastructure is preserved for when Pro user count justifies it.
+// Both wrappers piggyback on programData's withCache so the duplicate fetch
+// is free after the panel itself fetches.
+// ─────────────────────────────────────────────────────────────────────────────
+function MaybeRegulatoryPanel({ state, stateName }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (!state) { setShow(false); return }
+    let cancelled = false
+    getPucDockets({ state }).then(rows => {
+      if (!cancelled) setShow((rows || []).length > 0)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [state])
+  if (!show) return null
+  return (
+    <>
+      <SectionDivider />
+      <RegulatoryActivityPanel state={state} stateName={stateName} mode="lens" />
+    </>
+  )
+}
+
+function MaybeComparableDealsPanel({ state, stateName, technology, mw }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (!state) { setShow(false); return }
+    let cancelled = false
+    const targetMW = parseFloat(mw)
+    const mwRange = targetMW > 0 ? [Math.max(0.1, targetMW * 0.5), targetMW * 2.0] : undefined
+    getComparableDeals({ state, technology, mwRange }).then(rows => {
+      if (!cancelled) setShow((rows || []).length > 0)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [state, technology, mw])
+  if (!show) return null
+  return (
+    <>
+      <SectionDivider />
+      <ComparableDealsPanel state={state} stateName={stateName} technology={technology} mw={mw} />
+    </>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Search content (only mounts when user is confirmed Pro)
 // ─────────────────────────────────────────────────────────────────────────────
 function SearchContent() {
@@ -3215,23 +3263,19 @@ function SearchContent() {
               />
             </div>
 
-            {/* V3 Wave 2 — Regulatory Activity panel (PUC docket tracker).
-                isPro is not in SearchContent's scope (it lives in the outer
-                <Search> component which already gates non-Pro users to
-                UpgradePrompt), so by the time SearchContent renders,
-                Pro-status is implicit. Panel defaults isPro=true. */}
-            <SectionDivider />
-            <RegulatoryActivityPanel
+            {/* V3 Wave 2 — curation-gated panels.
+                Regulatory + Comparable Deals are dormant until admin
+                curates content. The wrappers below hide both panel
+                AND its preceding divider until at least one row exists
+                for that state -- avoiding empty-state UI while we're
+                pre-revenue and curation cadence is light. Admin tab
+                stays available so curation infrastructure is ready
+                when we have paying users to justify the labor. */}
+            <MaybeRegulatoryPanel
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
-              mode="lens"
             />
-
-            {/* V3 Wave 2 — Comparable Deals panel (market benchmarks).
-                Filters comps by state + tech + ±50% MW range.
-                Pro-gated upstream (Lens itself is Pro). */}
-            <SectionDivider />
-            <ComparableDealsPanel
+            <MaybeComparableDealsPanel
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
               technology={results.form.technology}

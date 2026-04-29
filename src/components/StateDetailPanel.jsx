@@ -430,12 +430,18 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
       {/* V3: Radix-driven tabs — replaces hand-rolled TabBar. Adds keyboard
           navigation (arrow keys), focus management, and Motion fade. */}
       <RadixTabs.Root defaultValue="program" className="flex-1 flex flex-col min-h-0">
+        {/* V3 Wave 2 — Regulatory tab is curation-gated. Hidden until admin
+            curates ≥1 docket for the state, so we don't show an empty tab
+            users can click into and find nothing. Admin tab in /admin
+            remains available regardless. */}
         <RadixTabs.List className="flex border-b border-gray-200 px-3 bg-gray-50 flex-shrink-0">
           <StateTabTrigger value="program"     label="Program" />
           <StateTabTrigger value="market"      label="Market" />
           <StateTabTrigger value="subscribers" label="Subscribers" />
           <StateTabTrigger value="news"        label="News" count={relatedNews.length} />
-          <StateTabTrigger value="regulatory"  label="Regulatory" count={docketCount} />
+          {(docketCount ?? 0) > 0 && (
+            <StateTabTrigger value="regulatory"  label="Regulatory" count={docketCount} />
+          )}
         </RadixTabs.List>
 
         <div className="flex-1 overflow-y-auto">
@@ -443,14 +449,16 @@ export default function StateDetailPanel({ state, news = [], onClose }) {
           <StateTabContent value="market"><MarketTab state={state} /></StateTabContent>
           <StateTabContent value="subscribers"><SubscribersTab state={state} /></StateTabContent>
           <StateTabContent value="news"><NewsTab state={state} news={relatedNews} /></StateTabContent>
-          <StateTabContent value="regulatory">
-            <RegulatoryActivityPanel
-              state={state.id}
-              stateName={state.name}
-              isPro={isPro}
-              mode="tab"
-            />
-          </StateTabContent>
+          {(docketCount ?? 0) > 0 && (
+            <StateTabContent value="regulatory">
+              <RegulatoryActivityPanel
+                state={state.id}
+                stateName={state.name}
+                isPro={isPro}
+                mode="tab"
+              />
+            </StateTabContent>
+          )}
         </div>
       </RadixTabs.Root>
 
