@@ -1,11 +1,36 @@
 # Tractova — 4-Week Premium Buildout Plan
 
-> Last updated: April 28, 2026
-> Status: V3 (Editorial Intelligence) BUILD DAY 1 COMPLETE. See `Tractova_V3_Plan.md` for current build plan.
+> Last updated: April 29, 2026
+> Status: V3 BUILD DAY 2 — Wave 1 mostly complete (1.1, 1.2, 1.3, 1.5 shipped; 1.4 deferred). Form primitives extracted (§7.9). See `Tractova_V3_Plan.md` for current status snapshot + next-session pickup.
 
 ---
 
-## V3 Build Log (April 28, 2026)
+## V3 Build Log (Day 2 — April 29, 2026)
+
+Picked up from Day 1's "Next-Session Pickup" P1 list.
+
+### Shipped today
+- **`e4f64bf`** Wave 1.3 — Slack alert integration. Migration 013 (`profiles.slack_webhook_url` + `alert_slack` columns). `send-alerts.js` extended to dual-deliver: email always (if `alert_urgent`), Slack additionally when user has `alert_slack` true and a webhook URL. Block Kit message: rotating-light header (urgent) or warning header (warning), context line with state/county/MW/stage, divider, alert details, primary/danger button to /library, footer with username + manage-notifications link. 8s timeout on Slack post; failures logged but don't block email. Profile UI gets a new Slack section: opt-in toggle + webhook URL input + helper link to api.slack.com/apps. `safeUpdate()` retry helper handles unmigrated DBs.
+
+- **`a685d54`** Wave 1.5 — "Markets in Motion" section added to weekly digest. Top 3 portfolio states ranked by activity (news_feed items + data_updates rows past 7 days). Editorial pattern: state name in Source Serif 4, mono caps activity meta ("3 NEWS · 2 UPDATES"), current Feasibility Index in mono numerics, one callout line (top headline OR most recent change as `field: old → new`). Hairline-ruled. Section hides entirely when no activity. Activity index pre-fetched once per cron run, filtered per-user.
+
+- **`0024705`** §7.9 — V3 form primitives. New `src/components/ui/` directory with `Button.jsx` (primary/accent/ghost/link variants × sm/md/lg sizes, hover state in JS so brand colors stay in one source of truth, built-in spinner via `loading` prop), `Input.jsx` (mono caps eyebrow label + V3 chrome with paper/white bg toggle + auto-applies font-mono tabular-nums for numeric type + required asterisk in V3 amber + error/hint slots), `Select.jsx` (same chrome pattern + custom teal SVG chevron + accepts string[] or {value, label}[] options). Barrel index at `src/components/ui/index.js`. Existing surfaces are NOT bulk-rewritten — this is forward consistency. New code pulls from `import { Button, Input, Select } from '../components/ui'`.
+
+### Deferred / decisions
+- **Wave 1.4 (Derived metrics: IX Velocity Index + Program Saturation Index)** — deferred. The forecaster math needs ≥4 weeks of `ix_queue_snapshots` data, and accumulation only began yesterday with `45d1e91`. Revisit late May / early June when there's enough history.
+
+### Pending Supabase migrations to run (cumulative across both days)
+1. `010_alert_positive.sql` — Profile good-news toggle (Day 1)
+2. `011_projects_columns_backfill.sql` — Library project columns (Day 1; save handler self-heals if missing)
+3. `012_ix_queue_snapshots.sql` — IX history accumulation (Day 1)
+4. `013_profile_slack.sql` — Slack alert webhook URL + opt-in toggle (Day 2)
+
+### Where to pick up next session
+See `Tractova_V3_Plan.md` "Next-Session Pickup" — P2 items (Lens Zone refactor, Deal Memo shareable URL, Status thread audit log) are the next natural targets. Refactoring existing surfaces to use the new `ui/*` primitives is gradual — let it happen as surfaces are touched, not as a bulk pass.
+
+---
+
+## V3 Build Log (Day 1 — April 28, 2026)
 
 Spent the day taking the product from "polished V2" through a full "Editorial Intelligence" V3 redesign + bug-fix sweep + recurring-engagement scaffolding. Everything is on `origin/main` and Vercel-deployed. See `Tractova_V3_Plan.md` for the live status snapshot.
 

@@ -1,49 +1,45 @@
 # Tractova V3 — Build Plan
 
 > Reviewer: Opus 4.7 (high effort)
-> Last updated: 2026-04-28 (end of Day 1 build)
+> Last updated: 2026-04-29 (Day 2 build session)
 > Supersedes: `Tractova_V2_Plan.md` for Phases 2-7. Phase 1 of V2 is shipped — no rework.
 > Companion strategic critique: `~/.claude/plans/read-tractova-v3-prop-plan-md-file-functional-penguin.md`
 
 ---
 
-## ⚡ Status Snapshot — Where We Left Off (2026-04-28 EOD)
+## ⚡ Status Snapshot — Where We Left Off (2026-04-29 EOD)
 
-**V2-Refactored Steps 0-5 + Step 6 + Step 7 (Sessions A & B) all SHIPPED to production.**
-**V3 Wave 1 — Items 1.1 (queue history) + 1.2 (branded emails) SHIPPED.**
+**V2-Refactored Steps 0-5 + Step 6 + Step 7 (Sessions A & B + 7.9) all SHIPPED.**
+**V3 Wave 1 — Items 1.1, 1.2, 1.3, 1.5 SHIPPED.** (1.4 deferred — needs accumulated snapshot data.)
 
-Latest commits on `origin/main`:
-- `45d1e91` V3 Wave 1.1+1.2 — IX queue snapshots + V3-branded weekly digest & alert emails
-- `e76e14e` Hybrid placeholder copy fix (Alaska/unseeded states)
-- `eae38f1` Library follow-ups (alerts chip legibility, StagePicker dropdown clipping, pipeline labels)
-- `1da46f6` Step 7 Session B — Glossary + Library + Admin V3 pass
-- `9ea468e` ArcGauge spacing
-- `c05f055` SubScoreBar overflow fix
-- `4c7d903` Step 7 Session A — Lens form chrome + bug fixes + sensitivity-on-gauge architecture
-- `2c1a048` Lens redesign (Editorial Intelligence)
+Latest commits on `origin/main` (Day 2):
+- `0024705` §7.9 form primitives (Button/Input/Select) — shared V3 design system surface
+- `a685d54` Wave 1.5 — Markets-in-Motion section in weekly digest
+- `e4f64bf` Wave 1.3 — Slack alert integration via incoming webhooks (migration 013)
+
+Day 1 commits (still latest on each surface): `45d1e91 e76e14e eae38f1 1da46f6 9ea468e c05f055 4c7d903 2c1a048` (see Day 1 build log in Running_Notes.md).
 
 **Action items pending — run in Supabase SQL editor:**
-1. `010_alert_positive.sql` — enables Profile "good-news alerts" toggle persistence
-2. `011_projects_columns_backfill.sql` — restores all Library columns (save handler self-heals via app-level fallback if not run)
-3. `012_ix_queue_snapshots.sql` — enables IX queue history accumulation (foundational for V3 Wave 2 Forecaster)
+1. `010_alert_positive.sql` — Profile good-news toggle persistence
+2. `011_projects_columns_backfill.sql` — Library project columns (save handler self-heals if missing)
+3. `012_ix_queue_snapshots.sql` — IX history accumulation (Wave 2 prereq)
+4. `013_profile_slack.sql` — Slack alert webhook URL + opt-in toggle
 
-**Surfaces are 100% V3-cohesive:** Dashboard, Lens (form + results), Library, Glossary, Profile, Compare, Sign-in/up, Upgrade, Landing, Admin, Email templates (digest + alerts).
+**Surfaces 100% V3-cohesive:** Dashboard · Lens (form + results) · Library · Glossary · Profile · Compare · Sign-in/up · Upgrade · Landing · Admin · Email templates (digest + alerts) · Slack alerts.
 
 ### 🚀 Next-Session Pickup Options (priority-ranked)
 
-**P1 — V3 Wave 1 remainder (recurring engagement):**
-- **1.3 Slack alerts** — webhook-based push from existing alert engine. ~2h, no new functions (extend `send-alerts.js`).
-- **1.4 Derived metrics** — IX Velocity Index + Program Saturation Index. Computed from `ix_queue_snapshots` once we have ≥4 weeks of data. Mostly query work; surfaces in Lens + Library. ~3-4h.
-- **1.5 "Markets-on-the-move" digest section** — top 3 portfolio states with score deltas this week. Adds the V3 §3.6 enrichment to the now-V3-branded weekly email. ~2h.
+**P1 — V3 Wave 1 remainder:**
+- **1.4 Derived metrics** — IX Velocity Index + Program Saturation Index. Needs ≥4 weeks of `ix_queue_snapshots` (so accumulate first; revisit late May / early June). Mostly query work; surfaces in Lens + Library. ~3-4h when data exists.
 
-**P2 — V3 deferred items from Step 7:**
-- **7.9 Form component extraction** (Input/Select/Button) — structural debt cleanup. ~2h.
+**P2 — V3 deferred items:**
 - **Lens Zone A/B/C/D structural refactor** — polish on already-working code. ~5-7h.
-- **Deal Memo shareable URL** — token-based read-only memo links. Needs `share_tokens` table. ~3h.
-- **Status thread audit log** — append-only project event log. Needs `project_events` table. ~3h.
+- **Deal Memo shareable URL** — token-based read-only memo links. Needs `share_tokens` table + RLS policy + new public route. ~3h. High product value (sales artifact).
+- **Status thread audit log** — append-only project event log. Needs `project_events` table + UI section in Library expanded panel. ~3h.
+- **Refactor existing surfaces to use new ui/* primitives** — as surfaces are naturally touched. Gradual.
 
 **P3 — V3 Wave 2 (defensible data layer):**
-- **IX Queue Forecaster** — needs ≥12 weekly snapshots (so realistically Q3 launch). When we get there: P50/P90 study completion modeling.
+- **IX Queue Forecaster** — needs ≥12 weekly snapshots (Q3 launch). P50/P90 study completion modeling.
 - Comparable Deals DB, PUC Docket Tracker MVP, Utility Outreach Kit.
 
 ---
@@ -79,12 +75,15 @@ Pricing is anchored to the **CS/Hybrid origination buyer at a 1-10 person shop**
 - ✅ **Step 7 Library follow-ups** — alerts chip legibility, StagePicker dropdown clipping fix, pipeline label readability
 - ✅ **Hybrid placeholder copy** — distinguishes "MW missing" from "state has no seeded model"
 
-### V3 Wave 1 — In Progress
+### V3 Wave 1 — Mostly complete
 - ✅ **1.1** IX queue history accumulation — migration 012 + cron append snapshots (foundational for Wave 2 Forecaster)
 - ✅ **1.2** Weekly digest + policy alert emails — V3-branded with navy/teal, Source Serif 4 wordmark, JetBrains Mono numerics, portfolio meta strip
-- ⬜ 1.3 Slack alert integration
-- ⬜ 1.4 Derived metrics (IX Velocity Index, Program Saturation Index)
-- ⬜ 1.5 "Markets-on-the-move" digest enrichment
+- ✅ **1.3** Slack alert integration — migration 013 + Block Kit messages + Profile webhook config + dual-deliver in `send-alerts.js`
+- ⬜ 1.4 Derived metrics (IX Velocity Index, Program Saturation Index) — **deferred until ≥4 weeks of snapshot data accumulates**
+- ✅ **1.5** Markets-in-Motion section in weekly digest — top 3 portfolio states by activity (news + data updates) past 7 days
+
+### V3 Step 7.9 — Form primitives extracted
+- ✅ **7.9** Shared V3 ui primitives — `src/components/ui/{Button,Input,Select}.jsx` + barrel index. Existing surfaces not bulk-rewritten; future surfaces auto-inherit V3 chrome via these.
 
 ### Pre-V3 Foundation (Verified shipped, not re-touched)
 - V2 Phase 1 (tech reorder, automated freshness, ESC handlers, "Library" rename)
