@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^0.88.0",
     "@react-pdf/renderer": "^4.4.1",
     "@supabase/supabase-js": "^2.103.0",
+    "motion": "^12.38.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1",
