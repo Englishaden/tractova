@@ -3206,12 +3206,14 @@ function SearchContent() {
             </div>
 
             {/* V3 Wave 2 — Regulatory Activity panel (PUC docket tracker).
-                Pro-gated; non-Pro users see a teaser with a live count. */}
+                isPro is not in SearchContent's scope (it lives in the outer
+                <Search> component which already gates non-Pro users to
+                UpgradePrompt), so by the time SearchContent renders,
+                Pro-status is implicit. Panel defaults isPro=true. */}
             <SectionDivider />
             <RegulatoryActivityPanel
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
-              isPro={isPro}
               mode="lens"
             />
 
