@@ -1077,9 +1077,15 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
 // ── Weekly Summary Card ──────────────────────────────────────────────────────
 const TECH_COLORS = { 'Community Solar': '#0F6E56', 'C&I Solar': '#2563EB', 'BESS': '#7C3AED', 'Hybrid': '#059669' }
 
+// V3: per-user-per-day cache so Library load doesn't re-spend tokens.
+// Mirrors the per-state news-pulse pattern. Date in key handles 24h TTL.
+const _portfolioInsightCache = new Map()
+
 function WeeklySummaryCard({ projects, stateProgramMap }) {
+  const { user } = useAuth()
+  const cacheKey = user ? `${user.id}::${new Date().toISOString().slice(0, 10)}` : null
   const [collapsed, setCollapsed] = useState(false)
-  const [aiInsight, setAiInsight] = useState(null)
+  const [aiInsight, setAiInsight] = useState(cacheKey ? (_portfolioInsightCache.get(cacheKey) ?? null) : null)
   const [aiLoading, setAiLoading] = useState(false)
 
   // Compute per-project scores
@@ -1155,11 +1161,28 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
       })
       if (res.ok) {
         const data = await res.json()
-        if (data.summary) setAiInsight(data)
+        if (data.summary) {
+          setAiInsight(data)
+          if (cacheKey) _portfolioInsightCache.set(cacheKey, data)
+        }
       }
     } catch { /* silently fail */ }
     setAiLoading(false)
   }
+
+  // V3: auto-fire portfolio insight on first load per user-per-day. The
+  // manual button still works for on-demand regeneration. Skips if portfolio
+  // is too small to be meaningful (<2 projects) or if we already have today's
+  // cached version. Pro-only -- request returns 403 silently for free users.
+  useEffect(() => {
+    if (!cacheKey) return
+    if (aiInsight) return            // already loaded (from cache or previous run)
+    if (aiLoading) return            // in flight
+    if (scored.length < 2) return    // not enough portfolio to analyze
+    if (!stateProgramMap || !Object.keys(stateProgramMap).length) return
+    handleGenerateInsight()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cacheKey, scored.length, Object.keys(stateProgramMap).length])
 
   // Geographic breakdown
   const geoBreakdown = useMemo(() => {
