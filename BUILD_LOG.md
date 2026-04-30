@@ -4,49 +4,78 @@
 
 ---
 
-## 🟢 Pickup after break — visual verification + apply migration 038
+## 🟢 Pickup — visual verification on prod (post `596de4b`) + new pickup
 
-**Last session ended 2026-04-30 ~16:05 UTC** with a Playwright smoke
-suite shipped (`79bfb08`) and the white-screen-on-state-click root-
-caused + fixed (`09304d5`).
+**Last session ended 2026-04-30 ~18:15 UTC** with score-honesty fix
+shipped (`596de4b`). Migration 038 confirmed applied to Supabase.
 
-**Quick sanity check when you're back:**
+**Visual verification when you're back:**
 
-1. **Visual verification on production** — Vercel should be on
-   commit `79bfb08` by now. Walk these in order, takes 2 min:
-   - `/dashboard` → click any state → confirm StateDetailPanel
-     opens cleanly (was white-screening before `09304d5`)
-   - `/search` → run a Lens analysis → look at:
-     a) Sub-score bars (Offtake/IX/Site Control) — shimmer should
-        flow continuously left-to-right with no perceived loop
-        boundary or "jump" (CSS keyframes vs motion). Slowed to 6s
-        per sweep.
-     b) Feasibility ArcGauge — tick marks now sit OUTSIDE the green
-        arc instead of crossing through it. Gauge should read as
-        one unified object, not arc + scale labels.
-   - `/library` → expand any project → Audit tab → score_change
-     duplicates collapse with "× N" badge, list capped at 8 with
-     "Show earlier" expansion
-   - `+ Peer state` chip in Lens scenarios → opens a styled custom
-     dropdown (not the native browser select), each option shows
-     state name + program / IX / LMI caption
+1. **Production should be on `596de4b` shortly.** Walk these:
+   - `/search` → run Lens for `Texas + BESS`:
+     - Sub-score bars render
+     - Beneath the 3 bars, an amber **"Limited offtake coverage"**
+       caption appears, listing IL/ME/MA/MN/CO/MD/NJ/NY as the
+       curated BESS coverage states. The score still shows but
+       the user knows it's an estimated baseline, not researched.
+     - AI brief should speak directionally about TX BESS rather
+       than quoting fictional capacity-market $/kW figures.
+   - `/search` → run Lens for `IL + BESS`:
+     - No "limited coverage" caption (IL is in the curated list)
+   - `/dashboard` → click a state → StateDetailPanel opens cleanly
+   - All previously verified surfaces from `79bfb08` (peer-state
+     dropdown, audit dedupe, gauge ticks, shimmer flow) — these
+     were not touched in this session.
 
-2. **Apply migration 038 in Supabase** — `state_programs_snapshots`
-   table for Wave 1.4 WoW deltas. The cron will start writing
-   snapshots on the next Sunday run; deltas appear in Markets on
-   the Move ~2 weeks after first snapshot.
-
-3. **No active work in queue.** The buildout backlog from earlier
-   today is fully closed (Wave 1.4 scaffolded, Search.jsx primitives
-   reviewed and intentionally skipped, wetlands deferred with
-   honest scope). When ready for new work, candidates are:
-   - Pro-flow smoke tests (currently smoke covers unauth paths only)
-   - Wetlands + farmland data layers (3-4 day data-acquisition R&D)
-   - First-pass on the deferred backlog items as paying-user
-     traction signals appear
+2. **No active work in queue.** Candidate next moves, in priority
+   order:
+   - **Expand curated coverage to all 50 states** — biggest product
+     leverage. Today, only 8 states have full revenue economics
+     (IL/NY/MA/MN/CO/NJ/ME/MD); 12 have CI scoring; 10 have BESS
+     scoring. A customer in TX/FL/CA sees "limited coverage" rather
+     than researched intel. Approach: per-state research sprint to
+     populate `STATE_REVENUE_DATA`, `CI_REVENUE_DATA`,
+     `BESS_REVENUE_DATA` from EIA Form 861 + ISO capacity markets.
+     Estimated 1-2 days/state for proper sourcing.
+   - **Pro-flow smoke tests** — currently smoke covers unauth paths
+     only. Authenticated flows (Lens result render, Library project
+     create, refresh-data trigger) need test fixtures.
+   - **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
 
 **Run `npm run verify` before pushing any visible-feature change.**
-That's the new discipline (memory: feedback_pre_push_verify.md).
+
+---
+
+## ✅ Shipped 2026-04-30 — Score honesty (`596de4b`)
+
+**The bug.** Customer could pick BESS/C&I/Hybrid for any of 50
+states in `/search`. The scoring engine's `CI_OFFTAKE_SCORES` (12
+states) and `BESS_OFFTAKE_SCORES` (10 states) silently fell back to
+55/45 for uncovered states. The revenue panel honestly said "model
+not available" but the feasibility number looked researched —
+mismatched honesty that erodes trust at scale.
+
+**The fix.**
+- `computeSubScores` in `src/lib/scoreEngine.js` now returns
+  `coverage: { offtake }` so callers can detect fallback-baseline
+  scores. Backwards-compatible — existing destructures of
+  `{ offtake, ix, site }` and `Object.values(subs)` patterns
+  (Profile.jsx, Library.jsx) keep working because JS ignores the
+  extra spread arg into `computeDisplayScore`.
+- `MarketPositionPanel` in Search.jsx renders an amber **"Limited
+  offtake coverage"** caption beneath the sub-score bars when the
+  curated list doesn't include the target state, listing the states
+  that DO have curated data.
+- `api/lens-insight.js` context block adds a `COVERAGE NOTE` line
+  for C&I/Hybrid states outside the 8-state revenue list, and for
+  BESS states with `ISO/RTO region: Unknown`. Instructs the AI to
+  speak directionally rather than quote specific $/kW or PPA figures
+  when curated data is absent.
+
+**What this didn't change.** All 50 states still receive full Lens
+analysis on the data side (state_programs has all 50, county data
+where seeded, IRA/HUD/NMTC overlays work nationwide). Only the
+**economic** layer of the score is honest about its coverage now.
 
 ---
 
@@ -106,7 +135,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `79bfb08` Smoke tests: Playwright suite catches runtime bugs that pass build
+- **Branch:** `main` · last commit: `596de4b` Score honesty: surface "limited coverage" when offtake falls back to baseline
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -151,6 +180,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `596de4b` | Score honesty: surface "limited coverage" caption + AI COVERAGE NOTE when offtake falls back to baseline (BESS/CI/Hybrid outside curated 8-12 states) |
+| `1474c3d` | BUILD_LOG: capture full audit / fix / smoke-suite stretch + post-break pickup |
 | `79bfb08` | Smoke tests: Playwright suite catches runtime bugs that pass build (7 tests, ~20s) — `npm run verify` is the new pre-push gate |
 | `318930e` | Two visual fixes: CSS-keyframe shimmer (replaces motion's keyframes that produced loop-boundary discontinuity) + ticks moved OUTSIDE the gauge arc |
 | `09304d5` | useSubscription: unique channel name per hook instance — **fixes white-screen on dashboard state click** (Supabase realtime channel collision when WelcomeCard + StateDetailPanel both mounted the hook) |
