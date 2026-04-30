@@ -1,15 +1,35 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 
 // Returns the user's subscription tier and whether they are a Pro subscriber.
 // Listens for real-time DB updates so the UI reflects payment within seconds
 // of the Stripe webhook firing (no page refresh needed).
+//
+// V3.1 fix: each hook instance generates a UNIQUE channel name suffix.
+// Without it, multiple components on the same screen (Dashboard's WelcomeCard
+// + the StateDetailPanel that opens on state click + Library's gate, etc.)
+// all called `supabase.channel('profile-sub:USERID')` -- which returns the
+// SAME shared channel object. The second consumer's `.on()` call would
+// arrive after the first instance had already `.subscribe()`-d, triggering:
+//
+//   Error: cannot add `postgres_changes` callbacks for realtime:profile-sub
+//   after `subscribe()`
+//
+// ...which crashed the entire dashboard with a white screen on state click.
+// Each instance now has its own channel; minor cost in realtime fanout, but
+// correct.
 export function useSubscription() {
   const { user } = useAuth()
   const [tier,   setTier]   = useState(null)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Stable per-mount suffix so React Strict Mode double-invoke + multiple
+  // hook consumers in the tree don't collide on the same channel.
+  const instanceId = useRef(null)
+  if (instanceId.current === null) {
+    instanceId.current = Math.random().toString(36).slice(2, 10)
+  }
 
   useEffect(() => {
     if (!user || !isSupabaseConfigured) {
@@ -36,7 +56,7 @@ export function useSubscription() {
 
     // Real-time: update instantly when the webhook fires
     const channel = supabase
-      .channel(`profile-sub:${user.id}`)
+      .channel(`profile-sub:${user.id}:${instanceId.current}`)
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
