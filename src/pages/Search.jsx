@@ -451,7 +451,7 @@ function CollapsibleCard({
   eyebrow,
   title,
   caption,
-  defaultExpanded = true,
+  defaultExpanded = false,
   children,
 }) {
   const [open, setOpen] = useState(defaultExpanded)
