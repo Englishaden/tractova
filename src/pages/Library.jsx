@@ -239,7 +239,7 @@ function PipelineProgress({ stage }) {
                               ''
                   }`}
                   style={(!done && !current) ? { background: '#F3F4F6', borderColor: '#D1D5DB' } :
-                         current             ? { background: 'rgba(15,110,86,0.15)' } : {}}
+                         current             ? { background: 'rgba(15,118,110,0.15)' } : {}}
                 />
               </div>
               {i < PIPELINE_STAGES.length - 1 && (
@@ -1394,15 +1394,22 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
     : { offtake: 0, ix: 0, site: 0 }
   const liveScore = current ? computeDisplayScore(offtake, ix, site) : null
 
-  const accentColor = hasUrgent          ? '#EF4444' :
+  // V3.1 color audit: consolidated all score-color triples (accent / bg /
+  // text) to the canonical Tailwind v4 palette. Previously the bg used
+  // rgba(15,118,110,...) which decodes to legacy #0F766E -- visually
+  // similar to the modern teal-700 #0F766E used elsewhere in the same
+  // card, but technically a different green. Same drift on red: accent
+  // was red-500 #EF4444 while text/bg were red-600 #DC2626. Now all on
+  // teal-700 / amber / red-600.
+  const accentColor = hasUrgent          ? '#DC2626' :
                       liveScore == null   ? '#D1D5DB' :
                       liveScore >= 70     ? '#0F766E' :
                       liveScore >= 50     ? '#D97706' :
-                                            '#EF4444'
+                                            '#DC2626'
 
   const scoreBg = liveScore == null ? '#F3F4F6' :
-                  liveScore >= 70   ? 'rgba(15,110,86,0.12)'   :
-                  liveScore >= 50   ? 'rgba(217,119,6,0.12)'   :
+                  liveScore >= 70   ? 'rgba(15,118,110,0.12)' :
+                  liveScore >= 50   ? 'rgba(217,119,6,0.12)'  :
                                       'rgba(220,38,38,0.12)'
   const scoreText = liveScore == null ? '#6B7280' :
                     liveScore >= 70   ? '#0F766E'  :
@@ -2114,11 +2121,11 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                     <div className="flex-1 h-2.5 rounded-full bg-gray-200 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
-                        style={{ width: `${totalMW > 0 ? (data.mw / totalMW) * 100 : 0}%`, background: data.avgScore > 65 ? '#10B981' : data.avgScore >= 40 ? '#F59E0B' : '#EF4444' }}
+                        style={{ width: `${totalMW > 0 ? (data.mw / totalMW) * 100 : 0}%`, background: data.avgScore > 65 ? '#0F766E' : data.avgScore >= 40 ? '#D97706' : '#DC2626' }}
                       />
                     </div>
                     <span className="text-[9px] tabular-nums text-gray-500 w-14 text-right shrink-0">{data.mw.toFixed(1)} MW</span>
-                    <span className="text-[9px] font-bold tabular-nums w-6 text-right shrink-0" style={{ color: data.avgScore > 65 ? '#059669' : data.avgScore >= 40 ? '#D97706' : '#DC2626' }}>{data.avgScore}</span>
+                    <span className="text-[9px] font-bold tabular-nums w-6 text-right shrink-0" style={{ color: data.avgScore > 65 ? '#0F766E' : data.avgScore >= 40 ? '#B45309' : '#DC2626' }}>{data.avgScore}</span>
                   </div>
                 ))}
               </div>

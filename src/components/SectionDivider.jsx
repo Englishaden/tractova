@@ -10,8 +10,8 @@ export default function SectionDivider({ label }) {
         className="flex-1 h-px"
         style={{
           background: label
-            ? 'linear-gradient(90deg, rgba(15,110,86,0.55) 0%, rgba(15,110,86,0.18) 55%, transparent 100%)'
-            : 'linear-gradient(90deg, transparent 0%, rgba(15,110,86,0.20) 30%, rgba(15,110,86,0.20) 70%, transparent 100%)',
+            ? 'linear-gradient(90deg, rgba(15,118,110,0.55) 0%, rgba(15,118,110,0.18) 55%, transparent 100%)'
+            : 'linear-gradient(90deg, transparent 0%, rgba(15,118,110,0.20) 30%, rgba(15,118,110,0.20) 70%, transparent 100%)',
         }}
       />
     </div>

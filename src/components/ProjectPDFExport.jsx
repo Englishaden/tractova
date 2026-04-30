@@ -5,7 +5,7 @@ import { Document, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer
 // network risk. Fonts approximate the platform: Times for serif headlines,
 // Courier for monospace numerics + mono caps eyebrows, Helvetica for body.
 const NAVY       = '#0F1A2E'   // brand chrome
-const TEAL       = '#0F766E'   // V3 accent (replaces legacy emerald #0F6E56)
+const TEAL       = '#0F766E'   // V3 accent (replaces legacy emerald #0F766E)
 const TEAL_LIGHT = '#ECFDF5'   // teal-50ish — pull-block bg
 const TEAL_DARK  = '#0F766E'   // teal-700 — body accent
 const AMBER      = '#D97706'   // V3 amber (replaces legacy #BA7517) — IX/caution

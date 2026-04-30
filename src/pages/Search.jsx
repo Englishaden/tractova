@@ -668,7 +668,7 @@ function EaseArcGauge({ score }) {
   const fill  = pct > 0.01 ? `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${ex} ${ey}` : ''
 
   let color = '#DC2626'
-  if (s >= 7)      color = '#0F6E56'
+  if (s >= 7)      color = '#0F766E'
   else if (s >= 5) color = '#D97706'
   else if (s >= 3) color = '#EA580C'
 
@@ -767,7 +767,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
   const hostingStatus = (() => {
     const ease = interconnection?.easeScore
     if (ease == null) return { label: 'Unknown', color: '#6B7280', bg: 'rgba(107,114,128,0.06)', note: 'Contact serving utility for hosting capacity map' }
-    if (ease >= 7) return { label: 'Available', color: '#0F6E56', bg: 'rgba(15,110,86,0.06)', note: 'Hosting capacity appears sufficient based on IX conditions' }
+    if (ease >= 7) return { label: 'Available', color: '#0F766E', bg: 'rgba(15,118,110,0.06)', note: 'Hosting capacity appears sufficient based on IX conditions' }
     if (ease >= 4) return { label: 'Constrained', color: '#B45309', bg: 'rgba(180,83,9,0.06)', note: 'Hosting capacity may be limited — upgrades possible' }
     return { label: 'Constrained', color: '#DC2626', bg: 'rgba(220,38,38,0.06)', note: 'Significant hosting constraints — expect upgrade costs' }
   })()
@@ -784,8 +784,8 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
     {
       label: 'Land',
       status: availableLand ? 'Available' : 'Limited',
-      color: availableLand ? '#0F6E56' : '#DC2626',
-      bg: availableLand ? 'rgba(15,110,86,0.06)' : 'rgba(220,38,38,0.06)',
+      color: availableLand ? '#0F766E' : '#DC2626',
+      bg: availableLand ? 'rgba(15,118,110,0.06)' : 'rgba(220,38,38,0.06)',
       note: landNotes,
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -796,8 +796,8 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
     {
       label: 'Wetland',
       status: wetlandWarning ? 'Warning' : 'Low Risk',
-      color: wetlandWarning ? '#B45309' : '#0F6E56',
-      bg: wetlandWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,110,86,0.06)',
+      color: wetlandWarning ? '#B45309' : '#0F766E',
+      bg: wetlandWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
       note: wetlandNotes || (wetlandWarning ? null : 'Low wetland risk on typical upland sites'),
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -883,7 +883,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
           const riskCount = [!availableLand, wetlandWarning, !!landUseNotes, hostingRisk].filter(Boolean).length
           const riskLevel = riskCount <= 1 ? 'low' : riskCount === 2 ? 'moderate' : 'elevated'
           const riskConfig = {
-            low:      { label: 'Low Risk', color: '#0F6E56', bg: 'rgba(15,110,86,0.06)', border: 'rgba(15,110,86,0.20)' },
+            low:      { label: 'Low Risk', color: '#0F766E', bg: 'rgba(15,118,110,0.06)', border: 'rgba(15,118,110,0.20)' },
             moderate: { label: 'Moderate Risk', color: '#B45309', bg: 'rgba(180,83,9,0.06)', border: 'rgba(180,83,9,0.20)' },
             elevated: { label: 'Elevated Risk', color: '#DC2626', bg: 'rgba(220,38,38,0.06)', border: 'rgba(220,38,38,0.20)' },
           }
@@ -1001,11 +1001,11 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
 
   const TREND_ICON = { growing: '↑', stable: '→', shrinking: '↓' }
-  const TREND_COLOR = { growing: '#DC2626', stable: '#D97706', shrinking: '#0F6E56' }
+  const TREND_COLOR = { growing: '#DC2626', stable: '#D97706', shrinking: '#0F766E' }
   const CONGESTION = {
     high:     { label: 'High Congestion',     color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
     moderate: { label: 'Moderate Congestion',  color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
-    low:      { label: 'Low Congestion',       color: '#0F6E56', bg: 'rgba(15,110,86,0.08)' },
+    low:      { label: 'Low Congestion',       color: '#0F766E', bg: 'rgba(15,118,110,0.08)' },
   }
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
@@ -2740,7 +2740,7 @@ function CustomScenarioBuilder({ stateProgram, technology }) {
           </div>
 
           {hasChange && (
-            <div className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: delta > 0 ? 'rgba(15,110,86,0.06)' : delta < 0 ? 'rgba(220,38,38,0.04)' : 'rgba(107,114,128,0.04)' }}>
+            <div className="flex items-center gap-3 rounded-lg px-3 py-2" style={{ background: delta > 0 ? 'rgba(15,118,110,0.06)' : delta < 0 ? 'rgba(220,38,38,0.04)' : 'rgba(107,114,128,0.04)' }}>
               <span className={`text-xs font-bold tabular-nums ${delta > 0 ? 'text-green-700' : delta < 0 ? 'text-red-700' : 'text-gray-500'}`}>
                 Index impact: {delta > 0 ? '+' : ''}{delta} pts
               </span>

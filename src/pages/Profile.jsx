@@ -249,7 +249,7 @@ function PortfolioStats({ projects, stateProgramMap }) {
     return { strong, moderate, atRisk }
   }, [scored])
 
-  const healthColor = healthScore > 65 ? '#0F6E56' : healthScore >= 40 ? '#D97706' : '#DC2626'
+  const healthColor = healthScore > 65 ? '#0F766E' : healthScore >= 40 ? '#D97706' : '#DC2626'
   const healthBg = healthScore > 65 ? 'linear-gradient(135deg, #ECFDF5, #D1FAE5)' : healthScore >= 40 ? 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' : 'linear-gradient(135deg, #FEF2F2, #FEE2E2)'
 
   if (!projects.length) return null
@@ -409,7 +409,7 @@ export default function Profile() {
                 <h1 className="text-2xl font-bold text-white truncate">{fullName}</h1>
                 <div className="flex items-center gap-2 mt-1">
                   {isPro ? (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: 'rgba(15,110,86,0.3)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }}>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{ background: 'rgba(15,118,110,0.3)', color: '#34D399', border: '1px solid rgba(52,211,153,0.25)' }}>
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                       Pro
                     </span>
@@ -516,7 +516,7 @@ export default function Profile() {
                     {recentProjects.map(p => (
                       <div key={p.id} className="flex items-center justify-between group">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 font-mono" style={{ background: 'rgba(15,110,86,0.08)', color: '#0F6E56' }}>
+                          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 font-mono" style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E' }}>
                             {p.state || '—'}
                           </span>
                           <div className="min-w-0">
