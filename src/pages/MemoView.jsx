@@ -179,6 +179,85 @@ export default function MemoView() {
             </div>
           )}
 
+          {/* Non-owner conversion CTA -- the recipient of a shared memo is a
+              prime acquisition vector (typically a colleague, investor, or
+              co-developer). Previously the only conversion path was an 11px
+              footer text link. Now: full-width teal-tinted panel with three
+              value props + a strong sign-up CTA. */}
+          {!isOwner && (
+            <div
+              className="rounded-2xl px-6 py-7 mb-6 relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(180deg, rgba(20,184,166,0.05) 0%, rgba(20,184,166,0.10) 100%)',
+                border: '1px solid rgba(20,184,166,0.22)',
+              }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-px"
+                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.45) 30%, rgba(20,184,166,0.75) 50%, rgba(20,184,166,0.45) 70%, transparent 100%)' }} />
+              <p className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold mb-2" style={{ color: '#0F766E' }}>
+                ◆ See your own projects through this lens
+              </p>
+              <h2 className="font-serif text-xl font-semibold text-ink leading-tight mb-3" style={{ letterSpacing: '-0.018em' }}>
+                Tractova is a community-solar intelligence platform.
+              </h2>
+              <p className="text-sm text-ink-muted leading-relaxed mb-4 max-w-2xl">
+                We score every U.S. county for community solar, C&amp;I solar, hybrid, and BESS feasibility — pulling live data from Census ACS, DSIRE, ISO/RTO queues, EIA Form 860, IRA Treasury layers, and HUD QCT/DDA. Build a portfolio, get alerts when state programs shift, run the same Lens analysis you're seeing here on any market.
+              </p>
+
+              {/* Three value props */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                {[
+                  {
+                    icon: 'M12 2 L2 7 L12 12 L22 7 z M2 17 L12 22 L22 17 M2 12 L12 17 L22 12',
+                    label: 'Live re-scoring',
+                    body: 'Feasibility recomputes as program capacity, IX queues, and tariffs shift.',
+                  },
+                  {
+                    icon: 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z',
+                    label: 'Alerts on change',
+                    body: 'Email when CS programs cap, SREC markets move, or upgrade costs spike.',
+                  },
+                  {
+                    icon: 'M3 3v18h18 M9 17V9 M14 17V5 M19 17v-4',
+                    label: 'Side-by-side compare',
+                    body: 'Stack 5 projects against each other on capacity, IX, LMI, and ITC bonus stack.',
+                  },
+                ].map((p) => (
+                  <div key={p.label} className="rounded-lg px-3 py-3" style={{ background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(20,184,166,0.18)' }}>
+                    <div className="w-7 h-7 rounded-md flex items-center justify-center mb-2" style={{ background: 'rgba(20,184,166,0.12)' }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={p.icon} />
+                      </svg>
+                    </div>
+                    <p className="text-[11px] font-semibold text-ink leading-tight">{p.label}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{p.body}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-lg transition-colors"
+                  style={{ background: '#0F1A2E' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#14B8A6' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#0F1A2E' }}
+                >
+                  Try Tractova Free
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </Link>
+                <Link
+                  to="/"
+                  className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+                >
+                  Or browse the dashboard preview →
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* Footer */}
           <div className="text-center pt-6 border-t" style={{ borderColor: '#E2E8F0' }}>
             <p className="font-mono text-[10px] uppercase tracking-[0.20em] text-ink-muted mb-2">
