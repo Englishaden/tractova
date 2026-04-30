@@ -1861,14 +1861,29 @@ function DataHealthTab() {
         { name: 'ix_queue',    url: '/api/refresh-ix-queue' },
         { name: 'capacity',    url: '/api/refresh-capacity-factors' },
       ]
+      // 310s hard ceiling per endpoint -- slightly above the server's 300s
+      // function budget. Without this, a hung connection (e.g. Vercel killing
+      // the function but the gateway not closing the socket cleanly) leaves
+      // the UI spinning forever.
       const settled = await Promise.allSettled(
-        endpoints.map(e => fetch(e.url, { method: 'POST', headers: auth }).then(async r => {
-          const text = await r.text()
-          let json = null
-          try { json = JSON.parse(text) } catch {}
-          if (!r.ok) throw new Error(json?.error || `HTTP ${r.status}`)
-          return json
-        }))
+        endpoints.map(e => {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 310000)
+          return fetch(e.url, { method: 'POST', headers: auth, signal: controller.signal })
+            .then(async r => {
+              clearTimeout(timer)
+              const text = await r.text()
+              let json = null
+              try { json = JSON.parse(text) } catch {}
+              if (!r.ok) throw new Error(json?.error || `HTTP ${r.status}`)
+              return json
+            })
+            .catch(err => {
+              clearTimeout(timer)
+              if (err?.name === 'AbortError') throw new Error('Client timeout (>310s) — server did not respond')
+              throw err
+            })
+        })
       )
 
       const aggregate = { ok: true, endpoints: {}, startedAt: startedAt.toISOString() }

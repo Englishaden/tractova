@@ -162,36 +162,22 @@ async function logCronRun(source, summary, authMode, startedAt) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Census fetch with retry-on-503/429. Census API returns 503 ("undergoing
-// maintenance or busy") under sustained load from a single IP. We retry up
-// to 3 times with exponential backoff (1s, 2s, 4s) before giving up.
+// Census fetch. Single attempt with a hard timeout. Census API returns 503
+// ("undergoing maintenance or busy") under load -- we deliberately do NOT
+// retry, because retry storms compound the problem (3 retries × 51 NMTC
+// states × 4 inner-parallel = blew past the 300s function budget). Refresh
+// is user-triggered or weekly cron; transient 503s are acceptable. The
+// non-Census sources keep running and the user can re-click.
 // ─────────────────────────────────────────────────────────────────────────────
-async function censusFetch(url, { timeoutMs = 90000, retries = 3 } = {}) {
-  let lastErr
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    if (attempt > 0) {
-      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)))
-    }
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-    try {
-      const response = await fetch(url, { signal: controller.signal })
-      clearTimeout(timeoutId)
-      // Retry only on transient upstream pushback.
-      if (response.status === 503 || response.status === 429) {
-        const body = await response.text().catch(() => '')
-        lastErr = new Error(`HTTP ${response.status}: ${body.slice(0, 200)}`)
-        continue
-      }
-      return response
-    } catch (err) {
-      clearTimeout(timeoutId)
-      lastErr = err
-      // Don't retry on AbortError -- that's our own timeout, not upstream.
-      if (err?.name === 'AbortError') break
-    }
+async function censusFetch(url, { timeoutMs = 30000 } = {}) {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, { signal: controller.signal })
+    return response
+  } finally {
+    clearTimeout(timeoutId)
   }
-  throw lastErr || new Error('Census fetch failed')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1683,7 +1669,7 @@ async function refreshNmtcLic() {
   }
 
   const stateFipsList = Object.keys(FIPS_TO_USPS)
-  const PARALLEL = 4
+  const PARALLEL = 2
   const stateFetchErrors = []
   const allTractRowsByState = []   // each entry: { stateFips, headers, rows }
 
