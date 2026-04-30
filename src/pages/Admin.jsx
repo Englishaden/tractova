@@ -12,7 +12,37 @@ import {
 import { Input, Select, Button } from '../components/ui'
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
-const TABS = ['State Programs', 'Counties', 'Revenue Rates', 'News Feed', 'IX Queue', 'PUC Dockets', 'Comparable Deals', 'Staging', 'Data Health', 'Test Notifications']
+// Each tab carries its own accent color so the 10-tab strip is scannable at a
+// glance. Dot is always visible (even when the tab is inactive) so users can
+// learn position-by-color over time. Active state lifts the dot's hue into
+// the label and border for emphasis.
+const TABS = [
+  { label: 'State Programs',     color: 'sky'     }, // regulatory / state
+  { label: 'Counties',           color: 'emerald' }, // geographic
+  { label: 'Revenue Rates',      color: 'amber'   }, // money
+  { label: 'News Feed',          color: 'indigo'  }, // info stream
+  { label: 'IX Queue',           color: 'cyan'    }, // infrastructure
+  { label: 'PUC Dockets',        color: 'violet'  }, // regulatory dockets
+  { label: 'Comparable Deals',   color: 'rose'    }, // market intel
+  { label: 'Staging',            color: 'orange'  }, // work / pending
+  { label: 'Data Health',        color: 'teal'    }, // system / brand
+  { label: 'Test Notifications', color: 'red'     }, // alerts
+]
+
+// Tailwind's JIT can't see classes built from interpolation, so map color
+// keys to the static class strings we actually want generated.
+const TAB_COLOR_CLASSES = {
+  sky:     { dot: 'bg-sky-500',     activeBorder: 'border-sky-500',     activeText: 'text-sky-700' },
+  emerald: { dot: 'bg-emerald-500', activeBorder: 'border-emerald-500', activeText: 'text-emerald-700' },
+  amber:   { dot: 'bg-amber-500',   activeBorder: 'border-amber-500',   activeText: 'text-amber-700' },
+  indigo:  { dot: 'bg-indigo-500',  activeBorder: 'border-indigo-500',  activeText: 'text-indigo-700' },
+  cyan:    { dot: 'bg-cyan-500',    activeBorder: 'border-cyan-500',    activeText: 'text-cyan-700' },
+  violet:  { dot: 'bg-violet-500',  activeBorder: 'border-violet-500',  activeText: 'text-violet-700' },
+  rose:    { dot: 'bg-rose-500',    activeBorder: 'border-rose-500',    activeText: 'text-rose-700' },
+  orange:  { dot: 'bg-orange-500',  activeBorder: 'border-orange-500',  activeText: 'text-orange-700' },
+  teal:    { dot: 'bg-teal-500',    activeBorder: 'border-teal-500',    activeText: 'text-teal-700' },
+  red:     { dot: 'bg-red-500',     activeBorder: 'border-red-500',     activeText: 'text-red-700' },
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared UI
@@ -2337,20 +2367,25 @@ export default function Admin() {
           <h1 className="text-2xl font-bold text-gray-900">Data Admin</h1>
           <p className="text-sm text-gray-400 mt-1">Edit live market intelligence data. Changes propagate within 1 hour (cache TTL).</p>
 
-          <div className="flex gap-1 mt-6 border-b border-gray-200">
-            {TABS.map((t, i) => (
-              <button
-                key={t}
-                onClick={() => setTab(i)}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  tab === i
-                    ? 'border-teal-500 text-teal-700'
-                    : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                {t}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-1 mt-6 border-b border-gray-200">
+            {TABS.map((t, i) => {
+              const c = TAB_COLOR_CLASSES[t.color]
+              const isActive = tab === i
+              return (
+                <button
+                  key={t.label}
+                  onClick={() => setTab(i)}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+                    isActive
+                      ? `${c.activeBorder} ${c.activeText}`
+                      : 'border-transparent text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${c.dot} ${isActive ? '' : 'opacity-70'}`} />
+                  {t.label}
+                </button>
+              )
+            })}
           </div>
 
           <div className="mt-6">
