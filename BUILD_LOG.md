@@ -4,63 +4,35 @@
 
 ---
 
-## 🔴 Active issues — pick up tomorrow first
+## 🟡 Known transient — not a code bug
 
-### NMTC LIC handler still failing with same wildcard error
+### Census ACS API throttling (last seen 2026-04-30 ~07:52 AM)
 
-**Symptom (last seen 2026-04-29 ~10:38 PM):**
+After hammering Census ACS during this morning's multiplex refactor
+(see commits `ebf3deb` through `d28956c`), all three Census handlers
+(`lmi`, `county_acs`, `nmtc_lic`) are returning **HTTP 503 "undergoing
+maintenance or busy"** even with `CENSUS_API_KEY` confirmed reaching
+the function (the `keyed=true` diagnostic in the error string verifies
+this). This is genuine upstream throttling / maintenance — the
+architecture itself is sound:
 
-```
-multiplexed · 8 sources · PARTIAL
-  ✓ lmi · state_programs · county_acs · news · revenue_stacks
-    energy_community · hud_qct_dda
-  ✗ nmtc_lic — Census tract 400: error: wildcard not allowed
-    for 'state' in geography hierarchy
-substations / ix_queue / capacity → all OK ✓
-```
+- Function no longer hangs (was 5+ min, now fails fast in 23s)
+- No retry storms, no client-side hangs
+- NMTC isolated to its own HTTP call so it can't drag the rest down
+- Non-Census sources (`state_programs`, `news`, `revenue_stacks`,
+  `energy_community`, `hud_qct_dda`) all ✓
+- Substations / IX queue / capacity factors → all OK ✓
 
-**What's already done:**
-
-- Commit `9ba2086` rewrote the handler to iterate state-by-state (explicit
-  FIPS like `in=state:01`) instead of the wildcard `in=state:*`. The old
-  code definitely had the wildcard; the new code definitely does not.
-- Build is clean.
-
-**Most likely cause when retesting:**
-
-1. **Vercel hadn't deployed `9ba2086` yet** when the user clicked Refresh.
-   Vercel deploys take 1-3 min after push. The error message is identical
-   to the pre-fix version, suggesting the old code was still live.
-
-**First step tomorrow:**
-
-1. Confirm the live deploy includes `9ba2086` — Vercel dashboard → latest
-   deployment → check commit hash matches `9ba2086` (or newer).
-2. If yes, click Refresh again. NMTC should show ✓ with new fields:
-   `counties_with_lic`, `total_qualifying_tracts`, `states_pulled_successfully`.
-3. If still ✗ with the same error, the fix has a remaining bug. Investigate:
-   - Open `api/refresh-data.js` → `refreshNmtcLic` → confirm the URL string
-     interpolates a real FIPS, not `*`. The relevant line should read:
-     `&for=tract:*&in=state:${stateFips}` where `stateFips` comes from
-     iterating `Object.keys(FIPS_TO_USPS)`.
-   - Worst case, log the actual URL string before the fetch to confirm
-     what's being sent to Census API.
-4. If a specific state's call 400s for a different reason, the new
-   `state_fetch_errors[]` array will surface it (first 10 errors shown in
-   the cron summary panel — Copy report button gives the full payload).
-
-**Related context:**
-
-- Substations / IX queue / capacity factors all OK now — the
-  `.catch`-on-builder bug (commit `4016fca`) is fully resolved.
-- Migrations 034 (HUD QCT/DDA) + 036 (NMTC LIC) status: probably applied
-  since `hud_qct_dda` shows ✓ in the multiplexed run. Verify in Supabase.
+**Pickup next session:** click Refresh in `/admin > Data Health`. If
+Census has recovered (likely after a few hours), all 8 sub-sources will
+turn ✓ with no further action needed. If still 503'ing after 24h,
+investigate at https://api.census.gov/data.html for any posted outage.
 
 ---
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `9ba2086` Fix: NMTC LIC handler — iterate tract pulls per-state
+- **Branch:** `main` · last commit: `875aa88` Admin: color-code the 10 tabs for at-a-glance scanning
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -73,8 +45,8 @@ substations / ix_queue / capacity → all OK ✓
   - `ix_queue_data` (ISO/RTO weekly scrapers)
   - `substations` (EIA Form 860 monthly)
   - `revenue_rates` (NREL PVWatts + EIA quarterly)
-- **Multiplexed cron:** Sunday 7am UTC `/api/refresh-data?source=all` fans out 8 sub-sources. Plus 3 separate cron functions for substations / IX queue / capacity factors (Hobby 12-function cap).
-- **Admin manual refresh:** `/admin > Data Health > Refresh data from sources` parallel-fans-out to all 4 endpoints with admin JWT auth.
+- **Multiplexed cron:** Two staggered Sunday runs to fit Hobby gateway window — `?source=fast` at 07:00 (7 quick sources) + `?source=nmtc_lic` at 07:30 (NMTC alone, ~50-70s due to 51-state iteration). Plus 3 separate cron functions for substations / IX queue / capacity factors (Hobby 12-function cap).
+- **Admin manual refresh:** `/admin > Data Health > Refresh data from sources` parallel-fans-out to all **5 endpoints** (fast bundle + NMTC + substations + ix_queue + capacity) with admin JWT auth. Each endpoint has its own gateway window so a slow source can't drag the rest.
 
 ---
 
@@ -104,7 +76,17 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
-| `9ba2086` | Fix: NMTC LIC handler — iterate tract pulls per-state (Census wildcard fix) ⚠ verify next session |
+| `875aa88` | Admin: color-code the 10 tabs for at-a-glance scanning |
+| `8012250` | Profile: move Data Admin link to top of page |
+| `d28956c` | Refresh: inline `keyed=` flag into Census error strings (UI visibility) |
+| `6011cab` | Refresh: surface `keyed` flag on Census handler errors (env-var diagnostic) |
+| `503aec7` | Refresh: split NMTC into its own HTTP call to fit Hobby gateway ceiling |
+| `341410f` | Refresh: kill 503-retry storm + add 310s client-side timeout |
+| `4ed7f3b` | Refresh: serialize Census handlers + retry on 503 (later refined by 341410f) |
+| `0baad56` | Bump `@anthropic-ai/sdk` 0.88 → 0.91.1 (dependabot moderate) + accepted-risk doc |
+| `ebf3deb` | Tune Census fetch budget for parallel multiplexed runs |
+| `3d9f978` | Fix: multiplexed refresh hitting 60s gateway timeout (`maxDuration` 60→300, `Promise.all`) |
+| `9ba2086` | Fix: NMTC LIC handler — iterate tract pulls per-state (Census wildcard fix) ✓ verified |
 | `f2fdb6c` | Docs: consolidate planning trail into single BUILD_LOG.md |
 | `ad67356` | Data layer: NMTC LIC tracts → IRA §48(e) Cat 1 +10% ITC bonus per county |
 | `fe2b108` | Data layer: HUD QCT/DDA federal LIHTC overlay per county |
