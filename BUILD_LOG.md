@@ -4,51 +4,39 @@
 
 ---
 
-## 🟢 Pickup at 10:30 AM — Tailwind v3 → v4 + Vite 5 → 8 upgrade
+## ✅ Shipped 2026-04-30 — Tailwind v4 + Vite 8 + shadcn integration
 
-**Why this one for a 12-hour block:** Single largest unblocking
-upgrade in the codebase. Auto-clears 2 of the 5 remaining dependabot
-vulns (`vite` + `esbuild`). Permanently unlocks `shadcn` so future
-component work stops fighting Tailwind v3 limits. Estimated 3-5h of
-focused work — fits perfectly in a long uninterrupted session and
-poorly in any shorter window.
+Cleaner than the BUILD_LOG plan estimated (~1.5h vs 3-5h budgeted)
+because the codebase had **zero `@apply` usage**, no Tailwind plugins,
+and a simple custom palette — the official codemod handled almost
+everything mechanically.
 
-### Step-by-step
+**Three commits, merged to main as `475a095`:**
 
-1. **Read the migration guides first** (~20 min): Tailwind v4 upgrade
-   guide and Vite 5→8 migration notes. Both have official codemods.
-2. **Branch off `main`** as `tailwind-v4-vite-8` so the upgrade can be
-   reverted cleanly if it goes sideways.
-3. **Run the codemods** (`@tailwindcss/upgrade`, then Vite's). Each
-   handles ~80% of the mechanical changes.
-4. **Hand-fix the remainder** — usually `@apply` directives, custom
-   plugin shapes, theme `extend`. The codebase uses inline style
-   props heavily (see Profile.jsx, USMap.jsx) which should be safe.
-5. **Verify build clean + dev server boots**, then **walk every
-   route** in the running app to catch broken styles. Critical
-   surfaces: `/`, `/library`, `/admin`, `/profile`, `/upgrade`.
-6. **Add `shadcn` init** and pull the first 2-3 primitives we'd
-   actually use (`button`, `dialog`, `dropdown-menu`) to confirm the
-   integration works. No need to refactor existing components yet.
-7. **Run `npm audit`** — should drop from 5 vulns to 3 (only the
-   `react-simple-maps` chain + `xlsx` remain, both already documented
-   accepted-risk).
-8. **Update BUILD_LOG** — flip the P2 backlog item to shipped, drop
-   the vite/esbuild vuln rows from the accepted-risks table.
+- `3e7df8e` — Tailwind v3.4.6 → v4.2.4, Vite 5.3.4 → 8.0.10. Codemod
+  migrated 35 files. JS config (`tailwind.config.js`) replaced by
+  CSS-first `@theme` block in `src/index.css`. Class-name renames:
+  `flex-shrink-0` → `shrink-0`, `focus:outline-none` →
+  `focus:outline-hidden`, `rounded` → `rounded-sm`, `rounded-sm` →
+  `rounded-xs`. Border-color compat shim added (v4 default changed
+  from gray-200 to currentcolor). autoprefixer dropped (v4 has its
+  own). Build time 22s → 4s thanks to Rolldown.
 
-### Risks to watch
+- `55f3fc7` — shadcn/ui integrated, scoped to its own directory at
+  `src/components/shadcn/ui/` so primitives never collide with our
+  existing custom UI in `src/components/ui/`. Pruned shadcn's
+  universal CSS overrides (Geist font import, `* { @apply
+  border-border }`, body/html @applies, `--font-sans` /
+  `--color-primary` / `--color-accent` overrides in @theme inline).
+  shadcn primitives now inherit our brand (teal primary, amber
+  accent, Inter font) automatically. Smoke-test components: `card`,
+  `badge`. Added `jsconfig.json` + `vite.config.js` `@/*` alias.
 
-- Tailwind v4 dropped `@apply` outside of components in some configs.
-  Check `src/index.css` and any other CSS files for `@apply` usage.
-- Vite 8 may bump the minimum Node version. Verify Vercel's Node 24
-  default still satisfies it (it should).
-- `react-simple-maps` is the most likely place for a styling
-  regression — verify the USMap renders correctly after upgrade.
+- `475a095` — merge commit.
 
-### After this lands
-
-Search.jsx → `ui/*` primitives refactor (shadcn unlocked) becomes the
-natural next item. Or the dependabot deep-clean.
+**Audit impact:** vite + esbuild moderate vulns cleared (confirmed
+locally). Remaining 6 high are all pre-documented accepted-risks
+(`xlsx` + `react-simple-maps` / d3-color chain).
 
 ---
 
@@ -72,7 +60,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `d8be8ef` Refresh: stale-tolerance for Census ACS sources
+- **Branch:** `main` · last commit: `475a095` Merge: Tailwind v4 + Vite 8 + shadcn
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -116,6 +104,9 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `475a095` | Merge: Tailwind v4 + Vite 8 + shadcn |
+| `55f3fc7` | Integrate shadcn/ui (scoped, brand-preserving) |
+| `3e7df8e` | Upgrade Tailwind v3 → v4 and Vite 5 → 8 |
 | `d8be8ef` | Refresh: stale-tolerance for Census ACS sources (90-day window, amber-OK badge) |
 | `4285c1a` | Refresh: make `?debug=1` auth-bypass + fully redact key |
 | `0cab89f` | BUILD_LOG: capture diagnostic plan + clear pickup steps |
@@ -159,8 +150,7 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 - **Trend chips on KPIs** (V3 §7.2) — same.
 
 ### P2 — Engineering-ready
-- **Search.jsx form inputs → ui/* primitives** — largest unrefactored surface; deferred to natural touches per V3 plan.
-- **Tailwind v3 → v4 + Vite 5 → 8 upgrade** — dedicated session, ~3-5h, unlocks shadcn permanently.
+- **Search.jsx form inputs → ui/* primitives** — largest unrefactored surface. shadcn now available; can compose new primitives from `src/components/shadcn/ui/` as the refactor proceeds.
 - **Wetlands + farmland data layers** (EPA NWI / USDA WSS) — deferred for spatial-join complexity; revisit if Lens Site Control needs more depth.
 
 ### P3 — Pre-revenue legal / IP (non-engineering, no monthly subscriptions per user preference)
@@ -175,7 +165,7 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 |---|---|---|---|
 | `xlsx` | high (proto pollution + ReDoS) | Vulns require **parsing** malicious workbooks. We only **write** xlsx (Library export). No npm patch — SheetJS left npm in 2023. | Replace with `exceljs` only if we add xlsx import. Otherwise indefinite. |
 | `react-simple-maps` chain (`d3-color` ReDoS) | high ×4 | ReDoS needs user-controlled color strings; we pass static us-atlas topojson. Library abandoned at v3; npm flags downgrade to v1 as the only "fix". | Swap for `@nivo/geo` or similar if the map needs new features. |
-| `vite` / `esbuild` | mod ×2 | Both dev-server-only vulns. Production ships pre-built static assets — runtime never touches vite/esbuild. | Resolved by the **Vite 5→8** P2 backlog item. |
+| ~~`vite` / `esbuild`~~ | ~~mod ×2~~ | ~~Dev-server-only vulns.~~ | ✅ **Resolved 2026-04-30** by Vite 5→8 upgrade (`3e7df8e`). |
 
 ### Deferred until paying-user traction
 - **IX Queue Forecaster** (Wave 2 — needs ≥12 weekly snapshots, Q3 launch).
