@@ -24,10 +24,13 @@ The bar: **every datum a customer sees in Tractova traces to a verifiable .gov o
 | Table | Source | API endpoint | Cadence | Cron file |
 |---|---|---|---|---|
 | `lmi_data` | US Census ACS 2018-2022 5-year | `api.census.gov/data/2022/acs/acs5` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=lmi` |
+| `state_programs.dsire_*` (verification fields) | DSIRE (NCSU + DOE) | `programs.dsireusa.org/api/v2/programs` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=state_programs` |
 | `revenue_rates.capacity_factor_pct` | NREL PVWatts API v8 | `developer.nrel.gov/api/pvwatts/v8.json` | Quarterly (1st of Jan/Apr/Jul/Oct) | `api/refresh-capacity-factors.js` |
 | `revenue_rates.ci_retail_rate_cents_kwh` | EIA Electricity Retail Sales | `api.eia.gov/v2/electricity/retail-sales` | Quarterly (with capacity factors) | `api/refresh-capacity-factors.js` |
 | `substations` | EIA Form 860 (Generator-level Plant Data) | `api.eia.gov/v2/electricity/operating-generator-capacity` | Monthly (1st of month, 6am UTC) | `api/refresh-substations.js` |
 | `ix_queue_data` | MISO + PJM + NYISO + ISO-NE public queue reports | (ISO-specific scrapers) | Weekly (Sun 6am UTC) | `api/refresh-ix-queue.js` |
+
+> **Note on `state_programs` partial automation:** DSIRE provides program identity, status, summary text, and the canonical URL — those fields ARE live-pulled. The Tractova-curated fields (`csStatus`, `capacityMW`, `lmiPercent`, `ixDifficulty`, `enrollmentRateMWPerMonth`) are NOT in DSIRE and remain admin-curated. The DSIRE pull adds a verification timestamp + canonical-source link rather than replacing curated values.
 
 ### 🔄 Manual curation pending automation
 

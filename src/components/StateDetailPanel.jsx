@@ -174,6 +174,47 @@ function ProgramTab({ state, runway }) {
           </div>
         </div>
       )}
+
+      {/* DSIRE verification footer — populated by refresh-data?source=state_programs.
+          Renders only when the cron has run and produced a match. Quiet by design;
+          the principle is "we cross-verify" without being self-congratulatory. */}
+      {state.dsireLastVerified && (
+        <div
+          className="rounded-md px-3 py-2.5 mt-1"
+          style={{ background: 'rgba(20,184,166,0.04)', border: '1px solid rgba(20,184,166,0.18)' }}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
+              ◆ Cross-verified · DSIRE
+            </span>
+            {state.dsireMatchQuality === 'partial' && (
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-amber-700">partial match</span>
+            )}
+            {state.dsireMatchQuality === 'none' && (
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-500">no DSIRE match</span>
+            )}
+          </div>
+          <p className="text-[11px] text-gray-600 leading-relaxed">
+            {state.dsireMatchQuality === 'none'
+              ? 'No matching DSIRE entry found for this state\'s CS program. Source data is Tractova-curated; DSIRE coverage may lag for newer programs.'
+              : 'Tractova\'s state program data is cross-checked against the DSIRE database (NCSU + DOE-funded), the canonical free index of state renewable-energy incentives.'}
+            {' '}
+            <span className="font-mono tabular-nums text-gray-400">
+              Last verified {new Date(state.dsireLastVerified).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+            {state.dsireProgramUrl && (
+              <>
+                {' · '}
+                <a href={state.dsireProgramUrl} target="_blank" rel="noopener noreferrer"
+                  className="font-medium hover:underline"
+                  style={{ color: '#0F766E' }}>
+                  View on DSIRE ↗
+                </a>
+              </>
+            )}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

@@ -89,6 +89,12 @@ function normalize(row) {
     lastVerified:              row.last_verified,
     updatedAt:                 row.updated_at,
     coverageTier:              row.coverage_tier ?? 'light',
+    // DSIRE verification (migration 026 + refresh-data.js?source=state_programs)
+    dsireProgramId:            row.dsire_program_id ?? null,
+    dsireProgramUrl:           row.dsire_program_url ?? null,
+    dsireSummary:              row.dsire_summary ?? null,
+    dsireLastVerified:         row.dsire_last_verified ?? null,
+    dsireMatchQuality:         row.dsire_match_quality ?? null,
     // Computed — never stored
     feasibilityScore:          computeFeasibilityScore(row),
     runway:                    computeRunway(row),
