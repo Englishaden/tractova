@@ -402,7 +402,7 @@ export default function Glossary() {
                 </p>
               </div>
               {/* Decorative monospace tag — V3 teal */}
-              <div className="hidden sm:block flex-shrink-0 text-right">
+              <div className="hidden sm:block shrink-0 text-right">
                 <div className="font-mono text-[10px] leading-5 select-none"
                   style={{ color: 'rgba(94,234,212,0.40)' }}>
                   <div>offtake · ix · site</div>
@@ -425,7 +425,7 @@ export default function Glossary() {
             onChange={handleQueryChange}
             onFocus={() => { if (query.trim()) setShowDropdown(true) }}
             placeholder="Search terms..."
-            className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
+            className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
           />
           {query && (
             <button
@@ -448,7 +448,7 @@ export default function Glossary() {
                     className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-teal-50 flex items-center justify-between gap-3 transition-colors"
                   >
                     <MatchHighlight text={t.term} query={query} />
-                    <span className={`text-xs px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${PILLAR_BADGE[t.pillar]}`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium shrink-0 ${PILLAR_BADGE[t.pillar]}`}>
                       {PILLAR_LABEL[t.pillar]}
                     </span>
                   </button>
@@ -512,13 +512,13 @@ export default function Glossary() {
                         {t.term}
                         <svg
                           width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className="opacity-0 group-hover:opacity-40 transition-opacity flex-shrink-0"
+                          className="opacity-0 group-hover:opacity-40 transition-opacity shrink-0"
                         >
                           <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                           <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
                         </svg>
                       </button>
-                      <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${PILLAR_BADGE[t.pillar]}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${PILLAR_BADGE[t.pillar]}`}>
                         {PILLAR_LABEL[t.pillar]}
                       </span>
                     </div>

@@ -194,7 +194,7 @@ function AlertPreferences({ userId }) {
                 Create one in your Slack workspace at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline">api.slack.com/apps</a> → Incoming Webhooks.
               </p>
               {slackUrlDirty && (
-                <Button variant="accent" size="sm" onClick={saveSlackUrl} loading={saving} className="flex-shrink-0">
+                <Button variant="accent" size="sm" onClick={saveSlackUrl} loading={saving} className="shrink-0">
                   Save URL
                 </Button>
               )}
@@ -284,9 +284,9 @@ function PortfolioStats({ projects, stateProgramMap }) {
           <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-1">Projects</p>
           <p className="text-2xl font-bold tabular-nums text-gray-900">{projects.length}</p>
           <div className="flex items-center gap-1 mt-1">
-            {riskCounts.strong > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" title={`${riskCounts.strong} Strong`} />}
-            {riskCounts.moderate > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title={`${riskCounts.moderate} Moderate`} />}
-            {riskCounts.atRisk > 0 && <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title={`${riskCounts.atRisk} At Risk`} />}
+            {riskCounts.strong > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title={`${riskCounts.strong} Strong`} />}
+            {riskCounts.moderate > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title={`${riskCounts.moderate} Moderate`} />}
+            {riskCounts.atRisk > 0 && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" title={`${riskCounts.atRisk} At Risk`} />}
             <span className="text-[9px] text-gray-400">
               {[
                 riskCounts.strong > 0 && `${riskCounts.strong} strong`,
@@ -310,14 +310,14 @@ function PortfolioStats({ projects, stateProgramMap }) {
                   background: STAGE_COLORS[stage] || '#9CA3AF',
                 }}
               />
-              <span className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-[9px] bg-gray-900 text-white px-1.5 py-0.5 rounded pointer-events-none z-10">{stage} ({count})</span>
+              <span className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-[9px] bg-gray-900 text-white px-1.5 py-0.5 rounded-sm pointer-events-none z-10">{stage} ({count})</span>
             </div>
           ))}
         </div>
         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
           {stageData.map(([stage, count]) => (
             <span key={stage} className="flex items-center gap-1 text-[9px] text-gray-500">
-              <span className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ background: STAGE_COLORS[stage] || '#9CA3AF' }} />
+              <span className="w-1.5 h-1.5 rounded-xs shrink-0" style={{ background: STAGE_COLORS[stage] || '#9CA3AF' }} />
               {stage.replace(' (Notice to Proceed)', '')} {count}
             </span>
           ))}
@@ -340,7 +340,7 @@ function PortfolioStats({ projects, stateProgramMap }) {
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
             {techData.map(([tech, mw]) => (
               <span key={tech} className="flex items-center gap-1 text-[9px] text-gray-500">
-                <span className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
+                <span className="w-1.5 h-1.5 rounded-xs shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
                 {tech} · {mw.toFixed(1)} MW
               </span>
             ))}
@@ -400,7 +400,7 @@ export default function Profile() {
             <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
             <div className="px-6 py-6 flex items-center gap-4">
               <div
-                className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold flex-shrink-0"
+                className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-bold shrink-0"
                 style={{ background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)', boxShadow: '0 4px 12px rgba(20,184,166,0.3)' }}
               >
                 {initials}
@@ -516,7 +516,7 @@ export default function Profile() {
                     {recentProjects.map(p => (
                       <div key={p.id} className="flex items-center justify-between group">
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold flex-shrink-0 font-mono" style={{ background: 'rgba(15,110,86,0.08)', color: '#0F6E56' }}>
+                          <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 font-mono" style={{ background: 'rgba(15,110,86,0.08)', color: '#0F6E56' }}>
                             {p.state || '—'}
                           </span>
                           <div className="min-w-0">
@@ -524,7 +524,7 @@ export default function Profile() {
                             <p className="text-[10px] text-gray-400">{[p.county && `${p.county} Co.`, p.stage].filter(Boolean).join(' · ')}</p>
                           </div>
                         </div>
-                        <span className="text-[10px] text-gray-400 flex-shrink-0 tabular-nums font-mono">{timeAgo(p.saved_at)}</span>
+                        <span className="text-[10px] text-gray-400 shrink-0 tabular-nums font-mono">{timeAgo(p.saved_at)}</span>
                       </div>
                     ))}
                   </div>

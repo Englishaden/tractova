@@ -115,7 +115,7 @@ function DashboardPreview({ activeCount, metrics }) {
             ].map((a, i) => (
               <div key={i} className="flex items-start gap-2">
                 <span
-                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0"
+                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded-sm mt-0.5 shrink-0"
                   style={a.tag === 'IX'
                     ? { background: 'rgba(245,158,11,0.18)', color: '#FCD34D' }
                     : { background: 'rgba(20,184,166,0.20)', color: '#5EEAD4' }}
@@ -309,7 +309,7 @@ export default function Landing() {
                 <ul className="space-y-2">
                   {p.bullets.map(b => (
                     <li key={b} className="flex items-center gap-2 text-sm text-gray-500">
-                      <span className={`${p.color} flex-shrink-0`}><IconCheck /></span>
+                      <span className={`${p.color} shrink-0`}><IconCheck /></span>
                       {b}
                     </li>
                   ))}
@@ -364,7 +364,7 @@ export default function Landing() {
                   'Developers tracking multiple projects across states',
                 ].map(t => (
                   <li key={t} className="flex items-start gap-2.5 text-sm text-gray-700">
-                    <span className="text-primary mt-0.5 flex-shrink-0"><IconCheck /></span>
+                    <span className="text-primary mt-0.5 shrink-0"><IconCheck /></span>
                     {t}
                   </li>
                 ))}
@@ -381,7 +381,7 @@ export default function Landing() {
                   'EPC or procurement teams',
                 ].map(t => (
                   <li key={t} className="flex items-start gap-2.5 text-sm text-gray-400">
-                    <span className="mt-0.5 flex-shrink-0 text-gray-300">
+                    <span className="mt-0.5 shrink-0 text-gray-300">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                       </svg>
@@ -497,7 +497,7 @@ export default function Landing() {
             href="https://theadder.substack.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors"
+            className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors"
             style={{ border: '1px solid #14B8A6', color: '#0F766E' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = '#14B8A6'; e.currentTarget.style.color = '#FFFFFF' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#0F766E' }}

@@ -62,7 +62,7 @@ export default function Nav() {
       <div className="max-w-dashboard mx-auto px-4 md:px-6 h-full flex items-center justify-between gap-3">
 
         {/* Logo — wordmark hides on phone (mark stays) for tighter nav */}
-        <Link to="/" className="flex items-center gap-2 select-none flex-shrink-0">
+        <Link to="/" className="flex items-center gap-2 select-none shrink-0">
           <TractovaMark />
           <span className="hidden sm:inline text-xl font-serif font-semibold tracking-tight text-ink leading-none" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
         </Link>
@@ -95,7 +95,7 @@ export default function Nav() {
             </button>
           )}
           {loading ? (
-            <div className="w-32 h-7 bg-gray-100 rounded animate-pulse" />
+            <div className="w-32 h-7 bg-gray-100 rounded-sm animate-pulse" />
           ) : user ? (
             // ── Logged-in: user dropdown ──────────────────────────────────────
             <div className="relative" ref={dropdownRef}>
@@ -107,7 +107,7 @@ export default function Nav() {
                 <svg
                   width="14" height="14" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                  className={`flex-shrink-0 transition-transform duration-150 ${dropdownOpen ? 'rotate-180' : ''}`}
+                  className={`shrink-0 transition-transform duration-150 ${dropdownOpen ? 'rotate-180' : ''}`}
                 >
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
@@ -162,7 +162,7 @@ export default function Nav() {
               </Link>
               <Link
                 to="/signup"
-                className="text-sm font-medium bg-primary text-white px-4 py-1.5 rounded hover:bg-primary-700 transition-colors"
+                className="text-sm font-medium bg-primary text-white px-4 py-1.5 rounded-sm hover:bg-primary-700 transition-colors"
               >
                 Get Started
               </Link>

@@ -96,13 +96,13 @@ function DealCard({ deal, targetMW }) {
 
   return (
     <article
-      className="rounded-xl bg-white px-5 py-4 transition-shadow hover:shadow-sm"
+      className="rounded-xl bg-white px-5 py-4 transition-shadow hover:shadow-xs"
       style={{ border: '1px solid #E2E8F0' }}
     >
       {/* Header row: status + tech + size */}
       <div className="flex items-center gap-2 flex-wrap mb-2">
         <span
-          className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-2 py-0.5 rounded border"
+          className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-2 py-0.5 rounded-sm border"
           style={{ background: status.bg, color: status.color, borderColor: status.border }}
         >
           {status.label}
@@ -187,7 +187,7 @@ function ExploreDealSourcesButton() {
           target="_blank"
           rel="noopener noreferrer"
           title={src.desc}
-          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded"
+          className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 rounded-sm"
         >
           Explore {src.name}
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">

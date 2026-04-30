@@ -91,7 +91,7 @@ export default function SignUp() {
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-xs">
           <h1 className="text-base font-bold text-gray-900">Create your account</h1>
           <p className="text-xs text-gray-500 mt-1 mb-6">
             Dashboard access is free, no credit card required.
@@ -116,7 +116,7 @@ export default function SignUp() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your full name"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
+                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -133,7 +133,7 @@ export default function SignUp() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
+                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -150,7 +150,7 @@ export default function SignUp() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 6 characters"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
+                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>
@@ -167,7 +167,7 @@ export default function SignUp() {
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="••••••••"
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
+                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
                            transition-colors"
               />
             </div>

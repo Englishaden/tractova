@@ -1,6 +1,87 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@theme {
+  --color-brand-50: #e8eaee;
+  --color-brand-100: #c5c9d2;
+  --color-brand-200: #9ca3ae;
+  --color-brand-300: #6f7888;
+  --color-brand-400: #404c61;
+  --color-brand-500: #1f2d45;
+  --color-brand-600: #0f1a2e;
+  --color-brand-700: #0a132a;
+  --color-brand-800: #070d1e;
+  --color-brand-900: #040611;
+  --color-brand: #0f1a2e;
+
+  --color-ink: #0a1828;
+  --color-ink-muted: #5a6b7a;
+
+  --color-paper: #fafaf7;
+
+  --color-feasibility-1: #f0fdfa;
+  --color-feasibility-2: #99f6e4;
+  --color-feasibility-3: #2dd4bf;
+  --color-feasibility-4: #14b8a6;
+  --color-feasibility-5: #0f766e;
+
+  --color-primary-50: #e8f5f1;
+  --color-primary-100: #c5e6db;
+  --color-primary-200: #9dd4c4;
+  --color-primary-300: #6ecdb0;
+  --color-primary-400: #34b08a;
+  --color-primary-500: #1a9070;
+  --color-primary-600: #0f6e56;
+  --color-primary-700: #0a5240;
+  --color-primary-800: #063629;
+  --color-primary-900: #031a14;
+  --color-primary: #0f6e56;
+
+  --color-accent-50: #fdf5e6;
+  --color-accent-100: #fae4b3;
+  --color-accent-200: #f5cd77;
+  --color-accent-300: #f0b43c;
+  --color-accent-400: #e09a1c;
+  --color-accent-500: #ba7517;
+  --color-accent-600: #9a5e0f;
+  --color-accent-700: #7a4709;
+  --color-accent-800: #5a3104;
+  --color-accent-900: #3a1c01;
+  --color-accent: #ba7517;
+
+  --color-surface: #f8f7f4;
+  --color-chrome: #f1f0ed;
+
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --container-dashboard: 1440px;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 @layer base {
   html {
@@ -11,14 +92,5 @@
 
   body {
     background-color: #F8F7F4;
-  }
-}
-
-@layer utilities {
-  .line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
   }
 }

@@ -23,16 +23,16 @@ function ActiveCSDetail({ programs = [], previewMode = false }) {
       </p>
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-white/[0.06]">
+          <tr className="border-b border-white/6">
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">State</th>
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Program</th>
             <th className="text-right py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Capacity Left</th>
             <th className="text-right py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Score</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/[0.04]">
+        <tbody className="divide-y divide-white/4">
           {visible.map((s) => (
-            <tr key={s.id} className="hover:bg-white/[0.025] transition-colors">
+            <tr key={s.id} className="hover:bg-white/2.5 transition-colors">
               <td className="py-2 font-semibold text-white/80">{s.name}</td>
               <td className="py-2 text-white/45">{s.csProgram}</td>
               <td className="py-2 text-right text-emerald-400 font-mono">{s.capacityMW.toLocaleString()} MW</td>
@@ -74,15 +74,15 @@ function IXCapacityDetail({ previewMode = false }) {
       <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/40 mb-2">Representative utilities</p>
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-white/[0.06]">
+          <tr className="border-b border-white/6">
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Utility</th>
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Territory</th>
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/[0.04]">
+        <tbody className="divide-y divide-white/4">
           {visible.map((n) => (
-            <tr key={n.utility} className="hover:bg-white/[0.025] transition-colors">
+            <tr key={n.utility} className="hover:bg-white/2.5 transition-colors">
               <td className="py-2 font-medium text-white/80">{n.utility}</td>
               <td className="py-2 text-white/40">{n.territory}</td>
               <td className="py-2 text-emerald-400">{n.status}</td>
@@ -130,7 +130,7 @@ function PolicyAlertsDetail({ news = [], previewMode = false }) {
         >
           <p className="text-xs font-medium text-white/80 leading-snug">{item.headline}</p>
           <div className="flex items-center gap-2 mt-1.5">
-            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase tracking-wider ${PILLAR_BADGE[item.pillar]}`}>
+            <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-sm border uppercase tracking-wider ${PILLAR_BADGE[item.pillar]}`}>
               {item.pillar === 'ix' ? 'Interconnection' : item.pillar.charAt(0).toUpperCase() + item.pillar.slice(1)}
             </span>
             <span className="text-xs text-white/35">
@@ -166,18 +166,18 @@ function AvgCapacityDetail({ programs = [], previewMode = false }) {
       </p>
       <table className="w-full text-xs">
         <thead>
-          <tr className="border-b border-white/[0.06]">
+          <tr className="border-b border-white/6">
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">State</th>
             <th className="text-left py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Status</th>
             <th className="text-right py-1.5 text-[9px] font-mono uppercase tracking-widest text-white/40">Remaining (MW)</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/[0.04]">
+        <tbody className="divide-y divide-white/4">
           {visible.map((s) => (
-            <tr key={s.id} className="hover:bg-white/[0.025] transition-colors">
+            <tr key={s.id} className="hover:bg-white/2.5 transition-colors">
               <td className="py-2 font-medium text-white/80">{s.name}</td>
               <td className="py-2">
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border uppercase tracking-wider ${STATUS_BADGE[s.csStatus]}`}>
+                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-sm border uppercase tracking-wider ${STATUS_BADGE[s.csStatus]}`}>
                   {s.csStatus === 'active' ? 'Active' : 'Limited'}
                 </span>
               </td>
@@ -185,7 +185,7 @@ function AvgCapacityDetail({ programs = [], previewMode = false }) {
             </tr>
           ))}
           {!previewMode && (
-            <tr className="border-t border-white/[0.08]">
+            <tr className="border-t border-white/8">
               <td colSpan={2} className="py-2 font-semibold text-white/60">Total</td>
               <td className="py-2 text-right font-mono font-bold text-white/90">{total.toLocaleString()} MW</td>
             </tr>
@@ -260,11 +260,11 @@ function MetricsModal({ title, onClose, children }) {
 
         {/* Header */}
         <div
-          className="px-5 pt-5 pb-3.5 flex items-center justify-between flex-shrink-0"
+          className="px-5 pt-5 pb-3.5 flex items-center justify-between shrink-0"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#0D1424', borderRadius: '0.5rem 0.5rem 0 0' }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-[3px] h-3.5 rounded-full flex-shrink-0" style={{ background: 'rgba(20,184,166,0.75)' }} />
+            <div className="w-[3px] h-3.5 rounded-full shrink-0" style={{ background: 'rgba(20,184,166,0.75)' }} />
             <h3 className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-white/85">{title}</h3>
           </div>
           <button

@@ -132,7 +132,7 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
             <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0F766E' }}>
               Market Pulse
             </span>
-            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded text-teal-700" style={{ background: 'rgba(20,184,166,0.12)' }}>
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm text-teal-700" style={{ background: 'rgba(20,184,166,0.12)' }}>
               AI
             </span>
           </div>
@@ -158,11 +158,11 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
               className={`px-5 py-4 hover:bg-surface transition-colors ${isAlert ? 'border-l-2 border-amber-300' : ''}`}
             >
               <div className="flex items-start gap-2.5">
-                <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${isAlert ? typeStyle.dot : pillar.dot}`} />
+                <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${isAlert ? typeStyle.dot : pillar.dot}`} />
                 <div className="flex-1 min-w-0">
                   {/* Type tag above headline for alerts */}
                   {isAlert && (
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border mb-1 ${typeStyle.badge}`}>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border mb-1 ${typeStyle.badge}`}>
                       <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L1 21h22L12 2zm0 3.5L20.5 19h-17L12 5.5zM11 10v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
                       {typeStyle.label}
                     </span>
@@ -182,15 +182,15 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
                   )}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {!isAlert && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${typeStyle.badge}`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${typeStyle.badge}`}>
                         {typeStyle.label}
                       </span>
                     )}
-                    <span className={`text-xs px-1.5 py-0.5 rounded border font-medium ${pillar.badge}`}>
+                    <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${pillar.badge}`}>
                       {pillar.label}
                     </span>
                     {stateTags.map((tag) => (
-                      <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 font-medium">
+                      <span key={tag} className="text-xs px-1.5 py-0.5 rounded-sm bg-gray-100 text-gray-600 border border-gray-200 font-medium">
                         {tag}
                       </span>
                     ))}
@@ -224,7 +224,7 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
           <button
             onClick={() => setPage((p) => Math.max(0, p - 1))}
             disabled={page === 0}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-sm text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
             aria-label="Previous page"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
@@ -233,7 +233,7 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
           <button
             onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-sm text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
             aria-label="Next page"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>

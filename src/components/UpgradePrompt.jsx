@@ -80,7 +80,7 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
         <ul className="space-y-3 mb-8">
           {config.bullets.map((b) => (
             <li key={b} className="flex items-start gap-3 text-sm text-gray-700">
-              <span className="mt-0.5 flex-shrink-0" style={{ color: '#0F766E' }}>
+              <span className="mt-0.5 shrink-0" style={{ color: '#0F766E' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
@@ -100,7 +100,7 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
           <p className="text-xs text-gray-400 mb-5">Cancel anytime. No long-term commitment.</p>
 
           {error && (
-            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+            <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-sm text-xs text-red-600">
               {error}
             </div>
           )}

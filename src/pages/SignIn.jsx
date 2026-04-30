@@ -67,7 +67,7 @@ export default function SignIn() {
 
         {/* ── Reset sent confirmation ─────────────────────────────────────── */}
         {view === 'reset_sent' ? (
-          <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-sm text-center">
+          <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-xs text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(20,184,166,0.10)' }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -91,7 +91,7 @@ export default function SignIn() {
         ) : (
 
         /* ── Main card (sign in OR reset form) ─────────────────────────── */
-        <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-xs">
           {view === 'signin' ? (
             <>
               <h1 className="text-base font-bold text-gray-900">Sign in to your account</h1>
@@ -130,7 +130,7 @@ export default function SignIn() {
                   value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                             focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
+                             focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />
               </div>
 
@@ -151,7 +151,7 @@ export default function SignIn() {
                   value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                             focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
+                             focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />
               </div>
 
@@ -177,7 +177,7 @@ export default function SignIn() {
                   value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                             focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
+                             focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />
               </div>
 

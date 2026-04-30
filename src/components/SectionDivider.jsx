@@ -2,7 +2,7 @@ export default function SectionDivider({ label }) {
   return (
     <div className="flex items-center gap-3 my-5">
       {label && (
-        <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-primary-600 whitespace-nowrap font-mono flex-shrink-0">
+        <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-primary-600 whitespace-nowrap font-mono shrink-0">
           {label}
         </span>
       )}

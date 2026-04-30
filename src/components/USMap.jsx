@@ -181,7 +181,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                       onMouseLeave={handleMouseLeave}
                       onClick={() => handleClick(geo)}
                       onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); handleClick(geo) } }}
-                      className="cursor-pointer transition-all duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                      className="cursor-pointer transition-all duration-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500"
                       role="button"
                       tabIndex={stateInfo ? 0 : -1}
                       aria-label={ariaLabel}
@@ -281,7 +281,7 @@ function CoverageTooltipLine({ tier }) {
   const c = cfg[tier] || cfg.light
   return (
     <div className="mt-1.5 pt-1.5 flex items-center gap-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c.color }} />
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c.color }} />
       <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold" style={{ color: c.color }}>
         {c.label}
       </span>
@@ -302,7 +302,7 @@ function StatusPill({ status }) {
   const cfg = map[status] || map.none
   return (
     <span
-      className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+      className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm"
       style={{ background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}` }}
     >
       {cfg.label}
@@ -322,7 +322,7 @@ function CoverageSwatch({ tier }) {
   const swatchId = `legend-${tier}`
   const baseFill = '#14B8A6'  // teal-500 — neutral feasibility shade for legend
   return (
-    <svg width="30" height="14" className="rounded-sm flex-shrink-0" style={{ border: '1px solid rgba(15,118,110,0.22)' }}>
+    <svg width="30" height="14" className="rounded-xs shrink-0" style={{ border: '1px solid rgba(15,118,110,0.22)' }}>
       <defs>
         {tier === 'mid' && (
           <pattern id={swatchId} patternUnits="userSpaceOnUse" width="4.5" height="4.5" patternTransform="rotate(45)">
@@ -359,7 +359,7 @@ function Legend() {
         {items.map((i) => (
           <div key={i.label} className="flex items-center gap-1.5">
             <span
-              className="w-3 h-3 rounded-sm flex-shrink-0"
+              className="w-3 h-3 rounded-xs shrink-0"
               style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.10)'}` }}
             />
             <span className="text-xs text-gray-500">{i.label}</span>
