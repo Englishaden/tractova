@@ -1621,6 +1621,7 @@ const FRESHNESS_CONFIG = {
   county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
   energy_community_data:{ label: 'Energy Community (IRA)', icon: '⚡', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
   hud_qct_dda_data:    { label: 'HUD QCT / DDA',         icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
+  nmtc_lic_data:       { label: 'NMTC LIC §48(e)',       icon: '🎯', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
   revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [120, 200] },
   revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'last_cron_success', fallbackField: 'newest_dsire_check', staleField: null,       thresholds: [14, 30] },
   news_feed:           { label: 'News Feed',           icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },

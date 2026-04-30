@@ -32,7 +32,7 @@ const supabaseAdmin = createClient(
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
 
-const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda']
+const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda', 'nmtc_lic']
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -106,6 +106,7 @@ export default async function handler(req, res) {
       else if (source === 'revenue_stacks')    result = await refreshRevenueStacksViaDsire()
       else if (source === 'energy_community')  result = await refreshEnergyCommunity()
       else if (source === 'hud_qct_dda')       result = await refreshHudQctDda()
+      else if (source === 'nmtc_lic')          result = await refreshNmtcLic()
       else                                     result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
       results[source] = result
@@ -1553,6 +1554,210 @@ async function refreshHudQctDda() {
     dda_layer_rows:           ddaRows.length,
     non_metro_dda_count:      nmDdaCount,
     metro_dda_skipped:        metroDdaSkipped,
+    sample_county:            sample,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NMTC LIC handler — IRA §48(e) Category 1 Low-Income Communities Bonus Credit
+//
+// Derives NMTC Low-Income Community tract designations from raw Census ACS
+// data per the CDFI Fund's published methodology. A tract qualifies as LIC
+// (and thus the project sited there qualifies for §48(e) Category 1's +10%
+// ITC bonus) if EITHER:
+//   (a) Tract poverty rate >= 20%
+//   (b) Tract median family income <= 80% of statewide median family income
+//
+// Why we DERIVE rather than fetch from a published list: CDFI Fund publishes
+// the LIC list as a downloadable Excel/shapefile, not a REST API. Computing
+// from primary Census ACS sources gives us:
+//   - Same data inputs CDFI uses (ACS 2018-2022 5-year)
+//   - Same rules CDFI applies (per their methodology)
+//   - Live-pulled (each weekly cron checks Census; if Census updates the
+//     ACS series, our LIC counts update automatically)
+//
+// Methodology notes / v1 limitations:
+//   - We use STATE median family income as the threshold benchmark for ALL
+//     tracts. CDFI uses the GREATER of state MFI or MSA MFI for metro tracts.
+//     A metro tract in a high-MFI MSA may be slightly under-counted in v1.
+//   - We don't capture special "high migration" rural tracts (a CDFI
+//     provision affecting <2% of tracts).
+//
+// Customer impact: §48(e) Category 1 stacks with Energy Community for up to
+// +20 percentage points on the ITC. Direct $-impact: ~$1-2M of bonus credit
+// on a 5MW project sited in an LIC tract.
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function refreshNmtcLic() {
+  const apiKey = process.env.CENSUS_API_KEY
+  const baseTractUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E,B17020_001E,B17020_002E&for=tract:*&in=state:*`
+  const baseStateUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E&for=state:*`
+  const tractUrl = apiKey ? `${baseTractUrl}&key=${apiKey}` : baseTractUrl
+  const stateUrl = apiKey ? `${baseStateUrl}&key=${apiKey}` : baseStateUrl
+
+  // 1. Pull state-level median family income for the threshold benchmark.
+  let stateRaw
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    const resp = await fetch(stateUrl, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '')
+      return { ok: false, error: `Census state MFI ${resp.status}: ${body.slice(0, 200)}` }
+    }
+    stateRaw = await resp.json()
+  } catch (err) {
+    return { ok: false, error: `Census state MFI fetch failed: ${err.message}` }
+  }
+
+  if (!Array.isArray(stateRaw) || stateRaw.length < 2) {
+    return { ok: false, error: 'Census state MFI returned malformed payload' }
+  }
+
+  const stateHdr   = stateRaw[0]
+  const stateRows  = stateRaw.slice(1)
+  const sMfiIdx    = stateHdr.indexOf('B19113_001E')
+  const sFipsIdx   = stateHdr.indexOf('state')
+  const stateMfiByFips = new Map()
+  for (const r of stateRows) {
+    const mfi = parseInt(r[sMfiIdx], 10)
+    if (Number.isFinite(mfi) && mfi > 0) {
+      stateMfiByFips.set(r[sFipsIdx], mfi)
+    }
+  }
+
+  // 2. Pull tract-level data (~75K rows nationally; ~6-8MB JSON).
+  let tractRaw
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 60000)
+    const resp = await fetch(tractUrl, { signal: controller.signal })
+    clearTimeout(timeoutId)
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '')
+      return { ok: false, error: `Census tract ${resp.status}: ${body.slice(0, 200)}` }
+    }
+    tractRaw = await resp.json()
+  } catch (err) {
+    return { ok: false, error: `Census tract fetch failed: ${err.message}` }
+  }
+
+  if (!Array.isArray(tractRaw) || tractRaw.length < 1000) {
+    return { ok: false, error: `Census tract returned ${Array.isArray(tractRaw) ? tractRaw.length : 0} rows; expected ~75K. Aborting.` }
+  }
+
+  // Header indices
+  const hdr     = tractRaw[0]
+  const rows    = tractRaw.slice(1)
+  const mfiIdx       = hdr.indexOf('B19113_001E')
+  const povTotalIdx  = hdr.indexOf('B17020_001E')
+  const povBelowIdx  = hdr.indexOf('B17020_002E')
+  const stIdx        = hdr.indexOf('state')
+  const coIdx        = hdr.indexOf('county')
+  const trIdx        = hdr.indexOf('tract')
+  const nmIdx        = hdr.indexOf('NAME')
+
+  // 3. Apply CDFI rules per tract; aggregate per county.
+  const byCounty = new Map()
+  let totalQualifyingTracts = 0
+
+  for (const r of rows) {
+    const stateFips  = r[stIdx]
+    const countyFips = r[coIdx]
+    const tractFips  = r[trIdx]
+    if (!stateFips || !countyFips || !tractFips) continue
+    const usps = FIPS_TO_USPS[stateFips]
+    if (!usps) continue
+
+    const fips = `${stateFips}${countyFips}`
+    const stateMfi = stateMfiByFips.get(stateFips) || 0
+    const tractMfi = parseInt(r[mfiIdx], 10)
+    const povTotal = parseInt(r[povTotalIdx], 10)
+    const povBelow = parseInt(r[povBelowIdx], 10)
+
+    // Maintain per-county tract counter regardless of qualifying status
+    let bucket = byCounty.get(fips)
+    if (!bucket) {
+      bucket = {
+        county_fips:                fips,
+        state:                      usps,
+        county_name:                null,
+        total_tracts_in_county:     0,
+        qualifying_tracts_count:    0,
+        qualifying_via_poverty:     0,
+        qualifying_via_low_mfi:     0,
+        qualifying_tract_geoids:    [],
+        state_median_family_income: stateMfi || null,
+        dataset_version:            'ACS 2018-2022 5-year',
+        last_updated:               new Date().toISOString(),
+        source:                     'US Census ACS 2018-2022 5-yr + CDFI Fund NMTC LIC methodology',
+      }
+      byCounty.set(fips, bucket)
+    }
+    bucket.total_tracts_in_county += 1
+
+    // Best-effort county_name from the tract NAME field (e.g. "Census Tract 12, Will County, Illinois")
+    if (!bucket.county_name) {
+      const nm = r[nmIdx] || ''
+      const parts = nm.split(',').map(s => s.trim())
+      if (parts.length >= 2) bucket.county_name = parts[1]
+    }
+
+    // Skip qualifying-rule application if data is missing/suppressed
+    const povertyRate = (Number.isFinite(povBelow) && Number.isFinite(povTotal) && povTotal > 0)
+                        ? povBelow / povTotal
+                        : null
+    const qualifiesViaPoverty = povertyRate !== null && povertyRate >= 0.20
+    const qualifiesViaLowMfi  = (Number.isFinite(tractMfi) && tractMfi > 0 && stateMfi > 0)
+                                ? tractMfi <= stateMfi * 0.80
+                                : false
+
+    if (qualifiesViaPoverty || qualifiesViaLowMfi) {
+      bucket.qualifying_tracts_count += 1
+      if (qualifiesViaPoverty) bucket.qualifying_via_poverty += 1
+      if (qualifiesViaLowMfi)  bucket.qualifying_via_low_mfi += 1
+      if (bucket.qualifying_tract_geoids.length < 200) {
+        bucket.qualifying_tract_geoids.push(`${stateFips}${countyFips}${tractFips}`)
+      }
+      totalQualifyingTracts += 1
+    }
+  }
+
+  const allRows = Array.from(byCounty.values())
+  if (allRows.length < 100) {
+    return { ok: false, error: `Only ${allRows.length} counties aggregated; expected ~3,143. Aborting.` }
+  }
+
+  // Upsert in batches.
+  const BATCH = 500
+  let upserted = 0
+  for (let i = 0; i < allRows.length; i += BATCH) {
+    const slice = allRows.slice(i, i + BATCH)
+    const { error } = await supabaseAdmin
+      .from('nmtc_lic_data')
+      .upsert(slice, { onConflict: 'county_fips' })
+    if (error) {
+      return {
+        ok: false,
+        error: `Upsert failed at batch ${i / BATCH}: ${error.message}`,
+        partial_upserted: upserted,
+      }
+    }
+    upserted += slice.length
+  }
+
+  // Sample preference: county with high LIC density
+  const sample = allRows.find(r => r.qualifying_tracts_count >= 5) ||
+                 allRows.find(r => r.qualifying_tracts_count >= 1) ||
+                 allRows[0]
+
+  return {
+    ok:                       true,
+    counties_evaluated:       upserted,
+    total_qualifying_tracts:  totalQualifyingTracts,
+    counties_with_lic:        allRows.filter(r => r.qualifying_tracts_count > 0).length,
+    states_covered:           stateMfiByFips.size,
     sample_county:            sample,
   }
 }

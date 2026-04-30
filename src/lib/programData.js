@@ -257,6 +257,49 @@ export async function getEnergyCommunity(stateId, countyName) {
   })
 }
 
+// ── getNmtcLic ────────────────────────────────────────────────────────────────
+// IRA §48(e) Category 1 Low-Income Communities Bonus Credit eligibility per
+// county. Returns per-county count of NMTC LIC tracts derived from raw
+// Census ACS data per CDFI Fund's methodology. A project sited in any
+// qualifying tract picks up the +10% ITC bonus credit. Stacks with Energy
+// Community for compound bonus (potentially +20%).
+export async function getNmtcLic(stateId, countyName) {
+  if (!stateId || !countyName) return null
+  return withCache(`nmtc_lic:${stateId}:${countyName.toLowerCase()}`, async () => {
+    // Resolve county_fips via county_acs_data (canonical FIPS source in our schema)
+    const { data: acs } = await supabase
+      .from('county_acs_data')
+      .select('county_fips')
+      .eq('state', stateId)
+      .ilike('county_name', `%${countyName.replace(/\s+county.*$/i, '')}%`)
+      .limit(1)
+      .maybeSingle()
+    if (!acs?.county_fips) return null
+
+    const { data, error } = await supabase
+      .from('nmtc_lic_data')
+      .select('*')
+      .eq('county_fips', acs.county_fips)
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return null
+    return {
+      countyFips:                data.county_fips,
+      state:                     data.state,
+      countyName:                data.county_name,
+      totalTractsInCounty:       data.total_tracts_in_county || 0,
+      qualifyingTractsCount:     data.qualifying_tracts_count || 0,
+      qualifyingViaPoverty:      data.qualifying_via_poverty || 0,
+      qualifyingViaLowMfi:       data.qualifying_via_low_mfi || 0,
+      qualifyingTractGeoids:     data.qualifying_tract_geoids || [],
+      stateMedianFamilyIncome:   data.state_median_family_income,
+      datasetVersion:            data.dataset_version,
+      lastUpdated:               data.last_updated,
+      isEligible:                (data.qualifying_tracts_count || 0) > 0,
+    }
+  })
+}
+
 // ── getHudQctDda ──────────────────────────────────────────────────────────────
 // HUD federal LIHTC designation overlay per county. Returns per-county QCT
 // count + non-metro DDA flag if the county has any designation; otherwise

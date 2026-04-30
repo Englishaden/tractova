@@ -34,6 +34,7 @@ The bar: **every datum a customer sees in Tractova traces to a verifiable .gov o
 | `news_feed` (auto-classified rows) | PV Magazine USA + Solar Industry Mag + Utility Dive + Solar Power World RSS, AI-filtered via Claude Haiku 4.5 | RSS feeds + Anthropic API | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=news` |
 | `energy_community_data` (IRA §45/§48 +10% ITC bonus) | DOE NETL EDX — Treasury-recognized Energy Community boundaries (2024 release) | `arcgis.netl.doe.gov/.../2024_MSAs_NonMSAs_that_are_Energy_Communities/FeatureServer/0` + `2024_Coal_Closure_Energy_Communities/FeatureServer/0` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=energy_community` |
 | `hud_qct_dda_data` (LIHTC QCT count + non-metro DDA flag per county) | HUD User — official LIHTC designation layers (2026) | `services.arcgis.com/.../QUALIFIED_CENSUS_TRACTS_2026/FeatureServer/0` + `Difficult_Development_Areas_2026/FeatureServer/0` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=hud_qct_dda` |
+| `nmtc_lic_data` (IRA §48(e) Cat 1 — Low-Income Communities Bonus Credit per county) | US Census ACS 2018-2022 5-yr (CDFI Fund methodology applied per tract) | `api.census.gov/data/2022/acs/acs5?for=tract:*&in=state:*` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=nmtc_lic` |
 
 > **Note on `state_programs` partial automation:** DSIRE provides program identity, status, summary text, and the canonical URL — those fields ARE live-pulled. The Tractova-curated fields (`csStatus`, `capacityMW`, `lmiPercent`, `ixDifficulty`, `enrollmentRateMWPerMonth`) are NOT in DSIRE and remain admin-curated. The DSIRE pull adds a verification timestamp + canonical-source link rather than replacing curated values.
 
@@ -42,6 +43,8 @@ The bar: **every datum a customer sees in Tractova traces to a verifiable .gov o
 > **Note on `energy_community_data` scope:** Two of the three IRA Energy Community qualification paths are covered — Coal Closure Communities (per-tract aggregated to county counts) and MSA / Non-MSA Statistical Areas (per-county boolean). **Brownfield qualification is per-site point data and not covered here**; users see a "verify per-site at energycommunities.gov" link in the Lens revenue stack. A county qualifying via either covered path triggers the +10% ITC bonus credit.
 
 > **Note on `hud_qct_dda_data` scope:** Qualified Census Tracts (QCTs) are aggregated cleanly to per-county counts via tract GEOID rollup. Non-metro DDAs are aggregated to per-county via DDA_CODE FIPS parsing. **Metro-area DDAs are designated at ZCTA level**, which doesn't map cleanly to county without a ZCTA→county crosswalk; metro DDAs are skipped in this layer (deferred to v2). Users in metro counties see a "verify per-site at huduser.gov" hint in the Lens LIHTC overlay panel.
+
+> **Note on `nmtc_lic_data` derivation methodology:** The CDFI Fund publishes the official NMTC LIC tract list as a downloadable Excel file (no REST API). Tractova **derives** equivalent eligibility from primary Census ACS data using CDFI's published rules: a tract qualifies if EITHER (a) tract poverty rate ≥ 20% OR (b) tract median family income ≤ 80% of statewide median family income. This reproduces CDFI's methodology against the same input data they use (ACS 2018-2022 5-year). v1 limitation: we use STATE MFI as the threshold benchmark for all tracts; CDFI uses the GREATER of state MFI or MSA MFI for metro tracts, which can slightly under-count qualifying tracts in high-MFI metros. Acceptable for a screening signal; verify per-site for project investment decisions.
 
 ### 🔄 Manual curation pending automation
 
@@ -85,7 +88,7 @@ These are admin-curated today with documented sources. Migration to live-pull is
 | Endpoint | Cron expression | Description |
 |---|---|---|
 | `/api/refresh-ix-queue` | `0 6 * * 0` | Sunday 6am UTC — ISO/RTO queue scrape |
-| `/api/refresh-data?source=all` | `0 7 * * 0` | Sunday 7am UTC — Multiplexed live-source refresh (`lmi` + `state_programs` + `county_acs` + `news` + `revenue_stacks` + `energy_community` + `hud_qct_dda`) |
+| `/api/refresh-data?source=all` | `0 7 * * 0` | Sunday 7am UTC — Multiplexed live-source refresh (`lmi` + `state_programs` + `county_acs` + `news` + `revenue_stacks` + `energy_community` + `hud_qct_dda` + `nmtc_lic`) |
 | `/api/check-staleness` | `0 8 * * 1` | Monday 8am UTC — Staleness alert email to admin |
 | `/api/send-alerts` | `0 14 * * 1,4` | Mon/Thu 2pm UTC — Project alerts |
 | `/api/send-digest` | `0 14 * * 1` | Monday 2pm UTC — Weekly digest |

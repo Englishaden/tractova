@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda, getNmtcLic } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -998,7 +998,7 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
   )
 }
 
-function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity }) {
+function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
@@ -1083,8 +1083,12 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                   <DataRow label="REC / I-REC market" value={revenueStack.irecMarket} />
                   <DataRow label="Net metering / credit" value={revenueStack.netMeteringStatus} />
                 </div>
-                {/* Energy Community block — IRA §45/§48 +10% ITC bonus eligibility, live-pulled per-county */}
-                <div className="mt-2 px-3 py-2 rounded-md border border-teal-100 bg-teal-50/40">
+                {/* Federal ITC bonus credits panel — Energy Community + §48(e) Cat 1
+                    stack on top of the base 30% ITC. A project hitting both adders
+                    can reach 50% effective ITC. Live-pulled, both rows verified per
+                    county. */}
+                <div className="mt-2 px-3 py-2.5 rounded-md border border-teal-100 bg-teal-50/40 space-y-2">
+                  {/* Energy Community row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
@@ -1099,7 +1103,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                             ].filter(Boolean).join(' · ')}
                           </div>
                           <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
-                            Adds 10% to ITC for projects in {energyCommunity.countyName || 'this county'}. Brownfield sites qualify separately — verify per-site at energycommunities.gov.
+                            Adds 10% to ITC for projects in {energyCommunity.countyName || 'this county'}. Brownfield sites qualify separately.
                           </div>
                         </>
                       ) : energyCommunity === null ? (
@@ -1122,6 +1126,57 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                       Source ↗
                     </a>
                   </div>
+
+                  {/* §48(e) Category 1 row */}
+                  <div className="pt-2 border-t border-teal-100/60 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
+                        §48(e) Cat 1 LIC (+10% ITC)
+                      </div>
+                      {nmtcLic?.isEligible ? (
+                        <>
+                          <div className="text-xs font-semibold text-teal-900">
+                            ✓ Eligible — {nmtcLic.qualifyingTractsCount} of {nmtcLic.totalTractsInCounty} tract{nmtcLic.totalTractsInCounty === 1 ? '' : 's'} qualify as NMTC LIC
+                          </div>
+                          <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
+                            Project sited in any of these tracts adds 10% to ITC (≤5 MW only). Stacks with Energy Community above.
+                            {nmtcLic.qualifyingViaPoverty > 0 && nmtcLic.qualifyingViaLowMfi > 0 && (
+                              <> Via poverty: {nmtcLic.qualifyingViaPoverty} · via low MFI: {nmtcLic.qualifyingViaLowMfi}.</>
+                            )}
+                          </div>
+                        </>
+                      ) : nmtcLic ? (
+                        <>
+                          <div className="text-xs text-gray-700">No qualifying NMTC LIC tracts in this county</div>
+                          <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                            Categories 3-4 (low-income residential / economic benefit) may still qualify — verify with tax counsel.
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-400">Loading…</div>
+                      )}
+                    </div>
+                    <a
+                      href="https://www.energy.gov/diversity/low-income-communities-bonus-credit-program"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                    >
+                      Source ↗
+                    </a>
+                  </div>
+
+                  {/* Combined ITC summary — only shown if at least one bonus applies */}
+                  {(energyCommunity?.isEnergyCommunity || nmtcLic?.isEligible) && (
+                    <div className="pt-2 border-t border-teal-200/60 flex items-baseline justify-between">
+                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-900">
+                        Combined ITC ceiling
+                      </span>
+                      <span className="font-serif text-base font-bold text-teal-900">
+                        Up to {30 + (energyCommunity?.isEnergyCommunity ? 10 : 0) + (nmtcLic?.isEligible ? 10 : 0)}%
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
                 {revenueStack.dsireProgramUrl && (
@@ -2942,7 +2997,7 @@ function SearchContent() {
     const accessToken = session?.access_token ?? ''
 
     // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda] = await Promise.all([
+    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic] = await Promise.all([
       programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
       getCountyData(form.state, form.county),
       getRevenueStack(form.state),
@@ -2951,6 +3006,7 @@ function SearchContent() {
       getRevenueRates(form.state),
       getEnergyCommunity(form.state, form.county),
       getHudQctDda(form.state, form.county),
+      getNmtcLic(form.state, form.county),
     ])
     const runway = stateProgram?.runway ?? null
 
@@ -2966,13 +3022,13 @@ function SearchContent() {
     } catch (err) {
       if (err.name === 'AbortError') {
         // Cancelled — still show results without AI insight
-        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, aiInsight: null })
+        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, aiInsight: null })
         setAnalyzing(false)
         return
       }
     }
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, aiInsight })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, aiInsight })
     setAnalyzing(false)
   }
 
@@ -3357,6 +3413,7 @@ function SearchContent() {
                 mw={results.form.mw}
                 rates={results.revenueRates}
                 energyCommunity={results.energyCommunity}
+                nmtcLic={results.nmtcLic}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
