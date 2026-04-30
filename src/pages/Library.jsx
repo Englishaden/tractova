@@ -13,6 +13,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../components/ui/Dialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { LoadingDot } from '../components/ui'
+import TractovaLoader from '../components/ui/TractovaLoader'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 import { TECH_COLORS } from '../lib/v3Tokens'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
@@ -2111,17 +2112,12 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                 </button>
               </div>
             ) : aiLoading ? (
-              <div className="px-4 py-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'linear-gradient(135deg, #0F766E, #10B981)' }} />
-                  <div className="h-3 w-28 rounded-sm bg-teal-200/50 animate-pulse" />
-                </div>
-                <div className="h-3 w-full rounded-sm bg-teal-100/40 animate-pulse" />
-                <div className="h-3 w-4/5 rounded-sm bg-teal-100/40 animate-pulse" />
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
-                  <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
-                </div>
+              <div className="px-4 py-8 flex items-center justify-center">
+                <TractovaLoader
+                  size={64}
+                  label="Generating Portfolio Insight"
+                  sublabel="Analyzing scoring · IX risk · concentration"
+                />
               </div>
             ) : (
               <button
