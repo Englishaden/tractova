@@ -349,6 +349,51 @@ export async function getLmiData(stateId) {
   })
 }
 
+// ── getCountyAcsData ──────────────────────────────────────────────────────────
+// V3 Wave 2 — per-county Census ACS data (LMI density + population +
+// median income). Populated by refresh-data.js?source=county_acs.
+//
+// Two query modes:
+//   - getCountyAcsData(state) returns all counties in the state, sorted by
+//     LMI density desc -- useful for the SubscribersTab "Top counties by
+//     LMI eligibility" view.
+//   - getCountyAcsData(state, county) returns a single county, exact-match
+//     on county_name LIKE '{county}%' -- useful in Lens for the project's
+//     specific county.
+export async function getCountyAcsData(state, county) {
+  if (!state) return county ? null : []
+  const cacheKey = county
+    ? `county_acs:${state}:${county.toLowerCase()}`
+    : `county_acs:${state}:_all`
+  return withCache(cacheKey, async () => {
+    let query = supabase
+      .from('county_acs_data')
+      .select('*')
+      .eq('state', state.toUpperCase())
+      .order('lmi_pct', { ascending: false })
+    if (county) query = query.ilike('county_name', `${county}%`)
+    const { data, error } = await query
+    if (error) {
+      console.warn('[county_acs] fetch failed:', error.message)
+      return county ? null : []
+    }
+    const rows = (data || []).map(row => ({
+      countyFips:              row.county_fips,
+      state:                   row.state,
+      countyName:              row.county_name,
+      totalHouseholds:         row.total_households,
+      lmiHouseholds:           row.lmi_households,
+      lmiPct:                  Number(row.lmi_pct),
+      medianHouseholdIncome:   row.median_household_income,
+      ami80Pct:                row.ami_80pct,
+      totalPopulation:         row.total_population,
+      lastUpdated:             row.last_updated,
+      source:                  row.source,
+    }))
+    return county ? (rows[0] || null) : rows
+  })
+}
+
 // ── getDashboardMetrics ───────────────────────────────────────────────────────
 // Calls the get_dashboard_metrics() Supabase RPC.
 // Returns live-computed aggregates — no manual metrics.js entry ever again.

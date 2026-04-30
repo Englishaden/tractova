@@ -23,7 +23,8 @@ The bar: **every datum a customer sees in Tractova traces to a verifiable .gov o
 
 | Table | Source | API endpoint | Cadence | Cron file |
 |---|---|---|---|---|
-| `lmi_data` | US Census ACS 2018-2022 5-year | `api.census.gov/data/2022/acs/acs5` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=lmi` |
+| `lmi_data` (state-level) | US Census ACS 2018-2022 5-year | `api.census.gov/data/2022/acs/acs5` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=lmi` |
+| `county_acs_data` (~3,142 US counties) | US Census ACS 2018-2022 5-year (county-level) | `api.census.gov/data/2022/acs/acs5?for=county:*` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=county_acs` |
 | `state_programs.dsire_*` (verification fields) | DSIRE (NCSU + DOE) | `programs.dsireusa.org/api/v2/programs` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=state_programs` |
 | `revenue_rates.capacity_factor_pct` | NREL PVWatts API v8 | `developer.nrel.gov/api/pvwatts/v8.json` | Quarterly (1st of Jan/Apr/Jul/Oct) | `api/refresh-capacity-factors.js` |
 | `revenue_rates.ci_retail_rate_cents_kwh` | EIA Electricity Retail Sales | `api.eia.gov/v2/electricity/retail-sales` | Quarterly (with capacity factors) | `api/refresh-capacity-factors.js` |
@@ -40,7 +41,8 @@ These are admin-curated today with documented sources. Migration to live-pull is
 |---|---|---|---|
 | `state_programs` (CS programs, status, capacity) | DSIRE database (NCSU, federally funded) — `programs.dsireusa.org` | Weekly | ~3h dedicated |
 | `revenue_stacks` (REC values, ITC adders, net-metering rules) | DSIRE + state PUC tariff filings | Weekly | ~3-4h |
-| `county_intelligence` — population density | US Census ACS DP05_0001E | Annual | ~1h |
+| `county_intelligence` — site-control narrative + IX context | Manual today; needs admin curation per county | Manual | (admin-only)
+| ✅ `county_acs_data` — population + LMI density (NEW) | Live-pulled via Census ACS county-level | Weekly | (already shipped — see above) |
 | `county_intelligence` — wetland coverage | EPA NWI (National Wetlands Inventory) | Annual | ~3h (multi-API + spatial join) |
 | `county_intelligence` — agricultural/farmland | USDA Web Soil Survey | Annual | ~3h |
 | `news_feed` | Industry trade press RSS (Solar Industry Mag, Utility Dive, RTO Insider, PV Magazine) + NARUC bulletins | Weekly | ~2-3h |
