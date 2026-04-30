@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getNewsFeed } from '../lib/programData'
 import { supabase } from '../lib/supabase'
 import PreviewSignupGate from './PreviewSignupGate'
+import TractovaLoader from './ui/TractovaLoader'
 
 // Module-level session cache so the Market Pulse fetches once per session,
 // not on every NewsFeed mount/unmount.
@@ -137,7 +138,12 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
             </span>
           </div>
           {pulseLoading ? (
-            <p className="text-[12px] italic text-gray-400">Synthesizing this week's signal…</p>
+            <div className="flex items-center gap-3 py-1">
+              <TractovaLoader size={32} />
+              <p className="text-[11px] text-gray-500 leading-tight">
+                Synthesizing this week's policy + market signal…
+              </p>
+            </div>
           ) : (
             <p className="text-[12px] leading-relaxed text-gray-700">{pulse}</p>
           )}

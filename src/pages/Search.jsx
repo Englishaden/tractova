@@ -13,6 +13,7 @@ import ComparableDealsPanel from '../components/ComparableDealsPanel'
 import CoverageBadge from '../components/CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
+import TractovaLoader from '../components/ui/TractovaLoader'
 import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2400,7 +2401,10 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
                       AI Rationale
                     </p>
                     {rationaleLoading ? (
-                      <p className="text-[12px] italic text-gray-400">Analyzing scenario impact…</p>
+                      <div className="flex items-center gap-2.5 py-0.5">
+                        <TractovaLoader size={28} />
+                        <p className="text-[11px] text-gray-500 leading-tight">Analyzing scenario impact…</p>
+                      </div>
                     ) : (
                       <p className="text-[12px] text-gray-700 leading-relaxed">{scenarioRationale}</p>
                     )}

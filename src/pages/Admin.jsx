@@ -10,6 +10,7 @@ import {
   computeFeasibilityScore, invalidateCache,
 } from '../lib/programData'
 import { Input, Select, Button } from '../components/ui'
+import TractovaLoader from '../components/ui/TractovaLoader'
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
 // Each tab carries its own accent color so the 10-tab strip is scannable at a
@@ -2176,7 +2177,11 @@ function DataHealthTab() {
     }
   }
 
-  if (loading) return <div className="py-12 text-center text-sm text-gray-400">Loading data health...</div>
+  if (loading) return (
+    <div className="py-12 flex items-center justify-center">
+      <TractovaLoader size={56} label="Loading Data Health" sublabel="freshness · cron runs · audit log" />
+    </div>
+  )
   if (error) return <div className="py-8 text-sm text-red-500">Failed to load: {error}</div>
   if (!data) return null
 
