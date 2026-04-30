@@ -60,7 +60,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `475a095` Merge: Tailwind v4 + Vite 8 + shadcn
+- **Branch:** `main` · last commit: `31247ae` Loaders: TractovaLoader on the 3 most-visible inline loading surfaces
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -104,6 +104,22 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `31247ae` | Loaders: TractovaLoader on NewsFeed Market Pulse, scenario rationale, Admin Data Health |
+| `e447a7e` | Hygiene + polish: drop `iad1` from masthead, delete TopoBackground, fix scroll-into-view ordering, gitignore scratch txt |
+| `1eda205` | Library: upgrade empty-state into a 3-value-prop onboarding card |
+| `0ca8b7a` | UX: surface API failures with retry instead of swallowing — new ApiErrorBanner across Dashboard / Comparable / Regulatory |
+| `6b17f40` | Lens: research-desk masthead + §-numbered section markers + dossier band wrapping the 3 cards |
+| `6a25073` | Revert: remove TopoBackground from Lens (lines felt too literal) |
+| `2c58e4b` | (later reverted) Lens: subtle topographic background on results panel |
+| `e63a0c3` | Library: project-bar redesign — mini arc gauge + accent rail + score-tinted gradient |
+| `c88629e` | Loaders: branded TractovaLoader + Library Portfolio AI summary uses it |
+| `eab8492` | Lens: cards collapsed by default — prompt user interaction |
+| `4eff1e9` | Lens: full-card collapse on the 3 main cards + grid alignment fix |
+| `3d69237` | Lens: click-to-expand drilldowns on the 3 main cards (SC / IX / Offtake) |
+| `6733480` | Lens: precedent-anchored scenarios + brief feedback loop (smooth scroll + pulse) |
+| `db92ccb` | Lens: shimmer constant on sub-score bars + fold Federal LIHTC into Offtake stack |
+| `3d57820` | Lens: redesign sub-score bars (Offtake / IX / Site Control) — animated arcs + spring counters |
+| `2fb04db` | Admin: surface Census diagnostic in Data Health UI (`Run Census diagnostic` button) |
 | `475a095` | Merge: Tailwind v4 + Vite 8 + shadcn |
 | `55f3fc7` | Integrate shadcn/ui (scoped, brand-preserving) |
 | `3e7df8e` | Upgrade Tailwind v3 → v4 and Vite 5 → 8 |
