@@ -142,6 +142,14 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 - **USPTO trademark filing** for "Tractova" wordmark (~$500 flat-fee attorney).
 - **Defensive domain registrations** (.io / .app / .ai / typos).
 
+### Accepted dependency risks (dependabot will keep flagging — context here)
+
+| Package | Severity | Why we accept | Resolution path |
+|---|---|---|---|
+| `xlsx` | high (proto pollution + ReDoS) | Vulns require **parsing** malicious workbooks. We only **write** xlsx (Library export). No npm patch — SheetJS left npm in 2023. | Replace with `exceljs` only if we add xlsx import. Otherwise indefinite. |
+| `react-simple-maps` chain (`d3-color` ReDoS) | high ×4 | ReDoS needs user-controlled color strings; we pass static us-atlas topojson. Library abandoned at v3; npm flags downgrade to v1 as the only "fix". | Swap for `@nivo/geo` or similar if the map needs new features. |
+| `vite` / `esbuild` | mod ×2 | Both dev-server-only vulns. Production ships pre-built static assets — runtime never touches vite/esbuild. | Resolved by the **Vite 5→8** P2 backlog item. |
+
 ### Deferred until paying-user traction
 - **IX Queue Forecaster** (Wave 2 — needs ≥12 weekly snapshots, Q3 launch).
 - **Comparable Deals DB** (~30+ Pro users justify build).
