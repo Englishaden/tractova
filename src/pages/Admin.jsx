@@ -2026,6 +2026,14 @@ export default function Admin() {
   const { user, loading: authLoading } = useAuth()
   const [tab, setTab] = useState(0)
 
+  // Reset window scroll to top on mount + when switching tabs.
+  // React Router doesn't auto-reset scroll on route change, so if user
+  // arrived from a scrolled-down page (Profile, Library) they'd land
+  // mid-page on Admin -- past the tab headers, which is disorienting.
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [tab])
+
   if (authLoading) {
     return <div className="min-h-screen bg-paper flex items-center justify-center"><p className="text-sm text-gray-400">Loading...</p></div>
   }
