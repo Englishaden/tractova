@@ -23,23 +23,45 @@ const BESS_OFFTAKE_SCORES = {
   MN: 55, CO: 50,                   // MISO / SPP
 }
 
+// Sorted state lists for user-facing "coverage" messaging. Kept here so the
+// scoring engine is a single source of truth — the Lens UI reads these via
+// getOfftakeCoverageStates() to render the "limited coverage" caption.
+export const CI_OFFTAKE_COVERAGE = Object.keys(CI_OFFTAKE_SCORES).sort()
+export const BESS_OFFTAKE_COVERAGE = Object.keys(BESS_OFFTAKE_SCORES).sort()
+
+export function getOfftakeCoverageStates(technology) {
+  if (technology === 'C&I Solar') return CI_OFFTAKE_COVERAGE
+  if (technology === 'BESS' || technology === 'Hybrid') return BESS_OFFTAKE_COVERAGE
+  return null
+}
+
 export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar') {
-  if (!stateProgram) return { offtake: 0, ix: 0, site: 0 }
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched' } }
 
   let offtake, ix, site
+  // 'researched' = state is in our curated coverage list for this tech.
+  // 'fallback'   = state is outside coverage; offtake reflects an estimated
+  //                baseline, not a researched value. UI surfaces this as a
+  //                "limited coverage" caption to match the honesty already
+  //                shown on the revenue panel.
+  let offtakeCoverage = 'researched'
 
   // ── Offtake sub-score (varies by tech type) ──
   if (technology === 'C&I Solar') {
+    if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
   } else if (technology === 'BESS') {
+    if (BESS_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = BESS_OFFTAKE_SCORES[stateProgram.id] ?? 45
   } else if (technology === 'Hybrid') {
     const csBase = { active: 80, limited: 52, pending: 25, none: 8 }
     const csOfftake = csBase[stateProgram.csStatus] ?? 8
+    if (BESS_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     const bessOfftake = BESS_OFFTAKE_SCORES[stateProgram.id] ?? 45
     offtake = Math.min(85, Math.round((csOfftake + bessOfftake) / 2))
   } else {
-    // Community Solar (default)
+    // Community Solar (default) — driven entirely by state_programs DB,
+    // which has all 50 states curated, so coverage stays 'researched'.
     const csBase = { active: 80, limited: 52, pending: 25, none: 8 }
     offtake = csBase[stateProgram.csStatus] ?? 8
     if (stateProgram.csStatus === 'active' && stateProgram.capacityMW > 500) offtake += 8
@@ -74,7 +96,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix      = Math.max(0, Math.min(100, ix      + dIX))
   site    = Math.max(0, Math.min(100, site    + dSite))
 
-  return { offtake, ix, site }
+  return { offtake, ix, site, coverage: { offtake: offtakeCoverage } }
 }
 
 export function computeDisplayScore(offtake, ix, site) {

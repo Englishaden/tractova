@@ -128,7 +128,7 @@ stale-check finds the real last-good run.
 
 User runs these manually in Supabase SQL editor. Mark applied here when done.
 
-✅ Applied through 033 per user confirmation as of 2026-04-29.
+✅ Applied through 033 + 038 per user confirmation as of 2026-04-30.
 ⏳ **Pending — apply to activate the §48(e) and HUD layers in production:**
 
 | # | File | What it does | Status |
@@ -143,7 +143,7 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 | 035 | `freshness_hud_qct_dda.sql` | RPC +hud_qct_dda | ⏳ |
 | 036 | `nmtc_lic_data.sql` | NMTC LIC table | ⏳ |
 | 037 | `freshness_nmtc_lic.sql` | RPC +nmtc_lic | ⏳ |
-| 038 | `state_programs_snapshots.sql` | Wave 1.4: append-only feasibility-score history table for WoW deltas + Markets on the Move trends | ⏳ |
+| 038 | `state_programs_snapshots.sql` | Wave 1.4: append-only feasibility-score history table for WoW deltas + Markets on the Move trends | ✅ |
 
 ---
 

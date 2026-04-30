@@ -208,10 +208,14 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
       lines.push(`  Revenue stack: not available for ${state} — advise developer to check DSIRE`)
     }
   } else if (technology === 'C&I Solar') {
+    const CI_COVERED = ['IL','NY','MA','MN','CO','NJ','ME','MD']
     lines.push(`  Revenue model: PPA-based (contracted rate with anchor tenant)`)
     lines.push(`  ITC: 30% base (no CS-specific adders for C&I)`)
     lines.push(`  Key revenue driver: PPA rate competitiveness vs utility retail rate`)
     lines.push(`  Primary risk: offtaker credit quality and contract term length`)
+    if (!CI_COVERED.includes(state)) {
+      lines.push(`  COVERAGE NOTE: Tractova does not yet have curated PPA-rate / retail-rate data for ${state}. Avoid quoting specific PPA cents/kWh figures; speak directionally and recommend the developer pull live retail rate data from EIA Form 861 / utility tariffs.`)
+    }
   } else if (technology === 'BESS') {
     const isoMap = { IL: 'PJM', NY: 'NYISO', MA: 'ISO-NE', MN: 'MISO', CO: 'SPP', NJ: 'PJM', ME: 'ISO-NE', MD: 'PJM' }
     const iso = isoMap[state] || 'Unknown'
@@ -219,10 +223,17 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
     lines.push(`  ISO/RTO region: ${iso}`)
     lines.push(`  ITC: 30% standalone storage (IRA)`)
     lines.push(`  Primary risk: capacity market price volatility and battery degradation`)
+    if (iso === 'Unknown') {
+      lines.push(`  COVERAGE NOTE: Tractova does not yet have curated capacity-market data for ${state}. Avoid quoting specific $/kW-yr capacity prices or arbitrage spreads; speak directionally and recommend the developer pull live ISO capacity market data.`)
+    }
   } else if (technology === 'Hybrid') {
+    const HYBRID_COVERED = ['IL','NY','MA','MN','CO','NJ','ME','MD']
     lines.push(`  Revenue model: Combined solar generation + storage capacity/arbitrage`)
     lines.push(`  ITC: 30% for both solar and co-located storage`)
     lines.push(`  Primary risk: permitting complexity for combined facility + ITC co-location qualification`)
+    if (!HYBRID_COVERED.includes(state)) {
+      lines.push(`  COVERAGE NOTE: Tractova does not yet have curated hybrid-storage economics for ${state}. Avoid quoting specific revenue figures; speak directionally about value-stacking principles.`)
+    }
   }
 
   return lines.join('\n')

@@ -20,7 +20,7 @@ import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'mot
 // Market Position Panel — replaces the old mini state map
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
+import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, getOfftakeCoverageStates } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
 import { getNearestSubstations } from '../lib/substationEngine'
@@ -283,7 +283,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   if (!stateProgram) return null
   // Apply scenario override if active — recompute sub-scores from the override state
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const { offtake, ix, site } = computeSubScores(effectiveProgram, countyData, stage, technology)
+  const { offtake, ix, site, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
   const score = computeDisplayScore(offtake, ix, site)
@@ -291,6 +291,11 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   const baseSubs = computeSubScores(stateProgram, countyData, stage, technology)
   const baseScore = computeDisplayScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
   const delta = activeScenario ? score - baseScore : 0
+  // When state is outside our curated tech-state coverage, surface that to
+  // match the honesty already in the revenue panel ("model not available").
+  // Without this, the user sees a feasibility number that looks researched
+  // but is actually an estimated baseline.
+  const offtakeCoverageStates = coverage?.offtake === 'fallback' ? getOfftakeCoverageStates(technology) : null
 
   // "AS OF" timestamp — institutional research-note convention
   const latestDate = (() => {
@@ -440,6 +445,22 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
             <SubScoreBar label="Offtake"         weight="40%" value={offtake} baseValue={baseSubs.offtake} color="#0F766E" />
             <SubScoreBar label="Interconnection" weight="35%" value={ix}      baseValue={baseSubs.ix}      color="#D97706" />
             <SubScoreBar label="Site Control"    weight="25%" value={site}    baseValue={baseSubs.site}    color="#2563EB" />
+            {offtakeCoverageStates && (
+              <div
+                className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm"
+                style={{ background: 'rgba(180,83,9,0.06)', border: '1px solid rgba(180,83,9,0.18)' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p className="text-[10px] leading-snug" style={{ color: '#78350F' }}>
+                  <span className="font-bold uppercase tracking-wider text-[9px]">Limited offtake coverage</span>
+                  <span className="block mt-0.5 font-normal">
+                    {technology} offtake is curated for {offtakeCoverageStates.join(', ')}. {stateProgram.name} uses an estimated baseline — feasibility score directionally indicative, not researched.
+                  </span>
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
