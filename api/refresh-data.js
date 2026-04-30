@@ -80,8 +80,14 @@ export default async function handler(req, res) {
   }
 
   // ── Source routing ──────────────────────────────────────────────────────────
+  // Accept either a single source ("lmi"), CSV ("lmi,county_acs"), "all"
+  // (every supported source), or "fast" (everything except nmtc_lic, which
+  // iterates 51 states and dominates wall time).
   const requested = (req.query.source || 'all').toString().toLowerCase()
-  const sources = requested === 'all' ? SUPPORTED_SOURCES : [requested]
+  let sources
+  if (requested === 'all')       sources = SUPPORTED_SOURCES
+  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => s !== 'nmtc_lic')
+  else                           sources = requested.split(',').map(s => s.trim()).filter(Boolean)
 
   const invalidSources = sources.filter(s => !SUPPORTED_SOURCES.includes(s))
   if (invalidSources.length > 0) {

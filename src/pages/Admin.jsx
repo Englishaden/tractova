@@ -1850,13 +1850,17 @@ function DataHealthTab() {
       if (!session) throw new Error('Not authenticated')
       const auth = { Authorization: `Bearer ${session.access_token}` }
 
-      // Fan out to every cron endpoint in parallel. The multiplexed
-      // /api/refresh-data covers lmi/state_programs/county_acs/news/
-      // revenue_stacks; substations + ix-queue + capacity-factors are
-      // separate Vercel functions (we only have 12 slots so they couldn't
-      // be folded into the multiplexer). All four accept the admin JWT.
+      // Fan out to every cron endpoint in parallel. We split the multiplexed
+      // refresh into two HTTP calls so each has its own ~60s gateway budget:
+      //   - "fast": 7 sources (everything except NMTC LIC)
+      //   - "nmtc": NMTC alone -- it iterates 51 states sequentially through
+      //     Census API and takes 50-70s on its own, which would otherwise
+      //     blow the multiplexer past the gateway ceiling.
+      // substations + ix-queue + capacity-factors are separate Vercel
+      // functions (12-slot Hobby cap). All endpoints accept the admin JWT.
       const endpoints = [
-        { name: 'multiplexed', url: '/api/refresh-data?source=all' },
+        { name: 'fast',        url: '/api/refresh-data?source=fast' },
+        { name: 'nmtc_lic',    url: '/api/refresh-data?source=nmtc_lic' },
         { name: 'substations', url: '/api/refresh-substations' },
         { name: 'ix_queue',    url: '/api/refresh-ix-queue' },
         { name: 'capacity',    url: '/api/refresh-capacity-factors' },
