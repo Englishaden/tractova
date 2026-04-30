@@ -259,11 +259,11 @@ async function refreshLmi() {
     const response = await censusFetch(url)
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      return { ok: false, keyed, error: `Census API ${response.status}: ${body.slice(0, 200)}` }
+      return { ok: false, keyed, error: `Census API ${response.status} (keyed=${keyed}): ${body.slice(0, 200)}` }
     }
     raw = await response.json()
   } catch (err) {
-    return { ok: false, keyed, error: `Census fetch failed: ${err.message}` }
+    return { ok: false, keyed, error: `Census fetch failed (keyed=${keyed}): ${err.message}` }
   }
 
   if (!Array.isArray(raw) || raw.length < 2) {
@@ -594,11 +594,11 @@ async function refreshCountyAcs() {
     const response = await censusFetch(url)
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      return { ok: false, keyed, error: `Census county API ${response.status}: ${body.slice(0, 200)}` }
+      return { ok: false, keyed, error: `Census county API ${response.status} (keyed=${keyed}): ${body.slice(0, 200)}` }
     }
     raw = await response.json()
   } catch (err) {
-    return { ok: false, keyed, error: `Census county fetch failed: ${err.message}` }
+    return { ok: false, keyed, error: `Census county fetch failed (keyed=${keyed}): ${err.message}` }
   }
 
   if (!Array.isArray(raw) || raw.length < 100) {
@@ -1633,11 +1633,11 @@ async function refreshNmtcLic() {
     const resp = await censusFetch(stateUrl)
     if (!resp.ok) {
       const body = await resp.text().catch(() => '')
-      return { ok: false, keyed, error: `Census state MFI ${resp.status}: ${body.slice(0, 200)}` }
+      return { ok: false, keyed, error: `Census state MFI ${resp.status} (keyed=${keyed}): ${body.slice(0, 200)}` }
     }
     stateRaw = await resp.json()
   } catch (err) {
-    return { ok: false, keyed, error: `Census state MFI fetch failed: ${err.message}` }
+    return { ok: false, keyed, error: `Census state MFI fetch failed (keyed=${keyed}): ${err.message}` }
   }
 
   if (!Array.isArray(stateRaw) || stateRaw.length < 2) {
