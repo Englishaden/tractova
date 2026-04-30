@@ -25,3 +25,6 @@ npm-debug.log*
 # Claude Code internal
 .claude/
 claude.exe
+
+# Local notes / scratch files (not meant for the repo)
+Genuinely useful for the consultant.txt

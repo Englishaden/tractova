@@ -478,7 +478,7 @@ function RunIdMasthead({ form }) {
           className="text-[9px] hidden md:inline"
           style={{ color: 'rgba(255,255,255,0.55)' }}
         >
-          {techCode} · iad1
+          {techCode}
         </span>
       </div>
       <span
@@ -2185,24 +2185,25 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
   effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
 
-  // Brief feedback loop: when a scenario toggles, smooth-scroll the brief
-  // into view (only if it's not already visible) and pulse an indicator so
-  // the user knows the brief just updated. Previously the brief just dimmed
-  // to opacity 0.6 -- too subtle for first-time users to notice.
+  // Brief feedback loop: when a scenario toggles, pulse a "Brief Updated"
+  // indicator AND smooth-scroll the brief into view -- but only if it
+  // isn't already visible. Visibility check is read FIRST and the scroll
+  // call only fires when needed; this fixes a mobile flash where the page
+  // would snap up only to settle in place when the brief was already on
+  // screen. Previously a sole opacity dim was the only signal -- too
+  // subtle for first-time users to notice.
   const articleRef = useRef(null)
   const [pulseKey, setPulseKey] = useState(0)
   useEffect(() => {
     if (!activeScenario) return
     setPulseKey(k => k + 1)
-    // Scroll only if the brief isn't already in view -- avoids fighting the
-    // user's own scroll position when they're already reading.
-    if (articleRef.current) {
-      const rect = articleRef.current.getBoundingClientRect()
-      const isVisible = rect.top >= 0 && rect.top < window.innerHeight - 120
-      if (!isVisible) {
-        articleRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }
-    }
+    if (!articleRef.current) return
+    const rect = articleRef.current.getBoundingClientRect()
+    // Treat "visible" generously -- brief is in-frame if its top is at
+    // least partially within the upper 80% of the viewport.
+    const isVisible = rect.top >= 0 && rect.top < window.innerHeight * 0.80
+    if (isVisible) return
+    articleRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }, [activeScenario?.id])
 
   // Fetch AI rationale when a scenario activates. Cleared on deactivation.
