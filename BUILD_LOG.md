@@ -60,7 +60,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `31247ae` Loaders: TractovaLoader on the 3 most-visible inline loading surfaces
+- **Branch:** `main` · last commit: `f02704e` Onboarding: subscription-aware WelcomeCard + contextual UpgradePrompt
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -104,6 +104,16 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `f02704e` | Onboarding: subscription-aware WelcomeCard + contextual UpgradePrompt (URL params surface as "Lens analysis staged for you") |
+| `41c91eb` | Compare: TractovaLoader on AI synthesis (replaces gradient skeleton) |
+| `b3cb940` | MemoView: real conversion CTA for non-owner share-link viewers |
+| `6dc21ab` | Markets on the Move: live-pulse indicator + overflow count + chip tooltips |
+| `79390c1` | Compare: enrich items + group rows into §01 Composite / §02 Project sections (Program Capacity + LMI Carveout rows added) |
+| `b45b359` | Lens: rewrite Custom scenario as Peer-State picker (apply any state's profile, see live diff) |
+| `1780fbd` | Library: tighter mobile padding/gap on project card collapsed header |
+| `5bd249c` | Color audit: consolidate legacy primary teal #0F6E56 → canonical #0F766E |
+| `2b14b83` | Library: `?preview=empty` URL flag to view empty-state onboarding without deleting projects |
+| `d2aa9a1` | BUILD_LOG: capture audit-cycle commits + UX/Lens redesign sweep |
 | `31247ae` | Loaders: TractovaLoader on NewsFeed Market Pulse, scenario rationale, Admin Data Health |
 | `e447a7e` | Hygiene + polish: drop `iad1` from masthead, delete TopoBackground, fix scroll-into-view ordering, gitignore scratch txt |
 | `1eda205` | Library: upgrade empty-state into a 3-value-prop onboarding card |
