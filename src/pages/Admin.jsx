@@ -1398,12 +1398,14 @@ function IXQueueTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FRESHNESS_CONFIG = {
-  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'newest_verified', staleField: 'stale_count', thresholds: [90, 180] },
-  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'newest_fetch',    staleField: 'stale_count', thresholds: [14, 30] },
-  substations:         { label: 'Substations',         icon: '🔌', field: 'last_updated',    staleField: null,          thresholds: [60, 180] },
-  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified', staleField: 'stale_count', thresholds: [90, 180] },
-  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_updated',    staleField: null,          thresholds: [90, 180] },
-  news_feed:           { label: 'News Feed',           icon: '📰', field: 'latest_item',     staleField: null,          thresholds: [14, 30] },
+  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'newest_verified',     staleField: 'stale_count', thresholds: [90, 180] },
+  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'newest_fetch',        staleField: 'stale_count', thresholds: [14, 30] },
+  substations:         { label: 'Substations',         icon: '🔌', field: 'last_updated',        staleField: null,          thresholds: [60, 180] },
+  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified',     staleField: 'stale_count', thresholds: [90, 180] },
+  county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_updated',        staleField: null,          thresholds: [14, 30] },
+  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_updated',        staleField: null,          thresholds: [90, 180] },
+  revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'newest_dsire_check',  staleField: null,          thresholds: [14, 30] },
+  news_feed:           { label: 'News Feed',           icon: '📰', field: 'latest_item',         staleField: null,          thresholds: [14, 30] },
 }
 
 function daysSince(dateStr) {
@@ -1635,6 +1637,19 @@ function DataHealthTab() {
       try { json = JSON.parse(body) } catch {}
       if (!resp.ok) throw new Error(json?.error || `HTTP ${resp.status}`)
       setRefreshResult(json)
+
+      // Cron just rewrote the underlying tables -- nuke the front-end 1h
+      // cache so the rest of the app re-fetches and shows the new values
+      // without requiring a hard reload.
+      invalidateCache()
+
+      // Re-fetch the freshness panel itself so the cards update inline.
+      try {
+        const fresh = await fetch('/api/data-health', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        })
+        if (fresh.ok) setData(await fresh.json())
+      } catch (_) { /* non-fatal */ }
     } catch (err) {
       setRefreshResult({ ok: false, error: err.message })
     } finally {
