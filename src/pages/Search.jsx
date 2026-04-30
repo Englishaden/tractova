@@ -440,6 +440,57 @@ const TECHNOLOGIES = ['Community Solar', 'Hybrid', '---', 'C&I Solar', 'BESS']
 // ─────────────────────────────────────────────────────────────────────────────
 // Small UI helpers
 // ─────────────────────────────────────────────────────────────────────────────
+// V3.1: Reusable expandable footer for the 3 main Lens cards (SC / IX / Offtake).
+// Compact view never regresses -- this lives BELOW the existing card body.
+// Click toggles a motion-animated drawer revealing methodology / sources /
+// comparable benchmarks. Accent color matches each card's editorial eyebrow.
+function CardDrilldown({ accentColor, label = 'Methodology & sources', children }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border-t border-gray-100">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className="w-full px-5 py-2.5 flex items-center justify-between gap-2 text-left transition-colors hover:bg-gray-50/60 focus:outline-hidden focus-visible:bg-gray-50/80"
+      >
+        <span
+          className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold transition-colors"
+          style={{ color: open ? accentColor : '#5A6B7A' }}
+        >
+          {label}
+        </span>
+        <motion.svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={open ? accentColor : '#94A3B8'}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </motion.svg>
+      </button>
+      <motion.div
+        initial={false}
+        animate={open
+          ? { height: 'auto', opacity: 1 }
+          : { height: 0, opacity: 0 }}
+        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+        style={{ overflow: 'hidden' }}
+      >
+        <div className="px-5 pt-1 pb-4 space-y-3 text-[11px] text-gray-600 leading-snug">
+          {children}
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 function SectionLabel({ children }) {
   return (
     <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{children}</p>
@@ -779,6 +830,30 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
           )
         })()}
       </div>
+
+      {/* Methodology drilldown — click to expand */}
+      <CardDrilldown accentColor="#2563EB" label="Methodology · sources · verification">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#1D4ED8' }}>How each tile is derived</p>
+          <ul className="space-y-1 text-gray-700 list-none">
+            <li><span className="font-semibold text-ink">Land</span> · curated from state PUC filings + USGS land-cover overlay; binary "available" assumes typical greenfield/brownfield siting profile</li>
+            <li><span className="font-semibold text-ink">Wetland</span> · EPA NWI (National Wetlands Inventory) check at county centroid; site-level wetlands require per-parcel survey</li>
+            <li><span className="font-semibold text-ink">Zoning</span> · surfaced when county code references solar overlay districts, agricultural setbacks, or special-use permits in our notes layer</li>
+            <li><span className="font-semibold text-ink">Hosting</span> · proxy from IX ease score until utility hosting-capacity maps are integrated per-territory</li>
+          </ul>
+        </div>
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#1D4ED8' }}>Source attribution</p>
+          <div className="flex flex-wrap gap-1.5">
+            <a href="https://www.fws.gov/program/national-wetlands-inventory" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">EPA NWI ↗</a>
+            <a href="https://www.eia.gov/electricity/data/eia860/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">EIA Form 860 ↗</a>
+            <a href="https://www.usgs.gov/centers/eros/science/national-land-cover-database" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USGS NLCD ↗</a>
+          </div>
+        </div>
+        <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">
+          Site control flags are screening signals. Always confirm with a per-site survey (Phase I ESA, parcel-level wetland delineation, county zoning verification) before committing capital.
+        </p>
+      </CardDrilldown>
     </section>
   )
 }
@@ -919,6 +994,57 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
           </div>
         )}
       </div>
+
+      {/* Methodology drilldown — click to expand */}
+      <CardDrilldown accentColor="#D97706" label="Ease score methodology · ISO benchmarks">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>How the 1–10 ease score is computed</p>
+          <ul className="space-y-1 text-gray-700 list-none">
+            <li><span className="font-semibold text-ink">Queue saturation</span> · projects-in-queue / available capacity by serving utility</li>
+            <li><span className="font-semibold text-ink">Study timeline</span> · weighted avg system-impact study months across territory</li>
+            <li><span className="font-semibold text-ink">Withdrawal rate</span> · % of historical queue applications that withdrew pre-IA execution</li>
+            <li><span className="font-semibold text-ink">Upgrade cost severity</span> · $/MW from utility-published cluster results</li>
+          </ul>
+          <p className="text-[10px] text-gray-500 italic mt-1.5">10 = fast-track-ready (e.g. MISO post-reform); 1 = severely constrained (e.g. PJM saturated zones).</p>
+        </div>
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>ISO benchmarks (2024)</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
+            <div className="rounded-md border border-amber-200/60 bg-amber-50/40 px-2 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-amber-800 text-[9px] font-bold">PJM</p>
+              <p className="text-amber-900 font-semibold">$1.5M/MW</p>
+              <p className="text-amber-700/70 text-[9px]">30 mo avg study</p>
+            </div>
+            <div className="rounded-md border border-amber-200/60 bg-amber-50/40 px-2 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-amber-800 text-[9px] font-bold">MISO</p>
+              <p className="text-amber-900 font-semibold">~$500K/MW</p>
+              <p className="text-amber-700/70 text-[9px]">12 mo (fast-track)</p>
+            </div>
+            <div className="rounded-md border border-amber-200/60 bg-amber-50/40 px-2 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-amber-800 text-[9px] font-bold">CAISO</p>
+              <p className="text-amber-900 font-semibold">$0.8M/MW</p>
+              <p className="text-amber-700/70 text-[9px]">18–24 mo</p>
+            </div>
+            <div className="rounded-md border border-amber-200/60 bg-amber-50/40 px-2 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-amber-800 text-[9px] font-bold">NYISO</p>
+              <p className="text-amber-900 font-semibold">$1.0M/MW</p>
+              <p className="text-amber-700/70 text-[9px]">20–28 mo</p>
+            </div>
+          </div>
+        </div>
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>Source attribution</p>
+          <div className="flex flex-wrap gap-1.5">
+            <a href="https://www.pjm.com/planning/services-requests/interconnection-queues" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">PJM Queue ↗</a>
+            <a href="https://www.misoenergy.org/planning/resource-utilization/GIQ/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">MISO GIQ ↗</a>
+            <a href="https://www.caiso.com/planning/Pages/QueueManagement/Default.aspx" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">CAISO Queue ↗</a>
+            <a href="https://www.nyiso.com/interconnections" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">NYISO IX ↗</a>
+          </div>
+        </div>
+        <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">
+          Ease score is a leading indicator. Confirm interconnection economics with a system-impact study before committing capital — actual upgrade costs vary 2–3× from cluster-average benchmarks.
+        </p>
+      </CardDrilldown>
     </section>
   )
 }
@@ -1511,6 +1637,49 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
           </div>
         )}
       </div>
+
+      {/* Methodology drilldown — click to expand */}
+      <CardDrilldown accentColor="#0F766E" label="Revenue stack methodology · ITC bonus rules · sources">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Revenue stack composition</p>
+          <ul className="space-y-1 text-gray-700 list-none">
+            <li><span className="font-semibold text-ink">ITC base</span> · 30% federal Investment Tax Credit (IRA §48). Available to all utility-scale projects meeting prevailing wage / apprenticeship requirements.</li>
+            <li><span className="font-semibold text-ink">ITC adders</span> · stack on the 30% base — Energy Community (+10%), §48(e) Cat 1 LIC (+10%, ≤5MW). Combined ceiling reaches 50% effective ITC for projects qualifying for both.</li>
+            <li><span className="font-semibold text-ink">IREC / SREC market</span> · state-level renewable energy certificates. Tradable, $/MWh varies wildly by state (NJ $250, MA $30, IL $80 typical 2024).</li>
+            <li><span className="font-semibold text-ink">Net metering / bill credit</span> · the per-kWh value of generation injected into the grid. Subject to NEM tariff rules — see precedent: CA NEM 3.0 cut bill credits 57% in Apr 2023.</li>
+          </ul>
+        </div>
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>IRA bonus eligibility (§48 ITC)</p>
+          <div className="grid grid-cols-1 gap-1.5 text-[10px]">
+            <div className="rounded-md border border-teal-200/60 bg-teal-50/40 px-2.5 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-teal-800 text-[9px] font-bold">Energy Community (+10%)</p>
+              <p className="text-teal-900 mt-0.5">County-level eligibility via coal-closure tract OR fossil-fuel MSA designation. Brownfield sites qualify separately at site level.</p>
+            </div>
+            <div className="rounded-md border border-teal-200/60 bg-teal-50/40 px-2.5 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-teal-800 text-[9px] font-bold">§48(e) Cat 1 LIC (+10%)</p>
+              <p className="text-teal-900 mt-0.5">Project sited in NMTC Low-Income Community tract (poverty rate ≥ 20% OR median income ≤ 80% area). Cap: 5 MW. Allocated annually via Treasury auction.</p>
+            </div>
+            <div className="rounded-md border border-teal-200/60 bg-teal-50/40 px-2.5 py-1.5">
+              <p className="font-mono uppercase tracking-wider text-teal-800 text-[9px] font-bold">HUD QCT / Non-Metro DDA (LIHTC)</p>
+              <p className="text-teal-900 mt-0.5">Separate tax credit instrument (LIHTC ≠ ITC). Relevant for hybrid CS + affordable housing financing structures. Does not stack into the ITC ceiling.</p>
+            </div>
+          </div>
+        </div>
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Source attribution</p>
+          <div className="flex flex-wrap gap-1.5">
+            <a href="https://programs.dsireusa.org/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DSIRE ↗</a>
+            <a href="https://energycommunities.gov/energy-community-tax-credit-bonus/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
+            <a href="https://www.energy.gov/diversity/low-income-communities-bonus-credit-program" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">§48(e) Bonus ↗</a>
+            <a href="https://www.huduser.gov/portal/qct/index.html" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">HUD QCT/DDA ↗</a>
+            <a href="https://www.irs.gov/credits-deductions/businesses/investment-tax-credit-itc" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
+          </div>
+        </div>
+        <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">
+          Tariff rates change quarterly. Verify CS program enrollment terms, IRA bonus designations, and current bill-credit values directly with state PUC and tax counsel before committing capital.
+        </p>
+      </CardDrilldown>
     </section>
   )
 }
