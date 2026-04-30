@@ -2808,27 +2808,73 @@ function LibraryContent() {
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center text-center py-20">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
-              style={{ background: 'rgba(20,184,166,0.08)', border: '1px solid rgba(20,184,166,0.25)' }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
+          <div
+            className="rounded-2xl mt-2 mx-auto max-w-2xl px-8 py-10"
+            style={{
+              background: 'linear-gradient(180deg, rgba(20,184,166,0.04) 0%, rgba(20,184,166,0.08) 100%)',
+              border: '1px solid rgba(20,184,166,0.20)',
+            }}
+          >
+            <div className="flex flex-col items-center text-center">
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4"
+                style={{
+                  background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
+                  boxShadow: '0 6px 18px rgba(20,184,166,0.30)',
+                }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                  <polyline points="9 22 9 12 15 12 15 22"/>
+                </svg>
+              </div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#0F766E' }}>
+                Step 1 · Build your portfolio
+              </p>
+              <h2 className="font-serif text-2xl font-semibold text-ink" style={{ letterSpacing: '-0.018em' }}>
+                Save your first project
+              </h2>
+              <p className="text-sm mt-2 max-w-md text-gray-600 leading-relaxed">
+                Run a Lens analysis on any state + county, then click <span className="text-ink font-semibold">Save as Project</span>.
+                Saved projects unlock alerts, weekly digest, and live re-scoring as market data shifts.
+              </p>
+
+              {/* Three value props */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 w-full max-w-lg">
+                {[
+                  { icon: 'M12 2 L2 7 L12 12 L22 7 z M2 17 L12 22 L22 17 M2 12 L12 17 L22 12', label: 'Live re-scoring', body: 'Feasibility index recomputes as program capacity, IX queues, and tariffs shift.' },
+                  { icon: 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z', label: 'Alerts on change', body: 'Email when CS programs cap, SREC markets move, or upgrade costs spike.' },
+                  { icon: 'M3 3v18h18 M9 17V9 M14 17V5 M19 17v-4', label: 'Portfolio analytics', body: 'AI-generated weekly insight + concentration risk + portfolio health score.' },
+                ].map(p => (
+                  <div key={p.label} className="rounded-lg px-3 py-3 text-left" style={{ background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(20,184,166,0.15)' }}>
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center mb-1.5" style={{ background: 'rgba(20,184,166,0.12)' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d={p.icon} />
+                      </svg>
+                    </div>
+                    <p className="text-[11px] font-semibold text-ink leading-tight">{p.label}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">{p.body}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 mt-6 flex-wrap justify-center">
+                <Link
+                  to="/search"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-lg transition-colors"
+                  style={{ background: '#14B8A6' }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  Open Tractova Lens
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors"
+                >
+                  Or browse Markets on the Move →
+                </Link>
+              </div>
             </div>
-            <p className="font-serif text-lg font-semibold text-ink" style={{ letterSpacing: '-0.015em' }}>No saved projects yet</p>
-            <p className="text-xs mt-1 max-w-xs text-gray-400">
-              Run a search in Tractova Lens, then click <span className="text-gray-600 font-medium">Save as Project</span> to add it here.
-            </p>
-            <Link
-              to="/search"
-              className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white px-4 py-2 rounded-lg transition-colors"
-              style={{ background: '#14B8A6' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
-            >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              Open Tractova Lens
-            </Link>
           </div>
         )}
       </main>
