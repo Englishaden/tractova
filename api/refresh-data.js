@@ -96,6 +96,7 @@ export default async function handler(req, res) {
 
   for (const source of sources) {
     const srcStart = Date.now()
+    const startedAt = new Date()
     try {
       let result
       if (source === 'lmi')                  result = await refreshLmi()
@@ -106,12 +107,12 @@ export default async function handler(req, res) {
       else                                   result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
       results[source] = result
-      // Log to cron_runs (best-effort; don't fail the request if logging fails)
-      await logCronRun(source, result, authMode)
+      // Log to cron_runs (best-effort; don't fail the request if logging fails).
+      await logCronRun(source, result, authMode, startedAt)
     } catch (err) {
       const errMsg = err?.message || String(err)
       results[source] = { ok: false, error: errMsg, duration_ms: Date.now() - srcStart }
-      await logCronRun(source, { ok: false, error: errMsg }, authMode)
+      await logCronRun(source, { ok: false, error: errMsg }, authMode, startedAt)
     }
   }
 
@@ -124,15 +125,20 @@ export default async function handler(req, res) {
   })
 }
 
-async function logCronRun(source, summary, authMode) {
+async function logCronRun(source, summary, authMode, startedAt) {
   try {
-    await supabaseAdmin
+    const finished = new Date()
+    const { error } = await supabaseAdmin
       .from('cron_runs')
       .insert([{
-        cron_name: `refresh-data:${source}`,
-        status: summary.ok ? 'success' : 'failed',
-        summary: { ...summary, auth_mode: authMode },
+        cron_name:   `refresh-data:${source}`,
+        status:      summary.ok ? 'success' : 'failed',
+        started_at:  (startedAt || finished).toISOString(),
+        finished_at: finished.toISOString(),
+        duration_ms: startedAt ? finished.getTime() - startedAt.getTime() : null,
+        summary:     { ...summary, auth_mode: authMode },
       }])
+    if (error) console.warn('[refresh-data] cron_runs insert error:', error.message)
   } catch (e) {
     console.warn('[refresh-data] cron_runs log failed:', e?.message)
   }
@@ -462,26 +468,42 @@ async function refreshStateProgramsViaDsire() {
     }
   }
 
-  // Batch update — but Supabase doesn't have a true batch update for
-  // different-row-different-values, so we issue per-row updates. ~30 calls
-  // for typical CS-state count; well under the 5s window.
+  // Batch update — Supabase doesn't have a true batch update for
+  // different-row-different-values, so we issue per-row updates. ~30 calls.
+  // Capture the FIRST error message so we can surface a real diagnosis
+  // instead of just an opaque "errors: 19" count.
+  let firstUpdateError = null
+  let updates_applied = 0
   for (const upd of updates) {
     const { id, ...fields } = upd
     const { error } = await supabaseAdmin
       .from('state_programs')
       .update(fields)
       .eq('id', id)
-    if (error) results.errors++
+    if (error) {
+      results.errors++
+      if (!firstUpdateError) firstUpdateError = `${id}: ${error.message}`
+    } else {
+      updates_applied++
+    }
   }
 
+  // If every update failed -> surface as a hard failure. Otherwise the
+  // multiplexer reports ✓ even though no DSIRE columns were actually
+  // written, and the freshness panel stays stale forever.
+  const allFailed = updates.length > 0 && updates_applied === 0
+
   return {
-    ok: true,
-    states_checked: stateRows.length,
-    verified: results.verified,
-    partial: results.partial,
-    no_match: results.no_match,
-    errors: results.errors,
-    samples: results.samples,
+    ok:              !allFailed,
+    error:           allFailed ? `All ${updates.length} state_programs updates failed. First error: ${firstUpdateError}. Hint: confirm migration 026 (dsire_* columns) is applied.` : undefined,
+    states_checked:  stateRows.length,
+    updates_applied,
+    verified:        results.verified,
+    partial:         results.partial,
+    no_match:        results.no_match,
+    errors:          results.errors,
+    first_error:     firstUpdateError,
+    samples:         results.samples,
   }
 }
 
@@ -1148,23 +1170,36 @@ async function refreshRevenueStacksViaDsire() {
     }
   }
 
-  // Per-row updates -- ~30 calls, each a single column update on the PK.
+  // Per-row updates -- one PK update per state. Capture first error message
+  // so a missing-migration diagnosis surfaces instead of a silent no-op.
+  let firstUpdateError = null
+  let updates_applied = 0
   for (const upd of updates) {
     const { state_id, ...fields } = upd
     const { error } = await supabaseAdmin
       .from('revenue_stacks')
       .update(fields)
       .eq('state_id', state_id)
-    if (error) results.errors++
+    if (error) {
+      results.errors++
+      if (!firstUpdateError) firstUpdateError = `${state_id}: ${error.message}`
+    } else {
+      updates_applied++
+    }
   }
 
+  const allFailed = updates.length > 0 && updates_applied === 0
+
   return {
-    ok: true,
-    states_checked: stackRows.length,
-    verified:       results.verified,
-    partial:        results.partial,
-    no_match:       results.no_match,
-    errors:         results.errors,
-    samples:        results.samples,
+    ok:              !allFailed,
+    error:           allFailed ? `All ${updates.length} revenue_stacks updates failed. First error: ${firstUpdateError}. Hint: confirm migration 029 (dsire_* columns) is applied.` : undefined,
+    states_checked:  stackRows.length,
+    updates_applied,
+    verified:        results.verified,
+    partial:         results.partial,
+    no_match:        results.no_match,
+    errors:          results.errors,
+    first_error:     firstUpdateError,
+    samples:         results.samples,
   }
 }

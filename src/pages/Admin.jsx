@@ -1666,6 +1666,14 @@ function DataHealthTab() {
         const r = settled[i]
         if (r.status === 'fulfilled') {
           aggregate.endpoints[e.name] = r.value
+          // The multiplexer returns 200 with `ok: false` if any sub-source
+          // failed -- still a partial outcome we should flag at the top.
+          if (r.value?.ok === false) aggregate.ok = false
+          if (r.value?.sources) {
+            for (const sub of Object.values(r.value.sources)) {
+              if (sub?.ok === false) aggregate.ok = false
+            }
+          }
         } else {
           aggregate.ok = false
           aggregate.endpoints[e.name] = { ok: false, error: r.reason?.message || 'failed' }
@@ -1757,10 +1765,21 @@ function DataHealthTab() {
                     return <div key={name}><span className="font-mono">{name}</span> ✗ <span className="text-amber-600">{String(val.error).slice(0, 140)}</span></div>
                   }
                   if (val?.sources) {
-                    const sub = Object.entries(val.sources)
+                    const subEntries = Object.entries(val.sources)
+                    const subFailed = subEntries.filter(([, v]) => v?.ok === false)
+                    const subSummary = subEntries
                       .map(([k, v]) => v?.ok === false ? `${k}✗` : `${k}✓`)
                       .join(' ')
-                    return <div key={name}><span className="font-mono">{name}</span> ✓ <span className="text-ink-muted">[{sub}]</span></div>
+                    return (
+                      <div key={name}>
+                        <div><span className="font-mono">{name}</span> {subFailed.length === 0 ? '✓' : '⚠'} <span className="text-ink-muted">[{subSummary}]</span></div>
+                        {subFailed.map(([k, v]) => (
+                          <div key={k} className="ml-4 text-amber-700">
+                            <span className="font-mono">{k}</span>: {String(v.error || 'unknown').slice(0, 200)}
+                          </div>
+                        ))}
+                      </div>
+                    )
                   }
                   if (val?.ok === false) {
                     return <div key={name}><span className="font-mono">{name}</span> ✗ <span className="text-amber-600">{String(val.error || 'unknown').slice(0, 140)}</span></div>
