@@ -4,6 +4,52 @@
 
 ---
 
+## 🟢 Pickup after break — visual verification + apply migration 038
+
+**Last session ended 2026-04-30 ~16:05 UTC** with a Playwright smoke
+suite shipped (`79bfb08`) and the white-screen-on-state-click root-
+caused + fixed (`09304d5`).
+
+**Quick sanity check when you're back:**
+
+1. **Visual verification on production** — Vercel should be on
+   commit `79bfb08` by now. Walk these in order, takes 2 min:
+   - `/dashboard` → click any state → confirm StateDetailPanel
+     opens cleanly (was white-screening before `09304d5`)
+   - `/search` → run a Lens analysis → look at:
+     a) Sub-score bars (Offtake/IX/Site Control) — shimmer should
+        flow continuously left-to-right with no perceived loop
+        boundary or "jump" (CSS keyframes vs motion). Slowed to 6s
+        per sweep.
+     b) Feasibility ArcGauge — tick marks now sit OUTSIDE the green
+        arc instead of crossing through it. Gauge should read as
+        one unified object, not arc + scale labels.
+   - `/library` → expand any project → Audit tab → score_change
+     duplicates collapse with "× N" badge, list capped at 8 with
+     "Show earlier" expansion
+   - `+ Peer state` chip in Lens scenarios → opens a styled custom
+     dropdown (not the native browser select), each option shows
+     state name + program / IX / LMI caption
+
+2. **Apply migration 038 in Supabase** — `state_programs_snapshots`
+   table for Wave 1.4 WoW deltas. The cron will start writing
+   snapshots on the next Sunday run; deltas appear in Markets on
+   the Move ~2 weeks after first snapshot.
+
+3. **No active work in queue.** The buildout backlog from earlier
+   today is fully closed (Wave 1.4 scaffolded, Search.jsx primitives
+   reviewed and intentionally skipped, wetlands deferred with
+   honest scope). When ready for new work, candidates are:
+   - Pro-flow smoke tests (currently smoke covers unauth paths only)
+   - Wetlands + farmland data layers (3-4 day data-acquisition R&D)
+   - First-pass on the deferred backlog items as paying-user
+     traction signals appear
+
+**Run `npm run verify` before pushing any visible-feature change.**
+That's the new discipline (memory: feedback_pre_push_verify.md).
+
+---
+
 ## ✅ Shipped 2026-04-30 — Tailwind v4 + Vite 8 + shadcn integration
 
 Cleaner than the BUILD_LOG plan estimated (~1.5h vs 3-5h budgeted)
@@ -60,7 +106,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `f02704e` Onboarding: subscription-aware WelcomeCard + contextual UpgradePrompt
+- **Branch:** `main` · last commit: `79bfb08` Smoke tests: Playwright suite catches runtime bugs that pass build
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -105,6 +151,19 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `79bfb08` | Smoke tests: Playwright suite catches runtime bugs that pass build (7 tests, ~20s) — `npm run verify` is the new pre-push gate |
+| `318930e` | Two visual fixes: CSS-keyframe shimmer (replaces motion's keyframes that produced loop-boundary discontinuity) + ticks moved OUTSIDE the gauge arc |
+| `09304d5` | useSubscription: unique channel name per hook instance — **fixes white-screen on dashboard state click** (Supabase realtime channel collision when WelcomeCard + StateDetailPanel both mounted the hook) |
+| `eea8d78` | Dashboard: defensive Map check on deltaMap (preventative; speculative diagnosis of the white-screen, real fix was `09304d5`) |
+| `5c30369` | Wave 1.4: state_programs_snapshots history + Markets on the Move WoW deltas (migration 038 — needs to be applied) |
+| `53625e3` | Two refinements: tiled-gradient shimmer (still had loop discontinuity, superseded by `318930e`) + bigger gauge ticks |
+| `d3af13c` | Three follow-up fixes: peer-state dropdown becomes styled custom popup (not native select), dual-shimmer attempt, gauge merge into single object |
+| `dae9e65` | Three fixes: audit log dedupe + 8-row cap with "Show N earlier" expansion, peer-state diff list redesigned as labeled grid (was bullet list of strings), sub-score shimmer flow (1.4s repeatDelay removed) |
+| `c709a29` | BUILD_LOG: close out queue items with explicit status |
+| `1780fbd` | Library: tighter mobile padding/gap on project card collapsed header |
+| `5bd249c` | Color audit: consolidate legacy primary teal #0F6E56 → canonical #0F766E across all surfaces (Library / Profile / Search / ProjectPDFExport / SectionDivider / UpgradeSuccess) |
+| `bcc65d9` | Compare modal: teal-tinted slim scrollbar (.scrollbar-dark utility) |
+| `2b14b83` | Library: `?preview=empty` URL flag to view empty-state onboarding without deleting projects |
 | `f02704e` | Onboarding: subscription-aware WelcomeCard + contextual UpgradePrompt (URL params surface as "Lens analysis staged for you") |
 | `41c91eb` | Compare: TractovaLoader on AI synthesis (replaces gradient skeleton) |
 | `b3cb940` | MemoView: real conversion CTA for non-owner share-link viewers |
