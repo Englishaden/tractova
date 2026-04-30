@@ -4,78 +4,89 @@
 
 ---
 
-## 🟢 Pickup — visual verification on prod (post `596de4b`) + new pickup
+## 🟢 Pickup — visual verification on prod (post `d4061d2`)
 
-**Last session ended 2026-04-30 ~18:15 UTC** with score-honesty fix
-shipped (`596de4b`). Migration 038 confirmed applied to Supabase.
+**Last session ended 2026-04-30 ~18:30 UTC** with two layered
+score-honesty fixes shipped (`596de4b` + `d4061d2`). Migration 038
+confirmed applied. The Lens panel now consistently signals when any
+sub-score is fallback rather than researched.
 
 **Visual verification when you're back:**
 
-1. **Production should be on `596de4b` shortly.** Walk these:
+1. **Production should be on `d4061d2` shortly.** Walk these:
    - `/search` → run Lens for `Texas + BESS`:
-     - Sub-score bars render
-     - Beneath the 3 bars, an amber **"Limited offtake coverage"**
-       caption appears, listing IL/ME/MA/MN/CO/MD/NJ/NY as the
-       curated BESS coverage states. The score still shows but
-       the user knows it's an estimated baseline, not researched.
-     - AI brief should speak directionally about TX BESS rather
-       than quoting fictional capacity-market $/kW figures.
-   - `/search` → run Lens for `IL + BESS`:
-     - No "limited coverage" caption (IL is in the curated list)
-   - `/dashboard` → click a state → StateDetailPanel opens cleanly
-   - All previously verified surfaces from `79bfb08` (peer-state
-     dropdown, audit dedupe, gauge ticks, shimmer flow) — these
-     were not touched in this session.
+     - Beneath the 3 sub-score bars, an amber **"Limited coverage —
+       directional only"** caption with TWO bullets:
+         · **Offtake:** BESS curated for IL/ME/MA/MN/CO/MD/NJ/NY
+         · **Site Control:** county-level data not yet seeded for
+           this geography
+   - `/search` → run Lens for `Illinois + BESS`:
+     - No caption (IL has both BESS economics AND county data seeded)
+   - `/search` → run Lens for `Florida + Community Solar`:
+     - Caption shows ONLY the Site Control bullet (FL has CS data
+       seeded so offtake is researched, but only some FL counties
+       have site data)
+   - AI brief in TX/FL/etc. speaks directionally — no fictional
+     capacity-market $/kW or PPA cents/kWh figures.
 
-2. **No active work in queue.** Candidate next moves, in priority
-   order:
-   - **Expand curated coverage to all 50 states** — biggest product
-     leverage. Today, only 8 states have full revenue economics
-     (IL/NY/MA/MN/CO/NJ/ME/MD); 12 have CI scoring; 10 have BESS
-     scoring. A customer in TX/FL/CA sees "limited coverage" rather
-     than researched intel. Approach: per-state research sprint to
-     populate `STATE_REVENUE_DATA`, `CI_REVENUE_DATA`,
-     `BESS_REVENUE_DATA` from EIA Form 861 + ISO capacity markets.
-     Estimated 1-2 days/state for proper sourcing.
+2. **Coverage gap: only 18 of 50 states have a `default`
+   county_intelligence row** seeded. States missing site data:
+   AK, AL, AR, AZ, DE, GA, IA, ID, IN, KS, KY, LA, MO, MS, MT, NC,
+   ND, NE, NH, NV, OH, OK, PA, SC, SD, TN, TX, UT, VT, WI, WV, WY.
+   Adding a default row per state is a low-effort, high-leverage
+   next move (a stub like "ag land available, low wetland risk"
+   per state takes ~1 hour total — replaces the bare baseline with
+   directional state-level guidance until per-county data is
+   acquired).
+
+3. **No active work in queue.** Candidate next moves:
+   - **Seed default county_intelligence rows for all 50 states** —
+     ~1 hour, removes the Site Control fallback caption from 32
+     states immediately. Per-county refinement still happens later.
+   - **Expand curated economic coverage to top-10 solar markets**
+     (CA, TX, FL, NC, AZ, GA, NV, NM) using EIA Form 861 + ISO
+     capacity data. ~4-8 hours per state for proper sourcing.
    - **Pro-flow smoke tests** — currently smoke covers unauth paths
-     only. Authenticated flows (Lens result render, Library project
-     create, refresh-data trigger) need test fixtures.
+     only.
    - **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
 
 **Run `npm run verify` before pushing any visible-feature change.**
 
 ---
 
-## ✅ Shipped 2026-04-30 — Score honesty (`596de4b`)
+## ✅ Shipped 2026-04-30 — Score honesty pass (`596de4b` + `d4061d2`)
 
+**Two layered fixes** addressing the same trust-erosion class:
+silent baseline fallbacks in the Lens scoring engine that produced
+research-grade-looking numbers from placeholder values.
+
+### `596de4b` — offtake coverage
 **The bug.** Customer could pick BESS/C&I/Hybrid for any of 50
-states in `/search`. The scoring engine's `CI_OFFTAKE_SCORES` (12
-states) and `BESS_OFFTAKE_SCORES` (10 states) silently fell back to
-55/45 for uncovered states. The revenue panel honestly said "model
-not available" but the feasibility number looked researched —
-mismatched honesty that erodes trust at scale.
+states in `/search`. `CI_OFFTAKE_SCORES` (12 states) and
+`BESS_OFFTAKE_SCORES` (10 states) silently fell back to 55/45 for
+uncovered states. The revenue panel honestly said "model not
+available" but the feasibility number looked researched.
 
-**The fix.**
-- `computeSubScores` in `src/lib/scoreEngine.js` now returns
-  `coverage: { offtake }` so callers can detect fallback-baseline
-  scores. Backwards-compatible — existing destructures of
-  `{ offtake, ix, site }` and `Object.values(subs)` patterns
-  (Profile.jsx, Library.jsx) keep working because JS ignores the
-  extra spread arg into `computeDisplayScore`.
-- `MarketPositionPanel` in Search.jsx renders an amber **"Limited
-  offtake coverage"** caption beneath the sub-score bars when the
-  curated list doesn't include the target state, listing the states
-  that DO have curated data.
-- `api/lens-insight.js` context block adds a `COVERAGE NOTE` line
-  for C&I/Hybrid states outside the 8-state revenue list, and for
-  BESS states with `ISO/RTO region: Unknown`. Instructs the AI to
-  speak directionally rather than quote specific $/kW or PPA figures
-  when curated data is absent.
+**The fix.** `computeSubScores` returns `coverage: { offtake }`.
+`MarketPositionPanel` renders a "Limited offtake coverage" caption
+listing curated states. `api/lens-insight.js` adds a `COVERAGE
+NOTE` instructing the AI to speak directionally for uncovered
+geographies (no fabricated $/kW or PPA cents/kWh).
+
+### `d4061d2` — site coverage (parallel)
+**The bug.** Only 18 of 50 states have a `default`
+county_intelligence row seeded. For the other 32 states, the Site
+Control sub-score silently defaults to 60. Same trust issue.
+
+**The fix.** `coverage.site` = `'researched' | 'fallback'`. The
+caption block consolidated into one "Limited coverage — directional
+only" panel with per-pillar bullets (offtake, site) so common-case
+where both fire stays visually clean.
 
 **What this didn't change.** All 50 states still receive full Lens
-analysis on the data side (state_programs has all 50, county data
-where seeded, IRA/HUD/NMTC overlays work nationwide). Only the
-**economic** layer of the score is honest about its coverage now.
+analysis on the data side. State programs all 50, IX difficulty all
+50, IRA/HUD/NMTC overlays all 50. Only the **economic** and
+**county-level site** layers honestly signal coverage now.
 
 ---
 
@@ -135,7 +146,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `596de4b` Score honesty: surface "limited coverage" when offtake falls back to baseline
+- **Branch:** `main` · last commit: `d4061d2` Score honesty: surface fallback site sub-score for unseeded counties
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -180,6 +191,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `d4061d2` | Score honesty: site sub-score also signals fallback when county_intelligence row missing (only 18 of 50 states seeded — caption now consolidates both pillars in one block) |
+| `9b0d96c` | BUILD_LOG: capture score-honesty fix + new pickup priorities |
 | `596de4b` | Score honesty: surface "limited coverage" caption + AI COVERAGE NOTE when offtake falls back to baseline (BESS/CI/Hybrid outside curated 8-12 states) |
 | `1474c3d` | BUILD_LOG: capture full audit / fix / smoke-suite stretch + post-break pickup |
 | `79bfb08` | Smoke tests: Playwright suite catches runtime bugs that pass build (7 tests, ~20s) — `npm run verify` is the new pre-push gate |
