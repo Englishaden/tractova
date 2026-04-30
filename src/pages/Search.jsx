@@ -184,8 +184,11 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
             boxShadow: `0 0 0 1px ${color}22 inset, 0 0 8px ${color}44`,
           }}
         >
-          {/* Continuous shimmer sweep — communicates "live data" without
-              demanding hover. Loops every 3.6s with a soft white highlight. */}
+          {/* Continuous shimmer sweep -- flows without breaks. The earlier
+              version had a 1.4s repeatDelay between sweeps; user flagged the
+              pause as a "very mild lag." Now: no repeatDelay, slightly slower
+              4.5s sweep so the bar reads as a flowing current rather than a
+              ping. */}
           <motion.div
             className="absolute inset-y-0 pointer-events-none"
             style={{
@@ -194,7 +197,7 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
               mixBlendMode: 'overlay',
             }}
             animate={{ x: ['-50%', '250%'] }}
-            transition={{ duration: 3.6, repeat: Infinity, ease: 'linear', repeatDelay: 1.4 }}
+            transition={{ duration: 4.5, repeat: Infinity, ease: 'linear', repeatDelay: 0 }}
           />
         </motion.div>
       </div>
@@ -2647,21 +2650,39 @@ function CustomScenarioInline({ stateProgram, technology, activeScenario, setAct
       capacityMW:   peer.capacityMW,
     }
 
-    // Concrete diff list -- what shifts if the peer profile lands here
+    // Structured diff: each row keeps {field, from, to, tone} so the UI
+    // can render a proper labeled comparison row instead of a plain string
+    // bullet list. Tone is teal when the shift is generally favorable to
+    // the operator (looser CS, lower LMI, easier IX, more capacity), amber
+    // otherwise. Used downstream in the diff readout component.
+    const IX_RANK = { easy: 4, moderate: 3, hard: 2, very_hard: 1 }
+    const CS_RANK = { active: 4, limited: 3, pending: 2, none: 1 }
+    const fmtIX = (v) => v ? v.replace('_', ' ') : '—'
+    const fmtMW = (v) => v ? (v >= 1000 ? `${(v / 1000).toFixed(1)} GW` : `${Math.round(v)} MW`) : '—'
+
     const diffs = []
     if (peer.ixDifficulty && peer.ixDifficulty !== stateProgram.ixDifficulty) {
-      diffs.push(`IX: ${(stateProgram.ixDifficulty || '—').replace('_', ' ')} → ${peer.ixDifficulty.replace('_', ' ')}`)
+      const tone = (IX_RANK[peer.ixDifficulty] || 0) >= (IX_RANK[stateProgram.ixDifficulty] || 0) ? 'good' : 'bad'
+      diffs.push({ field: 'IX Difficulty', from: fmtIX(stateProgram.ixDifficulty), to: fmtIX(peer.ixDifficulty), tone })
     }
     if (peer.csStatus && peer.csStatus !== stateProgram.csStatus) {
-      diffs.push(`CS Status: ${stateProgram.csStatus || '—'} → ${peer.csStatus}`)
+      const tone = (CS_RANK[peer.csStatus] || 0) >= (CS_RANK[stateProgram.csStatus] || 0) ? 'good' : 'bad'
+      diffs.push({ field: 'CS Status', from: stateProgram.csStatus || '—', to: peer.csStatus, tone })
     }
     if ((peer.lmiPercent || 0) !== (stateProgram.lmiPercent || 0)) {
-      diffs.push(`LMI carveout: ${stateProgram.lmiPercent || 0}% → ${peer.lmiPercent || 0}%`)
+      // Lower LMI = easier subscriber sourcing for the developer
+      const tone = (peer.lmiPercent || 0) < (stateProgram.lmiPercent || 0) ? 'good' : 'bad'
+      diffs.push({ field: 'LMI Carveout', from: `${stateProgram.lmiPercent || 0}%`, to: `${peer.lmiPercent || 0}%`, tone })
     }
     if ((peer.capacityMW || 0) !== (stateProgram.capacityMW || 0)) {
-      const fmt = (v) => v ? `${(v / 1000).toFixed(1)}GW` : '—'
-      diffs.push(`Program cap: ${fmt(stateProgram.capacityMW)} → ${fmt(peer.capacityMW)}`)
+      const tone = (peer.capacityMW || 0) > (stateProgram.capacityMW || 0) ? 'good' : 'bad'
+      diffs.push({ field: 'Program Capacity', from: fmtMW(stateProgram.capacityMW), to: fmtMW(peer.capacityMW), tone })
     }
+
+    // Compact prose summary for the active-scenario overlay panel below.
+    const diffSummary = diffs.length > 0
+      ? diffs.map(d => `${d.field} ${d.from} → ${d.to}`).join('; ')
+      : ''
 
     setActiveScenario({
       id: 'custom',
@@ -2670,7 +2691,7 @@ function CustomScenarioInline({ stateProgram, technology, activeScenario, setAct
       override,
       precedent: `${peer.name} profile${peer.csProgram ? ` (${peer.csProgram})` : ''} applied to ${stateProgram.name || 'this market'}`,
       detail: diffs.length > 0
-        ? `What if ${stateProgram.name || 'this market'} adopted ${peer.name}'s policy + IX profile? ${diffs.length} key shift${diffs.length === 1 ? '' : 's'}: ${diffs.join('; ')}. Useful for benchmarking how a peer state's regulatory environment would reshape this county's feasibility.`
+        ? `What if ${stateProgram.name || 'this market'} adopted ${peer.name}'s policy + IX profile? ${diffs.length} key shift${diffs.length === 1 ? '' : 's'}: ${diffSummary}. Useful for benchmarking how a peer state's regulatory environment would reshape this county's feasibility.`
         : `${peer.name}'s policy and IX profile is identical to this state on the dimensions our model tracks -- no score impact expected.`,
       revenueImpact: peer.csProgram ? `Adopt ${peer.csProgram} program rules` : null,
       timelineImpact: peer.ixDifficulty
@@ -2706,20 +2727,63 @@ function CustomScenarioInline({ stateProgram, technology, activeScenario, setAct
         ))}
       </select>
 
-      {/* Live diff readout once a peer is selected */}
+      {/* Live diff readout once a peer is selected. Each row is a structured
+          field/from/to comparison rendered as a labeled grid -- field name on
+          the left in mono caps, before-value in muted ink, an arrow keyed to
+          the tone (teal for favorable shifts, amber for unfavorable), then the
+          after-value. Replaces the previous bullet-list-of-strings render. */}
       {isActive && Array.isArray(activeScenario?.diffs) && activeScenario.diffs.length > 0 && (
-        <div className="mt-2 rounded-md px-3 py-2" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.18)' }}>
-          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>
-            Profile shifts ({activeScenario.diffs.length})
-          </p>
-          <ul className="text-[11px] text-ink space-y-0.5 leading-snug">
-            {activeScenario.diffs.map(d => (
-              <li key={d}>
-                <span className="font-mono text-gray-400 mr-1">·</span>
-                {d}
-              </li>
-            ))}
-          </ul>
+        <div
+          className="mt-3 rounded-lg overflow-hidden"
+          style={{
+            background: 'linear-gradient(180deg, rgba(20,184,166,0.04) 0%, rgba(20,184,166,0.08) 100%)',
+            border: '1px solid rgba(20,184,166,0.22)',
+          }}
+        >
+          <div
+            className="flex items-center justify-between px-3 py-1.5"
+            style={{ borderBottom: '1px solid rgba(20,184,166,0.18)' }}
+          >
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.20em]" style={{ color: '#0F766E' }}>
+              Profile shifts
+            </p>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-500 tabular-nums">
+              {activeScenario.diffs.length} change{activeScenario.diffs.length === 1 ? '' : 's'}
+            </p>
+          </div>
+          <div className="px-3 py-2 space-y-1.5">
+            {activeScenario.diffs.map((d) => {
+              const arrowColor = d.tone === 'good' ? '#0F766E' : '#B45309'
+              const toBg       = d.tone === 'good' ? 'rgba(15,118,110,0.10)' : 'rgba(180,83,9,0.10)'
+              const toBorder   = d.tone === 'good' ? 'rgba(15,118,110,0.28)' : 'rgba(180,83,9,0.28)'
+              const toText     = d.tone === 'good' ? '#0F766E' : '#92400E'
+              return (
+                <div
+                  key={d.field}
+                  className="grid items-center gap-2"
+                  style={{ gridTemplateColumns: 'minmax(0, 110px) minmax(0, 1fr) 14px minmax(0, 1fr)' }}
+                >
+                  <span className="font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-ink-muted whitespace-nowrap">
+                    {d.field}
+                  </span>
+                  <span className="text-[11px] font-mono text-gray-500 truncate">
+                    {d.from}
+                  </span>
+                  <span aria-hidden className="flex items-center justify-center" style={{ color: arrowColor }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                    </svg>
+                  </span>
+                  <span
+                    className="text-[11px] font-mono font-semibold px-1.5 py-0.5 rounded-sm justify-self-start truncate"
+                    style={{ color: toText, background: toBg, border: `1px solid ${toBorder}` }}
+                  >
+                    {d.to}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
       {isActive && Array.isArray(activeScenario?.diffs) && activeScenario.diffs.length === 0 && (
