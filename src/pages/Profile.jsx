@@ -432,6 +432,21 @@ export default function Profile() {
             </div>
           </div>
 
+          {/* Admin access — surfaced near the top so it's reachable without
+              scrolling. Only renders for the admin user. */}
+          {email === 'aden.walker67@gmail.com' && (
+            <Link
+              to="/admin"
+              className="mb-5 flex items-center justify-between bg-white border border-gray-200 rounded-lg px-6 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
+            >
+              <div>
+                <p className="text-sm font-medium text-gray-900">Data Admin</p>
+                <p className="text-[10px] text-gray-400">Edit live market intelligence data</p>
+              </div>
+              <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Open →</span>
+            </Link>
+          )}
+
           {/* V3: Two-column layout on desktop. Left = account / subscription / alerts.
               Right = portfolio stats / recent activity. Stacks on mobile. */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -520,20 +535,6 @@ export default function Profile() {
               )}
             </div>
           </div>
-
-          {/* Admin access */}
-          {email === 'aden.walker67@gmail.com' && (
-            <Link
-              to="/admin"
-              className="mt-4 flex items-center justify-between bg-white border border-gray-200 rounded-lg px-6 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
-            >
-              <div>
-                <p className="text-sm font-medium text-gray-900">Data Admin</p>
-                <p className="text-[10px] text-gray-400">Edit live market intelligence data</p>
-              </div>
-              <span className="text-xs text-gray-300 group-hover:text-primary transition-colors">Open →</span>
-            </Link>
-          )}
 
           {/* Actions */}
           <div className="mt-5 flex items-center justify-between">
