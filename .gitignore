@@ -28,3 +28,8 @@ claude.exe
 
 # Local notes / scratch files (not meant for the repo)
 Genuinely useful for the consultant.txt
+
+# Playwright artifacts (smoke test outputs)
+/test-results/
+/playwright-report/
+/playwright/.cache/
