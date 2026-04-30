@@ -4,6 +4,54 @@
 
 ---
 
+## 🟢 Pickup at 10:30 AM — Tailwind v3 → v4 + Vite 5 → 8 upgrade
+
+**Why this one for a 12-hour block:** Single largest unblocking
+upgrade in the codebase. Auto-clears 2 of the 5 remaining dependabot
+vulns (`vite` + `esbuild`). Permanently unlocks `shadcn` so future
+component work stops fighting Tailwind v3 limits. Estimated 3-5h of
+focused work — fits perfectly in a long uninterrupted session and
+poorly in any shorter window.
+
+### Step-by-step
+
+1. **Read the migration guides first** (~20 min): Tailwind v4 upgrade
+   guide and Vite 5→8 migration notes. Both have official codemods.
+2. **Branch off `main`** as `tailwind-v4-vite-8` so the upgrade can be
+   reverted cleanly if it goes sideways.
+3. **Run the codemods** (`@tailwindcss/upgrade`, then Vite's). Each
+   handles ~80% of the mechanical changes.
+4. **Hand-fix the remainder** — usually `@apply` directives, custom
+   plugin shapes, theme `extend`. The codebase uses inline style
+   props heavily (see Profile.jsx, USMap.jsx) which should be safe.
+5. **Verify build clean + dev server boots**, then **walk every
+   route** in the running app to catch broken styles. Critical
+   surfaces: `/`, `/library`, `/admin`, `/profile`, `/upgrade`.
+6. **Add `shadcn` init** and pull the first 2-3 primitives we'd
+   actually use (`button`, `dialog`, `dropdown-menu`) to confirm the
+   integration works. No need to refactor existing components yet.
+7. **Run `npm audit`** — should drop from 5 vulns to 3 (only the
+   `react-simple-maps` chain + `xlsx` remain, both already documented
+   accepted-risk).
+8. **Update BUILD_LOG** — flip the P2 backlog item to shipped, drop
+   the vite/esbuild vuln rows from the accepted-risks table.
+
+### Risks to watch
+
+- Tailwind v4 dropped `@apply` outside of components in some configs.
+  Check `src/index.css` and any other CSS files for `@apply` usage.
+- Vite 8 may bump the minimum Node version. Verify Vercel's Node 24
+  default still satisfies it (it should).
+- `react-simple-maps` is the most likely place for a styling
+  regression — verify the USMap renders correctly after upgrade.
+
+### After this lands
+
+Search.jsx → `ui/*` primitives refactor (shadcn unlocked) becomes the
+natural next item. Or the dependabot deep-clean.
+
+---
+
 ## ✅ Resolved 2026-04-30 — refresh pipeline + Census 503 saga
 
 The data refresh that started yesterday with the NMTC wildcard bug is
