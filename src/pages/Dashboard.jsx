@@ -14,11 +14,11 @@ import { getStateProgramMap, getNewsFeed } from '../lib/programData'
 // `dashboard_metrics` history accumulates, swap to true score-delta deltas
 // (this hook just needs to start consuming a deltas-aware payload).
 function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
-  const movers = useMemo(() => {
+  const { allMovers, displayed, overflowCount } = useMemo(() => {
     const states = Object.values(stateProgramMap || {})
-    if (!states.length) return []
+    if (!states.length) return { allMovers: [], displayed: [], overflowCount: 0 }
     const now = Date.now()
-    return states
+    const all = states
       .filter(s => s.csStatus && s.csStatus !== 'none')
       .map(s => {
         const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
@@ -27,10 +27,11 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
       })
       .filter(s => s.recencyTs > 0 && (now - s.recencyTs) < 1000 * 60 * 60 * 24 * 30)
       .sort((a, b) => b.recencyTs - a.recencyTs)
-      .slice(0, 3)
+    const top = all.slice(0, 3)
+    return { allMovers: all, displayed: top, overflowCount: Math.max(0, all.length - top.length) }
   }, [stateProgramMap])
 
-  if (movers.length === 0) return null
+  if (displayed.length === 0) return null
 
   const formatAgo = (ts) => {
     const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24))
@@ -39,12 +40,20 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
     if (days < 7)   return `${days}d ago`
     return `${Math.floor(days / 7)}w ago`
   }
+  const formatFullDate = (ts) =>
+    new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   return (
     <div className="rounded-xl px-5 py-3.5 mb-4" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
+          {/* Live-pulse indicator -- previously a static teal dot. Now
+              breathes via CSS ping/pulse layered atop a solid core, signaling
+              the panel reflects current data and isn't just a snapshot. */}
+          <span className="relative flex w-1.5 h-1.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: '#14B8A6' }} />
+            <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
+          </span>
           <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
             Markets on the Move
           </p>
@@ -52,12 +61,14 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
         </div>
         <span className="hidden sm:inline-block w-px h-4" style={{ background: '#E2E8F0' }} />
         <div className="flex items-center gap-2 flex-wrap">
-          {movers.map((s) => {
+          {displayed.map((s) => {
             const score = s.feasibilityScore ?? 0
+            const tooltip = `${s.name}: data verified ${formatFullDate(s.recencyTs)}${s.csProgram ? ` · ${s.csProgram}` : ''}`
             return (
               <button
                 key={s.id}
                 onClick={() => onStateClick(s.id)}
+                title={tooltip}
                 className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
                 style={{ background: '#F9FAFB', border: '1px solid #E2E8F0' }}
                 onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(15,118,110,0.06)'; e.currentTarget.style.borderColor = 'rgba(15,118,110,0.30)' }}
@@ -71,6 +82,16 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
               </button>
             )
           })}
+          {/* Overflow indicator -- surfaces total mover count when there
+              are more updated states than fit in the visible top-3. */}
+          {overflowCount > 0 && (
+            <span
+              className="font-mono text-[10px] text-ink-muted px-2 py-1 leading-none"
+              title={`${overflowCount} more state${overflowCount === 1 ? '' : 's'} updated in the past 30 days`}
+            >
+              +{overflowCount} more
+            </span>
+          )}
         </div>
       </div>
     </div>
