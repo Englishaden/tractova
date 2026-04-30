@@ -4,35 +4,71 @@
 
 ---
 
-## 🟡 Known transient — not a code bug
+## 🔴 Pickup next session — Census 503 root-cause diagnosis
 
-### Census ACS API throttling (last seen 2026-04-30 ~07:52 AM)
+### Status as of 2026-04-30 ~08:30 AM
 
-After hammering Census ACS during this morning's multiplex refactor
-(see commits `ebf3deb` through `d28956c`), all three Census handlers
-(`lmi`, `county_acs`, `nmtc_lic`) are returning **HTTP 503 "undergoing
-maintenance or busy"** even with `CENSUS_API_KEY` confirmed reaching
-the function (the `keyed=true` diagnostic in the error string verifies
-this). This is genuine upstream throttling / maintenance — the
-architecture itself is sound:
+All three Census handlers (`lmi`, `county_acs`, `nmtc_lic`) keep
+returning **HTTP 503 "undergoing maintenance or busy"** despite
+`CENSUS_API_KEY` confirmed reaching the function (`keyed=true`). The
+"wait 15-30 min" theory was wrong — it's been over an hour and
+behaviour is unchanged. We've stopped guessing and built a diagnostic.
 
-- Function no longer hangs (was 5+ min, now fails fast in 23s)
-- No retry storms, no client-side hangs
-- NMTC isolated to its own HTTP call so it can't drag the rest down
-- Non-Census sources (`state_programs`, `news`, `revenue_stacks`,
-  `energy_community`, `hud_qct_dda`) all ✓
-- Substations / IX queue / capacity factors → all OK ✓
+### What's been done in this session
 
-**Pickup next session:** click Refresh in `/admin > Data Health`. If
-Census has recovered (likely after a few hours), all 8 sub-sources will
-turn ✓ with no further action needed. If still 503'ing after 24h,
-investigate at https://api.census.gov/data.html for any posted outage.
+The architecture is now sound. Function fails fast in ~23s, no hangs,
+no retry storms, NMTC isolated, browser timeout in place. See commits
+`ebf3deb` through `d28956c`. Last commit `beaac11` adds:
+
+- **`?debug=1` short-circuit** on `/api/refresh-data`. Runs a single
+  tiny Census ACS fetch (one state, two vars) and returns:
+  - URL with key redacted to last 4 chars
+  - Key length + whitespace sanity check
+  - Vercel egress region
+  - HTTP status, statusText
+  - Headers: `server`, `retry-after`, `cf-ray`, `cf-mitigated`,
+    `x-amz-cf-pop`, `via`, `content-type`, `date`
+  - Full response body up to 4KB
+  - Total duration
+- **Descriptive User-Agent** on all Census fetches:
+  `Tractova/1.0 (community-solar intel; aden.walker67@gmail.com)`.
+  Cheap insurance — many .gov APIs deprioritize default undici UA.
+
+### Pickup steps (in order)
+
+1. **Hit `https://tractova.com/api/refresh-data?debug=1`** while logged
+   in as admin. Capture the full JSON.
+2. **Independent corroborator:** from your local machine, run:
+   ```
+   curl -s "https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E&for=state:01&key=YOUR_KEY" | head -c 300
+   ```
+3. **Triage by what you see** (full plan in
+   `~/.claude/plans/giggly-percolating-snowglobe.md`):
+
+| Finding | Diagnosis | Next move |
+|---|---|---|
+| `cf-ray` + `cf-mitigated` headers in debug output | Cloudflare/WAF blocking Vercel egress | Pivot to **bulk-download fallback** — pull ACS tables locally once, upload to Supabase Storage, rewrite handlers to read from there. ACS updates annually; weekly API calls were always overkill. |
+| Body says "invalid key" or `key_tail` ≠ what you stored | Wrong/expired key | Reissue at api.census.gov/data/key_signup.html, update Vercel env var (Production scope), redeploy |
+| `retry-after` header present + canned 503 body | Genuine extended maintenance | Implement Phase 3 stale-tolerance (below), wait out Census |
+| `key_whitespace_check` warns about whitespace | Env var has trailing newline | Edit Vercel env var value, redeploy |
+| Local curl 200 + Vercel debug 503 | Vercel IP block confirmed | Bulk-download fallback (same as cf-mitigated) |
+| Both succeed | Resolved between attempts | Run normal refresh, done |
+
+### Phase 3 — resilience worth doing regardless of root cause
+
+After diagnosis, add **stale-tolerance** to the three Census handlers:
+read `cron_runs` for the most recent successful run; if <90 days old,
+report `ok: false, reason: 'upstream_503', stale_tolerance: 'within_window'`
+instead of failing. Census ACS updates annually — failing the Data
+Health panel because Census 503'd today is theatre when last week's
+data is still good. ~30 LOC change to `api/refresh-data.js` +
+`RefreshStatusBanner` in `Admin.jsx`.
 
 ---
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `875aa88` Admin: color-code the 10 tabs for at-a-glance scanning
+- **Branch:** `main` · last commit: `beaac11` Refresh: add Census diagnostic mode (`?debug=1`) + descriptive User-Agent
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -76,6 +112,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `beaac11` | Refresh: Census `?debug=1` diagnostic mode + descriptive User-Agent ⚠ next session: hit endpoint, triage |
+| `2d974cd` | BUILD_LOG: capture today's multiplex refactor + UI polish |
 | `875aa88` | Admin: color-code the 10 tabs for at-a-glance scanning |
 | `8012250` | Profile: move Data Admin link to top of page |
 | `d28956c` | Refresh: inline `keyed=` flag into Census error strings (UI visibility) |
