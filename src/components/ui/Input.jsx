@@ -60,7 +60,7 @@ export default function Input({
         placeholder={placeholder}
         disabled={disabled}
         required={required}
-        className={`w-full text-sm rounded-lg px-3 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 ${
+        className={`w-full text-sm rounded-lg px-3 py-2 transition-colors focus:outline-hidden focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 ${
           paper ? 'bg-paper' : 'bg-white'
         } ${
           isNumeric ? 'font-mono tabular-nums' : 'font-sans'

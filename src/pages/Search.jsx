@@ -132,7 +132,7 @@ function SubScoreBar({ label, weight, value, color }) {
       className="font-mono text-[11px] tabular-nums items-baseline"
       style={{ display: 'grid', gridTemplateColumns: 'minmax(0, max-content) 28px 1fr', columnGap: '12px' }}
     >
-      <span className="uppercase tracking-[0.10em] font-semibold text-ink leading-tight whitespace-nowrap">
+      <span className="uppercase tracking-widest font-semibold text-ink leading-tight whitespace-nowrap">
         {displayLabel}
         <span className="ml-1.5 text-[9px] text-ink-muted font-normal">{weight}</span>
       </span>
@@ -396,7 +396,7 @@ function SectionLabel({ children }) {
 function DataRow({ label, value, highlight, valueClass }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 border-b border-gray-100 last:border-0">
-      <span className="text-xs text-gray-500 flex-shrink-0">{label}</span>
+      <span className="text-xs text-gray-500 shrink-0">{label}</span>
       <span className={`text-xs font-semibold text-right ${valueClass || (highlight ? 'text-primary' : 'text-gray-800')}`}>
         {value}
       </span>
@@ -440,7 +440,7 @@ function QueueBadge({ statusCode }) {
   }
   const cfg = map[statusCode] || map.unknown
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded border ${cfg.cls}`}>
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-sm border ${cfg.cls}`}>
       {cfg.label}
     </span>
   )
@@ -459,12 +459,12 @@ function RunwayBadge({ runway }) {
   return (
     <div className="flex items-center gap-1.5">
       <span
-        className="text-xs font-semibold px-2 py-0.5 rounded"
+        className="text-xs font-semibold px-2 py-0.5 rounded-sm"
         style={{ background: c.bg, color: c.text }}
       >
         ~{runway.months} months{suffix}
       </span>
-      <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">est.</span>
+      <span className="text-[9px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-sm">est.</span>
     </div>
   )
 }
@@ -478,7 +478,7 @@ function CSStatusBadge({ csStatus }) {
   }
   const cfg = map[csStatus] || map.none
   return (
-    <span className={`text-xs font-medium px-2 py-0.5 rounded border ${cfg.cls}`}>
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-sm border ${cfg.cls}`}>
       {cfg.label}
     </span>
   )
@@ -601,7 +601,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
         {/* Population density context */}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Area Profile</span>
-          <span className="text-[10px] font-semibold px-2 py-0.5 rounded border" style={{
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-sm border" style={{
             ...(populationDensity === 'urban'
               ? { color: '#7C3AED', background: 'rgba(124,58,237,0.06)', borderColor: 'rgba(124,58,237,0.20)' }
               : populationDensity === 'suburban'
@@ -704,12 +704,12 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
                         <span className="text-gray-400">·</span>
                         <span className="text-gray-500">{s.utility}</span>
                         {isUtilityMatch && (
-                          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">
+                          <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-sm bg-emerald-100 text-emerald-700 border border-emerald-200">
                             Serving Utility
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 flex-shrink-0 tabular-nums">
+                      <div className="flex items-center gap-3 shrink-0 tabular-nums">
                         {s.distanceMiles != null && (
                           <span className={`font-semibold ${isUtilityMatch ? 'text-emerald-700' : highlight ? 'text-blue-700' : 'text-gray-600'}`}>{s.distanceMiles} mi</span>
                         )}
@@ -834,7 +834,7 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
                         {TREND_ICON[u.queueTrend]}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 flex-shrink-0 text-gray-500 tabular-nums">
+                    <div className="flex items-center gap-3 shrink-0 text-gray-500 tabular-nums">
                       <span>{u.projectsInQueue} proj</span>
                       <span>{u.avgStudyMonths}mo</span>
                       <span>${(u.avgUpgradeCostMW / 1000).toFixed(0)}K/MW</span>
@@ -894,7 +894,7 @@ function RevenueStackBar({ revenueStack }) {
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
         {segments.map((s) => (
           <div key={s.label} className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
             <span className="text-[10px] text-gray-500">{s.label}</span>
           </div>
         ))}
@@ -956,7 +956,7 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
           <div className="flex items-center gap-3 mt-2">
             {streams.map(s => (
               <div key={s.label} className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
                 <span className="text-[10px] text-gray-500">{s.label}</span>
                 <span className="text-[10px] font-semibold text-gray-700 tabular-nums">{fmt(s.value)}</span>
               </div>
@@ -1058,7 +1058,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                   ) : stateProgram?.csStatus !== 'none' && (
                     <div className="flex items-center justify-between pt-1.5">
                       <span className="text-xs text-gray-500">Est. program runway</span>
-                      <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded">Contact program administrator for current fill status</span>
+                      <span className="text-[10px] text-blue-500 bg-blue-50 px-2 py-0.5 rounded-sm">Contact program administrator for current fill status</span>
                     </div>
                   )}
                 </div>
@@ -1121,7 +1121,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                       href="https://energycommunities.gov/energy-community-tax-credit-bonus/"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                      className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
                     >
                       Source ↗
                     </a>
@@ -1160,7 +1160,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                       href="https://www.energy.gov/diversity/low-income-communities-bonus-credit-program"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                      className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
                     >
                       Source ↗
                     </a>
@@ -1935,12 +1935,12 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
                 {(activeScenario.revenueImpact || activeScenario.timelineImpact) && (
                   <div className="flex flex-wrap gap-2 mt-2.5">
                     {activeScenario.revenueImpact && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200">
                         {activeScenario.revenueImpact}
                       </span>
                     )}
                     {activeScenario.timelineImpact && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-sm border bg-amber-50 text-amber-700 border-amber-200">
                         {activeScenario.timelineImpact}
                       </span>
                     )}
@@ -1949,7 +1949,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
                 {/* V3: AI rationale block -- teal accent (was violet) */}
                 {(rationaleLoading || scenarioRationale) && (
                   <div
-                    className="mt-3 pt-3 rounded px-3 py-2"
+                    className="mt-3 pt-3 rounded-sm px-3 py-2"
                     style={{
                       borderTop: '1px dashed rgba(20,184,166,0.30)',
                       background: 'rgba(20,184,166,0.04)',
@@ -2018,7 +2018,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
           <div className="mt-6 pt-5 border-t border-gray-100 pl-4" style={{ borderLeftWidth: 0, position: 'relative' }}>
             <div className="absolute left-0 top-5 bottom-0 w-[2px]" style={{ background: '#14B8A6' }} />
             <div className="flex items-start gap-3 ml-4">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1">
                 <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
               </svg>
               <div>
@@ -2092,7 +2092,7 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
         {activeScenario && (
           <button
             onClick={() => { setActiveScenario(null); setCustomOpen(false) }}
-            className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold px-2 py-0.5 rounded transition-colors"
+            className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold px-2 py-0.5 rounded-sm transition-colors"
             style={{ color: '#0F766E' }}
             onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.08)' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
@@ -2111,7 +2111,7 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
               onClick={() => setActiveScenario(isActive ? null : scn)}
               aria-pressed={isActive}
               aria-label={`Sensitivity scenario: ${scn.label}`}
-              className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+              className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded-sm transition-all focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500"
               style={isActive
                 ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
                 : { background: 'white', color: '#0A1828', border: '1px solid #E2E8F0' }}
@@ -2128,7 +2128,7 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
           aria-expanded={customOpen}
           aria-pressed={isCustomActive}
           aria-label="Build a custom sensitivity scenario"
-          className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+          className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded-sm transition-all focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500"
           style={isCustomActive
             ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
             : { background: 'white', color: '#0A1828', border: '1px dashed #94A3B8' }}
@@ -2181,7 +2181,7 @@ function CustomScenarioInline({ stateProgram, technology, activeScenario, setAct
           <select
             value={customIX}
             onChange={e => { setCustomIX(e.target.value); apply(e.target.value, customCS) }}
-            className="w-full text-sm font-mono bg-white border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+            className="w-full text-sm font-mono bg-white border border-gray-200 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
           >
             <option value="easy">Easy</option>
             <option value="moderate">Moderate</option>
@@ -2197,7 +2197,7 @@ function CustomScenarioInline({ stateProgram, technology, activeScenario, setAct
             <select
               value={customCS}
               onChange={e => { setCustomCS(e.target.value); apply(customIX, e.target.value) }}
-              className="w-full text-sm font-mono bg-white border border-gray-200 rounded px-2.5 py-1.5 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+              className="w-full text-sm font-mono bg-white border border-gray-200 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
             >
               <option value="active">Active</option>
               <option value="limited">Limited</option>
@@ -2257,7 +2257,7 @@ function CustomScenarioBuilder({ stateProgram, technology }) {
               <select
                 value={customIX}
                 onChange={e => setCustomIX(e.target.value)}
-                className="w-full text-xs px-2 py-1.5 rounded border border-gray-200 bg-white text-gray-700 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 outline-none"
+                className="w-full text-xs px-2 py-1.5 rounded-sm border border-gray-200 bg-white text-gray-700 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 outline-hidden"
               >
                 <option value="easy">Easy</option>
                 <option value="moderate">Moderate</option>
@@ -2271,7 +2271,7 @@ function CustomScenarioBuilder({ stateProgram, technology }) {
                 <select
                   value={customCS}
                   onChange={e => setCustomCS(e.target.value)}
-                  className="w-full text-xs px-2 py-1.5 rounded border border-gray-200 bg-white text-gray-700 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 outline-none"
+                  className="w-full text-xs px-2 py-1.5 rounded-sm border border-gray-200 bg-white text-gray-700 focus:ring-1 focus:ring-blue-300 focus:border-blue-300 outline-hidden"
                 >
                   <option value="active">Active</option>
                   <option value="limited">Limited</option>
@@ -2518,7 +2518,7 @@ function LensOverlay({ visible, stateName, countyName, onCancel }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared style constant (used by CountyCombobox + Search form)
 // ─────────────────────────────────────────────────────────────────────────────
-const inputCls = "w-full text-sm bg-transparent border-0 outline-none px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none"
+const inputCls = "w-full text-sm bg-transparent border-0 outline-hidden px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom select dropdown (replaces native <select> for Stage + Technology)
@@ -2540,7 +2540,7 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
     <div
       ref={ref}
       onClick={() => setOpen((o) => !o)}
-      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm cursor-pointer relative transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15"
+      className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs cursor-pointer relative transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15"
     >
       {/* Label */}
       <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
@@ -2558,7 +2558,7 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
         <svg
           width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-          className={`flex-shrink-0 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
+          className={`shrink-0 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
         >
           <polyline points="6 9 12 15 18 9"/>
         </svg>
@@ -2586,7 +2586,7 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
                   : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
               }`}
             >
-              <span className={`w-3.5 h-3.5 flex-shrink-0 ${value === opt ? 'text-primary' : 'text-transparent'}`}>
+              <span className={`w-3.5 h-3.5 shrink-0 ${value === opt ? 'text-primary' : 'text-transparent'}`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
@@ -2650,7 +2650,7 @@ function CountyCombobox({ stateId, value, onValueChange }) {
     <div
       ref={containerRef}
       onClick={() => { if (!disabled && !open) { setOpen(true); setTimeout(() => inputRef.current?.focus(), 0) } }}
-      className={`bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm relative transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+      className={`bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs relative transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
     >
       {/* Label */}
       <p className="text-[10px] font-semibold uppercase tracking-wider text-primary-700 mb-1.5 flex items-center gap-1.5 pointer-events-none select-none">
@@ -2678,7 +2678,7 @@ function CountyCombobox({ stateId, value, onValueChange }) {
           </span>
         )}
         <svg
-          className="pointer-events-none flex-shrink-0 text-gray-400 transition-transform duration-150"
+          className="pointer-events-none shrink-0 text-gray-400 transition-transform duration-150"
           width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
           style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
@@ -3187,7 +3187,7 @@ function SearchContent() {
             <div className="absolute top-0 left-0 right-0 h-px rounded-t-xl"
               style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.55) 70%, transparent 100%)' }} />
 
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: 'rgba(20,184,166,0.18)', border: '1px solid rgba(20,184,166,0.32)' }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -3205,7 +3205,7 @@ function SearchContent() {
             </div>
 
             {/* Required field hint */}
-            <p className="font-mono text-[10px] flex-shrink-0 hidden lg:block uppercase tracking-[0.16em]"
+            <p className="font-mono text-[10px] shrink-0 hidden lg:block uppercase tracking-[0.16em]"
               style={{ color: 'rgba(255,255,255,0.40)' }}>
               All fields required
             </p>
@@ -3237,7 +3237,7 @@ function SearchContent() {
               />
 
               {/* MW */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-sm transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 focus-within:ring-2 focus-within:ring-primary/10">
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 focus-within:ring-2 focus-within:ring-primary/10">
                 <label className={labelCls + ' flex items-center gap-1.5'}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   Project Size (MW AC)
@@ -3283,7 +3283,7 @@ function SearchContent() {
             <p className="text-xs text-gray-400 hidden sm:block flex-1">
               Intelligence is generated from seeded state + county data — verify with your utility and PUC before committing capital.
             </p>
-            <div className="flex items-center gap-3 ml-auto flex-shrink-0">
+            <div className="flex items-center gap-3 ml-auto shrink-0">
               {/* Clear All — two-step inline confirm */}
               {hasAnyInput && !confirmClear && (
                 <button
@@ -3308,7 +3308,7 @@ function SearchContent() {
               >
                 {analyzing ? (
                   <>
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin flex-shrink-0" />
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin shrink-0" />
                     Analyzing…
                   </>
                 ) : (
@@ -3349,7 +3349,7 @@ function SearchContent() {
                     const diffDays = Math.floor((Date.now() - latest) / (1000 * 60 * 60 * 24))
                     const rel = diffDays === 0 ? 'today' : diffDays === 1 ? 'yesterday' : diffDays < 7 ? `${diffDays}d ago` : diffDays < 30 ? `${Math.floor(diffDays / 7)}w ago` : `${Math.floor(diffDays / 30)}mo ago`
                     const full = latest.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                    return <span className="group relative cursor-default"> · Data verified {rel}<span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">{full}</span></span>
+                    return <span className="group relative cursor-default"> · Data verified {rel}<span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">{full}</span></span>
                   })()}
                 </p>
               </div>
@@ -3463,7 +3463,7 @@ function SearchContent() {
 
             {/* Bottom CTA / disclaimer */}
             <div className="mt-5 flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-5 py-4">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D97706" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <p className="text-xs text-gray-500 leading-relaxed">
                 <span className="font-semibold text-gray-700">Tractova intelligence is a research accelerator, not a substitute for site-specific due diligence.</span>{' '}
                 Verify interconnection conditions with the serving utility, confirm wetland boundaries with a site survey, and validate program capacity with your state PUC before committing capital.
@@ -3487,7 +3487,7 @@ function SearchContent() {
               /* ── Not signed in ── */
               <>
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                     </svg>
@@ -3528,7 +3528,7 @@ function SearchContent() {
                   onChange={(e) => setSaveName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleSaveConfirm() }}
                   autoFocus
-                  className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-4"
+                  className="w-full text-sm bg-white border border-gray-200 rounded-lg px-3 py-2.5 text-gray-900 focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors mb-4"
                 />
                 {saveError && (
                   <div className="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200">

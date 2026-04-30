@@ -97,7 +97,7 @@ export function ToastProvider({ children }) {
             </RadixToast.Root>
           ))}
         </AnimatePresence>
-        <RadixToast.Viewport className="fixed bottom-6 right-6 z-[1000] flex flex-col gap-2 outline-none pointer-events-none" />
+        <RadixToast.Viewport className="fixed bottom-6 right-6 z-1000 flex flex-col gap-2 outline-hidden pointer-events-none" />
       </RadixToast.Provider>
     </ToastContext.Provider>
   )

@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'node:path'
 
 // V3 build optimization — split vendor deps into cacheable chunks so the
 // main app bundle shrinks and browser cache wins survive deploys.
@@ -17,6 +18,11 @@ import react from '@vitejs/plugin-react'
 // land in any client bundle.
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(import.meta.dirname, './src'),
+    },
+  },
   build: {
     chunkSizeWarningLimit: 600,
     rollupOptions: {

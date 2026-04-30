@@ -90,7 +90,7 @@ function Field({ label, value, field, onChange, type = 'text', options, classNam
           value={value ?? ''}
           onChange={(e) => onChange(field, e.target.value)}
           rows={2}
-          className="w-full text-sm rounded-lg px-3 py-2 bg-white border border-gray-200 text-ink resize-y focus:outline-none focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 transition-colors"
+          className="w-full text-sm rounded-lg px-3 py-2 bg-white border border-gray-200 text-ink resize-y focus:outline-hidden focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 transition-colors"
         />
       </div>
     )
@@ -282,7 +282,7 @@ function StateProgramsTab() {
                 <Badge color={statusColor[p.csStatus]}>{p.csStatus}</Badge>
                 <Badge color={tierBadgeColor[p.coverageTier] || 'gray'}>{p.coverageTier || 'light'}</Badge>
               </div>
-              <div className="flex items-center gap-4 flex-shrink-0">
+              <div className="flex items-center gap-4 shrink-0">
                 <div className="text-right hidden sm:block">
                   <span className="text-xs text-gray-400">{p.capacityMW} MW</span>
                   <span className="text-xs text-gray-300 mx-1.5">|</span>
@@ -416,7 +416,7 @@ function CountiesTab() {
                   <span className="text-sm font-medium text-gray-900">{c.county_slug}</span>
                   <span className="text-xs text-gray-400">{c.serving_utility || '—'}</span>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                   <Badge color={c.queue_status_code === 'open' ? 'green' : c.queue_status_code === 'limited' ? 'yellow' : c.queue_status_code === 'saturated' ? 'red' : 'gray'}>
                     {c.queue_status_code || '—'}
                   </Badge>
@@ -544,7 +544,7 @@ function RevenueRatesTab() {
                   <span className="text-sm font-bold text-gray-900 w-7">{r.state_id}</span>
                   <span className="text-sm text-gray-600 truncate">{r.label || '—'}</span>
                 </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
+                <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right hidden sm:flex items-center gap-3">
                     <span className="text-xs text-gray-400 tabular-nums">{r.bill_credit_cents_kwh}¢</span>
                     <span className="text-xs text-gray-300">|</span>
@@ -698,7 +698,7 @@ function NewsFeedTab() {
                 <span className="text-[10px] text-gray-400">{item.source} — {item.date}</span>
               </div>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 shrink-0">
               <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
               <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
             </div>
@@ -914,7 +914,7 @@ function PucDocketsTab() {
             placeholder="Filter by state (e.g. IL)"
             value={filterState}
             onChange={(e) => setFilterState(e.target.value.toUpperCase())}
-            className="text-xs px-2.5 py-1.5 rounded border border-gray-200 bg-white font-mono uppercase tracking-wider w-40"
+            className="text-xs px-2.5 py-1.5 rounded-sm border border-gray-200 bg-white font-mono uppercase tracking-wider w-40"
           />
         </div>
         <button onClick={startAdd} className="text-xs font-medium text-teal-700 hover:text-teal-900 transition-colors">+ Add manually</button>
@@ -955,7 +955,7 @@ function PucDocketsTab() {
           rows={5}
           aria-label="Paste docket URL and page contents for AI classification"
           aria-describedby="classify-helper"
-          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-none resize-y mb-3 focus:ring-2 focus:ring-teal-500/40"
+          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-hidden resize-y mb-3 focus:ring-2 focus:ring-teal-500/40"
           style={{
             background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.10)',
@@ -1054,7 +1054,7 @@ function PucDocketsTab() {
                 <span className="text-[10px] text-gray-400 truncate">{item.pucName} · {item.docketNumber}</span>
               </div>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 shrink-0">
               <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
               <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
             </div>
@@ -1223,12 +1223,12 @@ function ComparableDealsTab() {
             placeholder="Filter state (e.g. IL)"
             value={filterState}
             onChange={(e) => setFilterState(e.target.value.toUpperCase())}
-            className="text-xs px-2.5 py-1.5 rounded border border-gray-200 bg-white font-mono uppercase tracking-wider w-32"
+            className="text-xs px-2.5 py-1.5 rounded-sm border border-gray-200 bg-white font-mono uppercase tracking-wider w-32"
           />
           <select
             value={filterTech}
             onChange={(e) => setFilterTech(e.target.value)}
-            className="text-xs px-2.5 py-1.5 rounded border border-gray-200 bg-white"
+            className="text-xs px-2.5 py-1.5 rounded-sm border border-gray-200 bg-white"
           >
             <option value="">All technologies</option>
             {TECH_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1292,7 +1292,7 @@ function ComparableDealsTab() {
                 <span className="text-[10px] text-gray-400 truncate">{item.source}{item.filingDate ? ` · ${item.filingDate}` : ''}</span>
               </div>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 shrink-0">
               <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
               <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
             </div>
@@ -1403,7 +1403,7 @@ function IXQueueTab() {
                   <span className="text-sm text-gray-600 truncate">{r.utility_name}</span>
                   <span className="text-xs text-gray-400">{r.iso}</span>
                 </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
+                <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right hidden sm:flex items-center gap-3">
                     <span className="text-xs text-gray-400 tabular-nums">{r.projects_in_queue} projects</span>
                     <span className="text-xs text-gray-300">|</span>
@@ -1488,7 +1488,7 @@ function RefreshStatusBanner({ result }) {
           <span className="w-2 h-2 rounded-full bg-red-500" />
           <span className="font-serif text-sm font-medium text-red-900">Refresh failed before any endpoint ran</span>
         </div>
-        <pre className="mt-2 ml-5 text-[11px] font-mono text-red-700 whitespace-pre-wrap break-words leading-snug">
+        <pre className="mt-2 ml-5 text-[11px] font-mono text-red-700 whitespace-pre-wrap wrap-break-word leading-snug">
           {String(result.error)}
         </pre>
       </div>
@@ -1525,7 +1525,7 @@ function RefreshStatusBanner({ result }) {
       {/* Header */}
       <div className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b ${t.ring}`}>
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className={`w-2 h-2 rounded-full ${t.dot} flex-shrink-0`} />
+          <span className={`w-2 h-2 rounded-full ${t.dot} shrink-0`} />
           <span className={`font-serif text-sm font-medium ${t.text}`}>{verdict.label}</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted truncate">
             {okCount}/{eps.length} ok
@@ -1537,7 +1537,7 @@ function RefreshStatusBanner({ result }) {
         </div>
         <button
           onClick={copyAll}
-          className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors flex-shrink-0"
+          className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors shrink-0"
         >
           Copy report
         </button>
@@ -1567,7 +1567,7 @@ function EndpointRow({ name, val }) {
     <div className="px-4 py-2.5">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <span className={`w-1.5 h-1.5 rounded-full ${dots[status]} flex-shrink-0`} />
+          <span className={`w-1.5 h-1.5 rounded-full ${dots[status]} shrink-0`} />
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink truncate">{name}</span>
           {isMux && (
             <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">
@@ -1611,7 +1611,7 @@ function EndpointRow({ name, val }) {
           </pre>
           <button
             onClick={() => copyError(String(val?.error || ''))}
-            className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors flex-shrink-0 pt-1"
+            className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors shrink-0 pt-1"
           >
             Copy
           </button>
@@ -1629,7 +1629,7 @@ function EndpointRow({ name, val }) {
                   <div className="flex items-center justify-between gap-2 mb-0.5">
                     <div className="font-semibold uppercase tracking-[0.14em] text-[9px] text-amber-700">{k}</div>
                     {v.stale_tolerated && (
-                      <span className="text-[9px] font-mono uppercase tracking-[0.12em] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                      <span className="text-[9px] font-mono uppercase tracking-[0.12em] px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-800 border border-amber-300">
                         stale-ok · last good {v.days_since_last_good}d ago
                       </span>
                     )}
@@ -1643,7 +1643,7 @@ function EndpointRow({ name, val }) {
                 </div>
                 <button
                   onClick={() => copyError(`[${k}] ${v.error || ''}${v.first_error ? `\nfirst row: ${v.first_error}` : ''}`)}
-                  className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors flex-shrink-0 pt-1"
+                  className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors shrink-0 pt-1"
                 >
                   Copy
                 </button>

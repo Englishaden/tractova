@@ -78,7 +78,7 @@ export default function CoverageBadge({ tier, size = 'sm', mode = 'pill', classN
     <Tooltip>
       <TooltipTrigger asChild>
         <span
-          className={`font-mono ${fontCls} uppercase tracking-[0.18em] font-semibold rounded border cursor-help ${padCls} ${className}`}
+          className={`font-mono ${fontCls} uppercase tracking-[0.18em] font-semibold rounded-sm border cursor-help ${padCls} ${className}`}
           style={{ background: cfg.bg, color: cfg.color, borderColor: cfg.border }}
         >
           {cfg.label}

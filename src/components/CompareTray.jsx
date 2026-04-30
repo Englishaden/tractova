@@ -98,7 +98,7 @@ function CompareModal({ onClose }) {
       label: 'CS Program Status',
       render: (item) => (
         item.csStatus
-          ? <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded border ${CS_CLS[item.csStatus] || CS_CLS.none}`}>
+          ? <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded-sm border ${CS_CLS[item.csStatus] || CS_CLS.none}`}>
               {CS_LABEL[item.csStatus] || item.csStatus}
             </span>
           : <span className="text-xs text-white/25 font-mono">—</span>
@@ -112,7 +112,7 @@ function CompareModal({ onClose }) {
       label: 'IX Difficulty',
       render: (item) => (
         item.ixDifficulty
-          ? <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded border ${IX_CLS[item.ixDifficulty] || ''}`}>
+          ? <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded-sm border ${IX_CLS[item.ixDifficulty] || ''}`}>
               {IX_LABEL[item.ixDifficulty] || item.ixDifficulty}
             </span>
           : <span className="text-xs text-white/25 font-mono">—</span>
@@ -160,7 +160,7 @@ function CompareModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-xs" onClick={onClose} />
       <div
         className="relative w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl"
         style={{
@@ -183,13 +183,13 @@ function CompareModal({ onClose }) {
           <div className="flex items-center gap-3">
             <button
               onClick={clear}
-              className="text-[10px] font-mono text-white/25 hover:text-red-400 transition-colors px-2 py-1 rounded uppercase tracking-widest"
+              className="text-[10px] font-mono text-white/25 hover:text-red-400 transition-colors px-2 py-1 rounded-sm uppercase tracking-widest"
             >
               Clear all
             </button>
             <button
               onClick={onClose}
-              className="text-white/30 hover:text-white/70 transition-colors p-1 rounded"
+              className="text-white/30 hover:text-white/70 transition-colors p-1 rounded-sm"
               aria-label="Close"
             >
               <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
@@ -220,7 +220,7 @@ function CompareModal({ onClose }) {
                   </div>
                   <button
                     onClick={() => remove(item.id)}
-                    className="text-white/20 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+                    className="text-white/20 hover:text-red-400 transition-colors shrink-0 mt-0.5"
                     aria-label={`Remove ${item.name}`}
                   >
                     <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
@@ -255,7 +255,7 @@ function CompareModal({ onClose }) {
               <div key={item.id} className="py-2 px-1">
                 <Link
                   to={`/search?state=${item.state}&county=${encodeURIComponent(item.county)}&mw=${item.mw || ''}&stage=${encodeURIComponent(item.stage || '')}&technology=${encodeURIComponent(item.technology || '')}`}
-                  className="text-[10px] font-semibold px-2 py-1 rounded border transition-colors"
+                  className="text-[10px] font-semibold px-2 py-1 rounded-sm border transition-colors"
                   style={{ color: '#34D399', borderColor: 'rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.08)' }}
                   onClick={onClose}
                 >
@@ -277,11 +277,11 @@ function CompareModal({ onClose }) {
             <div className="mb-3 rounded-xl p-4" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.08)' }}>
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'rgba(52,211,153,0.2)' }} />
-                <div className="h-2.5 w-32 rounded bg-white/8 animate-pulse" />
+                <div className="h-2.5 w-32 rounded-sm bg-white/8 animate-pulse" />
               </div>
               <div className="space-y-2">
-                <div className="h-2.5 w-full rounded bg-white/5 animate-pulse" />
-                <div className="h-2.5 w-4/5 rounded bg-white/5 animate-pulse" />
+                <div className="h-2.5 w-full rounded-sm bg-white/5 animate-pulse" />
+                <div className="h-2.5 w-4/5 rounded-sm bg-white/5 animate-pulse" />
               </div>
               <div className="grid grid-cols-2 gap-2 mt-3">
                 <div className="h-14 rounded-lg bg-white/3 animate-pulse" />
@@ -301,7 +301,7 @@ function CompareModal({ onClose }) {
               </div>
               {aiCompare.reason && (
                 <div className="mx-4 mb-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.08)' }}>
-                  <svg className="w-3 h-3 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  <svg className="w-3 h-3 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   <p className="text-[10px] text-white/50 leading-relaxed">{aiCompare.reason}</p>
                 </div>
               )}
@@ -335,7 +335,7 @@ export default function CompareTray() {
           }}
         >
           {/* Icon */}
-          <div className="flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.12)' }}>
+          <div className="shrink-0 w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.12)' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
             </svg>
@@ -348,7 +348,7 @@ export default function CompareTray() {
                 <span className="text-xs font-medium text-white/80 truncate max-w-[120px]">{item.name}</span>
                 <button
                   onClick={() => remove(item.id)}
-                  className="text-white/25 hover:text-white/70 transition-colors flex-shrink-0"
+                  className="text-white/25 hover:text-white/70 transition-colors shrink-0"
                   aria-label={`Remove ${item.name}`}
                 >
                   <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
@@ -360,12 +360,12 @@ export default function CompareTray() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-5 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }} />
+          <div className="w-px h-5 shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }} />
 
           {/* Compare button */}
           <button
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex-shrink-0"
+            className="flex items-center gap-1.5 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shrink-0"
             style={{ background: '#059669' }}
             onMouseEnter={e => e.currentTarget.style.background = '#047857'}
             onMouseLeave={e => e.currentTarget.style.background = '#059669'}
@@ -379,7 +379,7 @@ export default function CompareTray() {
           {/* Clear */}
           <button
             onClick={clear}
-            className="text-white/25 hover:text-white/60 transition-colors flex-shrink-0"
+            className="text-white/25 hover:text-white/60 transition-colors shrink-0"
             aria-label="Clear comparison"
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">

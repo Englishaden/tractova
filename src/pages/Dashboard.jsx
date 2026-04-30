@@ -42,7 +42,7 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
   return (
     <div className="rounded-xl px-5 py-3.5 mb-4" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
           <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
             Markets on the Move
@@ -125,7 +125,7 @@ export default function Dashboard({ previewMode = false }) {
           </div>
           <a
             href="/signup"
-            className="flex-shrink-0 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors"
+            className="shrink-0 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-colors"
             style={{ background: '#14B8A6' }}
           >
             Create free account →

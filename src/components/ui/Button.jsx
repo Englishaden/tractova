@@ -71,7 +71,7 @@ export default function Button({
     >
       {loading && (
         <span
-          className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin flex-shrink-0"
+          className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin shrink-0"
           aria-hidden="true"
         />
       )}

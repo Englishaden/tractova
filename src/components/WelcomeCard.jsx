@@ -121,7 +121,7 @@ export default function WelcomeCard() {
           <button
             onClick={dismiss}
             aria-label="Dismiss welcome"
-            className="text-white/35 hover:text-white/85 transition-colors text-2xl leading-none w-8 h-8 flex items-center justify-center -mt-1 -mr-2 flex-shrink-0"
+            className="text-white/35 hover:text-white/85 transition-colors text-2xl leading-none w-8 h-8 flex items-center justify-center -mt-1 -mr-2 shrink-0"
           >×</button>
         </div>
 

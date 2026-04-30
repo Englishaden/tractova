@@ -61,7 +61,7 @@ export default function Select({
         onChange={(e) => onChange?.(e.target.value, e)}
         disabled={disabled}
         required={required}
-        className={`w-full text-sm rounded-lg px-3 py-2 appearance-none transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 ${
+        className={`w-full text-sm rounded-lg px-3 py-2 appearance-none transition-colors focus:outline-hidden focus:ring-2 focus:ring-teal-500/15 focus:border-teal-500 ${
           paper ? 'bg-paper' : 'bg-white'
         } ${
           error

@@ -94,7 +94,7 @@ function StateTabTrigger({ value, label, count }) {
   return (
     <RadixTabs.Trigger
       value={value}
-      className="relative px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted transition-colors hover:text-ink data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:rounded-t data-[state=active]:after:bg-[#0F766E] outline-none focus-visible:bg-gray-100"
+      className="relative px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted transition-colors hover:text-ink data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:rounded-t data-[state=active]:after:bg-[#0F766E] outline-hidden focus-visible:bg-gray-100"
     >
       <span>{label}</span>
       {count != null && count > 0 && (
@@ -106,7 +106,7 @@ function StateTabTrigger({ value, label, count }) {
 
 function StateTabContent({ value, children }) {
   return (
-    <RadixTabs.Content value={value} className="outline-none">
+    <RadixTabs.Content value={value} className="outline-hidden">
       <motion.div
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
@@ -146,7 +146,7 @@ function ProgramTab({ state, runway }) {
             <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
               <span className="text-xs text-gray-500">Est. program runway</span>
               <span
-                className="text-xs font-semibold px-2 py-0.5 rounded font-mono tabular-nums"
+                className="text-xs font-semibold px-2 py-0.5 rounded-sm font-mono tabular-nums"
                 style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
               >
                 ~{runway.months} mo{runway.urgency === 'watch' ? ' · watch' : runway.urgency === 'urgent' ? ' · act now' : ''}
@@ -229,7 +229,7 @@ function MarketTab({ state }) {
         <div className="bg-surface rounded-md p-3">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs text-gray-500">Difficulty rating:</span>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded border ${ixCfg.cls}`}>
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded-sm border ${ixCfg.cls}`}>
               {ixCfg.label}
             </span>
           </div>
@@ -543,7 +543,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
               <p className="text-xs text-gray-500 mt-0.5">{state.csProgram}</p>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               to={`/search?state=${state.id}`}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-2.5 py-1.5 rounded-lg transition-colors"
@@ -553,7 +553,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
             </Link>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1 rounded"
+              className="text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1 rounded-sm"
               aria-label="Close state panel"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
@@ -576,7 +576,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
             curates ≥1 docket for the state, so we don't show an empty tab
             users can click into and find nothing. Admin tab in /admin
             remains available regardless. */}
-        <RadixTabs.List className="flex border-b border-gray-200 px-3 bg-gray-50 flex-shrink-0">
+        <RadixTabs.List className="flex border-b border-gray-200 px-3 bg-gray-50 shrink-0">
           <StateTabTrigger value="program"     label="Program" />
           <StateTabTrigger value="market"      label="Market" />
           <StateTabTrigger value="subscribers" label="Subscribers" />
@@ -622,7 +622,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
           <p className="text-xs text-gray-400 group relative cursor-default">
             {lastUpdatedFmt}
             {lastUpdatedFull && (
-              <span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">
+              <span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">
                 {lastUpdatedFull}
               </span>
             )}

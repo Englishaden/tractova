@@ -157,7 +157,7 @@ export default function CommandPalette() {
             </RadixDialog.Overlay>
             <RadixDialog.Content asChild>
               <motion.div
-                className="fixed left-1/2 top-[20%] z-50 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-2xl outline-none overflow-hidden"
+                className="fixed left-1/2 top-[20%] z-50 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-2xl outline-hidden overflow-hidden"
                 style={{ border: '1px solid #E2E8F0' }}
                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -178,7 +178,7 @@ export default function CommandPalette() {
                     onChange={(e) => { setQ(e.target.value); setActiveIndex(0) }}
                     onKeyDown={onKeyDown}
                     placeholder="Jump to a state, page, or analysis…"
-                    className="flex-1 bg-transparent text-sm text-ink placeholder-gray-400 outline-none"
+                    className="flex-1 bg-transparent text-sm text-ink placeholder-gray-400 outline-hidden"
                   />
                   <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">ESC</span>
                 </div>
@@ -200,7 +200,7 @@ export default function CommandPalette() {
                               style={{ background: active ? 'rgba(15,118,110,0.08)' : 'transparent' }}
                             >
                               <span
-                                className="font-mono text-[9px] uppercase tracking-[0.20em] flex-shrink-0 w-14"
+                                className="font-mono text-[9px] uppercase tracking-[0.20em] shrink-0 w-14"
                                 style={{
                                   color:
                                     it.kind === 'state'   ? '#0F766E' :
@@ -221,14 +221,14 @@ export default function CommandPalette() {
                               </div>
                               {it.score != null && (
                                 <span
-                                  className="font-mono text-xs font-bold tabular-nums flex-shrink-0"
+                                  className="font-mono text-xs font-bold tabular-nums shrink-0"
                                   style={{ color: it.score >= 60 ? '#0F766E' : '#5A6B7A' }}
                                 >
                                   {it.score}
                                 </span>
                               )}
                               {active && (
-                                <svg className="flex-shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#14B8A6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <svg className="shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#14B8A6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <polyline points="9 6 15 12 9 18"/>
                                 </svg>
                               )}
@@ -242,8 +242,8 @@ export default function CommandPalette() {
 
                 <div className="px-4 py-2 border-t flex items-center justify-between text-[10px] font-mono text-ink-muted" style={{ borderColor: '#E2E8F0', background: '#F9FAFB' }}>
                   <div className="flex items-center gap-3">
-                    <span><span className="px-1 py-0.5 rounded border border-gray-300">↑↓</span> navigate</span>
-                    <span><span className="px-1 py-0.5 rounded border border-gray-300">↵</span> open</span>
+                    <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↑↓</span> navigate</span>
+                    <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↵</span> open</span>
                   </div>
                   <span>{items.length} result{items.length === 1 ? '' : 's'}</span>
                 </div>

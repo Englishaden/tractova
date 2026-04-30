@@ -80,7 +80,7 @@ function normalize(row) {
 function Badge({ label, map }) {
   const cls = map[label] || 'bg-gray-100 text-gray-600 border-gray-200'
   return (
-    <span className={`text-xs px-2 py-0.5 rounded border font-medium ${cls}`}>{label}</span>
+    <span className={`text-xs px-2 py-0.5 rounded-sm border font-medium ${cls}`}>{label}</span>
   )
 }
 
@@ -231,7 +231,7 @@ function PipelineProgress({ stage }) {
             <div key={s} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center">
                 <div
-                  className={`w-3 h-3 rounded-full border-2 flex-shrink-0 transition-colors ${
+                  className={`w-3 h-3 rounded-full border-2 shrink-0 transition-colors ${
                     done    ? 'bg-teal-700 border-teal-700' :
                     current ? 'border-teal-700 ring-2 ring-teal-700/30' :
                               ''
@@ -417,17 +417,17 @@ function StagePicker({ stage, projectId, onChange }) {
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v) }}
         title="Edit stage"
-        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border font-medium transition-opacity hover:opacity-80 ${stageCls}`}
+        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-sm border font-medium transition-opacity hover:opacity-80 ${stageCls}`}
       >
         {stage}
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       {open && (
         <ul
-          // V3: z-[100] to definitively sit above adjacent project cards.
+          // V3: z-100 to definitively sit above adjacent project cards.
           // Parent card now drops overflow-hidden when collapsed so the
           // dropdown can extend below the card boundary.
-          className="absolute z-[100] top-full mt-1 left-0 rounded-lg overflow-hidden min-w-[210px]"
+          className="absolute z-100 top-full mt-1 left-0 rounded-lg overflow-hidden min-w-[210px]"
           style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 12px 36px rgba(0,0,0,0.18)' }}
         >
           {PIPELINE_STAGES.map((s) => (
@@ -442,7 +442,7 @@ function StagePicker({ stage, projectId, onChange }) {
                 onMouseLeave={(e) => { if (s !== stage) e.currentTarget.style.background = 'transparent' }}
               >
                 <span
-                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  className="w-2 h-2 rounded-full shrink-0"
                   style={{ background: s === stage ? '#0F766E' : '#D1D5DB' }}
                 />
                 {s}
@@ -482,7 +482,7 @@ function CompareChip({ project }) {
             : 'text-gray-300 hover:text-teal-700'
       }`}
     >
-      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded bg-gray-900 text-white text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10">
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded-sm bg-gray-900 text-white text-[9px] font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10">
         {tooltipText}
       </span>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -619,7 +619,7 @@ function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveSco
         </button>
         {shareCount > 0 && (
           <span
-            className="font-mono text-[10px] uppercase tracking-[0.16em] px-1.5 py-0.5 rounded"
+            className="font-mono text-[10px] uppercase tracking-[0.16em] px-1.5 py-0.5 rounded-sm"
             style={{ color: '#5A6B7A', background: 'rgba(90,107,122,0.08)' }}
             title={`${shareCount} active share link${shareCount === 1 ? '' : 's'} (excludes expired)`}
           >
@@ -654,11 +654,11 @@ function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveSco
               readOnly
               value={sharedUrl}
               onClick={(e) => e.target.select()}
-              className="flex-1 text-[11px] font-mono bg-white px-2 py-1 rounded border border-gray-200 text-ink truncate"
+              className="flex-1 text-[11px] font-mono bg-white px-2 py-1 rounded-sm border border-gray-200 text-ink truncate"
             />
             <button
               onClick={handleCopyAgain}
-              className="text-[10px] font-mono uppercase tracking-[0.16em] font-semibold px-2 py-1 rounded text-white"
+              className="text-[10px] font-mono uppercase tracking-[0.16em] font-semibold px-2 py-1 rounded-sm text-white"
               style={{ background: '#0F766E' }}
             >
               {copyState === 'copied' ? '✓' : 'Copy'}
@@ -800,7 +800,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="!max-w-5xl !p-0 !w-[94vw] max-h-[92vh] overflow-hidden"
+          className="max-w-5xl! p-0! w-[94vw]! max-h-[92vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
           aria-describedby={undefined}
         >
@@ -809,7 +809,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
 
               {/* ── Flagship header — full-bleed navy gradient with topo accent ── */}
               <div
-                className="relative px-8 pt-6 pb-7 flex-shrink-0"
+                className="relative px-8 pt-6 pb-7 shrink-0"
                 style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 50%, #0F1A2E 100%)' }}
               >
                 {/* Top teal rail — V3 brand signature */}
@@ -838,7 +838,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
                   </div>
                   <DialogClose asChild>
                     <button
-                      className="text-white/40 hover:text-white/90 transition-colors text-2xl leading-none w-8 h-8 flex items-center justify-center -mt-1 -mr-2 flex-shrink-0"
+                      className="text-white/40 hover:text-white/90 transition-colors text-2xl leading-none w-8 h-8 flex items-center justify-center -mt-1 -mr-2 shrink-0"
                       aria-label="Close"
                     >×</button>
                   </DialogClose>
@@ -894,7 +894,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
                       {/* Subject strip */}
                       <div className="px-6 py-3 border-b border-gray-100 flex items-baseline gap-3 flex-wrap"
                         style={{ background: 'rgba(20, 184, 166, 0.04)' }}>
-                        <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold text-ink-muted flex-shrink-0">Subject</span>
+                        <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold text-ink-muted shrink-0">Subject</span>
                         <span className="text-[13px] font-medium text-ink">{kit.email.subject}</span>
                       </div>
                       {/* Body — letterhead style */}
@@ -927,7 +927,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
                         <ol className="space-y-2.5 text-[13px] text-ink">
                           {kit.attachmentsChecklist.map((item, i) => (
                             <li key={i} className="flex gap-2.5">
-                              <span className="font-mono text-[10px] tabular-nums font-semibold mt-1 flex-shrink-0" style={{ color: '#0F766E' }}>
+                              <span className="font-mono text-[10px] tabular-nums font-semibold mt-1 shrink-0" style={{ color: '#0F766E' }}>
                                 {String(i + 1).padStart(2, '0')}
                               </span>
                               <span className="leading-relaxed">{item}</span>
@@ -955,7 +955,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
                         <ol className="space-y-3 text-[13px] text-ink">
                           {kit.followUpPlaybook.map((item, i) => (
                             <li key={i} className="flex gap-2.5">
-                              <span className="w-5 h-5 rounded-full text-white text-[10px] font-mono font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
+                              <span className="w-5 h-5 rounded-full text-white text-[10px] font-mono font-bold flex items-center justify-center shrink-0 mt-0.5"
                                 style={{ background: '#0F766E' }}>
                                 {i + 1}
                               </span>
@@ -984,7 +984,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
                         <ul className="space-y-2.5 text-[13px] text-ink">
                           {kit.phoneTalkingPoints.map((item, i) => (
                             <li key={i} className="flex gap-2.5">
-                              <span className="mt-1.5 leading-none flex-shrink-0" style={{ color: '#14B8A6' }}>▸</span>
+                              <span className="mt-1.5 leading-none shrink-0" style={{ color: '#14B8A6' }}>▸</span>
                               <span className="leading-relaxed">{item}</span>
                             </li>
                           ))}
@@ -1001,7 +1001,7 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
                     className="rounded-xl px-5 py-4 flex gap-4"
                     style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.28)' }}
                   >
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
+                    <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center"
                       style={{ background: 'rgba(245,158,11,0.16)', color: '#B45309' }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -1021,13 +1021,13 @@ function UtilityOutreachButton({ project, stateProgram, countyData, stage }) {
 
               {/* ── Footer — full-bleed paper, primary CTA + dismiss ── */}
               <div
-                className="px-8 py-4 flex items-center justify-between gap-4 flex-shrink-0"
+                className="px-8 py-4 flex items-center justify-between gap-4 shrink-0"
                 style={{ background: '#FFFFFF', borderTop: '1px solid #E2E8F0' }}
               >
                 <p className="text-[11px] text-ink-muted leading-relaxed flex-1">
                   Review carefully before sending. Tractova synthesizes from public ISO + utility data; verify specifics against the utility's own application portal.
                 </p>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                   <DialogClose asChild>
                     <button className="text-[11px] font-mono uppercase tracking-[0.18em] font-semibold text-ink-muted hover:text-ink px-3 py-2">
                       Close
@@ -1077,7 +1077,7 @@ function KitSection({ eyebrow, sublabel, copyKey, copyText, copyState, onCopy, c
         </div>
         <button
           onClick={() => onCopy(copyKey, copyText)}
-          className="font-mono text-[9.5px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-md transition-colors flex-shrink-0"
+          className="font-mono text-[9.5px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-md transition-colors shrink-0"
           style={{
             color: copyState === 'copied' ? '#0F766E' : '#5A6B7A',
             border: '1px solid',
@@ -1206,7 +1206,7 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
         return (
           <li key={e.id} className="ml-4 pb-4 last:pb-0">
             <span
-              className="absolute -left-[5px] w-[9px] h-[9px] rounded-full"
+              className="absolute left-[-5px] w-[9px] h-[9px] rounded-full"
               style={{ background: meta.color, boxShadow: '0 0 0 3px #F9FAFB' }}
             />
             <div className="flex items-baseline gap-3 flex-wrap">
@@ -1218,7 +1218,7 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
               </span>
               {typeof viewCount === 'number' && (
                 <span
-                  className="font-mono text-[9px] uppercase tracking-[0.18em] tabular-nums px-1.5 py-[1px] rounded-sm border"
+                  className="font-mono text-[9px] uppercase tracking-[0.18em] tabular-nums px-1.5 py-px rounded-xs border"
                   style={{ color: '#7C3AED', borderColor: 'rgba(124, 58, 237, 0.25)', background: 'rgba(124, 58, 237, 0.06)' }}
                   title={viewCount === 0 ? 'Link not yet opened' : `Recipient opened the link ${viewCount} time${viewCount === 1 ? '' : 's'}`}
                 >
@@ -1384,7 +1384,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
       {/* ── Collapsed header (always visible) ──────────────────────────────── */}
       <div
-        className="px-5 py-4 flex items-center gap-4 cursor-pointer select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-t-xl"
+        className="px-5 py-4 flex items-center gap-4 cursor-pointer select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 rounded-t-xl"
         onClick={() => setExpanded(e => !e)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(prev => !prev) } }}
         role="button"
@@ -1394,7 +1394,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
       >
         {/* Score bubble */}
         <div
-          className="flex-shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center font-bold"
+          className="shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center font-bold"
           style={{ background: scoreBg, color: scoreText }}
         >
           <span className="text-base leading-none">{liveScore ?? '—'}</span>
@@ -1449,7 +1449,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-2.5 flex-shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <CompareChip project={project} />
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
@@ -1511,13 +1511,13 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                     <div className="flex flex-col gap-2">
                       <div>
                         <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">Program Status</p>
-                        <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-sm border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {CS_STATUS_LABEL[current.csStatus] ?? current.csStatus}
                         </span>
                       </div>
                       <div>
                         <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">IX Difficulty</p>
-                        <span className={`text-xs px-2 py-0.5 rounded border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-sm border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
                         </span>
                       </div>
@@ -1763,7 +1763,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
                     key={hint}
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setNotes(`${hint}: `) }}
-                    className="text-[10px] px-2 py-0.5 rounded transition-colors border border-gray-200 text-gray-500 bg-white hover:border-teal-700 hover:text-teal-700"
+                    className="text-[10px] px-2 py-0.5 rounded-sm transition-colors border border-gray-200 text-gray-500 bg-white hover:border-teal-700 hover:text-teal-700"
                   >
                     + {hint}
                   </button>
@@ -1776,7 +1776,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
               onClick={(e) => e.stopPropagation()}
               placeholder="Landowner · Queue position · Key dates · ISA deposit · Site findings"
               rows={4}
-              className="w-full text-xs resize-none focus:outline-none leading-relaxed rounded-lg px-3 py-2.5 transition-colors"
+              className="w-full text-xs resize-none focus:outline-hidden leading-relaxed rounded-lg px-3 py-2.5 transition-colors"
               style={{
                 background: '#FFFFFF',
                 border: '1px solid #D1D5DB',
@@ -1914,7 +1914,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
   }, [scored])
 
   return (
-    <div className="rounded-xl overflow-hidden mb-4 bg-white border border-gray-200 shadow-sm">
+    <div className="rounded-xl overflow-hidden mb-4 bg-white border border-gray-200 shadow-xs">
       {/* V3: Navy header chrome — institutional treatment matching MetricsBar */}
       <button
         onClick={() => setCollapsed(c => !c)}
@@ -1979,7 +1979,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                     { label: 'Single tech',    data: concentration.tech },
                   ].map(({ label, data }) => data && (
                     <div key={label} className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-500 w-20 flex-shrink-0">{label}</span>
+                      <span className="text-[10px] text-gray-500 w-20 shrink-0">{label}</span>
                       <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
                         <div
                           className="h-full rounded-full"
@@ -2013,7 +2013,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
               <p className="text-[9px] font-bold uppercase tracking-wider text-gray-400 mb-3">MW by Technology</p>
               {totalMW > 0 ? (
                 <div className="flex items-center gap-4">
-                  <div className="relative w-20 h-20 flex-shrink-0">
+                  <div className="relative w-20 h-20 shrink-0">
                     <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
                       {(() => {
                         let offset = 0
@@ -2034,7 +2034,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                     {techBreakdown.map(([tech, mw]) => (
                       <div key={tech} className="flex items-center justify-between">
                         <span className="flex items-center gap-1.5 text-[10px] text-gray-600">
-                          <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
+                          <span className="w-2 h-2 rounded-xs shrink-0" style={{ background: TECH_COLORS[tech] || '#6B7280' }} />
                           {tech}
                         </span>
                         <span className="text-[10px] font-bold tabular-nums text-gray-700">{mw.toFixed(1)} MW</span>
@@ -2053,15 +2053,15 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
               <div className="space-y-2">
                 {geoBreakdown.slice(0, 5).map(([state, data]) => (
                   <div key={state} className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-gray-700 w-8 flex-shrink-0">{state}</span>
+                    <span className="text-[10px] font-bold text-gray-700 w-8 shrink-0">{state}</span>
                     <div className="flex-1 h-2.5 rounded-full bg-gray-200 overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{ width: `${totalMW > 0 ? (data.mw / totalMW) * 100 : 0}%`, background: data.avgScore > 65 ? '#10B981' : data.avgScore >= 40 ? '#F59E0B' : '#EF4444' }}
                       />
                     </div>
-                    <span className="text-[9px] tabular-nums text-gray-500 w-14 text-right flex-shrink-0">{data.mw.toFixed(1)} MW</span>
-                    <span className="text-[9px] font-bold tabular-nums w-6 text-right flex-shrink-0" style={{ color: data.avgScore > 65 ? '#059669' : data.avgScore >= 40 ? '#D97706' : '#DC2626' }}>{data.avgScore}</span>
+                    <span className="text-[9px] tabular-nums text-gray-500 w-14 text-right shrink-0">{data.mw.toFixed(1)} MW</span>
+                    <span className="text-[9px] font-bold tabular-nums w-6 text-right shrink-0" style={{ color: data.avgScore > 65 ? '#059669' : data.avgScore >= 40 ? '#D97706' : '#DC2626' }}>{data.avgScore}</span>
                   </div>
                 ))}
               </div>
@@ -2082,7 +2082,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {aiInsight.topRecommendation && (
                     <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-teal-100">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-teal-100 flex-shrink-0 mt-0.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-teal-100 shrink-0 mt-0.5">
                         <svg className="w-3 h-3 text-teal-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                       </div>
                       <div>
@@ -2093,7 +2093,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
                   )}
                   {aiInsight.riskAssessment && (
                     <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-lg bg-white/80 border border-amber-100">
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-amber-100 flex-shrink-0 mt-0.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-amber-100 shrink-0 mt-0.5">
                         <svg className="w-3 h-3 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                       </div>
                       <div>
@@ -2114,10 +2114,10 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
               <div className="px-4 py-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'linear-gradient(135deg, #0F766E, #10B981)' }} />
-                  <div className="h-3 w-28 rounded bg-teal-200/50 animate-pulse" />
+                  <div className="h-3 w-28 rounded-sm bg-teal-200/50 animate-pulse" />
                 </div>
-                <div className="h-3 w-full rounded bg-teal-100/40 animate-pulse" />
-                <div className="h-3 w-4/5 rounded bg-teal-100/40 animate-pulse" />
+                <div className="h-3 w-full rounded-sm bg-teal-100/40 animate-pulse" />
+                <div className="h-3 w-4/5 rounded-sm bg-teal-100/40 animate-pulse" />
                 <div className="grid grid-cols-2 gap-2">
                   <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
                   <div className="h-16 rounded-lg bg-white/50 animate-pulse" />
@@ -2447,7 +2447,7 @@ function LibraryContent() {
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               {projects.length > 0 && (
                 <>
                   <button
@@ -2630,7 +2630,7 @@ function LibraryContent() {
                 <select
                   value={filterState}
                   onChange={e => setFilterState(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterState ? 'text-teal-700' : 'text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-hidden bg-white border border-gray-200 ${filterState ? 'text-teal-700' : 'text-gray-500'}`}
                 >
                   <option value="">All States</option>
                   {[...new Set(projects.map(p => p.state))].sort().map(s => (
@@ -2640,7 +2640,7 @@ function LibraryContent() {
                 <select
                   value={filterTech}
                   onChange={e => setFilterTech(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterTech ? 'text-teal-700' : 'text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-hidden bg-white border border-gray-200 ${filterTech ? 'text-teal-700' : 'text-gray-500'}`}
                 >
                   <option value="">All Tech</option>
                   {[...new Set(projects.map(p => p.technology).filter(Boolean))].sort().map(t => (
@@ -2650,7 +2650,7 @@ function LibraryContent() {
                 <select
                   value={filterStage}
                   onChange={e => setFilterStage(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-none bg-white border border-gray-200 ${filterStage ? 'text-teal-700' : 'text-gray-500'}`}
+                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-hidden bg-white border border-gray-200 ${filterStage ? 'text-teal-700' : 'text-gray-500'}`}
                 >
                   <option value="">All Stages</option>
                   {PIPELINE_STAGES.map(s => (
@@ -2669,7 +2669,7 @@ function LibraryContent() {
                     <button
                       key={s.key}
                       onClick={() => setSortBy(s.key)}
-                      className="text-[10px] font-semibold px-2 py-1 rounded transition-colors"
+                      className="text-[10px] font-semibold px-2 py-1 rounded-sm transition-colors"
                       style={sortBy === s.key
                         ? { background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }
                         : { background: 'transparent', color: '#6B7280', border: '1px solid transparent' }}
@@ -2688,10 +2688,10 @@ function LibraryContent() {
           <div className="grid gap-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="rounded-xl px-5 py-4 animate-pulse flex items-center gap-4 bg-white border border-gray-200">
-                <div className="w-11 h-11 rounded-lg flex-shrink-0 bg-gray-100" />
+                <div className="w-11 h-11 rounded-lg shrink-0 bg-gray-100" />
                 <div className="flex-1">
-                  <div className="h-3.5 rounded w-1/3 mb-2 bg-gray-100" />
-                  <div className="h-2.5 rounded w-1/2 bg-gray-50" />
+                  <div className="h-3.5 rounded-sm w-1/3 mb-2 bg-gray-100" />
+                  <div className="h-2.5 rounded-sm w-1/2 bg-gray-50" />
                 </div>
               </div>
             ))}
@@ -2715,7 +2715,7 @@ function LibraryContent() {
                   className="flex items-center gap-3 rounded-lg px-4 py-3 mb-4"
                   style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.20)' }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#0F766E' }} />
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0F766E' }} />
                   <p className="font-mono text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
                     Recent Updates
                   </p>
@@ -2786,7 +2786,7 @@ function LibraryContent() {
       <Dialog open={!!confirmRemove} onOpenChange={(open) => { if (!open) setConfirmRemove(null) }}>
         <DialogContent>
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6"/>
                 <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
