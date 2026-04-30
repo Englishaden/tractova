@@ -1,6 +1,22 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+
+// Match the WelcomeCard's pre-filled-demo URL so the paywall recognizes "I
+// came here from the onboarding card" and personalizes the headline.
+const STATE_NAMES = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi',
+  MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire',
+  NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina',
+  ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania',
+  RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee',
+  TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington',
+  WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia',
+}
 
 const FEATURE_CONFIG = {
   'Tractova Lens': {
@@ -29,6 +45,18 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
   const config = FEATURE_CONFIG[feature] || FEATURE_CONFIG['Tractova Lens']
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
+  // V3.1 onboarding polish: surface URL params (state/county/mw/technology/
+  // stage) when the user arrives from a pre-filled link (WelcomeCard CTA,
+  // shared lens URL, etc.). The paywall then references the exact analysis
+  // they were trying to run -- not a generic "upgrade to access Lens."
+  const [searchParams] = useSearchParams()
+  const ctxState  = searchParams.get('state')?.toUpperCase()
+  const ctxCounty = searchParams.get('county')
+  const ctxMw     = searchParams.get('mw')
+  const ctxTech   = searchParams.get('technology')
+  const ctxStage  = searchParams.get('stage')
+  const hasContext = ctxState && ctxCounty
+  const ctxStateName = ctxState && STATE_NAMES[ctxState] ? STATE_NAMES[ctxState] : ctxState
 
   const handleUpgrade = async () => {
     setLoading(true)
@@ -72,9 +100,42 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
           Tractova Pro
         </div>
 
-        {/* Headline — serif treatment matches V3 brand */}
-        <h1 className="text-2xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>{config.headline}</h1>
-        <p className="text-gray-500 text-sm leading-relaxed mb-7">{config.sub}</p>
+        {/* Headline — serif treatment matches V3 brand. When the user arrives
+            with prefilled URL context (e.g. came from the WelcomeCard's IL/Will
+            County demo), the paywall references the exact analysis they were
+            trying to run instead of pitching Lens generically. */}
+        {hasContext && feature === 'Tractova Lens' ? (
+          <>
+            <div
+              className="rounded-lg px-4 py-3 mb-5"
+              style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(15,118,110,0.22)' }}
+            >
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] font-bold mb-1" style={{ color: '#0F766E' }}>
+                ◆ Lens analysis · staged for you
+              </p>
+              <p className="text-sm font-semibold text-ink leading-snug">
+                {ctxCounty} County, {ctxStateName}
+                {ctxMw ? ` · ${ctxMw} MW AC` : ''}
+                {ctxTech ? ` · ${decodeURIComponent(ctxTech)}` : ''}
+                {ctxStage ? ` · ${decodeURIComponent(ctxStage)}` : ''}
+              </p>
+              <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                Your inputs are saved. Upgrade to run the live analysis with three-pillar AI commentary.
+              </p>
+            </div>
+            <h1 className="text-2xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>
+              Run this report — and any other county.
+            </h1>
+            <p className="text-gray-500 text-sm leading-relaxed mb-7">
+              Tractova Lens delivers a county-level feasibility report with site, interconnection, and offtake commentary in seconds. Save unlimited projects, share Deal Memos with co-developers, and get alerts when program conditions shift.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>{config.headline}</h1>
+            <p className="text-gray-500 text-sm leading-relaxed mb-7">{config.sub}</p>
+          </>
+        )}
 
         {/* Bullet list */}
         <ul className="space-y-3 mb-8">

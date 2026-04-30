@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { useAuth } from '../context/AuthContext'
+import { useSubscription } from '../hooks/useSubscription'
 import { supabase } from '../lib/supabase'
 
 // V3-extension — guided first-run onboarding card.
@@ -31,6 +32,12 @@ const DEMO_HREF = '/search?state=IL&county=Will&mw=5&stage=Prospecting&technolog
 
 export default function WelcomeCard() {
   const { user } = useAuth()
+  // V3.1 onboarding polish: branch the welcome content + CTA on Pro vs Free.
+  // Previously a free user clicked "Try a Lens analysis" and hit the paywall
+  // mid-tour -- a broken promise that hurt conversion. Now Free users get a
+  // tour they can actually complete (explore the live map, then a clear
+  // path to Lens), while Pro users keep the prefilled-demo CTA.
+  const { isPro } = useSubscription()
   // null = checking, false = hide, true = show
   const [visible, setVisible] = useState(null)
 
@@ -125,45 +132,81 @@ export default function WelcomeCard() {
           >×</button>
         </div>
 
-        {/* Three steps */}
+        {/* Three steps -- subscription-aware framing.
+            Pro users get the full Scan -> Run -> Track flow.
+            Free users get a tour they can actually complete (Scan ->
+            Compare -> Unlock Lens) with the unlock framed as the
+            value-prop, not a roadblock. */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-5">
-          <Step
-            n="01"
-            title="Scan the market"
-            body="Click any state on the map below to drill into program status, IX conditions, and recent news."
-          />
-          <Step
-            n="02"
-            title="Run an analysis"
-            body="Tractova Lens delivers a county-level feasibility report with three-pillar AI commentary in seconds."
-          />
-          <Step
-            n="03"
-            title="Track your pipeline"
-            body="Save Lens results to your Library, set alerts, share Deal Memos, and track stage progression."
-          />
+          {isPro ? (
+            <>
+              <Step n="01" title="Scan the market"
+                body="Click any state on the map below to drill into program status, IX conditions, and recent news." />
+              <Step n="02" title="Run an analysis"
+                body="Tractova Lens delivers a county-level feasibility report with three-pillar AI commentary in seconds." />
+              <Step n="03" title="Track your pipeline"
+                body="Save Lens results to your Library, set alerts, share Deal Memos, and track stage progression." />
+            </>
+          ) : (
+            <>
+              <Step n="01" title="Scan the live map"
+                body="Click any state below to see program status, IX queues, recent legislation, and federal bonus eligibility — free." />
+              <Step n="02" title="Compare side-by-side"
+                body="Add states or projects to your Compare tray. Stack them on capacity, IX difficulty, LMI carveout, and ITC bonus stack." />
+              <Step n="03" title="Unlock county-level Lens"
+                body="Pro adds a county-level feasibility report with AI commentary, scenario sensitivity, and saveable project library." />
+            </>
+          )}
         </div>
 
-        {/* Primary CTA + dismiss-as-secondary */}
+        {/* Primary CTA -- branches on subscription so the promise matches
+            what happens next. Free users no longer get pushed at /search
+            and bounced into a paywall; they get pointed at the live map
+            (which is the part of the platform they CAN use) plus a clear
+            tertiary upgrade path. */}
         <div className="flex items-center gap-3 flex-wrap">
-          <Link
-            to={DEMO_HREF}
-            onClick={dismiss}
-            className="inline-flex items-center gap-2 text-[12px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2.5 rounded-lg text-white transition-transform hover:-translate-y-px"
-            style={{ background: '#14B8A6', boxShadow: '0 4px 12px rgba(20,184,166,0.30)' }}
-          >
-            Try a Lens analysis (Will County, IL · 5 MW)
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-            </svg>
-          </Link>
-          <button
-            onClick={dismiss}
-            className="text-[11px] font-mono uppercase tracking-[0.18em]"
-            style={{ color: 'rgba(255,255,255,0.55)' }}
-          >
-            Skip — explore on my own
-          </button>
+          {isPro ? (
+            <>
+              <Link
+                to={DEMO_HREF}
+                onClick={dismiss}
+                className="inline-flex items-center gap-2 text-[12px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2.5 rounded-lg text-white transition-transform hover:-translate-y-px"
+                style={{ background: '#14B8A6', boxShadow: '0 4px 12px rgba(20,184,166,0.30)' }}
+              >
+                Try a Lens analysis (Will County, IL · 5 MW)
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </Link>
+              <button
+                onClick={dismiss}
+                className="text-[11px] font-mono uppercase tracking-[0.18em]"
+                style={{ color: 'rgba(255,255,255,0.55)' }}
+              >
+                Skip — explore on my own
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={dismiss}
+                className="inline-flex items-center gap-2 text-[12px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2.5 rounded-lg text-white transition-transform hover:-translate-y-px"
+                style={{ background: '#14B8A6', boxShadow: '0 4px 12px rgba(20,184,166,0.30)' }}
+              >
+                Start with the map
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </button>
+              <Link
+                to="/search"
+                className="text-[11px] font-mono uppercase tracking-[0.18em] font-semibold inline-flex items-center gap-1"
+                style={{ color: '#5EEAD4' }}
+              >
+                See what Lens unlocks →
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </motion.div>
