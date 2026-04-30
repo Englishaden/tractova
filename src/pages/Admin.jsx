@@ -1400,18 +1400,21 @@ function IXQueueTab() {
 // Each card prefers `last_cron_success` (when did the cron last verify this
 // data against the live source?) -- migration 031 derives this from cron_runs
 // so a click on "Refresh data from sources" bumps every card whose cron
-// succeeded, even if no rows actually mutated. county_intelligence is the
-// one exception: hand-curated, no cron, so we keep its row-level field.
+// succeeded, even if no rows actually mutated. `fallbackField` keeps the
+// card meaningful when migration 031 hasn't been applied yet OR when the
+// cron has never logged a success entry yet.
+// county_intelligence is the one exception: hand-curated, no cron, so we
+// keep its row-level field as primary.
 const FRESHNESS_CONFIG = {
-  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'last_cron_success', staleField: 'stale_count', thresholds: [14, 30] },
-  lmi_data:            { label: 'LMI Data (Census)',   icon: '🏘', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
-  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'last_cron_success', staleField: 'stale_count', thresholds: [14, 30] },
-  substations:         { label: 'Substations',         icon: '🔌', field: 'last_cron_success', staleField: null,          thresholds: [45, 90] },
-  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified',   staleField: 'stale_count', thresholds: [90, 180] },
-  county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
-  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_cron_success', staleField: null,          thresholds: [120, 200] },
-  revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
-  news_feed:           { label: 'News Feed',           icon: '📰', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
+  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'last_cron_success', fallbackField: 'newest_verified', staleField: 'stale_count', thresholds: [14, 30] },
+  lmi_data:            { label: 'LMI Data (Census)',   icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
+  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'last_cron_success', fallbackField: 'newest_fetch',    staleField: 'stale_count', thresholds: [14, 30] },
+  substations:         { label: 'Substations',         icon: '🔌', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [45, 90] },
+  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified',   fallbackField: null,              staleField: 'stale_count', thresholds: [90, 180] },
+  county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
+  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [120, 200] },
+  revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'last_cron_success', fallbackField: 'newest_dsire_check', staleField: null,       thresholds: [14, 30] },
+  news_feed:           { label: 'News Feed',           icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },
 }
 
 function daysSince(dateStr) {
@@ -1745,21 +1748,31 @@ function DataHealthTab() {
             )}
           </button>
           {refreshResult && (
-            <span className={`text-xs ${refreshResult.ok ? 'text-emerald-700' : 'text-amber-600'}`}>
+            <div className={`text-xs ${refreshResult.ok ? 'text-emerald-700' : 'text-amber-700'} space-y-0.5`}>
               {(() => {
-                if (refreshResult.error) return `Refresh failed: ${refreshResult.error}`
+                if (refreshResult.error) return <div>Refresh failed: {refreshResult.error}</div>
                 const eps = refreshResult.endpoints || {}
-                const parts = Object.entries(eps).map(([name, val]) => {
-                  if (val?.error) return `${name} ✗`
-                  if (val?.sources) return `${name} ✓(${Object.keys(val.sources).length})`
-                  if (val?.ok === false) return `${name} ✗`
-                  return `${name} ✓`
+                const lines = Object.entries(eps).map(([name, val]) => {
+                  if (val?.error) {
+                    return <div key={name}><span className="font-mono">{name}</span> ✗ <span className="text-amber-600">{String(val.error).slice(0, 140)}</span></div>
+                  }
+                  if (val?.sources) {
+                    const sub = Object.entries(val.sources)
+                      .map(([k, v]) => v?.ok === false ? `${k}✗` : `${k}✓`)
+                      .join(' ')
+                    return <div key={name}><span className="font-mono">{name}</span> ✓ <span className="text-ink-muted">[{sub}]</span></div>
+                  }
+                  if (val?.ok === false) {
+                    return <div key={name}><span className="font-mono">{name}</span> ✗ <span className="text-amber-600">{String(val.error || 'unknown').slice(0, 140)}</span></div>
+                  }
+                  return <div key={name}><span className="font-mono">{name}</span> ✓</div>
                 })
-                return refreshResult.ok
-                  ? `✓ Refreshed: ${parts.join(' · ')}`
-                  : `Partial refresh: ${parts.join(' · ')}`
+                return <>
+                  <div>{refreshResult.ok ? '✓ All sources refreshed' : 'Partial refresh — see per-endpoint detail:'}</div>
+                  {lines}
+                </>
               })()}
-            </span>
+            </div>
           )}
         </div>
         <button
@@ -1785,7 +1798,9 @@ function DataHealthTab() {
           {Object.entries(FRESHNESS_CONFIG).map(([key, cfg]) => {
             const tableData = freshness?.[key]
             if (!tableData) return null
-            const dateVal = tableData[cfg.field]
+            // Prefer the cron-success timestamp, but fall back to the row-level
+            // field if migration 031 hasn't run or the cron has never succeeded.
+            const dateVal = tableData[cfg.field] ?? (cfg.fallbackField ? tableData[cfg.fallbackField] : null)
             const days = daysSince(dateVal)
             const color = freshnessColor(days, cfg.thresholds)
             const rowCount = tableData.row_count ?? tableData.active_count ?? '—'
