@@ -79,6 +79,16 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+  // ── Diagnostic short-circuit ────────────────────────────────────────────────
+  // ?debug=1 runs a single tiny Census fetch and returns full diagnostics
+  // (URL with key redacted, response status, headers, full body, key shape
+  // sanity checks). Lets us distinguish IP throttle / bad key / upstream
+  // maintenance / URL bug without wading through the multi-source flow.
+  if (req.query.debug === '1') {
+    const diag = await handleCensusDebug()
+    return res.status(200).json(diag)
+  }
+
   // ── Source routing ──────────────────────────────────────────────────────────
   // Accept either a single source ("lmi"), CSV ("lmi,county_acs"), "all"
   // (every supported source), or "fast" (everything except nmtc_lic, which
@@ -174,16 +184,93 @@ async function logCronRun(source, summary, authMode, startedAt) {
 // states × 4 inner-parallel = blew past the 300s function budget). Refresh
 // is user-triggered or weekly cron; transient 503s are acceptable. The
 // non-Census sources keep running and the user can re-click.
+//
+// User-Agent: many .gov APIs deprioritize requests with the default node
+// undici UA. A descriptive UA with a contact channel is the polite way to
+// identify ourselves and may avoid soft-throttling.
 // ─────────────────────────────────────────────────────────────────────────────
+const CENSUS_UA = 'Tractova/1.0 (community-solar intel; aden.walker67@gmail.com)'
+
 async function censusFetch(url, { timeoutMs = 30000 } = {}) {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await fetch(url, { signal: controller.signal })
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': CENSUS_UA, 'Accept': 'application/json' },
+    })
     return response
   } finally {
     clearTimeout(timeoutId)
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Diagnostic mode: ?debug=1 short-circuits the normal multi-source flow and
+// runs a single tiny Census ACS request, returning full diagnostics so we
+// can distinguish IP throttling vs key vs upstream maintenance vs URL bug.
+// Key is redacted to last 4 chars in the response.
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleCensusDebug() {
+  const apiKey = process.env.CENSUS_API_KEY || ''
+  const keyLen = apiKey.length
+  const keyTail = keyLen >= 4 ? apiKey.slice(-4) : '(none)'
+  const keyTrimmedDiff = apiKey.length !== apiKey.trim().length
+    ? `WARNING: key has ${apiKey.length - apiKey.trim().length} surrounding whitespace char(s)`
+    : 'key has no surrounding whitespace'
+
+  // Smallest possible query: one state, two variables.
+  const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E&for=state:01`
+  const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
+  const urlRedacted = apiKey ? `${baseUrl}&key=***${keyTail}` : baseUrl
+
+  const startTs = Date.now()
+  const out = {
+    debug: true,
+    request: {
+      url_redacted: urlRedacted,
+      user_agent: CENSUS_UA,
+      key_length: keyLen,
+      key_tail: keyTail,
+      key_whitespace_check: keyTrimmedDiff,
+      vercel_region: process.env.VERCEL_REGION || '(unknown)',
+    },
+    response: null,
+    error: null,
+    duration_ms: null,
+  }
+
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 30000)
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': CENSUS_UA, 'Accept': 'application/json' },
+    })
+    clearTimeout(timer)
+
+    const interestingHeaders = ['server', 'retry-after', 'content-type', 'date',
+      'cf-ray', 'cf-mitigated', 'x-amz-cf-pop', 'via', 'x-cache']
+    const headersOut = {}
+    for (const h of interestingHeaders) {
+      const v = resp.headers.get(h)
+      if (v) headersOut[h] = v
+    }
+
+    const body = await resp.text().catch(() => '(body read failed)')
+    out.response = {
+      status: resp.status,
+      status_text: resp.statusText,
+      headers: headersOut,
+      body_length: body.length,
+      body: body.slice(0, 4000),
+    }
+  } catch (err) {
+    out.error = { name: err?.name, message: err?.message }
+  }
+
+  out.duration_ms = Date.now() - startTs
+  return out
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
