@@ -440,6 +440,82 @@ const TECHNOLOGIES = ['Community Solar', 'Hybrid', '---', 'C&I Solar', 'BESS']
 // ─────────────────────────────────────────────────────────────────────────────
 // Small UI helpers
 // ─────────────────────────────────────────────────────────────────────────────
+// V3.1: Bloomberg-style run-id masthead at the top of every Lens result.
+// Signals research-grade character: this analysis ran at a specific moment,
+// in a specific region, with a specific input set. Reads instantly to anyone
+// who's used a real intelligence terminal.
+function RunIdMasthead({ form }) {
+  if (!form) return null
+  const now = new Date()
+  const dateCode = now.toISOString().slice(2, 10).replace(/-/g, '.')      // 26.04.30
+  const tsCode   = now.toISOString().slice(0, 16).replace('T', ' ')        // 2026-04-30 19:47
+  const stateCode  = (form.state || 'XX').toUpperCase()
+  const countyCode = (form.county || '').replace(/\s+/g, '').slice(0, 3).toUpperCase().padEnd(3, 'X')
+  const techCode   = (form.technology || 'CS').replace(/\s+/g, '').toUpperCase()
+  const runId = `LX-${dateCode}-${stateCode}${countyCode}`
+
+  return (
+    <div
+      className="flex items-center justify-between gap-4 mb-4 px-4 py-2 rounded-md flex-wrap"
+      style={{
+        background: 'linear-gradient(90deg, #0F1A2E 0%, #0A132A 100%)',
+        fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+      }}
+    >
+      <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+        <span
+          className="text-[9px] font-bold uppercase tracking-[0.30em] shrink-0"
+          style={{ color: '#5EEAD4' }}
+        >
+          ◆ Run · {runId}
+        </span>
+        <span className="text-[9px] hidden sm:inline" style={{ color: 'rgba(255,255,255,0.30)' }}>·</span>
+        <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          {tsCode} UTC
+        </span>
+        <span className="text-[9px] hidden md:inline" style={{ color: 'rgba(255,255,255,0.30)' }}>·</span>
+        <span
+          className="text-[9px] hidden md:inline"
+          style={{ color: 'rgba(255,255,255,0.55)' }}
+        >
+          {techCode} · iad1
+        </span>
+      </div>
+      <span
+        className="text-[9px] font-medium tracking-[0.20em] uppercase shrink-0"
+        style={{ color: 'rgba(94,234,212,0.65)' }}
+      >
+        Tractova · Lens v3
+      </span>
+    </div>
+  )
+}
+
+// V3.1: Editorial section marker. Mono "§ NN · Label" on the left, a hairline
+// rule fills the middle, optional mono sublabel on the right. Replaces flat
+// SectionDivider lines in the results flow with research-note typography.
+function SectionMarker({ index, label, sublabel, compact = false }) {
+  return (
+    <div className={`flex items-center gap-3 ${compact ? 'mb-3' : 'mt-8 mb-4'}`}>
+      <span
+        className="text-[9px] font-bold tracking-[0.28em] uppercase shrink-0"
+        style={{ color: '#0F1A2E', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
+      >
+        § {String(index).padStart(2, '0')} · {label}
+      </span>
+      <div className="flex-1 h-px" style={{ background: '#E2E8F0' }} />
+      {sublabel && (
+        <span
+          className="text-[9px] tracking-[0.22em] uppercase shrink-0"
+          style={{ color: '#94A3B8', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
+        >
+          {sublabel}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // V3.1: Whole-card collapsible wrapper for the 3 main Lens cards
 // (SC / IX / Offtake). Header (eyebrow + title + caption) always
 // visible and clickable. Body animates height open/close. Default
@@ -3647,6 +3723,8 @@ function SearchContent() {
         {/* Results panel */}
         {results && (
           <div ref={resultsRef}>
+            {/* Bloomberg-style run-id masthead — research-grade character */}
+            <RunIdMasthead form={results.form} />
             <SectionDivider />
             {/* Results header */}
             <div className="flex items-center justify-between mb-4">
@@ -3691,6 +3769,8 @@ function SearchContent() {
               </div>
             </div>
 
+            <SectionMarker index={1} label="Market Position" sublabel="composite feasibility · sensitivity scenarios" />
+
             <MarketPositionPanel
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -3712,7 +3792,7 @@ function SearchContent() {
             />
 
             {/* Market Intelligence Summary */}
-            <SectionDivider />
+            <SectionMarker index={2} label="Analyst Brief" sublabel="claude · sonnet 4.6" />
             <MarketIntelligenceSummary
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -3725,38 +3805,60 @@ function SearchContent() {
               setRationaleLoading={setRationaleLoading}
             />
 
-            {/* Three pillar cards — V3 order: Offtake (01) → IX (02) → Site Control (03), left-to-right reading flow.
-                items-start: cards size to their own content; collapsing one card no longer leaves vertical
-                whitespace next to the others. */}
-            <SectionDivider />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-              <OfftakeCard
-                stateProgram={results.stateProgram}
-                revenueStack={results.revenueStack}
-                technology={results.form.technology}
-                mw={results.form.mw}
-                rates={results.revenueRates}
-                energyCommunity={results.energyCommunity}
-                nmtcLic={results.nmtcLic}
-                hudQctDda={results.hudQctDda}
-                county={results.form.county}
-              />
-              <InterconnectionCard
-                interconnection={results.countyData?.interconnection}
-                stateProgram={results.stateProgram}
-                stateId={results.stateProgram?.id}
-                mw={results.form.mw}
-                queueSummary={results.ixQueueSummary}
-              />
-              <SiteControlCard
-                siteControl={results.countyData?.siteControl}
-                interconnection={results.countyData?.interconnection}
-                stateName={results.stateProgram?.name || results.form.state}
-                county={results.form.county}
-                stateId={results.stateProgram?.id}
-                mw={results.form.mw}
-                substations={results.substations}
-              />
+            {/* Three pillar cards in a navy-tinted dossier band — visually
+                groups Offtake / IX / Site Control as the analytical core of
+                the Lens, and reduces the long-white-scroll feel without any
+                pattern or imagery. items-start: cards size independently. */}
+            <div
+              className="rounded-xl px-5 py-5 mt-8 mb-6"
+              style={{
+                background: 'linear-gradient(180deg, rgba(15,26,46,0.022) 0%, rgba(15,26,46,0.045) 100%)',
+                border: '1px solid rgba(15,26,46,0.08)',
+              }}
+            >
+              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+                <span
+                  className="text-[9px] font-bold tracking-[0.28em] uppercase"
+                  style={{ color: '#0F1A2E', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                >
+                  § 03 · Pillar Diagnostics
+                </span>
+                <span
+                  className="text-[9px] tracking-[0.22em] uppercase"
+                  style={{ color: '#94A3B8', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
+                >
+                  offtake · interconnect · site
+                </span>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+                <OfftakeCard
+                  stateProgram={results.stateProgram}
+                  revenueStack={results.revenueStack}
+                  technology={results.form.technology}
+                  mw={results.form.mw}
+                  rates={results.revenueRates}
+                  energyCommunity={results.energyCommunity}
+                  nmtcLic={results.nmtcLic}
+                  hudQctDda={results.hudQctDda}
+                  county={results.form.county}
+                />
+                <InterconnectionCard
+                  interconnection={results.countyData?.interconnection}
+                  stateProgram={results.stateProgram}
+                  stateId={results.stateProgram?.id}
+                  mw={results.form.mw}
+                  queueSummary={results.ixQueueSummary}
+                />
+                <SiteControlCard
+                  siteControl={results.countyData?.siteControl}
+                  interconnection={results.countyData?.interconnection}
+                  stateName={results.stateProgram?.name || results.form.state}
+                  county={results.form.county}
+                  stateId={results.stateProgram?.id}
+                  mw={results.form.mw}
+                  substations={results.substations}
+                />
+              </div>
             </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
