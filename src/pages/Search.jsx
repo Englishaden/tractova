@@ -77,15 +77,23 @@ function ArcGauge({ score }) {
 
   return (
     <svg viewBox="0 0 180 100" className="w-full max-w-[240px]">
-      {/* Outer micro-ticks (no labels) */}
+      {/* Tick marks -- longer + more visible than the previous version
+          (which read as too subtle). The 0/25/50/75/100 majors get full
+          length, the endpoint ones (0 and 100) get a bit more weight as
+          natural anchors. */}
       {tickPositions.map((p, i) => {
         const angle = Math.PI * (1 - p)
-        const inner = R - 5, outer = R + 1
+        const isMajor = p === 0 || p === 0.5 || p === 1.0
+        const inner = R - 9, outer = R + 3
         return (
           <line key={i}
             x1={cx + inner * Math.cos(angle)} y1={cy - inner * Math.sin(angle)}
             x2={cx + outer * Math.cos(angle)} y2={cy - outer * Math.sin(angle)}
-            stroke="#94A3B8" strokeWidth={1} strokeLinecap="round" opacity={0.6} />
+            stroke="#0A1828"
+            strokeWidth={isMajor ? 1.5 : 1.2}
+            strokeLinecap="round"
+            opacity={isMajor ? 0.85 : 0.55}
+          />
         )
       })}
       {/* Arc track */}
@@ -212,32 +220,26 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
             boxShadow: `0 0 0 1px ${color}22 inset, 0 0 8px ${color}44`,
           }}
         >
-          {/* Dual-shimmer staggered pattern -- the previous single-shimmer
-              had ~40% of the cycle offscreen on either side (-50% to 0%
-              entering, 100% to 250% exiting), which read as a "lag between
-              pulses." Two shimmers offset by half the cycle: while one is
-              exiting the right edge, the other is already entering from the
-              left. Net: the bar always has at least one visible white sweep
-              moving across it. Flows like water, no perceived gap. */}
+          {/* Tiled-gradient shimmer -- mathematically seamless loop.
+              Background is a 50%-wide gradient tile (transparent -> peak ->
+              transparent) repeating across the bar. Animating the
+              background position from 0% to 50% moves every peak right by
+              one tile width, at which point the pattern is identical to
+              the starting frame -- so motion's loop teleport produces NO
+              visible discontinuity. Two visible peaks at any time, sliding
+              continuously left-to-right with no jump. Slowed to 6s so
+              each peak spends more time on the bar (water-like flow,
+              not a ping). */}
           <motion.div
-            className="absolute inset-y-0 pointer-events-none"
+            className="absolute inset-0 pointer-events-none"
             style={{
-              width: '40%',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.50) 50%, transparent 100%)',
+              backgroundSize: '50% 100%',
+              backgroundRepeat: 'repeat',
               mixBlendMode: 'overlay',
             }}
-            animate={{ x: ['-50%', '150%'] }}
-            transition={{ duration: 3.6, repeat: Infinity, ease: 'linear', repeatDelay: 0 }}
-          />
-          <motion.div
-            className="absolute inset-y-0 pointer-events-none"
-            style={{
-              width: '40%',
-              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
-              mixBlendMode: 'overlay',
-            }}
-            animate={{ x: ['-50%', '150%'] }}
-            transition={{ duration: 3.6, repeat: Infinity, ease: 'linear', repeatDelay: 0, delay: 1.8 }}
+            animate={{ backgroundPositionX: ['0%', '50%'] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
           />
         </motion.div>
       </div>
