@@ -2516,7 +2516,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
 // V3 §7.4: Scenario toggle row — sits directly under MarketPositionPanel.
 // Toggling a scenario lifts the override into shared state so the gauge above
 // re-renders with the new score in place. No more scroll-up to see impact.
-function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActiveScenario, countyData, formForApi }) {
+function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActiveScenario, countyData, formForApi, programMap }) {
   const [customOpen, setCustomOpen] = useState(false)
   if (!stateProgram) return null
   const scenarios = buildSensitivityScenarios(stateProgram, technology, mw)
@@ -2579,28 +2579,33 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
             </Tooltip>
           ) : button
         })}
-        {/* + Custom toggle — opens inline popover */}
+        {/* + Peer state toggle — opens inline state-mirror picker.
+            Replaces the previous "+ Custom" two-dropdown overrider, which
+            was abstract and felt useless next to the precedent-anchored
+            preset chips. Now: pick another state, the scenario applies
+            its full profile and surfaces a concrete diff. */}
         <button
           onClick={() => { setCustomOpen(o => !o); if (isCustomActive) setActiveScenario(null) }}
           aria-expanded={customOpen}
           aria-pressed={isCustomActive}
-          aria-label="Build a custom sensitivity scenario"
+          aria-label="Compare this market to a peer state"
           className="font-mono text-[10px] uppercase tracking-[0.12em] font-semibold px-3 py-1.5 rounded-sm transition-all focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500"
           style={isCustomActive
             ? { background: '#0F1A2E', color: '#5EEAD4', border: '1px solid #14B8A6' }
             : { background: 'white', color: '#0A1828', border: '1px dashed #94A3B8' }}
         >
-          {customOpen || isCustomActive ? '− Custom' : '+ Custom'}
+          {customOpen || isCustomActive ? '− Peer state' : '+ Peer state'}
         </button>
       </div>
 
-      {/* Inline custom builder — drives the same lifted state */}
+      {/* Inline peer-state picker — drives the same lifted activeScenario state */}
       {customOpen && (
         <CustomScenarioInline
           stateProgram={stateProgram}
           technology={technology}
           activeScenario={activeScenario}
           setActiveScenario={setActiveScenario}
+          programMap={programMap}
         />
       )}
     </div>
@@ -2609,63 +2614,122 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
 
 // V3 §7.5: Inline custom scenario builder. Drives the same activeScenario state
 // so toggling a custom override updates the gauge above just like preset scenarios.
-function CustomScenarioInline({ stateProgram, technology, activeScenario, setActiveScenario }) {
+// V3.1: Peer-state mode replaces the previous two-dropdown "Custom" builder.
+// Instead of free-form IX/CS overrides (abstract, not market-anchored), the
+// user picks another real state and the scenario applies that state's full
+// profile to the current view. Reads as: "What would this market look like
+// if it adopted California's NEM 3.0? Massachusetts SMART? Illinois LMI
+// requirements?" -- the same precedent-anchored framing used by the preset
+// chips, just with the user choosing the precedent instead of us proposing it.
+function CustomScenarioInline({ stateProgram, technology, activeScenario, setActiveScenario, programMap }) {
   const isActive = activeScenario?.id === 'custom'
-  const initialIX = isActive ? activeScenario.override.ixDifficulty : (stateProgram?.ixDifficulty || 'moderate')
-  const initialCS = isActive ? activeScenario.override.csStatus : (stateProgram?.csStatus || 'active')
-  const [customIX, setCustomIX] = useState(initialIX)
-  const [customCS, setCustomCS] = useState(initialCS)
+  const peerStateId = isActive ? (activeScenario.peerStateId || '') : ''
 
-  const apply = (ixVal, csVal) => {
+  // Eligible peers: any state with a real CS program, excluding self.
+  const peerOptions = Object.values(programMap || {})
+    .filter(s => s.id && s.id !== stateProgram?.id)
+    .filter(s => s.csStatus && s.csStatus !== 'none')
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+
+  const handlePick = (peerId) => {
+    if (!peerId) {
+      if (isActive) setActiveScenario(null)
+      return
+    }
+    const peer = programMap?.[peerId]
+    if (!peer || !stateProgram) return
+
+    const override = {
+      ixDifficulty: peer.ixDifficulty,
+      csStatus:     peer.csStatus,
+      lmiRequired:  peer.lmiRequired,
+      lmiPercent:   peer.lmiPercent,
+      capacityMW:   peer.capacityMW,
+    }
+
+    // Concrete diff list -- what shifts if the peer profile lands here
+    const diffs = []
+    if (peer.ixDifficulty && peer.ixDifficulty !== stateProgram.ixDifficulty) {
+      diffs.push(`IX: ${(stateProgram.ixDifficulty || '—').replace('_', ' ')} → ${peer.ixDifficulty.replace('_', ' ')}`)
+    }
+    if (peer.csStatus && peer.csStatus !== stateProgram.csStatus) {
+      diffs.push(`CS Status: ${stateProgram.csStatus || '—'} → ${peer.csStatus}`)
+    }
+    if ((peer.lmiPercent || 0) !== (stateProgram.lmiPercent || 0)) {
+      diffs.push(`LMI carveout: ${stateProgram.lmiPercent || 0}% → ${peer.lmiPercent || 0}%`)
+    }
+    if ((peer.capacityMW || 0) !== (stateProgram.capacityMW || 0)) {
+      const fmt = (v) => v ? `${(v / 1000).toFixed(1)}GW` : '—'
+      diffs.push(`Program cap: ${fmt(stateProgram.capacityMW)} → ${fmt(peer.capacityMW)}`)
+    }
+
     setActiveScenario({
       id: 'custom',
-      label: `Custom: IX ${ixVal.replace('_', ' ')} · CS ${csVal}`,
-      override: { ixDifficulty: ixVal, csStatus: csVal },
-      detail: `Custom what-if: setting interconnection to ${ixVal.replace('_', ' ')} and program status to ${csVal}.`,
+      peerStateId: peerId,
+      label: `Peer profile · ${peer.name}`,
+      override,
+      precedent: `${peer.name} profile${peer.csProgram ? ` (${peer.csProgram})` : ''} applied to ${stateProgram.name || 'this market'}`,
+      detail: diffs.length > 0
+        ? `What if ${stateProgram.name || 'this market'} adopted ${peer.name}'s policy + IX profile? ${diffs.length} key shift${diffs.length === 1 ? '' : 's'}: ${diffs.join('; ')}. Useful for benchmarking how a peer state's regulatory environment would reshape this county's feasibility.`
+        : `${peer.name}'s policy and IX profile is identical to this state on the dimensions our model tracks -- no score impact expected.`,
+      revenueImpact: peer.csProgram ? `Adopt ${peer.csProgram} program rules` : null,
+      timelineImpact: peer.ixDifficulty
+        ? `Adopt ${peer.name}-equivalent IX cluster timing`
+        : null,
+      diffs,
     })
   }
 
   return (
     <div className="mt-3 pt-3 border-t border-gray-100">
-      <p className="font-mono text-[9px] uppercase tracking-[0.20em] text-ink-muted mb-2">
-        Override Two Variables
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted block mb-1">
-            IX Difficulty
-          </label>
-          <select
-            value={customIX}
-            onChange={e => { setCustomIX(e.target.value); apply(e.target.value, customCS) }}
-            className="w-full text-sm font-mono bg-white border border-gray-200 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
-          >
-            <option value="easy">Easy</option>
-            <option value="moderate">Moderate</option>
-            <option value="hard">Hard</option>
-            <option value="very_hard">Very Hard</option>
-          </select>
-        </div>
-        {technology === 'Community Solar' && (
-          <div>
-            <label className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted block mb-1">
-              CS Program Status
-            </label>
-            <select
-              value={customCS}
-              onChange={e => { setCustomCS(e.target.value); apply(customIX, e.target.value) }}
-              className="w-full text-sm font-mono bg-white border border-gray-200 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
-            >
-              <option value="active">Active</option>
-              <option value="limited">Limited</option>
-              <option value="pending">Pending</option>
-              <option value="none">None</option>
-            </select>
-          </div>
-        )}
+      <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+        <p className="font-mono text-[9px] uppercase tracking-[0.20em] text-ink-muted">
+          Compare to peer state
+        </p>
+        <p className="font-mono text-[9px] text-gray-400">
+          {peerOptions.length} states with active programs
+        </p>
       </div>
-      <p className="font-mono text-[9px] text-ink-muted mt-2">
-        Index updates live in the gauge above. Toggle "Custom" off or pick a preset to clear.
+      <select
+        value={peerStateId}
+        onChange={e => handlePick(e.target.value)}
+        className="w-full text-sm bg-white border border-gray-200 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
+      >
+        <option value="">— Select a peer state to mirror its profile —</option>
+        {peerOptions.map(s => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+            {s.csProgram ? ` · ${s.csProgram}` : ''}
+            {s.ixDifficulty ? ` · IX ${s.ixDifficulty.replace('_', ' ')}` : ''}
+            {(s.lmiPercent || 0) > 0 ? ` · ${s.lmiPercent}% LMI` : ''}
+          </option>
+        ))}
+      </select>
+
+      {/* Live diff readout once a peer is selected */}
+      {isActive && Array.isArray(activeScenario?.diffs) && activeScenario.diffs.length > 0 && (
+        <div className="mt-2 rounded-md px-3 py-2" style={{ background: 'rgba(20,184,166,0.05)', border: '1px solid rgba(20,184,166,0.18)' }}>
+          <p className="font-mono text-[9px] font-bold uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>
+            Profile shifts ({activeScenario.diffs.length})
+          </p>
+          <ul className="text-[11px] text-ink space-y-0.5 leading-snug">
+            {activeScenario.diffs.map(d => (
+              <li key={d}>
+                <span className="font-mono text-gray-400 mr-1">·</span>
+                {d}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {isActive && Array.isArray(activeScenario?.diffs) && activeScenario.diffs.length === 0 && (
+        <p className="mt-2 text-[11px] text-ink-muted italic">
+          Peer profile matches this state on every dimension we model — no shift to evaluate.
+        </p>
+      )}
+
+      <p className="font-mono text-[9px] text-ink-muted mt-2 leading-snug">
+        Applies the peer state's IX difficulty, CS status, LMI carveout, and program cap. Index updates live in the gauge above.
       </p>
     </div>
   )
@@ -3794,6 +3858,7 @@ function SearchContent() {
               setActiveScenario={setActiveScenario}
               countyData={results.countyData}
               formForApi={results.form}
+              programMap={programMap}
             />
 
             {/* Market Intelligence Summary */}
