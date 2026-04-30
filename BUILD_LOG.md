@@ -171,14 +171,16 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 ## Backlog (priority-ranked)
 
-### P1 — Unblocks once data history accumulates
-- **Wave 1.4 derived metrics** — IX Velocity Index + Program Saturation Index. Needs ≥4 weeks of `ix_queue_snapshots`. Accumulation began 2026-04-28; readiness recheck **scheduled for 2026-06-03** via /loop agent.
-- **Markets on the Move → real WoW deltas** — same data-history blocker.
-- **Trend chips on KPIs** (V3 §7.2) — same.
+### P1 — Scaffolding shipped 2026-04-30; lights up automatically as data history accrues
+- **Markets on the Move WoW deltas** — ✅ scaffolding shipped (`5c30369`). Migration 038 (`state_programs_snapshots`) appends a row per active-CS state on every `state_programs` cron run. UI pulls the deltas via `getStateProgramDeltas()` and renders ↑/↓ pt arrows when ≥2 snapshots exist per state. Falls back to the recency sort + "Xd ago" caption until then. Data accrues automatically; first deltas appear ~2 weeks after migration 038 lands.
+- **IX Velocity Index + Program Saturation Index** (Wave 1.4 derived metrics) — `ix_queue_snapshots` accumulating since 2026-04-28 (migration 012 already shipped). Computation logic is the only piece pending; once we have ≥4 weeks of history we'll add an RPC and a chip on the IX card. Readiness recheck **scheduled for 2026-06-03** via /loop agent.
+- **Trend chips on KPIs (MetricsBar)** — same pattern: needs `dashboard_metrics_snapshots` history. Revisit when prioritized; the same scaffolding template (migration + cron hook + delta helper) used for `state_programs_snapshots` applies here.
 
-### P2 — Engineering-ready
-- **Search.jsx form inputs → ui/* primitives** — largest unrefactored surface. shadcn now available; can compose new primitives from `src/components/shadcn/ui/` as the refactor proceeds.
-- **Wetlands + farmland data layers** (EPA NWI / USDA WSS) — deferred for spatial-join complexity; revisit if Lens Site Control needs more depth.
+### P2 — Closed: existing solution is correct
+- ~~**Search.jsx form inputs → ui/* primitives**~~ — **Reviewed 2026-04-30, deliberately not refactored.** Search.jsx already uses clean `FieldSelect`, `CountyCombobox` field components with shared `labelCls`/`inputCls` Tailwind classes. The grid layout is intentionally dense (5-column on desktop) and forcing the project's `Input.jsx` primitive (designed for stacked-label layout) would degrade not improve. The "deferred to natural touches" guideline in the V3 plan is the right call — substitute incrementally as new fields are added, not as a bulk rewrite.
+
+### P2 — Engineering-ready (real work)
+- **Wetlands + farmland data layers** (EPA NWI / USDA WSS) — multi-day data-acquisition + spatial-join work. EPA National Wetlands Inventory dataset is US-wide, USDA Web Soil Survey has a tile API. Approach: pre-compute per-county wetland coverage % and prime-farmland % into a new Supabase table at refresh time (avoid live API on every Lens query). Revisit when Lens Site Control card needs more depth than the current 4 status tiles. Estimated 3-4 days for ingest + spatial-join + UI integration.
 
 ### P3 — Pre-revenue legal / IP (non-engineering, no monthly subscriptions per user preference)
 - Hand-roll **Privacy Policy + Terms of Service** (avoiding Termly/Iubenda monthly).
