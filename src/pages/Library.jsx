@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } fr
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { LoadingDot } from '../components/ui'
 import TractovaLoader from '../components/ui/TractovaLoader'
+import { motion, useMotionValue, useSpring } from 'motion/react'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 import { TECH_COLORS } from '../lib/v3Tokens'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
@@ -1240,6 +1241,47 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
 // same instance the sort + score-change logic reads), so the card's visible
 // score and the sort's ranking score are guaranteed identical. Local fetch
 // fallback retained for safety in case map hasn't populated yet.
+// V3.1: Mini animated arc gauge for the project-bar score indicator.
+// Replaces the static rounded-square bubble. Arc fills on mount + on
+// score change with a spring; the number itself animates the same way
+// (matches the ArcGauge pattern in Search.jsx so the visual language
+// stays consistent across the app). Sized for inline use in the
+// collapsed project row -- 44x44 footprint, same as the old bubble.
+function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
+  const target = score ?? 0
+  const mv = useMotionValue(0)
+  const spring = useSpring(mv, { stiffness: 110, damping: 22, mass: 0.6 })
+  const [display, setDisplay] = useState(0)
+  useEffect(() => { mv.set(target) }, [target, mv])
+  useEffect(() => spring.on('change', v => setDisplay(Math.round(v))), [spring])
+  const stroke = score == null ? fallbackColor : color
+  return (
+    <div className="shrink-0 relative" style={{ width: 44, height: 44 }}>
+      <svg width="44" height="44" viewBox="0 0 36 36" className="-rotate-90">
+        <path
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          fill="none"
+          stroke="#E5E7EB"
+          strokeWidth="3"
+        />
+        <motion.path
+          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="3"
+          strokeLinecap="round"
+          initial={{ strokeDasharray: '0, 100' }}
+          animate={{ strokeDasharray: `${target}, 100` }}
+          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold tabular-nums leading-none" style={{ color: stroke }}>
+        {score == null ? '—' : display}
+      </span>
+    </div>
+  )
+}
+
 function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, shareCount = 0, onShareSuccess }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
@@ -1367,12 +1409,21 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                     liveScore >= 50   ? '#B45309'  :
                                         '#DC2626'
 
+  // V3.1: tonal background for the collapsed bar -- a very faint score-tinted
+  // gradient that fades from a hint of accent color on the left to white on the
+  // right. Adds visual life without competing with the score gauge or text.
+  const gradientStop = liveScore == null ? 'rgba(148,163,184,0.04)' :
+                       liveScore >= 70   ? 'rgba(15,118,110,0.06)'  :
+                       liveScore >= 50   ? 'rgba(217,119,6,0.05)'   :
+                                           'rgba(220,38,38,0.05)'
+  const collapsedBg = `linear-gradient(90deg, ${gradientStop} 0%, transparent 55%)`
+
   return (
     <div
       // V3: overflow-hidden ONLY when expanded -- so the inner alert strip + bg fill
       // clip cleanly to the rounded corners. When collapsed, no clipping so the
       // StagePicker dropdown can escape the card boundary.
-      className={`rounded-xl border transition-all duration-200 ${expanded ? 'overflow-hidden' : ''}`}
+      className={`rounded-xl border transition-all duration-200 relative ${expanded ? 'overflow-hidden' : ''}`}
       style={{
         background: '#FFFFFF',
         borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(20,184,166,0.40)' : '#E5E7EB',
@@ -1382,6 +1433,15 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
           : '0 1px 3px rgba(0,0,0,0.06)',
       }}
     >
+      {/* V3.1: top hairline accent rail in the card's score color -- mirrors the
+          editorial rail used on the Lens panels. Hidden when expanded so the
+          inner border on the expanded panel takes precedence visually. */}
+      {!expanded && (
+        <div
+          className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl pointer-events-none"
+          style={{ background: `linear-gradient(90deg, transparent 0%, ${accentColor}55 30%, ${accentColor}55 70%, transparent 100%)` }}
+        />
+      )}
 
       {/* ── Collapsed header (always visible) ──────────────────────────────── */}
       <div
@@ -1392,15 +1452,11 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
         tabIndex={0}
         aria-expanded={expanded}
         aria-label={`${project.name || `${project.county} County · ${project.mw} MW`} · feasibility index ${liveScore ?? 'unknown'} of 100. Press Enter to ${expanded ? 'collapse' : 'expand'} project details.`}
+        style={{ background: expanded ? 'transparent' : collapsedBg }}
       >
-        {/* Score bubble */}
-        <div
-          className="shrink-0 w-11 h-11 rounded-lg flex flex-col items-center justify-center font-bold"
-          style={{ background: scoreBg, color: scoreText }}
-        >
-          <span className="text-base leading-none">{liveScore ?? '—'}</span>
-          <span className="text-[8px] font-medium opacity-60 mt-0.5">index</span>
-        </div>
+        {/* Animated mini arc gauge — replaces the static rounded square.
+            Arc and number both spring-animate on mount and on score change. */}
+        <MiniArcGauge score={liveScore} color={accentColor} />
 
         {/* Name + meta */}
         <div className="flex-1 min-w-0">
