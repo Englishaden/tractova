@@ -211,6 +211,19 @@ async function logUpdate(stateId, changeCount, details) {
 }
 
 export default async function handler(req, res) {
+  try {
+    return await handlerInner(req, res)
+  } catch (err) {
+    console.error('[refresh-substations] uncaught:', err)
+    return res.status(500).json({
+      error: err?.message || String(err),
+      where: 'refresh-substations',
+      stack: err?.stack?.split('\n').slice(0, 4).join(' | '),
+    })
+  }
+}
+
+async function handlerInner(req, res) {
   // Auth: Vercel cron header, CRON_SECRET bearer, or admin-user JWT.
   const authHeader = req.headers.authorization
   const cronHeader = req.headers['x-vercel-cron']

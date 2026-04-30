@@ -263,6 +263,19 @@ function computeTrend(newCount, oldCount) {
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  try {
+    return await handlerInner(req, res)
+  } catch (err) {
+    console.error('[refresh-ix-queue] uncaught:', err)
+    return res.status(500).json({
+      error: err?.message || String(err),
+      where: 'refresh-ix-queue',
+      stack: err?.stack?.split('\n').slice(0, 4).join(' | '),
+    })
+  }
+}
+
+async function handlerInner(req, res) {
   // Auth: Vercel cron header, CRON_SECRET bearer, or admin-user JWT.
   const authHeader = req.headers.authorization
   const isVercelCron = req.headers['x-vercel-cron'] === '1'

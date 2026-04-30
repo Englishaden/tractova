@@ -78,6 +78,19 @@ async function fetchCapacityFactor(stateId, coords) {
 }
 
 export default async function handler(req, res) {
+  try {
+    return await handlerInner(req, res)
+  } catch (err) {
+    console.error('[refresh-capacity-factors] uncaught:', err)
+    return res.status(500).json({
+      error: err?.message || String(err),
+      where: 'refresh-capacity-factors',
+      stack: err?.stack?.split('\n').slice(0, 4).join(' | '),
+    })
+  }
+}
+
+async function handlerInner(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
   const authHeader = req.headers.authorization
