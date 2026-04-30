@@ -26,7 +26,7 @@
       "maxDuration": 60
     },
     "api/refresh-data.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/refresh-substations.js": {
       "maxDuration": 60

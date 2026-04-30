@@ -94,7 +94,9 @@ export default async function handler(req, res) {
   const startTs = Date.now()
   const results = {}
 
-  for (const source of sources) {
+  // Each source hits a different upstream API, so we fan them out in parallel.
+  // Wall-clock time becomes max(source) instead of sum(source).
+  await Promise.all(sources.map(async (source) => {
     const srcStart = Date.now()
     const startedAt = new Date()
     try {
@@ -110,14 +112,13 @@ export default async function handler(req, res) {
       else                                     result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
       results[source] = result
-      // Log to cron_runs (best-effort; don't fail the request if logging fails).
       await logCronRun(source, result, authMode, startedAt)
     } catch (err) {
       const errMsg = err?.message || String(err)
       results[source] = { ok: false, error: errMsg, duration_ms: Date.now() - srcStart }
       await logCronRun(source, { ok: false, error: errMsg }, authMode, startedAt)
     }
-  }
+  }))
 
   return res.status(200).json({
     ok: Object.values(results).every(r => r.ok),
