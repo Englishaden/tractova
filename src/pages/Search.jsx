@@ -11,6 +11,7 @@ import SectionDivider from '../components/SectionDivider'
 import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
 import ComparableDealsPanel from '../components/ComparableDealsPanel'
 import CoverageBadge from '../components/CoverageBadge'
+import TopoBackground from '../components/TopoBackground'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
 import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
@@ -3644,9 +3645,19 @@ function SearchContent() {
           </div>
         </form>
 
-        {/* Results panel */}
+        {/* Results panel — wrapped in relative+overflow-hidden so the
+            topographic background can absolutely-position behind the
+            content, giving the Lens the "intelligence platform" feel
+            without competing with the data layer above. */}
         {results && (
-          <div ref={resultsRef}>
+          <div ref={resultsRef} className="relative">
+            {/* Subtle topographic survey lines — Tractova ("tractus" = surveyed
+                tract) brand reference. Anchored to the results region only;
+                pointer-events-none so it doesn't intercept clicks. */}
+            <div className="absolute inset-0 -mx-6 overflow-hidden pointer-events-none" aria-hidden="true">
+              <TopoBackground opacity={0.06} color="#0F766E" />
+            </div>
+            <div className="relative">
             <SectionDivider />
             {/* Results header */}
             <div className="flex items-center justify-between mb-4">
@@ -3791,6 +3802,7 @@ function SearchContent() {
                 Data is updated regularly but may not reflect the latest queue changes.
               </p>
             </div>
+            </div>{/* close inner relative wrapper */}
           </div>
         )}
       </main>
