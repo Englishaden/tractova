@@ -1435,11 +1435,16 @@ function IXQueueTab() {
 
 function endpointStatus(val) {
   // Returns 'ok' | 'partial' | 'failed'
-  if (!val || val.error || val.ok === false && !val.sources) return 'failed'
+  // A sub-source that "failed" but is stale-tolerated counts as OK for
+  // verdict purposes: the data we have is still within the freshness
+  // window, so a transient upstream blip isn't worth alarming on.
+  const isHardFail = (s) => s?.ok === false && !s?.stale_tolerated
+  if (!val) return 'failed'
+  if (val.error || (val.ok === false && !val.sources && !val.stale_tolerated)) return 'failed'
   if (val.sources) {
     const subs = Object.values(val.sources)
-    const anyFail = subs.some(s => s?.ok === false)
-    if (anyFail) return subs.every(s => s?.ok === false) ? 'failed' : 'partial'
+    const anyFail = subs.some(isHardFail)
+    if (anyFail) return subs.every(isHardFail) ? 'failed' : 'partial'
   }
   return 'ok'
 }
@@ -1456,7 +1461,11 @@ function buildReportText(result) {
     const status = endpointStatus(val).toUpperCase()
     if (val.sources) {
       const subs = Object.entries(val.sources)
-        .map(([k, v]) => v?.ok === false ? `  ${k}: FAIL — ${v.error || 'unknown'}` : `  ${k}: ok`)
+        .map(([k, v]) => {
+          if (v?.ok !== false) return `  ${k}: ok`
+          if (v?.stale_tolerated) return `  ${k}: STALE-OK (last good ${v.days_since_last_good}d ago) — ${v.error || 'unknown'}`
+          return `  ${k}: FAIL — ${v.error || 'unknown'}`
+        })
         .join('\n')
       lines.push(`[${name}] ${status}\n${subs}`)
     } else if (val.error || val.ok === false) {
@@ -1576,12 +1585,17 @@ function EndpointRow({ name, val }) {
         <div className="mt-2 ml-4 flex flex-wrap gap-1.5">
           {Object.entries(val.sources).map(([k, v]) => {
             const subOk = v?.ok !== false
+            const stale = v?.stale_tolerated
+            const tone = subOk
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : stale
+                ? 'border-amber-200 bg-amber-50 text-amber-800'
+                : 'border-red-200 bg-red-50 text-red-700'
+            const mark = subOk ? '✓' : stale ? '◐' : '✗'
             return (
-              <span
-                key={k}
-                className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${subOk ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}
-              >
-                <span className="mr-1">{subOk ? '✓' : '✗'}</span>{k}
+              <span key={k} className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${tone}`}>
+                <span className="mr-1">{mark}</span>{k}
+                {stale && <span className="ml-1 text-amber-600">·stale-ok</span>}
               </span>
             )
           })}
@@ -1612,7 +1626,14 @@ function EndpointRow({ name, val }) {
             .map(([k, v]) => (
               <div key={k} className="flex items-start gap-2">
                 <div className="flex-1 text-[10px] font-mono text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 leading-snug">
-                  <div className="font-semibold uppercase tracking-[0.14em] text-[9px] mb-0.5 text-amber-700">{k}</div>
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <div className="font-semibold uppercase tracking-[0.14em] text-[9px] text-amber-700">{k}</div>
+                    {v.stale_tolerated && (
+                      <span className="text-[9px] font-mono uppercase tracking-[0.12em] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                        stale-ok · last good {v.days_since_last_good}d ago
+                      </span>
+                    )}
+                  </div>
                   <div className="whitespace-pre-wrap break-all">{String(v.error || 'unknown')}</div>
                   {v.first_error && v.first_error !== v.error && (
                     <div className="mt-1 pt-1 border-t border-amber-200 text-amber-800 break-all">
@@ -1927,11 +1948,13 @@ function DataHealthTab() {
         if (r.status === 'fulfilled') {
           aggregate.endpoints[e.name] = r.value
           // The multiplexer returns 200 with `ok: false` if any sub-source
-          // failed -- still a partial outcome we should flag at the top.
-          if (r.value?.ok === false) aggregate.ok = false
+          // failed. Stale-tolerated sub-sources don't count against the
+          // aggregate verdict -- the data is still recent, the failed
+          // attempt is just a transient upstream blip.
+          if (r.value?.ok === false && !r.value?.stale_tolerated) aggregate.ok = false
           if (r.value?.sources) {
             for (const sub of Object.values(r.value.sources)) {
-              if (sub?.ok === false) aggregate.ok = false
+              if (sub?.ok === false && !sub?.stale_tolerated) aggregate.ok = false
             }
           }
         } else {

@@ -134,12 +134,18 @@ export default async function handler(req, res) {
       else if (source === 'nmtc_lic')          result = await refreshNmtcLic()
       else                                     result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
+      result = await applyStaleTolerance(source, result)
       results[source] = result
+      // logCronRun receives the raw result -- ok stays false on a failed
+      // refresh attempt even if stale-tolerance flagged it as non-fatal,
+      // so the next stale-check still finds the *real* last-good run.
       await logCronRun(source, result, authMode, startedAt)
     } catch (err) {
       const errMsg = err?.message || String(err)
-      results[source] = { ok: false, error: errMsg, duration_ms: Date.now() - srcStart }
-      await logCronRun(source, { ok: false, error: errMsg }, authMode, startedAt)
+      let result = { ok: false, error: errMsg, duration_ms: Date.now() - srcStart }
+      result = await applyStaleTolerance(source, result)
+      results[source] = result
+      await logCronRun(source, result, authMode, startedAt)
     }
   }
 
@@ -157,6 +163,54 @@ export default async function handler(req, res) {
     auth_mode: authMode,
     triggered_at: new Date().toISOString(),
   })
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stale tolerance for slow-moving Census ACS sources.
+//
+// Census publishes ACS data once per year. A weekly refresh failure means
+// nothing if last week's pull is still in the database -- that data IS the
+// current annual release. Without tolerance, a transient Census 503 turns
+// the Data Health panel red and triggers fixed-it-yesterday alarms even
+// though no user-visible data is stale.
+//
+// We keep ok=false (the refresh attempt did fail) so cron_runs records the
+// truth and the *next* stale-check finds the genuine last-good run -- not a
+// chain of softened "successes". The UI keys off `stale_tolerated` to render
+// the source as amber-OK rather than red.
+// ─────────────────────────────────────────────────────────────────────────────
+const STALE_TOLERANT_SOURCES = new Set(['lmi', 'county_acs', 'nmtc_lic'])
+const STALE_WINDOW_DAYS = 90
+
+async function applyStaleTolerance(source, originalResult) {
+  if (!STALE_TOLERANT_SOURCES.has(source)) return originalResult
+  if (originalResult.ok) return originalResult
+
+  const { data, error } = await supabaseAdmin
+    .from('cron_runs')
+    .select('finished_at')
+    .eq('cron_name', `refresh-data:${source}`)
+    .eq('status', 'success')
+    .order('finished_at', { ascending: false })
+    .limit(1)
+  if (error) {
+    console.warn('[stale-tolerance] cron_runs lookup failed:', error.message)
+    return originalResult
+  }
+  const lastGood = data?.[0]?.finished_at
+  if (!lastGood) return originalResult
+
+  const ageMs = Date.now() - new Date(lastGood).getTime()
+  const ageDays = Math.floor(ageMs / 86400000)
+  if (ageDays > STALE_WINDOW_DAYS) return originalResult
+
+  return {
+    ...originalResult,
+    stale_tolerated: true,
+    last_good_at: lastGood,
+    days_since_last_good: ageDays,
+    stale_window_days: STALE_WINDOW_DAYS,
+  }
 }
 
 async function logCronRun(source, summary, authMode, startedAt) {
