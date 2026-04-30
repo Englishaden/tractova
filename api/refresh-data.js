@@ -1590,12 +1590,12 @@ async function refreshHudQctDda() {
 
 async function refreshNmtcLic() {
   const apiKey = process.env.CENSUS_API_KEY
-  const baseTractUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E,B17020_001E,B17020_002E&for=tract:*&in=state:*`
-  const baseStateUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E&for=state:*`
-  const tractUrl = apiKey ? `${baseTractUrl}&key=${apiKey}` : baseTractUrl
-  const stateUrl = apiKey ? `${baseStateUrl}&key=${apiKey}` : baseStateUrl
 
   // 1. Pull state-level median family income for the threshold benchmark.
+  //    State-level allows wildcard for `state` (only TRACT-level forbids it).
+  const baseStateUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E&for=state:*`
+  const stateUrl = apiKey ? `${baseStateUrl}&key=${apiKey}` : baseStateUrl
+
   let stateRaw
   try {
     const controller = new AbortController()
@@ -1627,100 +1627,132 @@ async function refreshNmtcLic() {
     }
   }
 
-  // 2. Pull tract-level data (~75K rows nationally; ~6-8MB JSON).
-  let tractRaw
-  try {
+  // 2. Pull tract-level data state-by-state. Census API REJECTS `state:*`
+  //    for the `in=state` parameter when querying tracts -- you must pin
+  //    one state per call. We iterate the 51 FIPS we track in parallel
+  //    batches of 8 to stay within the 60s function budget.
+  async function fetchTractsForState(stateFips) {
+    const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E,B17020_001E,B17020_002E&for=tract:*&in=state:${stateFips}`
+    const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 60000)
-    const resp = await fetch(tractUrl, { signal: controller.signal })
-    clearTimeout(timeoutId)
-    if (!resp.ok) {
-      const body = await resp.text().catch(() => '')
-      return { ok: false, error: `Census tract ${resp.status}: ${body.slice(0, 200)}` }
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    try {
+      const resp = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => '')
+        throw new Error(`HTTP ${resp.status}: ${body.slice(0, 200)}`)
+      }
+      const json = await resp.json()
+      if (!Array.isArray(json) || json.length < 2) return []
+      return json   // includes header row at [0]
+    } catch (err) {
+      clearTimeout(timeoutId)
+      throw err
     }
-    tractRaw = await resp.json()
-  } catch (err) {
-    return { ok: false, error: `Census tract fetch failed: ${err.message}` }
   }
 
-  if (!Array.isArray(tractRaw) || tractRaw.length < 1000) {
-    return { ok: false, error: `Census tract returned ${Array.isArray(tractRaw) ? tractRaw.length : 0} rows; expected ~75K. Aborting.` }
+  const stateFipsList = Object.keys(FIPS_TO_USPS)
+  const PARALLEL = 8
+  const stateFetchErrors = []
+  const allTractRowsByState = []   // each entry: { stateFips, headers, rows }
+
+  for (let i = 0; i < stateFipsList.length; i += PARALLEL) {
+    const batch = stateFipsList.slice(i, i + PARALLEL)
+    const settled = await Promise.allSettled(batch.map(fips => fetchTractsForState(fips)))
+    for (let j = 0; j < batch.length; j++) {
+      const fips = batch[j]
+      const r = settled[j]
+      if (r.status === 'fulfilled' && r.value.length >= 2) {
+        allTractRowsByState.push({ stateFips: fips, headers: r.value[0], rows: r.value.slice(1) })
+      } else if (r.status === 'rejected') {
+        stateFetchErrors.push(`${FIPS_TO_USPS[fips] || fips}: ${r.reason?.message || 'failed'}`)
+      }
+    }
   }
 
-  // Header indices
-  const hdr     = tractRaw[0]
-  const rows    = tractRaw.slice(1)
-  const mfiIdx       = hdr.indexOf('B19113_001E')
-  const povTotalIdx  = hdr.indexOf('B17020_001E')
-  const povBelowIdx  = hdr.indexOf('B17020_002E')
-  const stIdx        = hdr.indexOf('state')
-  const coIdx        = hdr.indexOf('county')
-  const trIdx        = hdr.indexOf('tract')
-  const nmIdx        = hdr.indexOf('NAME')
+  if (allTractRowsByState.length < 30) {
+    return {
+      ok: false,
+      error: `Only ${allTractRowsByState.length}/${stateFipsList.length} state tract pulls succeeded. Aborting.`,
+      first_state_errors: stateFetchErrors.slice(0, 5),
+    }
+  }
 
   // 3. Apply CDFI rules per tract; aggregate per county.
   const byCounty = new Map()
   let totalQualifyingTracts = 0
+  let totalTractsScanned    = 0
 
-  for (const r of rows) {
-    const stateFips  = r[stIdx]
-    const countyFips = r[coIdx]
-    const tractFips  = r[trIdx]
-    if (!stateFips || !countyFips || !tractFips) continue
-    const usps = FIPS_TO_USPS[stateFips]
-    if (!usps) continue
+  for (const stateBundle of allTractRowsByState) {
+    const hdr        = stateBundle.headers
+    const rows       = stateBundle.rows
+    const mfiIdx     = hdr.indexOf('B19113_001E')
+    const povTotalIdx= hdr.indexOf('B17020_001E')
+    const povBelowIdx= hdr.indexOf('B17020_002E')
+    const stIdx      = hdr.indexOf('state')
+    const coIdx      = hdr.indexOf('county')
+    const trIdx      = hdr.indexOf('tract')
+    const nmIdx      = hdr.indexOf('NAME')
 
-    const fips = `${stateFips}${countyFips}`
-    const stateMfi = stateMfiByFips.get(stateFips) || 0
-    const tractMfi = parseInt(r[mfiIdx], 10)
-    const povTotal = parseInt(r[povTotalIdx], 10)
-    const povBelow = parseInt(r[povBelowIdx], 10)
+    for (const r of rows) {
+      const stateFips  = r[stIdx]
+      const countyFips = r[coIdx]
+      const tractFips  = r[trIdx]
+      if (!stateFips || !countyFips || !tractFips) continue
+      const usps = FIPS_TO_USPS[stateFips]
+      if (!usps) continue
 
-    // Maintain per-county tract counter regardless of qualifying status
-    let bucket = byCounty.get(fips)
-    if (!bucket) {
-      bucket = {
-        county_fips:                fips,
-        state:                      usps,
-        county_name:                null,
-        total_tracts_in_county:     0,
-        qualifying_tracts_count:    0,
-        qualifying_via_poverty:     0,
-        qualifying_via_low_mfi:     0,
-        qualifying_tract_geoids:    [],
-        state_median_family_income: stateMfi || null,
-        dataset_version:            'ACS 2018-2022 5-year',
-        last_updated:               new Date().toISOString(),
-        source:                     'US Census ACS 2018-2022 5-yr + CDFI Fund NMTC LIC methodology',
+      totalTractsScanned += 1
+      const fips = `${stateFips}${countyFips}`
+      const stateMfi = stateMfiByFips.get(stateFips) || 0
+      const tractMfi = parseInt(r[mfiIdx], 10)
+      const povTotal = parseInt(r[povTotalIdx], 10)
+      const povBelow = parseInt(r[povBelowIdx], 10)
+
+      let bucket = byCounty.get(fips)
+      if (!bucket) {
+        bucket = {
+          county_fips:                fips,
+          state:                      usps,
+          county_name:                null,
+          total_tracts_in_county:     0,
+          qualifying_tracts_count:    0,
+          qualifying_via_poverty:     0,
+          qualifying_via_low_mfi:     0,
+          qualifying_tract_geoids:    [],
+          state_median_family_income: stateMfi || null,
+          dataset_version:            'ACS 2018-2022 5-year',
+          last_updated:               new Date().toISOString(),
+          source:                     'US Census ACS 2018-2022 5-yr + CDFI Fund NMTC LIC methodology',
+        }
+        byCounty.set(fips, bucket)
       }
-      byCounty.set(fips, bucket)
-    }
-    bucket.total_tracts_in_county += 1
+      bucket.total_tracts_in_county += 1
 
-    // Best-effort county_name from the tract NAME field (e.g. "Census Tract 12, Will County, Illinois")
-    if (!bucket.county_name) {
-      const nm = r[nmIdx] || ''
-      const parts = nm.split(',').map(s => s.trim())
-      if (parts.length >= 2) bucket.county_name = parts[1]
-    }
-
-    // Skip qualifying-rule application if data is missing/suppressed
-    const povertyRate = (Number.isFinite(povBelow) && Number.isFinite(povTotal) && povTotal > 0)
-                        ? povBelow / povTotal
-                        : null
-    const qualifiesViaPoverty = povertyRate !== null && povertyRate >= 0.20
-    const qualifiesViaLowMfi  = (Number.isFinite(tractMfi) && tractMfi > 0 && stateMfi > 0)
-                                ? tractMfi <= stateMfi * 0.80
-                                : false
-
-    if (qualifiesViaPoverty || qualifiesViaLowMfi) {
-      bucket.qualifying_tracts_count += 1
-      if (qualifiesViaPoverty) bucket.qualifying_via_poverty += 1
-      if (qualifiesViaLowMfi)  bucket.qualifying_via_low_mfi += 1
-      if (bucket.qualifying_tract_geoids.length < 200) {
-        bucket.qualifying_tract_geoids.push(`${stateFips}${countyFips}${tractFips}`)
+      if (!bucket.county_name) {
+        const nm = r[nmIdx] || ''
+        const parts = nm.split(',').map(s => s.trim())
+        if (parts.length >= 2) bucket.county_name = parts[1]
       }
-      totalQualifyingTracts += 1
+
+      const povertyRate = (Number.isFinite(povBelow) && Number.isFinite(povTotal) && povTotal > 0)
+                          ? povBelow / povTotal
+                          : null
+      const qualifiesViaPoverty = povertyRate !== null && povertyRate >= 0.20
+      const qualifiesViaLowMfi  = (Number.isFinite(tractMfi) && tractMfi > 0 && stateMfi > 0)
+                                  ? tractMfi <= stateMfi * 0.80
+                                  : false
+
+      if (qualifiesViaPoverty || qualifiesViaLowMfi) {
+        bucket.qualifying_tracts_count += 1
+        if (qualifiesViaPoverty) bucket.qualifying_via_poverty += 1
+        if (qualifiesViaLowMfi)  bucket.qualifying_via_low_mfi += 1
+        if (bucket.qualifying_tract_geoids.length < 200) {
+          bucket.qualifying_tract_geoids.push(`${stateFips}${countyFips}${tractFips}`)
+        }
+        totalQualifyingTracts += 1
+      }
     }
   }
 
@@ -1753,11 +1785,14 @@ async function refreshNmtcLic() {
                  allRows[0]
 
   return {
-    ok:                       true,
-    counties_evaluated:       upserted,
-    total_qualifying_tracts:  totalQualifyingTracts,
-    counties_with_lic:        allRows.filter(r => r.qualifying_tracts_count > 0).length,
-    states_covered:           stateMfiByFips.size,
-    sample_county:            sample,
+    ok:                          true,
+    counties_evaluated:          upserted,
+    total_qualifying_tracts:     totalQualifyingTracts,
+    total_tracts_scanned:        totalTractsScanned,
+    counties_with_lic:           allRows.filter(r => r.qualifying_tracts_count > 0).length,
+    states_pulled_successfully:  allTractRowsByState.length,
+    state_fetch_errors:          stateFetchErrors.length > 0 ? stateFetchErrors.slice(0, 10) : undefined,
+    states_covered_by_mfi:       stateMfiByFips.size,
+    sample_county:               sample,
   }
 }
