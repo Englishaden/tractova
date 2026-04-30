@@ -440,6 +440,75 @@ const TECHNOLOGIES = ['Community Solar', 'Hybrid', '---', 'C&I Solar', 'BESS']
 // ─────────────────────────────────────────────────────────────────────────────
 // Small UI helpers
 // ─────────────────────────────────────────────────────────────────────────────
+// V3.1: Whole-card collapsible wrapper for the 3 main Lens cards
+// (SC / IX / Offtake). Header (eyebrow + title + caption) always
+// visible and clickable. Body animates height open/close. Default
+// state is expanded so first impression is unchanged; users can
+// collapse to compress the layout. items-start on the parent grid
+// keeps heights independent so a collapsed card doesn't stretch.
+function CollapsibleCard({
+  accentColor,
+  eyebrow,
+  title,
+  caption,
+  defaultExpanded = true,
+  children,
+}) {
+  const [open, setOpen] = useState(defaultExpanded)
+  return (
+    <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className="w-full text-left px-5 pt-4 pb-3 transition-colors hover:bg-gray-50/50 focus:outline-hidden focus-visible:bg-gray-50/80"
+        style={{ borderBottom: open ? '1px solid #F3F4F6' : '1px solid transparent' }}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {eyebrow && (
+              <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: accentColor }}>
+                {eyebrow}
+              </p>
+            )}
+            <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
+              {title}
+            </h3>
+            {caption && (
+              <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
+                {caption}
+              </p>
+            )}
+          </div>
+          <motion.svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={open ? accentColor : '#94A3B8'}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="shrink-0 mt-1.5"
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </motion.svg>
+        </div>
+      </button>
+      <motion.div
+        initial={false}
+        animate={open ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
+        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
+        style={{ overflow: 'hidden' }}
+      >
+        {children}
+      </motion.div>
+    </section>
+  )
+}
+
 // V3.1: Reusable expandable footer for the 3 main Lens cards (SC / IX / Offtake).
 // Compact view never regresses -- this lives BELOW the existing card body.
 // Click toggles a motion-animated drawer revealing methodology / sources /
@@ -686,22 +755,14 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
   ]
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg flex flex-col overflow-hidden">
-      {/* V3 editorial header: numbered eyebrow → serif title → caption */}
-      <header className="px-5 pt-4 pb-3 border-b border-gray-100">
-        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#2563EB' }}>
-          03 / Site Control
-        </p>
-        <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
-          {county} County
-        </h3>
-        <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
-          {stateName.toUpperCase()}
-        </p>
-      </header>
-
+    <CollapsibleCard
+      accentColor="#2563EB"
+      eyebrow="03 / Site Control"
+      title={`${county} County`}
+      caption={stateName.toUpperCase()}
+    >
       {/* Body */}
-      <div className="px-5 py-4 flex-1">
+      <div className="px-5 py-4">
         {/* Population density context */}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Area Profile</span>
@@ -854,7 +915,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
           Site control flags are screening signals. Always confirm with a per-site survey (Phase I ESA, parcel-level wetland delineation, county zoning verification) before committing capital.
         </p>
       </CardDrilldown>
-    </section>
+    </CollapsibleCard>
   )
 }
 
@@ -872,22 +933,14 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg flex flex-col overflow-hidden">
-      {/* V3 editorial header: amber kept as semantic IX caution per V3 §7.4 */}
-      <header className="px-5 pt-4 pb-3 border-b border-gray-100">
-        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#D97706' }}>
-          02 / Interconnection
-        </p>
-        <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
-          {servingUtility || 'Utility TBD'}
-        </h3>
-        <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
-          QUEUE & UPGRADE COST CONDITIONS
-        </p>
-      </header>
-
+    <CollapsibleCard
+      accentColor="#D97706"
+      eyebrow="02 / Interconnection"
+      title={servingUtility || 'Utility TBD'}
+      caption="QUEUE & UPGRADE COST CONDITIONS"
+    >
       {/* Body */}
-      <div className="px-5 py-4 space-y-4 flex-1">
+      <div className="px-5 py-4 space-y-4">
         {/* Utility + queue */}
         <div>
           <SectionLabel>Serving Utility</SectionLabel>
@@ -1045,7 +1098,7 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
           Ease score is a leading indicator. Confirm interconnection economics with a system-impact study before committing capital — actual upgrade costs vary 2–3× from cluster-average benchmarks.
         </p>
       </CardDrilldown>
-    </section>
+    </CollapsibleCard>
   )
 }
 
@@ -1183,22 +1236,14 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
   const isCS = technology === 'Community Solar'
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg flex flex-col overflow-hidden">
-      {/* V3 editorial header */}
-      <header className="px-5 pt-4 pb-3 border-b border-gray-100">
-        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1" style={{ color: '#0F766E' }}>
-          01 / Offtake
-        </p>
-        <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
-          {isCS ? (stateProgram?.csProgram || 'No CS Program') : `${technology}`}
-        </h3>
-        <p className="font-mono text-[10px] text-gray-400 tracking-wide mt-0.5">
-          {isCS ? 'PROGRAM STATUS · REVENUE STACK' : 'REVENUE PROFILE'}
-        </p>
-      </header>
-
+    <CollapsibleCard
+      accentColor="#0F766E"
+      eyebrow="01 / Offtake"
+      title={isCS ? (stateProgram?.csProgram || 'No CS Program') : `${technology}`}
+      caption={isCS ? 'PROGRAM STATUS · REVENUE STACK' : 'REVENUE PROFILE'}
+    >
       {/* Body */}
-      <div className="px-5 py-4 space-y-4 flex-1">
+      <div className="px-5 py-4 space-y-4">
 
         {isCS ? (
           <>
@@ -1680,7 +1725,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
           Tariff rates change quarterly. Verify CS program enrollment terms, IRA bonus designations, and current bill-credit values directly with state PUC and tax counsel before committing capital.
         </p>
       </CardDrilldown>
-    </section>
+    </CollapsibleCard>
   )
 }
 
@@ -3680,9 +3725,11 @@ function SearchContent() {
               setRationaleLoading={setRationaleLoading}
             />
 
-            {/* Three pillar cards — V3 order: Offtake (01) → IX (02) → Site Control (03), left-to-right reading flow */}
+            {/* Three pillar cards — V3 order: Offtake (01) → IX (02) → Site Control (03), left-to-right reading flow.
+                items-start: cards size to their own content; collapsing one card no longer leaves vertical
+                whitespace next to the others. */}
             <SectionDivider />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
               <OfftakeCard
                 stateProgram={results.stateProgram}
                 revenueStack={results.revenueStack}
