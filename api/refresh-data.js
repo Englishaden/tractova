@@ -94,9 +94,15 @@ export default async function handler(req, res) {
   const startTs = Date.now()
   const results = {}
 
-  // Each source hits a different upstream API, so we fan them out in parallel.
-  // Wall-clock time becomes max(source) instead of sum(source).
-  await Promise.all(sources.map(async (source) => {
+  // Sources sharing an upstream must be serialized to avoid throttling. The
+  // three Census ACS sources (lmi, county_acs, nmtc_lic) all hit
+  // api.census.gov, which 503s under concurrent load from a single IP. The
+  // remaining sources hit independent APIs and can fan out in parallel.
+  const CENSUS_SERIAL = new Set(['lmi', 'county_acs', 'nmtc_lic'])
+  const censusGroup = sources.filter(s =>  CENSUS_SERIAL.has(s))
+  const otherGroup  = sources.filter(s => !CENSUS_SERIAL.has(s))
+
+  async function runOne(source) {
     const srcStart = Date.now()
     const startedAt = new Date()
     try {
@@ -118,7 +124,14 @@ export default async function handler(req, res) {
       results[source] = { ok: false, error: errMsg, duration_ms: Date.now() - srcStart }
       await logCronRun(source, { ok: false, error: errMsg }, authMode, startedAt)
     }
-  }))
+  }
+
+  await Promise.all([
+    // Non-Census sources fan out in parallel (independent upstreams).
+    ...otherGroup.map(runOne),
+    // Census sources run strictly sequentially within their own task.
+    (async () => { for (const s of censusGroup) await runOne(s) })(),
+  ])
 
   return res.status(200).json({
     ok: Object.values(results).every(r => r.ok),
@@ -146,6 +159,39 @@ async function logCronRun(source, summary, authMode, startedAt) {
   } catch (e) {
     console.warn('[refresh-data] cron_runs log failed:', e?.message)
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Census fetch with retry-on-503/429. Census API returns 503 ("undergoing
+// maintenance or busy") under sustained load from a single IP. We retry up
+// to 3 times with exponential backoff (1s, 2s, 4s) before giving up.
+// ─────────────────────────────────────────────────────────────────────────────
+async function censusFetch(url, { timeoutMs = 90000, retries = 3 } = {}) {
+  let lastErr
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) {
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)))
+    }
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+      // Retry only on transient upstream pushback.
+      if (response.status === 503 || response.status === 429) {
+        const body = await response.text().catch(() => '')
+        lastErr = new Error(`HTTP ${response.status}: ${body.slice(0, 200)}`)
+        continue
+      }
+      return response
+    } catch (err) {
+      clearTimeout(timeoutId)
+      lastErr = err
+      // Don't retry on AbortError -- that's our own timeout, not upstream.
+      if (err?.name === 'AbortError') break
+    }
+  }
+  throw lastErr || new Error('Census fetch failed')
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -215,20 +261,15 @@ async function refreshLmi() {
   const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=${vars.join(',')}&for=state:*`
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 90000)
-
   let raw
   try {
-    const response = await fetch(url, { signal: controller.signal })
-    clearTimeout(timeoutId)
+    const response = await censusFetch(url)
     if (!response.ok) {
       const body = await response.text().catch(() => '')
       return { ok: false, error: `Census API ${response.status}: ${body.slice(0, 200)}` }
     }
     raw = await response.json()
   } catch (err) {
-    clearTimeout(timeoutId)
     return { ok: false, error: `Census fetch failed: ${err.message}` }
   }
 
@@ -554,20 +595,15 @@ async function refreshCountyAcs() {
   const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=${vars.join(',')}&for=county:*`
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 90000)
-
   let raw
   try {
-    const response = await fetch(url, { signal: controller.signal })
-    clearTimeout(timeoutId)
+    const response = await censusFetch(url)
     if (!response.ok) {
       const body = await response.text().catch(() => '')
       return { ok: false, error: `Census county API ${response.status}: ${body.slice(0, 200)}` }
     }
     raw = await response.json()
   } catch (err) {
-    clearTimeout(timeoutId)
     return { ok: false, error: `Census county fetch failed: ${err.message}` }
   }
 
@@ -1599,10 +1635,7 @@ async function refreshNmtcLic() {
 
   let stateRaw
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 90000)
-    const resp = await fetch(stateUrl, { signal: controller.signal })
-    clearTimeout(timeoutId)
+    const resp = await censusFetch(stateUrl)
     if (!resp.ok) {
       const body = await resp.text().catch(() => '')
       return { ok: false, error: `Census state MFI ${resp.status}: ${body.slice(0, 200)}` }
@@ -1635,11 +1668,8 @@ async function refreshNmtcLic() {
   async function fetchTractsForState(stateFips) {
     const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E,B17020_001E,B17020_002E&for=tract:*&in=state:${stateFips}`
     const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 90000)
     try {
-      const resp = await fetch(url, { signal: controller.signal })
-      clearTimeout(timeoutId)
+      const resp = await censusFetch(url)
       if (!resp.ok) {
         const body = await resp.text().catch(() => '')
         throw new Error(`HTTP ${resp.status}: ${body.slice(0, 200)}`)
@@ -1648,7 +1678,6 @@ async function refreshNmtcLic() {
       if (!Array.isArray(json) || json.length < 2) return []
       return json   // includes header row at [0]
     } catch (err) {
-      clearTimeout(timeoutId)
       throw err
     }
   }
