@@ -123,6 +123,21 @@
   background: transparent;
 }
 
+/* Sub-score bar shimmer -- pure CSS animation (was previously driven by
+   motion's backgroundPositionX keyframes). Motion's interpolation between
+   '0%' and '50%' was producing a perceptible discontinuity at the loop
+   boundary on some browsers; native CSS keyframes have no such issue.
+   The pattern is a 50%-wide gradient tile that repeats; shifting position
+   by one full tile width returns the rendered output to a pixel-identical
+   state, so the loop is mathematically seamless. */
+@keyframes tractova-shimmer-flow {
+  0%   { background-position-x: 0%; }
+  100% { background-position-x: 50%; }
+}
+.shimmer-flow {
+  animation: tractova-shimmer-flow 6s linear infinite;
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;

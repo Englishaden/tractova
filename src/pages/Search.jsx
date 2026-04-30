@@ -58,8 +58,9 @@ function AnimatedScoreText({ value, ...textProps }) {
 function ArcGauge({ score }) {
   const s = (typeof score === 'number' && isFinite(score)) ? score : 0
   const pct = Math.max(0, Math.min(100, s)) / 100
-  // Tighter viewBox (no scale labels means we can shrink the bottom margin).
-  const R = 64, cx = 90, cy = 80
+  // viewBox widened slightly (110 tall, was 100) so ticks can sit OUTSIDE
+  // the arc without clipping at the top edge.
+  const R = 64, cx = 90, cy = 85
   const fullPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
   const arcLength = Math.PI * R
 
@@ -76,23 +77,24 @@ function ArcGauge({ score }) {
   const tickPositions = [0, 0.25, 0.5, 0.75, 1.0]
 
   return (
-    <svg viewBox="0 0 180 100" className="w-full max-w-[240px]">
-      {/* Tick marks -- longer + more visible than the previous version
-          (which read as too subtle). The 0/25/50/75/100 majors get full
-          length, the endpoint ones (0 and 100) get a bit more weight as
-          natural anchors. */}
+    <svg viewBox="0 0 180 110" className="w-full max-w-[240px]">
+      {/* Tick marks -- positioned OUTSIDE the arc (was crossing it before,
+          which read as black lines flowing through the green fill). Inner
+          tick start sits 5 units beyond the arc's outer edge; outer end
+          12 units beyond. Standard speedometer convention -- ticks
+          radiate outward as gauge labels, never overlapping the readout. */}
       {tickPositions.map((p, i) => {
         const angle = Math.PI * (1 - p)
         const isMajor = p === 0 || p === 0.5 || p === 1.0
-        const inner = R - 9, outer = R + 3
+        const inner = R + 5, outer = R + 12
         return (
           <line key={i}
             x1={cx + inner * Math.cos(angle)} y1={cy - inner * Math.sin(angle)}
             x2={cx + outer * Math.cos(angle)} y2={cy - outer * Math.sin(angle)}
-            stroke="#0A1828"
-            strokeWidth={isMajor ? 1.5 : 1.2}
+            stroke="#5A6B7A"
+            strokeWidth={isMajor ? 1.5 : 1.1}
             strokeLinecap="round"
-            opacity={isMajor ? 0.85 : 0.55}
+            opacity={isMajor ? 0.65 : 0.40}
           />
         )
       })}
@@ -220,26 +222,22 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
             boxShadow: `0 0 0 1px ${color}22 inset, 0 0 8px ${color}44`,
           }}
         >
-          {/* Tiled-gradient shimmer -- mathematically seamless loop.
-              Background is a 50%-wide gradient tile (transparent -> peak ->
-              transparent) repeating across the bar. Animating the
-              background position from 0% to 50% moves every peak right by
-              one tile width, at which point the pattern is identical to
-              the starting frame -- so motion's loop teleport produces NO
-              visible discontinuity. Two visible peaks at any time, sliding
-              continuously left-to-right with no jump. Slowed to 6s so
-              each peak spends more time on the bar (water-like flow,
-              not a ping). */}
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
+          {/* Tiled-gradient shimmer driven by a CSS @keyframes animation
+              (defined in src/index.css as `.shimmer-flow`). Motion's
+              percentage-keyframe interpolation produced a perceptible
+              discontinuity at the loop boundary on some browsers; CSS
+              native keyframes don't. Pattern is a 50%-wide gradient tile
+              that repeats; one full cycle shifts position by exactly one
+              tile width, so the rendered output at the loop boundary is
+              pixel-identical to the start. True seamless flow. */}
+          <div
+            className="absolute inset-0 pointer-events-none shimmer-flow"
             style={{
               background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.50) 50%, transparent 100%)',
               backgroundSize: '50% 100%',
               backgroundRepeat: 'repeat',
               mixBlendMode: 'overlay',
             }}
-            animate={{ backgroundPositionX: ['0%', '50%'] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
           />
         </motion.div>
       </div>
