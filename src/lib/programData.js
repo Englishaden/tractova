@@ -198,11 +198,17 @@ export async function getRevenueStack(stateId) {
     if (error) throw error
     if (!data) return null
     return {
-      summary:          data.summary,
-      irecMarket:       data.irec_market,
-      itcBase:          data.itc_base,
-      itcAdder:         data.itc_adder,
+      summary:           data.summary,
+      irecMarket:        data.irec_market,
+      itcBase:           data.itc_base,
+      itcAdder:          data.itc_adder,
       netMeteringStatus: data.net_metering_status,
+      // DSIRE verification (migration 029) — null until cron has run for this state
+      dsireProgramId:    data.dsire_program_id,
+      dsireProgramUrl:   data.dsire_program_url,
+      dsireSummary:      data.dsire_summary,
+      dsireLastVerified: data.dsire_last_verified,
+      dsireMatchQuality: data.dsire_match_quality,
     }
   })
 }

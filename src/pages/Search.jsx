@@ -1084,6 +1084,22 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
                   <DataRow label="Net metering / credit" value={revenueStack.netMeteringStatus} />
                 </div>
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
+                {revenueStack.dsireProgramUrl && (
+                  <p className="text-[10px] text-gray-400 mt-1.5 px-1 leading-relaxed">
+                    Verified against{' '}
+                    <a
+                      href={revenueStack.dsireProgramUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono uppercase tracking-[0.14em] text-teal-700 hover:text-teal-900 underline"
+                    >
+                      DSIRE
+                    </a>
+                    {revenueStack.dsireLastVerified && (
+                      <span> · last checked {new Date(revenueStack.dsireLastVerified).toISOString().slice(0, 10)}</span>
+                    )}
+                  </p>
+                )}
               </div>
             ) : (
               <div>

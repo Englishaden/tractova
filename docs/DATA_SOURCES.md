@@ -26,12 +26,16 @@ The bar: **every datum a customer sees in Tractova traces to a verifiable .gov o
 | `lmi_data` (state-level) | US Census ACS 2018-2022 5-year | `api.census.gov/data/2022/acs/acs5` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=lmi` |
 | `county_acs_data` (~3,142 US counties) | US Census ACS 2018-2022 5-year (county-level) | `api.census.gov/data/2022/acs/acs5?for=county:*` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=county_acs` |
 | `state_programs.dsire_*` (verification fields) | DSIRE (NCSU + DOE) | `programs.dsireusa.org/api/v2/programs` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=state_programs` |
+| `revenue_stacks.dsire_*` (verification fields) | DSIRE (NCSU + DOE) | `programs.dsireusa.org/api/v2/programs` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=revenue_stacks` |
 | `revenue_rates.capacity_factor_pct` | NREL PVWatts API v8 | `developer.nrel.gov/api/pvwatts/v8.json` | Quarterly (1st of Jan/Apr/Jul/Oct) | `api/refresh-capacity-factors.js` |
 | `revenue_rates.ci_retail_rate_cents_kwh` | EIA Electricity Retail Sales | `api.eia.gov/v2/electricity/retail-sales` | Quarterly (with capacity factors) | `api/refresh-capacity-factors.js` |
 | `substations` | EIA Form 860 (Generator-level Plant Data) | `api.eia.gov/v2/electricity/operating-generator-capacity` | Monthly (1st of month, 6am UTC) | `api/refresh-substations.js` |
 | `ix_queue_data` | MISO + PJM + NYISO + ISO-NE public queue reports | (ISO-specific scrapers) | Weekly (Sun 6am UTC) | `api/refresh-ix-queue.js` |
+| `news_feed` (auto-classified rows) | PV Magazine USA + Solar Industry Mag + Utility Dive + Solar Power World RSS, AI-filtered via Claude Haiku 4.5 | RSS feeds + Anthropic API | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=news` |
 
 > **Note on `state_programs` partial automation:** DSIRE provides program identity, status, summary text, and the canonical URL — those fields ARE live-pulled. The Tractova-curated fields (`csStatus`, `capacityMW`, `lmiPercent`, `ixDifficulty`, `enrollmentRateMWPerMonth`) are NOT in DSIRE and remain admin-curated. The DSIRE pull adds a verification timestamp + canonical-source link rather than replacing curated values.
+
+> **Note on `news_feed` partial automation:** Manual admin curation continues to work unchanged. Auto-classified rows are tagged `auto_classified=true` with a `relevance_score` (0-100) and `dedupe_hash` so re-runs are idempotent. The classifier inserts only items scoring ≥60. Each article keeps its original outlet (PV Magazine, Utility Dive, etc.) as `source` and the canonical article URL — Tractova does not republish content, only points at the verified source.
 
 ### 🔄 Manual curation pending automation
 
@@ -40,12 +44,13 @@ These are admin-curated today with documented sources. Migration to live-pull is
 | Table | Should pull from | Cadence (target) | Effort to automate |
 |---|---|---|---|
 | `state_programs` (CS programs, status, capacity) | DSIRE database (NCSU, federally funded) — `programs.dsireusa.org` | Weekly | ~3h dedicated |
-| `revenue_stacks` (REC values, ITC adders, net-metering rules) | DSIRE + state PUC tariff filings | Weekly | ~3-4h |
+| ✅ `revenue_stacks.dsire_*` (verification layer NEW) | Live-pulled via DSIRE API | Weekly | (already shipped — see above) |
+| `revenue_stacks` curated values (REC $/MWh, ITC adders, net-metering rules) | Admin curation backed by DSIRE summary text + state PUC tariff filings | Manual | (admin-only, DSIRE summary aids verification) |
 | `county_intelligence` — site-control narrative + IX context | Manual today; needs admin curation per county | Manual | (admin-only)
 | ✅ `county_acs_data` — population + LMI density (NEW) | Live-pulled via Census ACS county-level | Weekly | (already shipped — see above) |
 | `county_intelligence` — wetland coverage | EPA NWI (National Wetlands Inventory) | Annual | ~3h (multi-API + spatial join) |
 | `county_intelligence` — agricultural/farmland | USDA Web Soil Survey | Annual | ~3h |
-| `news_feed` | Industry trade press RSS (Solar Industry Mag, Utility Dive, RTO Insider, PV Magazine) + NARUC bulletins | Weekly | ~2-3h |
+| ✅ `news_feed` — auto-classified articles (NEW) | RSS + Claude Haiku 4.5 classifier | Weekly | (already shipped — see above) |
 
 ### ⏸ Deferred
 
@@ -74,7 +79,7 @@ These are admin-curated today with documented sources. Migration to live-pull is
 | Endpoint | Cron expression | Description |
 |---|---|---|
 | `/api/refresh-ix-queue` | `0 6 * * 0` | Sunday 6am UTC — ISO/RTO queue scrape |
-| `/api/refresh-data?source=all` | `0 7 * * 0` | Sunday 7am UTC — Multiplexed live-source refresh (currently: `lmi`) |
+| `/api/refresh-data?source=all` | `0 7 * * 0` | Sunday 7am UTC — Multiplexed live-source refresh (`lmi` + `state_programs` + `county_acs` + `news` + `revenue_stacks`) |
 | `/api/check-staleness` | `0 8 * * 1` | Monday 8am UTC — Staleness alert email to admin |
 | `/api/send-alerts` | `0 14 * * 1,4` | Mon/Thu 2pm UTC — Project alerts |
 | `/api/send-digest` | `0 14 * * 1` | Monday 2pm UTC — Weekly digest |
@@ -120,6 +125,7 @@ For full live-pull functionality, set these in Vercel project env (matching the 
 | `EIA_API_KEY` | substations + retail rates | https://www.eia.gov/opendata/register.php (free) |
 | `NREL_API_KEY` | capacity factors | https://developer.nrel.gov/signup/ (free) |
 | `CENSUS_API_KEY` | LMI (optional — works without key at low volume) | https://api.census.gov/data/key_signup.html (free) |
+| `ANTHROPIC_API_KEY` | news_feed RSS classifier (Haiku 4.5) | https://console.anthropic.com — already configured for `lens-insight.js` |
 | `CRON_SECRET` | (optional) extra auth on cron endpoints | Generate yourself; matches `Authorization: Bearer X` |
 
 If a key is missing, the cron logs a warning and skips — never crashes.
