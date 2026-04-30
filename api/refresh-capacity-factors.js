@@ -158,14 +158,16 @@ async function handlerInner(req, res) {
         results.details.push(`${stateId}: ${cfPct}% (was CS:${oldCS ?? '—'}, CI:${oldCI ?? '—'})`)
 
         if (oldCS != null && oldCS !== cfPct) {
-          await supabaseAdmin.from('data_updates').insert({
-            table_name: 'revenue_rates',
-            row_id: stateId,
-            field: 'capacity_factor_pct',
-            old_value: String(oldCS),
-            new_value: String(cfPct),
-            updated_by: 'nrel-pvwatts',
-          }).catch(() => {})
+          try {
+            await supabaseAdmin.from('data_updates').insert({
+              table_name: 'revenue_rates',
+              row_id: stateId,
+              field: 'capacity_factor_pct',
+              old_value: String(oldCS),
+              new_value: String(cfPct),
+              updated_by: 'nrel-pvwatts',
+            })
+          } catch { /* best-effort logging */ }
         }
       } else {
         results.unchanged++
@@ -179,14 +181,18 @@ async function handlerInner(req, res) {
   }
 
   // Log cron run
-  await supabaseAdmin.from('cron_runs').insert({
-    cron_name: 'capacity-factor-refresh',
-    status: results.errors.length > 0 ? 'partial' : 'success',
-    started_at: startedAt.toISOString(),
-    finished_at: new Date().toISOString(),
-    duration_ms: Date.now() - startedAt.getTime(),
-    summary: results,
-  }).catch(err => console.error('Failed to log cron run:', err.message))
+  try {
+    await supabaseAdmin.from('cron_runs').insert({
+      cron_name: 'capacity-factor-refresh',
+      status: results.errors.length > 0 ? 'partial' : 'success',
+      started_at: startedAt.toISOString(),
+      finished_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt.getTime(),
+      summary: results,
+    })
+  } catch (err) {
+    console.error('Failed to log cron run:', err.message)
+  }
 
   return res.status(200).json({
     ...results,

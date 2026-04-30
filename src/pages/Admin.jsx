@@ -1397,6 +1397,213 @@ function IXQueueTab() {
 // Data Health Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Refresh status banner — V3-styled diagnostics panel for the manual refresh
+// click. Shows overall verdict, per-endpoint status, expandable failure
+// detail with one-click copy so the admin can paste a clean error report.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function endpointStatus(val) {
+  // Returns 'ok' | 'partial' | 'failed'
+  if (!val || val.error || val.ok === false && !val.sources) return 'failed'
+  if (val.sources) {
+    const subs = Object.values(val.sources)
+    const anyFail = subs.some(s => s?.ok === false)
+    if (anyFail) return subs.every(s => s?.ok === false) ? 'failed' : 'partial'
+  }
+  return 'ok'
+}
+
+function buildReportText(result) {
+  const lines = [
+    `Tractova data refresh report`,
+    `Started: ${result.startedAt || '—'}`,
+    `Total:   ${result.totalMs ? `${(result.totalMs / 1000).toFixed(1)}s` : '—'}`,
+    `Verdict: ${result.ok ? 'OK' : 'PARTIAL / FAILED'}`,
+    '',
+  ]
+  for (const [name, val] of Object.entries(result.endpoints || {})) {
+    const status = endpointStatus(val).toUpperCase()
+    if (val.sources) {
+      const subs = Object.entries(val.sources)
+        .map(([k, v]) => v?.ok === false ? `  ${k}: FAIL — ${v.error || 'unknown'}` : `  ${k}: ok`)
+        .join('\n')
+      lines.push(`[${name}] ${status}\n${subs}`)
+    } else if (val.error || val.ok === false) {
+      lines.push(`[${name}] ${status}\n  ${val.error || 'unknown error'}`)
+    } else {
+      lines.push(`[${name}] ${status}`)
+    }
+  }
+  return lines.join('\n')
+}
+
+function RefreshStatusBanner({ result }) {
+  if (!result) return null
+
+  // Top-level catastrophic case: the click itself threw before any endpoints ran.
+  if (result.error && !result.endpoints) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50/60 px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          <span className="w-2 h-2 rounded-full bg-red-500" />
+          <span className="font-serif text-sm font-medium text-red-900">Refresh failed before any endpoint ran</span>
+        </div>
+        <pre className="mt-2 ml-5 text-[11px] font-mono text-red-700 whitespace-pre-wrap break-words leading-snug">
+          {String(result.error)}
+        </pre>
+      </div>
+    )
+  }
+
+  const eps = Object.entries(result.endpoints || {})
+  const okCount   = eps.filter(([, v]) => endpointStatus(v) === 'ok').length
+  const partial   = eps.filter(([, v]) => endpointStatus(v) === 'partial').length
+  const failed    = eps.filter(([, v]) => endpointStatus(v) === 'failed').length
+
+  const verdict = result.ok
+    ? { label: 'Refresh complete',  tone: 'emerald' }
+    : failed === eps.length
+      ? { label: 'Refresh failed',  tone: 'red' }
+      : { label: 'Partial refresh', tone: 'amber' }
+
+  const tones = {
+    emerald: { ring: 'border-emerald-200', wash: 'bg-emerald-50/40', dot: 'bg-emerald-500', text: 'text-emerald-800' },
+    amber:   { ring: 'border-amber-200',   wash: 'bg-amber-50/40',   dot: 'bg-amber-500',   text: 'text-amber-900'   },
+    red:     { ring: 'border-red-200',     wash: 'bg-red-50/40',     dot: 'bg-red-500',     text: 'text-red-900'     },
+  }
+  const t = tones[verdict.tone]
+
+  const totalSec = result.totalMs ? (result.totalMs / 1000).toFixed(1) : null
+  const startedTime = result.startedAt ? new Date(result.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : null
+
+  function copyAll() {
+    navigator.clipboard.writeText(buildReportText(result)).catch(() => {})
+  }
+
+  return (
+    <div className={`rounded-xl border ${t.ring} ${t.wash} overflow-hidden`}>
+      {/* Header */}
+      <div className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b ${t.ring}`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={`w-2 h-2 rounded-full ${t.dot} flex-shrink-0`} />
+          <span className={`font-serif text-sm font-medium ${t.text}`}>{verdict.label}</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted truncate">
+            {okCount}/{eps.length} ok
+            {partial > 0 ? ` · ${partial} partial` : ''}
+            {failed > 0 ? ` · ${failed} failed` : ''}
+            {startedTime ? ` · ${startedTime}` : ''}
+            {totalSec ? ` · ${totalSec}s` : ''}
+          </span>
+        </div>
+        <button
+          onClick={copyAll}
+          className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors flex-shrink-0"
+        >
+          Copy report
+        </button>
+      </div>
+
+      {/* Endpoint rows */}
+      <div className="divide-y divide-gray-200/60">
+        {eps.map(([name, val]) => <EndpointRow key={name} name={name} val={val} />)}
+      </div>
+    </div>
+  )
+}
+
+function EndpointRow({ name, val }) {
+  const status = endpointStatus(val)
+  const isMux  = !!val?.sources
+
+  const dots = { ok: 'bg-emerald-500', partial: 'bg-amber-500', failed: 'bg-red-500' }
+  const labels = { ok: 'OK', partial: 'PARTIAL', failed: 'FAILED' }
+  const labelColors = { ok: 'text-emerald-700', partial: 'text-amber-700', failed: 'text-red-700' }
+
+  function copyError(text) {
+    navigator.clipboard.writeText(text).catch(() => {})
+  }
+
+  return (
+    <div className="px-4 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={`w-1.5 h-1.5 rounded-full ${dots[status]} flex-shrink-0`} />
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink truncate">{name}</span>
+          {isMux && (
+            <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">
+              · {Object.keys(val.sources).length} sources
+            </span>
+          )}
+        </div>
+        <span className={`font-mono text-[10px] uppercase tracking-[0.18em] font-semibold ${labelColors[status]}`}>
+          {labels[status]}
+        </span>
+      </div>
+
+      {/* Multiplexed: per-source pills */}
+      {isMux && (
+        <div className="mt-2 ml-4 flex flex-wrap gap-1.5">
+          {Object.entries(val.sources).map(([k, v]) => {
+            const subOk = v?.ok !== false
+            return (
+              <span
+                key={k}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${subOk ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-red-200 bg-red-50 text-red-700'}`}
+              >
+                <span className="mr-1">{subOk ? '✓' : '✗'}</span>{k}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Top-level endpoint failure */}
+      {!isMux && status === 'failed' && (
+        <div className="mt-2 ml-4 flex items-start gap-2">
+          <pre className="flex-1 text-[10px] font-mono text-red-800 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5 whitespace-pre-wrap break-all leading-snug max-h-40 overflow-auto">
+            {String(val?.error || 'unknown error')}
+            {val?.where ? `\n  at: ${val.where}` : ''}
+          </pre>
+          <button
+            onClick={() => copyError(String(val?.error || ''))}
+            className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors flex-shrink-0 pt-1"
+          >
+            Copy
+          </button>
+        </div>
+      )}
+
+      {/* Multiplexed: per-source failure detail */}
+      {isMux && Object.entries(val.sources).filter(([, v]) => v?.ok === false).length > 0 && (
+        <div className="mt-2 ml-4 space-y-1.5">
+          {Object.entries(val.sources)
+            .filter(([, v]) => v?.ok === false)
+            .map(([k, v]) => (
+              <div key={k} className="flex items-start gap-2">
+                <div className="flex-1 text-[10px] font-mono text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5 leading-snug">
+                  <div className="font-semibold uppercase tracking-[0.14em] text-[9px] mb-0.5 text-amber-700">{k}</div>
+                  <div className="whitespace-pre-wrap break-all">{String(v.error || 'unknown')}</div>
+                  {v.first_error && v.first_error !== v.error && (
+                    <div className="mt-1 pt-1 border-t border-amber-200 text-amber-800 break-all">
+                      <span className="text-amber-600">first row error: </span>{v.first_error}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => copyError(`[${k}] ${v.error || ''}${v.first_error ? `\nfirst row: ${v.first_error}` : ''}`)}
+                  className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors flex-shrink-0 pt-1"
+                >
+                  Copy
+                </button>
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Each card prefers `last_cron_success` (when did the cron last verify this
 // data against the live source?) -- migration 031 derives this from cron_runs
 // so a click on "Refresh data from sources" bumps every card whose cron
@@ -1634,6 +1841,7 @@ function DataHealthTab() {
     setRefreshing(true)
     setRefreshResult(null)
     setError(null)
+    const startedAt = new Date()
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
@@ -1660,7 +1868,7 @@ function DataHealthTab() {
         }))
       )
 
-      const aggregate = { ok: true, endpoints: {} }
+      const aggregate = { ok: true, endpoints: {}, startedAt: startedAt.toISOString() }
       for (let i = 0; i < endpoints.length; i++) {
         const e = endpoints[i]
         const r = settled[i]
@@ -1679,6 +1887,7 @@ function DataHealthTab() {
           aggregate.endpoints[e.name] = { ok: false, error: r.reason?.message || 'failed' }
         }
       }
+      aggregate.totalMs = Date.now() - startedAt.getTime()
       setRefreshResult(aggregate)
 
       // Crons just rewrote the underlying tables -- nuke the front-end 1h
@@ -1691,7 +1900,7 @@ function DataHealthTab() {
         if (fresh.ok) setData(await fresh.json())
       } catch (_) { /* non-fatal */ }
     } catch (err) {
-      setRefreshResult({ ok: false, error: err.message })
+      setRefreshResult({ ok: false, error: err.message, startedAt: startedAt.toISOString(), totalMs: Date.now() - startedAt.getTime() })
     } finally {
       setRefreshing(false)
     }
@@ -1755,44 +1964,6 @@ function DataHealthTab() {
               </>
             )}
           </button>
-          {refreshResult && (
-            <div className={`text-xs ${refreshResult.ok ? 'text-emerald-700' : 'text-amber-700'} space-y-0.5`}>
-              {(() => {
-                if (refreshResult.error) return <div>Refresh failed: {refreshResult.error}</div>
-                const eps = refreshResult.endpoints || {}
-                const lines = Object.entries(eps).map(([name, val]) => {
-                  if (val?.error) {
-                    return <div key={name}><span className="font-mono">{name}</span> ✗ <span className="text-amber-600">{String(val.error).slice(0, 140)}</span></div>
-                  }
-                  if (val?.sources) {
-                    const subEntries = Object.entries(val.sources)
-                    const subFailed = subEntries.filter(([, v]) => v?.ok === false)
-                    const subSummary = subEntries
-                      .map(([k, v]) => v?.ok === false ? `${k}✗` : `${k}✓`)
-                      .join(' ')
-                    return (
-                      <div key={name}>
-                        <div><span className="font-mono">{name}</span> {subFailed.length === 0 ? '✓' : '⚠'} <span className="text-ink-muted">[{subSummary}]</span></div>
-                        {subFailed.map(([k, v]) => (
-                          <div key={k} className="ml-4 text-amber-700">
-                            <span className="font-mono">{k}</span>: {String(v.error || 'unknown').slice(0, 200)}
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  }
-                  if (val?.ok === false) {
-                    return <div key={name}><span className="font-mono">{name}</span> ✗ <span className="text-amber-600">{String(val.error || 'unknown').slice(0, 140)}</span></div>
-                  }
-                  return <div key={name}><span className="font-mono">{name}</span> ✓</div>
-                })
-                return <>
-                  <div>{refreshResult.ok ? '✓ All sources refreshed' : 'Partial refresh — see per-endpoint detail:'}</div>
-                  {lines}
-                </>
-              })()}
-            </div>
-          )}
         </div>
         <button
           onClick={handleExport}
@@ -1802,6 +1973,9 @@ function DataHealthTab() {
           {exporting ? 'Exporting...' : 'Export All Data (JSON)'}
         </button>
       </div>
+
+      {/* Refresh status panel — full-width, copy-friendly diagnostics */}
+      {refreshResult && <RefreshStatusBanner result={refreshResult} />}
 
       {/* Source attribution help */}
       <p className="text-[11px] text-ink-muted leading-relaxed">

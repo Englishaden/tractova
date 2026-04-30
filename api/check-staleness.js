@@ -158,14 +158,18 @@ export default async function handler(req, res) {
   }
 
   // Log cron run
-  await supabaseAdmin.from('cron_runs').insert({
-    cron_name: 'staleness-check',
-    status: results.error ? 'failed' : results.issues.length > 0 ? 'partial' : 'success',
-    started_at: startedAt.toISOString(),
-    finished_at: new Date().toISOString(),
-    duration_ms: Date.now() - startedAt.getTime(),
-    summary: results,
-  }).catch(err => console.error('Failed to log cron run:', err.message))
+  try {
+    await supabaseAdmin.from('cron_runs').insert({
+      cron_name: 'staleness-check',
+      status: results.error ? 'failed' : results.issues.length > 0 ? 'partial' : 'success',
+      started_at: startedAt.toISOString(),
+      finished_at: new Date().toISOString(),
+      duration_ms: Date.now() - startedAt.getTime(),
+      summary: results,
+    })
+  } catch (err) {
+    console.error('Failed to log cron run:', err.message)
+  }
 
   return res.status(200).json(results)
 }

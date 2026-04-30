@@ -183,14 +183,16 @@ async function handleStagingPost(req, res) {
 
   for (const field of PROMOTABLE_FIELDS) {
     if (staged[field] != null && live && String(staged[field]) !== String(live[field])) {
-      await supabaseAdmin.from('data_updates').insert({
-        table_name: 'state_programs',
-        row_id: id,
-        field,
-        old_value: live[field] != null ? String(live[field]) : null,
-        new_value: String(staged[field]),
-        updated_by: `staging:${staged.submitted_by || 'unknown'}`,
-      }).catch(() => {})
+      try {
+        await supabaseAdmin.from('data_updates').insert({
+          table_name: 'state_programs',
+          row_id: id,
+          field,
+          old_value: live[field] != null ? String(live[field]) : null,
+          new_value: String(staged[field]),
+          updated_by: `staging:${staged.submitted_by || 'unknown'}`,
+        })
+      } catch { /* best-effort logging */ }
     }
   }
 
