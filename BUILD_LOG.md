@@ -4,9 +4,63 @@
 
 ---
 
+## 🔴 Active issues — pick up tomorrow first
+
+### NMTC LIC handler still failing with same wildcard error
+
+**Symptom (last seen 2026-04-29 ~10:38 PM):**
+
+```
+multiplexed · 8 sources · PARTIAL
+  ✓ lmi · state_programs · county_acs · news · revenue_stacks
+    energy_community · hud_qct_dda
+  ✗ nmtc_lic — Census tract 400: error: wildcard not allowed
+    for 'state' in geography hierarchy
+substations / ix_queue / capacity → all OK ✓
+```
+
+**What's already done:**
+
+- Commit `9ba2086` rewrote the handler to iterate state-by-state (explicit
+  FIPS like `in=state:01`) instead of the wildcard `in=state:*`. The old
+  code definitely had the wildcard; the new code definitely does not.
+- Build is clean.
+
+**Most likely cause when retesting:**
+
+1. **Vercel hadn't deployed `9ba2086` yet** when the user clicked Refresh.
+   Vercel deploys take 1-3 min after push. The error message is identical
+   to the pre-fix version, suggesting the old code was still live.
+
+**First step tomorrow:**
+
+1. Confirm the live deploy includes `9ba2086` — Vercel dashboard → latest
+   deployment → check commit hash matches `9ba2086` (or newer).
+2. If yes, click Refresh again. NMTC should show ✓ with new fields:
+   `counties_with_lic`, `total_qualifying_tracts`, `states_pulled_successfully`.
+3. If still ✗ with the same error, the fix has a remaining bug. Investigate:
+   - Open `api/refresh-data.js` → `refreshNmtcLic` → confirm the URL string
+     interpolates a real FIPS, not `*`. The relevant line should read:
+     `&for=tract:*&in=state:${stateFips}` where `stateFips` comes from
+     iterating `Object.keys(FIPS_TO_USPS)`.
+   - Worst case, log the actual URL string before the fetch to confirm
+     what's being sent to Census API.
+4. If a specific state's call 400s for a different reason, the new
+   `state_fetch_errors[]` array will surface it (first 10 errors shown in
+   the cron summary panel — Copy report button gives the full payload).
+
+**Related context:**
+
+- Substations / IX queue / capacity factors all OK now — the
+  `.catch`-on-builder bug (commit `4016fca`) is fully resolved.
+- Migrations 034 (HUD QCT/DDA) + 036 (NMTC LIC) status: probably applied
+  since `hud_qct_dda` shows ✓ in the multiplexed run. Verify in Supabase.
+
+---
+
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `ad67356` Data layer: NMTC LIC tracts → IRA §48(e) Cat 1 +10% ITC bonus per county
+- **Branch:** `main` · last commit: `9ba2086` Fix: NMTC LIC handler — iterate tract pulls per-state
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -50,6 +104,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `9ba2086` | Fix: NMTC LIC handler — iterate tract pulls per-state (Census wildcard fix) ⚠ verify next session |
+| `f2fdb6c` | Docs: consolidate planning trail into single BUILD_LOG.md |
 | `ad67356` | Data layer: NMTC LIC tracts → IRA §48(e) Cat 1 +10% ITC bonus per county |
 | `fe2b108` | Data layer: HUD QCT/DDA federal LIHTC overlay per county |
 | `71d7456` | Data layer: IRA Energy Community (+10% ITC bonus) per-county eligibility |
