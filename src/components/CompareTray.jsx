@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
+import TractovaLoader from './ui/TractovaLoader'
 
 const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
 const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
@@ -334,18 +335,17 @@ function CompareModal({ onClose }) {
             </p>
           )}
           {aiLoading ? (
-            <div className="mb-3 rounded-xl p-4" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.08)' }}>
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-5 h-5 rounded-md animate-pulse" style={{ background: 'rgba(52,211,153,0.2)' }} />
-                <div className="h-2.5 w-32 rounded-sm bg-white/8 animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                <div className="h-2.5 w-full rounded-sm bg-white/5 animate-pulse" />
-                <div className="h-2.5 w-4/5 rounded-sm bg-white/5 animate-pulse" />
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                <div className="h-14 rounded-lg bg-white/3 animate-pulse" />
-                <div className="h-14 rounded-lg bg-white/3 animate-pulse" />
+            <div className="mb-3 rounded-xl px-5 py-6" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.08)' }}>
+              <div className="flex items-center justify-center gap-4">
+                <TractovaLoader size={48} />
+                <div>
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-[0.22em]" style={{ color: '#5EEAD4' }}>
+                    ◆ AI Comparison
+                  </p>
+                  <p className="text-[12px] mt-1 leading-snug" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                    Stacking the {items.length} projects across composite, IX, and program signals…
+                  </p>
+                </div>
               </div>
             </div>
           ) : aiCompare?.comparison ? (
