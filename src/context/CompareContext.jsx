@@ -23,11 +23,17 @@ export function lensResultToCompareItem(results) {
     feasibilityScore: sp?.feasibilityScore || null,
     ixDifficulty:     sp?.ixDifficulty || null,
     capacityMW:       sp?.capacityMW || null,
+    // Captured at compare-add time so the modal can render rows that
+    // would otherwise need a per-render state program lookup.
+    lmiRequired:      sp?.lmiRequired ?? null,
+    lmiPercent:       sp?.lmiPercent ?? null,
   }
 }
 
-// Normalize a Library project (already camelCase from normalize()) into a compare item
-export function libraryProjectToCompareItem(project) {
+// Normalize a Library project into a compare item. `stateProgram` is optional;
+// when provided we capture the snapshot fields (capacity / LMI) the modal
+// renders alongside the project's own saved data.
+export function libraryProjectToCompareItem(project, stateProgram = null) {
   return {
     id:               `lib-${project.id}`,
     source:           'library',
@@ -39,10 +45,12 @@ export function libraryProjectToCompareItem(project) {
     technology:       project.technology,
     stage:            project.stage,
     csStatus:         project.csStatus || 'none',
-    csProgram:        project.csProgram || null,
+    csProgram:        project.csProgram || stateProgram?.csProgram || null,
     feasibilityScore: project.feasibilityScore || null,
-    ixDifficulty:     project.ixDifficulty || null,
-    capacityMW:       null,
+    ixDifficulty:     project.ixDifficulty || stateProgram?.ixDifficulty || null,
+    capacityMW:       stateProgram?.capacityMW || null,
+    lmiRequired:      stateProgram?.lmiRequired ?? null,
+    lmiPercent:       stateProgram?.lmiPercent ?? null,
     savedAt:          project.savedAt,
   }
 }

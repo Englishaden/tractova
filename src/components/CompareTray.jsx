@@ -89,13 +89,20 @@ function CompareModal({ onClose }) {
     return () => { cancelled = true }
   }, [items.length])
 
+  // V3.1: rows reorganized into "Composite + Pillars" / "Project" / "Source"
+  // sections. New rows surface CS capacity (program runway) and LMI carveout
+  // (subscriber-sourcing complexity) -- both decision-critical signals that
+  // were previously missing from the compare view.
+  const fmtCap = (mw) => mw == null ? '—' : mw >= 1000 ? `${(mw / 1000).toFixed(1)} GW` : `${Math.round(mw)} MW`
   const rows = [
     {
       label: 'Feasibility Index',
+      section: 'COMPOSITE',
       render: (item) => <ScoreBar score={item.feasibilityScore} />,
     },
     {
       label: 'CS Program Status',
+      section: 'COMPOSITE',
       render: (item) => (
         item.csStatus
           ? <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded-sm border ${CS_CLS[item.csStatus] || CS_CLS.none}`}>
@@ -106,10 +113,23 @@ function CompareModal({ onClose }) {
     },
     {
       label: 'CS Program',
+      section: 'COMPOSITE',
       render: (item) => <span className="text-xs text-white/65">{item.csProgram || '—'}</span>,
     },
     {
+      label: 'Program Capacity',
+      section: 'COMPOSITE',
+      render: (item) => (
+        <span className="text-xs font-mono text-white/65">
+          {item.capacityMW != null
+            ? <><span className="text-white/85 font-semibold">{fmtCap(item.capacityMW)}</span><span className="text-white/35 ml-1">remaining</span></>
+            : '—'}
+        </span>
+      ),
+    },
+    {
       label: 'IX Difficulty',
+      section: 'COMPOSITE',
       render: (item) => (
         item.ixDifficulty
           ? <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded-sm border ${IX_CLS[item.ixDifficulty] || ''}`}>
@@ -119,19 +139,41 @@ function CompareModal({ onClose }) {
       ),
     },
     {
+      label: 'LMI Carveout',
+      section: 'COMPOSITE',
+      render: (item) => {
+        if (item.lmiRequired === false || item.lmiPercent === 0) {
+          return <span className="text-[10px] font-mono text-emerald-300/85">Not required</span>
+        }
+        if (item.lmiRequired && item.lmiPercent > 0) {
+          const tone = item.lmiPercent >= 50 ? 'text-orange-300' : item.lmiPercent >= 30 ? 'text-amber-300' : 'text-yellow-300'
+          return (
+            <span className={`text-xs font-mono ${tone}`}>
+              <span className="font-semibold">{item.lmiPercent}%</span><span className="text-white/35 ml-1">required</span>
+            </span>
+          )
+        }
+        return <span className="text-xs text-white/25 font-mono">—</span>
+      },
+    },
+    {
       label: 'Project Size',
+      section: 'PROJECT',
       render: (item) => <span className="text-xs font-mono text-white/65">{item.mw ? `${item.mw} MW AC` : '—'}</span>,
     },
     {
       label: 'Technology',
+      section: 'PROJECT',
       render: (item) => <span className="text-xs text-white/65">{item.technology || '—'}</span>,
     },
     {
       label: 'Stage',
+      section: 'PROJECT',
       render: (item) => <span className="text-xs text-white/65">{item.stage || '—'}</span>,
     },
     {
       label: 'Source',
+      section: 'PROJECT',
       render: (item) => (
         <span className={`text-[10px] font-semibold font-mono px-2 py-0.5 rounded border ${
           item.source === 'library'
@@ -233,14 +275,32 @@ function CompareModal({ onClose }) {
             ))}
           </div>
 
-          {/* Metric rows */}
+          {/* Metric rows -- grouped by section so the dossier reads as
+              two distinct chambers (Composite, Project) instead of one
+              long ungrouped list. */}
           <div>
-            {rows.map((row) => (
-              <MetricRow
-                key={row.label}
-                label={row.label}
-                values={items.map((item) => row.render(item))}
-              />
+            {Array.from(new Set(rows.map(r => r.section))).map(section => (
+              <div key={section}>
+                <div
+                  className="grid gap-4 pt-3 pb-1"
+                  style={{ gridTemplateColumns: `148px repeat(${items.length}, 1fr)`, borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                >
+                  <span
+                    className="text-[8px] font-mono uppercase tracking-[0.32em] text-white/30 pr-2 leading-none"
+                    style={{ fontFamily: "'JetBrains Mono', ui-monospace, monospace" }}
+                  >
+                    § {section === 'COMPOSITE' ? '01' : '02'} · {section}
+                  </span>
+                  {items.map(it => <span key={it.id} />)}
+                </div>
+                {rows.filter(r => r.section === section).map(row => (
+                  <MetricRow
+                    key={row.label}
+                    label={row.label}
+                    values={items.map((item) => row.render(item))}
+                  />
+                ))}
+              </div>
             ))}
           </div>
         </div>

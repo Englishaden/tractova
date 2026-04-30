@@ -458,9 +458,9 @@ function StagePicker({ stage, projectId, onChange }) {
 }
 
 // ── Compare chip (icon-only button, sits in card right controls) ─────────────
-function CompareChip({ project }) {
+function CompareChip({ project, stateProgram = null }) {
   const { add, remove, isInCompare, items, MAX_ITEMS } = useCompare()
-  const item = libraryProjectToCompareItem(project)
+  const item = libraryProjectToCompareItem(project, stateProgram)
   const inCompare = isInCompare(item.id)
   const atLimit = !inCompare && items.length >= MAX_ITEMS
 
@@ -1514,7 +1514,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
         {/* Right controls */}
         <div className="flex items-center gap-2.5 shrink-0">
-          <CompareChip project={project} />
+          <CompareChip project={project} stateProgram={current} />
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
             title="Remove project"
