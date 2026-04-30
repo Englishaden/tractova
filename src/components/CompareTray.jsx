@@ -243,7 +243,7 @@ function CompareModal({ onClose }) {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto px-6 py-4">
+        <div className="flex-1 overflow-auto px-6 py-4 scrollbar-dark">
           {/* Column headers */}
           <div
             className="grid gap-4 pb-3 mb-1"
