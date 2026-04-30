@@ -1452,7 +1452,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
       {/* ── Collapsed header (always visible) ──────────────────────────────── */}
       <div
-        className="px-5 py-4 flex items-center gap-4 cursor-pointer select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 rounded-t-xl"
+        className="px-4 sm:px-5 py-4 flex items-center gap-3 sm:gap-4 cursor-pointer select-none focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 rounded-t-xl"
         onClick={() => setExpanded(e => !e)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(prev => !prev) } }}
         role="button"
