@@ -257,6 +257,51 @@ export async function getEnergyCommunity(stateId, countyName) {
   })
 }
 
+// ── getHudQctDda ──────────────────────────────────────────────────────────────
+// HUD federal LIHTC designation overlay per county. Returns per-county QCT
+// count + non-metro DDA flag if the county has any designation; otherwise
+// null (no QCTs and not a non-metro DDA -- still possibly inside a metro
+// DDA which is ZCTA-level and not covered here).
+export async function getHudQctDda(stateId, countyName) {
+  if (!stateId || !countyName) return null
+  // Look up county_fips via county_acs_data (canonical FIPS source)
+  const slug = (countyName || '').toLowerCase().trim()
+  return withCache(`hud_qct_dda:${stateId}:${slug}`, async () => {
+    // Resolve county_fips from county_acs_data first (single source of truth
+    // for FIPS in our schema). Fall back to fuzzy match on hud_qct_dda_data
+    // by lower(county_name) if county_acs_data has no row.
+    const { data: acs } = await supabase
+      .from('county_acs_data')
+      .select('county_fips, state, county_name')
+      .eq('state', stateId)
+      .ilike('county_name', `%${countyName.replace(/\s+county.*$/i, '')}%`)
+      .limit(1)
+      .maybeSingle()
+
+    if (!acs?.county_fips) return null
+
+    const { data, error } = await supabase
+      .from('hud_qct_dda_data')
+      .select('*')
+      .eq('county_fips', acs.county_fips)
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return null
+    return {
+      countyFips:        data.county_fips,
+      state:             data.state,
+      countyName:        data.county_name,
+      qctCount:          data.qct_count || 0,
+      qctTractGeoids:    data.qct_tract_geoids || [],
+      isNonMetroDda:     !!data.is_non_metro_dda,
+      ddaName:           data.dda_name,
+      ddaCode:           data.dda_code,
+      datasetYear:       data.dataset_year,
+      lastUpdated:       data.last_updated,
+    }
+  })
+}
+
 // ── getNewsFeed ───────────────────────────────────────────────────────────────
 // Returns active news items sorted by published_at descending.
 export async function getNewsFeed() {

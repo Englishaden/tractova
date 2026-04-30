@@ -33,12 +33,15 @@ The bar: **every datum a customer sees in Tractova traces to a verifiable .gov o
 | `ix_queue_data` | MISO + PJM + NYISO + ISO-NE public queue reports | (ISO-specific scrapers) | Weekly (Sun 6am UTC) | `api/refresh-ix-queue.js` |
 | `news_feed` (auto-classified rows) | PV Magazine USA + Solar Industry Mag + Utility Dive + Solar Power World RSS, AI-filtered via Claude Haiku 4.5 | RSS feeds + Anthropic API | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=news` |
 | `energy_community_data` (IRA §45/§48 +10% ITC bonus) | DOE NETL EDX — Treasury-recognized Energy Community boundaries (2024 release) | `arcgis.netl.doe.gov/.../2024_MSAs_NonMSAs_that_are_Energy_Communities/FeatureServer/0` + `2024_Coal_Closure_Energy_Communities/FeatureServer/0` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=energy_community` |
+| `hud_qct_dda_data` (LIHTC QCT count + non-metro DDA flag per county) | HUD User — official LIHTC designation layers (2026) | `services.arcgis.com/.../QUALIFIED_CENSUS_TRACTS_2026/FeatureServer/0` + `Difficult_Development_Areas_2026/FeatureServer/0` | Weekly (Sun 7am UTC) | `api/refresh-data.js?source=hud_qct_dda` |
 
 > **Note on `state_programs` partial automation:** DSIRE provides program identity, status, summary text, and the canonical URL — those fields ARE live-pulled. The Tractova-curated fields (`csStatus`, `capacityMW`, `lmiPercent`, `ixDifficulty`, `enrollmentRateMWPerMonth`) are NOT in DSIRE and remain admin-curated. The DSIRE pull adds a verification timestamp + canonical-source link rather than replacing curated values.
 
 > **Note on `news_feed` partial automation:** Manual admin curation continues to work unchanged. Auto-classified rows are tagged `auto_classified=true` with a `relevance_score` (0-100) and `dedupe_hash` so re-runs are idempotent. The classifier inserts only items scoring ≥60. Each article keeps its original outlet (PV Magazine, Utility Dive, etc.) as `source` and the canonical article URL — Tractova does not republish content, only points at the verified source.
 
 > **Note on `energy_community_data` scope:** Two of the three IRA Energy Community qualification paths are covered — Coal Closure Communities (per-tract aggregated to county counts) and MSA / Non-MSA Statistical Areas (per-county boolean). **Brownfield qualification is per-site point data and not covered here**; users see a "verify per-site at energycommunities.gov" link in the Lens revenue stack. A county qualifying via either covered path triggers the +10% ITC bonus credit.
+
+> **Note on `hud_qct_dda_data` scope:** Qualified Census Tracts (QCTs) are aggregated cleanly to per-county counts via tract GEOID rollup. Non-metro DDAs are aggregated to per-county via DDA_CODE FIPS parsing. **Metro-area DDAs are designated at ZCTA level**, which doesn't map cleanly to county without a ZCTA→county crosswalk; metro DDAs are skipped in this layer (deferred to v2). Users in metro counties see a "verify per-site at huduser.gov" hint in the Lens LIHTC overlay panel.
 
 ### 🔄 Manual curation pending automation
 
@@ -82,7 +85,7 @@ These are admin-curated today with documented sources. Migration to live-pull is
 | Endpoint | Cron expression | Description |
 |---|---|---|
 | `/api/refresh-ix-queue` | `0 6 * * 0` | Sunday 6am UTC — ISO/RTO queue scrape |
-| `/api/refresh-data?source=all` | `0 7 * * 0` | Sunday 7am UTC — Multiplexed live-source refresh (`lmi` + `state_programs` + `county_acs` + `news` + `revenue_stacks` + `energy_community`) |
+| `/api/refresh-data?source=all` | `0 7 * * 0` | Sunday 7am UTC — Multiplexed live-source refresh (`lmi` + `state_programs` + `county_acs` + `news` + `revenue_stacks` + `energy_community` + `hud_qct_dda`) |
 | `/api/check-staleness` | `0 8 * * 1` | Monday 8am UTC — Staleness alert email to admin |
 | `/api/send-alerts` | `0 14 * * 1,4` | Mon/Thu 2pm UTC — Project alerts |
 | `/api/send-digest` | `0 14 * * 1` | Monday 2pm UTC — Weekly digest |

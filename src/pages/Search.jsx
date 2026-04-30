@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -2786,6 +2786,60 @@ function MaybeComparableDealsPanel({ state, stateName, technology, mw }) {
   )
 }
 
+// Federal LIHTC overlay — compact card surfacing HUD QCT count + non-metro DDA
+// flag. Hidden when the county has neither (no empty state).
+function LihtcOverlayPanel({ hudQctDda, county }) {
+  if (!hudQctDda) return null
+  const hasQct = hudQctDda.qctCount > 0
+  const hasDda = hudQctDda.isNonMetroDda
+  if (!hasQct && !hasDda) return null
+
+  return (
+    <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50/40 px-5 py-4">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-800">
+          Federal LIHTC Designations · {county}
+        </div>
+        <a
+          href="https://www.huduser.gov/portal/qct/index.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-mono text-[10px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+        >
+          Source ↗
+        </a>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {hasQct && (
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-serif text-2xl font-bold text-ink tabular-nums">{hudQctDda.qctCount}</span>
+              <span className="text-xs text-ink-muted">Qualified Census Tract{hudQctDda.qctCount === 1 ? '' : 's'}</span>
+            </div>
+            <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">
+              Federally-designated LMI subscriber-sourcing pools. Counties with high QCT density typically have stronger CS LMI carve-out compatibility (e.g. NY VDER, IL Shines low-income tier, MA SMART LMI adder).
+            </p>
+          </div>
+        )}
+        {hasDda && (
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-800">✓ Non-Metro DDA</span>
+            </div>
+            <div className="text-xs text-ink mt-1">{hudQctDda.ddaName || 'Designated Difficult Development Area'}</div>
+            <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">
+              Eligible for LIHTC bonus credits. Most relevant for hybrid CS + affordable-housing financing structures or projects targeting non-metro LMI subscriber bases.
+            </p>
+          </div>
+        )}
+      </div>
+      <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
+        2026 designation year. Metro-area DDAs are designated at ZCTA level (not covered above) — verify per-site at huduser.gov for metropolitan projects.
+      </p>
+    </div>
+  )
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Search content (only mounts when user is confirmed Pro)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2888,7 +2942,7 @@ function SearchContent() {
     const accessToken = session?.access_token ?? ''
 
     // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity] = await Promise.all([
+    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda] = await Promise.all([
       programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
       getCountyData(form.state, form.county),
       getRevenueStack(form.state),
@@ -2896,6 +2950,7 @@ function SearchContent() {
       getNearestSubstations(form.state, form.county),
       getRevenueRates(form.state),
       getEnergyCommunity(form.state, form.county),
+      getHudQctDda(form.state, form.county),
     ])
     const runway = stateProgram?.runway ?? null
 
@@ -2911,13 +2966,13 @@ function SearchContent() {
     } catch (err) {
       if (err.name === 'AbortError') {
         // Cancelled — still show results without AI insight
-        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, aiInsight: null })
+        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, aiInsight: null })
         setAnalyzing(false)
         return
       }
     }
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, aiInsight })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, aiInsight })
     setAnalyzing(false)
   }
 
@@ -3320,6 +3375,15 @@ function SearchContent() {
                 substations={results.substations}
               />
             </div>
+
+            {/* Federal LIHTC overlay — HUD QCT count + non-metro DDA flag.
+                Surfaces only when the county has a designation; counties
+                without QCTs and not a non-metro DDA simply omit this card
+                (their metro-area projects can verify per-site at huduser.gov). */}
+            <LihtcOverlayPanel
+              hudQctDda={results.hudQctDda}
+              county={results.form.county}
+            />
 
             {/* V3 Wave 2 — curation-gated panels.
                 Regulatory + Comparable Deals are dormant until admin
