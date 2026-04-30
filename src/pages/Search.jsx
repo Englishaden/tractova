@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -998,7 +998,7 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
   )
 }
 
-function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
+function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
@@ -1082,6 +1082,46 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates }) {
                   <DataRow label="ITC adders" value={revenueStack.itcAdder} />
                   <DataRow label="REC / I-REC market" value={revenueStack.irecMarket} />
                   <DataRow label="Net metering / credit" value={revenueStack.netMeteringStatus} />
+                </div>
+                {/* Energy Community block — IRA §45/§48 +10% ITC bonus eligibility, live-pulled per-county */}
+                <div className="mt-2 px-3 py-2 rounded-md border border-teal-100 bg-teal-50/40">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
+                        Energy Community (+10% ITC)
+                      </div>
+                      {energyCommunity?.isEnergyCommunity ? (
+                        <>
+                          <div className="text-xs font-semibold text-teal-900">
+                            ✓ Eligible — {[
+                              energyCommunity.qualifiesViaCoalClosure && `${energyCommunity.coalClosureTractCount} coal-closure tract${energyCommunity.coalClosureTractCount === 1 ? '' : 's'}`,
+                              energyCommunity.qualifiesViaMsa && (energyCommunity.msaAreaName ? `MSA: ${energyCommunity.msaAreaName}` : 'Statistical area'),
+                            ].filter(Boolean).join(' · ')}
+                          </div>
+                          <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
+                            Adds 10% to ITC for projects in {energyCommunity.countyName || 'this county'}. Brownfield sites qualify separately — verify per-site at energycommunities.gov.
+                          </div>
+                        </>
+                      ) : energyCommunity === null ? (
+                        <>
+                          <div className="text-xs text-gray-700">Not flagged in Treasury data</div>
+                          <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                            County not in MSA / coal-closure layers. Brownfield qualification still possible at site level.
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-400">Loading…</div>
+                      )}
+                    </div>
+                    <a
+                      href="https://energycommunities.gov/energy-community-tax-credit-bonus/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                    >
+                      Source ↗
+                    </a>
+                  </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
                 {revenueStack.dsireProgramUrl && (
@@ -2848,13 +2888,14 @@ function SearchContent() {
     const accessToken = session?.access_token ?? ''
 
     // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates] = await Promise.all([
+    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity] = await Promise.all([
       programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
       getCountyData(form.state, form.county),
       getRevenueStack(form.state),
       getIXQueueSummary(form.state, form.mw),
       getNearestSubstations(form.state, form.county),
       getRevenueRates(form.state),
+      getEnergyCommunity(form.state, form.county),
     ])
     const runway = stateProgram?.runway ?? null
 
@@ -2870,13 +2911,13 @@ function SearchContent() {
     } catch (err) {
       if (err.name === 'AbortError') {
         // Cancelled — still show results without AI insight
-        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, aiInsight: null })
+        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, aiInsight: null })
         setAnalyzing(false)
         return
       }
     }
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, aiInsight })
+    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, aiInsight })
     setAnalyzing(false)
   }
 
@@ -3260,6 +3301,7 @@ function SearchContent() {
                 technology={results.form.technology}
                 mw={results.form.mw}
                 rates={results.revenueRates}
+                energyCommunity={results.energyCommunity}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}

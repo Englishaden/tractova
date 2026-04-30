@@ -213,6 +213,50 @@ export async function getRevenueStack(stateId) {
   })
 }
 
+// ── getEnergyCommunity ────────────────────────────────────────────────────────
+// IRA §45/§48 Energy Community bonus credit eligibility per county. Returns
+// null if the county is not flagged as an Energy Community in any layer
+// (which means: not eligible for the +10% ITC bonus via this data path).
+// Brownfield qualification is site-specific and not covered here -- users
+// are pointed at energycommunities.gov for per-site verification.
+export async function getEnergyCommunity(stateId, countyName) {
+  if (!stateId || !countyName) return null
+  const slug = (countyName || '')
+    .toLowerCase()
+    .replace(/\s+county$/, '')
+    .replace(/\s+parish$/, '')
+    .replace(/\s+borough$/, '')
+    .replace(/\s+census area$/, '')
+    .replace(/[^a-z0-9]/g, '')
+    .trim()
+  if (!slug) return null
+
+  return withCache(`energy_community:${stateId}:${slug}`, async () => {
+    const { data, error } = await supabase
+      .from('energy_community_data')
+      .select('*')
+      .eq('state', stateId)
+      .eq('county_name_normalized', slug)
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return null
+    return {
+      countyFips:               data.county_fips,
+      state:                    data.state,
+      countyName:               data.county_name,
+      isEnergyCommunity:        !!(data.qualifies_via_msa || data.qualifies_via_coal_closure),
+      qualifiesViaMsa:          !!data.qualifies_via_msa,
+      qualifiesViaCoalClosure:  !!data.qualifies_via_coal_closure,
+      msaAreaName:              data.msa_area_name,
+      coalClosureTractCount:    data.coal_closure_tract_count || 0,
+      ffeQualified:             !!data.ffe_qualified,
+      ecQualified:              !!data.ec_qualified,
+      datasetVersion:           data.dataset_version,
+      lastUpdated:              data.last_updated,
+    }
+  })
+}
+
 // ── getNewsFeed ───────────────────────────────────────────────────────────────
 // Returns active news items sorted by published_at descending.
 export async function getNewsFeed() {
