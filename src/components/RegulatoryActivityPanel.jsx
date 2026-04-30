@@ -283,21 +283,32 @@ function ProTeaser({ count, stateName }) {
 export default function RegulatoryActivityPanel({ state, stateName, isPro = true, mode = 'lens' }) {
   const [dockets, setDockets] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Same pattern as ComparableDealsPanel: distinguish "no dockets in this
+  // state" (dockets=[]) from "fetch failed" so the UI stops gaslighting
+  // users into thinking there's no regulatory activity when really we
+  // couldn't reach the data layer.
+  const [fetchError, setFetchError] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     if (!state) return
     let cancelled = false
     setLoading(true)
+    setFetchError(false)
     getPucDockets({ state }).then(rows => {
       if (cancelled) return
       setDockets(sortDockets(rows || []))
       setLoading(false)
     }).catch(err => {
       console.warn('[regulatory] fetch failed:', err.message)
-      if (!cancelled) { setDockets([]); setLoading(false) }
+      if (!cancelled) {
+        setDockets([])
+        setFetchError(true)
+        setLoading(false)
+      }
     })
     return () => { cancelled = true }
-  }, [state])
+  }, [state, retryKey])
 
   const labelName = stateName || state || 'this state'
 
@@ -314,6 +325,35 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
   }
 
   const docketsArr = dockets || []
+
+  // Failed fetch — distinct from genuine empty state. Surfaces the network
+  // problem instead of pretending the state has no regulatory activity.
+  if (fetchError) {
+    return (
+      <div className={mode === 'lens' ? '' : 'px-5 py-6'}>
+        {mode === 'lens' && <PanelHeader stateName={labelName} count={null} />}
+        <div
+          className={`rounded-xl px-5 py-5 text-center ${mode === 'lens' ? 'mt-4' : ''}`}
+          style={{ background: 'rgba(217,119,6,0.04)', border: '1px solid rgba(217,119,6,0.30)' }}
+        >
+          <p className="text-[13px] font-semibold leading-relaxed" style={{ color: '#92400E' }}>
+            Regulatory data temporarily unavailable.
+          </p>
+          <p className="text-[11px] mt-1.5 mb-3" style={{ color: 'rgba(146,64,14,0.78)' }}>
+            Couldn't reach the PUC docket index. Retry, or try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryKey(k => k + 1)}
+            className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold px-3 py-1 rounded-sm transition-colors"
+            style={{ color: '#92400E', border: '1px solid rgba(146,64,14,0.30)', background: 'rgba(255,255,255,0.55)' }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Pro gate (Lens mode only — Dashboard stays open since tabs are exploratory)
   if (mode === 'lens' && !isPro) {

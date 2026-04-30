@@ -219,11 +219,20 @@ function MetaItem({ label, value, mono }) {
 export default function ComparableDealsPanel({ state, stateName, technology, mw }) {
   const [deals, setDeals] = useState(null)
   const [loading, setLoading] = useState(true)
+  // Distinguish "no comps in this market" (deals=[]) from "fetch failed"
+  // so we render different UI for each. Previously both states looked
+  // identical and users couldn't tell whether the empty result was a
+  // genuine absence or a network blip.
+  const [fetchError, setFetchError] = useState(false)
+  // Bumping retryKey re-fires the effect (the natural deps don't change
+  // on a retry click).
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     if (!state) return
     let cancelled = false
     setLoading(true)
+    setFetchError(false)
     const targetMW = parseFloat(mw)
     // ±50% MW range when targetMW provided; else no MW filter
     const mwRange = targetMW > 0 ? [Math.max(0.1, targetMW * 0.5), targetMW * 2.0] : undefined
@@ -235,10 +244,14 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
       })
       .catch(err => {
         console.warn('[comparable-deals] fetch failed:', err.message)
-        if (!cancelled) { setDeals([]); setLoading(false) }
+        if (!cancelled) {
+          setDeals([])
+          setFetchError(true)
+          setLoading(false)
+        }
       })
     return () => { cancelled = true }
-  }, [state, technology, mw])
+  }, [state, technology, mw, retryKey])
 
   const labelName = stateName || state || 'this state'
 
@@ -254,6 +267,36 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
   }
 
   const dealsArr = deals || []
+
+  // Failed fetch -- render distinct state with retry. Previously this
+  // rendered the same "no comps" UI as a genuine empty result, hiding
+  // the failure from the user.
+  if (fetchError) {
+    return (
+      <div>
+        <PanelHeader stateName={labelName} count={null} />
+        <div
+          className="rounded-xl px-5 py-5 text-center mt-4"
+          style={{ background: 'rgba(217,119,6,0.04)', border: '1px solid rgba(217,119,6,0.30)' }}
+        >
+          <p className="text-[13px] font-semibold leading-relaxed" style={{ color: '#92400E' }}>
+            Comparable deals temporarily unavailable.
+          </p>
+          <p className="text-[11px] mt-1.5 mb-3" style={{ color: 'rgba(146,64,14,0.78)' }}>
+            Network error fetching from the curated benchmarks index. Retry, or try again in a moment.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRetryKey(k => k + 1)}
+            className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold px-3 py-1 rounded-sm transition-colors"
+            style={{ color: '#92400E', border: '1px solid rgba(146,64,14,0.30)', background: 'rgba(255,255,255,0.55)' }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (dealsArr.length === 0) {
     return (

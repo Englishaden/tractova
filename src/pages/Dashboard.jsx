@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import MetricsBar from '../components/MetricsBar'
 import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
 import SectionDivider from '../components/SectionDivider'
 import WelcomeCard from '../components/WelcomeCard'
+import ApiErrorBanner from '../components/ApiErrorBanner'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed } from '../lib/programData'
 
@@ -87,10 +88,32 @@ export default function Dashboard({ previewMode = false }) {
   // to them.
   const effectivePreviewMode = previewMode && !user
 
-  useEffect(() => {
-    getStateProgramMap().then(setStateProgramMap).catch(console.error)
-    getNewsFeed().then(setNews).catch(console.error)
+  // Track which fetches failed so we can surface a single banner with retry.
+  // Previously these used `.catch(console.error)` and the user was stuck
+  // staring at a frozen MetricsBar / empty NewsFeed with no recovery path.
+  const [dashboardError, setDashboardError] = useState(null)
+  const [retrying, setRetrying] = useState(false)
+
+  const loadDashboardData = useCallback(async (isRetry = false) => {
+    if (isRetry) setRetrying(true)
+    let failedSources = []
+    const [mapRes, newsRes] = await Promise.allSettled([
+      getStateProgramMap(),
+      getNewsFeed(),
+    ])
+    if (mapRes.status === 'fulfilled') setStateProgramMap(mapRes.value)
+    else                                failedSources.push('market data')
+    if (newsRes.status === 'fulfilled') setNews(newsRes.value)
+    else                                failedSources.push('news')
+    if (failedSources.length > 0) {
+      setDashboardError(`Couldn't load ${failedSources.join(' and ')}. Check your connection or retry.`)
+    } else {
+      setDashboardError(null)
+    }
+    if (isRetry) setRetrying(false)
   }, [])
+
+  useEffect(() => { loadDashboardData() }, [loadDashboardData])
 
   // ESC key closes the state detail panel
   useEffect(() => {
@@ -146,6 +169,15 @@ export default function Dashboard({ previewMode = false }) {
             Community solar program status, interconnection conditions, and policy alerts — updated weekly.
           </p>
         </div>
+
+        {/* Surface failures from getStateProgramMap / getNewsFeed (previously
+            silently caught) so users have a recovery path. */}
+        <ApiErrorBanner
+          message={dashboardError}
+          onRetry={() => loadDashboardData(true)}
+          onDismiss={() => setDashboardError(null)}
+          retrying={retrying}
+        />
 
         <SectionDivider />
 
