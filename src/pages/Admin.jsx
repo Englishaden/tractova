@@ -1655,6 +1655,149 @@ function EndpointRow({ name, val }) {
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Census diagnostic panel — renders the response from /api/refresh-data?debug=1.
+// Surfaces just the fields that drive triage decisions (HTTP status, key shape
+// sanity, important headers, body) plus a Copy button for sharing the raw JSON.
+// ─────────────────────────────────────────────────────────────────────────────
+function CensusDiagnosticPanel({ result, onDismiss }) {
+  if (!result) return null
+
+  // Fetch-level failure (network error, abort, JSON parse fail).
+  if (result.error) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50/60 px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full bg-red-500" />
+            <span className="font-serif text-sm font-medium text-red-900">Census diagnostic failed</span>
+          </div>
+          <button onClick={onDismiss} className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-400 hover:text-gray-600">Dismiss</button>
+        </div>
+        <pre className="mt-2 ml-5 text-[11px] font-mono text-red-700 whitespace-pre-wrap break-words leading-snug">
+          {String(result.error)}
+        </pre>
+      </div>
+    )
+  }
+
+  const j = result.json || {}
+  const req = j.request || {}
+  const resp = j.response || {}
+  const status = resp.status
+  const keyOk = req.key_length > 0 && req.key_shape_ok && (req.key_whitespace_check || '').includes('no surrounding')
+  const censusOk = status === 200
+
+  const verdict = censusOk && keyOk
+    ? { label: 'Census healthy + key valid',  tone: 'emerald', dot: 'bg-emerald-500', text: 'text-emerald-800', ring: 'border-emerald-200', wash: 'bg-emerald-50/40' }
+    : !keyOk
+      ? { label: 'Key issue detected',         tone: 'red',     dot: 'bg-red-500',     text: 'text-red-900',     ring: 'border-red-200',     wash: 'bg-red-50/40' }
+      : { label: `Census responded ${status || '???'}`, tone: 'amber', dot: 'bg-amber-500', text: 'text-amber-900', ring: 'border-amber-200', wash: 'bg-amber-50/40' }
+
+  // Triage hint based on diagnostic shape.
+  let hint = null
+  if (!keyOk) {
+    if (req.key_length === 0) hint = 'CENSUS_API_KEY env var is empty in Production. Add it in Vercel → Settings → Environment Variables.'
+    else if (!req.key_shape_ok) hint = `Key length is ${req.key_length}; Census keys are 40-char hex. Check for typos / wrong value.`
+    else hint = 'Key has surrounding whitespace — likely a copy-paste with a trailing newline. Edit the env var to remove it.'
+  } else if (status === 503) {
+    hint = (resp.headers || {})['retry-after']
+      ? `Upstream throttling. Retry-After header: ${resp.headers['retry-after']}s. Wait then click Refresh again.`
+      : 'Census ACS API is busy or in maintenance. No client-side fix; wait it out. Stale-tolerance keeps existing data green for 90 days.'
+  } else if ((resp.headers || {})['cf-ray'] || (resp.headers || {})['cf-mitigated']) {
+    hint = 'Cloudflare edge sitting in front of Census — possible WAF block on Vercel egress IPs. Investigate bulk-download fallback if this persists.'
+  } else if (status && status >= 400 && status < 500 && status !== 429) {
+    hint = `Census returned ${status} — body should explain. Check key validity if 401/403.`
+  } else if (censusOk) {
+    hint = 'Everything reachable. If refreshes still fail, the issue is in our handlers, not Census itself.'
+  }
+
+  function copyJson() {
+    navigator.clipboard.writeText(JSON.stringify(j, null, 2)).catch(() => {})
+  }
+
+  return (
+    <div className={`rounded-xl border ${verdict.ring} ${verdict.wash} overflow-hidden`}>
+      {/* Header */}
+      <div className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b ${verdict.ring}`}>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className={`w-2 h-2 rounded-full ${verdict.dot} flex-shrink-0`} />
+          <span className={`font-serif text-sm font-medium ${verdict.text}`}>{verdict.label}</span>
+          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted truncate">
+            {result.totalMs ? `${(result.totalMs / 1000).toFixed(1)}s` : ''}
+            {req.vercel_region ? ` · region ${req.vercel_region}` : ''}
+            {typeof j.duration_ms === 'number' ? ` · upstream ${(j.duration_ms / 1000).toFixed(2)}s` : ''}
+          </span>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <button onClick={copyJson} className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors">
+            Copy JSON
+          </button>
+          <button onClick={onDismiss} className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-400 hover:text-gray-600 transition-colors">
+            Dismiss
+          </button>
+        </div>
+      </div>
+
+      {/* Hint */}
+      {hint && (
+        <div className={`px-4 py-2 text-[11px] ${verdict.text} border-b ${verdict.ring} bg-white/30`}>
+          <span className="font-semibold uppercase tracking-[0.14em] text-[9px] mr-2 opacity-70">Triage</span>
+          {hint}
+        </div>
+      )}
+
+      {/* Detail grid */}
+      <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[11px] font-mono">
+        <DetailRow label="HTTP status"  value={status ? `${status} ${resp.status_text || ''}`.trim() : '(no response)'} ok={censusOk} />
+        <DetailRow label="Key length"   value={req.key_length || 0} ok={req.key_length === 40} />
+        <DetailRow label="Key shape"    value={req.key_shape_ok ? '40-char hex ✓' : 'unexpected'} ok={req.key_shape_ok} />
+        <DetailRow label="Whitespace"   value={req.key_whitespace_check || '(unknown)'} ok={(req.key_whitespace_check || '').includes('no surrounding')} />
+        <DetailRow label="Vercel region" value={req.vercel_region || '(unknown)'} />
+        <DetailRow label="Body size"    value={typeof resp.body_length === 'number' ? `${resp.body_length} bytes` : '—'} />
+      </div>
+
+      {/* Headers */}
+      {resp.headers && Object.keys(resp.headers).length > 0 && (
+        <div className="px-4 pb-2 text-[11px] font-mono">
+          <div className="font-semibold uppercase tracking-[0.14em] text-[9px] text-gray-500 mb-1">Response headers</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-0.5">
+            {Object.entries(resp.headers).map(([k, v]) => (
+              <div key={k} className="text-gray-700 truncate">
+                <span className="text-gray-400">{k}:</span> {v}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Body */}
+      {resp.body && (
+        <div className="px-4 pb-3 text-[11px] font-mono">
+          <div className="font-semibold uppercase tracking-[0.14em] text-[9px] text-gray-500 mb-1">Response body (first 4KB)</div>
+          <pre className="text-[10px] text-gray-800 bg-white border border-gray-200 rounded-md px-2.5 py-1.5 whitespace-pre-wrap break-all leading-snug max-h-48 overflow-auto">
+            {resp.body}
+          </pre>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DetailRow({ label, value, ok }) {
+  const valueColor = ok === undefined
+    ? 'text-gray-700'
+    : ok
+      ? 'text-emerald-700'
+      : 'text-red-700'
+  return (
+    <div className="flex items-baseline gap-2 min-w-0">
+      <span className="text-gray-400 flex-shrink-0">{label}:</span>
+      <span className={`${valueColor} truncate`}>{String(value)}</span>
+    </div>
+  )
+}
+
 // Each card prefers `last_cron_success` (when did the cron last verify this
 // data against the live source?) -- migration 031 derives this from cron_runs
 // so a click on "Refresh data from sources" bumps every card whose cron
@@ -1871,6 +2014,12 @@ function DataHealthTab() {
   // cron. Fans out to every supported source via /api/refresh-data?source=all.
   const [refreshing, setRefreshing] = useState(false)
   const [refreshResult, setRefreshResult] = useState(null)
+  // Census diagnostic — hits /api/refresh-data?debug=1 to surface raw
+  // upstream state when Census handlers are misbehaving. Auth-bypass
+  // endpoint, response is fully redacted (no key chars), so no risk
+  // surfacing it inline.
+  const [diagnosing, setDiagnosing] = useState(false)
+  const [diagnostic, setDiagnostic] = useState(null)
 
   useEffect(() => {
     async function fetchHealth() {
@@ -1981,6 +2130,27 @@ function DataHealthTab() {
     }
   }
 
+  const handleRunDiagnostic = async () => {
+    setDiagnosing(true)
+    setDiagnostic(null)
+    const startedAt = new Date()
+    try {
+      // ?debug=1 is intentionally auth-bypassed (response carries no
+      // secrets — key length only). 35s ceiling: the server-side fetch
+      // has a 30s timeout, plus a few seconds of network slack.
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 35000)
+      const resp = await fetch('/api/refresh-data?debug=1', { signal: controller.signal })
+        .finally(() => clearTimeout(timer))
+      const json = await resp.json()
+      setDiagnostic({ ok: resp.ok, json, fetchedAt: new Date().toISOString(), totalMs: Date.now() - startedAt.getTime() })
+    } catch (err) {
+      setDiagnostic({ ok: false, error: err?.message || String(err), fetchedAt: new Date().toISOString(), totalMs: Date.now() - startedAt.getTime() })
+    } finally {
+      setDiagnosing(false)
+    }
+  }
+
   const handleExport = async () => {
     setExporting(true)
     try {
@@ -2039,6 +2209,26 @@ function DataHealthTab() {
               </>
             )}
           </button>
+          <button
+            onClick={handleRunDiagnostic}
+            disabled={diagnosing}
+            className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-medium border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            title="Hits /api/refresh-data?debug=1 — single tiny Census fetch with full response diagnostics. Use when Census handlers are misbehaving."
+          >
+            {diagnosing ? (
+              <>
+                <span className="w-3 h-3 rounded-full border-2 border-gray-300 border-t-gray-600 animate-spin" />
+                Running diagnostic…
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                </svg>
+                Run Census diagnostic
+              </>
+            )}
+          </button>
         </div>
         <button
           onClick={handleExport}
@@ -2051,6 +2241,9 @@ function DataHealthTab() {
 
       {/* Refresh status panel — full-width, copy-friendly diagnostics */}
       {refreshResult && <RefreshStatusBanner result={refreshResult} />}
+
+      {/* Census diagnostic panel — appears when "Run Census diagnostic" is clicked */}
+      {diagnostic && <CensusDiagnosticPanel result={diagnostic} onDismiss={() => setDiagnostic(null)} />}
 
       {/* Source attribution help */}
       <p className="text-[11px] text-ink-muted leading-relaxed">
