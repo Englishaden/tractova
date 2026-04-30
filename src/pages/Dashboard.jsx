@@ -164,8 +164,13 @@ export default function Dashboard({ previewMode = false }) {
     else                                failedSources.push('market data')
     if (newsRes.status === 'fulfilled') setNews(newsRes.value)
     else                                failedSources.push('news')
-    // Deltas are best-effort -- never surface in the error banner.
-    if (deltasRes.status === 'fulfilled') setDeltaMap(deltasRes.value || new Map())
+    // Deltas are best-effort -- never surface in the error banner. Hardened:
+    // the value MUST be a Map regardless of what the helper returned (a
+    // non-Map value would crash the MarketsOnTheMove render via .get()).
+    if (deltasRes.status === 'fulfilled') {
+      const v = deltasRes.value
+      setDeltaMap(v instanceof Map ? v : new Map())
+    }
     if (failedSources.length > 0) {
       setDashboardError(`Couldn't load ${failedSources.join(' and ')}. Check your connection or retry.`)
     } else {
