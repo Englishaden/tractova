@@ -2205,6 +2205,12 @@ export default function Library() {
 
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth()
+  // ?preview=empty bypasses the loaded projects array and renders the
+  // empty-state onboarding card. Lets the admin/owner preview the new-user
+  // experience without deleting saved projects. URL-flag only -- doesn't
+  // touch the database.
+  const previewEmpty = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('preview') === 'empty'
   const [projects,        setProjects]        = useState([])
   const [loading,         setLoading]         = useState(true)
   const [hasFetched,      setHasFetched]      = useState(false)
@@ -2752,7 +2758,7 @@ function LibraryContent() {
           <div className="bg-red-50 border border-red-200 rounded-lg px-5 py-4 text-sm text-red-700">
             Failed to load projects: {error}
           </div>
-        ) : projects.length > 0 ? (
+        ) : (projects.length > 0 && !previewEmpty) ? (
           <>
             {/* "What Changed" banner */}
             {(() => {
