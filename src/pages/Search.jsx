@@ -48,16 +48,20 @@ function AnimatedScoreText({ value, ...textProps }) {
   return <text {...textProps}>{display}</text>
 }
 
+// V3.1: Single-object gauge -- the previous version felt like two pieces
+// (the arc plus a separate floating scale of "0/50/100" labels). Removed
+// the numeric scale labels (the score itself is the readout that matters),
+// tightened the score + sub-caption into a unified central composition,
+// added a thin baseline rule connecting the arc's two endpoints, and kept
+// the 5 micro-ticks for instrumentation feel without competing for
+// attention. Arc + score now read as one coherent object.
 function ArcGauge({ score }) {
   const s = (typeof score === 'number' && isFinite(score)) ? score : 0
   const pct = Math.max(0, Math.min(100, s)) / 100
-  // Wider + taller viewBox: 180x118 (was 160x100). Bigger radius too. Lots of breathing room.
-  const R = 64, cx = 90, cy = 84
-  // Full half-arc path (left to right). We always render the whole path and use
-  // strokeDasharray to reveal a portion of it -- motion can then tween that
-  // single number smoothly when score changes (vs swapping path strings).
+  // Tighter viewBox (no scale labels means we can shrink the bottom margin).
+  const R = 64, cx = 90, cy = 80
   const fullPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
-  const arcLength = Math.PI * R // half-circle circumference
+  const arcLength = Math.PI * R
 
   // V3 single-hue teal ramp
   let color = '#CBD5E1'
@@ -66,34 +70,31 @@ function ArcGauge({ score }) {
   else if (s >= 45) color = '#2DD4BF'
   else if (s >= 25) color = '#5EEAD4'
 
-  // Cleaner: 5 majors at 0/25/50/75/100 (instead of 11 ticks every 10).
-  // Reads as a real instrument, less noise.
+  // 5 micro-ticks (0/25/50/75/100) -- visual instrumentation only, no
+  // labels. Reads as a real gauge while staying part of the same object
+  // composition as the arc + readout.
   const tickPositions = [0, 0.25, 0.5, 0.75, 1.0]
 
   return (
-    <svg viewBox="0 0 180 118" className="w-full max-w-[240px]">
-      {/* Tick marks — 5 evenly-spaced majors */}
+    <svg viewBox="0 0 180 100" className="w-full max-w-[240px]">
+      {/* Outer micro-ticks (no labels) */}
       {tickPositions.map((p, i) => {
         const angle = Math.PI * (1 - p)
-        const inner = R - 7, outer = R + 2
+        const inner = R - 5, outer = R + 1
         return (
           <line key={i}
             x1={cx + inner * Math.cos(angle)} y1={cy - inner * Math.sin(angle)}
             x2={cx + outer * Math.cos(angle)} y2={cy - outer * Math.sin(angle)}
-            stroke="#0A1828" strokeWidth={1.4} strokeLinecap="round" />
+            stroke="#94A3B8" strokeWidth={1} strokeLinecap="round" opacity={0.6} />
         )
       })}
-      {/* Tick labels — pushed well clear of the arc with generous viewBox margin */}
-      <text x={cx - R} y={cy + 20} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">0</text>
-      <text x={cx}     y={cy - R - 10} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">50</text>
-      <text x={cx + R} y={cy + 20} textAnchor="middle" fontSize="9" fill="#5A6B7A" fontFamily="JetBrains Mono, ui-monospace, monospace">100</text>
-      {/* Track */}
-      <path d={fullPath} fill="none" stroke="#E2E8F0" strokeWidth={6} strokeLinecap="round" />
-      {/* Fill — Motion-animated. strokeDashoffset tweens; color crossfades. */}
+      {/* Arc track */}
+      <path d={fullPath} fill="none" stroke="#E2E8F0" strokeWidth={7} strokeLinecap="round" />
+      {/* Animated fill */}
       <motion.path
         d={fullPath}
         fill="none"
-        strokeWidth={6}
+        strokeWidth={7}
         strokeLinecap="round"
         strokeDasharray={arcLength}
         initial={false}
@@ -106,12 +107,39 @@ function ArcGauge({ score }) {
           stroke: { duration: 0.4, ease: 'easeOut' },
         }}
       />
-      {/* Score readout — animated count-up/down */}
+      {/* Thin baseline rule connecting the arc endpoints -- visually closes
+          the gauge into a single shape and gives the readout a rest line. */}
+      <line
+        x1={cx - R + 3} y1={cy + 0.5}
+        x2={cx + R - 3} y2={cy + 0.5}
+        stroke="#E2E8F0" strokeWidth={1}
+      />
+      {/* Score readout -- centered above the baseline. Larger (was 32, now
+          38) so it dominates the composition; the number IS the gauge's
+          output -- making it big enough to "be" the gauge merges it with
+          the arc visually. Tighter letter-spacing pulls the digits into a
+          single block-like form. */}
       <AnimatedScoreText
         value={s}
-        x={cx} y={cy - 8} textAnchor="middle" fontSize="32" fontWeight="700"
-        fill="#0A1828" fontFamily="JetBrains Mono, ui-monospace, monospace" letterSpacing="-1"
+        x={cx} y={cy - 8}
+        textAnchor="middle"
+        fontSize="38" fontWeight="700"
+        fill="#0A1828"
+        fontFamily="JetBrains Mono, ui-monospace, monospace"
+        letterSpacing="-2"
       />
+      {/* Tiny "/100" caption directly under the score — tells the eye what
+          scale this number lives on without pulling out a separate label. */}
+      <text
+        x={cx} y={cy + 11}
+        textAnchor="middle"
+        fontSize="8" fontWeight="600"
+        fill="#94A3B8"
+        fontFamily="JetBrains Mono, ui-monospace, monospace"
+        letterSpacing="2"
+      >
+        / 100
+      </text>
     </svg>
   )
 }
@@ -184,11 +212,13 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
             boxShadow: `0 0 0 1px ${color}22 inset, 0 0 8px ${color}44`,
           }}
         >
-          {/* Continuous shimmer sweep -- flows without breaks. The earlier
-              version had a 1.4s repeatDelay between sweeps; user flagged the
-              pause as a "very mild lag." Now: no repeatDelay, slightly slower
-              4.5s sweep so the bar reads as a flowing current rather than a
-              ping. */}
+          {/* Dual-shimmer staggered pattern -- the previous single-shimmer
+              had ~40% of the cycle offscreen on either side (-50% to 0%
+              entering, 100% to 250% exiting), which read as a "lag between
+              pulses." Two shimmers offset by half the cycle: while one is
+              exiting the right edge, the other is already entering from the
+              left. Net: the bar always has at least one visible white sweep
+              moving across it. Flows like water, no perceived gap. */}
           <motion.div
             className="absolute inset-y-0 pointer-events-none"
             style={{
@@ -196,8 +226,18 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
               background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
               mixBlendMode: 'overlay',
             }}
-            animate={{ x: ['-50%', '250%'] }}
-            transition={{ duration: 4.5, repeat: Infinity, ease: 'linear', repeatDelay: 0 }}
+            animate={{ x: ['-50%', '150%'] }}
+            transition={{ duration: 3.6, repeat: Infinity, ease: 'linear', repeatDelay: 0 }}
+          />
+          <motion.div
+            className="absolute inset-y-0 pointer-events-none"
+            style={{
+              width: '40%',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
+              mixBlendMode: 'overlay',
+            }}
+            animate={{ x: ['-50%', '150%'] }}
+            transition={{ duration: 3.6, repeat: Infinity, ease: 'linear', repeatDelay: 0, delay: 1.8 }}
           />
         </motion.div>
       </div>
@@ -2627,12 +2667,34 @@ function LensScenarioRow({ stateProgram, technology, mw, activeScenario, setActi
 function CustomScenarioInline({ stateProgram, technology, activeScenario, setActiveScenario, programMap }) {
   const isActive = activeScenario?.id === 'custom'
   const peerStateId = isActive ? (activeScenario.peerStateId || '') : ''
+  // V3.1: native <select> rendered as the OS chrome list (white,
+  // unstyled, system-default). Replaced with a custom popup list so
+  // each option can show the peer's program/IX/LMI as styled mono
+  // captions and the open list matches the rest of the app.
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef(null)
+
+  useEffect(() => {
+    if (!pickerOpen) return
+    const onClick = (e) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target)) setPickerOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setPickerOpen(false) }
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pickerOpen])
 
   // Eligible peers: any state with a real CS program, excluding self.
   const peerOptions = Object.values(programMap || {})
     .filter(s => s.id && s.id !== stateProgram?.id)
     .filter(s => s.csStatus && s.csStatus !== 'none')
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+
+  const selectedPeer = peerStateId ? programMap?.[peerStateId] : null
 
   const handlePick = (peerId) => {
     if (!peerId) {
@@ -2711,21 +2773,97 @@ function CustomScenarioInline({ stateProgram, technology, activeScenario, setAct
           {peerOptions.length} states with active programs
         </p>
       </div>
-      <select
-        value={peerStateId}
-        onChange={e => handlePick(e.target.value)}
-        className="w-full text-sm bg-white border border-gray-200 rounded-sm px-2.5 py-1.5 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15"
-      >
-        <option value="">— Select a peer state to mirror its profile —</option>
-        {peerOptions.map(s => (
-          <option key={s.id} value={s.id}>
-            {s.name}
-            {s.csProgram ? ` · ${s.csProgram}` : ''}
-            {s.ixDifficulty ? ` · IX ${s.ixDifficulty.replace('_', ' ')}` : ''}
-            {(s.lmiPercent || 0) > 0 ? ` · ${s.lmiPercent}% LMI` : ''}
-          </option>
-        ))}
-      </select>
+      {/* Styled custom dropdown — open list matches the rest of the app's
+          field selectors (FieldSelect, CountyCombobox). Each option is
+          a 2-line row: state name on top, mono-caps caption with the
+          peer's program / IX / LMI shape underneath. */}
+      <div ref={pickerRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setPickerOpen((o) => !o)}
+          aria-expanded={pickerOpen}
+          aria-haspopup="listbox"
+          className="w-full bg-white border border-gray-200 rounded-lg px-3.5 py-2.5 text-left transition-colors focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 hover:border-gray-300"
+        >
+          <div className="flex items-center justify-between gap-2">
+            {selectedPeer ? (
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-ink leading-tight truncate">
+                  {selectedPeer.name}
+                </p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted truncate mt-0.5">
+                  {[
+                    selectedPeer.csProgram,
+                    selectedPeer.ixDifficulty && `IX ${selectedPeer.ixDifficulty.replace('_', ' ')}`,
+                    (selectedPeer.lmiPercent || 0) > 0 && `${selectedPeer.lmiPercent}% LMI`,
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+            ) : (
+              <span className="text-sm text-gray-400 italic">Select a peer state to mirror its profile…</span>
+            )}
+            <svg
+              width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94A3B8"
+              strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={`shrink-0 transition-transform duration-150 ${pickerOpen ? 'rotate-180' : ''}`}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </div>
+        </button>
+
+        {pickerOpen && (
+          <ul
+            role="listbox"
+            className="absolute z-50 left-0 top-full mt-1.5 w-full bg-white border border-gray-200 rounded-lg overflow-hidden max-h-72 overflow-y-auto"
+            style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
+          >
+            {/* Clear option, only when something is selected */}
+            {peerStateId && (
+              <li
+                role="option"
+                aria-selected={false}
+                onMouseDown={(e) => { e.preventDefault(); handlePick(''); setPickerOpen(false) }}
+                className="px-3.5 py-2 text-[11px] uppercase font-mono tracking-[0.18em] text-gray-400 hover:bg-gray-50 hover:text-gray-600 cursor-pointer transition-colors border-b border-gray-100"
+              >
+                ✕ Clear peer comparison
+              </li>
+            )}
+            {peerOptions.map((s) => {
+              const isCurrent = s.id === peerStateId
+              return (
+                <li
+                  key={s.id}
+                  role="option"
+                  aria-selected={isCurrent}
+                  onMouseDown={(e) => { e.preventDefault(); handlePick(s.id); setPickerOpen(false) }}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 cursor-pointer transition-colors ${
+                    isCurrent ? 'bg-teal-50/70' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <span className={`w-3.5 h-3.5 shrink-0 ${isCurrent ? 'text-teal-700' : 'text-transparent'}`}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm leading-tight truncate ${isCurrent ? 'font-semibold text-teal-800' : 'font-medium text-ink'}`}>
+                      {s.name}
+                    </p>
+                    <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted truncate mt-0.5">
+                      {[
+                        s.csProgram,
+                        s.ixDifficulty && `IX ${s.ixDifficulty.replace('_', ' ')}`,
+                        (s.lmiPercent || 0) > 0 && `${s.lmiPercent}% LMI`,
+                      ].filter(Boolean).join(' · ') || 'Active CS · profile shape unavailable'}
+                    </p>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
 
       {/* Live diff readout once a peer is selected. Each row is a structured
           field/from/to comparison rendered as a labeled grid -- field name on
