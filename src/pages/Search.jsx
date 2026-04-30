@@ -291,11 +291,13 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   const baseSubs = computeSubScores(stateProgram, countyData, stage, technology)
   const baseScore = computeDisplayScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
   const delta = activeScenario ? score - baseScore : 0
-  // When state is outside our curated tech-state coverage, surface that to
-  // match the honesty already in the revenue panel ("model not available").
-  // Without this, the user sees a feasibility number that looks researched
-  // but is actually an estimated baseline.
+  // When state/county is outside our curated coverage, surface that to match
+  // the honesty already in the revenue panel ("model not available"). Without
+  // this, the user sees a feasibility number that looks researched but is
+  // actually an estimated baseline.
   const offtakeCoverageStates = coverage?.offtake === 'fallback' ? getOfftakeCoverageStates(technology) : null
+  const siteFallback = coverage?.site === 'fallback'
+  const hasCoverageNote = offtakeCoverageStates || siteFallback
 
   // "AS OF" timestamp — institutional research-note convention
   const latestDate = (() => {
@@ -445,7 +447,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
             <SubScoreBar label="Offtake"         weight="40%" value={offtake} baseValue={baseSubs.offtake} color="#0F766E" />
             <SubScoreBar label="Interconnection" weight="35%" value={ix}      baseValue={baseSubs.ix}      color="#D97706" />
             <SubScoreBar label="Site Control"    weight="25%" value={site}    baseValue={baseSubs.site}    color="#2563EB" />
-            {offtakeCoverageStates && (
+            {hasCoverageNote && (
               <div
                 className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm"
                 style={{ background: 'rgba(180,83,9,0.06)', border: '1px solid rgba(180,83,9,0.18)' }}
@@ -454,9 +456,18 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <p className="text-[10px] leading-snug" style={{ color: '#78350F' }}>
-                  <span className="font-bold uppercase tracking-wider text-[9px]">Limited offtake coverage</span>
-                  <span className="block mt-0.5 font-normal">
-                    {technology} offtake is curated for {offtakeCoverageStates.join(', ')}. {stateProgram.name} uses an estimated baseline — feasibility score directionally indicative, not researched.
+                  <span className="font-bold uppercase tracking-wider text-[9px]">Limited coverage — directional only</span>
+                  <span className="block mt-0.5 font-normal space-y-0.5">
+                    {offtakeCoverageStates && (
+                      <span className="block">
+                        <strong>Offtake:</strong> {technology} economics are curated for {offtakeCoverageStates.join(', ')}. {stateProgram.name} uses an estimated baseline.
+                      </span>
+                    )}
+                    {siteFallback && (
+                      <span className="block">
+                        <strong>Site Control:</strong> County-level land/wetland/zoning data not yet seeded for this geography. Score uses a national baseline; verify locally before committing capital.
+                      </span>
+                    )}
                   </span>
                 </p>
               </div>

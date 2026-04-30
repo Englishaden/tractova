@@ -36,15 +36,20 @@ export function getOfftakeCoverageStates(technology) {
 }
 
 export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar') {
-  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched' } }
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched', site: 'researched' } }
 
   let offtake, ix, site
-  // 'researched' = state is in our curated coverage list for this tech.
-  // 'fallback'   = state is outside coverage; offtake reflects an estimated
-  //                baseline, not a researched value. UI surfaces this as a
-  //                "limited coverage" caption to match the honesty already
-  //                shown on the revenue panel.
+  // 'researched' = state is in our curated coverage list for this tech / county
+  //                has seeded site-control data.
+  // 'fallback'   = state is outside curated coverage / county lacks site data;
+  //                sub-score reflects an estimated baseline, not a researched
+  //                value. UI surfaces this as a "limited coverage" caption to
+  //                match the honesty already shown on the revenue panel.
   let offtakeCoverage = 'researched'
+  // Site coverage is fallback when countyData (or its siteControl block) is
+  // missing — only ~18 states currently have county_intelligence rows seeded,
+  // so for the other 32 the "site = 60" line below is a placeholder.
+  const siteCoverage = countyData?.siteControl ? 'researched' : 'fallback'
 
   // ── Offtake sub-score (varies by tech type) ──
   if (technology === 'C&I Solar') {
@@ -96,7 +101,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix      = Math.max(0, Math.min(100, ix      + dIX))
   site    = Math.max(0, Math.min(100, site    + dSite))
 
-  return { offtake, ix, site, coverage: { offtake: offtakeCoverage } }
+  return { offtake, ix, site, coverage: { offtake: offtakeCoverage, site: siteCoverage } }
 }
 
 export function computeDisplayScore(offtake, ix, site) {
