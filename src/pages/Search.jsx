@@ -122,28 +122,79 @@ function ArcGauge({ score }) {
 // Weight inlined next to label as gray meta — no more stranded far-right %.
 //
 // Layout: [LABEL · weight]  [value bold]  [████ segments fill]
-function SubScoreBar({ label, weight, value, color }) {
-  const segments = 14
-  const filled = Math.round((value / 100) * segments)
-  // Use shorter label form for the longest one to avoid grid overflow on narrow cards
+// V3.1: Replaced unicode-block-character bars with a gradient SVG track that
+// animates on mount + on value change. The base value is threaded in so each
+// bar can show its own delta badge when a scenario is active -- previously
+// only the overall ArcGauge surfaced scenario impact.
+function SubScoreBar({ label, weight, value, color, baseValue }) {
   const displayLabel = label === 'Interconnection' ? 'Interconn' : label
+  const safeValue = Math.max(0, Math.min(100, value || 0))
+  const delta = (typeof baseValue === 'number') ? value - baseValue : null
+  const hasDelta = delta !== null && delta !== 0
+
+  // Animated number counter -- mirrors the AnimatedScoreText pattern used by
+  // the ArcGauge so the whole panel animates in unison.
+  const mv = useMotionValue(safeValue)
+  const spring = useSpring(mv, { stiffness: 110, damping: 22, mass: 0.6 })
+  const [display, setDisplay] = useState(safeValue)
+  useEffect(() => { mv.set(safeValue) }, [safeValue, mv])
+  useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
+
   return (
     <div
-      className="font-mono text-[11px] tabular-nums items-baseline"
-      style={{ display: 'grid', gridTemplateColumns: 'minmax(0, max-content) 28px 1fr', columnGap: '12px' }}
+      className="font-mono text-[11px] tabular-nums items-center group/subscore"
+      style={{ display: 'grid', gridTemplateColumns: 'minmax(0, max-content) 38px 1fr', columnGap: '12px' }}
     >
       <span className="uppercase tracking-widest font-semibold text-ink leading-tight whitespace-nowrap">
         {displayLabel}
         <span className="ml-1.5 text-[9px] text-ink-muted font-normal">{weight}</span>
       </span>
-      <span className="font-bold text-[13px] text-ink leading-none text-right tabular-nums">
-        {value}
+
+      {/* Animated value + delta badge */}
+      <span className="text-right relative leading-none">
+        <span className="font-bold text-[13px] text-ink tabular-nums">{display}</span>
+        {hasDelta && (
+          <motion.span
+            key={delta}  /* re-fire animation when delta changes */
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="absolute -top-3 -right-1 text-[8px] font-bold tabular-nums px-1 py-px rounded-sm"
+            style={{
+              color: delta > 0 ? '#0F766E' : '#DC2626',
+              background: delta > 0 ? 'rgba(15,118,110,0.10)' : 'rgba(220,38,38,0.10)',
+              border: `1px solid ${delta > 0 ? 'rgba(15,118,110,0.25)' : 'rgba(220,38,38,0.25)'}`,
+            }}
+          >
+            {delta > 0 ? '+' : ''}{delta}
+          </motion.span>
+        )}
       </span>
-      <span className="leading-none whitespace-nowrap" style={{ letterSpacing: '0px' }}>
-        {Array.from({ length: segments }).map((_, i) => (
-          <span key={i} style={{ color: i < filled ? color : '#E2E8F0' }}>█</span>
-        ))}
-      </span>
+
+      {/* Animated gradient track */}
+      <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'rgba(226,232,240,0.55)' }}>
+        <motion.div
+          className="absolute inset-y-0 left-0 rounded-full"
+          initial={{ width: 0 }}
+          animate={{ width: `${safeValue}%` }}
+          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            background: `linear-gradient(90deg, ${color}99 0%, ${color} 70%, ${color} 100%)`,
+            boxShadow: `0 0 0 1px ${color}22 inset, 0 0 8px ${color}44`,
+          }}
+        />
+        {/* Subtle highlight that runs along the filled portion on hover */}
+        <motion.div
+          className="absolute inset-y-0 left-0 rounded-full pointer-events-none opacity-0 group-hover/subscore:opacity-100 transition-opacity"
+          initial={{ width: 0 }}
+          animate={{ width: `${safeValue}%` }}
+          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
+          style={{
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)',
+            mixBlendMode: 'overlay',
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -340,9 +391,9 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
                 </TooltipContent>
               </Tooltip>
             </div>
-            <SubScoreBar label="Offtake"         weight="40%" value={offtake} color="#0F766E" />
-            <SubScoreBar label="Interconnection" weight="35%" value={ix}      color="#D97706" />
-            <SubScoreBar label="Site Control"    weight="25%" value={site}    color="#2563EB" />
+            <SubScoreBar label="Offtake"         weight="40%" value={offtake} baseValue={baseSubs.offtake} color="#0F766E" />
+            <SubScoreBar label="Interconnection" weight="35%" value={ix}      baseValue={baseSubs.ix}      color="#D97706" />
+            <SubScoreBar label="Site Control"    weight="25%" value={site}    baseValue={baseSubs.site}    color="#2563EB" />
           </div>
         </div>
       </div>
