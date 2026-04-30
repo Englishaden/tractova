@@ -75,18 +75,19 @@ export default async function handler(req, res) {
     authMode = 'vercel-cron'
   }
 
-  if (!isAuthed) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
-  // ── Diagnostic short-circuit ────────────────────────────────────────────────
+  // ── Diagnostic short-circuit (auth-bypass) ──────────────────────────────────
   // ?debug=1 runs a single tiny Census fetch and returns full diagnostics
-  // (URL with key redacted, response status, headers, full body, key shape
-  // sanity checks). Lets us distinguish IP throttle / bad key / upstream
-  // maintenance / URL bug without wading through the multi-source flow.
+  // (URL with key fully redacted, response status, headers, full body, key
+  // shape sanity checks). Auth is bypassed so we can hit it from a browser
+  // tab during incident response -- the response intentionally contains no
+  // secrets (key length only, no characters of the key itself).
   if (req.query.debug === '1') {
     const diag = await handleCensusDebug()
     return res.status(200).json(diag)
+  }
+
+  if (!isAuthed) {
+    return res.status(401).json({ error: 'Unauthorized' })
   }
 
   // ── Source routing ──────────────────────────────────────────────────────────
@@ -214,15 +215,16 @@ async function censusFetch(url, { timeoutMs = 30000 } = {}) {
 async function handleCensusDebug() {
   const apiKey = process.env.CENSUS_API_KEY || ''
   const keyLen = apiKey.length
-  const keyTail = keyLen >= 4 ? apiKey.slice(-4) : '(none)'
   const keyTrimmedDiff = apiKey.length !== apiKey.trim().length
     ? `WARNING: key has ${apiKey.length - apiKey.trim().length} surrounding whitespace char(s)`
     : 'key has no surrounding whitespace'
+  // Census API keys are 40-char hex strings. Anything else is suspect.
+  const keyShapeOk = /^[0-9a-fA-F]{40}$/.test(apiKey)
 
   // Smallest possible query: one state, two variables.
   const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E&for=state:01`
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
-  const urlRedacted = apiKey ? `${baseUrl}&key=***${keyTail}` : baseUrl
+  const urlRedacted = apiKey ? `${baseUrl}&key=***REDACTED***` : baseUrl
 
   const startTs = Date.now()
   const out = {
@@ -231,7 +233,7 @@ async function handleCensusDebug() {
       url_redacted: urlRedacted,
       user_agent: CENSUS_UA,
       key_length: keyLen,
-      key_tail: keyTail,
+      key_shape_ok: keyShapeOk,
       key_whitespace_check: keyTrimmedDiff,
       vercel_region: process.env.VERCEL_REGION || '(unknown)',
     },
