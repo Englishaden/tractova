@@ -252,17 +252,18 @@ async function refreshLmi() {
   const apiKey = process.env.CENSUS_API_KEY
   const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=${vars.join(',')}&for=state:*`
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
+  const keyed = !!apiKey
 
   let raw
   try {
     const response = await censusFetch(url)
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      return { ok: false, error: `Census API ${response.status}: ${body.slice(0, 200)}` }
+      return { ok: false, keyed, error: `Census API ${response.status}: ${body.slice(0, 200)}` }
     }
     raw = await response.json()
   } catch (err) {
-    return { ok: false, error: `Census fetch failed: ${err.message}` }
+    return { ok: false, keyed, error: `Census fetch failed: ${err.message}` }
   }
 
   if (!Array.isArray(raw) || raw.length < 2) {
@@ -586,17 +587,18 @@ async function refreshCountyAcs() {
   const apiKey = process.env.CENSUS_API_KEY
   const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=${vars.join(',')}&for=county:*`
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
+  const keyed = !!apiKey
 
   let raw
   try {
     const response = await censusFetch(url)
     if (!response.ok) {
       const body = await response.text().catch(() => '')
-      return { ok: false, error: `Census county API ${response.status}: ${body.slice(0, 200)}` }
+      return { ok: false, keyed, error: `Census county API ${response.status}: ${body.slice(0, 200)}` }
     }
     raw = await response.json()
   } catch (err) {
-    return { ok: false, error: `Census county fetch failed: ${err.message}` }
+    return { ok: false, keyed, error: `Census county fetch failed: ${err.message}` }
   }
 
   if (!Array.isArray(raw) || raw.length < 100) {
@@ -1619,6 +1621,7 @@ async function refreshHudQctDda() {
 
 async function refreshNmtcLic() {
   const apiKey = process.env.CENSUS_API_KEY
+  const keyed = !!apiKey
 
   // 1. Pull state-level median family income for the threshold benchmark.
   //    State-level allows wildcard for `state` (only TRACT-level forbids it).
@@ -1630,11 +1633,11 @@ async function refreshNmtcLic() {
     const resp = await censusFetch(stateUrl)
     if (!resp.ok) {
       const body = await resp.text().catch(() => '')
-      return { ok: false, error: `Census state MFI ${resp.status}: ${body.slice(0, 200)}` }
+      return { ok: false, keyed, error: `Census state MFI ${resp.status}: ${body.slice(0, 200)}` }
     }
     stateRaw = await resp.json()
   } catch (err) {
-    return { ok: false, error: `Census state MFI fetch failed: ${err.message}` }
+    return { ok: false, keyed, error: `Census state MFI fetch failed: ${err.message}` }
   }
 
   if (!Array.isArray(stateRaw) || stateRaw.length < 2) {
