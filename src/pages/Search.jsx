@@ -174,7 +174,7 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
       {/* Animated gradient track */}
       <div className="relative h-2 rounded-full overflow-hidden" style={{ background: 'rgba(226,232,240,0.55)' }}>
         <motion.div
-          className="absolute inset-y-0 left-0 rounded-full"
+          className="absolute inset-y-0 left-0 rounded-full overflow-hidden"
           initial={{ width: 0 }}
           animate={{ width: `${safeValue}%` }}
           transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
@@ -182,18 +182,20 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
             background: `linear-gradient(90deg, ${color}99 0%, ${color} 70%, ${color} 100%)`,
             boxShadow: `0 0 0 1px ${color}22 inset, 0 0 8px ${color}44`,
           }}
-        />
-        {/* Subtle highlight that runs along the filled portion on hover */}
-        <motion.div
-          className="absolute inset-y-0 left-0 rounded-full pointer-events-none opacity-0 group-hover/subscore:opacity-100 transition-opacity"
-          initial={{ width: 0 }}
-          animate={{ width: `${safeValue}%` }}
-          transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
-          style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.45) 50%, transparent 100%)',
-            mixBlendMode: 'overlay',
-          }}
-        />
+        >
+          {/* Continuous shimmer sweep — communicates "live data" without
+              demanding hover. Loops every 3.6s with a soft white highlight. */}
+          <motion.div
+            className="absolute inset-y-0 pointer-events-none"
+            style={{
+              width: '40%',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
+              mixBlendMode: 'overlay',
+            }}
+            animate={{ x: ['-50%', '250%'] }}
+            transition={{ duration: 3.6, repeat: Infinity, ease: 'linear', repeatDelay: 1.4 }}
+          />
+        </motion.div>
       </div>
     </div>
   )
@@ -1049,7 +1051,7 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
   )
 }
 
-function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic }) {
+function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
@@ -1217,7 +1219,51 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                     </a>
                   </div>
 
-                  {/* Combined ITC summary — only shown if at least one bonus applies */}
+                  {/* HUD QCT / Non-Metro DDA row -- LIHTC instrument, NOT ITC.
+                      Folded into the same teal-stack panel because it's another
+                      federal geographic-designation incentive overlay, but
+                      excluded from the ITC ceiling math below since it's a
+                      different tax credit. */}
+                  <div className="pt-2 border-t border-teal-100/60 flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
+                        HUD QCT / Non-Metro DDA (LIHTC)
+                      </div>
+                      {hudQctDda && (hudQctDda.qctCount > 0 || hudQctDda.isNonMetroDda) ? (
+                        <>
+                          <div className="text-xs font-semibold text-teal-900">
+                            ✓ Designated — {[
+                              hudQctDda.qctCount > 0 && `${hudQctDda.qctCount} Qualified Census Tract${hudQctDda.qctCount === 1 ? '' : 's'}`,
+                              hudQctDda.isNonMetroDda && (hudQctDda.ddaName || 'non-metro DDA'),
+                            ].filter(Boolean).join(' · ')}
+                          </div>
+                          <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
+                            LIHTC bonus credit eligibility for hybrid CS + affordable-housing structures. Strong overlap with state CS LMI carve-outs (NY VDER, IL Shines low-income tier, MA SMART LMI adder). Different instrument from ITC — does not stack into the ceiling below.
+                          </div>
+                        </>
+                      ) : hudQctDda ? (
+                        <>
+                          <div className="text-xs text-gray-700">No QCT or non-metro DDA in {county || 'this county'}</div>
+                          <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                            Metro-area DDAs are designated at ZCTA level — verify per-site at huduser.gov for metropolitan projects.
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-gray-400">Loading…</div>
+                      )}
+                    </div>
+                    <a
+                      href="https://www.huduser.gov/portal/qct/index.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                    >
+                      Source ↗
+                    </a>
+                  </div>
+
+                  {/* Combined ITC summary — only shown if at least one bonus applies.
+                      LIHTC is intentionally excluded since it's a separate instrument. */}
                   {(energyCommunity?.isEnergyCommunity || nmtcLic?.isEligible) && (
                     <div className="pt-2 border-t border-teal-200/60 flex items-baseline justify-between">
                       <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-900">
@@ -2892,60 +2938,6 @@ function MaybeComparableDealsPanel({ state, stateName, technology, mw }) {
   )
 }
 
-// Federal LIHTC overlay — compact card surfacing HUD QCT count + non-metro DDA
-// flag. Hidden when the county has neither (no empty state).
-function LihtcOverlayPanel({ hudQctDda, county }) {
-  if (!hudQctDda) return null
-  const hasQct = hudQctDda.qctCount > 0
-  const hasDda = hudQctDda.isNonMetroDda
-  if (!hasQct && !hasDda) return null
-
-  return (
-    <div className="mt-5 rounded-lg border border-teal-100 bg-teal-50/40 px-5 py-4">
-      <div className="flex items-center justify-between mb-2.5">
-        <div className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-800">
-          Federal LIHTC Designations · {county}
-        </div>
-        <a
-          href="https://www.huduser.gov/portal/qct/index.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-mono text-[10px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
-        >
-          Source ↗
-        </a>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {hasQct && (
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-serif text-2xl font-bold text-ink tabular-nums">{hudQctDda.qctCount}</span>
-              <span className="text-xs text-ink-muted">Qualified Census Tract{hudQctDda.qctCount === 1 ? '' : 's'}</span>
-            </div>
-            <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">
-              Federally-designated LMI subscriber-sourcing pools. Counties with high QCT density typically have stronger CS LMI carve-out compatibility (e.g. NY VDER, IL Shines low-income tier, MA SMART LMI adder).
-            </p>
-          </div>
-        )}
-        {hasDda && (
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-800">✓ Non-Metro DDA</span>
-            </div>
-            <div className="text-xs text-ink mt-1">{hudQctDda.ddaName || 'Designated Difficult Development Area'}</div>
-            <p className="text-[11px] text-gray-600 mt-1.5 leading-snug">
-              Eligible for LIHTC bonus credits. Most relevant for hybrid CS + affordable-housing financing structures or projects targeting non-metro LMI subscriber bases.
-            </p>
-          </div>
-        )}
-      </div>
-      <p className="text-[10px] text-gray-400 mt-3 leading-relaxed">
-        2026 designation year. Metro-area DDAs are designated at ZCTA level (not covered above) — verify per-site at huduser.gov for metropolitan projects.
-      </p>
-    </div>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Search content (only mounts when user is confirmed Pro)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3465,6 +3457,8 @@ function SearchContent() {
                 rates={results.revenueRates}
                 energyCommunity={results.energyCommunity}
                 nmtcLic={results.nmtcLic}
+                hudQctDda={results.hudQctDda}
+                county={results.form.county}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
@@ -3484,14 +3478,9 @@ function SearchContent() {
               />
             </div>
 
-            {/* Federal LIHTC overlay — HUD QCT count + non-metro DDA flag.
-                Surfaces only when the county has a designation; counties
-                without QCTs and not a non-metro DDA simply omit this card
-                (their metro-area projects can verify per-site at huduser.gov). */}
-            <LihtcOverlayPanel
-              hudQctDda={results.hudQctDda}
-              county={results.form.county}
-            />
+            {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
+                so all three geographic-designation incentives (Energy
+                Community, §48(e) NMTC LIC, HUD QCT/DDA) live in one panel. */}
 
             {/* V3 Wave 2 — curation-gated panels.
                 Regulatory + Comparable Deals are dormant until admin
