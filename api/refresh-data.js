@@ -216,7 +216,7 @@ async function refreshLmi() {
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 30000)
+  const timeoutId = setTimeout(() => controller.abort(), 90000)
 
   let raw
   try {
@@ -555,7 +555,7 @@ async function refreshCountyAcs() {
   const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 45000)
+  const timeoutId = setTimeout(() => controller.abort(), 90000)
 
   let raw
   try {
@@ -1600,7 +1600,7 @@ async function refreshNmtcLic() {
   let stateRaw
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    const timeoutId = setTimeout(() => controller.abort(), 90000)
     const resp = await fetch(stateUrl, { signal: controller.signal })
     clearTimeout(timeoutId)
     if (!resp.ok) {
@@ -1636,7 +1636,7 @@ async function refreshNmtcLic() {
     const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19113_001E,B17020_001E,B17020_002E&for=tract:*&in=state:${stateFips}`
     const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000)
+    const timeoutId = setTimeout(() => controller.abort(), 90000)
     try {
       const resp = await fetch(url, { signal: controller.signal })
       clearTimeout(timeoutId)
@@ -1654,7 +1654,7 @@ async function refreshNmtcLic() {
   }
 
   const stateFipsList = Object.keys(FIPS_TO_USPS)
-  const PARALLEL = 8
+  const PARALLEL = 4
   const stateFetchErrors = []
   const allTractRowsByState = []   // each entry: { stateFips, headers, rows }
 
