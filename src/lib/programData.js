@@ -345,6 +345,66 @@ export async function getHudQctDda(stateId, countyName) {
   })
 }
 
+// ── getStateProgramDeltas ─────────────────────────────────────────────────────
+// V3 Wave 1.4: reads state_programs_snapshots and returns WoW (or most-
+// recent-pair) feasibility-score deltas per state. Returns an empty Map
+// when fewer than 2 snapshots per state exist (typical for the first
+// 1-3 weeks after migration 038 lands). Markets on the Move falls back
+// to its current recency-only sort when the map is empty.
+//
+// We pull snapshot pairs with a window function (latest + second-latest
+// per state). Since this runs from the client, we rely on RLS to permit
+// anon/authenticated read access on the snapshots table.
+export async function getStateProgramDeltas({ minDaysApart = 4 } = {}) {
+  return withCache('state_program_deltas', async () => {
+    // Pull last ~120 days of snapshots. ~50 states × ~16 weekly rows each
+    // = ~800 rows worst case -- trivial.
+    const cutoff = new Date(Date.now() - 120 * 86400 * 1000).toISOString()
+    const { data, error } = await supabase
+      .from('state_programs_snapshots')
+      .select('state_id, feasibility_score, snapshot_at')
+      .gte('snapshot_at', cutoff)
+      .order('snapshot_at', { ascending: false })
+    if (error) {
+      console.warn('[state_programs_snapshots] read failed:', error.message)
+      return new Map()
+    }
+    if (!data || data.length === 0) return new Map()
+
+    // Group by state, pick the latest two snapshots that are at least
+    // `minDaysApart` apart (avoids artificial deltas from same-day reruns).
+    const byState = new Map()
+    for (const row of data) {
+      if (!byState.has(row.state_id)) byState.set(row.state_id, [])
+      byState.get(row.state_id).push(row)
+    }
+    const deltas = new Map()
+    for (const [state, rows] of byState.entries()) {
+      if (rows.length < 2) continue
+      const latest = rows[0]
+      // Walk backwards for the first row that's >=minDaysApart from latest
+      const latestTs = new Date(latest.snapshot_at).getTime()
+      const prev = rows.slice(1).find(r =>
+        latestTs - new Date(r.snapshot_at).getTime() >= minDaysApart * 86400 * 1000
+      )
+      if (!prev) continue
+      const cur  = parseFloat(latest.feasibility_score)
+      const prevScore = parseFloat(prev.feasibility_score)
+      if (!Number.isFinite(cur) || !Number.isFinite(prevScore)) continue
+      const delta = Math.round(cur - prevScore)
+      if (delta === 0) continue   // unchanged states aren't "moving"
+      deltas.set(state, {
+        delta,
+        curScore:   cur,
+        prevScore,
+        latestAt:   latest.snapshot_at,
+        previousAt: prev.snapshot_at,
+      })
+    }
+    return deltas
+  })
+}
+
 // ── getNewsFeed ───────────────────────────────────────────────────────────────
 // Returns active news items sorted by published_at descending.
 export async function getNewsFeed() {

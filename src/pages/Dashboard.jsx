@@ -7,29 +7,50 @@ import SectionDivider from '../components/SectionDivider'
 import WelcomeCard from '../components/WelcomeCard'
 import ApiErrorBanner from '../components/ApiErrorBanner'
 import { useAuth } from '../context/AuthContext'
-import { getStateProgramMap, getNewsFeed } from '../lib/programData'
+import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 
 // V3 §4.1: top-of-dashboard strip surfacing recently-active states.
 // Pragmatic v1 -- ranks by max(lastVerified, updatedAt). When weekly
 // `dashboard_metrics` history accumulates, swap to true score-delta deltas
 // (this hook just needs to start consuming a deltas-aware payload).
-function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
-  const { allMovers, displayed, overflowCount } = useMemo(() => {
+function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
+  const { displayed, overflowCount, hasDeltas } = useMemo(() => {
     const states = Object.values(stateProgramMap || {})
-    if (!states.length) return { allMovers: [], displayed: [], overflowCount: 0 }
+    if (!states.length) return { displayed: [], overflowCount: 0, hasDeltas: false }
     const now = Date.now()
-    const all = states
+    const recent = states
       .filter(s => s.csStatus && s.csStatus !== 'none')
       .map(s => {
         const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
         const u = s.updatedAt   ? new Date(s.updatedAt).getTime()   : 0
-        return { ...s, recencyTs: Math.max(v, u) }
+        const d = deltaMap?.get?.(s.id) || null
+        return { ...s, recencyTs: Math.max(v, u), delta: d?.delta ?? null, prevScore: d?.prevScore ?? null }
       })
       .filter(s => s.recencyTs > 0 && (now - s.recencyTs) < 1000 * 60 * 60 * 24 * 30)
-      .sort((a, b) => b.recencyTs - a.recencyTs)
-    const top = all.slice(0, 3)
-    return { allMovers: all, displayed: top, overflowCount: Math.max(0, all.length - top.length) }
-  }, [stateProgramMap])
+
+    // V3 Wave 1.4: when score-deltas exist, sort by |delta| desc -- "Markets
+    // on the Move" then literally means score-movers. Falls back to recency
+    // sort when no deltas (typical for the first ~2 weeks after migration
+    // 038 lands until weekly snapshot history accrues).
+    const deltasPresent = recent.some(s => s.delta !== null && s.delta !== 0)
+    const sorted = deltasPresent
+      ? recent.slice().sort((a, b) => {
+          if (a.delta !== null && b.delta === null) return -1
+          if (a.delta === null && b.delta !== null) return 1
+          if (a.delta !== null && b.delta !== null) {
+            return Math.abs(b.delta) - Math.abs(a.delta)
+          }
+          return b.recencyTs - a.recencyTs
+        })
+      : recent.slice().sort((a, b) => b.recencyTs - a.recencyTs)
+
+    const top = sorted.slice(0, 3)
+    return {
+      displayed:    top,
+      overflowCount: Math.max(0, sorted.length - top.length),
+      hasDeltas:    deltasPresent,
+    }
+  }, [stateProgramMap, deltaMap])
 
   if (displayed.length === 0) return null
 
@@ -57,13 +78,18 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
           <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
             Markets on the Move
           </p>
-          <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">· past 30 days</span>
+          <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">
+            · {hasDeltas ? 'WoW score deltas' : 'past 30 days'}
+          </span>
         </div>
         <span className="hidden sm:inline-block w-px h-4" style={{ background: '#E2E8F0' }} />
         <div className="flex items-center gap-2 flex-wrap">
           {displayed.map((s) => {
             const score = s.feasibilityScore ?? 0
-            const tooltip = `${s.name}: data verified ${formatFullDate(s.recencyTs)}${s.csProgram ? ` · ${s.csProgram}` : ''}`
+            const tooltip = s.delta !== null
+              ? `${s.name}: ${s.delta > 0 ? '+' : ''}${s.delta} pt${Math.abs(s.delta) === 1 ? '' : 's'} WoW · ${formatFullDate(s.recencyTs)}${s.csProgram ? ` · ${s.csProgram}` : ''}`
+              : `${s.name}: data verified ${formatFullDate(s.recencyTs)}${s.csProgram ? ` · ${s.csProgram}` : ''}`
+            const deltaColor = s.delta > 0 ? '#0F766E' : s.delta < 0 ? '#DC2626' : '#5A6B7A'
             return (
               <button
                 key={s.id}
@@ -78,7 +104,13 @@ function MarketsOnTheMove({ stateProgramMap, onStateClick }) {
                 <span className="font-mono text-[11px] font-bold tabular-nums leading-none" style={{ color: score >= 60 ? '#0F766E' : '#5A6B7A' }}>
                   {score}
                 </span>
-                <span className="font-mono text-[9px] text-ink-muted leading-none">{formatAgo(s.recencyTs)}</span>
+                {s.delta !== null && s.delta !== 0 ? (
+                  <span className="font-mono text-[10px] font-bold tabular-nums leading-none flex items-center gap-0.5" style={{ color: deltaColor }}>
+                    {s.delta > 0 ? '↑' : '↓'}{Math.abs(s.delta)}
+                  </span>
+                ) : (
+                  <span className="font-mono text-[9px] text-ink-muted leading-none">{formatAgo(s.recencyTs)}</span>
+                )}
               </button>
             )
           })}
@@ -114,18 +146,26 @@ export default function Dashboard({ previewMode = false }) {
   // staring at a frozen MetricsBar / empty NewsFeed with no recovery path.
   const [dashboardError, setDashboardError] = useState(null)
   const [retrying, setRetrying] = useState(false)
+  // V3 Wave 1.4: WoW score deltas for Markets on the Move. Empty Map until
+  // state_programs_snapshots accumulates ≥2 weekly entries per state
+  // (~2 weeks after migration 038 lands). Failure is non-fatal -- panel
+  // gracefully falls back to recency-only sort.
+  const [deltaMap, setDeltaMap] = useState(new Map())
 
   const loadDashboardData = useCallback(async (isRetry = false) => {
     if (isRetry) setRetrying(true)
     let failedSources = []
-    const [mapRes, newsRes] = await Promise.allSettled([
+    const [mapRes, newsRes, deltasRes] = await Promise.allSettled([
       getStateProgramMap(),
       getNewsFeed(),
+      getStateProgramDeltas(),
     ])
     if (mapRes.status === 'fulfilled') setStateProgramMap(mapRes.value)
     else                                failedSources.push('market data')
     if (newsRes.status === 'fulfilled') setNews(newsRes.value)
     else                                failedSources.push('news')
+    // Deltas are best-effort -- never surface in the error banner.
+    if (deltasRes.status === 'fulfilled') setDeltaMap(deltasRes.value || new Map())
     if (failedSources.length > 0) {
       setDashboardError(`Couldn't load ${failedSources.join(' and ')}. Check your connection or retry.`)
     } else {
@@ -207,8 +247,9 @@ export default function Dashboard({ previewMode = false }) {
 
         <SectionDivider />
 
-        {/* V3 §4.1: Markets on the Move — recently-updated states with score */}
-        <MarketsOnTheMove stateProgramMap={stateProgramMap} onStateClick={handleStateClick} />
+        {/* V3 §4.1: Markets on the Move — surfaces WoW score deltas when
+            state_programs_snapshots history exists, else recency-sorted. */}
+        <MarketsOnTheMove stateProgramMap={stateProgramMap} deltaMap={deltaMap} onStateClick={handleStateClick} />
 
         {/* Main two-panel layout — stacks on mobile/tablet, side-by-side at lg+ */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">

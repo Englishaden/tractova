@@ -674,17 +674,52 @@ async function refreshStateProgramsViaDsire() {
   // written, and the freshness panel stays stale forever.
   const allFailed = updates.length > 0 && updates_applied === 0
 
+  // V3 Wave 1.4: append a snapshot row per state on every cron run so we
+  // accumulate a feasibility-score time series. ~4 weeks of accumulation
+  // unlocks WoW deltas on Markets on the Move; ~12 weeks unlocks the IX
+  // Velocity / Program Saturation indices. Best-effort -- snapshot failure
+  // doesn't fail the parent cron run.
+  let snapshots_written = 0
+  try {
+    const { data: latestStates } = await supabaseAdmin
+      .from('state_programs')
+      .select('id, feasibility_score, cs_status, capacity_mw, ix_difficulty, lmi_required, lmi_percent')
+      .neq('cs_status', 'none')
+    if (latestStates && latestStates.length > 0) {
+      const snapshotRows = latestStates.map(s => ({
+        state_id:          s.id,
+        feasibility_score: s.feasibility_score,
+        cs_status:         s.cs_status,
+        capacity_mw:       s.capacity_mw,
+        ix_difficulty:     s.ix_difficulty,
+        lmi_required:      s.lmi_required,
+        lmi_percent:       s.lmi_percent,
+      }))
+      const { error: snapErr } = await supabaseAdmin
+        .from('state_programs_snapshots')
+        .insert(snapshotRows)
+      if (snapErr) {
+        console.warn('[state_programs_snapshots] insert failed:', snapErr.message)
+      } else {
+        snapshots_written = snapshotRows.length
+      }
+    }
+  } catch (e) {
+    console.warn('[state_programs_snapshots] hook failed:', e?.message)
+  }
+
   return {
-    ok:              !allFailed,
-    error:           allFailed ? `All ${updates.length} state_programs updates failed. First error: ${firstUpdateError}. Hint: confirm migration 026 (dsire_* columns) is applied.` : undefined,
-    states_checked:  stateRows.length,
+    ok:                !allFailed,
+    error:             allFailed ? `All ${updates.length} state_programs updates failed. First error: ${firstUpdateError}. Hint: confirm migration 026 (dsire_* columns) is applied.` : undefined,
+    states_checked:    stateRows.length,
     updates_applied,
-    verified:        results.verified,
-    partial:         results.partial,
-    no_match:        results.no_match,
-    errors:          results.errors,
-    first_error:     firstUpdateError,
-    samples:         results.samples,
+    snapshots_written,
+    verified:          results.verified,
+    partial:           results.partial,
+    no_match:          results.no_match,
+    errors:            results.errors,
+    first_error:       firstUpdateError,
+    samples:           results.samples,
   }
 }
 
