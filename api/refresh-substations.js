@@ -211,13 +211,22 @@ async function logUpdate(stateId, changeCount, details) {
 }
 
 export default async function handler(req, res) {
-  // Auth: Vercel cron header or bearer token
+  // Auth: Vercel cron header, CRON_SECRET bearer, or admin-user JWT.
   const authHeader = req.headers.authorization
   const cronHeader = req.headers['x-vercel-cron']
 
   const isVercelCron = cronHeader === '1'
   const isBearerAuth = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
-  if (!isVercelCron && !isBearerAuth) {
+
+  let isAdminAuth = false
+  if (!isVercelCron && !isBearerAuth && authHeader?.startsWith('Bearer ')) {
+    try {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.slice(7))
+      if (user?.email === 'aden.walker67@gmail.com') isAdminAuth = true
+    } catch (_) { /* fall through */ }
+  }
+
+  if (!isVercelCron && !isBearerAuth && !isAdminAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 

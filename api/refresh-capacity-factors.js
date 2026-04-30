@@ -80,9 +80,19 @@ async function fetchCapacityFactor(stateId, coords) {
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
+  const authHeader = req.headers.authorization
   const isVercelCron = req.headers['x-vercel-cron'] === '1'
-  const isBearerAuth = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
-  if (!isVercelCron && !isBearerAuth) {
+  const isBearerAuth = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
+
+  let isAdminAuth = false
+  if (!isVercelCron && !isBearerAuth && authHeader?.startsWith('Bearer ')) {
+    try {
+      const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.slice(7))
+      if (user?.email === 'aden.walker67@gmail.com') isAdminAuth = true
+    } catch (_) { /* fall through */ }
+  }
+
+  if (!isVercelCron && !isBearerAuth && !isAdminAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 

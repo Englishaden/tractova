@@ -1397,15 +1397,21 @@ function IXQueueTab() {
 // Data Health Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Each card prefers `last_cron_success` (when did the cron last verify this
+// data against the live source?) -- migration 031 derives this from cron_runs
+// so a click on "Refresh data from sources" bumps every card whose cron
+// succeeded, even if no rows actually mutated. county_intelligence is the
+// one exception: hand-curated, no cron, so we keep its row-level field.
 const FRESHNESS_CONFIG = {
-  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'newest_verified',     staleField: 'stale_count', thresholds: [90, 180] },
-  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'newest_fetch',        staleField: 'stale_count', thresholds: [14, 30] },
-  substations:         { label: 'Substations',         icon: '🔌', field: 'last_updated',        staleField: null,          thresholds: [60, 180] },
-  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified',     staleField: 'stale_count', thresholds: [90, 180] },
-  county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_updated',        staleField: null,          thresholds: [14, 30] },
-  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_updated',        staleField: null,          thresholds: [90, 180] },
-  revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'newest_dsire_check',  staleField: null,          thresholds: [14, 30] },
-  news_feed:           { label: 'News Feed',           icon: '📰', field: 'latest_item',         staleField: null,          thresholds: [14, 30] },
+  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'last_cron_success', staleField: 'stale_count', thresholds: [14, 30] },
+  lmi_data:            { label: 'LMI Data (Census)',   icon: '🏘', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
+  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'last_cron_success', staleField: 'stale_count', thresholds: [14, 30] },
+  substations:         { label: 'Substations',         icon: '🔌', field: 'last_cron_success', staleField: null,          thresholds: [45, 90] },
+  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified',   staleField: 'stale_count', thresholds: [90, 180] },
+  county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
+  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_cron_success', staleField: null,          thresholds: [120, 200] },
+  revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
+  news_feed:           { label: 'News Feed',           icon: '📰', field: 'last_cron_success', staleField: null,          thresholds: [14, 30] },
 }
 
 function daysSince(dateStr) {
@@ -1628,26 +1634,49 @@ function DataHealthTab() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) throw new Error('Not authenticated')
-      const resp = await fetch('/api/refresh-data?source=all', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      const body = await resp.text()
-      let json = null
-      try { json = JSON.parse(body) } catch {}
-      if (!resp.ok) throw new Error(json?.error || `HTTP ${resp.status}`)
-      setRefreshResult(json)
+      const auth = { Authorization: `Bearer ${session.access_token}` }
 
-      // Cron just rewrote the underlying tables -- nuke the front-end 1h
-      // cache so the rest of the app re-fetches and shows the new values
-      // without requiring a hard reload.
+      // Fan out to every cron endpoint in parallel. The multiplexed
+      // /api/refresh-data covers lmi/state_programs/county_acs/news/
+      // revenue_stacks; substations + ix-queue + capacity-factors are
+      // separate Vercel functions (we only have 12 slots so they couldn't
+      // be folded into the multiplexer). All four accept the admin JWT.
+      const endpoints = [
+        { name: 'multiplexed', url: '/api/refresh-data?source=all' },
+        { name: 'substations', url: '/api/refresh-substations' },
+        { name: 'ix_queue',    url: '/api/refresh-ix-queue' },
+        { name: 'capacity',    url: '/api/refresh-capacity-factors' },
+      ]
+      const settled = await Promise.allSettled(
+        endpoints.map(e => fetch(e.url, { method: 'POST', headers: auth }).then(async r => {
+          const text = await r.text()
+          let json = null
+          try { json = JSON.parse(text) } catch {}
+          if (!r.ok) throw new Error(json?.error || `HTTP ${r.status}`)
+          return json
+        }))
+      )
+
+      const aggregate = { ok: true, endpoints: {} }
+      for (let i = 0; i < endpoints.length; i++) {
+        const e = endpoints[i]
+        const r = settled[i]
+        if (r.status === 'fulfilled') {
+          aggregate.endpoints[e.name] = r.value
+        } else {
+          aggregate.ok = false
+          aggregate.endpoints[e.name] = { ok: false, error: r.reason?.message || 'failed' }
+        }
+      }
+      setRefreshResult(aggregate)
+
+      // Crons just rewrote the underlying tables -- nuke the front-end 1h
+      // cache so the rest of the app re-fetches without a hard reload.
       invalidateCache()
 
       // Re-fetch the freshness panel itself so the cards update inline.
       try {
-        const fresh = await fetch('/api/data-health', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        })
+        const fresh = await fetch('/api/data-health', { headers: auth })
         if (fresh.ok) setData(await fresh.json())
       } catch (_) { /* non-fatal */ }
     } catch (err) {
@@ -1716,10 +1745,20 @@ function DataHealthTab() {
             )}
           </button>
           {refreshResult && (
-            <span className={`text-xs ${refreshResult.ok ? 'text-emerald-700' : 'text-red-600'}`}>
-              {refreshResult.ok
-                ? `✓ Refreshed: ${Object.entries(refreshResult.sources || {}).map(([k, v]) => `${k} (${v.states_refreshed ?? 'done'})`).join(', ')} · ${refreshResult.total_duration_ms}ms`
-                : `Refresh failed: ${refreshResult.error || 'see logs'}`}
+            <span className={`text-xs ${refreshResult.ok ? 'text-emerald-700' : 'text-amber-600'}`}>
+              {(() => {
+                if (refreshResult.error) return `Refresh failed: ${refreshResult.error}`
+                const eps = refreshResult.endpoints || {}
+                const parts = Object.entries(eps).map(([name, val]) => {
+                  if (val?.error) return `${name} ✗`
+                  if (val?.sources) return `${name} ✓(${Object.keys(val.sources).length})`
+                  if (val?.ok === false) return `${name} ✗`
+                  return `${name} ✓`
+                })
+                return refreshResult.ok
+                  ? `✓ Refreshed: ${parts.join(' · ')}`
+                  : `Partial refresh: ${parts.join(' · ')}`
+              })()}
             </span>
           )}
         </div>
@@ -1734,9 +1773,9 @@ function DataHealthTab() {
 
       {/* Source attribution help */}
       <p className="text-[11px] text-ink-muted leading-relaxed">
-        Live-pulled sources: <span className="font-mono">lmi</span> (Census ACS 2018-2022 5-yr).
-        Cron-pulled: IX queue (ISO/RTOs, weekly), substations (EIA Form 860, monthly), capacity factors + retail rates (NREL + EIA, quarterly).
-        Other layers (state programs, county intel, news feed) are admin-curated pending dedicated source pipelines.
+        Clicking Refresh fans out to every cron in parallel: Census ACS (LMI + counties), DSIRE (state programs + revenue stacks), RSS+AI (news feed),
+        ISO queues (IX queue), EIA Form 860 (substations), and NREL + EIA (capacity factors + retail rates). Each handler logs to{' '}
+        <span className="font-mono">cron_runs</span> on success, which drives the freshness cards above.
       </p>
 
       {/* ── Section 1: Freshness Grid ── */}
