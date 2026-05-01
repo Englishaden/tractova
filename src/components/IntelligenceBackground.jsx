@@ -1,5 +1,7 @@
+import { useRef } from 'react'
+
 // IntelligenceBackground — fixed-position background layer for the Profile
-// page. Three stacked CSS layers create a "flowing intelligence platform"
+// page. Five stacked CSS layers create a "flowing intelligence platform"
 // atmosphere without competing with the centered profile content.
 //
 // Stacking strategy: this component renders inside a `relative` parent and
@@ -11,52 +13,178 @@
 //   1. Edge wash radial gradients — soft teal blooms with off-canvas centers
 //      pulling visual weight to the gutters; static.
 //   2. Slow-flowing teal band — wide, blurred horizontal band that drifts
-//      across the page over 45s with constant moderate opacity (no fade
-//      in/out at edges) so it's continuously visible.
+//      across the page over 45s; continuous visibility.
 //   3. Cartographic parcel grid — 32px grid masked to LEFT and RIGHT 200px
-//      gutters via mask-image so it frames the centered profile without
-//      overlapping it; static.
-//   4. Floating accent dots — 4 small teal dots drifting across the gutters
-//      on independent timers, providing distinctly visible motion that
-//      signals "intelligence working" without being noisy.
+//      gutters via mask-image so it frames the centered profile; static.
+//   4. Floating accent dots — 8 dots in the pillar-color palette (teal /
+//      amber / blue / light-teal). Each picks a random START EDGE on mount
+//      and drifts toward the OPPOSITE edge. Constellation regenerates per
+//      page load, so refreshing Profile gives a fresh layout.
+//   5. Tractova T Easter egg — the brand mark drifts across the page on
+//      one of 6 randomized paths per page session (4 cardinal + 2 diagonal).
+//      90s cycle (was 45s) so it stays a rare appearance. Path picked once
+//      on mount; same path repeats for the page session.
 //
 // All layers are pure CSS (GPU-accelerated, zero JS work per frame).
-// Honors `prefers-reduced-motion` (motion disabled, washes preserved).
+// Honors `prefers-reduced-motion` (animations disabled, washes preserved).
+
+// ── Pillar-color palette for accent dots ────────────────────────────────────
+// Each color maps to one of the platform's intelligence pillars so the
+// rising/drifting dots quietly signal "all three pillars processing."
+const DOT_COLORS = [
+  { color: '#14B8A6', glow: 'rgba(20,184,166,0.65)'  }, // teal · offtake
+  { color: '#F59E0B', glow: 'rgba(245,158,11,0.55)'  }, // amber · IX
+  { color: '#2563EB', glow: 'rgba(37,99,235,0.55)'   }, // blue · site
+  { color: '#5EEAD4', glow: 'rgba(94,234,212,0.65)'  }, // light teal accent
+]
+
+// ── Dot drift directions (one per start edge) ──────────────────────────────
+// Each variant defines: which edge the dot starts on, the perpendicular-
+// axis position style, and the keyframe animation that drifts it across.
+const DOT_DRIFT_VARIANTS = {
+  bottom: { keyframe: 'tractova-drift-up',    posStyle: { bottom: '-12px' }, posKey: 'left' },
+  top:    { keyframe: 'tractova-drift-down',  posStyle: { top:    '-12px' }, posKey: 'left' },
+  left:   { keyframe: 'tractova-drift-right', posStyle: { left:   '-12px' }, posKey: 'top'  },
+  right:  { keyframe: 'tractova-drift-left',  posStyle: { right:  '-12px' }, posKey: 'top'  },
+}
+
+const DOT_EDGES = ['bottom', 'top', 'left', 'right']
+
+function generateDotConstellation() {
+  // 8 dots — randomized start edge, position on that edge, color from the
+  // pillar palette, size, drift duration, and animation delay. Generated
+  // once per page session via useRef so re-renders don't shuffle layout.
+  return Array.from({ length: 8 }).map((_, i) => {
+    const edge       = DOT_EDGES[Math.floor(Math.random() * DOT_EDGES.length)]
+    const variant    = DOT_DRIFT_VARIANTS[edge]
+    const posOnEdge  = 5 + Math.random() * 90  // 5-95% along the edge
+    const colorPick  = DOT_COLORS[i % DOT_COLORS.length]  // round-robin so all 4 colors appear at least twice
+    const size       = 3 + Math.floor(Math.random() * 3)  // 3-5px
+    const durationS  = 24 + Math.random() * 18  // 24-42s
+    const delayS     = Math.random() * 28       // 0-28s, so they don't all start together
+    return { edge, variant, posOnEdge, ...colorPick, size, durationS, delayS }
+  })
+}
+
+// ── Tractova T Easter-egg path variants ────────────────────────────────────
+// 6 random path options. Each picks a starting edge + ending edge and a
+// keyframe that translates between them. perpOffset varies the start point
+// along the perpendicular axis so even the same direction looks different.
+const T_PATH_VARIANTS = [
+  { name: 'up',          keyframe: 'tractova-mark-up',          startStyle: (off) => ({ bottom: '-40px', left:  `calc(${off}% - 9px)` }) },
+  { name: 'down',        keyframe: 'tractova-mark-down',        startStyle: (off) => ({ top:    '-40px', left:  `calc(${off}% - 9px)` }) },
+  { name: 'left-right',  keyframe: 'tractova-mark-leftright',   startStyle: (off) => ({ left:   '-40px', top:   `calc(${off}% - 9px)` }) },
+  { name: 'right-left',  keyframe: 'tractova-mark-rightleft',   startStyle: (off) => ({ right:  '-40px', top:   `calc(${off}% - 9px)` }) },
+  { name: 'diag-up-r',   keyframe: 'tractova-mark-diag-up-r',   startStyle: (off) => ({ bottom: '-40px', left:  `calc(${off}% - 9px)` }) },
+  { name: 'diag-up-l',   keyframe: 'tractova-mark-diag-up-l',   startStyle: (off) => ({ bottom: '-40px', right: `calc(${off}% - 9px)` }) },
+]
+
 export default function IntelligenceBackground() {
+  // Both random selections captured on mount via useRef so the constellation
+  // and T path are stable for the page session. User can refresh Profile to
+  // reroll.
+  const dots    = useRef(generateDotConstellation())
+  const tPath   = useRef(T_PATH_VARIANTS[Math.floor(Math.random() * T_PATH_VARIANTS.length)])
+  const tOffset = useRef(15 + Math.random() * 70)  // 15-85% along the perpendicular axis
+
   return (
     <>
       <style>{`
+        /* ── Layer 2: flowing band ────────────────────────────────────── */
         @keyframes tractova-intel-flow {
           0%   { transform: translateX(-55%); }
           100% { transform: translateX(55%); }
         }
-        @keyframes tractova-intel-drift {
-          0%   { transform: translateY(0) translateX(0); opacity: 0; }
+
+        /* ── Layer 4: dot drift (one keyframe per direction) ──────────── */
+        @keyframes tractova-drift-up {
+          0%   { transform: translateY(0)     translateX(0); opacity: 0; }
           10%  { opacity: 0.55; }
           50%  { opacity: 0.75; }
           90%  { opacity: 0.55; }
           100% { transform: translateY(-110vh) translateX(8px); opacity: 0; }
         }
-        /* Easter-egg brand-mark traversal — 45s cycle, ~20s visible drift
-           through the page center, ~12s hidden gap. The mark drifts behind
-           the centered profile content (z-0) so it's mostly visible only in
-           the spaces above and below the profile card — the "rare appearance"
-           feel the Easter egg framing calls for. */
-        @keyframes tractova-mark-drift {
-          0%   { transform: translateY(0);     opacity: 0; }
-          10%  { transform: translateY(-10vh); opacity: 0; }
-          15%  { transform: translateY(-15vh); opacity: 0.55; }
-          60%  { transform: translateY(-95vh); opacity: 0.65; }
+        @keyframes tractova-drift-down {
+          0%   { transform: translateY(0)     translateX(0); opacity: 0; }
+          10%  { opacity: 0.55; }
+          50%  { opacity: 0.75; }
+          90%  { opacity: 0.55; }
+          100% { transform: translateY(110vh) translateX(-6px); opacity: 0; }
+        }
+        @keyframes tractova-drift-right {
+          0%   { transform: translateX(0)    translateY(0); opacity: 0; }
+          10%  { opacity: 0.55; }
+          50%  { opacity: 0.75; }
+          90%  { opacity: 0.55; }
+          100% { transform: translateX(110vw) translateY(-6px); opacity: 0; }
+        }
+        @keyframes tractova-drift-left {
+          0%   { transform: translateX(0)     translateY(0); opacity: 0; }
+          10%  { opacity: 0.55; }
+          50%  { opacity: 0.75; }
+          90%  { opacity: 0.55; }
+          100% { transform: translateX(-110vw) translateY(6px);  opacity: 0; }
+        }
+
+        /* ── Layer 5: Tractova T path keyframes ───────────────────────────
+           Each is 90s. Visible drift ~30s (15%–60% of the cycle), hidden
+           gap ~32s (60%–100% + 0%–10%). Same opacity shape across all
+           variants so the "rare appearance" feel is consistent. */
+        @keyframes tractova-mark-up {
+          0%   { transform: translateY(0);      opacity: 0; }
+          10%  { transform: translateY(-10vh);  opacity: 0; }
+          15%  { transform: translateY(-15vh);  opacity: 0.55; }
+          60%  { transform: translateY(-95vh);  opacity: 0.65; }
           68%  { transform: translateY(-110vh); opacity: 0; }
           100% { transform: translateY(-110vh); opacity: 0; }
         }
-        /* Pulse + emanation — separate cycle from the drift so the mark
-           "breathes" independent of its position. Scale + drop-shadow
-           combine into a soft halo that radiates outward and contracts. */
+        @keyframes tractova-mark-down {
+          0%   { transform: translateY(0);      opacity: 0; }
+          10%  { transform: translateY(10vh);   opacity: 0; }
+          15%  { transform: translateY(15vh);   opacity: 0.55; }
+          60%  { transform: translateY(95vh);   opacity: 0.65; }
+          68%  { transform: translateY(110vh);  opacity: 0; }
+          100% { transform: translateY(110vh);  opacity: 0; }
+        }
+        @keyframes tractova-mark-leftright {
+          0%   { transform: translateX(0);      opacity: 0; }
+          10%  { transform: translateX(10vw);   opacity: 0; }
+          15%  { transform: translateX(15vw);   opacity: 0.55; }
+          60%  { transform: translateX(95vw);   opacity: 0.65; }
+          68%  { transform: translateX(110vw);  opacity: 0; }
+          100% { transform: translateX(110vw);  opacity: 0; }
+        }
+        @keyframes tractova-mark-rightleft {
+          0%   { transform: translateX(0);      opacity: 0; }
+          10%  { transform: translateX(-10vw);  opacity: 0; }
+          15%  { transform: translateX(-15vw);  opacity: 0.55; }
+          60%  { transform: translateX(-95vw);  opacity: 0.65; }
+          68%  { transform: translateX(-110vw); opacity: 0; }
+          100% { transform: translateX(-110vw); opacity: 0; }
+        }
+        @keyframes tractova-mark-diag-up-r {
+          0%   { transform: translate(0, 0);                 opacity: 0; }
+          10%  { transform: translate(8vw, -10vh);           opacity: 0; }
+          15%  { transform: translate(12vw, -15vh);          opacity: 0.55; }
+          60%  { transform: translate(75vw, -95vh);          opacity: 0.65; }
+          68%  { transform: translate(90vw, -110vh);         opacity: 0; }
+          100% { transform: translate(90vw, -110vh);         opacity: 0; }
+        }
+        @keyframes tractova-mark-diag-up-l {
+          0%   { transform: translate(0, 0);                  opacity: 0; }
+          10%  { transform: translate(-8vw, -10vh);           opacity: 0; }
+          15%  { transform: translate(-12vw, -15vh);          opacity: 0.55; }
+          60%  { transform: translate(-75vw, -95vh);          opacity: 0.65; }
+          68%  { transform: translate(-90vw, -110vh);         opacity: 0; }
+          100% { transform: translate(-90vw, -110vh);         opacity: 0; }
+        }
+
+        /* ── Mark pulse (independent of path) ────────────────────────── */
         @keyframes tractova-mark-pulse {
           0%, 100% { transform: scale(1.0);  filter: drop-shadow(0 0 6px rgba(20,184,166,0.40)); }
           50%      { transform: scale(1.08); filter: drop-shadow(0 0 14px rgba(20,184,166,0.85)); }
         }
+
         @media (prefers-reduced-motion: reduce) {
           .intel-flow-band,
           .intel-dot,
@@ -80,9 +208,7 @@ export default function IntelligenceBackground() {
           }}
         />
 
-        {/* Layer 2 — slow-flowing teal band (always visible, just drifts).
-            Positioned mid-upper viewport. 45s cycle = visible motion without
-            being agitating. */}
+        {/* Layer 2 — slow-flowing teal band (always visible, drifts L↔R). */}
         <div
           className="intel-flow-band absolute"
           style={{
@@ -111,59 +237,42 @@ export default function IntelligenceBackground() {
           }}
         />
 
-        {/* Layer 4 — floating accent dots in the gutters. Each drifts
-            upward at slightly different speeds with offset start delays so
-            the motion never feels mechanical or pulsing-in-lockstep.
-            Colors map to the three intelligence pillars (teal = offtake,
-            amber = IX, blue = site control) so the rising dots quietly
-            signal "all three pillars processing in real time." Sizes and
-            glow strengths vary so the visual rhythm has natural depth. */}
-        {[
-          // Left gutter — 4 dots, mixed pillars + sizes + cycles
-          { left: '3%',  delay: '0s',   duration: '28s', size: 4, color: '#14B8A6', glow: 'rgba(20,184,166,0.70)' },   // teal · offtake
-          { left: '6%',  delay: '12s',  duration: '38s', size: 3, color: '#F59E0B', glow: 'rgba(245,158,11,0.55)' },   // amber · IX
-          { left: '11%', delay: '22s',  duration: '32s', size: 5, color: '#5EEAD4', glow: 'rgba(94,234,212,0.65)' },   // light teal accent
-          { left: '14%', delay: '6s',   duration: '40s', size: 3, color: '#2563EB', glow: 'rgba(37,99,235,0.50)' },    // blue · site
-          // Right gutter — 4 dots, different mix
-          { left: '86%', delay: '4s',   duration: '34s', size: 4, color: '#2563EB', glow: 'rgba(37,99,235,0.55)' },    // blue · site
-          { left: '90%', delay: '16s',  duration: '30s', size: 3, color: '#14B8A6', glow: 'rgba(20,184,166,0.65)' },   // teal · offtake
-          { left: '93%', delay: '26s',  duration: '36s', size: 5, color: '#F59E0B', glow: 'rgba(245,158,11,0.50)' },   // amber · IX
-          { left: '97%', delay: '9s',   duration: '42s', size: 3, color: '#5EEAD4', glow: 'rgba(94,234,212,0.65)' },   // light teal accent
-        ].map((d, i) => (
-          <span
-            key={i}
-            className="intel-dot absolute rounded-full"
-            style={{
-              left: d.left,
-              bottom: '-10px',
-              width: `${d.size}px`,
-              height: `${d.size}px`,
-              background: d.color,
-              boxShadow: `0 0 ${d.size * 3}px ${d.glow}`,
-              animation: `tractova-intel-drift ${d.duration} linear infinite`,
-              animationDelay: d.delay,
-            }}
-          />
-        ))}
+        {/* Layer 4 — randomized constellation of pillar-color accent dots.
+            Each dot picks an edge + position + drift direction on mount;
+            the configuration is stable per page session (refresh to reroll).
+            Distributed across all 4 edges instead of clustered in gutters. */}
+        {dots.current.map((d, i) => {
+          // Position style: edge anchor + perpendicular-axis percentage.
+          const posStyle = { ...d.variant.posStyle, [d.variant.posKey]: `${d.posOnEdge}%` }
+          return (
+            <span
+              key={i}
+              className="intel-dot absolute rounded-full"
+              style={{
+                ...posStyle,
+                width: `${d.size}px`,
+                height: `${d.size}px`,
+                background: d.color,
+                boxShadow: `0 0 ${d.size * 3}px ${d.glow}`,
+                animation: `${d.variant.keyframe} ${d.durationS}s linear infinite`,
+                animationDelay: `${d.delayS}s`,
+              }}
+            />
+          )
+        })}
 
-        {/* Easter egg — the Tractova brand mark drifts up the center every
-            45s, pulsing/emanating as it goes. Centered horizontally, sits
-            at z-0 so it passes BEHIND the centered profile card (visible
-            only above/below the card's height — the "rare appearance" feel
-            the user asked for). Two animations stacked:
-            (1) outer wrapper drifts upward via translateY (45s cycle, ~20s
-                visible + ~12s hidden gap)
-            (2) inner SVG pulses scale + drop-shadow halo on a 2.4s cycle,
-                independent of position
-            Marks are GPU-accelerated, ~zero JS work per frame. */}
+        {/* Layer 5 — Tractova T Easter egg on a randomized 90s path. Path
+            and start position picked once at mount (refresh Profile to
+            reroll). Two animations stacked: outer wrapper drifts via the
+            path keyframe (90s), inner SVG pulses scale + halo (2.4s,
+            independent). */}
         <div
           className="intel-mark-egg absolute"
           style={{
-            left: 'calc(50% - 9px)',
-            bottom: '-40px',
+            ...tPath.current.startStyle(tOffset.current),
             width: '18px',
             height: '18px',
-            animation: 'tractova-mark-drift 45s ease-in-out infinite',
+            animation: `${tPath.current.keyframe} 90s ease-in-out infinite`,
             willChange: 'transform, opacity',
           }}
         >
