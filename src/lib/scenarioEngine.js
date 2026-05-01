@@ -93,6 +93,11 @@ export function getSliderConfig(baseline) {
   const i = baseline.inputs
   const tech = baseline.technology
 
+  // direction: 'higher-better' | 'lower-better' | 'neutral'
+  // Drives the slider color (grey at baseline, teal when "good direction,"
+  // amber when "bad direction"). systemSizeMW is neutral because the
+  // financial impact is genuinely mixed — bigger system = more revenue
+  // AND more capex, with offsetting effects on payback.
   const common = [
     {
       key: 'systemSizeMW',
@@ -103,6 +108,7 @@ export function getSliderConfig(baseline) {
       max: Math.max(20, i.systemSizeMW * 2),
       step: 0.5,
       format: (v) => `${v.toFixed(1)} MW`,
+      direction: 'neutral',
     },
     {
       key: 'capexPerWatt',
@@ -113,6 +119,7 @@ export function getSliderConfig(baseline) {
       max: 3.00,
       step: 0.05,
       format: (v) => `$${v.toFixed(2)}/W`,
+      direction: 'lower-better',
       disabled: i.capexPerWatt == null,
     },
     {
@@ -124,6 +131,7 @@ export function getSliderConfig(baseline) {
       max: 0.50,
       step: 0.01,
       format: (v) => `$${v.toFixed(2)}/W`,
+      direction: 'lower-better',
     },
   ]
 
@@ -139,6 +147,7 @@ export function getSliderConfig(baseline) {
         max: 0.28,
         step: 0.005,
         format: (v) => `${(v * 100).toFixed(1)}%`,
+        direction: 'higher-better',
       },
       {
         key: 'recPricePerMwh',
@@ -149,6 +158,7 @@ export function getSliderConfig(baseline) {
         max: Math.max(120, (i.recPricePerMwh || 0) * 1.5),
         step: 1,
         format: (v) => `$${v.toFixed(0)}/MWh`,
+        direction: 'higher-better',
       },
       {
         key: 'programAllocation',
@@ -159,6 +169,7 @@ export function getSliderConfig(baseline) {
         max: 1.25,
         step: 0.05,
         format: (v) => `${(v * 100).toFixed(0)}%`,
+        direction: 'higher-better',
       },
     ]
   }
@@ -175,6 +186,7 @@ export function getSliderConfig(baseline) {
         max: 0.28,
         step: 0.005,
         format: (v) => `${(v * 100).toFixed(1)}%`,
+        direction: 'higher-better',
       },
     ]
   }

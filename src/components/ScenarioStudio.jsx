@@ -335,9 +335,34 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
   )
 }
 
+// Color tokens for the three directional slider states. Equal-to-baseline is
+// a slate-blue (no judgment, just "this is the starting point"). Better is
+// teal (the platform's positive accent). Worse is amber (softer than red,
+// matches the existing "Modified" badge so it doesn't read as a critical
+// failure — just a directional cost). Sliders flagged direction:'neutral'
+// (e.g. system size MW, where the financial impact is mixed) always use
+// the baseline palette regardless of position.
+const SLIDER_STATES = {
+  baseline: { bg: 'rgba(15,26,46,0.06)', fg: '#475569', track: '#64748B' },  // slate
+  better:   { bg: 'rgba(20,184,166,0.18)', fg: '#0F766E', track: '#14B8A6' }, // teal
+  worse:    { bg: 'rgba(217,119,6,0.18)',  fg: '#92400E', track: '#D97706' }, // amber
+}
+
+function getSliderState(value, baseline, direction) {
+  if (baseline == null || direction === 'neutral' || !direction) return 'baseline'
+  const delta = value - baseline
+  if (Math.abs(delta) < 1e-9) return 'baseline'
+  if (direction === 'higher-better') return delta > 0 ? 'better' : 'worse'
+  if (direction === 'lower-better')  return delta > 0 ? 'worse'  : 'better'
+  return 'baseline'
+}
+
 function SliderRow({ cfg, value, onChange }) {
   const baseline = cfg.baseline
   const isModified = baseline != null && Math.abs(value - baseline) > 1e-9
+  const state = getSliderState(value, baseline, cfg.direction)
+  const palette = SLIDER_STATES[state]
+  const fillPct = ((value - cfg.min) / (cfg.max - cfg.min)) * 100
   return (
     <div className={cfg.disabled ? 'opacity-50 pointer-events-none' : ''}>
       <div className="flex items-center justify-between mb-1">
@@ -355,11 +380,8 @@ function SliderRow({ cfg, value, onChange }) {
             </span>
           )}
           <span
-            className="text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-sm"
-            style={{
-              background: isModified ? 'rgba(245,158,11,0.15)' : 'rgba(20,184,166,0.10)',
-              color: isModified ? '#92400E' : '#0F766E',
-            }}
+            className="text-[12px] font-bold tabular-nums px-2 py-0.5 rounded-sm transition-colors"
+            style={{ background: palette.bg, color: palette.fg }}
           >
             {cfg.format(value)}
           </span>
@@ -374,7 +396,7 @@ function SliderRow({ cfg, value, onChange }) {
         onChange={(e) => onChange(e.target.value)}
         className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider"
         style={{
-          background: `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${((value - cfg.min) / (cfg.max - cfg.min)) * 100}%, #E2E8F0 ${((value - cfg.min) / (cfg.max - cfg.min)) * 100}%, #E2E8F0 100%)`,
+          background: `linear-gradient(to right, ${palette.track} 0%, ${palette.track} ${fillPct}%, #E2E8F0 ${fillPct}%, #E2E8F0 100%)`,
         }}
       />
     </div>
