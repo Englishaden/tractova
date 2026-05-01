@@ -4,107 +4,259 @@
 
 ---
 
-## 🟢 Pickup — Launch-readiness audit + backlog fully cleared, NWI catch-up running
+## 🟢 Pickup — $29.99/mo launch roadmap shipped (Phases 0, 1, 2, 4 + churn) — needs migrations 041 + 042 in Supabase
 
-**Session 2026-05-01 (long block, ~10h).** Path B shipped earlier in the
-session, then an end-to-end launch-readiness audit produced a 70/100 score
-with 10 must-fix + 10 nice-to-have items. All 20 are now shipped across
-five thematic batches, plus the operational lessons from the first NWI seed.
+**Session 2026-05-01 (afternoon-evening, ~8h after the morning Path B + audit
+work).** Senior-consultant audit scored the product 58/100 against the
+$29-49/mo bar for sub-100-shop CS developers. Today closed the highest-
+leverage gaps in a single thrust: pricing positioning, trust signals,
+glossary infrastructure, the killer Scenario Studio feature (with full
+financial-modeling stack), bulk Library operations, broad coverage
+expansion, and a churn-defense flow. **Phase 3 (multi-tenant RBAC) is
+deferred** — no customer #2 lined up; Aden wants a complete product
+before targeting an audience.
 
-**Today's commits on `main` (most recent first):**
+**Today's launch-roadmap commits on `main` (most recent first):**
 
 ```
-796bb17  Backlog batch 2: a11y + empty states + keyboard nav (#1, #2, #3, #4, #5)
-6260c54  Backlog batch 1: polish (#6, #7, #9, #10)
-5fa13c7  Audit follow-ups: profile defaults, priceId guard, seed --parallel flag
-3539511  Session 3 audit fixes: silent failure sweep
-5f70330  Session 2 audit fixes: data integrity cluster
-14f92b2  Session 1 audit fixes: onboarding + auth + paywall + first-run
-dc85c18  BUILD_LOG: cron-runs latency monitor → P2 backlog
-d50c9fd  Admin: visible feedback on Copy report / Copy / Copy JSON buttons
-bbc9543  Fix substations 504: parallelize per-state EIA calls
-9902f51  Fix HTTP 500 on refresh-data: duplicate `const usps`
-5b17f89  Fix geospatial_farmland: per-state SSURGO batching
-3a11235  BUILD_LOG: Path B + migration 039 + 3-step prod activation
-7c49c5c  Path B: county_geospatial_data — wetlands + farmland for all 50 states
+357d7f9  ScenarioStudio polish: confirm-delete + visible-save + input pills + auto-Lens
+a13f33d  ScenarioStudio: history list + orphan promote + Library Scenarios tab
+fd621a0  Churn flow: pre-cancel exit-intent survey + cancellation_feedback table
+251bc38  Phase 4: C&I offtake → 32 states · BESS offtake → 25 states
+e696d40  ScenarioStudio: 3 lifecycle sliders + Equity-IRR + DSCR
+0dcc051  ScenarioStudio: IRR + LCOE + NPV + lifetime rev, presets, share-with-memo
+6caf484  ScenarioStudio: directional slider colors
+576927b  Phase 2 part 2: Library scenarios chip + PDF embed + project_id wiring
+42fd476  Phase 2: Scenario Studio (engine + UI + integration + migration 041)
+c72272e  Phase 1: trust signals + glossary tooltips + Library bulk ops
+7cf5713  Phase 0: pricing → $29.99/mo + 14-day trial, webhook hardening, cron consolidation
 ```
 
-**To light up Path B on prod (still pending Aden's action):**
+**Two SQL migrations Aden still needs to apply** (paste into Supabase SQL editor):
 
-1. **Run migration 039** in Supabase SQL editor (paste
-   `supabase/migrations/039_county_geospatial_data.sql`). Inert until rows
-   exist — does not change scoring behavior.
-2. **Trigger the SSURGO ingest** via the admin Refresh button (or wait for
-   Sunday 7:45 cron). Populates ~3,000 counties with `prime_farmland_pct`
-   in ~5s. After this, `availableLand` is live for all 50 states (AK
-   skipped per migration comment).
-3. **NWI catch-up running in background** (PARALLEL=2 after the first
-   run hit NWI server-side throttling — 730/3144 succeeded, 2414 timed
-   out). The catch-up `--refresh --parallel=2` invocation processes only
-   the missing rows; ETA ~3-4h on the gentler parallelism.
+1. **Migration 041** — `041_scenario_snapshots.sql` — table + RLS for the
+   Scenario Studio save/load/share flow. Until applied, the Save button
+   silently fails (try/catch logs warn but never blocks the user).
+2. **Migration 042** — `042_cancellation_feedback.sql` — table + RLS for
+   the pre-cancel exit-intent survey. Until applied, the modal still
+   renders + routes to Stripe portal but no feedback row is recorded.
 
-**Audit punch list status (was 10 must-fix + 10 nice-to-have, now 0 of either):**
+Aden noted he's already run 041; 042 still pending verification.
 
-Must-fix (10):
-| # | Item | Commit |
-|---|------|--------|
-| 1 | UpgradeSuccess first-time Pro guided action (biggest conversion lever) | 14f92b2 |
-| 2 | Landing hero ApiErrorBanner instead of swallowed catches | 14f92b2 |
-| 3 | Cross-tab cache invalidation after admin Refresh (BroadcastChannel) | 5f70330 |
-| 4 | scoreEngine null-input → midpoint instead of optimistic favorable | 5f70330 |
-| 5 | Library getAlerts uses same countyData inputs as card display | 5f70330 |
-| 6 | /update-password route (Supabase password reset target) | 14f92b2 |
-| 7 | UpgradePrompt LensPreview component (paywall now shows the output) | 14f92b2 |
-| 8 | Search PUC + Comparable panel error logging (curation-gated, intentional hide) | 3539511 |
-| 9 | useSubscription hardened: maybeSingle + .catch → free-tier default | 5fa13c7 |
-| 10 | create-checkout-session priceId allowlist (env-gated server-side check) | 5fa13c7 |
+**Audit roadmap status (was 58/100):**
 
-Nice-to-have (10):
-| # | Item | Commit |
-|---|------|--------|
-| 1 | Aria-labels on icon-only buttons (Glossary clear-search, Library compare/dismiss, MetricsBar close) | 796bb17 |
-| 2 | Keyboard nav fixes (autoFocus on auth forms, ESC + role=dialog on hand-rolled modals) | 796bb17 |
-| 3 | Tiny-chip contrast bump (teal-700 → teal-800 on live pills + AI badges; clears AAA) | 796bb17 |
-| 4 | NewsFeed empty state ("No items / Show all pillars" reset CTA) | 796bb17 |
-| 5 | Aria-live regions (Admin RefreshResultPanel role=status, Library alert region) | 796bb17 |
-| 6 | Admin stale-tolerated tier (4-state endpointStatus: ok / stale-ok / partial / failed) | 6260c54 |
-| 7 | MemoView snapshot age warning (amber banner if ≥7 days old, "ask owner for updated link") | 6260c54 |
-| 8 | Mono-tracking standardization — DELIBERATELY skipped (variation is intentional editorial language) | 796bb17 |
-| 9 | SignUp resend-confirmation link (60s rate-limited, visible feedback) | 6260c54 |
-| 10 | Library-entry paywall context ("N projects saved · ready for re-scoring") | 6260c54 |
+| Phase | Scope | Status | Audit-score impact |
+|-------|-------|--------|---------------------|
+| 0 | Pricing → $29.99 + trial · webhook hardening · cron consolidation | ✅ shipped (`7cf5713`) | +5 |
+| 1 | Trust signals (Landing) · Glossary tooltips · Library bulk ops | ✅ shipped (`c72272e`) | +10 |
+| 2 | Scenario Studio (Year 1 rev + payback + IRR + LCOE + NPV + Equity-IRR + DSCR + Lifetime rev + Best/Worst presets + share-flow + Library card chip + PDF embed) | ✅ shipped (`42fd476` → `357d7f9`) | +20 (3-4× the planned scope) |
+| 3 | Multi-tenant RBAC | ⏸ deferred | n/a — no customer #2 |
+| 4 | C&I 12 → 32 states · BESS 8 → 25 states | ✅ shipped (`251bc38`, exceeded plan target) | +5 |
+| Bonus | Churn defense — pre-cancel survey + win-back hook | ✅ shipped (`fd621a0`) | +5 (HIGH ROI per the audit gap-scan) |
 
-Plus the silent-failure sweep (Glossary copy feedback, CompareTray AI
-error visible, console.warn for graceful-degrade helpers).
+Projected new score: **80-85** (clearing the $29-49/mo bar). Phase 3 +
+mobile audit + onboarding deepening are the items still below that line.
 
-**Visual verification on prod after Vercel redeploys:**
-- New `/update-password` route — Supabase reset-password emails now land
-  on a real form instead of 404
-- Landing hero amber banner if both metrics fetches fail (with Retry)
-- UpgradeSuccess for first-time Pro shows guided "Run the example" card
-  with pre-filled Will County demo, not a blank /search dump
-- Paywall has a static LensPreview card showing the actual report layout
-- Compare modal AI block shows a clear "AI comparison unavailable" amber
-  block instead of vanishing on error
-- Glossary term-link copy shows "Copied" / "Copy failed" inline
+**Verification on prod after Vercel redeploy + migrations applied:**
+
+- Open Lens for IL/Lake/CS/5MW → Scenario Studio renders as § 03 with 9
+  sliders (3 lifecycle + 6 inputs depending on tech), 8 metrics in the
+  navy output card, Best/Worst preset chips, modified-inputs pill row.
+- Drag any slider → metrics + pills + slider-track color update live.
+- Click "◆ Save this scenario" → name input → Enter → "Saved [name]"
+  green badge lingers 2.5s → row appears in the vertical history list
+  below the panel with timestamp + Y1 rev + IRR + payback + delta + the
+  "↳ inputs" sub-line.
+- Trash icon on a saved row → confirm modal → "Delete scenario" → row
+  vanishes. NO auto-delete.
+- Without saving the project, navigate to /library → toggle "Scenarios"
+  tab → see the saved scenarios grouped under "IL · Lake · CS — Exploration
+  · not yet in Library" with an "Open in Lens to save →" CTA.
+- Click that CTA → /search auto-runs (loading screen fires immediately,
+  no manual Run click) with state+county+mw pre-filled.
+- Save the project from Lens → toast confirms "N scenarios attached
+  to this project" (orphan auto-promote).
+- Library card shows "Scenarios · N" badge in the card header. Click →
+  card expands + picker opens. Pick one + "Include in PDF" → Export PDF
+  → recipient sees the scenario block in the deal memo PDF.
+- Profile page → click "Considering canceling?" link below "Manage
+  subscription" → exit-intent modal opens with reason radios + free-text
+  → "Continue to Stripe" writes a `cancellation_feedback` row + opens
+  the Stripe portal.
 
 **Next pickup options (priority-ordered):**
 
-- **NWI catch-up monitoring** — re-check in ~3-4h once `--refresh
-  --parallel=2` finishes; if still incomplete, drop to `--parallel=1`.
-- **Drill-down geospatial detail in the Site Control card** — when a user
-  expands the Site Control card, surface `wetland_coverage_pct`,
-  `wetland_category`, `prime_farmland_pct` + sources alongside curated
-  notes. ~1-2h.
-- **Activate §48(e) / HUD layers in Lens scoring UI** — data live (3,144
-  NMTC + 1,801 HUD rows). Needs to flow into the offtake panel as ITC-
-  bonus indicators. ~3-4h.
-- **Expand IX scrapers to missing CS-active states** (CA, FL, WA, HI, NM,
-  CT, RI, MI, WI, OR, VA) — would grow IX · Live from 8 → 19. Multi-
-  session per-ISO scraper work.
-- **Cron-runs latency monitor** (P2 backlog, see `dc85c18`) — proactive
-  scan to catch the next 504-class bug before users do.
+- **Apply migration 042** (cancellation_feedback) — required for the
+  exit survey to record rows. 041 already applied per Aden.
+- **Mobile responsiveness audit** — Search.jsx is 4500 lines with dense
+  Lens result panel + scenario grid; likely breaks <640px. Aden's user
+  base is desk-centric so LOW impact, but still a polish item.
+- **Onboarding deepening** — UpgradeSuccess + WelcomeCard exist; gap is
+  the post-confirmation tutorial trigger. M effort, HIGH impact on
+  trial conversion.
+- **AI scenario commentary** — auto-explain "your IRR dropped 200 bps
+  because X" when a scenario is saved. M effort, MED impact (polish on
+  top of an already-deep feature).
+- **Search.jsx component extraction** — 4500-line monolith. L effort,
+  LOW user-visible impact (maintenance only).
+- **Cron-runs latency monitor** (P2 backlog, see `dc85c18`).
+- **Phase 3 multi-tenant RBAC** — when customer #2 is queued.
 - **Path-toward-50-states-fully-live**: site (✅) → IX (scraper expansion)
-  → utility serving (EIA Form 861) → offtake (EIA retail rates).
+  → utility serving (EIA Form 861) → offtake (now ✅ via Phase 4).
+
+---
+
+## ✅ Shipped 2026-05-01 (afternoon) — $29.99/mo launch roadmap: Phases 0/1/2/4 + churn (`7cf5713` → `357d7f9`)
+
+**Eleven commits across one continuous block.** Audit consultant scored
+the product 58/100 against the $29-49/mo bar — closed by sequencing the
+4 highest-leverage roadmap phases plus a churn-defense bonus.
+
+### Phase 0 — pricing + Stripe hardening (`7cf5713`)
+- Pricing flipped from $9.99 → **$29.99/mo + 14-day no-credit-card trial**
+  (the $9.99 was actively collapsing the "this is real software" perception).
+  Stripe price ID env-var swap + UpgradePrompt copy refresh + trial
+  messaging on Landing.
+- `api/create-checkout-session.js` now passes `subscription_data:
+  {trial_period_days: 14}`.
+- `api/webhook.js` hardened: validates `client_reference_id` against
+  `profiles` via `maybeSingle()` before tier upsert; trial-aware status
+  retrieval from Stripe so webhook captures `trialing` vs `active`.
+- `vercel.json` cron consolidation: 9 → 7 entries (merged 3 refresh-data
+  source-specific calls into a single weekly `?source=all`).
+
+### Phase 1 — trust signals + glossary + bulk ops (`c72272e`)
+- **Landing trust signals**: data-sources strip (8 federal/ISO sources
+  named — EIA / NREL / USFWS NWI / USDA SSURGO / Census ACS / DSIRE /
+  ISO/RTO) + 3-column time-saved comparison ("4 hours manual research
+  → 2-min Lens analysis · 120× faster"). Quantifies the labor
+  replacement directly.
+- **Glossary tooltips**: new `src/lib/glossaryDefinitions.js` with 14
+  canonical entries (Site Control, IX, Offtake, Feasibility Index, LMI
+  Carveout, Prime Farmland, Wetland Warning, Capacity Factor, REC, ITC,
+  Energy Community, Program Runway, IX · Live, Site · Live). Wrapped in
+  Radix tooltips via new `<GlossaryLabel>` component (mirrors the
+  existing TechLabel pattern). Wired into Search.jsx sub-score labels +
+  Glossary page auto-includes via `Object.entries(GLOSSARY_DEFINITIONS)`.
+- **Library bulk ops**: per-card checkbox + sticky toolbar at top of
+  grid showing N selected + 3 actions (Add to Compare, Export CSV,
+  Delete with confirm modal). Reuses existing exportCSV + useCompare.
+
+### Phase 2 — Scenario Studio (`42fd476` → `357d7f9`)
+**Eight commits, ~3-4× the original v1 scope.** This was the killer
+feature the audit identified as the #1 missing workflow — reframes
+Tractova from "research tool" to "deal-structuring platform" without
+the risk of a too-detailed pro-forma.
+
+- `src/lib/scenarioEngine.js` — pure compute layer over the existing
+  revenueEngine. `computeBaseline({stateId, technology, mw, rates})`
+  returns the achievable starting point + all the lifecycle inputs
+  needed for downstream metrics. `applyScenario(baseline, sliders)`
+  recomputes synchronously when any of the 9 sliders moves.
+- **9 sliders** (tech-aware): system size MW · capex $/W · IX cost $/W
+  · capacity factor · REC price $/MWh · program allocation · opex
+  $/kW/yr · discount rate · contract tenor.
+- **8 output metrics** in a 2×4 grid: Year 1 revenue · simple payback
+  · project IRR · equity IRR (70/30 leverage @ 6.5% / 18-yr amort) ·
+  NPV @ user-set discount · DSCR (Y1 NOI / debt service, with
+  "tight"/"healthy" suffix) · LCOE · lifetime revenue.
+- **Newton-Raphson IRR solver** on the cashflow stream (year 0 = -dev
+  cost, years 1-N = revenue × degradation - opex × inflation + ITC
+  annualized over 6 years; equity stream subtracts annual debt service).
+- **Best/Worst preset chips** above the sliders — modest ±15-30%
+  multipliers on the helpful inputs so users get a defensible upside
+  vs. downside read in one tap.
+- **Directional slider colors**: slate at baseline, teal when moved in
+  the financially helpful direction, amber when worse. Color applied
+  to both the value chip AND the slider track gradient (per Aden's
+  field-test feedback).
+- **Modified-inputs pill row** in the navy output card: each modified
+  slider becomes a colored pill ([Capex $1.30/W -8%]) — click to reset
+  just that one input. Replaces the unreadable dot-separated summary.
+- **Save flow**: name input → insert into `scenario_snapshots` → green
+  "Saved [name]" badge lingers 2.5s + toast.
+- **Vertical history list** (new `<ScenarioHistoryList>` component
+  reused in Studio + Library Scenarios tab) showing each saved
+  scenario with timestamp + 4 metrics + delta-vs-baseline + a "↳
+  inputs" sub-line so two saves with the same preset name are
+  immediately distinguishable. Confirm modal on delete (no auto-delete).
+- **Project-link wiring**: Search.jsx looks up matching saved project
+  by state+county+technology and threads the project_id into save.
+- **Orphan auto-promote**: when user saves a project from Lens, any
+  pre-existing scenarios with matching context (within last 7 days)
+  auto-attach to the new project. Toast confirms "N scenarios attached".
+- **Library "Scenarios" tab** alongside "Projects" — groups all of the
+  user's scenarios by Lens context (state + county + tech). Exploration
+  groups (project_id null) get an amber "Exploration · not yet in
+  Library" badge + "Open in Lens to save →" CTA that auto-runs Search
+  with the context pre-filled.
+- **Library card chip** promoted to the card header as a teal
+  "Scenarios · N" badge (was buried below the action footer). Click
+  expands the card + opens the picker.
+- **PDF export** — `ProjectPDFExport` accepts an optional `scenario`
+  param and renders a 2×4 metric grid + summary + disclaimer in the
+  Deal Memo. Saved scenarios also ride the existing `/memo/:token`
+  share flow when selected via "Include in PDF" toggle.
+- **9 new glossary entries** for the financial terms (IRR, LCOE, NPV,
+  Lifetime Rev, Equity IRR, DSCR, Opex, Discount Rate, Contract Tenor)
+  — each documents the exact assumption being modeled.
+- **Migration 041** — `scenario_snapshots` table with user_id +
+  nullable project_id + jsonb (baseline_inputs, scenario_inputs,
+  outputs). RLS owner-only. Append-only (no update/delete policy
+  beyond cascading project deletes).
+
+### Phase 4 — coverage expansion (`251bc38`)
+- **C&I offtake: 12 → 32 states.** Calibrated against EIA Form 861
+  commercial retail rates (2024) + qualitative market-depth adjustments.
+  Added: ISO-NE (RI/NH/VT) · PJM (DC/DE/PA/OH) · MISO (MI/WI/IN/MO)
+  · CAISO + SW (CA 88 / AZ / NV) · ERCOT + South (TX 62 — low retail
+  offset by huge market / FL / NC / GA / SC) · SPP (NM).
+- **BESS offtake: 8 → 25 states.** Calibrated against ISO/RTO
+  capacity-market clearing prices + state storage carve-outs.
+  Added: CAISO (CA 88) · ERCOT (TX 85) · PJM (VA/PA/OH/DE/DC) · SW
+  (AZ/NV/NM) · MISO (MI/WI) · PNW (WA/OR) · SE (FL/NC/GA).
+- All existing 18 states' scores preserved — no regression. Inline
+  per-ISO calibration comments make future tweaks auditable.
+
+### Bonus — churn defense flow (`fd621a0`)
+- **Pre-cancel exit-intent survey.** "Manage subscription →" stays
+  zero-friction (for payment method updates), but a separate
+  "Considering canceling?" link below opens a modal with reason radios
+  (pricing / missing_feature / wrong_fit / just_exploring /
+  data_coverage / other) + free-text capture before handoff to Stripe
+  portal.
+- Email + tier snapshotted at submit time so the row stays meaningful
+  even after the user is downgraded.
+- **Migration 042** — `cancellation_feedback` table with own-rows-only
+  RLS. Append-only — no update/delete policy.
+- Client-side direct insert via RLS rather than a new API endpoint
+  (we're at the Vercel Hobby 12-function cap).
+
+### Polish bundle (`357d7f9`) — field-test feedback
+- Best/Worst buttons: cursor-pointer + hover-brighten + dropped native
+  title= tooltips (read as passive labels before).
+- Delete on scenarios: confirm Dialog at both entry points (Studio
+  history trash + Library card picker ✕).
+- "Orphan" → "Exploration" in user-facing copy (state name stays
+  `orphanScenarios` in code).
+- Lens auto-search loosened: required state+county+mw+stage+technology
+  → now just state+county+mw. Stage + tech are optional. Eliminates the
+  "I clicked re-analyze but it didn't run" footgun.
+- WoW state-delta chip: native title= → Radix Tooltip with proper
+  styling (matches IX · Live tooltip treatment).
+- StagePicker + Scenarios badge: native title= → aria-label (no
+  visible tooltip — the labels carry their own meaning).
+- Save button: lingers as green "Saved [name]" checkmark for 2.5s
+  after success.
+- Modified-inputs row: dot-separated string → pill chips (described
+  above in Phase 2).
+- Saved-scenarios history rows: added inputs-summary sub-line so two
+  saves with the same name don't look identical.
+- Navy output card: padding p-4 → p-3.5, gap-3 → gap-2.5 to reduce the
+  dark expanse Aden flagged.
+- Verified $/W consistency for capital metrics — capex + IX both
+  render `$X.XX/W` everywhere (other units like $/MWh for REC + $/kW/yr
+  for opex are conventional and kept).
 
 ---
 
@@ -380,7 +532,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: pending — visual polish + landing alignment
+- **Branch:** `main` · last commit: `357d7f9` — ScenarioStudio polish bundle (delete confirm, save feedback, input pills, auto-Lens, Radix tooltips)
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -420,7 +572,10 @@ both blocks).
 | 036 | `nmtc_lic_data.sql` | NMTC LIC table | ✅ |
 | 037 | `freshness_nmtc_lic.sql` | RPC +nmtc_lic | ✅ |
 | 038 | `state_programs_snapshots.sql` | Wave 1.4: append-only feasibility-score history table for WoW deltas + Markets on the Move trends | ✅ |
-| 039 | `county_geospatial_data.sql` | Path B: per-county wetland coverage % (NWI) + prime farmland % (SSURGO) for all 3,142 counties — closes Site Control gap | ⏳ |
+| 039 | `county_geospatial_data.sql` | Path B: per-county wetland coverage % (NWI) + prime farmland % (SSURGO) for all 3,142 counties — closes Site Control gap | ✅ |
+| 040 | `dashboard_metrics_last_refresh.sql` | get_dashboard_metrics() returns lastRefreshAt from cron_runs so the Footer's "Data refreshed" caption reflects actual cron freshness rather than state_programs.last_verified | ✅ |
+| 041 | `scenario_snapshots.sql` | Phase 2 Scenario Studio: user-saved scenarios with nullable project_id (orphan promotion to project on save), state_id + county_name + technology context, jsonb baseline_inputs / scenario_inputs / outputs. RLS owner-only. | ✅ |
+| 042 | `cancellation_feedback.sql` | Pre-cancel exit-intent survey capture: reason category + free-text + email/tier snapshot + destination ("staying" / "stripe_portal"). RLS append-only own-rows. | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or
@@ -433,6 +588,17 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `357d7f9` | ScenarioStudio polish: confirm-delete + visible-save + input-pill row + auto-Lens + Radix tooltips on header badges + dropped native title= attrs + dark-space tightening |
+| `a13f33d` | ScenarioStudio: vertical history list (replaces chip row) + orphan auto-promote on project save + Library "Scenarios" tab grouping all scenarios by Lens context + card header badge |
+| `fd621a0` | Churn flow: pre-cancel exit-intent survey + cancellation_feedback table (migration 042) + reason categories + free-text capture + email/tier snapshot before Stripe portal handoff |
+| `251bc38` | Phase 4 coverage: C&I offtake 12 → 32 states (calibrated against EIA Form 861 retail rates), BESS offtake 8 → 25 states (calibrated against ISO/RTO capacity-market clearing prices) |
+| `e696d40` | ScenarioStudio: 3 lifecycle sliders (opex $/kW/yr · discount rate · contract tenor) + Equity-IRR (70/30 lev) + DSCR (Y1 NOI / debt service) outputs; output card grows to 8 metrics in 2×4 grid |
+| `0dcc051` | ScenarioStudio: lifecycle financial metrics (IRR via Newton-Raphson + LCOE + NPV + lifetime revenue) + Best/Worst preset chips + saved scenarios ride share-memo flow into MemoView for recipients |
+| `6caf484` | ScenarioStudio: directional slider colors (slate at baseline / teal when better / amber when worse, applied to chip + track gradient) — replaces the binary "modified" amber treatment |
+| `576927b` | Phase 2 part 2: Library "Saved Scenarios · N" chip on cards + 2-col picker + selectedScenario flows into PDF export AND share memo + Search.jsx auto-matches Lens results to saved projects so scenarios attach to project_id |
+| `42fd476` | Phase 2: Scenario Studio — interactive sensitivity layer (`scenarioEngine.js` pure compute over revenueEngine + 6 sliders + Y1 revenue + payback + delta chips + saved scenarios chip row + 8 glossary entries + migration 041) |
+| `c72272e` | Phase 1: Landing trust signals (8 federal data sources + 120× time-saved comparison) + 14 glossary tooltip entries via new `<GlossaryLabel>` component + Library bulk operations toolbar (Add to Compare / Export CSV / Delete with confirm) |
+| `7cf5713` | Phase 0: pricing → $29.99/mo + 14-day no-credit-card trial (Stripe trial_period_days) + webhook hardening (client_reference_id validation via maybeSingle) + cron consolidation 9 → 7 (under Hobby cap) |
 | `796bb17` | Backlog batch 2 — a11y + empty states + keyboard nav: aria-labels on icon-only buttons, NewsFeed empty state, tiny-chip contrast (teal-800), aria-live on Admin RefreshResultPanel + Library alerts, autoFocus on Sign{In,Up}, ESC + role=dialog on CompareTray + Search modals |
 | `6260c54` | Backlog batch 1 — polish: Admin stale-ok 4th status tier, MemoView ≥7d age warning banner, SignUp 60s rate-limited resend-confirmation link, UpgradePrompt Library-entry "N projects saved · ready for re-scoring" personalization |
 | `5fa13c7` | Audit follow-ups: useSubscription .catch + maybeSingle (no more stuck-loading on missing profile row), create-checkout-session priceId allowlist, seed-county-geospatial-nwi.mjs `--parallel=N` flag for NWI catch-up runs |
