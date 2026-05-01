@@ -191,6 +191,31 @@ export default function Dashboard({ previewMode = false }) {
 
   const selectedState = selectedStateId ? stateProgramMap[selectedStateId] : null
 
+  // Surface data freshness on the dashboard hero so the "live-updated weekly"
+  // promise is provable to the user, not just claimed. Computed from data
+  // already loaded — no new RPC. Pulls max(lastVerified, updatedAt) across
+  // active CS states (the rows the cron actively maintains). Amber when
+  // older than 14 days = at least one Sunday cron failed.
+  const lastRefresh = useMemo(() => {
+    const states = Object.values(stateProgramMap || {})
+    if (!states.length) return null
+    let latest = 0
+    for (const s of states) {
+      if (s.csStatus === 'none') continue
+      const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
+      const u = s.updatedAt    ? new Date(s.updatedAt).getTime()    : 0
+      if (v > latest) latest = v
+      if (u > latest) latest = u
+    }
+    if (!latest) return null
+    const ageDays = Math.floor((Date.now() - latest) / 86400000)
+    return {
+      date:    new Date(latest).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      ageDays,
+      isStale: ageDays > 14,
+    }
+  }, [stateProgramMap])
+
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))
   }
@@ -231,9 +256,37 @@ export default function Dashboard({ previewMode = false }) {
         {/* Page header */}
         <div className="mt-4 mb-1">
           <h1 className="text-2xl font-serif font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>Market Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Community solar program status, interconnection conditions, and policy alerts — updated weekly.
-          </p>
+          <div className="mt-0.5 flex items-baseline gap-2 flex-wrap">
+            <p className="text-sm text-gray-500">
+              Community solar program status, interconnection conditions, and policy alerts — refreshed weekly.
+            </p>
+            {lastRefresh && (
+              <span
+                className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
+                style={{ color: lastRefresh.isStale ? '#92400E' : '#0F766E' }}
+                title={lastRefresh.isStale
+                  ? `Data is ${lastRefresh.ageDays} days old — last refresh missed at least one weekly cycle. Most analyses still valid; verify program details before committing capital.`
+                  : `Last weekly refresh completed ${lastRefresh.ageDays === 0 ? 'today' : `${lastRefresh.ageDays} day${lastRefresh.ageDays === 1 ? '' : 's'} ago`}.`}
+              >
+                <span
+                  className="relative flex w-1.5 h-1.5 shrink-0"
+                  aria-hidden="true"
+                >
+                  {!lastRefresh.isStale && (
+                    <span className="absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping" style={{ background: '#14B8A6' }} />
+                  )}
+                  <span
+                    className="relative inline-flex rounded-full h-1.5 w-1.5"
+                    style={{
+                      background: lastRefresh.isStale ? '#D97706' : '#14B8A6',
+                      boxShadow: lastRefresh.isStale ? '0 0 6px rgba(217,119,6,0.5)' : '0 0 6px rgba(20,184,166,0.6)',
+                    }}
+                  />
+                </span>
+                <span>Refreshed {lastRefresh.date}</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Surface failures from getStateProgramMap / getNewsFeed (previously
