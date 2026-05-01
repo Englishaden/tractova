@@ -4,72 +4,121 @@
 
 ---
 
-## 🟢 Pickup — visual verification + Path B kickoff next session
+## 🟢 Pickup — Path B: Wetlands + farmland data layers
 
-**Path A shipped this session** (uncommitted at this point in pickup write):
-IX sub-score now live-blends `ix_queue_data` quantitative signals
-(`mw_pending`, `avg_study_months`) on top of the curated `ixDifficulty`
-baseline. The blend is OPT-IN — Library + Profile call sites don't
-pre-fetch ix queue data so they stay on the curated path (no regression).
-Lens results panel passes `results.ixQueueSummary` through to
-`computeSubScores`. New `coverage.ix = 'live' | 'curated'` flag exposed
-in the eyebrow strip as a teal "IX · Live" pill when applicable.
+**Session ended 2026-04-30 ~22:30 UTC. Six commits shipped on `main`:**
 
-**Live-blend coverage today** (verified via `scripts/probe-ix-queue.mjs`):
-8 of 50 states — CO, IL, MA, MD, ME, MN, NJ, NY. The other 42 fall back
-to curated, including 11 CS-active states still missing rows
-(CA, FL, WA, HI, NM, CT, RI, MI, WI, OR, VA). The 8 covered states are
-the highest-volume CS markets, so the win is concentrated where it matters.
+```
+e4c6666  Lens loader: asymptotic halo fill — never stalls, always creeps forward
+7d474e1  IX · Live pill: structured Radix tooltip matching the methodology popover
+e9506a7  IX score live-blend: ix_queue_data signals on top of curated ixDifficulty
+4702b98  BUILD_LOG: flip migrations 034-037 to ✅ + add live-DB probe script
+b27dfa0  Library WoW deltas + freshness signal
+5b6a7a0  Pro-flow smoke tests: authed regression net for the white-screen class
+```
 
-**Visual verification on prod after redeploy:**
-1. **Library hero** — "Data refreshed [date]" caption with teal breathing
-   dot under the project-count meta line.
-2. **Lens results eyebrow strip** (try with state=NY county=any) — small
-   teal "IX · Live" pill in the metadata row, between TECHNOLOGY and the
-   status badge. Hover for the tooltip explaining what blended in.
-3. **Lens IX sub-score for NY/NJ/MA/IL etc.** — now reflects queue
-   crowding (slightly lower in IL where mw_pending=1840 is at p100;
-   slightly higher in lighter-queue states).
+**Visual verification on prod after Vercel redeploy:**
+1. **Library hero** — "Data refreshed [date]" chip (teal breathing dot,
+   amber if >14d) under the project-count meta line.
+2. **Project cards** — "State ±N pt" chip is scaffolded but silent until
+   `state_programs_snapshots` accrues a 2nd weekly row (~mid-May).
+3. **Lens results for NY/NJ/MA/IL/MD/MN/ME/CO** — small teal **"IX · Live"**
+   pill in the eyebrow strip between TECHNOLOGY and the status badge.
+   Hover opens the structured Radix tooltip (dark-navy bg, teal border)
+   explaining inputs/clamp/coverage policy.
+4. **Lens loader** — halo arc no longer stalls at 88%; asymptotes toward
+   95% so motion stays alive on slow runs and snaps cleanly to 100% on
+   completion.
+5. **Other states' Lens results** — IX · Live pill is *absent* (honest:
+   no fabricated coverage where ISO scrapers haven't landed).
 
-**Path B (Wetlands + farmland) is next session's pickup** — 3-4 day
-multi-session build per BUILD_LOG. EPA NWI + USDA WSS ingest, derive
-`wetland_warning` + farmland-based `availableLand` per county for all
-3,142 counties. Replaces `county_intelligence` site-control booleans
-with live geospatial data. Closes the Site Control coverage gap from
-`d4061d2` properly — without hand-curation.
+**Next pickup: Path B — Wetlands + farmland data layers (3-4 days, multi-session).**
 
+Closes the Site Control coverage gap from `d4061d2` for real.
+Right answer per the "honest data freshness" tenant — replaces curated
+booleans in `county_intelligence` with derived signals from live
+geospatial data covering all 3,142 counties.
 
+**Sketch (verify before starting):**
+- Source 1: EPA National Wetlands Inventory (NWI). US-wide, ArcGIS
+  FeatureServer. Pre-compute per-county wetland coverage % at refresh
+  time (avoid live API on every Lens query).
+- Source 2: USDA Web Soil Survey (WSS). Tile API. Pre-compute per-county
+  prime-farmland % at refresh time.
+- New table: `county_geospatial_data` (or similar — probe naming
+  conventions in existing tables first). Fields: `county_fips`, `state`,
+  `wetland_coverage_pct`, `prime_farmland_pct`, `last_updated`, `source`.
+- New migration: probably `039_county_geospatial.sql` (verify by
+  checking next available number with `ls supabase/migrations/`).
+- New ingest script: `api/refresh-county-geospatial.js` — weekly cron,
+  same multiplexed-cron pattern as current sources.
+- Refactor `computeSubScores` in `src/lib/scoreEngine.js`: derive
+  `availableLand` (e.g. `prime_farmland_pct >= 25`) and
+  `wetlandWarning` (e.g. `wetland_coverage_pct >= 15`) from new table
+  with calibrated thresholds. Curated `county_intelligence` becomes
+  qualitative-override fallback only.
+- Update Site Control card UI to show "live geospatial" indicator when
+  the live data path is active, mirroring the IX · Live pattern.
 
-**Last session shipped Pro-flow smoke (`5b6a7a0`) + Library WoW + freshness**
-on `main`. Both items 1-2 of the build schedule are done.
+**Pre-work to do before coding:**
+1. Probe what's already in `energy_community_data` and `nmtc_lic_data`
+   to confirm county_fips conventions match across tables.
+2. Test EPA NWI ArcGIS endpoint — confirm rate limits and bulk-pull
+   feasibility for ~3,142 counties.
+3. Test USDA WSS tile API similarly.
+4. Calibrate thresholds against a few known counties before locking
+   the migration in.
 
-**Visual verification on prod when you're back:**
-1. **Library hero** — small mono "Data refreshed [date]" caption with teal
-   breathing dot under the project-count meta line. Amber if older than
-   14 days (= a Sunday cron missed). Mirrors Dashboard hero (`e2c8b48`).
-2. **Project card chip row** — when a saved project's state has moved
-   week-over-week in `state_programs_snapshots`, a "State +N pt" or
-   "State -N pt" pill appears next to the StagePicker. Teal when up,
-   amber when down. Hover for the full state-name + score-pair tooltip.
-   Silent until snapshot history accrues (~2 weeks after migration 038).
+Honest cost-benefit estimate: 1 session (~12h) for ingest + migration,
+1 session (~8h) for refactor + UI + tests. Could compress if the
+ArcGIS endpoints play nicely.
 
-**Pro-flow smoke test Pro account already created** — `smoke-test@tractova.com`
-in Supabase, profile flipped to Pro via `scripts/setup-test-user.mjs`.
-Creds live in `.env.local` (gitignored). `npm run verify:full` runs
-build + 7 unauth + 1 setup + 6 Pro = 14 tests in ~26s, $0 cost.
+**Other queued items, lower priority:**
+- **Activate §48(e) / HUD layers in Lens scoring UI** — data is live
+  (3,144 NMTC rows + 1,801 HUD rows). `api/lens-insight.js` already
+  queries both. Smoke-check Admin → Data Health after next cron cycle
+  to confirm freshness cards render.
+- **Expand IX scrapers to missing CS-active states** (CA, FL, WA, HI,
+  NM, CT, RI, MI, WI, OR, VA) — would grow IX · Live coverage from
+  8 → ~19 states. Per-ISO scraper work, multi-session.
 
-**Next moves, ranked:**
-- **Expand curated economic coverage to top-10 solar markets**
-  (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move trust leverage,
-  closes 18→26 of 50 states with a `default` county_intelligence row.
-  ~4-8h/state. EIA Form 861 + ISO capacity markets publicly sourced.
-- **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
-- **Activate §48(e) Cat 1 (NMTC LIC) and HUD QCT/DDA in Lens scoring** —
-  data is live (3,144 NMTC rows + 1,801 HUD rows in Supabase as of
-  this session, verified via `scripts/check-migrations.mjs`). Code
-  paths in `lens-insight.js` already query both tables. Smoke-check
-  Admin → Data Health to confirm both freshness cards render after
-  next cron cycle (`refresh-data:hud_qct_dda`, `refresh-data:nmtc_lic`).
+---
+
+## ✅ Shipped 2026-04-30 — IX score live-blend + Lens loader polish
+
+Three commits closing out the long evening session. Together they shift
+the IX sub-score from purely curated to a calibrated blend of curated +
+live ISO/RTO queue signals, surface that honestly in the UI, and fix
+the Lens loader stall.
+
+**`e9506a7` — IX score live-blend.** `computeSubScores` now optionally
+accepts an `ixQueueSummary` arg. When present + non-empty, applies a
+clamped (±10) adjustment based on `avg_study_months` and total
+`mw_pending`. Thresholds calibrated from the actual `ix_queue_data`
+distribution (probe: `scripts/probe-ix-queue.mjs`):
+- avg_study_months: <14mo +5 / 14-19 0 / 20-23 -3 / 24+ -8
+- total mw_pending: <500 +3 / 500-999 0 / 1000-1499 -3 / 1500+ -6
+
+New `coverage.ix = 'live' | 'curated'` flag. Library + Profile call
+sites pass 4 args (no ixQueueSummary), so they stay on curated path.
+Search.jsx passes the already-fetched `results.ixQueueSummary` →
+Lens-only live blend, no regression elsewhere. Coverage today: 8 of
+50 states (CO/IL/MA/MD/ME/MN/NJ/NY) — concentrated on the highest-
+volume CS markets.
+
+**`7d474e1` — IX · Live tooltip polish.** Replaced the native browser
+`title` attribute with a Radix portal tooltip styled to match the
+methodology popover at `Search.jsx:479` — dark navy bg, teal border,
+structured headings + INPUTS / CLAMP / coverage-policy footnote.
+Reads as research-note documentation, matching the Lens chrome
+convention.
+
+**`e4c6666` — Lens loader asymptote.** Halo arc was `p = (elapsed/14s)*88`
+linear-then-stop, which produced a visible stall at 88% on every run.
+Replaced with `p = 95 * (1 - exp(-elapsed/8s))` and removed the RAF
+exit guard. Result: motion never freezes (sub-pixel asymptotic creep
+even on 60s outliers), and the snap-to-100% on completion always has
+5+ points of headroom for a clean landing.
 
 ---
 
@@ -309,7 +358,9 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
-| `pending` | IX score live-blend: scoreEngine.computeSubScores now optionally blends ix_queue_data quantitative signals (mw_pending, avg_study_months) on top of curated ixDifficulty baseline; coverage.ix = 'live'\|'curated' flag exposed; teal "IX · Live" pill in Lens eyebrow when blend fired (8 top-CS-market states today); Library/Profile call sites unchanged → no regression |
+| `e4c6666` | Lens loader: asymptotic halo fill — replaces linear-stall-then-jump with `p = 95 * (1 - exp(-elapsed/8s))`; RAF loop never exits while overlay visible so the halo physically can't freeze on slow runs; cleaner snap-to-100 landing on completion |
+| `7d474e1` | IX · Live pill: structured Radix tooltip matching the methodology popover (dark navy + teal border); replaces native browser `title` with INPUTS / CLAMP / coverage-policy box |
+| `e9506a7` | IX score live-blend: scoreEngine.computeSubScores now optionally blends ix_queue_data quantitative signals (mw_pending, avg_study_months) on top of curated ixDifficulty baseline; coverage.ix = 'live'\|'curated' flag exposed; teal "IX · Live" pill in Lens eyebrow when blend fired (8 top-CS-market states today); Library/Profile call sites unchanged → no regression |
 | `4702b98` | BUILD_LOG: flip migrations 034-037 to ✅ + add live-DB probe script |
 | `b27dfa0` | Library WoW + freshness signal: "Data refreshed [date]" hero caption (teal breathing dot, amber if >14d) + "State ±N pt" chip on project cards when state_programs_snapshots show movement; piggybacks on getStateProgramDeltas already shipped for Markets on the Move |
 | `5b6a7a0` | Pro-flow smoke tests: auth.setup.js + pro-smoke.spec.js (6 tests, ~10-15s, $0/run) — covers Search/Library/Profile/Dashboard past the paywall, catches the white-screen class on the authed surface that smoke.spec.js can't reach |
