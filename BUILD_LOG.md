@@ -4,51 +4,52 @@
 
 ---
 
-## 🟢 Pickup — visual verification on prod (post `d4061d2`)
+## 🟢 Pickup — visual verification on prod (post `e2c8b48`)
 
-**Last session ended 2026-04-30 ~18:30 UTC** with two layered
-score-honesty fixes shipped (`596de4b` + `d4061d2`). Migration 038
-confirmed applied. The Lens panel now consistently signals when any
-sub-score is fallback rather than researched.
+**Last session ended 2026-04-30 ~20:30 UTC** with FOUR
+trust/correctness improvements shipped on the score-honesty thread
+(`596de4b`, `d4061d2`, `26b86b0`, `e2c8b48`). Migration 038 confirmed
+applied. Lens panel now consistently signals fallback sub-scores;
+Dashboard now signals data freshness on the hero.
 
 **Visual verification when you're back:**
 
-1. **Production should be on `d4061d2` shortly.** Walk these:
+1. **Production should be on `e2c8b48` shortly.** Walk these:
+   - `/dashboard` (or `/preview`):
+     - Page header now shows a small mono caption next to the
+       "refreshed weekly" line: a teal breathing dot + "Refreshed
+       [date]". When data is older than 14 days the dot turns amber
+       and the tooltip warns the cron missed a cycle.
    - `/search` → run Lens for `Texas + BESS`:
-     - Beneath the 3 sub-score bars, an amber **"Limited coverage —
-       directional only"** caption with TWO bullets:
-         · **Offtake:** BESS curated for IL/ME/MA/MN/CO/MD/NJ/NY
-         · **Site Control:** county-level data not yet seeded for
-           this geography
+     - Sub-score bars + amber "Limited coverage — directional only"
+       caption with both Offtake and Site Control bullets.
    - `/search` → run Lens for `Illinois + BESS`:
-     - No caption (IL has both BESS economics AND county data seeded)
-   - `/search` → run Lens for `Florida + Community Solar`:
-     - Caption shows ONLY the Site Control bullet (FL has CS data
-       seeded so offtake is researched, but only some FL counties
-       have site data)
-   - AI brief in TX/FL/etc. speaks directionally — no fictional
-     capacity-market $/kW or PPA cents/kWh figures.
+     - No caption (IL has both BESS economics AND county data).
+   - AI brief in TX/FL/etc. speaks directionally only.
 
-2. **Coverage gap: only 18 of 50 states have a `default`
-   county_intelligence row** seeded. States missing site data:
-   AK, AL, AR, AZ, DE, GA, IA, ID, IN, KS, KY, LA, MO, MS, MT, NC,
-   ND, NE, NH, NV, OH, OK, PA, SC, SD, TN, TX, UT, VT, WI, WV, WY.
-   Adding a default row per state is a low-effort, high-leverage
-   next move (a stub like "ag land available, low wetland risk"
-   per state takes ~1 hour total — replaces the bare baseline with
-   directional state-level guidance until per-county data is
-   acquired).
+2. **Coverage gap (unchanged): only 18 of 50 states have a `default`
+   county_intelligence row.** States missing site data: AK, AL, AR,
+   AZ, DE, GA, IA, ID, IN, KS, KY, LA, MO, MS, MT, NC, ND, NE, NH,
+   NV, OH, OK, PA, SC, SD, TN, TX, UT, VT, WI, WV, WY.
 
-3. **No active work in queue.** Candidate next moves:
-   - **Seed default county_intelligence rows for all 50 states** —
-     ~1 hour, removes the Site Control fallback caption from 32
-     states immediately. Per-county refinement still happens later.
-   - **Expand curated economic coverage to top-10 solar markets**
-     (CA, TX, FL, NC, AZ, GA, NV, NM) using EIA Form 861 + ISO
-     capacity data. ~4-8 hours per state for proper sourcing.
+3. **No active work in queue.** Candidate next moves, in priority
+   order against the product tenants (no bugs / honest data /
+   retention):
    - **Pro-flow smoke tests** — currently smoke covers unauth paths
-     only.
-   - **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
+     only. Real risk: a regression in Lens analysis flow ships
+     clean and breaks paying-user experience. Adding authed
+     fixtures would extend the existing smoke suite to cover the
+     critical paid surfaces. ~1 day.
+   - **Library WoW score deltas + freshness signal** (parallel to
+     Dashboard hero) — show users when their saved projects'
+     scores changed since last visit. ~2 hours, retention-driving.
+   - **Expand curated economic coverage to top-10 solar markets**
+     (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move
+     leverage. EIA Form 861 retail rates + ISO capacity markets
+     are publicly sourced. ~4-8 hours per state.
+   - **Wetlands + farmland data layers** — 3-4 day R&D + spatial
+     join. Replaces curated wetland_warning column with EPA NWI
+     data per county.
 
 **Run `npm run verify` before pushing any visible-feature change.**
 
@@ -146,7 +147,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `d4061d2` Score honesty: surface fallback site sub-score for unseeded counties
+- **Branch:** `main` · last commit: `e2c8b48` Dashboard: surface "data refreshed" timestamp on the hero
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -191,6 +192,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `e2c8b48` | Dashboard: surface "data refreshed [date]" caption on hero — makes the live-data promise provable on first impression with teal breathing dot (fresh) or amber (>14d stale) |
+| `26b86b0` | BUILD_LOG: capture site-coverage fix + state-level coverage gaps |
 | `d4061d2` | Score honesty: site sub-score also signals fallback when county_intelligence row missing (only 18 of 50 states seeded — caption now consolidates both pillars in one block) |
 | `9b0d96c` | BUILD_LOG: capture score-honesty fix + new pickup priorities |
 | `596de4b` | Score honesty: surface "limited coverage" caption + AI COVERAGE NOTE when offtake falls back to baseline (BESS/CI/Hybrid outside curated 8-12 states) |
