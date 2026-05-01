@@ -186,6 +186,13 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
                       {item.summary}
                     </p>
                   )}
+                  {/* Tags row — pillar / type / state. Source-and-date moved
+                      to its own line below so its plain-text baseline doesn't
+                      misalign with the bordered tag chips (the chips have
+                      padding+border, the text didn't, so items-center pushed
+                      everything off-baseline). Two-row layout also matches the
+                      institutional research-note pattern: tags identify the
+                      item, attribution sits underneath. */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {!isAlert && (
                       <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${typeStyle.badge}`}>
@@ -200,10 +207,10 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
                         {tag}
                       </span>
                     ))}
-                    <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">
-                      {item.source} · {formatDate(item.date)}
-                    </span>
                   </div>
+                  <p className="text-[11px] text-gray-400 mt-1.5 font-mono tracking-tight">
+                    {item.source} · {formatDate(item.date)}
+                  </p>
                 </div>
               </div>
             </article>

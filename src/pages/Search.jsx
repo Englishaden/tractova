@@ -71,31 +71,58 @@ function ArcGauge({ score }) {
   else if (s >= 45) color = '#2DD4BF'
   else if (s >= 25) color = '#5EEAD4'
 
-  // 5 micro-ticks (0/25/50/75/100) -- visual instrumentation only, no
-  // labels. Reads as a real gauge while staying part of the same object
-  // composition as the arc + readout.
-  const tickPositions = [0, 0.25, 0.5, 0.75, 1.0]
+  // 5 micro-ticks (0/25/50/75/100) -- visual instrumentation. Major ticks
+  // (25/50/75) now carry small mono labels for at-a-glance score reading;
+  // 0 and 100 stay unlabeled (the arc endpoints + the centered readout
+  // already convey the scale).
+  const tickPositions = [
+    { p: 0,    labelled: false, label: null },
+    { p: 0.25, labelled: true,  label: '25' },
+    { p: 0.5,  labelled: true,  label: '50' },
+    { p: 0.75, labelled: true,  label: '75' },
+    { p: 1.0,  labelled: false, label: null },
+  ]
 
   return (
     <svg viewBox="0 0 180 110" className="w-full max-w-[240px]">
       {/* Tick marks -- positioned OUTSIDE the arc (was crossing it before,
           which read as black lines flowing through the green fill). Inner
           tick start sits 5 units beyond the arc's outer edge; outer end
-          12 units beyond. Standard speedometer convention -- ticks
-          radiate outward as gauge labels, never overlapping the readout. */}
-      {tickPositions.map((p, i) => {
-        const angle = Math.PI * (1 - p)
-        const isMajor = p === 0 || p === 0.5 || p === 1.0
+          12 units beyond. Labelled ticks (25/50/75) get a tiny mono numeral
+          a few units further out — instrumentation reading, not chrome. */}
+      {tickPositions.map((t, i) => {
+        const angle = Math.PI * (1 - t.p)
+        const isMajor = t.p === 0 || t.p === 0.5 || t.p === 1.0
         const inner = R + 5, outer = R + 12
+        const labelR = R + 17
+        const lx = cx + labelR * Math.cos(angle)
+        const ly = cy - labelR * Math.sin(angle)
+        // Tilt label baseline along the radial so the digits hug the arc
+        // rather than floating arbitrarily. text-anchor middle keeps each
+        // label centered on its tick.
         return (
-          <line key={i}
-            x1={cx + inner * Math.cos(angle)} y1={cy - inner * Math.sin(angle)}
-            x2={cx + outer * Math.cos(angle)} y2={cy - outer * Math.sin(angle)}
-            stroke="#5A6B7A"
-            strokeWidth={isMajor ? 1.5 : 1.1}
-            strokeLinecap="round"
-            opacity={isMajor ? 0.65 : 0.40}
-          />
+          <g key={i}>
+            <line
+              x1={cx + inner * Math.cos(angle)} y1={cy - inner * Math.sin(angle)}
+              x2={cx + outer * Math.cos(angle)} y2={cy - outer * Math.sin(angle)}
+              stroke="#5A6B7A"
+              strokeWidth={isMajor ? 1.5 : 1.1}
+              strokeLinecap="round"
+              opacity={isMajor ? 0.65 : 0.40}
+            />
+            {t.labelled && (
+              <text
+                x={lx} y={ly + 2}
+                textAnchor="middle"
+                fontSize="7" fontWeight="600"
+                fill="#94A3B8"
+                fontFamily="JetBrains Mono, ui-monospace, monospace"
+                letterSpacing="0.5"
+              >
+                {t.label}
+              </text>
+            )}
+          </g>
         )
       })}
       {/* Arc track */}

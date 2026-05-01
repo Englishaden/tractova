@@ -173,20 +173,27 @@ function DocketCard({ docket }) {
         {decisionFmt && (
           <MetaItem label="Decision target" value={decisionFmt} />
         )}
+        {/* Source link wrapped in MetaItem-shaped 2-row stack so its
+            baseline aligns with the other meta cells (label + value),
+            instead of centering against the 2-row stacks like a 1-row
+            outlier. */}
         {docket.sourceUrl && (
-          <a
-            href={docket.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto inline-flex items-center gap-1 text-[11px] font-mono uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
-          >
-            Source
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-              <polyline points="15 3 21 3 21 9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-          </a>
+          <div className="ml-auto flex flex-col items-end">
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">Source</span>
+            <a
+              href={docket.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+            >
+              Open docket
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </a>
+          </div>
         )}
       </div>
     </article>

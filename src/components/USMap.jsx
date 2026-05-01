@@ -321,22 +321,27 @@ function StatusPill({ status }) {
 function CoverageSwatch({ tier }) {
   const swatchId = `legend-${tier}`
   const baseFill = '#14B8A6'  // teal-500 — neutral feasibility shade for legend
+  // Legend swatches use heavier strokes / larger dots than the actual map
+  // overlays — the legend's job is pedagogy (instantly readable that "lines
+  // = mid coverage", "dots = light coverage") while the map's job is
+  // subtlety. Earlier the legend strokes were 0.6px / dot radius 0.55 with
+  // ~0.7 opacity — too feathered to read at-a-glance against the teal fill.
   return (
-    <svg width="30" height="14" className="rounded-xs shrink-0" style={{ border: '1px solid rgba(15,118,110,0.22)' }}>
+    <svg width="34" height="16" className="rounded-xs shrink-0" style={{ border: '1px solid rgba(15,118,110,0.22)' }}>
       <defs>
         {tier === 'mid' && (
-          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="4.5" height="4.5" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="4.5" stroke="#1E3A8A" strokeWidth="0.6" strokeOpacity="0.68" />
+          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="5" stroke="#1E3A8A" strokeWidth="1.1" strokeOpacity="0.92" />
           </pattern>
         )}
         {tier === 'light' && (
-          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="3.6" height="3.6">
-            <circle cx="1.8" cy="1.8" r="0.55" fill="#1E3A8A" fillOpacity="0.74" />
+          <pattern id={swatchId} patternUnits="userSpaceOnUse" width="4" height="4">
+            <circle cx="2" cy="2" r="0.95" fill="#1E3A8A" fillOpacity="0.95" />
           </pattern>
         )}
       </defs>
-      <rect width="30" height="14" fill={baseFill} />
-      {tier !== 'full' && <rect width="30" height="14" fill={`url(#${swatchId})`} />}
+      <rect width="34" height="16" fill={baseFill} />
+      {tier !== 'full' && <rect width="34" height="16" fill={`url(#${swatchId})`} />}
     </svg>
   )
 }
@@ -367,20 +372,22 @@ function Legend() {
         ))}
       </div>
       {/* V3 Strategy A — coverage tier guide. Hatch patterns mirror exactly
-          what users see on the map (less data = more texture). */}
+          what users see on the map (less data = more texture). Legend label
+          spells out the visual cue ("lines", "dots") so the connection
+          back to the map reads at a glance. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted font-semibold mr-1">Coverage</span>
         <div className="flex items-center gap-1.5">
           <CoverageSwatch tier="full" />
-          <span className="text-xs text-gray-500">Full</span>
+          <span className="text-xs text-gray-500">Full <span className="text-gray-400">— solid</span></span>
         </div>
         <div className="flex items-center gap-1.5">
           <CoverageSwatch tier="mid" />
-          <span className="text-xs text-gray-500">Mid</span>
+          <span className="text-xs text-gray-500">Mid <span className="text-gray-400">— lines</span></span>
         </div>
         <div className="flex items-center gap-1.5">
           <CoverageSwatch tier="light" />
-          <span className="text-xs text-gray-500">Light</span>
+          <span className="text-xs text-gray-500">Light <span className="text-gray-400">— dots</span></span>
         </div>
       </div>
     </div>

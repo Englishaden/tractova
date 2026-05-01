@@ -149,24 +149,33 @@ function DealCard({ deal, targetMW }) {
         {codFmt && (
           <MetaItem label="COD target" value={codFmt} mono />
         )}
+        {/* Source pinned right — wrapped in a MetaItem-style 2-row stack
+            (label + value) so its baseline aligns with the other meta cells.
+            Earlier the source was a single-line link inside an `items-center`
+            row, which centered it against the 2-row meta stacks and pulled
+            the visual baseline off. */}
         {deal.sourceUrl ? (
-          <a
-            href={deal.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
-          >
-            {deal.source}
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-              <polyline points="15 3 21 3 21 9"/>
-              <line x1="10" y1="14" x2="21" y2="3"/>
-            </svg>
-          </a>
+          <div className="ml-auto flex flex-col items-end">
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">Source</span>
+            <a
+              href={deal.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-mono text-[11px] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+            >
+              {deal.source}
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </a>
+          </div>
         ) : (
-          <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted">
-            {deal.source}
-          </span>
+          <div className="ml-auto flex flex-col items-end">
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">Source</span>
+            <span className="font-mono text-[11px] text-ink">{deal.source}</span>
+          </div>
         )}
       </div>
     </article>

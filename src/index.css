@@ -123,19 +123,24 @@
   background: transparent;
 }
 
-/* Sub-score bar shimmer -- pure CSS animation (was previously driven by
-   motion's backgroundPositionX keyframes). Motion's interpolation between
-   '0%' and '50%' was producing a perceptible discontinuity at the loop
-   boundary on some browsers; native CSS keyframes have no such issue.
-   The pattern is a 50%-wide gradient tile that repeats; shifting position
-   by one full tile width returns the rendered output to a pixel-identical
-   state, so the loop is mathematically seamless. */
+/* Sub-score bar shimmer -- pure CSS animation. Goal: continuous, water-like
+   flow with no perceived loop boundary. The earlier 0%→50% animation was
+   only half a tile width (background-position percentages compute against
+   container width minus image width, not container width directly), which
+   meant the loop visibly snapped back. Math here:
+   - Tile is 50% wide of bar.
+   - 0%→100% on background-position-x animates the first tile from
+     left-aligned to right-aligned, i.e. it shifts by exactly (container
+     - image) = 50% of bar = one full tile width.
+   - With background-repeat repeat, the rendered pattern at 100% is
+     pixel-identical to 0%, so the loop boundary is invisible.
+   Slowed from 6s to 7s for a more languid, water-like cadence. */
 @keyframes tractova-shimmer-flow {
   0%   { background-position-x: 0%; }
-  100% { background-position-x: 50%; }
+  100% { background-position-x: 100%; }
 }
 .shimmer-flow {
-  animation: tractova-shimmer-flow 6s linear infinite;
+  animation: tractova-shimmer-flow 7s linear infinite;
 }
 
 @layer base {
