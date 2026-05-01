@@ -2125,12 +2125,12 @@ async function refreshGeospatialFarmland() {
     byState.get(st).push({ areasymbol: sym, areaname: name, prime: primeAc, total: totalAc })
   }
 
-  // Build the FIPS-keyed upsert payload.
+  // Build the FIPS-keyed upsert payload. `usps` was already built above
+  // when constructing per-state queries — reuse the same map.
   const upsertRows = []
   let mappedCount = 0
   let exceptionStateRows = 0
   const skipped = { ak: 0, territories: 0, malformed: 0 }
-  const usps = Object.fromEntries(Object.entries(FIPS_TO_USPS).map(([f, u]) => [u, f]))
 
   for (const [st, areas] of byState) {
     // Skip out-of-scope: territories and Mexico shoulder.

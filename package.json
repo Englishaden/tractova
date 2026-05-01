@@ -11,8 +11,9 @@
     "test:smoke:pro": "playwright test --project=setup --project=pro-chromium",
     "test:smoke:all": "playwright test",
     "test:smoke:ui": "playwright test --ui",
-    "verify": "npm run build && npm run test:smoke",
-    "verify:full": "npm run build && npm run test:smoke:all"
+    "lint:api": "node scripts/lint-api.mjs",
+    "verify": "npm run lint:api && npm run build && npm run test:smoke",
+    "verify:full": "npm run lint:api && npm run build && npm run test:smoke:all"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
