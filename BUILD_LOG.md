@@ -4,10 +4,69 @@
 
 ---
 
-## 🟢 Pickup — create the smoke test Pro account, then commit
+## 🟢 Pickup — visual verification on prod after redeploy
 
-**Last session shipped Pro-flow smoke scaffolding** (uncommitted at session
-pause). Five files changed:
+**Last session shipped Pro-flow smoke (`5b6a7a0`) + Library WoW + freshness**
+on `main`. Both items 1-2 of the build schedule are done.
+
+**Visual verification on prod when you're back:**
+1. **Library hero** — small mono "Data refreshed [date]" caption with teal
+   breathing dot under the project-count meta line. Amber if older than
+   14 days (= a Sunday cron missed). Mirrors Dashboard hero (`e2c8b48`).
+2. **Project card chip row** — when a saved project's state has moved
+   week-over-week in `state_programs_snapshots`, a "State +N pt" or
+   "State -N pt" pill appears next to the StagePicker. Teal when up,
+   amber when down. Hover for the full state-name + score-pair tooltip.
+   Silent until snapshot history accrues (~2 weeks after migration 038).
+
+**Pro-flow smoke test Pro account already created** — `smoke-test@tractova.com`
+in Supabase, profile flipped to Pro via `scripts/setup-test-user.mjs`.
+Creds live in `.env.local` (gitignored). `npm run verify:full` runs
+build + 7 unauth + 1 setup + 6 Pro = 14 tests in ~26s, $0 cost.
+
+**Next moves, ranked:**
+- **Apply pending migrations 034-037** — HUD QCT/DDA + NMTC LIC. SQL
+  ready in `supabase/migrations/`. Activates the §48(e) and HUD layers
+  in production. Lowest-effort highest-data-coverage move.
+- **Expand curated economic coverage to top-10 solar markets**
+  (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move trust leverage,
+  closes 18→26 of 50 states with a `default` county_intelligence row.
+  ~4-8h/state. EIA Form 861 + ISO capacity markets publicly sourced.
+- **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
+
+---
+
+## ✅ Shipped 2026-04-30 — Library WoW + freshness signal
+
+Two retention-driving surfaces added on the Library page in parallel
+to the Dashboard hero indicator (`e2c8b48`):
+
+**Freshness signal** — small mono "Data refreshed [date]" caption with
+teal breathing dot under the hero meta line. Amber when underlying
+program data is >14d old. Tooltip explains scores are recomputed from
+this snapshot on every load. Same retention rationale as the Dashboard
+version: Library is the daily-driver surface, so the live-data promise
+needs to stay visible on the user's main return loop.
+
+**WoW score-delta chip** — when a saved project's state has moved
+week-over-week in `state_programs_snapshots`, a "State ±N pt" pill
+renders in the project-card chip row. Teal up / amber down. Honestly
+labeled "State" because the source is state-level program snapshots,
+not per-project history; tooltip explains the project's blended score
+may differ. Falls back to silent when delta is null/zero — no visual
+noise pre-data. Lights up automatically once history accrues (~2 weeks
+post-migration-038).
+
+**One file changed:** `src/pages/Library.jsx` (~50 LOC). No new RPC,
+no new migration, no new dependency — piggybacks on the existing
+`getStateProgramDeltas()` already shipped for Markets on the Move
+(`5c30369`). Verified via `npm run verify:full` (14 tests green).
+
+---
+
+## ✅ Shipped 2026-04-30 — Pro-flow smoke tests (`5b6a7a0`)
+
+Five files changed:
 
 - `tests/auth.setup.js` (new) — drives `/signin` with creds from `.env.local`,
   saves storage state to `tests/.auth/pro-user.json`
@@ -206,7 +265,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
-| `pending` | Pro-flow smoke tests: auth.setup.js + pro-smoke.spec.js (6 tests, ~10-15s, $0/run) — covers Search/Library/Profile/Dashboard past the paywall, catches the white-screen class on the authed surface that smoke.spec.js can't reach |
+| `pending` | Library WoW + freshness signal: "Data refreshed [date]" hero caption (teal breathing dot, amber if >14d) + "State ±N pt" chip on project cards when state_programs_snapshots show movement; piggybacks on getStateProgramDeltas already shipped for Markets on the Move |
+| `5b6a7a0` | Pro-flow smoke tests: auth.setup.js + pro-smoke.spec.js (6 tests, ~10-15s, $0/run) — covers Search/Library/Profile/Dashboard past the paywall, catches the white-screen class on the authed surface that smoke.spec.js can't reach |
 | `4fb24b6` | Landing onboarding: items-baseline on the simulated alert feed so chip + text share a typographic baseline; reverted "— lines / dots / solid" addendum from map legend |
 | `8a7f2ea` | Visual polish: gauge labels (25/50/75), shimmer flow (real CSS bug — animate 0%→100% not 0%→50%), legend visibility, baseline symmetry sweep across NewsFeed / Comparable / Regulatory |
 | `e2c8b48` | Dashboard: surface "data refreshed [date]" caption on hero — makes the live-data promise provable on first impression with teal breathing dot (fresh) or amber (>14d stale) |
@@ -296,6 +356,7 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 ### P1 — Scaffolding shipped 2026-04-30; lights up automatically as data history accrues
 - **Markets on the Move WoW deltas** — ✅ scaffolding shipped (`5c30369`). Migration 038 (`state_programs_snapshots`) appends a row per active-CS state on every `state_programs` cron run. UI pulls the deltas via `getStateProgramDeltas()` and renders ↑/↓ pt arrows when ≥2 snapshots exist per state. Falls back to the recency sort + "Xd ago" caption until then. Data accrues automatically; first deltas appear ~2 weeks after migration 038 lands.
+- **Library project-card WoW chip** — ✅ scaffolding shipped (this session). Same data source as Markets on the Move; renders a "State ±N pt" pill on each card whose state has moved between weekly snapshots. Honestly labeled "State" because deltas are state-program-level, not per-project. Silent until snapshot history accrues.
 - **IX Velocity Index + Program Saturation Index** (Wave 1.4 derived metrics) — `ix_queue_snapshots` accumulating since 2026-04-28 (migration 012 already shipped). Computation logic is the only piece pending; once we have ≥4 weeks of history we'll add an RPC and a chip on the IX card. Readiness recheck **scheduled for 2026-06-03** via /loop agent.
 - **Trend chips on KPIs (MetricsBar)** — same pattern: needs `dashboard_metrics_snapshots` history. Revisit when prioritized; the same scaffolding template (migration + cron hook + delta helper) used for `state_programs_snapshots` applies here.
 

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
-import { getStateProgramMap, getCountyData } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
@@ -1353,7 +1353,7 @@ function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
   )
 }
 
-function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, shareCount = 0, onShareSuccess }) {
+function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
@@ -1572,6 +1572,26 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                   }}
                 />
                 {alerts.length} alert{alerts.length > 1 ? 's' : ''}
+              </span>
+            )}
+            {/* V3 Wave 1.4: WoW delta chip — surfaces when this project's state
+                moved week-over-week in the snapshot history. Honestly labeled
+                "State" because the source is state_programs_snapshots, not
+                a per-project history. Silent when delta is null/zero. */}
+            {stateDelta && stateDelta.delta !== 0 && !expanded && (
+              <span
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1"
+                style={stateDelta.delta > 0
+                  ? { background: 'rgba(15,118,110,0.10)', color: '#0F766E', borderColor: 'rgba(15,118,110,0.25)', lineHeight: 1 }
+                  : { background: 'rgba(217,119,6,0.10)',  color: '#B45309', borderColor: 'rgba(217,119,6,0.25)',  lineHeight: 1 }}
+                title={`${project.stateName || project.state} program feasibility moved from ${Math.round(stateDelta.prevScore)} → ${Math.round(stateDelta.curScore)} since the prior weekly snapshot (${new Date(stateDelta.previousAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} → ${new Date(stateDelta.latestAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}). Project score blends state + county + tech + stage, so individual movement may differ.`}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {stateDelta.delta > 0
+                    ? <polyline points="6 15 12 9 18 15" />
+                    : <polyline points="6 9 12 15 18 9" />}
+                </svg>
+                <span className="font-mono tabular-nums">State {stateDelta.delta > 0 ? '+' : ''}{stateDelta.delta} pt</span>
               </span>
             )}
           </div>
@@ -2295,6 +2315,7 @@ function LibraryContent() {
   const [error,           setError]           = useState(null)
   const [confirmRemove,   setConfirmRemove]   = useState(null)
   const [stateProgramMap, setStateProgramMap] = useState({})
+  const [stateDeltaMap,   setStateDeltaMap]   = useState(new Map()) // state_id -> { delta, prevScore, latestAt, ... }
   const [countyDataMap,   setCountyDataMap]   = useState({}) // key `${state}::${county}` -> countyData
   const [sortBy,          setSortBy]          = useState('saved')    // saved|score|mw|alerts
   const [filterState,     setFilterState]     = useState('')
@@ -2306,6 +2327,39 @@ function LibraryContent() {
   useEffect(() => {
     getStateProgramMap().then(setStateProgramMap).catch(console.error)
   }, [])
+
+  // V3 Wave 1.4: load state-level WoW score deltas. Empty Map until snapshot
+  // history accrues (~2 weeks after migration 038). Project cards show ↑/↓
+  // pt arrows when their state has moved; silent when delta is null.
+  useEffect(() => {
+    getStateProgramDeltas().then(setStateDeltaMap).catch(console.error)
+  }, [])
+
+  // Freshness signal — mirrors Dashboard hero (`e2c8b48`). Computed from
+  // already-loaded stateProgramMap. Pulls max(lastVerified, updatedAt)
+  // across active CS states; amber if older than 14 days (= a Sunday cron
+  // missed). The Library is the daily-driver surface for retention, so a
+  // visible "data refreshed" stamp here keeps the live-data promise on
+  // the user's main return loop, not just first-impression dashboard.
+  const lastRefresh = useMemo(() => {
+    const states = Object.values(stateProgramMap || {})
+    if (!states.length) return null
+    let latest = 0
+    for (const s of states) {
+      if (s.csStatus === 'none') continue
+      const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
+      const u = s.updatedAt    ? new Date(s.updatedAt).getTime()    : 0
+      if (v > latest) latest = v
+      if (u > latest) latest = u
+    }
+    if (!latest) return null
+    const ageDays = Math.floor((Date.now() - latest) / 86400000)
+    return {
+      date:    new Date(latest).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      ageDays,
+      isStale: ageDays > 14,
+    }
+  }, [stateProgramMap])
 
   // Centralize county data fetch -- previously each ProjectCard fetched its
   // own, leaving the sort logic with no county info and ranking projects
@@ -2582,6 +2636,29 @@ function LibraryContent() {
                   'Your saved deals — tracked, scored, and monitored for policy changes.'
                 )}
               </p>
+              {lastRefresh && (
+                <span
+                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] mt-2"
+                  style={{ color: lastRefresh.isStale ? '#FCD34D' : '#5EEAD4' }}
+                  title={lastRefresh.isStale
+                    ? `Underlying program data is ${lastRefresh.ageDays} days old — last weekly refresh missed at least one cycle. Score deltas and alerts may not reflect this week's policy changes.`
+                    : `Underlying program data refreshed ${lastRefresh.ageDays === 0 ? 'today' : `${lastRefresh.ageDays} day${lastRefresh.ageDays === 1 ? '' : 's'} ago`}. Project scores are recomputed from this snapshot on every load.`}
+                >
+                  <span className="relative flex w-1.5 h-1.5 shrink-0" aria-hidden="true">
+                    {!lastRefresh.isStale && (
+                      <span className="absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping" style={{ background: '#14B8A6' }} />
+                    )}
+                    <span
+                      className="relative inline-flex rounded-full h-1.5 w-1.5"
+                      style={{
+                        background: lastRefresh.isStale ? '#F59E0B' : '#14B8A6',
+                        boxShadow: lastRefresh.isStale ? '0 0 6px rgba(245,158,11,0.6)' : '0 0 6px rgba(20,184,166,0.65)',
+                      }}
+                    />
+                  </span>
+                  <span>Data refreshed {lastRefresh.date}</span>
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {projects.length > 0 && (
@@ -2873,7 +2950,7 @@ function LibraryContent() {
             {displayProjects.length > 0 ? (
               <div className="grid gap-3">
                 {displayProjects.map((p) => (
-                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} onStageChange={handleStageChange} stateProgramMap={stateProgramMap} countyDataMap={countyDataMap} shareCount={shareCountMap[p.id] || 0} onShareSuccess={() => setShareCountMap(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }))} />
+                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} onStageChange={handleStageChange} stateProgramMap={stateProgramMap} countyDataMap={countyDataMap} stateDelta={stateDeltaMap?.get?.(p.state) || null} shareCount={shareCountMap[p.id] || 0} onShareSuccess={() => setShareCountMap(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }))} />
                 ))}
               </div>
             ) : (
