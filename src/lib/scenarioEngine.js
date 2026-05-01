@@ -40,6 +40,14 @@ const INDUSTRY_BASELINE = {
   discountRate: 0.08,         // 8% standard project finance discount rate
   contractYears: 25,          // CS+C&I project life (PPA contract) — BESS overrides to 15
   bessContractYears: 15,      // BESS project life (battery degradation cap)
+  // Capital structure for Equity-IRR + DSCR. Conservative IPP norms —
+  // 70/30 debt:equity, 6.5% all-in rate, 18-year amortization. Bakes
+  // in standard project-finance assumptions; users can mentally adjust
+  // for highly-levered tax-equity deals (typically less debt + flip
+  // structures we don't model here).
+  debtPct: 0.70,
+  debtRate: 0.065,
+  debtTermYears: 18,
 }
 
 // User-facing disclaimer. Must appear in UI + PDF wherever scenarios are
@@ -142,6 +150,46 @@ export function getSliderConfig(baseline) {
   // amber when "bad direction"). systemSizeMW is neutral because the
   // financial impact is genuinely mixed — bigger system = more revenue
   // AND more capex, with offsetting effects on payback.
+
+  // Lifecycle assumption sliders apply across all techs. Group at the
+  // bottom so the user starts with the project-shape sliders (size, cost,
+  // production) before adjusting the financial-model assumptions.
+  const lifecycleSliders = [
+    {
+      key: 'opexPerKwYear',
+      label: 'Opex',
+      unit: '$/kW/yr',
+      baseline: i.opexPerKwYear,
+      min: 8,
+      max: 50,
+      step: 1,
+      format: (v) => `$${v.toFixed(0)}/kW/yr`,
+      direction: 'lower-better',
+    },
+    {
+      key: 'discountRate',
+      label: 'Discount Rate',
+      unit: '',
+      baseline: i.discountRate,
+      min: 0.04,
+      max: 0.15,
+      step: 0.005,
+      format: (v) => `${(v * 100).toFixed(1)}%`,
+      direction: 'lower-better',  // lower discount = higher NPV
+    },
+    {
+      key: 'contractYears',
+      label: 'Contract Tenor',
+      unit: 'yr',
+      baseline: i.contractYears,
+      min: 10,
+      max: tech === 'bess' ? 20 : 30,  // BESS capped to battery degradation envelope
+      step: 1,
+      format: (v) => `${Math.round(v)} yr`,
+      direction: 'higher-better',
+    },
+  ]
+
   const common = [
     {
       key: 'systemSizeMW',
@@ -215,6 +263,7 @@ export function getSliderConfig(baseline) {
         format: (v) => `${(v * 100).toFixed(0)}%`,
         direction: 'higher-better',
       },
+      ...lifecycleSliders,
     ]
   }
 
@@ -232,12 +281,12 @@ export function getSliderConfig(baseline) {
         format: (v) => `${(v * 100).toFixed(1)}%`,
         direction: 'higher-better',
       },
+      ...lifecycleSliders,
     ]
   }
 
-  // BESS — only size + capex/kWh + IX matter; no CF/REC sliders.
-  // For now we expose the same triplet; CF/REC/allocation stay frozen.
-  return common
+  // BESS — only size + capex/kWh + IX + lifecycle sliders matter.
+  return [...common, ...lifecycleSliders]
 }
 
 // Format a one-line summary of a scenario for chip + memo rendering.
@@ -286,14 +335,23 @@ function computeForTech(tech, stateId, mw, rates) {
 }
 
 function extractInputs(tech, raw) {
+  // Tech-specific defaults for the lifecycle assumptions. BESS uses a
+  // 15-year project life (battery warranty); solar tech uses 25-year.
+  const baseLife = tech === 'bess' ? INDUSTRY_BASELINE.bessContractYears : INDUSTRY_BASELINE.contractYears
+  const common = {
+    ixCostPerWatt: INDUSTRY_BASELINE.ixCostPerWatt,
+    programAllocation: INDUSTRY_BASELINE.programAllocation,
+    opexPerKwYear: INDUSTRY_BASELINE.opexPerKwYear,
+    discountRate: INDUSTRY_BASELINE.discountRate,
+    contractYears: baseLife,
+  }
   if (tech === 'commercial-industrial') {
     return {
       systemSizeMW: raw.mw,
       capacityFactor: raw.capacityFactor / 100,
       capexPerWatt: raw.installedCostPerWatt,
-      ixCostPerWatt: INDUSTRY_BASELINE.ixCostPerWatt,
       recPricePerMwh: 0,
-      programAllocation: INDUSTRY_BASELINE.programAllocation,
+      ...common,
     }
   }
   if (tech === 'bess') {
@@ -301,9 +359,8 @@ function extractInputs(tech, raw) {
       systemSizeMW: raw.mw,
       capacityFactor: null,
       capexPerWatt: null,  // BESS uses $/kWh — handled internally
-      ixCostPerWatt: INDUSTRY_BASELINE.ixCostPerWatt,
       recPricePerMwh: 0,
-      programAllocation: INDUSTRY_BASELINE.programAllocation,
+      ...common,
     }
   }
   // CS
@@ -311,9 +368,8 @@ function extractInputs(tech, raw) {
     systemSizeMW: raw.mw,
     capacityFactor: raw.capacityFactor / 100,
     capexPerWatt: raw.installedCostPerWatt,
-    ixCostPerWatt: INDUSTRY_BASELINE.ixCostPerWatt,
     recPricePerMwh: raw.recPerMwh,
-    programAllocation: INDUSTRY_BASELINE.programAllocation,
+    ...common,
   }
 }
 
@@ -351,7 +407,9 @@ function computeCSOutputs(raw, inputs, baseOutputs) {
     annualMWh,
     mwAC: mw,
     degradationPct: raw.degradationPct ?? 0.5,
-    contractYears: INDUSTRY_BASELINE.contractYears,
+    contractYears: num(inputs.contractYears, INDUSTRY_BASELINE.contractYears),
+    opexPerKwYear: num(inputs.opexPerKwYear, INDUSTRY_BASELINE.opexPerKwYear),
+    discountRate: num(inputs.discountRate, INDUSTRY_BASELINE.discountRate),
   })
 
   return withDeltas({
@@ -364,10 +422,7 @@ function computeCSOutputs(raw, inputs, baseOutputs) {
     ixCostTotal: Math.round(ixCostTotal),
     totalDevCost: Math.round(totalDevCost),
     paybackYears: paybackYears != null ? round1(paybackYears) : null,
-    irr: lifecycle.irr,
-    lcoe: lifecycle.lcoe,
-    npv: lifecycle.npv,
-    lifetimeRevenue: lifecycle.lifetimeRevenue,
+    ...lifecycle,
   }, baseOutputs)
 }
 
@@ -394,7 +449,9 @@ function computeCIOutputs(raw, inputs, baseOutputs) {
     annualMWh,
     mwAC: mw,
     degradationPct: raw.degradationPct ?? 0.5,
-    contractYears: INDUSTRY_BASELINE.contractYears,
+    contractYears: num(inputs.contractYears, INDUSTRY_BASELINE.contractYears),
+    opexPerKwYear: num(inputs.opexPerKwYear, INDUSTRY_BASELINE.opexPerKwYear),
+    discountRate: num(inputs.discountRate, INDUSTRY_BASELINE.discountRate),
   })
 
   return withDeltas({
@@ -406,10 +463,7 @@ function computeCIOutputs(raw, inputs, baseOutputs) {
     ixCostTotal: Math.round(ixCostTotal),
     totalDevCost: Math.round(totalDevCost),
     paybackYears: paybackYears != null ? round1(paybackYears) : null,
-    irr: lifecycle.irr,
-    lcoe: lifecycle.lcoe,
-    npv: lifecycle.npv,
-    lifetimeRevenue: lifecycle.lifetimeRevenue,
+    ...lifecycle,
   }, baseOutputs)
 }
 
@@ -439,7 +493,9 @@ function computeBESSOutputs(raw, inputs, baseOutputs) {
     annualMWh: 0,                      // suppress LCOE for BESS
     mwAC: mw,
     degradationPct: raw.annualDegradationPct ?? 2.5,
-    contractYears: INDUSTRY_BASELINE.bessContractYears,
+    contractYears: num(inputs.contractYears, INDUSTRY_BASELINE.bessContractYears),
+    opexPerKwYear: num(inputs.opexPerKwYear, INDUSTRY_BASELINE.opexPerKwYear),
+    discountRate: num(inputs.discountRate, INDUSTRY_BASELINE.discountRate),
   })
 
   return withDeltas({
@@ -448,10 +504,8 @@ function computeBESSOutputs(raw, inputs, baseOutputs) {
     ixCostTotal: Math.round(ixCostTotal),
     totalDevCost: Math.round(totalDevCost),
     paybackYears: paybackYears != null ? round1(paybackYears) : null,
-    irr: lifecycle.irr,
+    ...lifecycle,
     lcoe: null,                         // not meaningful for storage
-    npv: lifecycle.npv,
-    lifetimeRevenue: lifecycle.lifetimeRevenue,
   }, baseOutputs)
 }
 
@@ -466,6 +520,8 @@ function withDeltas(out, baseOutputs) {
   const baseIrr = baseOutputs.irr
   const baseNpv = baseOutputs.npv
   const baseLcoe = baseOutputs.lcoe
+  const baseEquityIrr = baseOutputs.equityIrr
+  const baseDscr = baseOutputs.dscr
   return {
     ...out,
     revenueDelta: Math.round(out.year1Revenue - baseRev),
@@ -474,6 +530,8 @@ function withDeltas(out, baseOutputs) {
     irrDelta: out.irr != null && baseIrr != null ? out.irr - baseIrr : null,
     npvDelta: out.npv != null && baseNpv != null ? Math.round(out.npv - baseNpv) : null,
     lcoeDelta: out.lcoe != null && baseLcoe != null ? out.lcoe - baseLcoe : null,
+    equityIrrDelta: out.equityIrr != null && baseEquityIrr != null ? out.equityIrr - baseEquityIrr : null,
+    dscrDelta: out.dscr != null && baseDscr != null ? Math.round((out.dscr - baseDscr) * 100) / 100 : null,
   }
 }
 
@@ -499,18 +557,35 @@ function computeLifecycleMetrics({
   mwAC = 0,
   degradationPct = 0.5,
   contractYears = INDUSTRY_BASELINE.contractYears,
+  opexPerKwYear = INDUSTRY_BASELINE.opexPerKwYear,
+  discountRate = INDUSTRY_BASELINE.discountRate,
 }) {
   if (!totalDevCost || totalDevCost <= 0 || !year1Revenue || year1Revenue <= 0) {
-    return { irr: null, lcoe: null, npv: null, lifetimeRevenue: null }
+    return {
+      irr: null, lcoe: null, npv: null, lifetimeRevenue: null,
+      equityIrr: null, dscr: null,
+    }
   }
 
-  const r = INDUSTRY_BASELINE.discountRate
-  const opexY1 = mwAC * 1000 * INDUSTRY_BASELINE.opexPerKwYear  // $/yr
+  const r = discountRate
+  const opexY1 = mwAC * 1000 * opexPerKwYear  // $/yr
   const opexInflate = 1 + INDUSTRY_BASELINE.opexInflationPct / 100
   const degradeFactor = 1 - degradationPct / 100
 
+  // Capital structure for leveraged returns. Debt sized at 70% of total
+  // dev cost; rest is equity. Annual debt service uses standard amort:
+  //   payment = P × (r(1+r)^n) / ((1+r)^n - 1)
+  const debtPrincipal = totalDevCost * INDUSTRY_BASELINE.debtPct
+  const equityPrincipal = totalDevCost - debtPrincipal
+  const dRate = INDUSTRY_BASELINE.debtRate
+  const dTerm = INDUSTRY_BASELINE.debtTermYears
+  const annualDebtService = dRate > 0 && dTerm > 0
+    ? debtPrincipal * (dRate * Math.pow(1 + dRate, dTerm)) / (Math.pow(1 + dRate, dTerm) - 1)
+    : 0
+
   // Build cashflow stream. Year 0 = -capex (investment), Years 1-N = revenue - opex.
   const cashflows = [-totalDevCost]
+  const equityCashflows = [-equityPrincipal]
   let lifetimeRevenue = 0
   let costNPV = totalDevCost
   let prodNPV = 0
@@ -522,22 +597,33 @@ function computeLifecycleMetrics({
     const opex = opexY1 * Math.pow(opexInflate, t - 1)
     const netCashflow = totalRevenueYear - opex
     cashflows.push(netCashflow)
+    // Equity cashflow = project cashflow - debt service (only during amort window)
+    const debtService = t <= dTerm ? annualDebtService : 0
+    equityCashflows.push(netCashflow - debtService)
     lifetimeRevenue += totalRevenueYear
     costNPV += opex / Math.pow(1 + r, t)
     prodNPV += (annualMWh * degradation) / Math.pow(1 + r, t)
   }
 
-  // NPV at the standard 8% discount rate.
+  // NPV at the user's discount rate.
   let npv = -totalDevCost
   for (let t = 1; t <= contractYears; t++) {
     npv += cashflows[t] / Math.pow(1 + r, t)
   }
 
+  // DSCR: Year 1 NOI (revenue - opex, ITC excluded since it's tax flow,
+  // not cash that services debt) divided by annual debt service.
+  // ≥1.30 typical lender threshold; <1.20 raises eyebrows.
+  const y1NOI = (year1Revenue - itcAnnualized) - opexY1
+  const dscr = annualDebtService > 0 ? y1NOI / annualDebtService : null
+
   return {
-    irr: computeIRR(cashflows),       // decimal (0.12 = 12%)
-    lcoe: prodNPV > 0 ? costNPV / prodNPV : null,  // $/MWh
-    npv: Math.round(npv),              // dollars
+    irr: computeIRR(cashflows),
+    lcoe: prodNPV > 0 ? costNPV / prodNPV : null,
+    npv: Math.round(npv),
     lifetimeRevenue: Math.round(lifetimeRevenue),
+    equityIrr: computeIRR(equityCashflows),
+    dscr: dscr != null ? Math.round(dscr * 100) / 100 : null,
   }
 }
 

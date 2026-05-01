@@ -253,16 +253,30 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
               <MetricCell
                 term="IRR"
                 value={out.irr != null ? `${(out.irr * 100).toFixed(1)}%` : '—'}
-                suffix=""
+                suffix="project"
                 delta={out.irrDelta != null && Math.abs(out.irrDelta) > 0.001 ? out.irrDelta : null}
+                format="irrPct"
+              />
+              <MetricCell
+                term="Equity IRR"
+                value={out.equityIrr != null ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'}
+                suffix="70/30 lev"
+                delta={out.equityIrrDelta != null && Math.abs(out.equityIrrDelta) > 0.001 ? out.equityIrrDelta : null}
                 format="irrPct"
               />
               <MetricCell
                 term="NPV"
                 value={out.npv != null ? `$${formatLarge(out.npv)}` : '—'}
-                suffix="@ 8%"
+                suffix={`@ ${(((sliders.discountRate ?? baseline.inputs.discountRate) || 0.08) * 100).toFixed(1)}%`}
                 delta={out.npvDelta != null && Math.abs(out.npvDelta) > 1000 ? out.npvDelta / Math.max(Math.abs(baseline.outputs.npv) || 1, 1) : null}
                 format="pct"
+              />
+              <MetricCell
+                term="DSCR"
+                value={out.dscr != null ? `${out.dscr.toFixed(2)}x` : '—'}
+                suffix={out.dscr != null && out.dscr < 1.20 ? 'tight' : out.dscr != null && out.dscr >= 1.30 ? 'healthy' : ''}
+                delta={out.dscrDelta != null && Math.abs(out.dscrDelta) > 0.02 ? out.dscrDelta : null}
+                format="dscr"
               />
               <MetricCell
                 term="LCOE"
@@ -457,6 +471,7 @@ function DeltaChip({ delta, format }) {
   else if (format === 'years') value = `${positive ? '+' : ''}${delta.toFixed(1)} yr`
   else if (format === 'irrPct') value = `${positive ? '+' : ''}${(delta * 100).toFixed(1)} pp`
   else if (format === 'lcoe')   value = `${positive ? '+' : ''}$${Math.abs(delta).toFixed(0)}`
+  else if (format === 'dscr')   value = `${positive ? '+' : ''}${delta.toFixed(2)}x`
   else                          value = `${positive ? '+' : ''}${delta}`
   return (
     <span

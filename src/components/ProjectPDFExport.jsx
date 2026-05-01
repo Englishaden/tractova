@@ -274,29 +274,18 @@ function ScenarioSection({ scenario }) {
   return (
     <View>
       <Text style={s.sectionLabel}>Selected Scenario · {scenario.name}</Text>
-      <View style={{ flexDirection: 'row', marginBottom: 10 }}>
-        <View style={{ flex: 1, paddingRight: 10 }}>
-          <Text style={[s.dataLabel, { width: 'auto', marginBottom: 3 }]}>Year 1 Revenue</Text>
-          <Text style={{ fontSize: 16, fontFamily: FONT_MONO_BOLD, color: INK }}>
-            ${formatLargeUSD(out.year1Revenue)}
-            {out.revenueDelta != null && Math.abs(out.revenueDelta) > 100 && (
-              <Text style={{ fontSize: 8, fontFamily: FONT_MONO, color: out.revenueDelta > 0 ? TEAL : RED, marginLeft: 4 }}>
-                {' '}{out.revenueDelta > 0 ? '+' : ''}${formatLargeUSD(out.revenueDelta)}
-              </Text>
-            )}
-          </Text>
-        </View>
-        <View style={{ flex: 1, paddingLeft: 10, borderLeftWidth: 1, borderLeftColor: BORDER }}>
-          <Text style={[s.dataLabel, { width: 'auto', marginBottom: 3 }]}>Simple Payback</Text>
-          <Text style={{ fontSize: 16, fontFamily: FONT_MONO_BOLD, color: INK }}>
-            {out.paybackYears != null ? `${out.paybackYears} yr` : '—'}
-            {out.paybackDelta != null && Math.abs(out.paybackDelta) > 0.1 && (
-              <Text style={{ fontSize: 8, fontFamily: FONT_MONO, color: out.paybackDelta < 0 ? TEAL : RED, marginLeft: 4 }}>
-                {' '}{out.paybackDelta > 0 ? '+' : ''}{out.paybackDelta} yr
-              </Text>
-            )}
-          </Text>
-        </View>
+      {/* 2x4 metric grid mirrors the Studio output card. Each cell is a
+          tile with a label + bold mono numeric — matches the data-density
+          aesthetic used elsewhere in the PDF. */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
+        <ScenarioMetricTile label="Year 1 Revenue" value={`$${formatLargeUSD(out.year1Revenue)}`} suffix="/yr" />
+        <ScenarioMetricTile label="Simple Payback" value={out.paybackYears != null ? `${out.paybackYears} yr` : '—'} />
+        <ScenarioMetricTile label="IRR · project" value={out.irr != null ? `${(out.irr * 100).toFixed(1)}%` : '—'} />
+        <ScenarioMetricTile label="IRR · equity" value={out.equityIrr != null ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'} />
+        <ScenarioMetricTile label="NPV" value={out.npv != null ? `$${formatLargeUSD(out.npv)}` : '—'} />
+        <ScenarioMetricTile label="DSCR" value={out.dscr != null ? `${out.dscr.toFixed(2)}x` : '—'} />
+        <ScenarioMetricTile label="LCOE" value={out.lcoe != null ? `$${out.lcoe.toFixed(0)}` : '—'} suffix="/MWh" />
+        <ScenarioMetricTile label="Lifetime Rev" value={out.lifetimeRevenue != null ? `$${formatLargeUSD(out.lifetimeRevenue)}` : '—'} />
       </View>
       {summary && (
         <View style={s.tealBlock}>
@@ -308,6 +297,18 @@ function ScenarioSection({ scenario }) {
           {SCENARIO_DISCLAIMER}
         </Text>
       </View>
+    </View>
+  )
+}
+
+function ScenarioMetricTile({ label, value, suffix }) {
+  return (
+    <View style={{ width: '25%', paddingRight: 6, paddingBottom: 8 }}>
+      <Text style={[s.dataLabel, { width: 'auto', marginBottom: 2 }]}>{label}</Text>
+      <Text style={{ fontSize: 11, fontFamily: FONT_MONO_BOLD, color: INK }}>
+        {value}
+        {suffix && <Text style={{ fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED }}> {suffix}</Text>}
+      </Text>
     </View>
   )
 }

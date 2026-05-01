@@ -172,6 +172,36 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'Total revenue the project will gross over its 25-year life (15-year for BESS), including ITC value. NOT discounted, so a $100K/yr project = $2.5M lifetime — but those late-year dollars are worth far less than today\'s. Use NPV for the actual value-creation metric; lifetime revenue is mostly a "deal scale" reference.',
     inputs: 'sum of yearly revenue with degradation applied',
   },
+  'Equity IRR': {
+    title: 'Equity IRR (with leverage)',
+    short: 'IRR computed on equity cashflows after debt service — the return the equity investor actually sees.',
+    long: 'Assumes 70/30 debt:equity capital structure at 6.5% all-in rate over 18-year amortization (typical IPP project finance). Year 0 = -equity (= 30% of dev cost). Years 1-N = revenue - opex - debt service. Equity IRR is typically 200-500 bps higher than project IRR for solar deals. Doesn\'t model tax-equity flips or sponsor-equity tranching — for those structures the actual return profile is materially different.',
+    inputs: '70/30 debt:equity · 6.5% rate · 18-yr amortization',
+  },
+  'DSCR': {
+    title: 'DSCR (Debt Service Coverage Ratio)',
+    short: 'Year 1 NOI divided by annual debt service — the lender\'s primary "is this loan safe" metric.',
+    long: 'Sized at NOI = Year 1 revenue (excluding ITC, since it\'s tax flow not cash) minus opex. Annual debt service is the level annuity payment on 70% of dev cost at 6.5% over 18 years. ≥1.30x is a typical lender minimum; 1.20-1.29x raises eyebrows but may close with sponsor support; <1.20x usually requires restructuring (more equity, longer tenor, or rate concession).',
+    inputs: 'Year 1 NOI / annual debt service · 70/30 leverage · 6.5% rate',
+  },
+  'Opex': {
+    title: 'Opex (Operating Expenses)',
+    short: 'Annual operating cost — O&M, insurance, site lease, monitoring, asset management.',
+    long: 'Industry baseline of $20/kW/yr for utility-scale solar (Wood Mac H2 2025: $15-25/kW range). Includes preventive maintenance, inverter service, vegetation management, insurance, and asset-management fees. Escalates 2.5%/yr. Lower for large remote arrays with simple racking; higher for distributed systems with complex grid interfaces or premium service contracts. Material to LCOE + IRR.',
+    inputs: 'Wood Mac H2 2025 utility-scale O&M survey · industry baseline',
+  },
+  'Discount Rate': {
+    title: 'Discount Rate',
+    short: 'The annual rate used to value future cashflows in today\'s dollars — typically your hurdle rate or cost of capital.',
+    long: 'NPV uses this to discount future cashflows: a $100 payment in year 5 at 8% discount = $68 today. Higher discount rate = future revenue worth less today = lower NPV. 8% is the project-finance industry baseline. IC reviewers may use 10-12%; utility-equity 6-7%; family-office capital 12-15%. Tractova\'s baseline is 8% so you can compare projects on apples-to-apples terms; nudge to your own hurdle rate for a personalized read.',
+    inputs: 'baseline 8% (project finance standard) · user-adjustable',
+  },
+  'Contract Tenor': {
+    title: 'Contract Tenor',
+    short: 'Project life used for revenue + IRR computation — how many years of cashflow we model.',
+    long: 'Solar CS: 25 years standard (REC contract or PPA term). C&I PPA: 15-25 years typical. BESS: 15 years (battery degradation cap). Longer tenor = more lifetime revenue + (usually) higher IRR. Adjust if your specific offtake contract is shorter (e.g. 10-yr municipal CS) or longer (e.g. 30-yr utility PPA).',
+    inputs: 'baseline 25yr solar / 15yr BESS · adjusts cashflow stream length',
+  },
 }
 
 // Convenience: shape for a `<GlossaryLabel>` short-tooltip use case.

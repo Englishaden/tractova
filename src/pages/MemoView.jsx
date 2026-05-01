@@ -188,11 +188,13 @@ export default function MemoView() {
                   Sensitivity · directional only
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <ScenarioMetric label="Year 1 Revenue" value={`$${formatLargeUSD(scenario.outputs.year1Revenue)}`} suffix="/ yr" />
                 <ScenarioMetric label="Simple Payback" value={scenario.outputs.paybackYears != null ? `${scenario.outputs.paybackYears} yr` : '—'} />
-                <ScenarioMetric label="IRR" value={scenario.outputs.irr != null ? `${(scenario.outputs.irr * 100).toFixed(1)}%` : '—'} />
-                <ScenarioMetric label="NPV" value={scenario.outputs.npv != null ? `$${formatLargeUSD(scenario.outputs.npv)}` : '—'} suffix="@ 8%" />
+                <ScenarioMetric label="IRR · project" value={scenario.outputs.irr != null ? `${(scenario.outputs.irr * 100).toFixed(1)}%` : '—'} />
+                <ScenarioMetric label="IRR · equity" value={scenario.outputs.equityIrr != null ? `${(scenario.outputs.equityIrr * 100).toFixed(1)}%` : '—'} />
+                <ScenarioMetric label="NPV" value={scenario.outputs.npv != null ? `$${formatLargeUSD(scenario.outputs.npv)}` : '—'} />
+                <ScenarioMetric label="DSCR" value={scenario.outputs.dscr != null ? `${scenario.outputs.dscr.toFixed(2)}x` : '—'} />
                 <ScenarioMetric label="LCOE" value={scenario.outputs.lcoe != null ? `$${scenario.outputs.lcoe.toFixed(0)}` : '—'} suffix="/ MWh" />
                 <ScenarioMetric label="Lifetime Rev" value={scenario.outputs.lifetimeRevenue != null ? `$${formatLargeUSD(scenario.outputs.lifetimeRevenue)}` : '—'} />
               </div>
