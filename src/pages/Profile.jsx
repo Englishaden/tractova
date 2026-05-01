@@ -7,6 +7,7 @@ import { getStateProgramMap } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { Toggle, Input, Button } from '../components/ui'
 import { STAGE_COLORS, TECH_COLORS } from '../lib/v3Tokens'
+import IntelligenceBackground from '../components/IntelligenceBackground'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -391,9 +392,15 @@ export default function Profile() {
   const recentProjects = allProjects.slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface relative">
+      {/* Three-layer ambient background — soft edge washes + slow-flowing
+          teal band + cartographic grid in the gutters. Sits behind all
+          content (-z-10) so it doesn't compete for attention with the
+          profile card. Centers the profile visually by anchoring visual
+          weight to the page edges. */}
+      <IntelligenceBackground />
       <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
-        <div className="mt-6 max-w-3xl">
+        <div className="mt-6 max-w-3xl mx-auto">
 
           {/* V3: Profile banner — brand navy with teal accent rail (matches Library banner) */}
           <div className="rounded-xl overflow-hidden mb-6 relative" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>

@@ -23,6 +23,7 @@ import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'mot
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, getOfftakeCoverageStates } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
+import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getNearestSubstations } from '../lib/substationEngine'
 
 function getMarketRank(stateId, programMap) {
@@ -3379,7 +3380,7 @@ const inputCls = "w-full text-sm bg-transparent border-0 outline-hidden px-0 py-
 // ─────────────────────────────────────────────────────────────────────────────
 // Custom select dropdown (replaces native <select> for Stage + Technology)
 // ─────────────────────────────────────────────────────────────────────────────
-function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, required }) {
+function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, required, optionTooltips = {} }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -3436,18 +3437,23 @@ function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, 
             <li
               key={opt}
               onMouseDown={(e) => { e.preventDefault(); onChange(opt); setOpen(false) }}
-              className={`flex items-center gap-2.5 px-3 py-2.5 text-sm cursor-pointer transition-colors ${
+              className={`flex items-start gap-2.5 px-3 py-2.5 text-sm cursor-pointer transition-colors ${
                 value === opt
                   ? 'bg-primary-50 text-primary-700 font-medium'
                   : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
               }`}
             >
-              <span className={`w-3.5 h-3.5 shrink-0 ${value === opt ? 'text-primary' : 'text-transparent'}`}>
+              <span className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${value === opt ? 'text-primary' : 'text-transparent'}`}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </span>
-              {opt}
+              <span className="flex-1 min-w-0">
+                <span className="block">{opt}</span>
+                {optionTooltips[opt] && (
+                  <span className="block text-[10px] text-gray-400 leading-snug mt-0.5">{optionTooltips[opt]}</span>
+                )}
+              </span>
             </li>
             )
           ))}
@@ -4098,6 +4104,7 @@ function SearchContent() {
                 onChange={(val) => setForm((f) => ({ ...f, technology: val }))}
                 options={TECHNOLOGIES}
                 placeholder="Select type…"
+                optionTooltips={TECH_FILTER_TOOLTIPS}
                 required
               />
             </div>

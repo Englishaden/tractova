@@ -1,9 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
+import { TECH_DEFINITIONS } from '../lib/techDefinitions'
 
 // Convert term name to a URL-safe anchor slug
 function toSlug(term) {
   return term.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
+
+// Technology-type entries are derived from the canonical TECH_DEFINITIONS
+// catalog so the same source of truth feeds Library tooltips, Search dropdown
+// tooltips, and Glossary cards. Pillar 'all' because tech type is cross-cutting
+// (touches site, IX, and offtake scoring at once).
+const TECH_TYPE_TERMS = Object.entries(TECH_DEFINITIONS).map(([_name, def]) => ({
+  term: def.title,
+  pillar: 'all',
+  definition: def.long,
+  related: ['Lens Analysis', 'Feasibility Index', 'Sensitivity Analysis'],
+}))
 
 const terms = [
   // ── Development stages ──────────────────────────────────────────────────────
@@ -237,6 +249,11 @@ const terms = [
       'The formal programmatic structure underlying Illinois Shines, administered by the Illinois Power Agency. The ABP sets fixed REC prices ("blocks") by project category — small distributed generation, large distributed generation, and community solar — and adjusts pricing across tranches based on demand. When a block fills, the IPA sets new pricing for the next tranche. The ABP is widely considered a model for well-structured state community solar incentive programs and is frequently cited by other states designing their own programs.',
     related: ['Illinois Shines', 'CSEGS (Community Solar Electric Generating System)', 'REC (Renewable Energy Certificate)'],
   },
+
+  // ── Technology types ────────────────────────────────────────────────────────
+  // Derived from src/lib/techDefinitions.js so Glossary cards, Library
+  // hover tooltips, and Search dropdown tooltips all share one source.
+  ...TECH_TYPE_TERMS,
 ]
 
 // V3: pillar badges aligned to V3 palette — teal for offtake, amber for IX

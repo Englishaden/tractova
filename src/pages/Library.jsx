@@ -5,6 +5,9 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
+import FilterSelect from '../components/ui/FilterSelect'
+import TechLabel from '../components/ui/TechLabel'
+import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
@@ -1607,7 +1610,9 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
           <p className="text-xs mt-0.5 truncate text-gray-500">
             {project.county} County, {project.stateName || project.state}
             {' · '}{project.mw} MW AC
-            {project.technology ? ` · ${project.technology}` : ''}
+            {project.technology && (
+              <> · <TechLabel tech={project.technology} className="text-gray-500 hover:text-teal-700" /></>
+            )}
             {project.savedAt ? ` · Saved ${new Date(project.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}` : ''}
           </p>
         </div>
@@ -1872,7 +1877,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3 flex-wrap text-xs">
           <span className="font-medium text-ink">{project.mw} MW AC</span>
-          {project.technology && <><span className="text-gray-300">·</span><span className="text-ink-muted">{project.technology}</span></>}
+          {project.technology && <><span className="text-gray-300">·</span><TechLabel tech={project.technology} className="text-ink-muted" /></>}
           <span className="text-gray-300">·</span>
           <StagePicker stage={stage} projectId={project.id} onChange={setStage} />
         </div>
@@ -2849,38 +2854,33 @@ function LibraryContent() {
                 )
               })()}
 
-              {/* Filter + sort bar */}
+              {/* Filter + sort bar — uses FilterSelect (custom popup) for
+                  visual parity with the Lens form's FieldSelect. Native
+                  <select> elements were inconsistent with the rest of the
+                  app's polish and impossible to style cross-browser. */}
               <div className="mt-4 flex items-center gap-2 flex-wrap">
-                <select
+                <FilterSelect
                   value={filterState}
-                  onChange={e => setFilterState(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-hidden bg-white border border-gray-200 ${filterState ? 'text-teal-700' : 'text-gray-500'}`}
-                >
-                  <option value="">All States</option>
-                  {[...new Set(projects.map(p => p.state))].sort().map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-                <select
+                  onChange={setFilterState}
+                  placeholder="All States"
+                  ariaLabel="Filter by state"
+                  options={[...new Set(projects.map(p => p.state))].sort()}
+                />
+                <FilterSelect
                   value={filterTech}
-                  onChange={e => setFilterTech(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-hidden bg-white border border-gray-200 ${filterTech ? 'text-teal-700' : 'text-gray-500'}`}
-                >
-                  <option value="">All Tech</option>
-                  {[...new Set(projects.map(p => p.technology).filter(Boolean))].sort().map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-                <select
+                  onChange={setFilterTech}
+                  placeholder="All Tech"
+                  ariaLabel="Filter by technology"
+                  options={[...new Set(projects.map(p => p.technology).filter(Boolean))].sort()}
+                  optionTooltips={TECH_FILTER_TOOLTIPS}
+                />
+                <FilterSelect
                   value={filterStage}
-                  onChange={e => setFilterStage(e.target.value)}
-                  className={`text-[11px] font-medium rounded-lg px-2.5 py-1.5 appearance-none cursor-pointer transition-colors focus:outline-hidden bg-white border border-gray-200 ${filterStage ? 'text-teal-700' : 'text-gray-500'}`}
-                >
-                  <option value="">All Stages</option>
-                  {PIPELINE_STAGES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                  onChange={setFilterStage}
+                  placeholder="All Stages"
+                  ariaLabel="Filter by stage"
+                  options={PIPELINE_STAGES}
+                />
 
                 <div className="ml-auto flex items-center gap-1.5">
                   <span className="text-[10px] font-medium text-gray-400">Sort:</span>
