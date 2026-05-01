@@ -3153,17 +3153,26 @@ function LensOverlay({ visible, stateName, countyName, onCancel }) {
     if (visible) {
       setIsShown(true)
       let startTs = null
-      const FILL_DURATION = 14000
+      // Asymptotic progress: p = CEIL * (1 - exp(-elapsed / TAU))
+      // CEIL = 95% — never reached, so the snap-to-100 on API completion
+      //              always has 5+ points of headroom for a clean landing.
+      // TAU  = 8000ms — calibrated against the ~15s typical Lens runtime.
+      //              At 15s, p ≈ 79%; at 30s, p ≈ 93%; at ∞, p → 95.
+      // The RAF loop never exits while visible, so the halo physically
+      // cannot stall — even on a 60s slow run the arc keeps creeping
+      // forward in tiny sub-pixel increments.
+      const CEIL = 95
+      const TAU  = 8000
 
       const tick = (ts) => {
         if (!startTs) startTs = ts
         const elapsed = ts - startTs
-        const p = Math.min(88, (elapsed / FILL_DURATION) * 88)
+        const p = CEIL * (1 - Math.exp(-elapsed / TAU))
         if (arcRef.current) {
           arcRef.current.style.transition = 'none'
           arcRef.current.style.strokeDashoffset = C * (1 - p / 100)
         }
-        if (p < 88) rafRef.current = requestAnimationFrame(tick)
+        rafRef.current = requestAnimationFrame(tick)
       }
       rafRef.current = requestAnimationFrame(tick)
     } else {
@@ -3291,7 +3300,7 @@ function LensOverlay({ visible, stateName, countyName, onCancel }) {
           color: 'rgba(255,255,255,0.32)',
           fontFamily: `'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace`,
         }}>
-          Est. ~14s · Cancel anytime
+          Est. ~15s · Cancel anytime
         </p>
       </div>
 
