@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { getStateProgramMap } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { Toggle, Input, Button } from '../components/ui'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { STAGE_COLORS, TECH_COLORS } from '../lib/v3Tokens'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
@@ -32,11 +33,20 @@ function timeAgo(dateStr) {
 // V3: STAGE_COLORS + TECH_COLORS now imported from src/lib/v3Tokens.js
 
 // ── Manage Billing ───────────────────────────────────────────────────────────
-function ManageBillingButton() {
+// Two paths: "Manage subscription" goes straight to Stripe portal (for
+// payment-method updates / plan changes — no friction). "Cancel
+// subscription" opens an exit-intent modal that captures reason +
+// optional free-text feedback, then routes to the same Stripe portal
+// (Stripe is hosted, so we can't intercept the actual cancel click).
+// The modal is voluntary: the user can hit "Continue to Stripe" without
+// providing a reason. Capture rate will be partial, but each row is
+// high-signal because it's self-identified pre-cancel intent.
+function ManageBillingButton({ user, tier }) {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
+  const [cancelOpen, setCancelOpen] = useState(false)
 
-  const handlePortal = async () => {
+  const openPortal = async () => {
     setLoading(true)
     setError(null)
     try {
@@ -60,16 +70,151 @@ function ManageBillingButton() {
     <div>
       {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
       <button
-        onClick={handlePortal}
+        onClick={openPortal}
         disabled={loading}
-        className="text-sm font-medium disabled:opacity-50 transition-colors"
+        className="text-sm font-medium disabled:opacity-50 transition-colors block"
         style={{ color: '#0F766E' }}
         onMouseEnter={(e) => { if (!loading) e.currentTarget.style.color = '#0A1828' }}
         onMouseLeave={(e) => { if (!loading) e.currentTarget.style.color = '#0F766E' }}
       >
         {loading ? 'Loading...' : 'Manage subscription →'}
       </button>
+      <button
+        onClick={() => setCancelOpen(true)}
+        className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors mt-1.5 block"
+      >
+        Considering canceling?
+      </button>
+      <CancelSurveyModal
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onContinueToPortal={openPortal}
+        user={user}
+        tier={tier}
+      />
     </div>
+  )
+}
+
+// Exit-intent modal — captures reason category + optional free text into
+// the cancellation_feedback table (migration 042) before handing off to
+// the Stripe portal. RLS lets the user insert their own row directly so
+// no API endpoint is needed (we're at the Vercel Hobby 12-function cap).
+function CancelSurveyModal({ open, onClose, onContinueToPortal, user, tier }) {
+  const [reason, setReason] = useState('')
+  const [freeText, setFreeText] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const REASONS = [
+    { id: 'pricing',         label: 'Pricing — too expensive for current value' },
+    { id: 'missing_feature', label: 'Missing a specific feature I need' },
+    { id: 'wrong_fit',       label: 'Not the right fit for my workflow' },
+    { id: 'just_exploring',  label: 'Was just exploring, not actively developing' },
+    { id: 'data_coverage',   label: 'Coverage missing for the states I work in' },
+    { id: 'other',           label: 'Other (please share below)' },
+  ]
+
+  // Save feedback (best-effort) then route to the next destination.
+  // Failure to save MUST NOT block the user — they're trying to manage
+  // their billing and silent friction here is the worst outcome.
+  async function recordAndRoute(destination) {
+    if (!reason && destination === 'staying') {
+      onClose()
+      return
+    }
+    setSubmitting(true)
+    try {
+      if (reason || freeText.trim()) {
+        await supabase.from('cancellation_feedback').insert({
+          user_id: user?.id,
+          user_email: user?.email || null,
+          tier_at_submit: tier || null,
+          reason_category: reason || 'other',
+          free_text: freeText.trim() || null,
+          destination,
+        })
+      }
+    } catch (err) {
+      console.warn('[CancelSurvey] insert failed:', err.message)
+    }
+    setSubmitting(false)
+    if (destination === 'stripe_portal') {
+      onContinueToPortal()
+    } else {
+      onClose()
+      setReason('')
+      setFreeText('')
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(245,158,11,0.10)' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <DialogTitle>Before you go — a quick favor?</DialogTitle>
+        </div>
+        <DialogDescription>
+          Your feedback helps Tractova ship what would have made you stay. Optional, takes 30 seconds.
+        </DialogDescription>
+
+        <div className="mt-4 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">What's the main reason?</p>
+          {REASONS.map((r) => (
+            <label
+              key={r.id}
+              className="flex items-start gap-2.5 p-2.5 rounded-md cursor-pointer transition-colors hover:bg-gray-50"
+              style={{ border: reason === r.id ? '1px solid rgba(20,184,166,0.40)' : '1px solid #E5E7EB', background: reason === r.id ? 'rgba(20,184,166,0.05)' : 'white' }}
+            >
+              <input
+                type="radio"
+                name="cancelReason"
+                value={r.id}
+                checked={reason === r.id}
+                onChange={(e) => setReason(e.target.value)}
+                className="mt-0.5 accent-teal-600"
+              />
+              <span className="text-[12px] text-ink leading-snug">{r.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="mt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Anything else? <span className="font-normal normal-case text-gray-400">(optional)</span></p>
+          <textarea
+            value={freeText}
+            onChange={(e) => setFreeText(e.target.value)}
+            rows={3}
+            placeholder="What would have changed your mind? Specific feature, integration, or workflow..."
+            className="w-full text-[12px] rounded-md px-3 py-2 resize-none"
+            style={{ border: '1px solid #E5E7EB' }}
+          />
+        </div>
+
+        <div className="flex items-center justify-end gap-2 mt-5">
+          <button
+            onClick={() => recordAndRoute('staying')}
+            disabled={submitting}
+            className="text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
+            style={{ color: '#0F766E' }}
+          >
+            I'll stay
+          </button>
+          <button
+            onClick={() => recordAndRoute('stripe_portal')}
+            disabled={submitting}
+            className="text-sm font-semibold text-white px-4 py-2 rounded-lg transition-colors"
+            style={{ background: '#0F1A2E' }}
+          >
+            {submitting ? 'Saving…' : 'Continue to Stripe'}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -503,7 +648,7 @@ export default function Profile() {
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-500">Free</span>
                       )}
                     </div>
-                    {isPro ? <ManageBillingButton /> : (
+                    {isPro ? <ManageBillingButton user={user} tier={tier} /> : (
                       <Link to="/search" className="text-sm font-medium text-primary hover:text-primary-700 transition-colors">
                         Upgrade to Pro →
                       </Link>
