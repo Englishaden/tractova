@@ -4,9 +4,63 @@
 
 ---
 
-## 🟢 Pickup — Path B: Wetlands + farmland data layers
+## 🟢 Pickup — User actions to light Path B up on prod
 
-**Session ended 2026-04-30 ~22:30 UTC. Six commits shipped on `main`:**
+**Session ended 2026-05-01. One large commit on `main` (`7c49c5c`) ships
+the entire Path B build (wetlands + farmland data layers — all 50 states /
+3,142 counties).** Pre-work probes done first to validate the approach:
+
+```
+7c49c5c  Path B: county_geospatial_data — wetlands + farmland for all 50 states
+```
+
+**To light it up on prod, three actions in this order:**
+
+1. **Run migration 039** in Supabase SQL editor (paste
+   `supabase/migrations/039_county_geospatial_data.sql`). Inert until rows
+   exist — does not change scoring behavior.
+2. **Trigger the SSURGO ingest** via the admin Refresh button (or wait for
+   Sunday 7:45 cron). Populates ~3,000 counties with `prime_farmland_pct`
+   in ~5s. After this, `availableLand` is live for all 50 states (where
+   SSURGO has soil-survey coverage — AK skipped per migration comment).
+3. **Run the NWI seed locally** when convenient — takes ~1.5h with 4x
+   parallelism:
+   ```
+   node scripts/seed-county-geospatial-nwi.mjs
+   ```
+   Idempotent + resumable. After completion, `wetlandWarning` is live for
+   all 3,142 counties and the **Site · Live** pill renders in the Lens
+   eyebrow strip for any county query.
+
+Quarterly NWI refresh: `node scripts/seed-county-geospatial-nwi.mjs --refresh`
+(skips counties whose `wetland_last_updated` is < 90 days old).
+
+**Visual verification on prod after step 3:**
+- Lens results eyebrow now shows a small teal **"Site · Live"** pill (next
+  to IX · Live where applicable) for ANY county in any state — not just the
+  18 with curated `county_intelligence` rows. Hover opens a structured Radix
+  tooltip explaining inputs (NWI / SSURGO) and thresholds.
+- Site sub-score for the 32 previously-fallback states (TX, GA, NC, AZ, etc.)
+  now reflects real wetland + farmland data instead of the 60 placeholder.
+
+**Next pickup options (priority-ordered for retention vs effort):**
+
+- **Drill-down geospatial detail in the Site Control card** — when a user
+  expands the Site Control card, surface the actual `wetland_coverage_pct`,
+  `wetland_category`, `prime_farmland_pct` numbers + sources (NWI / SSURGO)
+  alongside the existing land-use bullets. ~1-2h.
+- **Activate §48(e) / HUD layers in Lens scoring UI** — data live (3,144
+  NMTC + 1,801 HUD rows). Needs to flow into the offtake panel as ITC-
+  bonus indicators. ~3-4h.
+- **Expand IX scrapers to missing CS-active states** (CA, FL, WA, HI, NM,
+  CT, RI, MI, WI, OR, VA) — would grow IX · Live from 8 → 19. Multi-
+  session per-ISO scraper work.
+- **Path-toward-50-states-fully-live**: see
+  [memory: 50-state live coverage roadmap](../../memory/...). Order
+  implied: site (✅ this session) → IX (scraper expansion) → utility
+  serving (EIA Form 861) → offtake (EIA retail rates).
+
+**Earlier pickup state superseded by this session:**
 
 ```
 e4c6666  Lens loader: asymptotic halo fill — never stalls, always creeps forward
@@ -17,70 +71,55 @@ b27dfa0  Library WoW deltas + freshness signal
 5b6a7a0  Pro-flow smoke tests: authed regression net for the white-screen class
 ```
 
-**Visual verification on prod after Vercel redeploy:**
-1. **Library hero** — "Data refreshed [date]" chip (teal breathing dot,
-   amber if >14d) under the project-count meta line.
-2. **Project cards** — "State ±N pt" chip is scaffolded but silent until
-   `state_programs_snapshots` accrues a 2nd weekly row (~mid-May).
-3. **Lens results for NY/NJ/MA/IL/MD/MN/ME/CO** — small teal **"IX · Live"**
-   pill in the eyebrow strip between TECHNOLOGY and the status badge.
-   Hover opens the structured Radix tooltip (dark-navy bg, teal border)
-   explaining inputs/clamp/coverage policy.
-4. **Lens loader** — halo arc no longer stalls at 88%; asymptotes toward
-   95% so motion stays alive on slow runs and snaps cleanly to 100% on
-   completion.
-5. **Other states' Lens results** — IX · Live pill is *absent* (honest:
-   no fabricated coverage where ISO scrapers haven't landed).
+---
 
-**Next pickup: Path B — Wetlands + farmland data layers (3-4 days, multi-session).**
+## ✅ Shipped 2026-05-01 — Path B: county_geospatial_data (`7c49c5c`)
 
-Closes the Site Control coverage gap from `d4061d2` for real.
-Right answer per the "honest data freshness" tenant — replaces curated
-booleans in `county_intelligence` with derived signals from live
-geospatial data covering all 3,142 counties.
+**Single large commit closing out a multi-session estimate in one session.**
+Pre-work probes (in `scripts/probe-fips-conventions.mjs` and
+`scripts/probe-geospatial.mjs`) validated the approach before touching
+production code: confirmed all 4 county-keyed tables share `county_fips`
+text PK with leading zeros, validated the USFWS NWI ArcGIS outStatistics
+query against `Wetlands.ACRES` table-qualified, validated the USDA SSURGO
+T-SQL aggregate of `farmlndcl IN (...)` returning whole-state prime-farmland
+percentages in <100ms.
 
-**Sketch (verify before starting):**
-- Source 1: EPA National Wetlands Inventory (NWI). US-wide, ArcGIS
-  FeatureServer. Pre-compute per-county wetland coverage % at refresh
-  time (avoid live API on every Lens query).
-- Source 2: USDA Web Soil Survey (WSS). Tile API. Pre-compute per-county
-  prime-farmland % at refresh time.
-- New table: `county_geospatial_data` (or similar — probe naming
-  conventions in existing tables first). Fields: `county_fips`, `state`,
-  `wetland_coverage_pct`, `prime_farmland_pct`, `last_updated`, `source`.
-- New migration: probably `039_county_geospatial.sql` (verify by
-  checking next available number with `ls supabase/migrations/`).
-- New ingest script: `api/refresh-county-geospatial.js` — weekly cron,
-  same multiplexed-cron pattern as current sources.
-- Refactor `computeSubScores` in `src/lib/scoreEngine.js`: derive
-  `availableLand` (e.g. `prime_farmland_pct >= 25`) and
-  `wetlandWarning` (e.g. `wetland_coverage_pct >= 15`) from new table
-  with calibrated thresholds. Curated `county_intelligence` becomes
-  qualitative-override fallback only.
-- Update Site Control card UI to show "live geospatial" indicator when
-  the live data path is active, mirroring the IX · Live pattern.
+**`7c49c5c` — Path B build.** Replaces the silent `site=60` fallback for the
+32 states that lack a `county_intelligence` default row with derived
+signals from authoritative federal sources, covering all 3,142 counties.
 
-**Pre-work to do before coding:**
-1. Probe what's already in `energy_community_data` and `nmtc_lic_data`
-   to confirm county_fips conventions match across tables.
-2. Test EPA NWI ArcGIS endpoint — confirm rate limits and bulk-pull
-   feasibility for ~3,142 counties.
-3. Test USDA WSS tile API similarly.
-4. Calibrate thresholds against a few known counties before locking
-   the migration in.
+- **Migration 039** — `county_geospatial_data` table keyed on `county_fips`,
+  fields `wetland_coverage_pct`, `wetland_category`, `prime_farmland_pct`,
+  separate `*_last_updated` timestamps because the two sources refresh at
+  different cadences. Wetland category is bucketed (minimal/moderate/
+  significant/severe) since raw NWI % can exceed 100% from polygon overlap
+  + water inclusion (calibrated thresholds in the migration comment).
+- **SSURGO refresh** — wired into the multiplexed `refresh-data.js` as
+  `?source=geospatial_farmland`. Single T-SQL aggregate query covers the
+  whole US in ~5s. New 7:45 Sunday cron entry. AK skipped (137 NRCS
+  regions vs 30 boroughs); CT/RI handled as statewide single-area
+  assignments to all counties via `county_acs_data`.
+- **NWI seed** — `scripts/seed-county-geospatial-nwi.mjs`. Runs locally
+  with 4x parallelism (~1.5h for 3,142 counties — too long for the 300s
+  Vercel ceiling). Idempotent + resumable via `--refresh` flag (skips
+  counties updated within 90 days).
+- **scoreEngine** — three-layer site sub-score: live geospatial → curated
+  `county_intelligence` → `site=60` baseline. Backward-compatible — when
+  geospatial row is absent, the curated path runs with no behavior change.
+  `coverage.site = 'live'|'researched'|'fallback'` exposed.
+- **programData.getCountyData** — augmented to fetch `county_geospatial_data`
+  via `county_fips` (resolved through `county_acs_data`, same FIPS bridge
+  as `getNmtcLic`/`getHudQctDda`) and merge as `countyData.geospatial`.
+  No frontend changes required — the data block just gets richer.
+- **lens-insight context** — when geospatial is present, the AI prompt
+  receives live numeric inputs (prime farmland %, wetland coverage %,
+  NWI feature count) and an explicit `COVERAGE: live geospatial` line so
+  the dossier reasons honestly about authoritative sources.
+- **UI** — small teal **"Site · Live"** pill in the Lens result eyebrow,
+  mirroring the IX · Live treatment. Radix tooltip explains inputs +
+  thresholds. Absent (honest signal) for counties without a geospatial row.
 
-Honest cost-benefit estimate: 1 session (~12h) for ingest + migration,
-1 session (~8h) for refactor + UI + tests. Could compress if the
-ArcGIS endpoints play nicely.
-
-**Other queued items, lower priority:**
-- **Activate §48(e) / HUD layers in Lens scoring UI** — data is live
-  (3,144 NMTC rows + 1,801 HUD rows). `api/lens-insight.js` already
-  queries both. Smoke-check Admin → Data Health after next cron cycle
-  to confirm freshness cards render.
-- **Expand IX scrapers to missing CS-active states** (CA, FL, WA, HI,
-  NM, CT, RI, MI, WI, OR, VA) — would grow IX · Live coverage from
-  8 → ~19 states. Per-ISO scraper work, multi-session.
+`npm run verify` green (build + 7 smoke tests, ~12s).
 
 ---
 
@@ -346,6 +385,7 @@ both blocks).
 | 036 | `nmtc_lic_data.sql` | NMTC LIC table | ✅ |
 | 037 | `freshness_nmtc_lic.sql` | RPC +nmtc_lic | ✅ |
 | 038 | `state_programs_snapshots.sql` | Wave 1.4: append-only feasibility-score history table for WoW deltas + Markets on the Move trends | ✅ |
+| 039 | `county_geospatial_data.sql` | Path B: per-county wetland coverage % (NWI) + prime farmland % (SSURGO) for all 3,142 counties — closes Site Control gap | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or
@@ -358,6 +398,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `7c49c5c` | Path B: county_geospatial_data — wetland coverage (NWI) + prime farmland (SSURGO) for all 50 states / 3,142 counties; closes Site Control gap; migration 039 + scoreEngine 3-layer fallback + Site · Live pill |
 | `e4c6666` | Lens loader: asymptotic halo fill — replaces linear-stall-then-jump with `p = 95 * (1 - exp(-elapsed/8s))`; RAF loop never exits while overlay visible so the halo physically can't freeze on slow runs; cleaner snap-to-100 landing on completion |
 | `7d474e1` | IX · Live pill: structured Radix tooltip matching the methodology popover (dark navy + teal border); replaces native browser `title` with INPUTS / CLAMP / coverage-policy box |
 | `e9506a7` | IX score live-blend: scoreEngine.computeSubScores now optionally blends ix_queue_data quantitative signals (mw_pending, avg_study_months) on top of curated ixDifficulty baseline; coverage.ix = 'live'\|'curated' flag exposed; teal "IX · Live" pill in Lens eyebrow when blend fired (8 top-CS-market states today); Library/Profile call sites unchanged → no regression |
