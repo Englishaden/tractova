@@ -422,7 +422,7 @@ function StagePicker({ stage, projectId, onChange }) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setOpen(v => !v) }}
-        title="Edit stage"
+        aria-label="Edit project stage"
         className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-sm border font-medium transition-opacity hover:opacity-80 ${stageCls}`}
       >
         {stage}
@@ -1365,13 +1365,15 @@ function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
 
 // ── Scenarios view (Library tab) ────────────────────────────────────────────
 // Replaces the project grid when the user toggles to the Scenarios tab.
-// Renders ALL of the user's scenarios — including orphans (project_id null,
-// saved during Lens exploration before committing the project) — grouped
-// by Lens context (state + county + tech). Orphan groups display a "Save
-// as project" CTA that deep-links into Search.jsx with the context
-// pre-filled; once the user saves the project there, Search.jsx
-// auto-promotes the orphans (attaches their project_id), and on next
+// Renders ALL of the user's scenarios — including "exploration" scenarios
+// (project_id null, saved during Lens exploration before committing the
+// project) — grouped by Lens context (state + county + tech). Exploration
+// groups display a "Save as project" CTA that deep-links into Search.jsx
+// with the context pre-filled; once the user saves the project there,
+// Search.jsx auto-promotes them (attaches their project_id), and on next
 // Library load they migrate from this Scenarios view to the Projects view.
+// (Internally we still call them "orphan" — UI-facing word is "exploration"
+// because "orphan" reads cold/clinical for a developer-product workflow.)
 function ScenariosView({ scenariosMap, orphanScenarios, projects, onScenarioDelete }) {
   // Build groups by composite key state||county||tech. Project-linked
   // groups carry the project name + id; orphan groups carry just the
@@ -1477,7 +1479,7 @@ function ScenarioGroupCard({ group, onScenarioDelete }) {
               className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
               style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E', border: '1px solid rgba(245,158,11,0.40)' }}
             >
-              ◆ Orphan · not in Library
+              ◆ Exploration · not yet in Library
             </span>
           ) : (
             <span
@@ -1583,6 +1585,9 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
   // as a "Selected Scenario" section. null = data-only / no scenario embed.
   const [selectedScenarioId, setSelectedScenarioId] = useState(null)
   const [scenariosOpen, setScenariosOpen] = useState(false)
+  // Confirm-delete modal for the in-card scenario picker. Holds the snap
+  // pending confirmation, or null when no modal is open.
+  const [scenarioConfirmDelete, setScenarioConfirmDelete] = useState(null)
   const handleExportDealMemo = async (e) => {
     e.stopPropagation()
     setMemoExporting(true)
@@ -1777,20 +1782,33 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                 "State" because the source is state_programs_snapshots, not
                 a per-project history. Silent when delta is null/zero. */}
             {stateDelta && stateDelta.delta !== 0 && !expanded && (
-              <span
-                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1"
-                style={stateDelta.delta > 0
-                  ? { background: 'rgba(15,118,110,0.10)', color: '#0F766E', borderColor: 'rgba(15,118,110,0.25)', lineHeight: 1 }
-                  : { background: 'rgba(217,119,6,0.10)',  color: '#B45309', borderColor: 'rgba(217,119,6,0.25)',  lineHeight: 1 }}
-                title={`${project.stateName || project.state} program feasibility moved from ${Math.round(stateDelta.prevScore)} → ${Math.round(stateDelta.curScore)} since the prior weekly snapshot (${new Date(stateDelta.previousAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} → ${new Date(stateDelta.latestAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}). Project score blends state + county + tech + stage, so individual movement may differ.`}
-              >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  {stateDelta.delta > 0
-                    ? <polyline points="6 15 12 9 18 15" />
-                    : <polyline points="6 9 12 15 18 9" />}
-                </svg>
-                <span className="font-mono tabular-nums">State {stateDelta.delta > 0 ? '+' : ''}{stateDelta.delta} pt</span>
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1 cursor-help"
+                    style={stateDelta.delta > 0
+                      ? { background: 'rgba(15,118,110,0.10)', color: '#0F766E', borderColor: 'rgba(15,118,110,0.25)', lineHeight: 1 }
+                      : { background: 'rgba(217,119,6,0.10)',  color: '#B45309', borderColor: 'rgba(217,119,6,0.25)',  lineHeight: 1 }}
+                    tabIndex={0}
+                  >
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      {stateDelta.delta > 0
+                        ? <polyline points="6 15 12 9 18 15" />
+                        : <polyline points="6 9 12 15 18 9" />}
+                    </svg>
+                    <span className="font-mono tabular-nums">State {stateDelta.delta > 0 ? '+' : ''}{stateDelta.delta} pt</span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" align="start" className="max-w-xs text-[10px]">
+                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>State-level snapshot delta</p>
+                  <p className="leading-relaxed">
+                    {project.stateName || project.state} program feasibility moved from {Math.round(stateDelta.prevScore)} → {Math.round(stateDelta.curScore)} between {new Date(stateDelta.previousAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} and {new Date(stateDelta.latestAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
+                  </p>
+                  <p className="mt-1.5 text-gray-400 leading-relaxed">
+                    Project score blends state + county + tech + stage, so individual movement may differ from the state delta.
+                  </p>
+                </TooltipContent>
+              </Tooltip>
             )}
             {/* Scenarios badge — promoted from the buried below-footer toggle
                 to the header so users see immediately that this project has
@@ -1806,7 +1824,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                 }}
                 className="cursor-pointer text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1 transition-all hover:brightness-95"
                 style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E', borderColor: 'rgba(20,184,166,0.40)', lineHeight: 1 }}
-                title={`${scenarios.length} saved scenario${scenarios.length === 1 ? '' : 's'} for this project`}
+                aria-label={`${scenarios.length} saved scenario${scenarios.length === 1 ? '' : 's'} — open picker`}
               >
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M3 3v18h18" />
@@ -2080,12 +2098,8 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                           </div>
                           <button
                             type="button"
-                            onClick={async () => {
-                              const { error } = await supabase.from('scenario_snapshots').delete().eq('id', snap.id)
-                              if (!error && onScenarioDelete) onScenarioDelete(snap.id)
-                              if (selectedScenarioId === snap.id) setSelectedScenarioId(null)
-                            }}
-                            className="text-[10px] text-gray-400 hover:text-red-600 transition-colors px-1"
+                            onClick={() => setScenarioConfirmDelete(snap)}
+                            className="cursor-pointer text-[10px] text-gray-400 hover:text-red-600 transition-colors px-1"
                             aria-label={`Delete scenario ${snap.name}`}
                           >
                             ✕
@@ -2176,6 +2190,53 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
           </div>
         </div>
       )}
+
+      {/* Delete-scenario confirm modal — guards the in-card picker's ✕
+          button so misclicks don't permanently nuke a scenario. Mirrors
+          the confirm pattern in the project remove flow. */}
+      <Dialog open={!!scenarioConfirmDelete} onOpenChange={(open) => { if (!open) setScenarioConfirmDelete(null) }}>
+        <DialogContent>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+              </svg>
+            </div>
+            <DialogTitle>Delete scenario "{scenarioConfirmDelete?.name}"?</DialogTitle>
+          </div>
+          <DialogDescription>
+            This permanently removes the saved scenario, including its inputs and computed metrics. This can't be undone.
+          </DialogDescription>
+          <div className="flex items-center justify-end gap-2 mt-5">
+            <button
+              type="button"
+              onClick={() => setScenarioConfirmDelete(null)}
+              className="cursor-pointer text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-lg transition-colors"
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                const snap = scenarioConfirmDelete
+                if (!snap) return
+                const { error } = await supabase.from('scenario_snapshots').delete().eq('id', snap.id)
+                if (!error && onScenarioDelete) onScenarioDelete(snap.id)
+                if (selectedScenarioId === snap.id) setSelectedScenarioId(null)
+                setScenarioConfirmDelete(null)
+              }}
+              className="cursor-pointer text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              style={{ background: '#DC2626' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#B91C1C'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#DC2626'}
+            >
+              Delete scenario
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

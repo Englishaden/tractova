@@ -34,6 +34,9 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
   const [naming, setNaming] = useState(false)
   const [savedList, setSavedList] = useState([])
   const [saving, setSaving] = useState(false)
+  // Linger state — when set, the Save button morphs into "✓ Saved" for
+  // ~2.5s so the persistence is impossible to miss. Resets via a timer.
+  const [justSavedName, setJustSavedName] = useState(null)
 
   // Reset sliders whenever baseline changes (new Lens result loaded).
   useEffect(() => {
@@ -131,9 +134,12 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
       showToast(`Save failed: ${error.message}`, 'error')
       return
     }
-    showToast(`Scenario "${savedName.trim()}" saved`, 'success')
+    const savedAs = savedName.trim()
+    showToast(`Scenario "${savedAs}" saved`, 'success')
     setSavedName('')
     setNaming(false)
+    setJustSavedName(savedAs)
+    setTimeout(() => setJustSavedName(null), 2500)
     loadSavedScenarios()
   }
 
@@ -230,13 +236,16 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
           ))}
         </div>
 
-        {/* Right: output card (2 cols) — 6 metrics in 2x3 grid + save flow */}
+        {/* Right: output card (2 cols) — 8 metrics in 2x4 grid + structured
+            input-deltas section + save flow. Tightened padding + gap to
+            reduce the dark expanse the user flagged; the input deltas now
+            fill what was previously empty space. */}
         <div className="lg:col-span-2">
           <div
-            className="rounded-lg p-4 h-full flex flex-col gap-3"
+            className="rounded-lg p-3.5 h-full flex flex-col gap-2.5"
             style={{ background: '#0F1A2E', color: 'white' }}
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <MetricCell
                 term="Year 1 Revenue"
                 value={`$${formatLarge(out.year1Revenue)}`}
@@ -294,22 +303,38 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
               />
             </div>
 
-            {summaryLine && (
-              <div className="mt-1 text-[10px] text-gray-400 leading-relaxed">
-                {summaryLine}
-              </div>
-            )}
+            {/* Modified inputs as structured pill chips. One pill per
+                slider that diverges from the baseline; clicking a pill
+                resets just that input back to baseline. Replaces the old
+                dot-separated summary string ("6.5 MW · $1.40/W capex"),
+                which got hard to scan with more than 2 changes. */}
+            <ModifiedInputsRow
+              sliders={sliders}
+              baselineInputs={baseline.inputs}
+              sliderConfig={sliderConfig}
+              onResetOne={(key) => setSliders((prev) => ({ ...prev, [key]: baseline.inputs[key] }))}
+            />
 
             <div className="mt-auto pt-2 flex items-center gap-2 flex-wrap">
-              {!naming ? (
+              {justSavedName ? (
+                <div
+                  className="text-[10px] font-semibold px-2.5 py-1.5 rounded-md flex-1 flex items-center justify-center gap-1.5"
+                  style={{ background: 'rgba(16,185,129,0.20)', color: '#34D399', border: '1px solid rgba(16,185,129,0.45)' }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Saved "{justSavedName}"
+                </div>
+              ) : !naming ? (
                 <button
+                  type="button"
                   onClick={() => setNaming(true)}
-                  className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors flex-1"
+                  className="cursor-pointer text-[10px] font-semibold px-2.5 py-1.5 rounded-md transition-colors flex-1 disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ background: 'rgba(20,184,166,0.20)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.40)' }}
                   disabled={!user || !isDirty}
-                  title={!user ? 'Sign in to save scenarios' : !isDirty ? 'Drag a slider or pick a preset first' : ''}
                 >
-                  Save scenario
+                  {!user ? 'Sign in to save' : !isDirty ? 'Drag a slider to save' : '◆ Save this scenario'}
                 </button>
               ) : (
                 <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -318,8 +343,8 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
                     autoFocus
                     value={savedName}
                     onChange={(e) => setSavedName(e.target.value)}
-                    placeholder="e.g. 10MW + cheaper IX"
-                    className="flex-1 min-w-0 bg-transparent text-[10px] px-2 py-1 rounded-md text-white"
+                    placeholder="Name it (e.g. Cheaper IX)"
+                    className="flex-1 min-w-0 bg-transparent text-[10px] px-2 py-1 rounded-md text-white placeholder-gray-500"
                     style={{ border: '1px solid rgba(255,255,255,0.20)' }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSave()
@@ -327,9 +352,10 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
                     }}
                   />
                   <button
+                    type="button"
                     onClick={handleSave}
                     disabled={saving || !savedName.trim()}
-                    className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+                    className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors disabled:opacity-50"
                     style={{ background: '#14B8A6', color: 'white' }}
                   >
                     {saving ? '…' : 'Save'}
@@ -509,4 +535,73 @@ function formatLarge(n) {
   if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
   if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`
   return n.toLocaleString()
+}
+
+// Pill-chip row showing modified inputs only (slider value diverges from
+// baseline). Each chip is a button — click to revert that input to its
+// baseline. Empty when nothing's been modified yet (caller still renders
+// the slot so the navy card layout doesn't jump). Replaces the legacy
+// "6.5 MW · $1.40/W capex · REC +15%" dot-separated string per Aden's
+// feedback that the format was hard to scan.
+function ModifiedInputsRow({ sliders, baselineInputs, sliderConfig, onResetOne }) {
+  const modified = sliderConfig.filter((cfg) => {
+    if (cfg.disabled) return false
+    const cur = sliders[cfg.key]
+    const base = cfg.baseline
+    if (cur == null || base == null) return false
+    return Math.abs(cur - base) > 1e-9
+  })
+  if (modified.length === 0) {
+    return (
+      <div className="text-[10px] text-gray-500 italic px-1">
+        Drag any slider above to model an alternative scenario.
+      </div>
+    )
+  }
+  return (
+    <div>
+      <p className="font-mono text-[8px] uppercase tracking-[0.20em] font-bold text-gray-400 mb-1.5">
+        Modified · {modified.length} input{modified.length === 1 ? '' : 's'}
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {modified.map((cfg) => {
+          const cur = sliders[cfg.key]
+          const base = cfg.baseline
+          // Direction-aware coloring (mirrors slider colors).
+          let palette = { bg: 'rgba(255,255,255,0.08)', fg: '#E5E7EB', delta: '#94A3B8' }
+          if (cfg.direction && cfg.direction !== 'neutral') {
+            const delta = cur - base
+            const better = (cfg.direction === 'higher-better' && delta > 0) || (cfg.direction === 'lower-better' && delta < 0)
+            palette = better
+              ? { bg: 'rgba(16,185,129,0.18)', fg: '#34D399', delta: '#34D399' }
+              : { bg: 'rgba(217,119,6,0.18)',  fg: '#FCD34D', delta: '#FCD34D' }
+          }
+          // Compute the % delta for the badge text. Most inputs use a
+          // percentage delta; system-size MW uses absolute MW since
+          // percentages on small numbers feel weird.
+          const pctDelta = base !== 0 ? (cur - base) / Math.abs(base) : 0
+          const badgeText = cfg.key === 'systemSizeMW'
+            ? `${cur > base ? '+' : ''}${(cur - base).toFixed(1)} MW`
+            : `${pctDelta > 0 ? '+' : ''}${(pctDelta * 100).toFixed(0)}%`
+          return (
+            <button
+              key={cfg.key}
+              type="button"
+              onClick={() => onResetOne(cfg.key)}
+              className="cursor-pointer group/pill flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-md transition-all hover:brightness-125"
+              style={{ background: palette.bg, border: `1px solid ${palette.fg}40`, color: palette.fg }}
+              title="Click to reset this input to baseline"
+            >
+              <span className="font-semibold">{cfg.label}</span>
+              <span className="font-bold tabular-nums">{cfg.format(cur)}</span>
+              <span className="font-mono tabular-nums opacity-80" style={{ color: palette.delta }}>
+                {badgeText}
+              </span>
+              <span className="opacity-0 group-hover/pill:opacity-100 transition-opacity text-[8px]">↺</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }

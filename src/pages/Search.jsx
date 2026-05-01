@@ -3861,11 +3861,19 @@ function SearchContent() {
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
-  // Auto-submit when all URL params are present (e.g. from Library "Re-Analyze in Lens")
+  // Auto-submit when the URL carries enough context to run the analysis
+  // (state + county + mw). Used by:
+  //   - Library card "Re-Analyze in Lens" link
+  //   - Library Scenarios tab "Open in Lens to save →" link (exploration scenarios)
+  //   - Direct URL share / bookmark
+  // Stage + technology are optional — the analysis still computes without
+  // them (stage defaults to "no modifier", technology defaults to CS).
+  // Removing those from the gate eliminates a class of "I clicked the
+  // link but it didn't run" footguns when context is incomplete.
   const autoSubmitFired = useRef(false)
   useEffect(() => {
     if (autoSubmitFired.current || !programMap) return
-    if (initialState && initialCounty && initialMW && initialStage && initialTechnology) {
+    if (initialState && initialCounty && initialMW) {
       autoSubmitFired.current = true
       formRef.current?.requestSubmit()
     }

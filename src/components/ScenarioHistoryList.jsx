@@ -1,3 +1,7 @@
+import { useState } from 'react'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/Dialog'
+import { formatScenarioSummary } from '../lib/scenarioEngine'
+
 // Vertical list view of saved scenarios. Replaces the original horizontal
 // chip row from ScenarioStudio so the user sees timestamps + headline
 // metrics + delta-vs-baseline at a glance — fixes the "two saves with
@@ -8,11 +12,14 @@
 //   1. ScenarioStudio (Lens result panel) — scoped to the current Lens
 //      context (state + tech, optionally project_id).
 //   2. Library "Scenarios" view — grouped by Lens context, shows ALL of
-//      the user's scenarios including orphans (project_id null).
+//      the user's scenarios including exploration (project_id null).
 //
 // Each row is a button: click anywhere except the trash icon to load the
-// scenario back into the Studio sliders. The trash icon deletes the
-// snapshot from Supabase (callers handle the optimistic local removal).
+// scenario back into the Studio sliders. The trash icon opens a confirm
+// modal — onDelete is only called after user clicks "Delete" in the
+// modal. This prevents accidental data loss from misclicks (the previous
+// implementation deleted on first click, which Aden flagged as too easy
+// to do by accident).
 
 export default function ScenarioHistoryList({
   scenarios,
@@ -21,23 +28,70 @@ export default function ScenarioHistoryList({
   baselineRevenue = null,  // optional — when set, delta-vs-baseline column appears
   emptyText = 'No scenarios saved yet.',
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(null)  // snap object pending confirmation, or null
+
   if (!scenarios || scenarios.length === 0) {
     return (
       <p className="text-[11px] text-gray-400 italic px-1 py-2">{emptyText}</p>
     )
   }
+
+  async function handleConfirmDelete() {
+    if (confirmDelete && onDelete) await onDelete(confirmDelete)
+    setConfirmDelete(null)
+  }
+
   return (
-    <div className="space-y-1.5">
-      {scenarios.map((snap) => (
-        <ScenarioRow
-          key={snap.id}
-          snap={snap}
-          onLoad={onLoad}
-          onDelete={onDelete}
-          baselineRevenue={baselineRevenue}
-        />
-      ))}
-    </div>
+    <>
+      <div className="space-y-1.5">
+        {scenarios.map((snap) => (
+          <ScenarioRow
+            key={snap.id}
+            snap={snap}
+            onLoad={onLoad}
+            onDelete={onDelete ? (s) => setConfirmDelete(s) : null}
+            baselineRevenue={baselineRevenue}
+          />
+        ))}
+      </div>
+
+      <Dialog open={!!confirmDelete} onOpenChange={(open) => { if (!open) setConfirmDelete(null) }}>
+        <DialogContent>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+              </svg>
+            </div>
+            <DialogTitle>Delete scenario "{confirmDelete?.name}"?</DialogTitle>
+          </div>
+          <DialogDescription>
+            This permanently removes the saved scenario, including its inputs and computed metrics. This can't be undone.
+          </DialogDescription>
+          <div className="flex items-center justify-end gap-2 mt-5">
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(null)}
+              className="cursor-pointer text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-lg transition-colors"
+            >
+              Keep it
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDelete}
+              className="cursor-pointer flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              style={{ background: '#DC2626' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#B91C1C'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#DC2626'}
+            >
+              Delete scenario
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -49,6 +103,15 @@ function ScenarioRow({ snap, onLoad, onDelete, baselineRevenue }) {
   const delta = baselineRevenue && y1 != null ? (y1 - baselineRevenue) / Math.max(Math.abs(baselineRevenue), 1) : null
   const deltaPositive = delta != null && delta > 0
   const ts = relativeTime(snap.created_at)
+  // Inputs summary — what slider config produced this scenario. Falls
+  // back to "Baseline run" when no inputs diverge (e.g. user saved an
+  // unmodified baseline as a reference point).
+  const inputSummary = snap.scenario_inputs && snap.baseline_inputs
+    ? formatScenarioSummary(
+        { inputs: snap.scenario_inputs, outputs: out },
+        { inputs: snap.baseline_inputs },
+      )
+    : ''
 
   return (
     <div
@@ -95,6 +158,11 @@ function ScenarioRow({ snap, onLoad, onDelete, baselineRevenue }) {
             </>
           )}
         </div>
+        {inputSummary && (
+          <div className="text-[9px] text-gray-400 font-mono mt-0.5 truncate" title={inputSummary}>
+            <span className="text-gray-300">↳</span> {inputSummary}
+          </div>
+        )}
       </div>
       {onDelete && (
         <button
