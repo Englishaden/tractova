@@ -40,49 +40,47 @@ async function fetchEIAData() {
     return null
   }
 
-  const results = []
+  // Parallel per-state — sequential 8 × 15s timeout would exceed the 60s
+  // Vercel function budget on slow EIA runs (occasional 504s observed).
+  // Each state's call is independent; no shared mutable state across them.
+  const settled = await Promise.allSettled(TRACKED_STATES.map(async (stateId) => {
+    const url = new URL('https://api.eia.gov/v2/electricity/facility-fuel/data/')
+    url.searchParams.set('api_key', apiKey)
+    url.searchParams.set('frequency', 'annual')
+    url.searchParams.set('data[0]', 'capacity')
+    url.searchParams.set('facets[state][]', stateId)
+    url.searchParams.set('sort[0][column]', 'capacity')
+    url.searchParams.set('sort[0][direction]', 'desc')
+    url.searchParams.set('length', '100')
 
-  for (const stateId of TRACKED_STATES) {
-    try {
-      // EIA API v2 — query plant-level data for solar-relevant substations
-      const url = new URL('https://api.eia.gov/v2/electricity/facility-fuel/data/')
-      url.searchParams.set('api_key', apiKey)
-      url.searchParams.set('frequency', 'annual')
-      url.searchParams.set('data[0]', 'capacity')
-      url.searchParams.set('facets[state][]', stateId)
-      url.searchParams.set('sort[0][column]', 'capacity')
-      url.searchParams.set('sort[0][direction]', 'desc')
-      url.searchParams.set('length', '100')
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) })
+    if (!res.ok) throw new Error(`EIA HTTP ${res.status}`)
+    const json = await res.json()
+    const rows = json?.response?.data || []
 
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) })
-      if (!res.ok) {
-        console.error(`EIA fetch failed for ${stateId}: ${res.status}`)
-        continue
-      }
-
-      const json = await res.json()
-      const rows = json?.response?.data || []
-
-      for (const row of rows) {
-        const capacity = parseFloat(row.capacity)
-        if (!capacity || capacity > MAX_CAPACITY_MW) continue
-
-        results.push({
-          state_id: stateId,
-          name: row.plantName || row.plant_name || `Plant ${row.plantid || row.plant_id}`,
-          lat: parseFloat(row.latitude) || null,
-          lon: parseFloat(row.longitude) || null,
-          // voltage_kv omitted — EIA doesn't include it; preserves existing values on upsert
-          capacity_mw: capacity,
-          utility: row.operator_name || row.operatorName || null,
-        })
-      }
-
-      console.log(`EIA: ${stateId} → ${rows.length} rows, ${results.filter(r => r.state_id === stateId).length} after filter`)
-    } catch (err) {
-      console.error(`EIA fetch error for ${stateId}:`, err.message)
-      // Continue — don't let one state block others
+    const stateResults = []
+    for (const row of rows) {
+      const capacity = parseFloat(row.capacity)
+      if (!capacity || capacity > MAX_CAPACITY_MW) continue
+      stateResults.push({
+        state_id: stateId,
+        name: row.plantName || row.plant_name || `Plant ${row.plantid || row.plant_id}`,
+        lat: parseFloat(row.latitude) || null,
+        lon: parseFloat(row.longitude) || null,
+        // voltage_kv omitted — EIA doesn't include it; preserves existing values on upsert
+        capacity_mw: capacity,
+        utility: row.operator_name || row.operatorName || null,
+      })
     }
+    console.log(`EIA: ${stateId} → ${rows.length} rows, ${stateResults.length} after filter`)
+    return stateResults
+  }))
+
+  const results = []
+  for (let i = 0; i < TRACKED_STATES.length; i++) {
+    const r = settled[i]
+    if (r.status === 'fulfilled') results.push(...r.value)
+    else console.error(`EIA fetch error for ${TRACKED_STATES[i]}:`, r.reason?.message || r.reason)
   }
 
   return results.length > 0 ? results : null
@@ -123,73 +121,76 @@ async function fetchRetailRates() {
 
   const results = { updated: 0, errors: [], details: [] }
 
-  for (const stateId of TRACKED_STATES) {
-    try {
-      const url = new URL('https://api.eia.gov/v2/electricity/retail-sales/data/')
-      url.searchParams.set('api_key', apiKey)
-      url.searchParams.set('frequency', 'annual')
-      url.searchParams.set('data[0]', 'price')
-      url.searchParams.set('facets[stateid][]', stateId)
-      url.searchParams.set('facets[sectorid][]', 'COM')  // Commercial sector
-      url.searchParams.set('sort[0][column]', 'period')
-      url.searchParams.set('sort[0][direction]', 'desc')
-      url.searchParams.set('length', '1')
+  // Parallel per-state — same reasoning as fetchEIAData. Each state's
+  // entire chain (EIA fetch → existing-row read → upsert → optional
+  // data_updates audit insert) runs independently; the only shared
+  // mutable state is `results`, mutated only after Promise.allSettled
+  // resolves.
+  const settled = await Promise.allSettled(TRACKED_STATES.map(async (stateId) => {
+    const url = new URL('https://api.eia.gov/v2/electricity/retail-sales/data/')
+    url.searchParams.set('api_key', apiKey)
+    url.searchParams.set('frequency', 'annual')
+    url.searchParams.set('data[0]', 'price')
+    url.searchParams.set('facets[stateid][]', stateId)
+    url.searchParams.set('facets[sectorid][]', 'COM')  // Commercial sector
+    url.searchParams.set('sort[0][column]', 'period')
+    url.searchParams.set('sort[0][direction]', 'desc')
+    url.searchParams.set('length', '1')
 
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) })
-      if (!res.ok) {
-        results.errors.push(`${stateId}: HTTP ${res.status}`)
-        continue
-      }
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return { stateId, error: `HTTP ${res.status}` }
 
-      const json = await res.json()
-      const row = json?.response?.data?.[0]
-      if (!row?.price) {
-        results.errors.push(`${stateId}: no price data returned`)
-        continue
-      }
+    const json = await res.json()
+    const row = json?.response?.data?.[0]
+    if (!row?.price) return { stateId, error: 'no price data returned' }
 
-      // EIA returns price in cents/kWh already
-      const rateCentsKwh = parseFloat(row.price)
-      if (isNaN(rateCentsKwh) || rateCentsKwh <= 0 || rateCentsKwh > 100) {
-        results.errors.push(`${stateId}: invalid price ${row.price}`)
-        continue
-      }
+    const rateCentsKwh = parseFloat(row.price)
+    if (isNaN(rateCentsKwh) || rateCentsKwh <= 0 || rateCentsKwh > 100) {
+      return { stateId, error: `invalid price ${row.price}` }
+    }
 
-      // Fetch existing rate to detect changes
-      const { data: existing } = await supabaseAdmin
-        .from('revenue_rates')
-        .select('ci_retail_rate_cents_kwh')
-        .eq('state_id', stateId)
-        .single()
+    const { data: existing } = await supabaseAdmin
+      .from('revenue_rates')
+      .select('ci_retail_rate_cents_kwh')
+      .eq('state_id', stateId)
+      .single()
+    const oldRate = existing?.ci_retail_rate_cents_kwh
 
-      const oldRate = existing?.ci_retail_rate_cents_kwh
+    const { error } = await supabaseAdmin
+      .from('revenue_rates')
+      .upsert({ state_id: stateId, ci_retail_rate_cents_kwh: rateCentsKwh }, { onConflict: 'state_id' })
 
-      const { error } = await supabaseAdmin
-        .from('revenue_rates')
-        .upsert({ state_id: stateId, ci_retail_rate_cents_kwh: rateCentsKwh }, { onConflict: 'state_id' })
+    if (error) return { stateId, error: `upsert failed — ${error.message}` }
 
-      if (error) {
-        results.errors.push(`${stateId}: upsert failed — ${error.message}`)
-      } else {
-        results.updated++
-        results.details.push(`${stateId}: ${rateCentsKwh}¢/kWh (period: ${row.period})`)
+    if (oldRate != null && oldRate !== rateCentsKwh) {
+      try {
+        await supabaseAdmin.from('data_updates').insert({
+          table_name: 'revenue_rates',
+          row_id: stateId,
+          field: 'ci_retail_rate_cents_kwh',
+          old_value: String(oldRate),
+          new_value: String(rateCentsKwh),
+          updated_by: 'eia-retail-rates',
+        })
+      } catch { /* best-effort logging */ }
+    }
 
-        // Log change if value actually changed
-        if (oldRate != null && oldRate !== rateCentsKwh) {
-          try {
-            await supabaseAdmin.from('data_updates').insert({
-              table_name: 'revenue_rates',
-              row_id: stateId,
-              field: 'ci_retail_rate_cents_kwh',
-              old_value: String(oldRate),
-              new_value: String(rateCentsKwh),
-              updated_by: 'eia-retail-rates',
-            })
-          } catch { /* best-effort logging */ }
-        }
-      }
-    } catch (err) {
-      results.errors.push(`${stateId}: ${err.message}`)
+    return { stateId, rateCentsKwh, period: row.period }
+  }))
+
+  for (let i = 0; i < TRACKED_STATES.length; i++) {
+    const stateId = TRACKED_STATES[i]
+    const r = settled[i]
+    if (r.status === 'rejected') {
+      results.errors.push(`${stateId}: ${r.reason?.message || r.reason}`)
+      continue
+    }
+    const v = r.value
+    if (v.error) {
+      results.errors.push(`${stateId}: ${v.error}`)
+    } else {
+      results.updated++
+      results.details.push(`${stateId}: ${v.rateCentsKwh}¢/kWh (period: ${v.period})`)
     }
   }
 
