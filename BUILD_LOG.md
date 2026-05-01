@@ -4,16 +4,18 @@
 
 ---
 
-## 🟢 Pickup — Launch-readiness audit cleared, NWI catch-up running
+## 🟢 Pickup — Launch-readiness audit + backlog fully cleared, NWI catch-up running
 
 **Session 2026-05-01 (long block, ~10h).** Path B shipped earlier in the
 session, then an end-to-end launch-readiness audit produced a 70/100 score
-with 10 must-fix items. All 10 are now shipped across three thematic
-sessions, plus the operational lessons from the first NWI seed run.
+with 10 must-fix + 10 nice-to-have items. All 20 are now shipped across
+five thematic batches, plus the operational lessons from the first NWI seed.
 
 **Today's commits on `main` (most recent first):**
 
 ```
+796bb17  Backlog batch 2: a11y + empty states + keyboard nav (#1, #2, #3, #4, #5)
+6260c54  Backlog batch 1: polish (#6, #7, #9, #10)
 5fa13c7  Audit follow-ups: profile defaults, priceId guard, seed --parallel flag
 3539511  Session 3 audit fixes: silent failure sweep
 5f70330  Session 2 audit fixes: data integrity cluster
@@ -41,8 +43,9 @@ bbc9543  Fix substations 504: parallelize per-state EIA calls
    out). The catch-up `--refresh --parallel=2` invocation processes only
    the missing rows; ETA ~3-4h on the gentler parallelism.
 
-**Audit punch list status (was 10 must-fix, now 0):**
+**Audit punch list status (was 10 must-fix + 10 nice-to-have, now 0 of either):**
 
+Must-fix (10):
 | # | Item | Commit |
 |---|------|--------|
 | 1 | UpgradeSuccess first-time Pro guided action (biggest conversion lever) | 14f92b2 |
@@ -55,6 +58,20 @@ bbc9543  Fix substations 504: parallelize per-state EIA calls
 | 8 | Search PUC + Comparable panel error logging (curation-gated, intentional hide) | 3539511 |
 | 9 | useSubscription hardened: maybeSingle + .catch → free-tier default | 5fa13c7 |
 | 10 | create-checkout-session priceId allowlist (env-gated server-side check) | 5fa13c7 |
+
+Nice-to-have (10):
+| # | Item | Commit |
+|---|------|--------|
+| 1 | Aria-labels on icon-only buttons (Glossary clear-search, Library compare/dismiss, MetricsBar close) | 796bb17 |
+| 2 | Keyboard nav fixes (autoFocus on auth forms, ESC + role=dialog on hand-rolled modals) | 796bb17 |
+| 3 | Tiny-chip contrast bump (teal-700 → teal-800 on live pills + AI badges; clears AAA) | 796bb17 |
+| 4 | NewsFeed empty state ("No items / Show all pillars" reset CTA) | 796bb17 |
+| 5 | Aria-live regions (Admin RefreshResultPanel role=status, Library alert region) | 796bb17 |
+| 6 | Admin stale-tolerated tier (4-state endpointStatus: ok / stale-ok / partial / failed) | 6260c54 |
+| 7 | MemoView snapshot age warning (amber banner if ≥7 days old, "ask owner for updated link") | 6260c54 |
+| 8 | Mono-tracking standardization — DELIBERATELY skipped (variation is intentional editorial language) | 796bb17 |
+| 9 | SignUp resend-confirmation link (60s rate-limited, visible feedback) | 6260c54 |
+| 10 | Library-entry paywall context ("N projects saved · ready for re-scoring") | 6260c54 |
 
 Plus the silent-failure sweep (Glossary copy feedback, CompareTray AI
 error visible, console.warn for graceful-degrade helpers).
@@ -416,6 +433,8 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `796bb17` | Backlog batch 2 — a11y + empty states + keyboard nav: aria-labels on icon-only buttons, NewsFeed empty state, tiny-chip contrast (teal-800), aria-live on Admin RefreshResultPanel + Library alerts, autoFocus on Sign{In,Up}, ESC + role=dialog on CompareTray + Search modals |
+| `6260c54` | Backlog batch 1 — polish: Admin stale-ok 4th status tier, MemoView ≥7d age warning banner, SignUp 60s rate-limited resend-confirmation link, UpgradePrompt Library-entry "N projects saved · ready for re-scoring" personalization |
 | `5fa13c7` | Audit follow-ups: useSubscription .catch + maybeSingle (no more stuck-loading on missing profile row), create-checkout-session priceId allowlist, seed-county-geospatial-nwi.mjs `--parallel=N` flag for NWI catch-up runs |
 | `3539511` | Session 3 audit fixes — silent failure sweep: CompareTray AI compare error block, Glossary copy-link "Copied" / "Copy failed" feedback, console.warn for graceful-degrade helpers (Search PUC/Comparable wrappers, Library local fallback fetch, CommandPalette state map, Footer last-updated) |
 | `5f70330` | Session 2 audit fixes — data integrity: scoreEngine partial-input midpoint scoring (replaces null→favorable shortcut), Library getAlerts threads countyDataMap (alert delta now matches card display), BroadcastChannel cross-tab cache invalidation on admin Refresh |
