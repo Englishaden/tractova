@@ -306,16 +306,16 @@ function sanitizeBrief(text) {
 // then asymmetric two-column body: tachometer left, identity + sub-scores right.
 // §7.4: accepts activeScenario prop. When active, gauge renders the override score
 // with a delta indicator. Toggle row renders below this panel via the parent.
-function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, activeScenario }) {
+function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, activeScenario, ixQueueSummary }) {
   if (!stateProgram) return null
   // Apply scenario override if active — recompute sub-scores from the override state
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const { offtake, ix, site, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology)
+  const { offtake, ix, site, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
   const score = computeDisplayScore(offtake, ix, site)
   // Base-case score for delta calculation
-  const baseSubs = computeSubScores(stateProgram, countyData, stage, technology)
+  const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary)
   const baseScore = computeDisplayScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
   const delta = activeScenario ? score - baseScore : 0
   // When state/county is outside our curated coverage, surface that to match
@@ -380,6 +380,28 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
             {(technology || '').toUpperCase()}
           </span>
+          {/* Live-IX indicator — present when ix_queue_data covers this state and
+              the queue-health signal blended into the IX sub-score. Currently
+              fires for ~8 top-CS-market states (CO/IL/MA/MD/ME/MN/NJ/NY); for
+              the rest, the IX score is curated from stateProgram.ixDifficulty
+              and this badge stays absent. Honest signal — no badge means
+              we didn't have live data, not that we're hiding something. */}
+          {coverage?.ix === 'live' && (
+            <>
+              <span className="text-gray-300 text-[9px]">/</span>
+              <span
+                className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold"
+                style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+                title="IX sub-score blended with live ix_queue_data signals (mw_pending, avg_study_months) on top of the curated ixDifficulty baseline. Only fires for states with current queue-snapshot coverage."
+              >
+                <span
+                  className="relative inline-flex w-1.5 h-1.5 rounded-full"
+                  style={{ background: '#14B8A6', boxShadow: '0 0 5px rgba(20,184,166,0.65)' }}
+                />
+                IX · Live
+              </span>
+            </>
+          )}
           {/* §7.4: scenario indicator in the eyebrow when active */}
           {activeScenario && (
             <>
@@ -2282,9 +2304,9 @@ const CHIP_COLORS = {
 }
 
 // §7.4: scenario state lifted to SearchContent; we read it from props now.
-function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading }) {
+function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading, ixQueueSummary }) {
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology)
+  const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology, ixQueueSummary)
   effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
 
@@ -4108,6 +4130,7 @@ function SearchContent() {
               stage={results.form.stage}
               technology={results.form.technology}
               activeScenario={activeScenario}
+              ixQueueSummary={results.ixQueueSummary}
             />
 
             {/* §7.4: Scenario toggle row — sits with the gauge so toggling updates the gauge in place */}
@@ -4134,6 +4157,7 @@ function SearchContent() {
               setScenarioRationale={setScenarioRationale}
               rationaleLoading={rationaleLoading}
               setRationaleLoading={setRationaleLoading}
+              ixQueueSummary={results.ixQueueSummary}
             />
 
             {/* Three pillar cards in a navy-tinted dossier band — visually

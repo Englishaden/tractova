@@ -4,7 +4,41 @@
 
 ---
 
-## 🟢 Pickup — visual verification on prod after redeploy
+## 🟢 Pickup — visual verification + Path B kickoff next session
+
+**Path A shipped this session** (uncommitted at this point in pickup write):
+IX sub-score now live-blends `ix_queue_data` quantitative signals
+(`mw_pending`, `avg_study_months`) on top of the curated `ixDifficulty`
+baseline. The blend is OPT-IN — Library + Profile call sites don't
+pre-fetch ix queue data so they stay on the curated path (no regression).
+Lens results panel passes `results.ixQueueSummary` through to
+`computeSubScores`. New `coverage.ix = 'live' | 'curated'` flag exposed
+in the eyebrow strip as a teal "IX · Live" pill when applicable.
+
+**Live-blend coverage today** (verified via `scripts/probe-ix-queue.mjs`):
+8 of 50 states — CO, IL, MA, MD, ME, MN, NJ, NY. The other 42 fall back
+to curated, including 11 CS-active states still missing rows
+(CA, FL, WA, HI, NM, CT, RI, MI, WI, OR, VA). The 8 covered states are
+the highest-volume CS markets, so the win is concentrated where it matters.
+
+**Visual verification on prod after redeploy:**
+1. **Library hero** — "Data refreshed [date]" caption with teal breathing
+   dot under the project-count meta line.
+2. **Lens results eyebrow strip** (try with state=NY county=any) — small
+   teal "IX · Live" pill in the metadata row, between TECHNOLOGY and the
+   status badge. Hover for the tooltip explaining what blended in.
+3. **Lens IX sub-score for NY/NJ/MA/IL etc.** — now reflects queue
+   crowding (slightly lower in IL where mw_pending=1840 is at p100;
+   slightly higher in lighter-queue states).
+
+**Path B (Wetlands + farmland) is next session's pickup** — 3-4 day
+multi-session build per BUILD_LOG. EPA NWI + USDA WSS ingest, derive
+`wetland_warning` + farmland-based `availableLand` per county for all
+3,142 counties. Replaces `county_intelligence` site-control booleans
+with live geospatial data. Closes the Site Control coverage gap from
+`d4061d2` properly — without hand-curation.
+
+
 
 **Last session shipped Pro-flow smoke (`5b6a7a0`) + Library WoW + freshness**
 on `main`. Both items 1-2 of the build schedule are done.
@@ -275,7 +309,9 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
-| `pending` | Library WoW + freshness signal: "Data refreshed [date]" hero caption (teal breathing dot, amber if >14d) + "State ±N pt" chip on project cards when state_programs_snapshots show movement; piggybacks on getStateProgramDeltas already shipped for Markets on the Move |
+| `pending` | IX score live-blend: scoreEngine.computeSubScores now optionally blends ix_queue_data quantitative signals (mw_pending, avg_study_months) on top of curated ixDifficulty baseline; coverage.ix = 'live'\|'curated' flag exposed; teal "IX · Live" pill in Lens eyebrow when blend fired (8 top-CS-market states today); Library/Profile call sites unchanged → no regression |
+| `4702b98` | BUILD_LOG: flip migrations 034-037 to ✅ + add live-DB probe script |
+| `b27dfa0` | Library WoW + freshness signal: "Data refreshed [date]" hero caption (teal breathing dot, amber if >14d) + "State ±N pt" chip on project cards when state_programs_snapshots show movement; piggybacks on getStateProgramDeltas already shipped for Markets on the Move |
 | `5b6a7a0` | Pro-flow smoke tests: auth.setup.js + pro-smoke.spec.js (6 tests, ~10-15s, $0/run) — covers Search/Library/Profile/Dashboard past the paywall, catches the white-screen class on the authed surface that smoke.spec.js can't reach |
 | `4fb24b6` | Landing onboarding: items-baseline on the simulated alert feed so chip + text share a typographic baseline; reverted "— lines / dots / solid" addendum from map legend |
 | `8a7f2ea` | Visual polish: gauge labels (25/50/75), shimmer flow (real CSS bug — animate 0%→100% not 0%→50%), legend visibility, baseline symmetry sweep across NewsFeed / Comparable / Regulatory |

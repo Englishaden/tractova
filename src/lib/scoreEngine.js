@@ -35,8 +35,43 @@ export function getOfftakeCoverageStates(technology) {
   return null
 }
 
-export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar') {
-  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched', site: 'researched' } }
+// ── IX live-blend thresholds ─────────────────────────────────────────────────
+// Calibrated 2026-04-30 from the actual ix_queue_data row distribution
+// (probe: scripts/probe-ix-queue.mjs). Adjustments stack and are clamped to
+// ±10 so the live signal can move a curated baseline meaningfully but
+// never dominate it (a "moderate" curated score should not flip to "easy"
+// from queue stats alone — the curated label encodes structural ISO context
+// the queue snapshots don't see).
+//
+// Bias direction: HIGHER score = easier IX. Long study months and large
+// pending MW = queue is more crowded = harder = NEGATIVE adjustment.
+function ixLiveAdjustment(ixQueueSummary) {
+  if (!ixQueueSummary || !ixQueueSummary.totalProjects) return 0
+
+  let adj = 0
+
+  // Study-time band — strongest signal. p50=20, p75=24 across observed rows.
+  const months = Number(ixQueueSummary.avgStudyMonths) || 0
+  if      (months >= 24) adj -= 8
+  else if (months >= 20) adj -= 3
+  else if (months >= 14) adj += 0
+  else if (months > 0)   adj += 5  // <14mo studies → very healthy queue
+
+  // MW-pending band — secondary signal. p50=720, p75=980 across observed.
+  const mw = Number(ixQueueSummary.totalMW) || 0
+  if      (mw >= 1500) adj -= 6
+  else if (mw >= 1000) adj -= 3
+  else if (mw >=  500) adj += 0
+  else if (mw >    0)  adj += 3   // <500MW → uncrowded
+
+  // Clamp so live signal can shift score by at most ±10 from curated baseline.
+  if (adj >  10) adj =  10
+  if (adj < -10) adj = -10
+  return adj
+}
+
+export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null) {
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched', ix: 'curated', site: 'researched' } }
 
   let offtake, ix, site
   // 'researched' = state is in our curated coverage list for this tech / county
@@ -50,6 +85,12 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   // missing — only ~18 states currently have county_intelligence rows seeded,
   // so for the other 32 the "site = 60" line below is a placeholder.
   const siteCoverage = countyData?.siteControl ? 'researched' : 'fallback'
+  // IX coverage flag: 'live' when ix_queue_data signals are blended into the
+  // score (8 states as of 2026-04-30 — top CS markets); 'curated' when the
+  // score is driven by stateProgram.ixDifficulty alone. Library calls don't
+  // pass ixQueueSummary so all Library scores stay 'curated' — opt-in
+  // architecture means no regression where the data isn't pre-fetched.
+  const ixCoverage = (ixQueueSummary && ixQueueSummary.totalProjects > 0) ? 'live' : 'curated'
 
   // ── Offtake sub-score (varies by tech type) ──
   if (technology === 'C&I Solar') {
@@ -74,10 +115,16 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     else if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 25) offtake -= 5
   }
 
-  // ── IX sub-score (adjusted by tech type) ──
+  // ── IX sub-score (adjusted by tech type + optional live blend) ──
+  // Curated baseline from stateProgram.ixDifficulty (covers all 50 states).
   ix = { easy: 88, moderate: 65, hard: 38, very_hard: 14 }[stateProgram.ixDifficulty] ?? 50
   if (technology === 'BESS') ix += 5          // Storage typically has faster IX studies
   else if (technology === 'Hybrid') ix -= 5   // Combined resources = more complex IX
+  // Live-blend: when ix_queue_data covers this state, layer the quantitative
+  // queue-health signal on top. Top-CS-markets coverage as of 2026-04-30:
+  // CO, IL, MA, MD, ME, MN, NJ, NY (~8 of 50). For the other 42, ixCoverage
+  // stays 'curated' and the score is unchanged.
+  ix += ixLiveAdjustment(ixQueueSummary)
 
   // ── Site sub-score (adjusted by tech type) ──
   site = 60
@@ -101,7 +148,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix      = Math.max(0, Math.min(100, ix      + dIX))
   site    = Math.max(0, Math.min(100, site    + dSite))
 
-  return { offtake, ix, site, coverage: { offtake: offtakeCoverage, site: siteCoverage } }
+  return { offtake, ix, site, coverage: { offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage } }
 }
 
 export function computeDisplayScore(offtake, ix, site) {
