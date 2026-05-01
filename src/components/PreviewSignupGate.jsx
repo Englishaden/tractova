@@ -37,7 +37,7 @@ export default function PreviewSignupGate({ message, compact = false }) {
         </svg>
       </Link>
       <p className="text-[10px] text-ink-muted mt-2">
-        No credit card required. Pro features unlock at $9.99/mo.
+        No credit card required to sign up · Pro $29.99/mo with 14-day free trial.
       </p>
     </div>
   )

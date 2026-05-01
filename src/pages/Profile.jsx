@@ -497,7 +497,7 @@ export default function Profile() {
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             Pro
                           </span>
-                          <span className="text-sm text-gray-500 font-mono tabular-nums">$9.99 / month</span>
+                          <span className="text-sm text-gray-500 font-mono tabular-nums">$29.99 / month</span>
                         </>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 border border-gray-200 rounded-full text-xs font-semibold text-gray-500">Free</span>

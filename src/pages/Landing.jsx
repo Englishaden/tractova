@@ -226,7 +226,7 @@ export default function Landing() {
                     Preview live data →
                   </Link>
                 </div>
-                <span className="text-xs font-mono text-white/30">Pro plans from $9.99/mo</span>
+                <span className="text-xs font-mono text-white/30">Pro $29.99/mo · 14-day free trial</span>
               </div>
             </div>
 

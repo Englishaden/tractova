@@ -48,14 +48,47 @@ export default async function handler(req, res) {
       case 'checkout.session.completed': {
         const session = data.object
         const userId = session.client_reference_id
-        if (userId) {
-          await supabaseAdmin.from('profiles').update({
-            stripe_customer_id: session.customer,
-            subscription_tier: 'pro',
-            subscription_status: 'active',
-            updated_at: new Date().toISOString(),
-          }).eq('id', userId)
+
+        // SECURITY: validate that client_reference_id resolves to a real
+        // user before upserting subscription tier. The signature check at
+        // line 38 confirms the request came from Stripe, but Stripe will
+        // accept any string in client_reference_id at session-create time.
+        // A misconfigured caller (or a maliciously-crafted earlier session
+        // creation flow) could pass an arbitrary user ID and grant Pro to
+        // the wrong user. maybeSingle() returns null for no-match instead
+        // of throwing, so a single round-trip handles all 3 cases.
+        if (!userId) {
+          console.warn('[webhook] checkout.session.completed missing client_reference_id; ignoring')
+          break
         }
+        const { data: profile, error: profileErr } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('id', userId)
+          .maybeSingle()
+        if (profileErr) {
+          console.error('[webhook] profile lookup failed:', profileErr.message)
+          return res.status(500).json({ error: 'Profile lookup failed' })
+        }
+        if (!profile) {
+          console.warn(`[webhook] checkout.session.completed for unknown user_id ${userId}; rejecting`)
+          return res.status(400).json({ error: 'Unknown user_id in client_reference_id' })
+        }
+
+        // Trial-aware status: when the checkout session created a trial
+        // (subscription_data.trial_period_days), Stripe sets status to
+        // 'trialing' on the subscription. Reflect that in profiles so
+        // useSubscription.isPro grants access (it includes 'trialing').
+        const subStatus = session.subscription
+          ? await stripe.subscriptions.retrieve(session.subscription).then(s => s.status).catch(() => 'active')
+          : 'active'
+
+        await supabaseAdmin.from('profiles').update({
+          stripe_customer_id: session.customer,
+          subscription_tier: 'pro',
+          subscription_status: subStatus,
+          updated_at: new Date().toISOString(),
+        }).eq('id', userId)
         break
       }
 

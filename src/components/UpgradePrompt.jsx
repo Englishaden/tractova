@@ -207,11 +207,22 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
         {/* V3: Price + CTA — navy/teal accent rail at top */}
         <div className="bg-white border border-gray-200 rounded-xl p-6 relative overflow-hidden">
           <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
-          <div className="flex items-end gap-1 mb-1 mt-1">
-            <span className="text-3xl font-bold font-mono tabular-nums text-ink">$9.99</span>
+
+          {/* Trial badge — sits above the price so the very first thing the
+              user reads is "14-day free trial." Reduces sticker-price friction
+              at the new $29.99 tier. */}
+          <div className="inline-flex items-center gap-1.5 mb-3 px-2 py-0.5 rounded-full" style={{ background: 'rgba(20,184,166,0.10)', border: '1px solid rgba(20,184,166,0.30)' }}>
+            <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#14B8A6' }} />
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold" style={{ color: '#0F766E' }}>
+              14-day free trial
+            </span>
+          </div>
+
+          <div className="flex items-end gap-1 mb-1">
+            <span className="text-3xl font-bold font-mono tabular-nums text-ink">$29.99</span>
             <span className="text-gray-400 text-sm mb-1">/ month</span>
           </div>
-          <p className="text-xs text-gray-400 mb-5">Cancel anytime. No long-term commitment.</p>
+          <p className="text-xs text-gray-400 mb-5">No charge for 14 days. Cancel anytime, no long-term commitment.</p>
 
           {error && (
             <div className="mb-4 px-3 py-2 bg-red-50 border border-red-200 rounded-sm text-xs text-red-600">
@@ -235,12 +246,12 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
                 Redirecting to checkout…
               </>
             ) : (
-              'Upgrade to Pro — $9.99 / month'
+              'Start 14-day free trial'
             )}
           </button>
 
           <p className="text-center text-xs text-gray-400 mt-3">
-            Secured by Stripe · Cancel any time from your{' '}
+            Card required to start trial · Secured by Stripe · Cancel any time from your{' '}
             <Link to="/profile" className="underline hover:text-gray-600">Profile</Link>
           </p>
         </div>

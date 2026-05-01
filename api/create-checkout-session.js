@@ -72,6 +72,12 @@ export default async function handler(req, res) {
       cancel_url: cancelUrl,
       client_reference_id: user.id,
       allow_promotion_codes: true,
+      // 14-day trial — reduces sticker-price friction at the $29.99 tier.
+      // useSubscription.isPro already includes 'trialing' status (see
+      // src/hooks/useSubscription.js), so the user gets full Pro access
+      // immediately on checkout. Card is captured up-front (Stripe default)
+      // and only charged on day 14 unless the user cancels first.
+      subscription_data: { trial_period_days: 14 },
     })
 
     return res.status(200).json({ url: session.url })
