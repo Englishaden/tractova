@@ -1434,6 +1434,37 @@ function IXQueueTab() {
 // detail with one-click copy so the admin can paste a clean error report.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// CopyButton — clipboard with visible feedback. The previous inline buttons
+// silently swallowed clipboard failures (`.catch(() => {})`) so the user
+// couldn't tell whether the copy worked. This flips label to "Copied" on
+// success and "Copy failed" on rejection (~1.5s) before reverting.
+function CopyButton({ text, label = 'Copy', className = '' }) {
+  const [state, setState] = useState('idle')
+  async function handleClick() {
+    try {
+      await navigator.clipboard.writeText(typeof text === 'function' ? text() : text)
+      setState('copied')
+    } catch {
+      setState('error')
+    }
+    setTimeout(() => setState('idle'), 1500)
+  }
+  const display = state === 'copied' ? 'Copied' : state === 'error' ? 'Copy failed' : label
+  const tone = state === 'copied'
+    ? 'text-emerald-700'
+    : state === 'error'
+      ? 'text-red-700'
+      : 'text-teal-700 hover:text-teal-900'
+  return (
+    <button
+      onClick={handleClick}
+      className={`text-[10px] font-mono uppercase tracking-[0.18em] font-semibold transition-colors ${tone} ${className}`}
+    >
+      {display}
+    </button>
+  )
+}
+
 function endpointStatus(val) {
   // Returns 'ok' | 'partial' | 'failed'
   // A sub-source that "failed" but is stale-tolerated counts as OK for
@@ -1517,10 +1548,6 @@ function RefreshStatusBanner({ result }) {
   const totalSec = result.totalMs ? (result.totalMs / 1000).toFixed(1) : null
   const startedTime = result.startedAt ? new Date(result.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : null
 
-  function copyAll() {
-    navigator.clipboard.writeText(buildReportText(result)).catch(() => {})
-  }
-
   return (
     <div className={`rounded-xl border ${t.ring} ${t.wash} overflow-hidden`}>
       {/* Header */}
@@ -1536,12 +1563,11 @@ function RefreshStatusBanner({ result }) {
             {totalSec ? ` · ${totalSec}s` : ''}
           </span>
         </div>
-        <button
-          onClick={copyAll}
-          className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors shrink-0"
-        >
-          Copy report
-        </button>
+        <CopyButton
+          text={() => buildReportText(result)}
+          label="Copy report"
+          className="shrink-0"
+        />
       </div>
 
       {/* Endpoint rows */}
@@ -1559,10 +1585,6 @@ function EndpointRow({ name, val }) {
   const dots = { ok: 'bg-emerald-500', partial: 'bg-amber-500', failed: 'bg-red-500' }
   const labels = { ok: 'OK', partial: 'PARTIAL', failed: 'FAILED' }
   const labelColors = { ok: 'text-emerald-700', partial: 'text-amber-700', failed: 'text-red-700' }
-
-  function copyError(text) {
-    navigator.clipboard.writeText(text).catch(() => {})
-  }
 
   return (
     <div className="px-4 py-2.5">
@@ -1610,12 +1632,10 @@ function EndpointRow({ name, val }) {
             {String(val?.error || 'unknown error')}
             {val?.where ? `\n  at: ${val.where}` : ''}
           </pre>
-          <button
-            onClick={() => copyError(String(val?.error || ''))}
-            className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors shrink-0 pt-1"
-          >
-            Copy
-          </button>
+          <CopyButton
+            text={() => String(val?.error || '')}
+            className="shrink-0 pt-1"
+          />
         </div>
       )}
 
@@ -1642,12 +1662,10 @@ function EndpointRow({ name, val }) {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => copyError(`[${k}] ${v.error || ''}${v.first_error ? `\nfirst row: ${v.first_error}` : ''}`)}
-                  className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors shrink-0 pt-1"
-                >
-                  Copy
-                </button>
+                <CopyButton
+                  text={() => `[${k}] ${v.error || ''}${v.first_error ? `\nfirst row: ${v.first_error}` : ''}`}
+                  className="shrink-0 pt-1"
+                />
               </div>
             ))}
         </div>
@@ -1713,9 +1731,6 @@ function CensusDiagnosticPanel({ result, onDismiss }) {
     hint = 'Everything reachable. If refreshes still fail, the issue is in our handlers, not Census itself.'
   }
 
-  function copyJson() {
-    navigator.clipboard.writeText(JSON.stringify(j, null, 2)).catch(() => {})
-  }
 
   return (
     <div className={`rounded-xl border ${verdict.ring} ${verdict.wash} overflow-hidden`}>
@@ -1731,9 +1746,7 @@ function CensusDiagnosticPanel({ result, onDismiss }) {
           </span>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <button onClick={copyJson} className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors">
-            Copy JSON
-          </button>
+          <CopyButton text={() => JSON.stringify(j, null, 2)} label="Copy JSON" />
           <button onClick={onDismiss} className="text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-400 hover:text-gray-600 transition-colors">
             Dismiss
           </button>
