@@ -354,9 +354,19 @@ export default function Glossary() {
 
   const handleSuggestionClick = (termName) => scrollToTerm(termName)
 
-  const copyAnchorLink = (termName) => {
+  // Tracks the most recently copied term + outcome so the term button can
+  // flash a "Copied" / "Copy failed" indicator. Previously the silent
+  // .catch(() => {}) left users uncertain whether the click did anything.
+  const [copyState, setCopyState] = useState({ term: null, status: null })
+  const copyAnchorLink = async (termName) => {
     const url = `${window.location.origin}${window.location.pathname}#${toSlug(termName)}`
-    navigator.clipboard.writeText(url).catch(() => {})
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopyState({ term: termName, status: 'ok' })
+    } catch {
+      setCopyState({ term: termName, status: 'error' })
+    }
+    setTimeout(() => setCopyState({ term: null, status: null }), 1500)
   }
 
   const handleQueryChange = (e) => {
@@ -521,6 +531,14 @@ export default function Glossary() {
                       <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${PILLAR_BADGE[t.pillar]}`}>
                         {PILLAR_LABEL[t.pillar]}
                       </span>
+                      {copyState.term === t.term && (
+                        <span
+                          className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold transition-opacity"
+                          style={{ color: copyState.status === 'ok' ? '#0F766E' : '#B45309' }}
+                        >
+                          {copyState.status === 'ok' ? 'Copied' : 'Copy failed'}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-600 mt-2 leading-relaxed">{t.definition}</p>
 

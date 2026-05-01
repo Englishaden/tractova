@@ -1376,8 +1376,15 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
   useEffect(() => {
     if (mappedCountyData) return
-    if (project.state && project.county)
-      getCountyData(project.state, project.county).then(setLocalCountyData).catch(() => {})
+    if (project.state && project.county) {
+      // Local fallback fetch when the centralized countyDataMap hasn't
+      // populated yet for this card. On failure the score recomputes with
+      // null countyData (falls through to the curated/baseline tier) — a
+      // degraded but non-broken state. Log for devtools visibility.
+      getCountyData(project.state, project.county).then(setLocalCountyData).catch(err => {
+        console.warn('[ProjectCard] getCountyData failed:', project.state, project.county, err)
+      })
+    }
   }, [project.state, project.county, mappedCountyData])
 
   const current   = stateProgramMap[project.state]

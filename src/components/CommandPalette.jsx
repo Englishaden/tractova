@@ -33,7 +33,11 @@ export default function CommandPalette() {
 
   // Lazy-load states once on mount
   useEffect(() => {
-    getStateProgramMap().then(setStateMap).catch(() => {})
+    getStateProgramMap().then(setStateMap).catch(err => {
+      // Background helper for keyboard-search; degrades gracefully to empty
+      // state map (cmd-K still opens, just won't surface state shortcuts).
+      console.warn('[CommandPalette] getStateProgramMap failed:', err)
+    })
   }, [])
 
   // Load saved projects when user authenticates -- enables jump-to-project.

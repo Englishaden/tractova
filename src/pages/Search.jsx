@@ -3664,7 +3664,12 @@ function MaybeRegulatoryPanel({ state, stateName }) {
     let cancelled = false
     getPucDockets({ state }).then(rows => {
       if (!cancelled) setShow((rows || []).length > 0)
-    }).catch(() => {})
+    }).catch(err => {
+      // Curation-gated panel: hide on error (matches "no rows" behavior so
+      // the user doesn't see an error chip for a panel that may legitimately
+      // be empty pre-revenue). Log for devtools visibility.
+      console.warn('[MaybeRegulatoryPanel] getPucDockets failed:', err)
+    })
     return () => { cancelled = true }
   }, [state])
   if (!show) return null
@@ -3685,7 +3690,11 @@ function MaybeComparableDealsPanel({ state, stateName, technology, mw }) {
     const mwRange = targetMW > 0 ? [Math.max(0.1, targetMW * 0.5), targetMW * 2.0] : undefined
     getComparableDeals({ state, technology, mwRange }).then(rows => {
       if (!cancelled) setShow((rows || []).length > 0)
-    }).catch(() => {})
+    }).catch(err => {
+      // Same curation-gated pattern as MaybeRegulatoryPanel: hide on error
+      // to match the "no curated deals" empty case. Log for visibility.
+      console.warn('[MaybeComparableDealsPanel] getComparableDeals failed:', err)
+    })
     return () => { cancelled = true }
   }, [state, technology, mw])
   if (!show) return null

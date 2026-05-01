@@ -59,11 +59,13 @@ function CompareModal({ onClose }) {
   const { items, remove, clear } = useCompare()
   const [aiCompare, setAiCompare] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
+  const [aiError,   setAiError]   = useState(null)
 
   useEffect(() => {
     if (items.length < 2) return
     let cancelled = false
     setAiLoading(true)
+    setAiError(null)
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (cancelled) return
       fetch('/api/lens-insight', {
@@ -82,9 +84,18 @@ function CompareModal({ onClose }) {
           }))
         })
       })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => { if (!cancelled && data?.comparison) setAiCompare(data) })
-        .catch(() => {})
+        .then(async r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`)
+          return r.json()
+        })
+        .then(data => {
+          if (cancelled) return
+          if (data?.comparison) setAiCompare(data)
+          else setAiError('AI comparison returned no result.')
+        })
+        .catch(err => {
+          if (!cancelled) setAiError(err?.message || 'AI comparison unavailable.')
+        })
         .finally(() => { if (!cancelled) setAiLoading(false) })
     })
     return () => { cancelled = true }
@@ -345,6 +356,16 @@ function CompareModal({ onClose }) {
                   <p className="text-[12px] mt-1 leading-snug" style={{ color: 'rgba(255,255,255,0.65)' }}>
                     Stacking the {items.length} projects across composite, IX, and program signals…
                   </p>
+                </div>
+              </div>
+            </div>
+          ) : aiError ? (
+            <div className="mb-3 rounded-xl px-4 py-3" style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.20)' }}>
+              <div className="flex items-start gap-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div className="flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider mb-0.5" style={{ color: '#FBBF24' }}>AI comparison unavailable</p>
+                  <p className="text-[11px] text-white/55 leading-snug">{aiError} The project rows below are still accurate — refresh the modal to retry.</p>
                 </div>
               </div>
             </div>

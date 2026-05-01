@@ -5,7 +5,11 @@ export default function Footer() {
   const [lastUpdated, setLastUpdated] = useState(null)
 
   useEffect(() => {
-    getDashboardMetrics().then(m => setLastUpdated(m?.lastUpdated)).catch(() => {})
+    getDashboardMetrics().then(m => setLastUpdated(m?.lastUpdated)).catch(err => {
+      // Footer "last updated" caption is a nice-to-have; degrades to no
+      // caption rather than blocking footer render.
+      console.warn('[Footer] getDashboardMetrics failed:', err)
+    })
   }, [])
 
   return (
