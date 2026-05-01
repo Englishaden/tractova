@@ -14,6 +14,7 @@ import CoverageBadge from '../components/CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
 import TractovaLoader from '../components/ui/TractovaLoader'
+import WalkingTractovaMark from '../components/WalkingTractovaMark'
 import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3336,6 +3337,14 @@ function LensOverlay({ visible, stateName, countyName, onCancel }) {
           Est. ~15s · Cancel anytime
         </p>
       </div>
+
+      {/* Once-per-session walking brand-mark cameo — appears during the
+          loading state ~2.5s after it opens, walks across the bottom of
+          the screen, pauses briefly, walks off. Sessionstorage-gated so
+          it only fires once per browser session. Honors prefers-reduced-
+          motion. Renders here AND on Profile; whichever surface the user
+          hits first that session gets the cameo. */}
+      <WalkingTractovaMark />
 
       {/* Cancel button — V3 ghost-on-dark */}
       {visible && onCancel && (
