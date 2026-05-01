@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { getStatePrograms, getDashboardMetrics } from '../lib/programData'
+import ApiErrorBanner from '../components/ApiErrorBanner'
 
 // ─── icons ───────────────────────────────────────────────────────────────────
 function IconSite() {
@@ -142,11 +143,35 @@ function DashboardPreview({ activeCount, metrics }) {
 export default function Landing() {
   const [programs, setPrograms] = useState([])
   const [metrics, setMetrics]   = useState(null)
+  // Tracks the last fetch attempt so we can surface a banner only when the
+  // hero metrics actually failed to load (em-dashes alone don't signal what
+  // went wrong). Retains the previous behavior on success: silent + the
+  // numbers fill in when ready.
+  const [fetchError, setFetchError] = useState(null)
+  const [retrying,   setRetrying]   = useState(false)
 
-  useEffect(() => {
-    getStatePrograms().then(setPrograms).catch(() => {})
-    getDashboardMetrics().then(setMetrics).catch(() => {})
+  const loadHero = useCallback(async (isRetry = false) => {
+    if (isRetry) setRetrying(true)
+    const [progRes, metRes] = await Promise.allSettled([
+      getStatePrograms(),
+      getDashboardMetrics(),
+    ])
+    if (progRes.status === 'fulfilled') setPrograms(progRes.value)
+    if (metRes.status === 'fulfilled')  setMetrics(metRes.value)
+    // Only banner when BOTH fail — a single source down is acceptable
+    // degradation; both down means the live-data promise can't be honored.
+    if (progRes.status === 'rejected' && metRes.status === 'rejected') {
+      setFetchError({
+        message: 'Live market data temporarily unavailable.',
+        detail: 'Hero counts may be incomplete. The platform itself is unaffected.',
+      })
+    } else {
+      setFetchError(null)
+    }
+    if (isRetry) setRetrying(false)
   }, [])
+
+  useEffect(() => { loadHero(false) }, [loadHero])
 
   const activeCount  = programs.filter(s => s.csStatus === 'active').length
   const limitedCount = programs.filter(s => s.csStatus === 'limited').length
@@ -226,6 +251,16 @@ export default function Landing() {
 
       {/* ── Metrics strip ────────────────────────────────────────────────── */}
       <section className="bg-white border-b border-gray-200">
+        {fetchError && (
+          <div className="max-w-dashboard mx-auto px-6 pt-6">
+            <ApiErrorBanner
+              message={fetchError.message}
+              detail={fetchError.detail}
+              onRetry={() => loadHero(true)}
+              retrying={retrying}
+            />
+          </div>
+        )}
         <div className="max-w-dashboard mx-auto px-6 py-10 grid grid-cols-2 lg:grid-cols-4 gap-8">
           {[
             { value: activeCount || '—',                   label: 'Active CS Programs',           sub: 'across the U.S.' },

@@ -29,6 +29,7 @@ const Profile         = lazy(() => import('./pages/Profile'))
 const Admin           = lazy(() => import('./pages/Admin'))
 const MemoView        = lazy(() => import('./pages/MemoView'))
 const UpgradeSuccess  = lazy(() => import('./pages/UpgradeSuccess'))
+const UpdatePassword  = lazy(() => import('./pages/UpdatePassword'))
 
 // Branded route-level Suspense fallback. Matches ProtectedRoute's
 // loading state visually so transitions feel coherent.
@@ -63,6 +64,7 @@ export default function App() {
             <Route path="/signin"          element={<SignIn />} />
             <Route path="/signup"          element={<SignUp />} />
             <Route path="/upgrade-success" element={<UpgradeSuccess />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
             <Route path="/preview"         element={<Dashboard previewMode />} />
 
             {/* Gated routes — require sign-in */}

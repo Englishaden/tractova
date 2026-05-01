@@ -137,6 +137,16 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
           </>
         )}
 
+        {/* Lens-output preview — static visual mock of what every paid Lens
+            query delivers. Audit finding: paywall described features in
+            abstract bullets but never showed the output, so users were
+            "paying for something they can't see yet." Numbers here are
+            representative of the staged Will County, IL demo so the preview
+            matches the "Run the example" CTA they hit on UpgradeSuccess. */}
+        {feature === 'Tractova Lens' && (
+          <LensPreview className="mb-6" />
+        )}
+
         {/* Bullet list */}
         <ul className="space-y-3 mb-8">
           {config.bullets.map((b) => (
@@ -195,6 +205,95 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
         <p className="mt-5 text-xs text-center text-gray-400">
           <Link to="/" className="hover:text-gray-600 transition-colors">← Back to Dashboard</Link>
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── Lens-output preview ─────────────────────────────────────────────────────
+// Static visual mock of a Lens result for the staged Will County, IL demo
+// (5 MW Community Solar, Prospecting). Numbers are illustrative but consistent
+// with what scoreEngine would produce for an active-CS state with that
+// county's real curated site profile (land=true, wetland=true, ease=6) and
+// IL's live IX coverage. This is a visual format demo, not a guarantee of
+// any specific score.
+function LensPreview({ className = '' }) {
+  const composite = 78
+  const subs = [
+    { label: 'OFFTAKE', value: 88, live: false },
+    { label: 'IX',      value: 82, live: true  },
+    { label: 'SITE',    value: 56, live: true  },
+  ]
+
+  return (
+    <div className={`rounded-xl border border-gray-200 bg-white overflow-hidden ${className}`}>
+      {/* Eyebrow strip — matches Search.jsx Lens-result header */}
+      <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between" style={{ background: '#FAFAF9' }}>
+        <div className="flex items-center gap-2 text-[9px] font-mono uppercase tracking-[0.18em] text-gray-400">
+          <span>Sample Lens Report</span>
+          <span className="text-gray-300">/</span>
+          <span>IL · Will County · 5 MW · Community Solar</span>
+        </div>
+        <span
+          className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold"
+          style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+        >
+          STRONG
+        </span>
+      </div>
+
+      {/* Body — gauge + sub-scores */}
+      <div className="grid grid-cols-12 gap-4 px-4 py-4">
+        {/* Composite gauge */}
+        <div className="col-span-5 flex flex-col items-center justify-center border-r border-gray-100 pr-3">
+          <p className="font-mono text-[8px] uppercase tracking-[0.20em] text-gray-400 mb-1">Feasibility Index</p>
+          <div className="relative w-20 h-20 flex items-center justify-center">
+            <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+              <circle cx="40" cy="40" r="32" stroke="#F3F4F6" strokeWidth="6" fill="none" />
+              <circle
+                cx="40" cy="40" r="32"
+                stroke="#0F766E" strokeWidth="6" fill="none"
+                strokeDasharray={`${(composite / 100) * 201} 201`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="absolute font-mono text-2xl font-bold tabular-nums text-ink">{composite}</span>
+          </div>
+          <p className="font-mono text-[8px] uppercase tracking-[0.18em] font-bold mt-1.5" style={{ color: '#0F766E' }}>
+            <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: '#0F766E' }} />
+            Strong
+          </p>
+        </div>
+
+        {/* Sub-score bars */}
+        <div className="col-span-7 flex flex-col justify-center gap-2">
+          {subs.map((s) => (
+            <div key={s.label}>
+              <div className="flex items-center justify-between text-[9px] font-mono uppercase tracking-[0.16em] text-gray-500 mb-0.5">
+                <span className="flex items-center gap-1.5">
+                  {s.label}
+                  {s.live && (
+                    <span
+                      className="font-mono text-[8px] uppercase tracking-[0.18em] px-1 py-px font-bold"
+                      style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.25)' }}
+                    >
+                      Live
+                    </span>
+                  )}
+                </span>
+                <span className="font-bold tabular-nums text-ink text-[10px]">{s.value}</span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
+                <div className="h-full rounded-full" style={{ width: `${s.value}%`, background: '#14B8A6' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Footer caption */}
+      <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400 leading-snug" style={{ background: '#FAFAF9' }}>
+        Every paid Lens query delivers a feasibility index, three sub-scores, and AI commentary across site, interconnection, and offtake. Live data sources (NWI, SSURGO, ISO queues) flagged where present.
       </div>
     </div>
   )
