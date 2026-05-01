@@ -372,22 +372,21 @@ function Legend() {
         ))}
       </div>
       {/* V3 Strategy A — coverage tier guide. Hatch patterns mirror exactly
-          what users see on the map (less data = more texture). Legend label
-          spells out the visual cue ("lines", "dots") so the connection
-          back to the map reads at a glance. */}
+          what users see on the map (less data = more texture). Swatches
+          themselves carry the visual cue — labels stay terse. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted font-semibold mr-1">Coverage</span>
         <div className="flex items-center gap-1.5">
           <CoverageSwatch tier="full" />
-          <span className="text-xs text-gray-500">Full <span className="text-gray-400">— solid</span></span>
+          <span className="text-xs text-gray-500">Full</span>
         </div>
         <div className="flex items-center gap-1.5">
           <CoverageSwatch tier="mid" />
-          <span className="text-xs text-gray-500">Mid <span className="text-gray-400">— lines</span></span>
+          <span className="text-xs text-gray-500">Mid</span>
         </div>
         <div className="flex items-center gap-1.5">
           <CoverageSwatch tier="light" />
-          <span className="text-xs text-gray-500">Light <span className="text-gray-400">— dots</span></span>
+          <span className="text-xs text-gray-500">Light</span>
         </div>
       </div>
     </div>

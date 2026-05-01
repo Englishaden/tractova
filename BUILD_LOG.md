@@ -4,52 +4,62 @@
 
 ---
 
-## 🟢 Pickup — visual verification on prod (post `e2c8b48`)
+## 🟢 Pickup — laptop restart, visual verification on prod after redeploy
 
-**Last session ended 2026-04-30 ~20:30 UTC** with FOUR
-trust/correctness improvements shipped on the score-honesty thread
-(`596de4b`, `d4061d2`, `26b86b0`, `e2c8b48`). Migration 038 confirmed
-applied. Lens panel now consistently signals fallback sub-scores;
-Dashboard now signals data freshness on the hero.
+**Last session ended 2026-04-30 ~20:50 UTC**. Six commits shipped on
+two threads:
 
-**Visual verification when you're back:**
+**Trust/correctness thread:**
+- `596de4b` — Lens offtake coverage signaling
+- `d4061d2` — Lens site coverage signaling
+- `e2c8b48` — Dashboard data-freshness hero indicator
 
-1. **Production should be on `e2c8b48` shortly.** Walk these:
-   - `/dashboard` (or `/preview`):
-     - Page header now shows a small mono caption next to the
-       "refreshed weekly" line: a teal breathing dot + "Refreshed
-       [date]". When data is older than 14 days the dot turns amber
-       and the tooltip warns the cron missed a cycle.
-   - `/search` → run Lens for `Texas + BESS`:
-     - Sub-score bars + amber "Limited coverage — directional only"
-       caption with both Offtake and Site Control bullets.
-   - `/search` → run Lens for `Illinois + BESS`:
-     - No caption (IL has both BESS economics AND county data).
-   - AI brief in TX/FL/etc. speaks directionally only.
+**Visual polish thread (this session's last work):**
+- `8a7f2ea` — gauge labels, shimmer flow bug, legend visibility,
+  symmetry sweep across NewsFeed / Comparable / Regulatory
+- *(pending commit at session pause)* — legend label revert +
+  Landing.jsx onboarding alert-feed baseline alignment
 
-2. **Coverage gap (unchanged): only 18 of 50 states have a `default`
-   county_intelligence row.** States missing site data: AK, AL, AR,
-   AZ, DE, GA, IA, ID, IN, KS, KY, LA, MO, MS, MT, NC, ND, NE, NH,
-   NV, OH, OK, PA, SC, SD, TN, TX, UT, VT, WI, WV, WY.
+**Visual verification on prod after redeploy:**
 
-3. **No active work in queue.** Candidate next moves, in priority
-   order against the product tenants (no bugs / honest data /
-   retention):
-   - **Pro-flow smoke tests** — currently smoke covers unauth paths
-     only. Real risk: a regression in Lens analysis flow ships
-     clean and breaks paying-user experience. Adding authed
-     fixtures would extend the existing smoke suite to cover the
-     critical paid surfaces. ~1 day.
-   - **Library WoW score deltas + freshness signal** (parallel to
-     Dashboard hero) — show users when their saved projects'
-     scores changed since last visit. ~2 hours, retention-driving.
-   - **Expand curated economic coverage to top-10 solar markets**
-     (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move
-     leverage. EIA Form 861 retail rates + ISO capacity markets
-     are publicly sourced. ~4-8 hours per state.
-   - **Wetlands + farmland data layers** — 3-4 day R&D + spatial
-     join. Replaces curated wetland_warning column with EPA NWI
-     data per county.
+1. **Speedometer/gauge** in Lens results — small mono "25 / 50 / 75"
+   numerals just outside the major ticks. User feedback: "looks so
+   good." ✓
+2. **Sub-score shimmer** — flows continuously left to right, no
+   visible loop snap-back. User feedback: "looks great!" ✓ (Was a
+   real CSS bug: animation only shifted half a tile due to how
+   background-position-x percentages compute.)
+3. **Map legend (Dashboard)** — dots and lines visibly readable
+   against the teal swatch. Labels stay terse: "Full / Mid / Light"
+   (the "— lines / — dots" addendum was removed per user feedback).
+4. **NewsFeed (Dashboard)** — source · date is now on its own row
+   below the tag chips, not pulled off-baseline by items-center.
+5. **Landing page hero** (logged-out `/`) — the simulated "Recent
+   Policy Alerts" feed now uses items-baseline so the Offtake / IX
+   chips and the alert text share a typographic baseline. Was the
+   original misalignment the user flagged.
+6. **ComparableDealsPanel + RegulatoryActivityPanel** — Source link
+   now wrapped in a 2-row stack matching the MetaItem shape, so it
+   aligns with the rest of the meta strip baseline.
+
+**Visual verification on prod when you're back (covered above).**
+
+**No active work in queue.** Candidate next moves, in priority
+order against the product tenants (no bugs / honest data /
+retention):
+- **Pro-flow smoke tests** — currently smoke covers unauth paths
+  only. ~1 day for fixtures + tests.
+- **Library WoW score deltas + freshness signal** (parallel to
+  Dashboard hero) — ~2 hours, retention-driving.
+- **Expand curated economic coverage to top-10 solar markets**
+  (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move leverage.
+  EIA Form 861 + ISO capacity markets publicly sourced. ~4-8h/state.
+- **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
+
+**Coverage gap (unchanged):** only 18 of 50 states have a `default`
+county_intelligence row. Missing: AK, AL, AR, AZ, DE, GA, IA, ID, IN,
+KS, KY, LA, MO, MS, MT, NC, ND, NE, NH, NV, OH, OK, PA, SC, SD, TN,
+TX, UT, VT, WI, WV, WY.
 
 **Run `npm run verify` before pushing any visible-feature change.**
 
@@ -147,7 +157,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `e2c8b48` Dashboard: surface "data refreshed" timestamp on the hero
+- **Branch:** `main` · last commit: pending — visual polish + landing alignment
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -192,6 +202,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
+| `pending` | Landing alignment: items-baseline on the simulated alert feed so chip + text share a typographic baseline; reverted "— lines / dots / solid" addendum from map legend (swatches read fine on their own) |
+| `8a7f2ea` | Visual polish: gauge labels (25/50/75), shimmer flow (real CSS bug — animate 0%→100% not 0%→50%), legend visibility, baseline symmetry sweep across NewsFeed / Comparable / Regulatory |
 | `e2c8b48` | Dashboard: surface "data refreshed [date]" caption on hero — makes the live-data promise provable on first impression with teal breathing dot (fresh) or amber (>14d stale) |
 | `26b86b0` | BUILD_LOG: capture site-coverage fix + state-level coverage gaps |
 | `d4061d2` | Score honesty: site sub-score also signals fallback when county_intelligence row missing (only 18 of 50 states seeded — caption now consolidates both pillars in one block) |

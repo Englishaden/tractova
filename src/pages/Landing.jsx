@@ -108,21 +108,27 @@ function DashboardPreview({ activeCount, metrics }) {
             <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider">Recent Policy Alerts</span>
             <span className="text-[8px] text-white/25 uppercase tracking-wider">Updated weekly</span>
           </div>
+          {/* Tag chip + alert text now share a typographic baseline so the
+              text reads aligned to the chip's letters, not to the chip's
+              top edge. items-baseline drops the manual mt-0.5 nudge — that
+              hack only works at one font-size and one chip padding combo.
+              Chip text bumped 9px→10px to match the alert text size, so the
+              composed row reads as one cohesive line. */}
           <div className="space-y-2">
             {[
               { tag: 'Offtake', state: 'IL', text: 'Illinois Shines capacity expanded under new CEJA rules' },
               { tag: 'IX',      state: 'MN', text: 'Xcel Solar Garden queue moving — new block open' },
             ].map((a, i) => (
-              <div key={i} className="flex items-start gap-2">
+              <div key={i} className="flex items-baseline gap-2">
                 <span
-                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded-sm mt-0.5 shrink-0"
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm shrink-0 leading-tight"
                   style={a.tag === 'IX'
                     ? { background: 'rgba(245,158,11,0.18)', color: '#FCD34D' }
                     : { background: 'rgba(20,184,166,0.20)', color: '#5EEAD4' }}
                 >
                   {a.tag}
                 </span>
-                <p className="text-[10px] text-white/50 leading-tight">{a.text}</p>
+                <p className="text-[10px] text-white/55 leading-snug">{a.text}</p>
               </div>
             ))}
           </div>
