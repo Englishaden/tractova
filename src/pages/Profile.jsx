@@ -392,14 +392,16 @@ export default function Profile() {
   const recentProjects = allProjects.slice(0, 5)
 
   return (
-    <div className="min-h-screen bg-surface relative">
-      {/* Three-layer ambient background — soft edge washes + slow-flowing
-          teal band + cartographic grid in the gutters. Sits behind all
-          content (-z-10) so it doesn't compete for attention with the
-          profile card. Centers the profile visually by anchoring visual
-          weight to the page edges. */}
+    <div className="min-h-screen relative">
+      {/* Ambient flowing background — soft edge washes + slow-flowing teal
+          band + cartographic grid in the gutters + drifting accent dots.
+          Renders at z-0 inside the relative wrapper. Profile main content
+          sits at z-10 above it. The wrapper has NO bg-surface because the
+          body bg (#F8F7F4) shows through the transparent areas of the
+          background layer, and a solid wrapper bg would cover the
+          animation. */}
       <IntelligenceBackground />
-      <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
+      <main className="relative z-10 max-w-dashboard mx-auto px-6 pt-20 pb-16">
         <div className="mt-6 max-w-3xl mx-auto">
 
           {/* V3: Profile banner — brand navy with teal accent rail (matches Library banner) */}

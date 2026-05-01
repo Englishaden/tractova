@@ -224,10 +224,35 @@ async function handleFreshness(req, res) {
 
 // ── Router ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  const action = req.query.action
+
+  // PUBLIC path: latest successful cron_runs.finished_at — single timestamp,
+  // no sensitive data, used by the global Footer to render an honest "Data
+  // refreshed N ago" caption. Bypasses admin auth because this is one
+  // aggregate value the whole product (anon + signed-in) needs to see.
+  if (action === 'last-refresh') {
+    if (req.method !== 'GET') return res.status(405).end('Method Not Allowed')
+    res.setHeader('Cache-Control', 'public, max-age=60')
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('cron_runs')
+        .select('finished_at')
+        .eq('status', 'success')
+        .not('finished_at', 'is', null)
+        .order('finished_at', { ascending: false })
+        .limit(1)
+      if (error) throw error
+      const finishedAt = data?.[0]?.finished_at || null
+      return res.status(200).json({ finishedAt })
+    } catch (err) {
+      console.error('[data-health last-refresh] failed:', err)
+      return res.status(500).json({ error: 'Internal server error', finishedAt: null })
+    }
+  }
+
+  // All other actions require admin auth.
   const user = await authenticateAdmin(req)
   if (!user) return res.status(403).json({ error: 'Forbidden' })
-
-  const action = req.query.action
 
   try {
     if (action === 'export') return await handleExport(req, res, user)
