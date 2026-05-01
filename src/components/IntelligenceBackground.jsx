@@ -90,15 +90,24 @@ export default function IntelligenceBackground() {
           }}
         />
 
-        {/* Layer 4 — floating accent dots in the gutters. Each drifts upward
-            at slightly different speeds with offset start delays so the motion
-            never feels mechanical. Distinctly visible motion that signals
-            "this is alive" without being noisy. */}
+        {/* Layer 4 — floating accent dots in the gutters. Each drifts
+            upward at slightly different speeds with offset start delays so
+            the motion never feels mechanical or pulsing-in-lockstep.
+            Colors map to the three intelligence pillars (teal = offtake,
+            amber = IX, blue = site control) so the rising dots quietly
+            signal "all three pillars processing in real time." Sizes and
+            glow strengths vary so the visual rhythm has natural depth. */}
         {[
-          { left: '4%',  delay: '0s',   duration: '28s', size: 4 },
-          { left: '12%', delay: '11s',  duration: '34s', size: 3 },
-          { left: '88%', delay: '5s',   duration: '30s', size: 4 },
-          { left: '95%', delay: '18s',  duration: '38s', size: 3 },
+          // Left gutter — 4 dots, mixed pillars + sizes + cycles
+          { left: '3%',  delay: '0s',   duration: '28s', size: 4, color: '#14B8A6', glow: 'rgba(20,184,166,0.70)' },   // teal · offtake
+          { left: '6%',  delay: '12s',  duration: '38s', size: 3, color: '#F59E0B', glow: 'rgba(245,158,11,0.55)' },   // amber · IX
+          { left: '11%', delay: '22s',  duration: '32s', size: 5, color: '#5EEAD4', glow: 'rgba(94,234,212,0.65)' },   // light teal accent
+          { left: '14%', delay: '6s',   duration: '40s', size: 3, color: '#2563EB', glow: 'rgba(37,99,235,0.50)' },    // blue · site
+          // Right gutter — 4 dots, different mix
+          { left: '86%', delay: '4s',   duration: '34s', size: 4, color: '#2563EB', glow: 'rgba(37,99,235,0.55)' },    // blue · site
+          { left: '90%', delay: '16s',  duration: '30s', size: 3, color: '#14B8A6', glow: 'rgba(20,184,166,0.65)' },   // teal · offtake
+          { left: '93%', delay: '26s',  duration: '36s', size: 5, color: '#F59E0B', glow: 'rgba(245,158,11,0.50)' },   // amber · IX
+          { left: '97%', delay: '9s',   duration: '42s', size: 3, color: '#5EEAD4', glow: 'rgba(94,234,212,0.65)' },   // light teal accent
         ].map((d, i) => (
           <span
             key={i}
@@ -108,8 +117,8 @@ export default function IntelligenceBackground() {
               bottom: '-10px',
               width: `${d.size}px`,
               height: `${d.size}px`,
-              background: '#14B8A6',
-              boxShadow: '0 0 12px rgba(20,184,166,0.65)',
+              background: d.color,
+              boxShadow: `0 0 ${d.size * 3}px ${d.glow}`,
               animation: `tractova-intel-drift ${d.duration} linear infinite`,
               animationDelay: d.delay,
             }}
