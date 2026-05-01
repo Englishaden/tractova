@@ -70,6 +70,48 @@ function ixLiveAdjustment(ixQueueSummary) {
   return adj
 }
 
+// Site sub-score from (availableLand, wetlandWarning) tri-state inputs.
+// Each input is one of: true, false, null (unknown).
+//
+// Calibration matrix (solar; BESS uses just wetland with land less critical):
+//   land=true,  wet=false → 82  (best — open developable, no permit risk)
+//   land=true,  wet=true  → 56  (mixed — land available but wetland constraint)
+//   land=false, wet=false → 42  (mixed — limited land but no wetland constraint)
+//   land=false, wet=true  → 26  (worst — limited land + wetland permit risk)
+//
+// Partial-input semantics (only one of the two known): return the MIDPOINT
+// of the two outcomes consistent with the known input. This is the honest
+// answer to "we know X but not Y" — communicates the uncertainty in the
+// score itself rather than picking a favorable default. Replaces a prior
+// `null → favorable` shortcut that could mis-score by 30+ pts when the
+// missing input later filled in unfavorably (e.g. SSURGO done first, then
+// NWI catches up showing high wetland coverage).
+//
+// Both null → site=60 baseline (no info, neutral).
+function computeSiteSubScore(technology, availableLand, wetlandWarning) {
+  if (technology === 'BESS') {
+    // BESS depends primarily on wetland permitting, not land area
+    // (1-2 acres/MW vs solar's 5-7).
+    if (wetlandWarning === false) return 78
+    if (wetlandWarning === true)  return 58
+    return 68  // wetland unknown — midpoint of (78, 58)
+  }
+  // Solar (CS / C&I / Hybrid)
+  const land = availableLand
+  const wet  = wetlandWarning
+  if (land === true  && wet === false) return 82
+  if (land === true  && wet === true)  return 56
+  if (land === false && wet === false) return 42
+  if (land === false && wet === true)  return 26
+  // Partial-input midpoints
+  if (land === true  && wet == null)   return 69  // (82+56)/2
+  if (land === false && wet == null)   return 34  // (42+26)/2
+  if (land == null   && wet === false) return 62  // (82+42)/2
+  if (land == null   && wet === true)  return 41  // (56+26)/2
+  // Both null — no info, neutral baseline
+  return 60
+}
+
 export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null) {
   if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched', ix: 'curated', site: 'researched' } }
 
@@ -144,7 +186,6 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   //      Used as fallback when live geospatial is missing for this county.
   //   3. Hard-coded baseline (site = 60) — last resort when neither layer
   //      has data for the county.
-  site = 60
   let availableLand = null
   let wetlandWarning = null
   if (hasLiveGeo) {
@@ -173,21 +214,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     wetlandWarning = countyData.siteControl.wetlandWarning
   }
 
-  if (availableLand != null || wetlandWarning != null) {
-    // Default unknown-side to favorable so a partial signal doesn't penalize.
-    const land = availableLand !== false  // null or true → treat as available
-    const wet  = wetlandWarning === true   // null or false → treat as no warning
-    if (technology === 'BESS') {
-      // BESS needs much less land (1-2 acres/MW vs 5-7 for solar)
-      if (!wet) site = 78
-      else      site = 58
-    } else {
-      if      (land && !wet)  site = 82
-      else if (land &&  wet)  site = 56
-      else if (!land && !wet) site = 42
-      else                    site = 26
-    }
-  }
+  site = computeSiteSubScore(technology, availableLand, wetlandWarning)
 
   // ── Stage modifiers ──
   const [dOft, dIX, dSite] = STAGE_MODIFIERS[stage] ?? [0, 0, 0]

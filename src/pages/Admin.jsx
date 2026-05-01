@@ -7,7 +7,7 @@ import {
   updateRevenueRates, upsertNewsItem, deleteNewsItem, updateIXQueueRow,
   getPucDockets, upsertPucDocket, deletePucDocket,
   getComparableDeals, upsertComparableDeal, deleteComparableDeal,
-  computeFeasibilityScore, invalidateCache,
+  computeFeasibilityScore, invalidateCache, invalidateCacheEverywhere,
 } from '../lib/programData'
 import { Input, Select, Button } from '../components/ui'
 import TractovaLoader from '../components/ui/TractovaLoader'
@@ -2130,7 +2130,9 @@ function DataHealthTab() {
 
       // Crons just rewrote the underlying tables -- nuke the front-end 1h
       // cache so the rest of the app re-fetches without a hard reload.
-      invalidateCache()
+      // Cross-tab variant: BroadcastChannel so a Dashboard left open in
+      // another tab also clears its in-memory cache, not just this Admin tab.
+      invalidateCacheEverywhere()
 
       // Re-fetch the freshness panel itself so the cards update inline.
       try {

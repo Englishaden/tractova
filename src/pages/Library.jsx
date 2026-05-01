@@ -89,7 +89,7 @@ function Badge({ label, map }) {
 // ── Alert detection ──────────────────────────────────────────────────────────
 const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
 
-function getAlerts(project, stateProgramMap) {
+function getAlerts(project, stateProgramMap, countyDataMap = {}) {
   const current = stateProgramMap[project.state]
   if (!current) return []
 
@@ -105,15 +105,15 @@ function getAlerts(project, stateProgramMap) {
     }
   }
 
-  // BUGFIX: previously this compared current.feasibilityScore (bare state value)
-  // to project.feasibilityScore (bare state value at save time). But the Library
-  // card itself displays a tech-aware recomputed score via computeSubScores +
-  // computeDisplayScore. Those numbers can differ by 20+ points for non-CS
-  // technologies, causing alerts that don't match what the user sees on the
-  // card (Gila County AZ: bare dropped 41→4, but card showed tech-aware ~35).
-  // Now we recompute current using the same path the card uses, so the alert
-  // delta matches the displayed liveScore.
-  const currentSubs = computeSubScores(current, null, project.stage, project.technology)
+  // Score-drop alert must use the SAME inputs as the visual card display so the
+  // delta the user sees in the alert matches the score they see on the card.
+  // Previous bug: alert recomputed with countyData=null while the card recomputed
+  // with countyData from countyDataMap, producing inconsistent deltas. Now both
+  // paths read from countyDataMap (lazy-populated as cards expand). When the
+  // map hasn't filled yet for this (state, county), we fall back to null —
+  // the score will refine as countyDataMap populates and the alert re-renders.
+  const cd = countyDataMap[`${project.state}::${project.county}`] || null
+  const currentSubs = computeSubScores(current, cd, project.stage, project.technology)
   const currentLiveScore = computeDisplayScore(currentSubs.offtake, currentSubs.ix, currentSubs.site)
   if (project.feasibilityScore != null && currentLiveScore < project.feasibilityScore - 10) {
     alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility index fell from ${project.feasibilityScore} → ${currentLiveScore} (recomputed for ${project.technology || 'CS'} at ${project.stage || 'current stage'})` })
@@ -281,7 +281,7 @@ const EXPORT_HEADERS = [
   'Est. Annual Revenue ($/MW/yr)', 'Risk Flags', 'Saved Date',
 ]
 
-function buildExportRows(projects, stateProgramMap) {
+function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
   const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
   return projects.map(p => {
@@ -294,7 +294,7 @@ function buildExportRows(projects, stateProgramMap) {
         if (proj?.year1Revenue) revPerMWperYear = Math.round(proj.year1Revenue / mwNum)
       }
     } catch {}
-    const alerts = getAlerts(p, stateProgramMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
+    const alerts = getAlerts(p, stateProgramMap, countyDataMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
     const ixNotes = (sp.ixNotes || '').replace(/\s+/g, ' ').slice(0, 200)
     return [
       p.name,
@@ -320,8 +320,8 @@ function buildExportRows(projects, stateProgramMap) {
 }
 
 // ── CSV export ───────────────────────────────────────────────────────────────
-function exportCSV(projects, stateProgramMap = {}) {
-  const rows = buildExportRows(projects, stateProgramMap)
+function exportCSV(projects, stateProgramMap = {}, countyDataMap = {}) {
+  const rows = buildExportRows(projects, stateProgramMap, countyDataMap)
   const csv = [EXPORT_HEADERS, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv' })
   const url  = URL.createObjectURL(blob)
@@ -337,8 +337,8 @@ function exportCSV(projects, stateProgramMap = {}) {
 // the main bundle. Output is a properly-formatted .xlsx with column widths,
 // number formatting on numeric columns, and a frozen header row -- ready to
 // drop into a developer's internal model spreadsheet.
-async function exportXLSX(projects, stateProgramMap = {}) {
-  const rows = buildExportRows(projects, stateProgramMap)
+async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
+  const rows = buildExportRows(projects, stateProgramMap, countyDataMap)
   const XLSX = await import('xlsx')
 
   // Build worksheet from arrays (header + rows).
@@ -1436,7 +1436,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
       setMemoExporting(false)
     }
   }
-  const alerts    = getAlerts(project, stateProgramMap)
+  const alerts    = getAlerts(project, stateProgramMap, countyDataMap)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
 
   // Blue dot: state data updated since project was saved
@@ -2489,7 +2489,7 @@ function LibraryContent() {
           // the last 30 days for this project). Skip 'info' level alerts
           // ('Data Refreshed') -- they're noise for an audit trail; the
           // audit log captures material risk events, not data freshness.
-          const alerts = getAlerts(p, stateProgramMap)
+          const alerts = getAlerts(p, stateProgramMap, countyDataMap)
           for (const alert of alerts) {
             if (alert.level === 'info') continue
             const fingerprint = `${alert.level}::${alert.pillar || 'general'}::${alert.label}`
@@ -2531,7 +2531,7 @@ function LibraryContent() {
     return [...filtered].sort((a, b) => {
       if (sortBy === 'score')  return liveScoreFor(b) - liveScoreFor(a)
       if (sortBy === 'mw')     return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
-      if (sortBy === 'alerts') return getAlerts(b, stateProgramMap).length - getAlerts(a, stateProgramMap).length
+      if (sortBy === 'alerts') return getAlerts(b, stateProgramMap, countyDataMap).length - getAlerts(a, stateProgramMap, countyDataMap).length
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
   }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap, countyDataMap])
@@ -2664,7 +2664,7 @@ function LibraryContent() {
               {projects.length > 0 && (
                 <>
                   <button
-                    onClick={() => exportCSV(projects, stateProgramMap)}
+                    onClick={() => exportCSV(projects, stateProgramMap, countyDataMap)}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
                     style={{
                       color: 'rgba(255,255,255,0.85)',
@@ -2679,7 +2679,7 @@ function LibraryContent() {
                     CSV
                   </button>
                   <button
-                    onClick={() => exportXLSX(projects, stateProgramMap)}
+                    onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
                     style={{
                       color: 'rgba(255,255,255,0.85)',
@@ -2720,7 +2720,7 @@ function LibraryContent() {
                 {[
                   { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     valColor: '#0F1A2E' },
                   { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', valColor: '#0F1A2E' },
-                  { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap).length, 0), sub: 'policy or market flags', valColor: '#0F1A2E' },
+                  { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap, countyDataMap).length, 0), sub: 'policy or market flags', valColor: '#0F1A2E' },
                 ].map(({ label, value, sub, valColor }) => (
                   <div key={label} className="rounded-xl px-4 py-3 bg-white border border-gray-200 relative overflow-hidden">
                     <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
@@ -2921,7 +2921,7 @@ function LibraryContent() {
                 const current = stateProgramMap[p.state]
                 return current?.lastUpdated && p.savedAt && new Date(current.lastUpdated) > new Date(p.savedAt)
               }).length
-              const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap).length, 0)
+              const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap, countyDataMap).length, 0)
               if (updatedCount === 0 && alertCount === 0) return null
               return (
                 <div

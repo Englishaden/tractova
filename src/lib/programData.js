@@ -898,6 +898,53 @@ export async function updateIXQueueRow(id, fields) {
   invalidateCache('dashboard_metrics')
 }
 
+// ── Cross-tab cache invalidation ──────────────────────────────────────────────
+// In-memory _cache is per-tab. When admin clicks Refresh in Tab A, Tab A's
+// cache clears via the local invalidateCache() call — but Tab B (a Dashboard
+// the user left open in another window) keeps serving stale data until the
+// 1h TTL expires. BroadcastChannel posts the invalidation to every same-
+// origin tab so Dashboard / Library / Search reflect the refresh immediately
+// across the whole session.
+//
+// Defensive: BroadcastChannel isn't available in old browsers or in some
+// SSR contexts. Wrapped in `typeof` checks so the rest of the module works
+// without it; the fallback is the existing same-tab-only behavior.
+const _BROADCAST_NAME = 'tractova-cache'
+const _broadcastChannel = (typeof window !== 'undefined' && typeof BroadcastChannel === 'function')
+  ? new BroadcastChannel(_BROADCAST_NAME)
+  : null
+
+if (_broadcastChannel) {
+  _broadcastChannel.onmessage = (ev) => {
+    const { type, key } = ev.data || {}
+    if (type !== 'invalidate') return
+    // Apply locally without re-broadcasting (would loop).
+    _applyInvalidate(key)
+  }
+}
+
+function _applyInvalidate(key) {
+  if (!key) {
+    Object.keys(_cache).forEach(k => delete _cache[k])
+  } else if (key.endsWith('*')) {
+    const prefix = key.slice(0, -1)
+    Object.keys(_cache).forEach(k => { if (k.startsWith(prefix)) delete _cache[k] })
+  } else {
+    delete _cache[key]
+  }
+}
+
+// Broadcast-only entry point for the admin Refresh flow. Same semantics as
+// invalidateCache() but explicitly signals "this is a deliberate, app-wide
+// data refresh" — every tab clears, not just this one.
+export function invalidateCacheEverywhere(key) {
+  _applyInvalidate(key)
+  if (_broadcastChannel) {
+    try { _broadcastChannel.postMessage({ type: 'invalidate', key }) }
+    catch { /* best-effort cross-tab notify */ }
+  }
+}
+
 // ── invalidateCache ───────────────────────────────────────────────────────────
 // Call with a specific key, a prefix (ending in *), or no args to clear all.
 export function invalidateCache(key) {
