@@ -37,9 +37,30 @@ export default function IntelligenceBackground() {
           90%  { opacity: 0.55; }
           100% { transform: translateY(-110vh) translateX(8px); opacity: 0; }
         }
+        /* Easter-egg brand-mark traversal — 45s cycle, ~20s visible drift
+           through the page center, ~12s hidden gap. The mark drifts behind
+           the centered profile content (z-0) so it's mostly visible only in
+           the spaces above and below the profile card — the "rare appearance"
+           feel the Easter egg framing calls for. */
+        @keyframes tractova-mark-drift {
+          0%   { transform: translateY(0);     opacity: 0; }
+          10%  { transform: translateY(-10vh); opacity: 0; }
+          15%  { transform: translateY(-15vh); opacity: 0.55; }
+          60%  { transform: translateY(-95vh); opacity: 0.65; }
+          68%  { transform: translateY(-110vh); opacity: 0; }
+          100% { transform: translateY(-110vh); opacity: 0; }
+        }
+        /* Pulse + emanation — separate cycle from the drift so the mark
+           "breathes" independent of its position. Scale + drop-shadow
+           combine into a soft halo that radiates outward and contracts. */
+        @keyframes tractova-mark-pulse {
+          0%, 100% { transform: scale(1.0);  filter: drop-shadow(0 0 6px rgba(20,184,166,0.40)); }
+          50%      { transform: scale(1.08); filter: drop-shadow(0 0 14px rgba(20,184,166,0.85)); }
+        }
         @media (prefers-reduced-motion: reduce) {
           .intel-flow-band,
-          .intel-dot { animation: none !important; opacity: 0 !important; }
+          .intel-dot,
+          .intel-mark-egg { animation: none !important; opacity: 0 !important; }
         }
       `}</style>
 
@@ -124,6 +145,45 @@ export default function IntelligenceBackground() {
             }}
           />
         ))}
+
+        {/* Easter egg — the Tractova brand mark drifts up the center every
+            45s, pulsing/emanating as it goes. Centered horizontally, sits
+            at z-0 so it passes BEHIND the centered profile card (visible
+            only above/below the card's height — the "rare appearance" feel
+            the user asked for). Two animations stacked:
+            (1) outer wrapper drifts upward via translateY (45s cycle, ~20s
+                visible + ~12s hidden gap)
+            (2) inner SVG pulses scale + drop-shadow halo on a 2.4s cycle,
+                independent of position
+            Marks are GPU-accelerated, ~zero JS work per frame. */}
+        <div
+          className="intel-mark-egg absolute"
+          style={{
+            left: 'calc(50% - 9px)',
+            bottom: '-40px',
+            width: '18px',
+            height: '18px',
+            animation: 'tractova-mark-drift 45s ease-in-out infinite',
+            willChange: 'transform, opacity',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              animation: 'tractova-mark-pulse 2.4s ease-in-out infinite',
+              transformOrigin: 'center',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 26 26" fill="none">
+              <rect width="26" height="26" rx="5" fill="#0F1A2E" />
+              <rect x="5" y="7" width="16" height="2.5" rx="1.25" fill="#14B8A6" />
+              <rect x="11.75" y="9.5" width="2.5" height="10" rx="1.25" fill="#14B8A6" />
+              <rect x="6" y="10" width="0.8" height="2" rx="0.4" fill="#14B8A6" opacity="0.6" />
+              <rect x="19.2" y="10" width="0.8" height="2" rx="0.4" fill="#14B8A6" opacity="0.6" />
+            </svg>
+          </div>
+        </div>
       </div>
     </>
   )
