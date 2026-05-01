@@ -25,7 +25,9 @@ import { useEffect, useState, useRef } from 'react'
 // in opposing rotations via CSS keyframes. Body bobs vertically on the
 // same 0.45s cadence so leg + body motion are synced like real walking.
 
-const SESSION_KEY = 'tractova-walking-mark-shown'
+// Versioned key — bumping the v## suffix invalidates any previously-set
+// flags so existing users get to see the animation again after a refresh.
+const SESSION_KEY = 'tractova-walking-mark-shown-v2'
 
 export default function WalkingTractovaMark({ enabled = true, delayMs = 2500 }) {
   const [active, setActive] = useState(false)
@@ -39,19 +41,36 @@ export default function WalkingTractovaMark({ enabled = true, delayMs = 2500 }) 
       return
     }
 
+    // ?walk=1 in the URL bypasses the once-per-session gate — useful for
+    // testing the animation without having to clear sessionStorage manually.
+    const forceShow = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('walk') === '1'
+
     // Once-per-session gate. sessionStorage may be blocked (private mode,
     // some embedded contexts) — degrade silently if so (no-op, doesn't
     // crash the parent component).
-    try {
-      if (sessionStorage.getItem(SESSION_KEY) === '1') return
-    } catch { /* fall through; treat as not-yet-shown */ }
+    if (!forceShow) {
+      try {
+        if (sessionStorage.getItem(SESSION_KEY) === '1') {
+          console.debug('[WalkingTractovaMark] already shown this session; append ?walk=1 to retest')
+          return
+        }
+      } catch { /* fall through; treat as not-yet-shown */ }
+    }
 
     triggered.current = true
-    try { sessionStorage.setItem(SESSION_KEY, '1') } catch { /* best-effort */ }
 
     // Small delay before triggering — feels more organic if it shows up a
     // few seconds AFTER page load rather than racing in alongside content.
-    const t = setTimeout(() => setActive(true), delayMs)
+    const t = setTimeout(() => {
+      // Set the session flag ONLY when the mark actually starts walking,
+      // not at component mount. Previous version set the flag on mount,
+      // which meant any prior page visit (even one cancelled before the
+      // 2.5s delay) would silently consume the once-per-session quota.
+      if (!forceShow) {
+        try { sessionStorage.setItem(SESSION_KEY, '1') } catch { /* best-effort */ }
+      }
+      setActive(true)
+    }, delayMs)
     return () => clearTimeout(t)
   }, [enabled, delayMs])
 
