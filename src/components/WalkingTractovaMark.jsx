@@ -1,16 +1,27 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 
 // Tractova-mark cameo — pops in from one randomized edge of the screen,
 // hovers in place with one of four randomized animation sets, then slides
 // back out the same edge. Each appearance is unique on two axes (entry
-// side × in-place animation), so different sessions feel different rather
-// than playing the same canned moment over and over.
+// side × in-place animation).
 //
-// Frequency: once per browser session via sessionStorage. Survives across
-// Profile + Lens loading; first surface to fire wins. Resets on tab close.
+// Per-surface frequency control via props:
+//   triggerProbability   — chance the FIRST appearance fires after delayMs
+//                           (1.0 = always; 0.4 = 40% of mounts)
+//   recurringIntervalMs  — if set, fires another cameo every N ms after
+//                           the page mounts (independent of whether the
+//                           first appearance fired). Always fires when the
+//                           interval ticks; randomized side + animation set.
+//   sessionGate          — if true, uses sessionStorage to prevent any
+//                           appearance after the first session-wide fire.
+//                           Set false on surfaces that want recurrence.
 //
-// Test escape hatch: append `?walk=1` to any URL to bypass the session gate
-// and re-trigger as many times as you want (great for QA / showing it off).
+// Default props preserve the original "once per session, always fire" behavior
+// that the LensOverlay uses. Profile passes props for {0.4, 150000, false}
+// to get probabilistic first fire + recurring drop-ins.
+//
+// Test escape hatch: append `?walk=1` to any URL to bypass both the session
+// gate AND the probability check, forcing the first appearance to fire.
 //
 // Surfaces: Profile + Lens loading overlay only. Off-stage from decision-
 // grade surfaces (Compare, MemoView, Admin) where users may be screensharing.
@@ -21,10 +32,13 @@ const SESSION_KEY = 'tractova-walking-mark-shown-v4'
 // Each side defines: anchor edge, a positioning band on the perpendicular
 // axis, and the keyframe animation name that handles enter/hold/exit.
 const SIDES = [
-  { name: 'left',   anchor: { left: 0 },    perpAxis: 'top',  perpRange: [30, 70], keyframe: 'tractova-peek-from-left'   },
-  { name: 'right',  anchor: { right: 0 },   perpAxis: 'top',  perpRange: [30, 70], keyframe: 'tractova-peek-from-right'  },
-  { name: 'top',    anchor: { top: 0 },     perpAxis: 'left', perpRange: [20, 70], keyframe: 'tractova-peek-from-top'    },
-  { name: 'bottom', anchor: { bottom: 0 },  perpAxis: 'left', perpRange: [20, 70], keyframe: 'tractova-peek-from-bottom' },
+  // perpUnit matches the axis: vh when positioning vertically (top), vw
+  // when positioning horizontally (left). Using `vh` for `left` was a
+  // subtle bug — would compute horizontal position from viewport height.
+  { name: 'left',   anchor: { left: 0 },    perpAxis: 'top',  perpUnit: 'vh', perpRange: [30, 70], keyframe: 'tractova-peek-from-left'   },
+  { name: 'right',  anchor: { right: 0 },   perpAxis: 'top',  perpUnit: 'vh', perpRange: [30, 70], keyframe: 'tractova-peek-from-right'  },
+  { name: 'top',    anchor: { top: 0 },     perpAxis: 'left', perpUnit: 'vw', perpRange: [20, 70], keyframe: 'tractova-peek-from-top'    },
+  { name: 'bottom', anchor: { bottom: 0 },  perpAxis: 'left', perpUnit: 'vw', perpRange: [20, 70], keyframe: 'tractova-peek-from-bottom' },
 ]
 
 // ── In-place animation sets ─────────────────────────────────────────────────
@@ -68,27 +82,34 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
-export default function WalkingTractovaMark({ enabled = true, delayMs = 2000 }) {
-  const [active, setActive] = useState(false)
+export default function WalkingTractovaMark({
+  enabled = true,
+  delayMs = 2000,
+  triggerProbability = 1.0,
+  recurringIntervalMs = null,
+  sessionGate = true,
+}) {
+  // `config` doubles as the active-state flag: null when no cameo is on
+  // screen, or { side, setVar, perpPos } when one is currently animating.
+  // Each appearance picks a fresh random side + animation set + position
+  // (NOT captured at mount — that would make recurring fires identical).
+  const [config, setConfig] = useState(null)
 
-  // Both random picks captured on first render via useRef so re-renders
-  // during the animation can never change the side or animation set
-  // mid-flight (would cause visual jumps).
-  const config = useRef({
-    side:    pickRandom(SIDES),
-    setVar:  pickRandom(ANIMATION_SETS),
-    perpPos: 0,  // populated below once we know the perp range
-  })
-  // Compute random perp position once.
-  if (config.current.perpPos === 0) {
-    const [min, max] = config.current.side.perpRange
-    config.current.perpPos = min + Math.random() * (max - min)
-  }
-
-  const triggered = useRef(false)
+  // Internal: spawn a new cameo by rolling fresh random picks and writing
+  // them into state. Called by the first-appearance effect AND the
+  // recurring scheduler. The 7.5s cleanup timer is set inside this fn so
+  // it scopes to each cameo independently.
+  const fireCameo = useCallback(() => {
+    const side    = pickRandom(SIDES)
+    const setVar  = pickRandom(ANIMATION_SETS)
+    const [min, max] = side.perpRange
+    const perpPos = min + Math.random() * (max - min)
+    setConfig({ side, setVar, perpPos, instanceId: Date.now() })
+    setTimeout(() => setConfig(null), 7500)
+  }, [])
 
   useEffect(() => {
-    if (!enabled || triggered.current) return
+    if (!enabled) return
 
     if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
       return
@@ -96,39 +117,58 @@ export default function WalkingTractovaMark({ enabled = true, delayMs = 2000 }) 
 
     const forceShow = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('walk') === '1'
 
-    if (!forceShow) {
+    // Session-gate check (applied to BOTH first-appearance and recurring
+    // when the gate is enabled). On gated surfaces, once the session flag
+    // is set, no further cameos fire from this surface for the rest of
+    // the browser session. Recurring surfaces (Profile) typically pass
+    // sessionGate=false so the recurrence isn't blocked.
+    let blockedByGate = false
+    if (sessionGate && !forceShow) {
       try {
         if (sessionStorage.getItem(SESSION_KEY) === '1') {
-          console.debug('[WalkingTractovaMark] already shown this session; append ?walk=1 to retest')
-          return
+          console.debug('[WalkingTractovaMark] gated by sessionStorage; append ?walk=1 to retest')
+          blockedByGate = true
         }
       } catch { /* fall through */ }
     }
 
-    triggered.current = true
-    const t = setTimeout(() => {
-      // Set the session flag only when the mark actually starts. Prevents
-      // the once-per-session quota from being silently consumed by a brief
-      // mount that never reached the visible state.
-      if (!forceShow) {
-        try { sessionStorage.setItem(SESSION_KEY, '1') } catch { /* best-effort */ }
-      }
-      setActive(true)
-    }, delayMs)
-    return () => clearTimeout(t)
-  }, [enabled, delayMs])
+    // First-appearance scheduler. If gated AND already-shown, skip
+    // entirely. Otherwise wait delayMs, roll the probability gate, fire
+    // if it passes (and write the session flag if gating is enabled).
+    let firstFireTimer = null
+    if (!blockedByGate) {
+      firstFireTimer = setTimeout(() => {
+        const shouldFire = forceShow || Math.random() < triggerProbability
+        if (shouldFire) {
+          if (sessionGate && !forceShow) {
+            try { sessionStorage.setItem(SESSION_KEY, '1') } catch { /* best-effort */ }
+          }
+          fireCameo()
+        }
+      }, delayMs)
+    }
 
-  // Auto-cleanup after the cameo completes — removes the element from the
-  // DOM so it can't accidentally interfere with anything else.
-  useEffect(() => {
-    if (!active) return
-    const t = setTimeout(() => setActive(false), 7500)  // 7s cameo + 500ms buffer
-    return () => clearTimeout(t)
-  }, [active])
+    // Recurring scheduler. Independent of the first-appearance roll —
+    // ticks every recurringIntervalMs from page mount regardless of
+    // whether the first appearance fired. Each tick fires a fresh
+    // randomized cameo. Only enabled if recurringIntervalMs is set
+    // and either the gate is off OR ?walk=1 is in the URL (force).
+    let recurringTimer = null
+    if (recurringIntervalMs && (!sessionGate || forceShow)) {
+      recurringTimer = setInterval(() => {
+        fireCameo()
+      }, recurringIntervalMs)
+    }
 
-  if (!active) return null
+    return () => {
+      if (firstFireTimer)  clearTimeout(firstFireTimer)
+      if (recurringTimer)  clearInterval(recurringTimer)
+    }
+  }, [enabled, delayMs, triggerProbability, recurringIntervalMs, sessionGate, fireCameo])
 
-  const { side, setVar, perpPos } = config.current
+  if (!config) return null
+
+  const { side, setVar, perpPos } = config
 
   return (
     <>
@@ -209,11 +249,17 @@ export default function WalkingTractovaMark({ enabled = true, delayMs = 2000 }) 
       `}</style>
 
       <div
+        // `key` triggers React to fully remount this element on every new
+        // cameo instance, ensuring the CSS animation restarts at frame 0
+        // rather than continuing wherever the prior cameo's was. Critical
+        // for the recurring-fire case where state flips inactive → active
+        // → inactive → active and we want each fire to feel fresh.
+        key={config.instanceId}
         aria-hidden="true"
         className="fixed pointer-events-none"
         style={{
           ...side.anchor,
-          [side.perpAxis]: `${perpPos}vh`,
+          [side.perpAxis]: `${perpPos}${side.perpUnit}`,
           // z-index 110 sits above both normal page content (z<100) and the
           // LensOverlay's dark backdrop (z=100). pointer-events:none ensures
           // it never blocks interactions despite being topmost.

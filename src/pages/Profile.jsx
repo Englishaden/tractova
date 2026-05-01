@@ -402,12 +402,17 @@ export default function Profile() {
           background layer, and a solid wrapper bg would cover the
           animation. */}
       <IntelligenceBackground />
-      {/* Once-per-session anthropomorphized brand mark — walks across the
-          bottom of the screen, pauses briefly, walks off. Kindness-toward-
-          developer detail. Renders only on Profile + Lens loading per
-          design constraints (off the decision-grade surfaces like Compare,
-          MemoView, Admin where users may be screensharing). */}
-      <WalkingTractovaMark />
+      {/* Cameo: 40% chance to fire on first profile open (after the 2s
+          delay), then drops in every 150s for the rest of the visit with
+          a freshly-randomized side + animation set. Session gate is OFF
+          here so the recurring schedule isn't blocked. The Lens loading
+          surface keeps default props (gate=on, no recurrence) so its
+          cameo behaves as before. */}
+      <WalkingTractovaMark
+        triggerProbability={0.4}
+        recurringIntervalMs={150000}
+        sessionGate={false}
+      />
       <main className="relative z-10 max-w-dashboard mx-auto px-6 pt-20 pb-16">
         <div className="mt-6 max-w-3xl mx-auto">
 
