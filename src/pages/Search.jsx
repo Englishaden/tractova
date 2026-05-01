@@ -3997,6 +3997,34 @@ function SearchContent() {
                 meta: { stage: payload.stage, mw: payload.mw, score: payload.opportunity_score },
               })
             } catch (_err) { /* audit failure must not block save */ }
+
+            // Auto-promote orphan scenarios. If the user explored several
+            // scenarios in the Studio before deciding to save the project,
+            // those rows have project_id=null and would otherwise be
+            // invisible in the Library card. Sweep up any orphans that
+            // match this exact Lens context (state + county + tech) and
+            // were saved within the last 7 days, attaching them to the
+            // newly-created project. The 7-day window prevents truly
+            // stale orphans from getting linked retroactively. Failure
+            // here must NOT block the save flow — it's a courtesy attach.
+            try {
+              const since = new Date(Date.now() - 7 * 86400000).toISOString()
+              const { data: promoted } = await supabase
+                .from('scenario_snapshots')
+                .update({ project_id: newId })
+                .eq('user_id', liveUser.id)
+                .is('project_id', null)
+                .eq('state_id', payload.state)
+                .eq('county_name', payload.county)
+                .eq('technology', payload.technology)
+                .gte('created_at', since)
+                .select('id')
+              if (promoted?.length) {
+                toast.success(`${promoted.length} scenario${promoted.length === 1 ? '' : 's'} attached to this project`, {
+                  eyebrow: '◆ Scenarios linked',
+                })
+              }
+            } catch (err) { console.warn('[Save to Library] orphan auto-promote failed:', err.message) }
           }
           return
         }

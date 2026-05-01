@@ -20,6 +20,7 @@ import TractovaLoader from '../components/ui/TractovaLoader'
 import { motion, useMotionValue, useSpring } from 'motion/react'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 import { TECH_COLORS } from '../lib/v3Tokens'
+import ScenarioHistoryList from '../components/ScenarioHistoryList'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
@@ -1362,6 +1363,169 @@ function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
   )
 }
 
+// ── Scenarios view (Library tab) ────────────────────────────────────────────
+// Replaces the project grid when the user toggles to the Scenarios tab.
+// Renders ALL of the user's scenarios — including orphans (project_id null,
+// saved during Lens exploration before committing the project) — grouped
+// by Lens context (state + county + tech). Orphan groups display a "Save
+// as project" CTA that deep-links into Search.jsx with the context
+// pre-filled; once the user saves the project there, Search.jsx
+// auto-promotes the orphans (attaches their project_id), and on next
+// Library load they migrate from this Scenarios view to the Projects view.
+function ScenariosView({ scenariosMap, orphanScenarios, projects, onScenarioDelete }) {
+  // Build groups by composite key state||county||tech. Project-linked
+  // groups carry the project name + id; orphan groups carry just the
+  // context. We iterate orphans separately so they're visually distinct.
+  const groups = useMemo(() => {
+    const projectGroups = []
+    for (const project of projects) {
+      const scenarios = scenariosMap[project.id] || []
+      if (!scenarios.length) continue
+      // Take context from first scenario in the group; fall back to
+      // project columns if scenario context isn't populated for some
+      // historical reason.
+      const head = scenarios[0]
+      projectGroups.push({
+        key: `p::${project.id}`,
+        kind: 'project',
+        project,
+        state: head?.state_id || project.state,
+        county: head?.county_name || project.county,
+        technology: head?.technology || project.technology,
+        scenarios,
+      })
+    }
+    // Group orphans by state+county+tech composite key.
+    const orphanByKey = {}
+    for (const snap of orphanScenarios) {
+      const key = `o::${snap.state_id}::${snap.county_name || ''}::${snap.technology || ''}`
+      if (!orphanByKey[key]) {
+        orphanByKey[key] = {
+          key,
+          kind: 'orphan',
+          state: snap.state_id,
+          county: snap.county_name || '',
+          technology: snap.technology || '',
+          scenarios: [],
+        }
+      }
+      orphanByKey[key].scenarios.push(snap)
+    }
+    const orphanGroups = Object.values(orphanByKey)
+    // Sort: orphans first (so the "save these" prompt is unmissable),
+    // then project groups by most-recent scenario.
+    orphanGroups.sort((a, b) => new Date(b.scenarios[0]?.created_at || 0) - new Date(a.scenarios[0]?.created_at || 0))
+    projectGroups.sort((a, b) => new Date(b.scenarios[0]?.created_at || 0) - new Date(a.scenarios[0]?.created_at || 0))
+    return [...orphanGroups, ...projectGroups]
+  }, [scenariosMap, orphanScenarios, projects])
+
+  if (groups.length === 0) {
+    return (
+      <div className="rounded-xl px-8 py-10 mt-2 text-center" style={{ background: 'rgba(20,184,166,0.04)', border: '1px solid rgba(20,184,166,0.20)' }}>
+        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-2" style={{ color: '#0F766E' }}>
+          ◆ No scenarios saved yet
+        </p>
+        <h2 className="font-serif text-xl font-semibold text-ink mb-2">Run a Lens query and save your first scenario</h2>
+        <p className="text-[13px] text-gray-500 max-w-md mx-auto leading-relaxed mb-4">
+          Each Lens result has a Scenario Studio. Drag sliders or hit ◆ Best case to model alternative deal envelopes; saved scenarios show up here.
+        </p>
+        <Link
+          to="/search"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-white px-4 py-2 rounded-lg transition-colors"
+          style={{ background: '#0F1A2E' }}
+        >
+          Open Lens →
+        </Link>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <ScenarioGroupCard
+          key={g.key}
+          group={g}
+          onScenarioDelete={onScenarioDelete}
+        />
+      ))}
+    </div>
+  )
+}
+
+function ScenarioGroupCard({ group, onScenarioDelete }) {
+  const isOrphan = group.kind === 'orphan'
+  const baselineRev = group.scenarios[0]?.baseline_inputs ? null : null  // baseline rev unknown without recompute; skip delta for now in Library view
+  // Deep-link to Lens with the context pre-filled. The first scenario's
+  // systemSizeMW becomes the mw param so re-running gives a comparable
+  // result. From there the user can hit Save Project; the orphan
+  // promotion in Search.jsx will sweep these into the new project.
+  const headSize = group.scenarios[0]?.scenario_inputs?.systemSizeMW
+                || group.scenarios[0]?.baseline_inputs?.systemSizeMW
+                || 5
+  const lensHref = `/search?state=${group.state}&county=${encodeURIComponent(group.county)}&mw=${headSize}&technology=${encodeURIComponent(group.technology || '')}`
+
+  return (
+    <div className="rounded-xl bg-white" style={{ border: isOrphan ? '1px solid rgba(245,158,11,0.40)' : '1px solid #E2E8F0' }}>
+      <div
+        className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap"
+        style={{ background: isOrphan ? 'rgba(245,158,11,0.04)' : 'rgba(15,26,46,0.02)', borderBottom: '1px solid #E2E8F0', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}
+      >
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          {isOrphan ? (
+            <span
+              className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E', border: '1px solid rgba(245,158,11,0.40)' }}
+            >
+              ◆ Orphan · not in Library
+            </span>
+          ) : (
+            <span
+              className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
+              style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E' }}
+            >
+              ◆ {group.project.name}
+            </span>
+          )}
+          <span className="text-[12px] font-semibold text-ink">
+            {group.county || '—'}, {group.state} · {group.technology || 'Tech ?'}
+          </span>
+          <span className="text-[10px] text-gray-500 font-mono tabular-nums">
+            · {group.scenarios.length} scenario{group.scenarios.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isOrphan && (
+            <Link
+              to={lensHref}
+              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors"
+              style={{ background: '#0F1A2E', color: 'white' }}
+            >
+              Open in Lens to save →
+            </Link>
+          )}
+          {!isOrphan && (
+            <Link
+              to={lensHref}
+              className="cursor-pointer text-[11px] font-medium text-teal-700 hover:text-teal-900"
+            >
+              Re-open in Lens →
+            </Link>
+          )}
+        </div>
+      </div>
+      <div className="px-5 py-4">
+        <ScenarioHistoryList
+          scenarios={group.scenarios}
+          onDelete={(snap) => onScenarioDelete && onScenarioDelete(snap)}
+          baselineRevenue={baselineRev}
+          emptyText="—"
+        />
+      </div>
+    </div>
+  )
+}
+
 // Compact USD formatter for the saved-scenarios chip + picker. Mirrors the
 // shape used inside ScenarioStudio so the same numbers read identically
 // across the studio and the project card. Pure / module-scope.
@@ -1628,6 +1792,29 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                 <span className="font-mono tabular-nums">State {stateDelta.delta > 0 ? '+' : ''}{stateDelta.delta} pt</span>
               </span>
             )}
+            {/* Scenarios badge — promoted from the buried below-footer toggle
+                to the header so users see immediately that this project has
+                saved scenarios attached. Click expands the card AND opens
+                the picker for one-tap access. */}
+            {scenarios.length > 0 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setExpanded(true)
+                  setScenariosOpen(true)
+                }}
+                className="cursor-pointer text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1 transition-all hover:brightness-95"
+                style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E', borderColor: 'rgba(20,184,166,0.40)', lineHeight: 1 }}
+                title={`${scenarios.length} saved scenario${scenarios.length === 1 ? '' : 's'} for this project`}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M3 3v18h18" />
+                  <path d="M7 14l4-4 4 4 5-5" />
+                </svg>
+                <span className="font-mono tabular-nums">Scenarios · {scenarios.length}</span>
+              </button>
+            )}
           </div>
           <p className="text-xs mt-0.5 truncate text-gray-500">
             {project.county} County, {project.stateName || project.state}
@@ -1843,30 +2030,35 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
             </TabsContent>
           </Tabs>
 
-          {/* ── Saved Scenarios — chip + expandable picker ── */}
+          {/* ── Saved Scenarios picker ── */}
           {/* Backed by scenario_snapshots (migration 041) — list filtered to
-              this project_id by the parent's batched query. Tapping the chip
-              expands an inline picker; selecting a scenario marks it for the
-              next PDF export. Empty list → no chip rendered (graceful absence). */}
-          {scenarios.length > 0 && (
+              this project_id by the parent's batched query. Opened via the
+              "Scenarios · N" badge in the card header (since 2026-05-01 the
+              chevron toggle here was retired in favor of the header badge,
+              which is impossible to miss). Selecting a scenario marks it for
+              the next PDF export + Share Deal Memo. */}
+          {scenarios.length > 0 && scenariosOpen && (
             <div className="mt-5 pt-4" style={{ borderTop: '1px solid #E5E7EB' }}>
-              <button
-                onClick={() => setScenariosOpen(o => !o)}
-                className="flex items-center gap-2 text-[11px] font-semibold transition-colors hover:text-teal-700"
-                style={{ color: '#0F766E' }}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points={scenariosOpen ? '6 9 12 15 18 9' : '9 18 15 12 9 6'} />
-                </svg>
-                Saved Scenarios · {scenarios.length}
-                {selectedScenarioId && (
-                  <span className="text-[9px] font-mono uppercase tracking-[0.18em] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E' }}>
-                    1 in next PDF
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold" style={{ color: '#0F766E' }}>
+                    ◆ Saved Scenarios · {scenarios.length}
                   </span>
-                )}
-              </button>
-              {scenariosOpen && (
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {selectedScenarioId && (
+                    <span className="text-[9px] font-mono uppercase tracking-[0.18em] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E' }}>
+                      1 in next PDF
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setScenariosOpen(false)}
+                  className="cursor-pointer text-[10px] font-medium text-gray-500 hover:text-ink"
+                >
+                  Hide
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {scenarios.map((snap) => {
                     const isSel = snap.id === selectedScenarioId
                     const out = snap.outputs || {}
@@ -1916,8 +2108,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                       </div>
                     )
                   })}
-                </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -2472,7 +2663,9 @@ function LibraryContent() {
   const [filterTech,      setFilterTech]      = useState('')
   const [filterStage,     setFilterStage]     = useState('')
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
-  const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at}, ...]
+  const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
+  const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
+  const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' — top-level toggle
 
   // Load live state program map for alert detection
   useEffect(() => {
@@ -2579,11 +2772,12 @@ function LibraryContent() {
     return () => { cancelled = true }
   }, [user, projects.length])
 
-  // Per-project scenarios — one batched query, group by project_id. Used
-  // to render the "Scenarios: N" chip on each card and to feed the Export
-  // PDF button when the user wants to include a saved scenario. Scoped
-  // by RLS to the current user; null project_id (ad-hoc Lens scenarios)
-  // are excluded since they don't belong to any card.
+  // All scenarios for the user — one batched query, then split into
+  // per-project map (for the Library card chip) + orphan list (for the
+  // Library "Scenarios" view tab). Orphans are scenarios saved during
+  // Lens exploration BEFORE the user committed the project to Library;
+  // pre-Phase-2.6 they were invisible. Now they surface in the global
+  // Scenarios view + auto-promote to a project on next save (Search.jsx).
   useEffect(() => {
     if (!user) return
     let cancelled = false
@@ -2591,16 +2785,21 @@ function LibraryContent() {
       try {
         const { data, error } = await supabase
           .from('scenario_snapshots')
-          .select('id, project_id, name, baseline_inputs, scenario_inputs, outputs, created_at')
-          .not('project_id', 'is', null)
+          .select('id, project_id, name, baseline_inputs, scenario_inputs, outputs, created_at, state_id, county_name, technology')
           .order('created_at', { ascending: false })
         if (cancelled || error || !data) return
         const grouped = {}
+        const orphans = []
         for (const row of data) {
-          if (!grouped[row.project_id]) grouped[row.project_id] = []
-          grouped[row.project_id].push(row)
+          if (row.project_id) {
+            if (!grouped[row.project_id]) grouped[row.project_id] = []
+            grouped[row.project_id].push(row)
+          } else {
+            orphans.push(row)
+          }
         }
         setScenariosMap(grouped)
+        setOrphanScenarios(orphans)
       } catch { /* table missing or RLS denial -- silent */ }
     })()
     return () => { cancelled = true }
@@ -3124,8 +3323,62 @@ function LibraryContent() {
           )}
         </div>
 
+        {/* View toggle — Projects vs Scenarios. The Scenarios view exposes
+            saved scenarios that don't yet have a project attached (orphan
+            scenarios from Lens exploration), grouped by state + county +
+            tech. Always visible so users can find scenarios even before
+            they've saved any projects. */}
+        {(projects.length > 0 || orphanScenarios.length > 0 || Object.keys(scenariosMap).length > 0) && (
+          <div className="flex items-center gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'rgba(15,26,46,0.04)' }}>
+            <button
+              type="button"
+              onClick={() => setViewMode('projects')}
+              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
+              style={viewMode === 'projects'
+                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
+                : { background: 'transparent', color: '#6B7280' }}
+            >
+              Projects {projects.length > 0 && <span className="font-mono opacity-60">· {projects.length}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('scenarios')}
+              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
+              style={viewMode === 'scenarios'
+                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
+                : { background: 'transparent', color: '#6B7280' }}
+            >
+              Scenarios {(() => {
+                const total = orphanScenarios.length + Object.values(scenariosMap).reduce((n, arr) => n + arr.length, 0)
+                return total > 0 ? <span className="font-mono opacity-60">· {total}</span> : null
+              })()}
+            </button>
+          </div>
+        )}
+
+        {/* Scenarios view — grouped by Lens context. */}
+        {viewMode === 'scenarios' && !loading && (
+          <ScenariosView
+            scenariosMap={scenariosMap}
+            orphanScenarios={orphanScenarios}
+            projects={projects}
+            onScenarioDelete={async (snap) => {
+              const { error } = await supabase.from('scenario_snapshots').delete().eq('id', snap.id)
+              if (error) return
+              if (snap.project_id) {
+                setScenariosMap(prev => ({
+                  ...prev,
+                  [snap.project_id]: (prev[snap.project_id] || []).filter(s => s.id !== snap.id),
+                }))
+              } else {
+                setOrphanScenarios(prev => prev.filter(s => s.id !== snap.id))
+              }
+            }}
+          />
+        )}
+
         {/* Loading skeleton */}
-        {loading ? (
+        {viewMode === 'projects' && (loading ? (
           <div className="grid gap-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="rounded-xl px-5 py-4 animate-pulse flex items-center gap-4 bg-white border border-gray-200">
@@ -3339,7 +3592,7 @@ function LibraryContent() {
               </div>
             </div>
           </div>
-        )}
+        ))}
       </main>
 
       {/* V3: Radix Dialog -- portal-rendered, focus-trapped, ESC-to-close,

@@ -3,6 +3,7 @@ import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_DISCLAI
 import { supabase } from '../lib/supabase'
 import { useToast } from './ui/Toast'
 import GlossaryLabel from './ui/GlossaryLabel'
+import ScenarioHistoryList from './ScenarioHistoryList'
 
 // Scenario Studio — interactive sensitivity layer over an "achievable
 // baseline." Lives inside the Lens result panel right after the Analyst
@@ -56,7 +57,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
       .eq('state_id', baseline.stateId)
       .eq('technology', baseline.technology)
       .order('created_at', { ascending: false })
-      .limit(8)
+      .limit(25)
     if (projectId) query = query.eq('project_id', projectId)
     const { data } = await query
     setSavedList(data || [])
@@ -193,25 +194,26 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
               Try
             </span>
             <button
+              type="button"
               onClick={() => handlePreset('best')}
-              className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors"
-              style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
-              title={SCENARIO_PRESETS.best.description}
+              className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all hover:brightness-110 hover:-translate-y-px"
+              style={{ background: 'rgba(20,184,166,0.15)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.45)' }}
             >
               ◆ Best case
             </button>
             <button
+              type="button"
               onClick={() => handlePreset('worst')}
-              className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors"
-              style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
-              title={SCENARIO_PRESETS.worst.description}
+              className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all hover:brightness-110 hover:-translate-y-px"
+              style={{ background: 'rgba(217,119,6,0.15)', color: '#92400E', border: '1px solid rgba(217,119,6,0.45)' }}
             >
               ▼ Worst case
             </button>
             {isDirty && (
               <button
+                type="button"
                 onClick={handleReset}
-                className="text-[10px] font-medium px-2 py-1 transition-colors text-gray-500 hover:text-ink"
+                className="cursor-pointer text-[10px] font-medium px-2 py-1 transition-colors text-gray-500 hover:text-ink"
               >
                 Reset
               </button>
@@ -339,40 +341,29 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         </div>
       </div>
 
-      {/* Saved scenarios chip row */}
+      {/* Saved scenarios — vertical history list. Each row shows the
+          scenario name + relative timestamp + headline metrics + a
+          delta-vs-baseline chip so two saves with the same preset name
+          are still visually distinct. Click any row to load it back
+          into the sliders; trash icon deletes. Reused from
+          ScenarioHistoryList so the Library Scenarios tab shows the
+          same shape. */}
       {savedList.length > 0 && (
         <div className="px-6 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="font-mono text-[9px] uppercase tracking-[0.20em] text-gray-500 font-bold">
               Saved Scenarios
             </span>
-            <span className="font-mono text-[9px] text-gray-400">({savedList.length})</span>
+            <span className="font-mono text-[9px] text-gray-400">
+              ({savedList.length}{savedList.length === 25 ? ' most recent' : ''})
+            </span>
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {savedList.map((snap) => (
-              <button
-                key={snap.id}
-                onClick={() => loadScenario(snap)}
-                className="group/chip flex items-center gap-1.5 text-[10px] font-medium px-2 py-1 rounded-md transition-colors"
-                style={{ background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.25)' }}
-              >
-                <span className="font-semibold">{snap.name}</span>
-                <span className="text-[9px] tabular-nums text-gray-500">
-                  ${formatLarge(snap.outputs?.year1Revenue || 0)}
-                </span>
-                <span
-                  onClick={(e) => deleteSnapshot(snap.id, e)}
-                  className="opacity-0 group-hover/chip:opacity-100 transition-opacity hover:text-red-600 cursor-pointer"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Delete scenario ${snap.name}`}
-                  onKeyDown={(e) => { if (e.key === 'Enter') deleteSnapshot(snap.id, e) }}
-                >
-                  ✕
-                </span>
-              </button>
-            ))}
-          </div>
+          <ScenarioHistoryList
+            scenarios={savedList}
+            onLoad={loadScenario}
+            onDelete={(snap) => deleteSnapshot(snap.id, { stopPropagation: () => {} })}
+            baselineRevenue={baseline.outputs?.year1Revenue ?? null}
+          />
         </div>
       )}
 
