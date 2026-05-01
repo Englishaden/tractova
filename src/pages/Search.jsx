@@ -394,7 +394,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
                 <TooltipTrigger asChild>
                   <span
                     className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
-                    style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+                    style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}
                   >
                     <span
                       className="relative inline-flex w-1.5 h-1.5 rounded-full"
@@ -426,7 +426,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
                 <TooltipTrigger asChild>
                   <span
                     className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
-                    style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+                    style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}
                   >
                     <span
                       className="relative inline-flex w-1.5 h-1.5 rounded-full"
@@ -2449,7 +2449,7 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
           </span>
           {showAI && (
             <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
-                  style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}>
+                  style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}>
               ◆ Claude · Sonnet 4.6
             </span>
           )}
@@ -3738,6 +3738,20 @@ function SearchContent() {
   const [saving, setSaving]       = useState(false)
   const [saveError, setSaveError] = useState(null)
   const [confirmClear, setConfirmClear] = useState(false)
+
+  // ESC closes save modal + confirm-clear modal — both are hand-rolled
+  // (not Radix Dialog) so they need explicit keyboard handling for parity
+  // with the rest of the app's modal accessibility.
+  useEffect(() => {
+    if (!saveModal && !confirmClear) return
+    const handleEsc = (e) => {
+      if (e.key !== 'Escape') return
+      if (saveModal) setSaveModal(null)
+      if (confirmClear) setConfirmClear(false)
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [saveModal, confirmClear])
   // V3 §7.4: lift sensitivity scenario state to SearchContent so both
   // MarketPositionPanel (gauge) and MarketIntelligenceSummary (rationale) read the same live state.
   // Toggling a scenario re-renders the gauge in place — no scroll-up needed.

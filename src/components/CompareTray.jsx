@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
@@ -212,11 +212,32 @@ function CompareModal({ onClose }) {
     return parts.join(' · ') || null
   })()
 
+  // Keyboard accessibility — hand-rolled modal needs explicit ESC handling
+  // (Radix Dialog provides this automatically; this is the lightweight
+  // equivalent without pulling in another primitive). On mount we also
+  // shift focus to the modal container so subsequent Tab keys cycle inside
+  // the modal's interactive elements rather than the page behind it.
+  const modalRef = useRef(null)
+  useEffect(() => {
+    const handleEsc = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleEsc)
+    // Focus the modal container so keyboard users start inside it.
+    modalRef.current?.focus()
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [onClose])
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Project comparison"
+    >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-xs" onClick={onClose} />
       <div
-        className="relative w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl"
+        ref={modalRef}
+        tabIndex={-1}
+        className="relative w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl outline-none"
         style={{
           background: '#080E1A',
           border: '1px solid rgba(52,211,153,0.18)',

@@ -133,7 +133,7 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
             <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0F766E' }}>
               Market Pulse
             </span>
-            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm text-teal-700" style={{ background: 'rgba(20,184,166,0.12)' }}>
+            <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm text-teal-800" style={{ background: 'rgba(20,184,166,0.12)' }}>
               AI
             </span>
           </div>
@@ -152,6 +152,36 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
 
       {/* Feed items */}
       <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+        {/* Empty state — fires when filter excludes everything OR the feed
+            itself is empty (cold start before first ingest). Honest signal
+            that the filter is the cause vs. "nothing to read at all". */}
+        {paginated.length === 0 && (
+          <div className="px-5 py-8 text-center">
+            <div className="w-9 h-9 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(20,184,166,0.08)' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 12h4l2-7 4 14 2-7h4"/>
+              </svg>
+            </div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold mb-1" style={{ color: '#0F766E' }}>
+              No items
+            </p>
+            <p className="text-[11px] text-gray-500 leading-relaxed max-w-xs mx-auto">
+              {newsData.length === 0
+                ? 'No policy or market signals ingested yet. Check back after the next refresh cycle.'
+                : `Nothing tagged ${filter === 'ix' ? 'Interconnection' : filter.charAt(0).toUpperCase() + filter.slice(1)} this week. ${filter !== 'all' ? 'Try a different pillar.' : ''}`}
+            </p>
+            {filter !== 'all' && newsData.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleFilter('all')}
+                className="mt-3 text-[10px] font-mono uppercase tracking-[0.18em] font-semibold hover:underline"
+                style={{ color: '#0F766E' }}
+              >
+                Show all pillars →
+              </button>
+            )}
+          </div>
+        )}
         {paginated.map((item) => {
           const pillar    = PILLAR_STYLES[item.pillar] || PILLAR_STYLES.offtake
           const typeStyle = TYPE_STYLES[item.type]     || TYPE_STYLES['market-update']

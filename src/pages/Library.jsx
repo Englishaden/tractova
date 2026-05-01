@@ -476,6 +476,7 @@ function CompareChip({ project, stateProgram = null }) {
     <button
       onClick={handleClick}
       disabled={atLimit}
+      aria-label={tooltipText}
       className={`group relative p-1 transition-colors ${
         inCompare
           ? 'text-teal-700'
@@ -645,6 +646,7 @@ function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveSco
             </p>
             <button
               onClick={() => setSharedUrl(null)}
+              aria-label="Dismiss share link"
               className="text-[11px] text-ink-muted hover:text-ink"
               title="Dismiss"
             >
@@ -1642,6 +1644,8 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
           {alerts.length > 0 && (
             <div
               className="flex flex-wrap gap-1.5 mb-5 pb-4 px-3 py-2.5 rounded-lg"
+              role="region"
+              aria-label={`${alerts.length} alert${alerts.length === 1 ? '' : 's'} for this project`}
               style={{
                 borderBottom: '1px solid #E5E7EB',
                 background: alerts.some(a => a.level === 'warning' || a.level === 'urgent') ? 'rgba(217,119,6,0.06)' : '#FFFFFF',

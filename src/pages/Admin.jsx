@@ -1562,7 +1562,12 @@ function RefreshStatusBanner({ result }) {
   const startedTime = result.startedAt ? new Date(result.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : null
 
   return (
-    <div className={`rounded-xl border ${t.ring} ${t.wash} overflow-hidden`}>
+    <div
+      className={`rounded-xl border ${t.ring} ${t.wash} overflow-hidden`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
       {/* Header */}
       <div className={`flex items-center justify-between gap-3 px-4 py-2.5 border-b ${t.ring}`}>
         <div className="flex items-center gap-2.5 min-w-0">

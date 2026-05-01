@@ -269,6 +269,7 @@ function MetricsModal({ title, onClose, children }) {
           </div>
           <button
             onClick={onClose}
+            aria-label="Close detail panel"
             className="text-white/30 hover:text-white/70 transition-colors font-mono text-lg leading-none px-1 -mr-1"
           >
             ×

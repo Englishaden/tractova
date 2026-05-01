@@ -279,7 +279,7 @@ function LensPreview({ className = '' }) {
         </div>
         <span
           className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold"
-          style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+          style={{ background: 'rgba(20,184,166,0.12)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}
         >
           STRONG
         </span>
@@ -318,7 +318,7 @@ function LensPreview({ className = '' }) {
                   {s.live && (
                     <span
                       className="font-mono text-[8px] uppercase tracking-[0.18em] px-1 py-px font-bold"
-                      style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.25)' }}
+                      style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.25)' }}
                     >
                       Live
                     </span>
