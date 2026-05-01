@@ -31,6 +31,18 @@ export default async function handler(req, res) {
 
   const { priceId, successUrl, cancelUrl } = await readBody(req)
 
+  // Server-side validation: the client passes priceId from a Vite env var
+  // (VITE_STRIPE_PRICE_ID) but a malicious request could substitute any
+  // Stripe price. Stripe will reject unknown prices, but a price belonging
+  // to OUR account at a different rate (e.g. an internal employee discount
+  // price) would succeed and silently create a subscription at the wrong
+  // tier. Allowlist the canonical price configured server-side; if no env
+  // is set, accept anything (dev / first-time setup).
+  const allowedPriceId = process.env.STRIPE_PRICE_ID || process.env.VITE_STRIPE_PRICE_ID
+  if (allowedPriceId && priceId && priceId !== allowedPriceId) {
+    return res.status(400).json({ error: 'Invalid price' })
+  }
+
   try {
     // Fetch or create Stripe customer linked to this user
     const { data: profile } = await supabaseAdmin

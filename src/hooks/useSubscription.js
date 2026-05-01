@@ -41,16 +41,34 @@ export function useSubscription() {
 
     let cancelled = false
 
-    // Initial fetch
+    // Initial fetch. Defensive against three failure modes that previously
+    // left the hook stuck loading forever:
+    //   1. Network error / RLS rejection — error is non-null
+    //   2. profiles row missing (auth trigger didn't fire) — .single()
+    //      returns code 'PGRST116' "Cannot coerce the result to a single
+    //      JSON object"
+    //   3. data is null/undefined — already handled by ?? 'free' fallback
+    // In any failure case, default to free tier and clear loading so the
+    // UI doesn't hang on a phantom subscription check. Logged for debug.
     supabase
       .from('profiles')
       .select('subscription_tier, subscription_status')
       .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
+      .maybeSingle()
+      .then(({ data, error }) => {
         if (cancelled) return
+        if (error) {
+          console.warn('[useSubscription] profile fetch error, defaulting to free:', error.message)
+        }
         setTier(data?.subscription_tier ?? 'free')
         setStatus(data?.subscription_status ?? null)
+        setLoading(false)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.warn('[useSubscription] profile fetch threw, defaulting to free:', err?.message)
+        setTier('free')
+        setStatus(null)
         setLoading(false)
       })
 

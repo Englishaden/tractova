@@ -48,11 +48,18 @@ if (!url || !key) throw new Error('SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY mis
 const admin = createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
 
 // ── config ──
-const args = new Set(process.argv.slice(2))
-const REFRESH_ONLY = args.has('--refresh')
+const args = process.argv.slice(2)
+const argSet = new Set(args)
+const REFRESH_ONLY = argSet.has('--refresh')
 const REFRESH_AGE_DAYS = 90  // skip rows updated more recently than this
-const PARALLEL = 4           // concurrent NWI queries (4-8 safe; higher risks 503)
-const STATE_FILTER = [...args].find(a => a.startsWith('--state='))?.split('=')[1]?.toUpperCase()
+// Concurrent NWI queries. Initial 2026-05-01 run with PARALLEL=4 succeeded
+// for ~700 counties before NWI's server throttled hard and started returning
+// "Wait timeout for the request exceeded" — 2,400 of 3,144 failed. PARALLEL=2
+// is the empirically-safer baseline for catch-up runs. Override with
+// --parallel=N for tuning.
+const parallelArg = args.find(a => a.startsWith('--parallel='))?.split('=')[1]
+const PARALLEL = parallelArg ? Math.max(1, Math.min(8, parseInt(parallelArg, 10))) : 4
+const STATE_FILTER = args.find(a => a.startsWith('--state='))?.split('=')[1]?.toUpperCase()
 
 const FIPS_TO_USPS = {
   '01':'AL','02':'AK','04':'AZ','05':'AR','06':'CA','08':'CO','09':'CT',
