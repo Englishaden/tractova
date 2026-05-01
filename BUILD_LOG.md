@@ -4,72 +4,90 @@
 
 ---
 
-## 🟢 Pickup — User actions to light Path B up on prod
+## 🟢 Pickup — Launch-readiness audit cleared, NWI catch-up running
 
-**Session ended 2026-05-01. One large commit on `main` (`7c49c5c`) ships
-the entire Path B build (wetlands + farmland data layers — all 50 states /
-3,142 counties).** Pre-work probes done first to validate the approach:
+**Session 2026-05-01 (long block, ~10h).** Path B shipped earlier in the
+session, then an end-to-end launch-readiness audit produced a 70/100 score
+with 10 must-fix items. All 10 are now shipped across three thematic
+sessions, plus the operational lessons from the first NWI seed run.
+
+**Today's commits on `main` (most recent first):**
 
 ```
+5fa13c7  Audit follow-ups: profile defaults, priceId guard, seed --parallel flag
+3539511  Session 3 audit fixes: silent failure sweep
+5f70330  Session 2 audit fixes: data integrity cluster
+14f92b2  Session 1 audit fixes: onboarding + auth + paywall + first-run
+dc85c18  BUILD_LOG: cron-runs latency monitor → P2 backlog
+d50c9fd  Admin: visible feedback on Copy report / Copy / Copy JSON buttons
+bbc9543  Fix substations 504: parallelize per-state EIA calls
+9902f51  Fix HTTP 500 on refresh-data: duplicate `const usps`
+5b17f89  Fix geospatial_farmland: per-state SSURGO batching
+3a11235  BUILD_LOG: Path B + migration 039 + 3-step prod activation
 7c49c5c  Path B: county_geospatial_data — wetlands + farmland for all 50 states
 ```
 
-**To light it up on prod, three actions in this order:**
+**To light up Path B on prod (still pending Aden's action):**
 
 1. **Run migration 039** in Supabase SQL editor (paste
    `supabase/migrations/039_county_geospatial_data.sql`). Inert until rows
    exist — does not change scoring behavior.
 2. **Trigger the SSURGO ingest** via the admin Refresh button (or wait for
    Sunday 7:45 cron). Populates ~3,000 counties with `prime_farmland_pct`
-   in ~5s. After this, `availableLand` is live for all 50 states (where
-   SSURGO has soil-survey coverage — AK skipped per migration comment).
-3. **Run the NWI seed locally** when convenient — takes ~1.5h with 4x
-   parallelism:
-   ```
-   node scripts/seed-county-geospatial-nwi.mjs
-   ```
-   Idempotent + resumable. After completion, `wetlandWarning` is live for
-   all 3,142 counties and the **Site · Live** pill renders in the Lens
-   eyebrow strip for any county query.
+   in ~5s. After this, `availableLand` is live for all 50 states (AK
+   skipped per migration comment).
+3. **NWI catch-up running in background** (PARALLEL=2 after the first
+   run hit NWI server-side throttling — 730/3144 succeeded, 2414 timed
+   out). The catch-up `--refresh --parallel=2` invocation processes only
+   the missing rows; ETA ~3-4h on the gentler parallelism.
 
-Quarterly NWI refresh: `node scripts/seed-county-geospatial-nwi.mjs --refresh`
-(skips counties whose `wetland_last_updated` is < 90 days old).
+**Audit punch list status (was 10 must-fix, now 0):**
 
-**Visual verification on prod after step 3:**
-- Lens results eyebrow now shows a small teal **"Site · Live"** pill (next
-  to IX · Live where applicable) for ANY county in any state — not just the
-  18 with curated `county_intelligence` rows. Hover opens a structured Radix
-  tooltip explaining inputs (NWI / SSURGO) and thresholds.
-- Site sub-score for the 32 previously-fallback states (TX, GA, NC, AZ, etc.)
-  now reflects real wetland + farmland data instead of the 60 placeholder.
+| # | Item | Commit |
+|---|------|--------|
+| 1 | UpgradeSuccess first-time Pro guided action (biggest conversion lever) | 14f92b2 |
+| 2 | Landing hero ApiErrorBanner instead of swallowed catches | 14f92b2 |
+| 3 | Cross-tab cache invalidation after admin Refresh (BroadcastChannel) | 5f70330 |
+| 4 | scoreEngine null-input → midpoint instead of optimistic favorable | 5f70330 |
+| 5 | Library getAlerts uses same countyData inputs as card display | 5f70330 |
+| 6 | /update-password route (Supabase password reset target) | 14f92b2 |
+| 7 | UpgradePrompt LensPreview component (paywall now shows the output) | 14f92b2 |
+| 8 | Search PUC + Comparable panel error logging (curation-gated, intentional hide) | 3539511 |
+| 9 | useSubscription hardened: maybeSingle + .catch → free-tier default | 5fa13c7 |
+| 10 | create-checkout-session priceId allowlist (env-gated server-side check) | 5fa13c7 |
 
-**Next pickup options (priority-ordered for retention vs effort):**
+Plus the silent-failure sweep (Glossary copy feedback, CompareTray AI
+error visible, console.warn for graceful-degrade helpers).
 
+**Visual verification on prod after Vercel redeploys:**
+- New `/update-password` route — Supabase reset-password emails now land
+  on a real form instead of 404
+- Landing hero amber banner if both metrics fetches fail (with Retry)
+- UpgradeSuccess for first-time Pro shows guided "Run the example" card
+  with pre-filled Will County demo, not a blank /search dump
+- Paywall has a static LensPreview card showing the actual report layout
+- Compare modal AI block shows a clear "AI comparison unavailable" amber
+  block instead of vanishing on error
+- Glossary term-link copy shows "Copied" / "Copy failed" inline
+
+**Next pickup options (priority-ordered):**
+
+- **NWI catch-up monitoring** — re-check in ~3-4h once `--refresh
+  --parallel=2` finishes; if still incomplete, drop to `--parallel=1`.
 - **Drill-down geospatial detail in the Site Control card** — when a user
-  expands the Site Control card, surface the actual `wetland_coverage_pct`,
-  `wetland_category`, `prime_farmland_pct` numbers + sources (NWI / SSURGO)
-  alongside the existing land-use bullets. ~1-2h.
+  expands the Site Control card, surface `wetland_coverage_pct`,
+  `wetland_category`, `prime_farmland_pct` + sources alongside curated
+  notes. ~1-2h.
 - **Activate §48(e) / HUD layers in Lens scoring UI** — data live (3,144
   NMTC + 1,801 HUD rows). Needs to flow into the offtake panel as ITC-
   bonus indicators. ~3-4h.
 - **Expand IX scrapers to missing CS-active states** (CA, FL, WA, HI, NM,
   CT, RI, MI, WI, OR, VA) — would grow IX · Live from 8 → 19. Multi-
   session per-ISO scraper work.
-- **Path-toward-50-states-fully-live**: see
-  [memory: 50-state live coverage roadmap](../../memory/...). Order
-  implied: site (✅ this session) → IX (scraper expansion) → utility
-  serving (EIA Form 861) → offtake (EIA retail rates).
-
-**Earlier pickup state superseded by this session:**
-
-```
-e4c6666  Lens loader: asymptotic halo fill — never stalls, always creeps forward
-7d474e1  IX · Live pill: structured Radix tooltip matching the methodology popover
-e9506a7  IX score live-blend: ix_queue_data signals on top of curated ixDifficulty
-4702b98  BUILD_LOG: flip migrations 034-037 to ✅ + add live-DB probe script
-b27dfa0  Library WoW deltas + freshness signal
-5b6a7a0  Pro-flow smoke tests: authed regression net for the white-screen class
-```
+- **Cron-runs latency monitor** (P2 backlog, see `dc85c18`) — proactive
+  scan to catch the next 504-class bug before users do.
+- **Path-toward-50-states-fully-live**: site (✅) → IX (scraper expansion)
+  → utility serving (EIA Form 861) → offtake (EIA retail rates).
 
 ---
 
@@ -398,6 +416,15 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `5fa13c7` | Audit follow-ups: useSubscription .catch + maybeSingle (no more stuck-loading on missing profile row), create-checkout-session priceId allowlist, seed-county-geospatial-nwi.mjs `--parallel=N` flag for NWI catch-up runs |
+| `3539511` | Session 3 audit fixes — silent failure sweep: CompareTray AI compare error block, Glossary copy-link "Copied" / "Copy failed" feedback, console.warn for graceful-degrade helpers (Search PUC/Comparable wrappers, Library local fallback fetch, CommandPalette state map, Footer last-updated) |
+| `5f70330` | Session 2 audit fixes — data integrity: scoreEngine partial-input midpoint scoring (replaces null→favorable shortcut), Library getAlerts threads countyDataMap (alert delta now matches card display), BroadcastChannel cross-tab cache invalidation on admin Refresh |
+| `14f92b2` | Session 1 audit fixes — onboarding: /update-password route (Supabase reset target), Landing ApiErrorBanner instead of swallowed catches, UpgradeSuccess first-time Pro guided-action card, UpgradePrompt LensPreview component (paywall now shows the output) |
+| `dc85c18` | BUILD_LOG: cron-runs latency monitor → P2 backlog (catch the next 504-class bug before users do via cron_runs.duration_ms p95 vs maxDuration scan) |
+| `d50c9fd` | Admin: visible feedback on Copy report / Copy / Copy JSON buttons via shared CopyButton component |
+| `bbc9543` | Fix substations 504: parallelize fetchEIAData + fetchRetailRates per-state with Promise.allSettled (was 8×15s sequential = up to 120s past 60s budget) |
+| `9902f51` | Fix HTTP 500 on refresh-data: duplicate `const usps` SyntaxError; adds `lint:api` step to verify pipeline so api/*.js syntax is checked locally |
+| `5b17f89` | Fix geospatial_farmland: switch SSURGO from single whole-US query to per-state batched (50 × ~80ms = ~5s, was tripping SDA's 100s execution cap and returning empty {}) |
 | `7c49c5c` | Path B: county_geospatial_data — wetland coverage (NWI) + prime farmland (SSURGO) for all 50 states / 3,142 counties; closes Site Control gap; migration 039 + scoreEngine 3-layer fallback + Site · Live pill |
 | `e4c6666` | Lens loader: asymptotic halo fill — replaces linear-stall-then-jump with `p = 95 * (1 - exp(-elapsed/8s))`; RAF loop never exits while overlay visible so the halo physically can't freeze on slow runs; cleaner snap-to-100 landing on completion |
 | `7d474e1` | IX · Live pill: structured Radix tooltip matching the methodology popover (dark navy + teal border); replaces native browser `title` with INPUTS / CLAMP / coverage-policy box |
