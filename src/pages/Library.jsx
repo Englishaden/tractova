@@ -502,7 +502,7 @@ function CompareChip({ project, stateProgram = null }) {
 // Posts to /api/lens-insight 'memo-create' with a pre-generated AI memo +
 // project snapshot. Server returns { token, url, expiresAt }. We copy the
 // fully-qualified URL to clipboard and show a toast.
-function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveScore, shareCount = 0, onShareSuccess }) {
+function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveScore, shareCount = 0, onShareSuccess, selectedScenario = null }) {
   const [sharing, setSharing] = useState(false)
   // Persistent share confirmation panel -- the transient toast is easy to
   // miss, especially if the user is mid-scroll. We hold the URL inline until
@@ -548,6 +548,10 @@ function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveSco
           stateProgram: stateOverride,
           countyData,
           memo: memo || { recommendation: 'No AI memo generated; viewing project context only.' },
+          // Optional saved scenario — when the user has one selected on this
+          // card (Include in PDF toggle), it rides the same share so the
+          // recipient sees the deal memo + scenario in a single link.
+          scenario: selectedScenario || null,
         }),
       })
       if (!createRes.ok) {
@@ -1941,6 +1945,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                 liveScore={liveScore}
                 shareCount={shareCount}
                 onShareSuccess={handleShareSuccess}
+                selectedScenario={selectedScenarioId ? scenarios.find(s => s.id === selectedScenarioId) || null : null}
               />
               {/* V3 §Wave 2: Utility Outreach Kit -- consultant-grade pre-app
                   packet (email + study intel + checklists). Pro-gated via

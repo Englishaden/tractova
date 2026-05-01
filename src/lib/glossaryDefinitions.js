@@ -148,6 +148,30 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'Spans from near-$0 (no REC market) to $85+/MWh (NJ SREC-II, MA SMART). For states with ABP/REC programs (IL, MD), the contracted price is typically locked at award; this slider models alternative outcomes (next-block pricing, REC market shifts). For states with no REC market, leave at baseline (0). Major revenue lever in REC-market states.',
     inputs: 'revenue_rates.rec_per_mwh · DSIRE · state regulatory filings',
   },
+  'IRR': {
+    title: 'IRR (Internal Rate of Return)',
+    short: 'Annualized return rate that makes the project\'s lifetime cashflows discount to zero — the headline IC metric.',
+    long: 'Computed by Newton-Raphson root-finding on the project\'s 25-year cashflow stream (15-year for BESS). Year 0 = -(capex + IX cost). Years 1-25 = revenue (with 0.5%/yr degradation) - opex (baseline $20/kW/yr × 2.5%/yr inflation) + ITC annualized over 6 years. Solar CS projects typically land 8-15% IRR depending on REC market + tax-equity structure. Doesn\'t model debt leverage or tax-equity flips — engage an advisor for structured-finance IRR.',
+    inputs: 'project cashflow stream · 25-yr life · 8% discount baseline · $20/kW/yr opex',
+  },
+  'LCOE': {
+    title: 'LCOE (Levelized Cost of Energy)',
+    short: 'Discounted lifetime cost divided by discounted lifetime production — what each MWh actually costs to produce.',
+    long: 'A "what does it cost us to make a MWh?" metric that lets you compare projects at different scales or in different markets. Sum of (capex + present-value of opex) divided by sum of present-value of MWh production over project life, all discounted at 8%. Utility-scale solar typically lands $30-60/MWh in 2025. Lower is better. Not meaningful for BESS (storage cycles vs production), so the BESS view shows IRR + NPV instead.',
+    inputs: 'discounted lifecycle cost / discounted lifetime MWh @ 8%',
+  },
+  'NPV': {
+    title: 'NPV (Net Present Value @ 8%)',
+    short: 'Sum of all cashflows over project life, discounted to today at the standard 8% rate. Positive = value creation.',
+    long: 'The dollar value the project creates above the cost of capital. Computed as sum over 25 years of (Y1 revenue × degradation - opex + ITC) ÷ (1.08)^year, minus initial dev cost. Positive NPV means the project beats an alternative 8% return; negative means it doesn\'t. Adjust the discount rate assumption mentally if your hurdle rate differs (a 12% hurdle means the project needs to clear a higher bar).',
+    inputs: 'cashflow stream · 8% discount rate baseline',
+  },
+  'Lifetime Rev': {
+    title: 'Lifetime Revenue',
+    short: 'Sum of nominal (un-discounted) revenue across all years of the project life — useful for sanity-checking deal size.',
+    long: 'Total revenue the project will gross over its 25-year life (15-year for BESS), including ITC value. NOT discounted, so a $100K/yr project = $2.5M lifetime — but those late-year dollars are worth far less than today\'s. Use NPV for the actual value-creation metric; lifetime revenue is mostly a "deal scale" reference.',
+    inputs: 'sum of yearly revenue with degradation applied',
+  },
 }
 
 // Convenience: shape for a `<GlossaryLabel>` short-tooltip use case.

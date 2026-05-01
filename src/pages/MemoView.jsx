@@ -75,7 +75,7 @@ export default function MemoView() {
     )
   }
 
-  const { memo, project, stateProgram, sharedAt, sharedByName } = snapshot
+  const { memo, project, stateProgram, scenario, sharedAt, sharedByName } = snapshot
   // Older tokens stored sharedBy: <email>; we deliberately ignore that field
   // here so the shared URL never leaks the owner's email to recipients.
   // Only sharedByName (display name) is rendered.
@@ -165,6 +165,40 @@ export default function MemoView() {
               {memo.revenueSummary && (
                 <MemoSection eyebrow="Revenue Outlook" body={memo.revenueSummary} accent="#0F766E" />
               )}
+            </div>
+          )}
+
+          {/* Selected scenario — frozen at share time. Renders only when the
+              owner toggled "Include in PDF + share" on a saved scenario.
+              Layout mirrors ScenarioStudio's output card so the recipient
+              sees the same shape they'd see if they were running the Studio
+              themselves. Disclaimer banner at the bottom keeps the
+              directional-not-IC-grade framing intact. */}
+          {scenario && scenario.outputs && (
+            <div className="rounded-xl px-6 py-5 mb-8 relative overflow-hidden"
+                 style={{ background: '#0F1A2E', color: 'white' }}>
+              <div className="absolute top-0 left-0 right-0 h-px"
+                   style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(245,158,11,0.55) 30%, rgba(245,158,11,0.85) 50%, rgba(245,158,11,0.55) 70%, transparent 100%)' }} />
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold" style={{ color: '#FDBA74' }}>
+                  ◆ Selected Scenario · {scenario.name}
+                </div>
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-sm"
+                      style={{ background: 'rgba(245,158,11,0.15)', color: '#FCD34D' }}>
+                  Sensitivity · directional only
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <ScenarioMetric label="Year 1 Revenue" value={`$${formatLargeUSD(scenario.outputs.year1Revenue)}`} suffix="/ yr" />
+                <ScenarioMetric label="Simple Payback" value={scenario.outputs.paybackYears != null ? `${scenario.outputs.paybackYears} yr` : '—'} />
+                <ScenarioMetric label="IRR" value={scenario.outputs.irr != null ? `${(scenario.outputs.irr * 100).toFixed(1)}%` : '—'} />
+                <ScenarioMetric label="NPV" value={scenario.outputs.npv != null ? `$${formatLargeUSD(scenario.outputs.npv)}` : '—'} suffix="@ 8%" />
+                <ScenarioMetric label="LCOE" value={scenario.outputs.lcoe != null ? `$${scenario.outputs.lcoe.toFixed(0)}` : '—'} suffix="/ MWh" />
+                <ScenarioMetric label="Lifetime Rev" value={scenario.outputs.lifetimeRevenue != null ? `$${formatLargeUSD(scenario.outputs.lifetimeRevenue)}` : '—'} />
+              </div>
+              <div className="mt-4 text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                Scenarios are directional sensitivity analyses based on industry baseline assumptions. NOT investment-grade pro-forma — engage a financial advisor for IC-grade modeling.
+              </div>
             </div>
           )}
 
@@ -347,4 +381,29 @@ function Field({ label, value }) {
       <p className="text-sm text-ink font-medium">{value}</p>
     </div>
   )
+}
+
+// Compact metric tile for the shared scenario panel — mirrors the navy
+// output card from ScenarioStudio so recipients see the same shape the
+// owner sees in the Studio.
+function ScenarioMetric({ label, value, suffix }) {
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[9px] uppercase tracking-[0.18em] mb-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
+        {label}
+      </p>
+      <p className="font-bold tabular-nums leading-tight" style={{ fontSize: '17px' }}>
+        {value}
+        {suffix && <span className="text-[10px] font-normal ml-1" style={{ color: 'rgba(255,255,255,0.55)' }}>{suffix}</span>}
+      </p>
+    </div>
+  )
+}
+
+function formatLargeUSD(n) {
+  if (n == null) return '—'
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return Math.round(n).toLocaleString()
 }

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_DISCLAIMER } from '../lib/scenarioEngine'
+import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_DISCLAIMER, SCENARIO_PRESETS } from '../lib/scenarioEngine'
 import { supabase } from '../lib/supabase'
 import { useToast } from './ui/Toast'
 import GlossaryLabel from './ui/GlossaryLabel'
@@ -90,6 +90,20 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     setSavedName('')
   }
 
+  function handlePreset(key) {
+    const preset = SCENARIO_PRESETS[key]
+    if (!preset) return
+    const overrides = preset.apply(baseline.inputs)
+    // Merge — undefined/null values from preset don't override (e.g. REC
+    // for a state with no REC market stays at 0 baseline, not null).
+    const next = { ...baseline.inputs }
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v != null) next[k] = v
+    }
+    setSliders(next)
+    if (!savedName) setSavedName(preset.label)
+  }
+
   async function handleSave() {
     if (!user) {
       showToast('Sign in to save scenarios', 'error')
@@ -168,8 +182,42 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
       </div>
 
       <div className="px-6 py-5 grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Left: sliders (3 cols) */}
+        {/* Left: presets + sliders (3 cols) */}
         <div className="lg:col-span-3 space-y-4">
+          {/* Preset chips — one-tap "what if it goes well / wrong" envelopes.
+              Applies modest 15-30% multipliers to the helpful sliders so the
+              user can quickly see a reasonable upside vs. downside without
+              learning the slider semantics first. */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-mono uppercase tracking-[0.20em] text-gray-500 font-bold mr-1">
+              Try
+            </span>
+            <button
+              onClick={() => handlePreset('best')}
+              className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors"
+              style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+              title={SCENARIO_PRESETS.best.description}
+            >
+              ◆ Best case
+            </button>
+            <button
+              onClick={() => handlePreset('worst')}
+              className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors"
+              style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
+              title={SCENARIO_PRESETS.worst.description}
+            >
+              ▼ Worst case
+            </button>
+            {isDirty && (
+              <button
+                onClick={handleReset}
+                className="text-[10px] font-medium px-2 py-1 transition-colors text-gray-500 hover:text-ink"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
           {sliderConfig.map((cfg) => (
             <SliderRow
               key={cfg.key}
@@ -180,49 +228,55 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
           ))}
         </div>
 
-        {/* Right: output card (2 cols) */}
+        {/* Right: output card (2 cols) — 6 metrics in 2x3 grid + save flow */}
         <div className="lg:col-span-2">
           <div
             className="rounded-lg p-4 h-full flex flex-col gap-3"
             style={{ background: '#0F1A2E', color: 'white' }}
           >
-            <div className="flex items-center justify-between gap-2">
-              <GlossaryLabel
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCell
                 term="Year 1 Revenue"
-                className="font-mono text-[9px] uppercase tracking-[0.22em] font-bold"
+                value={`$${formatLarge(out.year1Revenue)}`}
+                suffix="/ yr"
+                delta={out.revenueDelta != null && Math.abs(out.revenueDelta) > 100 ? out.revenueDeltaPct : null}
+                format="pct"
+                primary
               />
-              {out.revenueDelta != null && Math.abs(out.revenueDelta) > 100 && (
-                <DeltaChip delta={out.revenueDeltaPct} format="pct" />
-              )}
-            </div>
-            <div className="font-bold tabular-nums" style={{ fontSize: '26px', lineHeight: 1.1 }}>
-              ${formatLarge(out.year1Revenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span>
-            </div>
-            {out.revenueDelta != null && Math.abs(out.revenueDelta) > 100 && (
-              <div className="text-[10px] text-gray-400 tabular-nums">
-                {out.revenueDelta > 0 ? '+' : ''}${formatLarge(out.revenueDelta)} vs baseline
-              </div>
-            )}
-
-            <div className="h-px my-1" style={{ background: 'rgba(255,255,255,0.10)' }} />
-
-            <div className="flex items-center justify-between gap-2">
-              <GlossaryLabel
+              <MetricCell
                 term="Simple Payback"
-                className="font-mono text-[9px] uppercase tracking-[0.22em] font-bold"
+                value={out.paybackYears != null ? `${out.paybackYears}` : '—'}
+                suffix="yr"
+                delta={out.paybackDelta != null && Math.abs(out.paybackDelta) > 0.1 ? -out.paybackDelta : null}
+                format="years"
               />
-              {out.paybackDelta != null && Math.abs(out.paybackDelta) > 0.1 && (
-                <DeltaChip delta={-out.paybackDelta} format="years" />
-              )}
+              <MetricCell
+                term="IRR"
+                value={out.irr != null ? `${(out.irr * 100).toFixed(1)}%` : '—'}
+                suffix=""
+                delta={out.irrDelta != null && Math.abs(out.irrDelta) > 0.001 ? out.irrDelta : null}
+                format="irrPct"
+              />
+              <MetricCell
+                term="NPV"
+                value={out.npv != null ? `$${formatLarge(out.npv)}` : '—'}
+                suffix="@ 8%"
+                delta={out.npvDelta != null && Math.abs(out.npvDelta) > 1000 ? out.npvDelta / Math.max(Math.abs(baseline.outputs.npv) || 1, 1) : null}
+                format="pct"
+              />
+              <MetricCell
+                term="LCOE"
+                value={out.lcoe != null ? `$${out.lcoe.toFixed(0)}` : '—'}
+                suffix="/ MWh"
+                delta={out.lcoeDelta != null && Math.abs(out.lcoeDelta) > 0.5 ? -out.lcoeDelta : null}
+                format="lcoe"
+              />
+              <MetricCell
+                term="Lifetime Rev"
+                value={out.lifetimeRevenue != null ? `$${formatLarge(out.lifetimeRevenue)}` : '—'}
+                suffix="total"
+              />
             </div>
-            <div className="font-bold tabular-nums" style={{ fontSize: '22px', lineHeight: 1.1 }}>
-              {out.paybackYears != null ? `${out.paybackYears} yr` : '—'}
-            </div>
-            {out.paybackDelta != null && Math.abs(out.paybackDelta) > 0.1 && (
-              <div className="text-[10px] text-gray-400 tabular-nums">
-                {out.paybackDelta > 0 ? '+' : ''}{out.paybackDelta} yr vs baseline
-              </div>
-            )}
 
             {summaryLine && (
               <div className="mt-1 text-[10px] text-gray-400 leading-relaxed">
@@ -231,21 +285,13 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
             )}
 
             <div className="mt-auto pt-2 flex items-center gap-2 flex-wrap">
-              <button
-                onClick={handleReset}
-                className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                style={{ color: 'rgba(255,255,255,0.65)', border: '1px solid rgba(255,255,255,0.15)' }}
-                disabled={!isDirty}
-              >
-                Reset
-              </button>
               {!naming ? (
                 <button
                   onClick={() => setNaming(true)}
                   className="text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors flex-1"
                   style={{ background: 'rgba(20,184,166,0.20)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.40)' }}
                   disabled={!user || !isDirty}
-                  title={!user ? 'Sign in to save scenarios' : !isDirty ? 'Drag a slider first' : ''}
+                  title={!user ? 'Sign in to save scenarios' : !isDirty ? 'Drag a slider or pick a preset first' : ''}
                 >
                   Save scenario
                 </button>
@@ -406,12 +452,15 @@ function SliderRow({ cfg, value, onChange }) {
 function DeltaChip({ delta, format }) {
   if (delta == null) return null
   const positive = delta > 0
-  const value = format === 'pct'
-    ? `${positive ? '+' : ''}${(delta * 100).toFixed(1)}%`
-    : `${positive ? '+' : ''}${delta} yr`
+  let value
+  if (format === 'pct')        value = `${positive ? '+' : ''}${(delta * 100).toFixed(1)}%`
+  else if (format === 'years') value = `${positive ? '+' : ''}${delta.toFixed(1)} yr`
+  else if (format === 'irrPct') value = `${positive ? '+' : ''}${(delta * 100).toFixed(1)} pp`
+  else if (format === 'lcoe')   value = `${positive ? '+' : ''}$${Math.abs(delta).toFixed(0)}`
+  else                          value = `${positive ? '+' : ''}${delta}`
   return (
     <span
-      className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm"
+      className="text-[9px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm"
       style={{
         background: positive ? 'rgba(16,185,129,0.20)' : 'rgba(220,38,38,0.20)',
         color: positive ? '#10B981' : '#FCA5A5',
@@ -419,6 +468,32 @@ function DeltaChip({ delta, format }) {
     >
       {value}
     </span>
+  )
+}
+
+// Compact metric cell for the 2x3 output grid. Shows the label, the big
+// number, and a delta chip when the scenario diverges materially from
+// the baseline. `primary` flag bumps the value font size for the
+// headline metric (Year 1 Revenue).
+function MetricCell({ term, glossaryTerm, value, suffix, delta, format, primary = false }) {
+  const labelTerm = glossaryTerm || term
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center justify-between gap-1 mb-0.5">
+        <GlossaryLabel
+          term={labelTerm}
+          displayAs={term}
+          className="font-mono text-[8px] uppercase tracking-[0.18em] font-bold text-gray-400 truncate"
+        />
+        {delta != null && <DeltaChip delta={delta} format={format} />}
+      </div>
+      <div className="font-bold tabular-nums" style={{ fontSize: primary ? '20px' : '16px', lineHeight: 1.15 }}>
+        {value}
+        {suffix && (
+          <span className="text-[10px] font-normal text-gray-400 ml-1">{suffix}</span>
+        )}
+      </div>
+    </div>
   )
 }
 

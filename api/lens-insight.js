@@ -1050,7 +1050,7 @@ async function handleCompare(body, res) {
 // Tokens self-expire (90 days) and have a view cap (100) to bound abuse.
 //
 async function handleMemoCreate(body, res, user) {
-  const { project, stateProgram, countyData, memo } = body
+  const { project, stateProgram, countyData, memo, scenario } = body
   if (!project?.id) return res.status(400).json({ error: 'project.id required' })
   if (!memo) return res.status(400).json({ error: 'memo required' })
 
@@ -1088,6 +1088,19 @@ async function handleMemoCreate(body, res, user) {
     },
     stateProgram: stateProgram || null,
     countyData: countyData || null,
+    // Optional saved scenario from scenario_snapshots. When the owner
+    // toggled "Include in PDF + share" on a card, the row rides into
+    // the snapshot so the recipient sees the deal memo + scenario in
+    // a single token-protected URL. We embed the row inline (rather
+    // than referencing scenario_snapshots.id) so the snapshot is
+    // hermetic — even if the owner later deletes the saved scenario,
+    // the shared link still renders.
+    scenario: scenario && typeof scenario === 'object' ? {
+      name: scenario.name,
+      baseline_inputs: scenario.baseline_inputs,
+      scenario_inputs: scenario.scenario_inputs,
+      outputs: scenario.outputs,
+    } : null,
     sharedAt: new Date().toISOString(),
     sharedByName: displayName,
     ownerUserId: user.id,
