@@ -4,56 +4,60 @@
 
 ---
 
-## 🟢 Pickup — laptop restart, visual verification on prod after redeploy
+## 🟢 Pickup — create the smoke test Pro account, then commit
 
-**Last session ended 2026-04-30 ~20:50 UTC**. Six commits shipped on
-two threads:
+**Last session shipped Pro-flow smoke scaffolding** (uncommitted at session
+pause). Five files changed:
 
-**Trust/correctness thread:**
-- `596de4b` — Lens offtake coverage signaling
-- `d4061d2` — Lens site coverage signaling
-- `e2c8b48` — Dashboard data-freshness hero indicator
+- `tests/auth.setup.js` (new) — drives `/signin` with creds from `.env.local`,
+  saves storage state to `tests/.auth/pro-user.json`
+- `tests/pro-smoke.spec.js` (new) — 6 tests covering home (Dashboard
+  resolution), Search past paywall, Library past paywall, Library
+  empty-state preview, Profile + Pro-badge, /preview when authed
+- `playwright.config.js` — added `setup` + `pro-chromium` projects with
+  glob testMatch
+- `package.json` scripts — `test:smoke` now unauth-only; new
+  `test:smoke:pro`, `test:smoke:all`, `verify:full`. `npm run verify`
+  unchanged (build + unauth smoke).
+- `.gitignore` += `tests/.auth/`. `.env.example` += test-account setup
+  instructions.
 
-**Visual polish thread (this session's last work):**
-- `8a7f2ea` — gauge labels, shimmer flow bug, legend visibility,
-  symmetry sweep across NewsFeed / Comparable / Regulatory
-- *(pending commit at session pause)* — legend label revert +
-  Landing.jsx onboarding alert-feed baseline alignment
+**Before committing — one-time setup the user must do:**
 
-**Visual verification on prod after redeploy:**
+1. **Create the test account** in the live app (sign up via UI, e.g.
+   `smoke-test@tractova.com` with any password).
+2. **Flip it to Pro** via Supabase SQL editor:
+   ```sql
+   update profiles
+      set subscription_tier='pro',
+          subscription_status='active'
+    where id = (select id from auth.users where email='smoke-test@tractova.com');
+   ```
+3. **Drop creds in `.env.local`:**
+   ```
+   TEST_USER_EMAIL=smoke-test@tractova.com
+   TEST_USER_PASSWORD=<the password>
+   ```
+4. **Run `npm run test:smoke:pro`** — should pass 6 tests in ~10-15s.
+5. **Then `npm run verify:full`** to confirm the full suite is green
+   before committing.
 
-1. **Speedometer/gauge** in Lens results — small mono "25 / 50 / 75"
-   numerals just outside the major ticks. User feedback: "looks so
-   good." ✓
-2. **Sub-score shimmer** — flows continuously left to right, no
-   visible loop snap-back. User feedback: "looks great!" ✓ (Was a
-   real CSS bug: animation only shifted half a tile due to how
-   background-position-x percentages compute.)
-3. **Map legend (Dashboard)** — dots and lines visibly readable
-   against the teal swatch. Labels stay terse: "Full / Mid / Light"
-   (the "— lines / — dots" addendum was removed per user feedback).
-4. **NewsFeed (Dashboard)** — source · date is now on its own row
-   below the tag chips, not pulled off-baseline by items-center.
-5. **Landing page hero** (logged-out `/`) — the simulated "Recent
-   Policy Alerts" feed now uses items-baseline so the Offtake / IX
-   chips and the alert text share a typographic baseline. Was the
-   original misalignment the user flagged.
-6. **ComparableDealsPanel + RegulatoryActivityPanel** — Source link
-   now wrapped in a 2-row stack matching the MetaItem shape, so it
-   aligns with the rest of the meta strip baseline.
+**`npm run verify` keeps working with no creds set.** It runs build +
+unauth smoke (the existing 7 tests). Use `verify:full` once Pro creds
+are in place.
 
-**Visual verification on prod when you're back (covered above).**
+**No live API calls in any test.** Lens form submissions are deliberately
+not exercised — the smoke is render-and-watch-for-console-errors. Cost
+per run: $0.
 
-**No active work in queue.** Candidate next moves, in priority
-order against the product tenants (no bugs / honest data /
-retention):
-- **Pro-flow smoke tests** — currently smoke covers unauth paths
-  only. ~1 day for fixtures + tests.
+**Deferred items, in priority order (unchanged from prior session):**
 - **Library WoW score deltas + freshness signal** (parallel to
   Dashboard hero) — ~2 hours, retention-driving.
 - **Expand curated economic coverage to top-10 solar markets**
   (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move leverage.
   EIA Form 861 + ISO capacity markets publicly sourced. ~4-8h/state.
+- **Apply pending migrations 034-037** (HUD QCT/DDA + NMTC LIC) in
+  Supabase SQL editor.
 - **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
 
 **Coverage gap (unchanged):** only 18 of 50 states have a `default`
@@ -202,7 +206,8 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 
 | Commit | Subject |
 |--------|---------|
-| `pending` | Landing alignment: items-baseline on the simulated alert feed so chip + text share a typographic baseline; reverted "— lines / dots / solid" addendum from map legend (swatches read fine on their own) |
+| `pending` | Pro-flow smoke tests: auth.setup.js + pro-smoke.spec.js (6 tests, ~10-15s, $0/run) — covers Search/Library/Profile/Dashboard past the paywall, catches the white-screen class on the authed surface that smoke.spec.js can't reach |
+| `4fb24b6` | Landing onboarding: items-baseline on the simulated alert feed so chip + text share a typographic baseline; reverted "— lines / dots / solid" addendum from map legend |
 | `8a7f2ea` | Visual polish: gauge labels (25/50/75), shimmer flow (real CSS bug — animate 0%→100% not 0%→50%), legend visibility, baseline symmetry sweep across NewsFeed / Comparable / Regulatory |
 | `e2c8b48` | Dashboard: surface "data refreshed [date]" caption on hero — makes the live-data promise provable on first impression with teal breathing dot (fresh) or amber (>14d stale) |
 | `26b86b0` | BUILD_LOG: capture site-coverage fix + state-level coverage gaps |

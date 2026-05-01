@@ -33,3 +33,5 @@ Genuinely useful for the consultant.txt
 /test-results/
 /playwright-report/
 /playwright/.cache/
+# Persisted Pro-user session for authed smoke tests — never commit
+tests/.auth/
