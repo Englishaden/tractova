@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { TECH_DEFINITIONS } from '../lib/techDefinitions'
+import { GLOSSARY_DEFINITIONS } from '../lib/glossaryDefinitions'
 
 // Convert term name to a URL-safe anchor slug
 function toSlug(term) {
@@ -16,6 +17,28 @@ const TECH_TYPE_TERMS = Object.entries(TECH_DEFINITIONS).map(([_name, def]) => (
   definition: def.long,
   related: ['Lens Analysis', 'Feasibility Index', 'Sensitivity Analysis'],
 }))
+
+// Glossary-tooltip entries (for terms newly surfaced by Phase 1 of the
+// launch roadmap). Maps each entry's pillar so the Glossary card uses
+// the matching badge color. We list ONLY new terms not already in the
+// hardcoded array below — for terms like Site Control / IX / Offtake
+// that have richer hardcoded entries, those stay authoritative.
+const GLOSSARY_PILLAR_MAP = {
+  'Prime Farmland':   'site',
+  'Wetland Warning':  'site',
+  'Capacity Factor':  'offtake',
+  'Energy Community': 'offtake',
+  'IX · Live':        'ix',
+  'Site · Live':      'site',
+}
+const GLOSSARY_NEW_TERMS = Object.entries(GLOSSARY_DEFINITIONS)
+  .filter(([key]) => key in GLOSSARY_PILLAR_MAP)
+  .map(([key, def]) => ({
+    term: def.title,
+    pillar: GLOSSARY_PILLAR_MAP[key],
+    definition: def.long,
+    related: ['Feasibility Index'],
+  }))
 
 const terms = [
   // ── Development stages ──────────────────────────────────────────────────────
@@ -254,6 +277,7 @@ const terms = [
   // Derived from src/lib/techDefinitions.js so Glossary cards, Library
   // hover tooltips, and Search dropdown tooltips all share one source.
   ...TECH_TYPE_TERMS,
+  ...GLOSSARY_NEW_TERMS,
 ]
 
 // V3: pillar badges aligned to V3 palette — teal for offtake, amber for IX

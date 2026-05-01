@@ -25,6 +25,16 @@ import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, getOfftakeCover
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
+import GlossaryLabel from '../components/ui/GlossaryLabel'
+
+// Map sub-score display labels to canonical glossary keys so the
+// GlossaryLabel tooltip resolves correctly when the visible text differs
+// from the glossary term (e.g. "Interconnection" sub-score → "IX" def).
+const SUBSCORE_GLOSSARY_KEYS = {
+  'Offtake':         'Offtake',
+  'Interconnection': 'IX',
+  'Site Control':    'Site Control',
+}
 import { getNearestSubstations } from '../lib/substationEngine'
 
 function getMarketRank(stateId, programMap) {
@@ -214,7 +224,11 @@ function SubScoreBar({ label, weight, value, color, baseValue }) {
       style={{ display: 'grid', gridTemplateColumns: 'minmax(0, max-content) 38px 1fr', columnGap: '12px' }}
     >
       <span className="uppercase tracking-widest font-semibold text-ink leading-tight whitespace-nowrap">
-        {displayLabel}
+        <GlossaryLabel
+          term={SUBSCORE_GLOSSARY_KEYS[label] || label}
+          displayAs={displayLabel}
+          className="font-semibold text-ink"
+        />
         <span className="ml-1.5 text-[9px] text-ink-muted font-normal">{weight}</span>
       </span>
 

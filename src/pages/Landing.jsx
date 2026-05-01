@@ -277,6 +277,114 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ── Data sources strip — trust signal: "we don't make numbers up" ── */}
+      <section className="bg-white border-b border-gray-200 py-7">
+        <div className="max-w-dashboard mx-auto px-6">
+          <div className="flex items-center justify-center gap-1.5 mb-3">
+            <span className="w-1 h-1 rounded-full" style={{ background: '#14B8A6' }} />
+            <span className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold" style={{ color: '#0F766E' }}>
+              Built on live federal data
+            </span>
+            <span className="w-1 h-1 rounded-full" style={{ background: '#14B8A6' }} />
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            {[
+              { label: 'Census ACS',    sub: 'demographics + LMI' },
+              { label: 'EIA',           sub: 'retail rates + capacity' },
+              { label: 'NREL PVWatts',  sub: 'solar resource' },
+              { label: 'USFWS NWI',     sub: 'wetlands' },
+              { label: 'USDA SSURGO',   sub: 'prime farmland' },
+              { label: 'DSIRE',         sub: 'state programs' },
+              { label: 'HUD QCT/DDA',   sub: 'IRA bonus' },
+              { label: 'ISO/RTO queues', sub: 'live IX' },
+            ].map((s, i, arr) => (
+              <span key={s.label} className="flex items-center gap-3">
+                <span className="flex flex-col items-center text-center">
+                  <span className="font-mono text-[11px] font-semibold tracking-tight" style={{ color: '#0F1A2E' }}>{s.label}</span>
+                  <span className="text-[9px] text-gray-400 mt-0.5">{s.sub}</span>
+                </span>
+                {i < arr.length - 1 && <span className="text-gray-200">·</span>}
+              </span>
+            ))}
+          </div>
+          <p className="text-center text-[10px] text-gray-400 mt-4 max-w-xl mx-auto">
+            Every score traces back to a verified .gov source. Data refreshes weekly via cron.
+            See <Link to="/glossary" className="hover:text-gray-600 underline">methodology</Link> for what feeds each pillar.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Time-saved comparison — quantifies the labor replacement ────── */}
+      <section className="bg-paper border-b border-gray-200 py-16">
+        <div className="max-w-dashboard mx-auto px-6">
+          <div className="text-center mb-10">
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold mb-3" style={{ color: '#0F766E' }}>
+              Why developers switch
+            </p>
+            <h2 className="text-2xl lg:text-3xl font-serif font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>
+              The same county research — in 2 minutes instead of 4 hours.
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto items-stretch">
+            {/* Manual approach */}
+            <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-400">
+                  Manual research
+                </span>
+                <span className="text-gray-300">/</span>
+                <span className="text-[10px] text-gray-400">per county</span>
+              </div>
+              <div className="text-3xl font-bold font-mono tabular-nums text-ink mb-1">~4 hrs</div>
+              <ul className="text-[11px] text-gray-500 space-y-1.5 mt-3 flex-1">
+                <li>• DSIRE state program lookup (15 min)</li>
+                <li>• ISO/RTO queue check + utility filings (90 min)</li>
+                <li>• Census ACS pull for LMI, parcel research (45 min)</li>
+                <li>• NWI wetland mapping (30 min)</li>
+                <li>• Stitch into a one-pager (45 min)</li>
+              </ul>
+            </div>
+
+            {/* Tractova approach */}
+            <div
+              className="rounded-xl p-5 flex flex-col relative overflow-hidden"
+              style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)', border: '1px solid rgba(20,184,166,0.30)' }}
+            >
+              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.85) 50%, transparent 100%)' }} />
+              <div className="flex items-center gap-2 mb-3">
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#5EEAD4' }}>
+                  Tractova Lens
+                </span>
+                <span style={{ color: 'rgba(94,234,212,0.4)' }}>/</span>
+                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>per county</span>
+              </div>
+              <div className="text-3xl font-bold font-mono tabular-nums text-white mb-1">~2 min</div>
+              <ul className="text-[11px] space-y-1.5 mt-3 flex-1" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> Pre-fetched state program + IX + LMI + wetland data</li>
+                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> Live ISO queue signal where available</li>
+                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> AI brief with recommended next actions</li>
+                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> Saves directly to your project pipeline</li>
+              </ul>
+            </div>
+
+            {/* Multiplier callout */}
+            <div className="rounded-xl border border-gray-200 bg-white p-5 flex flex-col items-center justify-center text-center">
+              <p className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold mb-2" style={{ color: '#0F766E' }}>
+                Net effect
+              </p>
+              <div className="text-5xl font-bold font-mono tabular-nums" style={{ color: '#0F1A2E' }}>120<span className="text-2xl text-gray-400">×</span></div>
+              <p className="text-xs text-gray-500 mt-2 leading-snug">faster per county.<br/>Run 50 counties in the time it took to research one.</p>
+            </div>
+          </div>
+
+          <p className="text-center text-[10px] text-gray-400 mt-8 max-w-xl mx-auto">
+            One analyst on Tractova covers the same research surface area as a small team.
+            For a 5-person developer shop, that's the labor cost of one FTE returned.
+          </p>
+        </div>
+      </section>
+
       {/* ── Three pillars ────────────────────────────────────────────────── */}
       <section className="bg-paper py-20">
         <div className="max-w-dashboard mx-auto px-6">

@@ -1358,7 +1358,7 @@ function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
   )
 }
 
-function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess }) {
+function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
@@ -1513,7 +1513,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
       // V3: overflow-hidden ONLY when expanded -- so the inner alert strip + bg fill
       // clip cleanly to the rounded corners. When collapsed, no clipping so the
       // StagePicker dropdown can escape the card boundary.
-      className={`rounded-xl border transition-all duration-200 relative ${expanded ? 'overflow-hidden' : ''}`}
+      className={`group/card rounded-xl border transition-all duration-200 relative ${expanded ? 'overflow-hidden' : ''}`}
       style={{
         background: '#FFFFFF',
         borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(20,184,166,0.40)' : '#E5E7EB',
@@ -1619,6 +1619,32 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
 
         {/* Right controls */}
         <div className="flex items-center gap-2.5 shrink-0">
+          {/* Bulk-select checkbox — visible when ANY project is selected
+              (selectionActive=true) OR on hover of this card. Clicking
+              toggles inclusion in the bulk-ops set. Stops event propagation
+              so it doesn't trigger card expand. */}
+          {onToggleSelect && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onToggleSelect() }}
+              aria-label={selected ? 'Deselect project' : 'Select project for bulk action'}
+              aria-pressed={selected}
+              className={`shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all ${
+                selected
+                  ? 'border-teal-500'
+                  : selectionActive
+                    ? 'border-gray-300 hover:border-teal-400'
+                    : 'border-transparent group-hover/card:border-gray-300 hover:border-teal-400'
+              }`}
+              style={selected ? { background: '#14B8A6' } : { background: 'white' }}
+            >
+              {selected && (
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </button>
+          )}
           <CompareChip project={project} stateProgram={current} />
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
@@ -2330,6 +2356,13 @@ function LibraryContent() {
   const [hasFetched,      setHasFetched]      = useState(false)
   const [error,           setError]           = useState(null)
   const [confirmRemove,   setConfirmRemove]   = useState(null)
+  // Bulk-operations state — Set of selected project IDs. When non-empty,
+  // the floating bulk toolbar appears above the project grid and each card
+  // shows a persistent checkbox in the corner. Cleared after any bulk op
+  // completes (delete / export / add-to-compare).
+  const [selectedIds,     setSelectedIds]     = useState(() => new Set())
+  const [bulkConfirm,     setBulkConfirm]     = useState(false)  // bulk-delete confirm modal
+  const { add: addToCompare, items: compareItems, MAX_ITEMS: COMPARE_MAX } = useCompare()
   const [stateProgramMap, setStateProgramMap] = useState({})
   const [stateDeltaMap,   setStateDeltaMap]   = useState(new Map()) // state_id -> { delta, prevScore, latestAt, ... }
   const [countyDataMap,   setCountyDataMap]   = useState({}) // key `${state}::${county}` -> countyData
@@ -2594,6 +2627,61 @@ function LibraryContent() {
     if (!error) setProjects((prev) => prev.filter((p) => p.id !== confirmRemove.id))
     setConfirmRemove(null)
   }
+
+  // ── Bulk-operation handlers ────────────────────────────────────────────────
+  // Toggle selection for one project. Used by the per-card checkbox.
+  const toggleSelect = useCallback((id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
+
+  // Bulk delete. Single Supabase round-trip via .in() filter, then prune
+  // local state. Existing single-card removal flow stays intact via the
+  // `confirmRemove` modal; this is purely additive.
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) { setBulkConfirm(false); return }
+    const { error } = await supabase.from('projects').delete().in('id', ids)
+    if (!error) {
+      setProjects((prev) => prev.filter((p) => !selectedIds.has(p.id)))
+      setSelectedIds(new Set())
+    }
+    setBulkConfirm(false)
+  }, [selectedIds])
+
+  // Bulk export to CSV. Reuses the existing exportCSV utility, just passing
+  // a filtered subset rather than the full project list.
+  const handleBulkExportCSV = useCallback(() => {
+    const subset = projects.filter((p) => selectedIds.has(p.id))
+    if (subset.length === 0) return
+    exportCSV(subset, stateProgramMap, countyDataMap)
+    setSelectedIds(new Set())
+  }, [projects, selectedIds, stateProgramMap, countyDataMap])
+
+  // Bulk add to Compare tray. Capped at MAX_ITEMS=5 (CompareContext rule);
+  // remaining slots after current items determine how many more we can add.
+  // Already-in-tray items are silently skipped by add().
+  const handleBulkAddToCompare = useCallback(() => {
+    const subset = projects.filter((p) => selectedIds.has(p.id))
+    const slotsLeft = COMPARE_MAX - compareItems.length
+    let added = 0
+    let skipped = 0
+    for (const p of subset) {
+      if (added >= slotsLeft) { skipped += subset.length - added; break }
+      const sp = stateProgramMap[p.state]
+      const item = libraryProjectToCompareItem(p, sp)
+      const ok = addToCompare(item)
+      if (ok) added += 1
+      else skipped += 1
+    }
+    setSelectedIds(new Set())
+  }, [projects, selectedIds, stateProgramMap, addToCompare, compareItems.length, COMPARE_MAX])
 
   if (authLoading) return null
 
@@ -2958,10 +3046,79 @@ function LibraryContent() {
               <WeeklySummaryCard projects={projects} stateProgramMap={stateProgramMap} />
             )}
             <SectionDivider />
+
+            {/* Bulk-operations toolbar — appears as a sticky bar at the top
+                of the grid when ≥1 project is selected via the per-card
+                checkbox. Provides: bulk delete, bulk export to CSV, bulk
+                add to Compare tray. Reuses existing single-project utilities
+                (handleRequestRemove pattern, exportCSV, useCompare.add). */}
+            {selectedIds.size > 0 && (
+              <div
+                className="sticky top-14 z-20 mb-3 rounded-lg flex items-center justify-between gap-3 px-4 py-2.5"
+                style={{ background: '#0F1A2E', border: '1px solid rgba(20,184,166,0.30)', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className="font-mono text-[10px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
+                    style={{ background: 'rgba(20,184,166,0.20)', color: '#5EEAD4' }}
+                  >
+                    {selectedIds.size} selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={clearSelection}
+                    className="text-[11px] font-medium hover:underline"
+                    style={{ color: 'rgba(255,255,255,0.65)' }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBulkAddToCompare}
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors"
+                    style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.40)' }}
+                  >
+                    Add to Compare
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkExportCSV}
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.18)' }}
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkConfirm(true)}
+                    className="text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors"
+                    style={{ background: 'rgba(220,38,38,0.18)', color: '#FCA5A5', border: '1px solid rgba(220,38,38,0.45)' }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+
             {displayProjects.length > 0 ? (
               <div className="grid gap-3">
                 {displayProjects.map((p) => (
-                  <ProjectCard key={p.id} project={p} onRequestRemove={handleRequestRemove} onStageChange={handleStageChange} stateProgramMap={stateProgramMap} countyDataMap={countyDataMap} stateDelta={stateDeltaMap?.get?.(p.state) || null} shareCount={shareCountMap[p.id] || 0} onShareSuccess={() => setShareCountMap(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }))} />
+                  <ProjectCard
+                    key={p.id}
+                    project={p}
+                    onRequestRemove={handleRequestRemove}
+                    onStageChange={handleStageChange}
+                    stateProgramMap={stateProgramMap}
+                    countyDataMap={countyDataMap}
+                    stateDelta={stateDeltaMap?.get?.(p.state) || null}
+                    shareCount={shareCountMap[p.id] || 0}
+                    onShareSuccess={() => setShareCountMap(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }))}
+                    selected={selectedIds.has(p.id)}
+                    onToggleSelect={() => toggleSelect(p.id)}
+                    selectionActive={selectedIds.size > 0}
+                  />
                 ))}
               </div>
             ) : (
@@ -3084,6 +3241,46 @@ function LibraryContent() {
               onMouseLeave={(e) => e.currentTarget.style.background = '#DC2626'}
             >
               Remove
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk-delete confirm modal — same Dialog primitive as single-project
+          remove, but lists count + warns about irreversibility. Distinct from
+          confirmRemove so a single-card delete and a bulk delete can never
+          collide on the same modal state. */}
+      <Dialog open={bulkConfirm} onOpenChange={(open) => { if (!open) setBulkConfirm(false) }}>
+        <DialogContent>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              </svg>
+            </div>
+            <DialogTitle>Remove {selectedIds.size} project{selectedIds.size === 1 ? '' : 's'}?</DialogTitle>
+          </div>
+          <DialogDescription>
+            This will permanently delete <span className="font-semibold text-ink">{selectedIds.size}</span> project{selectedIds.size === 1 ? '' : 's'} from your Library. Saved scenarios, share links, and alert history for these projects will also be removed. This cannot be undone.
+          </DialogDescription>
+          <div className="flex items-center justify-end gap-2 mt-5">
+            <button
+              onClick={() => setBulkConfirm(false)}
+              className="text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-lg transition-colors"
+            >
+              Keep them
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              style={{ background: '#DC2626' }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#B91C1C'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#DC2626'}
+            >
+              Remove {selectedIds.size}
             </button>
           </div>
         </DialogContent>
