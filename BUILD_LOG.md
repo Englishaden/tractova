@@ -25,14 +25,17 @@ Creds live in `.env.local` (gitignored). `npm run verify:full` runs
 build + 7 unauth + 1 setup + 6 Pro = 14 tests in ~26s, $0 cost.
 
 **Next moves, ranked:**
-- **Apply pending migrations 034-037** — HUD QCT/DDA + NMTC LIC. SQL
-  ready in `supabase/migrations/`. Activates the §48(e) and HUD layers
-  in production. Lowest-effort highest-data-coverage move.
 - **Expand curated economic coverage to top-10 solar markets**
   (CA, TX, FL, NC, AZ, GA, NV, NM) — biggest single-move trust leverage,
   closes 18→26 of 50 states with a `default` county_intelligence row.
   ~4-8h/state. EIA Form 861 + ISO capacity markets publicly sourced.
 - **Wetlands + farmland data layers** — 3-4 day R&D + spatial join.
+- **Activate §48(e) Cat 1 (NMTC LIC) and HUD QCT/DDA in Lens scoring** —
+  data is live (3,144 NMTC rows + 1,801 HUD rows in Supabase as of
+  this session, verified via `scripts/check-migrations.mjs`). Code
+  paths in `lens-insight.js` already query both tables. Smoke-check
+  Admin → Data Health to confirm both freshness cards render after
+  next cron cycle (`refresh-data:hud_qct_dda`, `refresh-data:nmtc_lic`).
 
 ---
 
@@ -242,8 +245,10 @@ stale-check finds the real last-good run.
 
 User runs these manually in Supabase SQL editor. Mark applied here when done.
 
-✅ Applied through 033 + 038 per user confirmation as of 2026-04-30.
-⏳ **Pending — apply to activate the §48(e) and HUD layers in production:**
+✅ All migrations through 038 applied as of 2026-04-30 (verified via
+`scripts/check-migrations.mjs` against the live DB — hud_qct_dda_data
+has 1,801 rows, nmtc_lic_data has 3,144 rows, freshness RPC includes
+both blocks).
 
 | # | File | What it does | Status |
 |---|------|--------------|--------|
@@ -253,11 +258,16 @@ User runs these manually in Supabase SQL editor. Mark applied here when done.
 | 031 | `data_freshness_cron_driven.sql` | RPC reads cron_runs | ✅ |
 | 032 | `energy_community_data.sql` | Energy Community table | ✅ |
 | 033 | `freshness_energy_community.sql` | RPC +energy_community | ✅ |
-| 034 | `hud_qct_dda_data.sql` | HUD QCT/DDA table | ⏳ |
-| 035 | `freshness_hud_qct_dda.sql` | RPC +hud_qct_dda | ⏳ |
-| 036 | `nmtc_lic_data.sql` | NMTC LIC table | ⏳ |
-| 037 | `freshness_nmtc_lic.sql` | RPC +nmtc_lic | ⏳ |
+| 034 | `hud_qct_dda_data.sql` | HUD QCT/DDA table | ✅ |
+| 035 | `freshness_hud_qct_dda.sql` | RPC +hud_qct_dda | ✅ |
+| 036 | `nmtc_lic_data.sql` | NMTC LIC table | ✅ |
+| 037 | `freshness_nmtc_lic.sql` | RPC +nmtc_lic | ✅ |
 | 038 | `state_programs_snapshots.sql` | Wave 1.4: append-only feasibility-score history table for WoW deltas + Markets on the Move trends | ✅ |
+
+> **Verification protocol going forward:** before asking the user to
+> re-run any migration, run `node scripts/check-migrations.mjs` (or
+> a similar live-DB probe). The build-log state can drift from the
+> live state when migrations are applied out-of-band.
 
 ---
 
