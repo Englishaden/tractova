@@ -2065,27 +2065,53 @@ async function refreshGeospatialFarmland() {
     .map(s => `'${s.replace(/'/g, "''")}'`)
     .join(', ')
 
-  // Pull all per-survey-area aggregates in a single query (whole US in one call).
-  // ~5s with ~3,200 rows. SDA limits: 100,000 records / 32MB / 100s execution.
-  const sql = `
-    SELECT lg.areasymbol, lg.areaname,
-      SUM(CASE WHEN mu.farmlndcl IN (${primeIn}) THEN mu.muacres ELSE 0 END) AS prime_acres,
-      SUM(mu.muacres) AS total_acres
-    FROM legend AS lg INNER JOIN mapunit AS mu ON mu.lkey = lg.lkey
-    WHERE lg.areatypename = 'Non-MLRA Soil Survey Area'
-    GROUP BY lg.areasymbol, lg.areaname
-    ORDER BY lg.areasymbol
-  `.trim().replace(/\s+/g, ' ')
+  // Per-state queries: SDA has a 100s execution-time cap that a single
+  // whole-US join across mapunit + legend trips intermittently (returns
+  // HTTP 200 with empty `{}` body when it times out — silent failure).
+  // Per-state aggregates run in ~80ms each → ~5s for the full 50-state
+  // batch, well inside both SDA's per-query budget and our 300s function
+  // budget. Probed cleanly in scripts/probe-geospatial.mjs.
+  const usps = Object.fromEntries(Object.entries(FIPS_TO_USPS).map(([f, u]) => [u, f]))
+  const stateCodes = Object.keys(usps)  // 51: 50 states + DC
 
   const t0 = Date.now()
-  const res = await ssurgoQuery(sql)
-  if (!res.ok) {
-    return { ok: false, error: `SSURGO query failed: status=${res.status} body=${res.raw || JSON.stringify(res.json).slice(0, 200)}` }
+  const rows = []
+  const stateErrors = []
+
+  // 4-way concurrency: SDA tolerates parallel POSTs cleanly; this keeps the
+  // wall-clock down without risking throttling.
+  const PARALLEL = 4
+  for (let i = 0; i < stateCodes.length; i += PARALLEL) {
+    const batch = stateCodes.slice(i, i + PARALLEL)
+    const settled = await Promise.allSettled(batch.map(async (st) => {
+      const sql = `
+        SELECT lg.areasymbol, lg.areaname,
+          SUM(CASE WHEN mu.farmlndcl IN (${primeIn}) THEN mu.muacres ELSE 0 END) AS prime_acres,
+          SUM(mu.muacres) AS total_acres
+        FROM legend AS lg INNER JOIN mapunit AS mu ON mu.lkey = lg.lkey
+        WHERE lg.areatypename = 'Non-MLRA Soil Survey Area'
+          AND lg.areasymbol LIKE '${st}%'
+        GROUP BY lg.areasymbol, lg.areaname
+      `.trim().replace(/\s+/g, ' ')
+      const res = await ssurgoQuery(sql)
+      if (!res.ok) throw new Error(`status=${res.status} body=${res.raw || JSON.stringify(res.json).slice(0, 100)}`)
+      // Each per-state Table has a header row at [0] then data rows.
+      return res.json.Table.slice(1)
+    }))
+    for (let j = 0; j < batch.length; j++) {
+      const st = batch[j]
+      const r = settled[j]
+      if (r.status === 'fulfilled') rows.push(...r.value)
+      else stateErrors.push(`${st}: ${r.reason?.message || 'unknown'}`)
+    }
   }
 
-  const rows = res.json.Table.slice(1)  // strip header row
   if (rows.length < 2000) {
-    return { ok: false, error: `SSURGO returned only ${rows.length} survey areas; expected ~3,200. Aborting.` }
+    return {
+      ok: false,
+      error: `SSURGO returned only ${rows.length} survey areas across ${stateCodes.length} states; expected ~3,200. ${stateErrors.length} state errors.`,
+      first_state_errors: stateErrors.slice(0, 5),
+    }
   }
 
   // Bucket SSURGO rows by USPS state code (first 2 chars of areasymbol).
@@ -2213,6 +2239,7 @@ async function refreshGeospatialFarmland() {
     high_farmland_counties:   upsertRows.filter(r => r.prime_farmland_pct >= 25).length,
     skipped,
     exception_state_rows:     exceptionStateRows,
+    state_fetch_errors:       stateErrors.length > 0 ? stateErrors.slice(0, 10) : undefined,
     sample_county:            sample,
   }
 }
