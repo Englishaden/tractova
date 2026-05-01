@@ -8,19 +8,59 @@ export const STAGE_MODIFIERS = {
   'Operational':              [+10, +10, +25 ],
 }
 
-// Retail rate tiers for C&I offtake scoring (higher rates = better C&I economics)
+// Retail rate tiers for C&I offtake scoring (higher rates = better C&I economics).
+//
+// Calibrated against EIA Form 861 commercial retail rates (2024) + qualitative
+// market-depth adjustments. A high score reflects either (a) high retail rate
+// = strong PPA economics, or (b) large industrial market depth even at modest
+// rates (e.g. TX at 8c/kWh but enormous off-take volume). 88+ = best-in-nation;
+// 70-87 = strong; 55-69 = workable; <55 = thin economics.
+//
+// Source: https://www.eia.gov/electricity/sales_revenue_price/  (commercial sector)
 const CI_OFFTAKE_SCORES = {
-  NY: 82, MA: 85, NJ: 78, CT: 80,  // High-rate states
-  IL: 65, MD: 64, CO: 60, ME: 68,  // Medium-rate states
-  MN: 55, VA: 58, OR: 56, WA: 52,  // Lower-rate states
+  // ── ISO-NE — highest retail rates in the nation ───────────────────────────
+  RI: 90, MA: 85, NH: 84, CT: 80, VT: 82, ME: 68,
+  // ── NYISO ─────────────────────────────────────────────────────────────────
+  NY: 82,
+  // ── PJM — broad mid-Atlantic market ───────────────────────────────────────
+  NJ: 78, DC: 78, DE: 72, MD: 64, PA: 68, OH: 60, VA: 58,
+  // ── MISO + Midwest ────────────────────────────────────────────────────────
+  IL: 65, MI: 74, MN: 55, WI: 60, IN: 56, MO: 54,
+  // ── SPP + Mountain West ───────────────────────────────────────────────────
+  CO: 60, NM: 60,
+  // ── CAISO + Southwest — large markets ─────────────────────────────────────
+  CA: 88, AZ: 70, NV: 64,
+  // ── ERCOT + South — large markets but lower retail ────────────────────────
+  TX: 62, FL: 72, NC: 66, GA: 62, SC: 62,
+  // ── Pacific Northwest — low retail, limited C&I depth ─────────────────────
+  OR: 56, WA: 52,
 }
 
-// ISO capacity market tiers for BESS offtake scoring
+// ISO capacity market tiers for BESS offtake scoring.
+//
+// Calibrated against ISO/RTO 2024-2025 capacity-market clearing prices,
+// state storage carve-outs (e.g. CA SB 100 + RA, TX ERCOT ancillary
+// services market), and IRP procurement plans. 80+ = aggressive paying
+// markets; 60-79 = workable; <60 = thin / spec.
 const BESS_OFFTAKE_SCORES = {
-  MA: 80, ME: 78,                   // ISO-NE
-  IL: 75, NJ: 75, MD: 70,          // PJM
-  NY: 72,                           // NYISO
-  MN: 55, CO: 50,                   // MISO / SPP
+  // ── CAISO — aggressive RA + storage carve-outs, best paying market ────────
+  CA: 88,
+  // ── ERCOT — massive ancillary services + arbitrage tailwind ───────────────
+  TX: 85,
+  // ── ISO-NE ────────────────────────────────────────────────────────────────
+  MA: 80, ME: 78,
+  // ── PJM — broad mid-Atlantic + capacity market ────────────────────────────
+  IL: 75, NJ: 75, MD: 70, VA: 72, PA: 70, OH: 65, DE: 68, DC: 66,
+  // ── NYISO ─────────────────────────────────────────────────────────────────
+  NY: 72,
+  // ── Mountain West / SW ────────────────────────────────────────────────────
+  AZ: 65, NV: 60, NM: 55, CO: 50,
+  // ── MISO ──────────────────────────────────────────────────────────────────
+  MN: 55, MI: 58, WI: 52,
+  // ── Pacific Northwest — limited capacity market ───────────────────────────
+  WA: 48, OR: 45,
+  // ── SE — modest capacity-market depth ─────────────────────────────────────
+  FL: 60, NC: 55, GA: 52,
 }
 
 // Sorted state lists for user-facing "coverage" messaging. Kept here so the
