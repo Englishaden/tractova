@@ -70,6 +70,10 @@
     {
       "path": "/api/refresh-data?source=nmtc_lic",
       "schedule": "30 7 * * 0"
+    },
+    {
+      "path": "/api/refresh-data?source=geospatial_farmland",
+      "schedule": "45 7 * * 0"
     }
   ]
 }

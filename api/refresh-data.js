@@ -32,7 +32,7 @@ const supabaseAdmin = createClient(
 
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
 
-const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda', 'nmtc_lic']
+const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland']
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -132,6 +132,7 @@ export default async function handler(req, res) {
       else if (source === 'energy_community')  result = await refreshEnergyCommunity()
       else if (source === 'hud_qct_dda')       result = await refreshHudQctDda()
       else if (source === 'nmtc_lic')          result = await refreshNmtcLic()
+      else if (source === 'geospatial_farmland') result = await refreshGeospatialFarmland()
       else                                     result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
       result = await applyStaleTolerance(source, result)
@@ -1997,5 +1998,221 @@ async function refreshNmtcLic() {
     state_fetch_errors:          stateFetchErrors.length > 0 ? stateFetchErrors.slice(0, 10) : undefined,
     states_covered_by_mfi:       stateMfiByFips.size,
     sample_county:               sample,
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Geospatial Farmland handler — USDA SSURGO prime-farmland coverage per county
+//
+// Fast half of Path B: per-county prime_farmland_pct derived from SSURGO
+// (Soil Survey Geographic Database). Pulls one aggregate query per state
+// from USDA Soil Data Access (T-SQL POST), maps the SSURGO areasymbol to
+// 5-digit county FIPS, upserts into county_geospatial_data.
+//
+// Why split from the slow NWI half: SSURGO returns ~3,200 survey areas in
+// ~5s total. NWI per-county polygon queries take ~6h serial. Two cadences:
+// SSURGO weekly via this multiplexed cron, NWI quarterly via local seed
+// script (scripts/seed-county-geospatial-nwi.mjs).
+//
+// areasymbol → county_fips mapping:
+//   - 49 states (incl. AK at the format level): areasymbol = ST + 3-digit
+//     county FIPS suffix (verified against TIGER for IL/CA/AL: clean match).
+//   - CT: 2 statewide areas (CT601/CT602) — average them, assign uniformly
+//     to all 8 CT counties resolved via county_acs_data.
+//   - RI: 1 statewide area (RI600) — assign uniformly to all 5 RI counties.
+//   - AK: 137 NRCS-defined survey regions vs 30 boroughs; the suffix-as-FIPS
+//     pattern doesn't apply (AK600 ≠ borough FIPS 02600). Skip AK in v1
+//     (negligible CS market) — county-level row stays absent until we wire
+//     a fuzzy areaname→borough matcher.
+//   - Territories (AS/GU/MH/MP/PW/VI): out of 50-state scope, skipped.
+//
+// Prime farmland classes (matched via IN clause, not LIKE) — calibrated
+// against the SSURGO mapunit.farmlndcl distribution probed 2026-05-01.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SSURGO_PRIME_FARMLAND_CLASSES = [
+  'All areas are prime farmland',
+  'Prime farmland if drained',
+  'Prime farmland if irrigated',
+  'Prime farmland if drained and either protected from flooding or not frequently flooded during the growing season',
+  'Prime farmland if irrigated and drained',
+  'Prime farmland if subsoiled, completely removing the root inhibiting soil layer',
+  'Prime farmland if protected from flooding or not frequently flooded during the growing season',
+]
+
+async function ssurgoQuery(sql) {
+  const body = new URLSearchParams({
+    QUERY: sql,
+    FORMAT: 'JSON+COLUMNNAME',
+  })
+  const r = await fetch('https://SDMDataAccess.sc.egov.usda.gov/Tabular/post.rest', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'tractova-refresh/1.0',
+    },
+    body: body.toString(),
+  })
+  const text = await r.text()
+  let json
+  try { json = JSON.parse(text) }
+  catch { return { ok: false, status: r.status, raw: text.slice(0, 300) } }
+  return { ok: r.ok && Array.isArray(json.Table), status: r.status, json }
+}
+
+async function refreshGeospatialFarmland() {
+  const primeIn = SSURGO_PRIME_FARMLAND_CLASSES
+    .map(s => `'${s.replace(/'/g, "''")}'`)
+    .join(', ')
+
+  // Pull all per-survey-area aggregates in a single query (whole US in one call).
+  // ~5s with ~3,200 rows. SDA limits: 100,000 records / 32MB / 100s execution.
+  const sql = `
+    SELECT lg.areasymbol, lg.areaname,
+      SUM(CASE WHEN mu.farmlndcl IN (${primeIn}) THEN mu.muacres ELSE 0 END) AS prime_acres,
+      SUM(mu.muacres) AS total_acres
+    FROM legend AS lg INNER JOIN mapunit AS mu ON mu.lkey = lg.lkey
+    WHERE lg.areatypename = 'Non-MLRA Soil Survey Area'
+    GROUP BY lg.areasymbol, lg.areaname
+    ORDER BY lg.areasymbol
+  `.trim().replace(/\s+/g, ' ')
+
+  const t0 = Date.now()
+  const res = await ssurgoQuery(sql)
+  if (!res.ok) {
+    return { ok: false, error: `SSURGO query failed: status=${res.status} body=${res.raw || JSON.stringify(res.json).slice(0, 200)}` }
+  }
+
+  const rows = res.json.Table.slice(1)  // strip header row
+  if (rows.length < 2000) {
+    return { ok: false, error: `SSURGO returned only ${rows.length} survey areas; expected ~3,200. Aborting.` }
+  }
+
+  // Bucket SSURGO rows by USPS state code (first 2 chars of areasymbol).
+  const byState = new Map()
+  for (const [sym, name, prime, total] of rows) {
+    const st = sym.slice(0, 2)
+    const totalAc = Number(total) || 0
+    const primeAc = Number(prime) || 0
+    if (totalAc <= 0) continue
+    if (!byState.has(st)) byState.set(st, [])
+    byState.get(st).push({ areasymbol: sym, areaname: name, prime: primeAc, total: totalAc })
+  }
+
+  // Build the FIPS-keyed upsert payload.
+  const upsertRows = []
+  let mappedCount = 0
+  let exceptionStateRows = 0
+  const skipped = { ak: 0, territories: 0, malformed: 0 }
+  const usps = Object.fromEntries(Object.entries(FIPS_TO_USPS).map(([f, u]) => [u, f]))
+
+  for (const [st, areas] of byState) {
+    // Skip out-of-scope: territories and Mexico shoulder.
+    if (!usps[st]) {
+      skipped.territories += areas.length
+      continue
+    }
+
+    if (st === 'AK') {
+      // 137 NRCS regions vs 30 boroughs — suffix pattern doesn't apply.
+      // Skip in v1; UI's site-coverage caption will still say 'fallback' for AK.
+      skipped.ak += areas.length
+      continue
+    }
+
+    if (st === 'CT' || st === 'RI') {
+      // 1-2 statewide areas — assign averaged value to all counties via county_acs_data.
+      const stateFips = usps[st]
+      const totalPrime = areas.reduce((a, x) => a + x.prime, 0)
+      const totalAcres = areas.reduce((a, x) => a + x.total, 0)
+      const pct = totalAcres > 0 ? (totalPrime / totalAcres) * 100 : 0
+
+      const { data: countyRows } = await supabaseAdmin
+        .from('county_acs_data')
+        .select('county_fips')
+        .eq('state', st)
+
+      for (const cr of countyRows || []) {
+        upsertRows.push({
+          county_fips:           cr.county_fips,
+          state:                 st,
+          prime_farmland_pct:    Number(pct.toFixed(2)),
+          prime_farmland_acres:  Math.round(totalPrime / (countyRows?.length || 1)),
+          total_surveyed_acres:  Math.round(totalAcres / (countyRows?.length || 1)),
+          ssurgo_areasymbol:     areas.map(a => a.areasymbol).join(','),
+          farmland_last_updated: new Date().toISOString(),
+        })
+        mappedCount += 1
+      }
+      exceptionStateRows += areas.length
+      continue
+    }
+
+    // CONUS standard pattern: areasymbol = ST + 3-digit county FIPS suffix.
+    const stateFips = usps[st]
+    for (const a of areas) {
+      const suffix = a.areasymbol.slice(2)
+      if (!/^\d{3}$/.test(suffix)) {
+        skipped.malformed += 1
+        continue
+      }
+      const fullFips = `${stateFips}${suffix}`
+      const pct = a.total > 0 ? (a.prime / a.total) * 100 : 0
+      upsertRows.push({
+        county_fips:           fullFips,
+        state:                 st,
+        prime_farmland_pct:    Number(pct.toFixed(2)),
+        prime_farmland_acres:  Math.round(a.prime),
+        total_surveyed_acres:  Math.round(a.total),
+        ssurgo_areasymbol:     a.areasymbol,
+        farmland_last_updated: new Date().toISOString(),
+      })
+      mappedCount += 1
+    }
+  }
+
+  if (upsertRows.length < 2500) {
+    return {
+      ok: false,
+      error: `Only ${upsertRows.length} county rows mapped from ${rows.length} SSURGO areas; expected ~3,000+. Aborting.`,
+      skipped,
+    }
+  }
+
+  // Upsert in batches. PostgREST default payload cap is generous; 500/row is comfy.
+  const BATCH = 500
+  let upserted = 0
+  for (let i = 0; i < upsertRows.length; i += BATCH) {
+    const slice = upsertRows.slice(i, i + BATCH)
+    // Only update farmland fields — leave wetland_* alone so a parallel NWI
+    // refresh isn't clobbered. ignoreDuplicates: false = upsert behavior.
+    const { error } = await supabaseAdmin
+      .from('county_geospatial_data')
+      .upsert(slice, { onConflict: 'county_fips' })
+    if (error) {
+      return {
+        ok: false,
+        error: `Upsert failed at batch ${i / BATCH}: ${error.message}`,
+        partial_upserted: upserted,
+      }
+    }
+    upserted += slice.length
+  }
+
+  // Sample: a county with high prime-farmland % for visual sanity check.
+  const sample = upsertRows.find(r => r.prime_farmland_pct >= 80) ||
+                 upsertRows.find(r => r.prime_farmland_pct >= 50) ||
+                 upsertRows[0]
+
+  return {
+    ok:                       true,
+    counties_upserted:        upserted,
+    ssurgo_areas_returned:    rows.length,
+    ssurgo_query_duration_ms: Date.now() - t0,
+    counties_with_data:       upsertRows.filter(r => r.prime_farmland_pct > 0).length,
+    high_farmland_counties:   upsertRows.filter(r => r.prime_farmland_pct >= 25).length,
+    skipped,
+    exception_state_rows:     exceptionStateRows,
+    sample_county:            sample,
   }
 }

@@ -81,10 +81,19 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   //                value. UI surfaces this as a "limited coverage" caption to
   //                match the honesty already shown on the revenue panel.
   let offtakeCoverage = 'researched'
-  // Site coverage is fallback when countyData (or its siteControl block) is
-  // missing — only ~18 states currently have county_intelligence rows seeded,
-  // so for the other 32 the "site = 60" line below is a placeholder.
-  const siteCoverage = countyData?.siteControl ? 'researched' : 'fallback'
+  // Site coverage tier (highest-to-lowest authority):
+  //   'live'       = derived from county_geospatial_data (NWI wetlands +
+  //                  SSURGO prime farmland) — covers all 3,142 counties /
+  //                  50 states once Path B ingest completes.
+  //   'researched' = curated boolean from county_intelligence (only ~18
+  //                  states currently seeded). Used as fallback when the
+  //                  live row hasn't been ingested yet for this county.
+  //   'fallback'   = neither source available; site=60 placeholder.
+  const geo = countyData?.geospatial
+  const hasLiveGeo = geo && (geo.wetlandCoveragePct != null || geo.primeFarmlandPct != null)
+  const siteCoverage = hasLiveGeo
+    ? 'live'
+    : (countyData?.siteControl ? 'researched' : 'fallback')
   // IX coverage flag: 'live' when ix_queue_data signals are blended into the
   // score (8 states as of 2026-04-30 — top CS markets); 'curated' when the
   // score is driven by stateProgram.ixDifficulty alone. Library calls don't
@@ -127,18 +136,56 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix += ixLiveAdjustment(ixQueueSummary)
 
   // ── Site sub-score (adjusted by tech type) ──
+  // Three input layers, in priority order:
+  //   1. Live geospatial (county_geospatial_data) — derived from NWI wetlands
+  //      and SSURGO prime farmland. Covers all 50 states. Drives the score
+  //      whenever present.
+  //   2. Curated county_intelligence — qualitative booleans for ~18 states.
+  //      Used as fallback when live geospatial is missing for this county.
+  //   3. Hard-coded baseline (site = 60) — last resort when neither layer
+  //      has data for the county.
   site = 60
-  if (countyData?.siteControl) {
-    const { availableLand, wetlandWarning } = countyData.siteControl
+  let availableLand = null
+  let wetlandWarning = null
+  if (hasLiveGeo) {
+    // Calibrated 2026-05-01 from scripts/probe-geospatial.mjs:
+    //   wetlandWarning = wetland_coverage_pct >= 15 (matches BUILD_LOG)
+    //   availableLand  = prime_farmland_pct  >= 25 (matches BUILD_LOG)
+    // wetland_coverage_pct can exceed 100% from NWI polygon overlap +
+    // water inclusion; the >=15 threshold is unaffected.
+    if (geo.wetlandCoveragePct != null) {
+      wetlandWarning = geo.wetlandCoveragePct >= 15
+    }
+    if (geo.primeFarmlandPct != null) {
+      availableLand = geo.primeFarmlandPct >= 25
+    }
+    // Bridge: if one layer is missing from the live row, fill the gap from
+    // curated where possible (e.g. SSURGO ingest done but NWI seed still
+    // running for this county).
+    if (wetlandWarning == null && countyData?.siteControl?.wetlandWarning != null) {
+      wetlandWarning = countyData.siteControl.wetlandWarning
+    }
+    if (availableLand == null && countyData?.siteControl?.availableLand != null) {
+      availableLand = countyData.siteControl.availableLand
+    }
+  } else if (countyData?.siteControl) {
+    availableLand = countyData.siteControl.availableLand
+    wetlandWarning = countyData.siteControl.wetlandWarning
+  }
+
+  if (availableLand != null || wetlandWarning != null) {
+    // Default unknown-side to favorable so a partial signal doesn't penalize.
+    const land = availableLand !== false  // null or true → treat as available
+    const wet  = wetlandWarning === true   // null or false → treat as no warning
     if (technology === 'BESS') {
       // BESS needs much less land (1-2 acres/MW vs 5-7 for solar)
-      if (!wetlandWarning) site = 78
-      else site = 58
+      if (!wet) site = 78
+      else      site = 58
     } else {
-      if (availableLand && !wetlandWarning)  site = 82
-      else if (availableLand && wetlandWarning)  site = 56
-      else if (!availableLand && !wetlandWarning) site = 42
-      else site = 26
+      if      (land && !wet)  site = 82
+      else if (land &&  wet)  site = 56
+      else if (!land && !wet) site = 42
+      else                    site = 26
     }
   }
 

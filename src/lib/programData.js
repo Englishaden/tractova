@@ -131,11 +131,16 @@ export async function getStateProgramMap() {
 // ── getCountyData ─────────────────────────────────────────────────────────────
 // Fetches county intelligence with automatic fallback to the state 'default' row.
 // county parameter can be a display name ("Cook County") — normalisation handled here.
+//
+// Result includes a `geospatial` block when the county has a row in
+// county_geospatial_data (NWI wetlands + SSURGO prime farmland — Path B
+// closes the 32-state coverage gap of county_intelligence). scoreEngine
+// preferentially reads geospatial when present.
 export async function getCountyData(stateId, countyName) {
   const slug = normalizeCountySlug(countyName)
 
   return withCache(`county:${stateId}:${slug}`, async () => {
-    // Try exact county first
+    // Curated layer: county_intelligence (slug-based, only ~18 states seeded)
     const { data: exact } = await supabase
       .from('county_intelligence')
       .select('*')
@@ -143,18 +148,61 @@ export async function getCountyData(stateId, countyName) {
       .eq('county_slug', slug)
       .maybeSingle()
 
-    if (exact) return shapeCounty(exact)
+    let curated = exact ? shapeCounty(exact) : null
+    if (!curated) {
+      const { data: fallback } = await supabase
+        .from('county_intelligence')
+        .select('*')
+        .eq('state_id', stateId)
+        .eq('county_slug', 'default')
+        .maybeSingle()
+      curated = fallback ? shapeCounty(fallback) : null
+    }
 
-    // Fall back to state default
-    const { data: fallback } = await supabase
-      .from('county_intelligence')
-      .select('*')
-      .eq('state_id', stateId)
-      .eq('county_slug', 'default')
-      .maybeSingle()
+    // Live layer: county_geospatial_data via county_acs_data → county_fips.
+    // Same FIPS-resolution pattern as getNmtcLic / getHudQctDda.
+    const geospatial = await fetchCountyGeospatial(stateId, countyName)
 
-    return fallback ? shapeCounty(fallback) : null
+    if (!curated && !geospatial) return null
+    return { ...(curated || {}), geospatial: geospatial || null }
   })
+}
+
+async function fetchCountyGeospatial(stateId, countyName) {
+  if (!stateId || !countyName) return null
+  const cleanName = countyName.replace(/\s+county.*$/i, '').replace(/\s+parish.*$/i, '')
+  const { data: acs } = await supabase
+    .from('county_acs_data')
+    .select('county_fips')
+    .eq('state', stateId)
+    .ilike('county_name', `%${cleanName}%`)
+    .limit(1)
+    .maybeSingle()
+  if (!acs?.county_fips) return null
+
+  const { data: geo } = await supabase
+    .from('county_geospatial_data')
+    .select('*')
+    .eq('county_fips', acs.county_fips)
+    .maybeSingle()
+  if (!geo) return null
+
+  return {
+    countyFips:           geo.county_fips,
+    state:                geo.state,
+    wetlandCoveragePct:   geo.wetland_coverage_pct,
+    wetlandCategory:      geo.wetland_category,
+    wetlandFeatureCount:  geo.wetland_feature_count,
+    wetlandAcres:         geo.wetland_acres,
+    wetlandLastUpdated:   geo.wetland_last_updated,
+    wetlandSource:        geo.wetland_source,
+    primeFarmlandPct:     geo.prime_farmland_pct,
+    primeFarmlandAcres:   geo.prime_farmland_acres,
+    totalSurveyedAcres:   geo.total_surveyed_acres,
+    ssurgoAreasymbol:     geo.ssurgo_areasymbol,
+    farmlandLastUpdated:  geo.farmland_last_updated,
+    farmlandSource:       geo.farmland_source,
+  }
 }
 
 function normalizeCountySlug(name) {

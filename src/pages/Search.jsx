@@ -413,6 +413,38 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
               </Tooltip>
             </>
           )}
+          {/* Live-Site indicator (Path B). Fires when this county has a row in
+              county_geospatial_data — derived from USFWS NWI wetlands + USDA
+              SSURGO prime farmland. Covers all 50 states / 3,142 counties once
+              both ingests have run. Closes the 32-state coverage gap of the
+              curated county_intelligence table. Absent = falling back to the
+              curated booleans (or the site=60 baseline) for this county. */}
+          {coverage?.site === 'live' && (
+            <>
+              <span className="text-gray-300 text-[9px]">/</span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
+                    style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+                  >
+                    <span
+                      className="relative inline-flex w-1.5 h-1.5 rounded-full"
+                      style={{ background: '#14B8A6', boxShadow: '0 0 5px rgba(20,184,166,0.65)' }}
+                    />
+                    Site · Live
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end" className="text-[10px]">
+                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Live Geospatial Site Data</p>
+                  <p>The Site Control sub-score is derived from authoritative federal geospatial sources for this county, not from a curated qualitative cell.</p>
+                  <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — wetland coverage % (USFWS NWI) · prime farmland % (USDA SSURGO)</p>
+                  <p className="mt-0.5"><span className="text-amber-300 font-mono">THRESHOLDS</span> — wetlandWarning ≥ 15% · availableLand ≥ 25% (calibrated against ground-truth counties)</p>
+                  <p className="mt-1.5 text-gray-400">Replaces the legacy curated county_intelligence booleans for the 32 states that were never seeded — all 3,142 counties get live signals.</p>
+                </TooltipContent>
+              </Tooltip>
+            </>
+          )}
           {/* §7.4: scenario indicator in the eyebrow when active */}
           {activeScenario && (
             <>

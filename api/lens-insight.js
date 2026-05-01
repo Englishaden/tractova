@@ -154,9 +154,25 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
 
   // ── Site control ───────────────────────────────────────────────────────────
   const sc = countyData?.siteControl
+  const geo = countyData?.geospatial
   const hasSeededIX = countyData?.interconnection?.easeScore !== null && countyData?.interconnection?.easeScore !== undefined
   lines.push(`\nSITE CONTROL — ${county} County`)
-  if (sc) {
+  if (geo && (geo.wetlandCoveragePct != null || geo.primeFarmlandPct != null)) {
+    // LIVE geospatial path (Path B). Authoritative federal sources, all 50 states.
+    lines.push(`  COVERAGE: live geospatial (NWI wetlands + SSURGO prime farmland)`)
+    if (geo.primeFarmlandPct != null) {
+      lines.push(`  Prime farmland: ${geo.primeFarmlandPct.toFixed(1)}% of soil-surveyed area (USDA SSURGO; >=25% → considered "available developable land")`)
+    }
+    if (geo.wetlandCoveragePct != null) {
+      lines.push(`  Wetland coverage: ${geo.wetlandCoveragePct.toFixed(1)}% / category=${geo.wetlandCategory} (USFWS NWI; >=15% triggers wetland warning. Raw % can exceed 100% from polygon overlap — category is the cleaner signal.)`)
+      lines.push(`  Wetland feature count in county: ${geo.wetlandFeatureCount?.toLocaleString() || 'n/a'}`)
+    }
+    // Curated qualitative notes still useful for AI context, when we have them.
+    if (sc?.landNotes) lines.push(`  Land notes (curated): ${sc.landNotes}`)
+    if (sc?.wetlandNotes) lines.push(`  Wetland notes (curated): ${sc.wetlandNotes}`)
+    if (sc?.landUseNotes) lines.push(`  Land use / zoning (curated): ${sc.landUseNotes}`)
+  } else if (sc) {
+    lines.push(`  COVERAGE: curated only (live geospatial layer pending for this county)`)
     lines.push(`  Available land: ${sc.availableLand ? 'Yes' : 'No'}`)
     if (sc.landNotes) lines.push(`  Land notes: ${sc.landNotes}`)
     lines.push(`  Wetland warning: ${sc.wetlandWarning ? 'YES — significant wetland presence' : 'Low risk'}`)
