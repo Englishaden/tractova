@@ -3763,6 +3763,11 @@ function SearchContent() {
   const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
   const [analyzing, setAnalyzing]     = useState(false)
+  // Look up the most recent saved project matching the current Lens
+  // context (state + county + tech). When found, scenarios saved from
+  // the Studio attach to that project_id so the Library card can show
+  // the "Scenarios: N" chip. Falls back to null = ad-hoc scenario.
+  const [matchingProjectId, setMatchingProjectId] = useState(null)
   const toast = useToast()
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [saveName, setSaveName]   = useState('')
@@ -3806,6 +3811,31 @@ function SearchContent() {
   useEffect(() => {
     getStateProgramMap().then(setProgramMap).catch(console.error)
   }, [])
+
+  // Match Lens results → existing saved project so saved scenarios
+  // attach to the project_id (Library chip flow). Re-runs each time
+  // the Lens context changes. Most-recent match wins.
+  useEffect(() => {
+    if (!user || !results?.form?.state || !results?.form?.county) {
+      setMatchingProjectId(null)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('state', results.form.state)
+        .eq('county', results.form.county)
+        .eq('technology', results.form.technology || '')
+        .order('saved_at', { ascending: false })
+        .limit(1)
+      if (cancelled) return
+      setMatchingProjectId(data?.[0]?.id ?? null)
+    })()
+    return () => { cancelled = true }
+  }, [user, results?.form?.state, results?.form?.county, results?.form?.technology])
 
   // Restore from sessionStorage on mount (URL param takes priority)
   useEffect(() => {
@@ -4282,6 +4312,7 @@ function SearchContent() {
                 rates: results.revenueRates,
               })}
               user={user}
+              projectId={matchingProjectId}
               countyName={results.form.county || ''}
             />
 

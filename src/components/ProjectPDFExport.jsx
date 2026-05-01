@@ -1,4 +1,5 @@
 import { Document, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer'
+import { SCENARIO_DISCLAIMER, formatScenarioSummary } from '../lib/scenarioEngine'
 
 // ── V3 Brand tokens ───────────────────────────────────────────────────────────
 // PDF-native fonts only (Times/Courier/Helvetica) so we avoid Font.register
@@ -258,7 +259,68 @@ function AIMemoSection({ memo }) {
 }
 
 // ── PDF Document ──────────────────────────────────────────────────────────────
-function ProjectPDFDoc({ project, current, aiMemo }) {
+// ── Scenario Studio section ──────────────────────────────────────────────────
+// Renders only when the caller passes a saved scenario. Two-column metrics
+// strip (Year 1 revenue + simple payback) + summary line + disclaimer.
+function ScenarioSection({ scenario }) {
+  if (!scenario) return null
+  const out = scenario.outputs || {}
+  const summary = scenario.scenario_inputs && scenario.baseline_inputs
+    ? formatScenarioSummary(
+        { inputs: scenario.scenario_inputs, outputs: out },
+        { inputs: scenario.baseline_inputs },
+      )
+    : ''
+  return (
+    <View>
+      <Text style={s.sectionLabel}>Selected Scenario · {scenario.name}</Text>
+      <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+        <View style={{ flex: 1, paddingRight: 10 }}>
+          <Text style={[s.dataLabel, { width: 'auto', marginBottom: 3 }]}>Year 1 Revenue</Text>
+          <Text style={{ fontSize: 16, fontFamily: FONT_MONO_BOLD, color: INK }}>
+            ${formatLargeUSD(out.year1Revenue)}
+            {out.revenueDelta != null && Math.abs(out.revenueDelta) > 100 && (
+              <Text style={{ fontSize: 8, fontFamily: FONT_MONO, color: out.revenueDelta > 0 ? TEAL : RED, marginLeft: 4 }}>
+                {' '}{out.revenueDelta > 0 ? '+' : ''}${formatLargeUSD(out.revenueDelta)}
+              </Text>
+            )}
+          </Text>
+        </View>
+        <View style={{ flex: 1, paddingLeft: 10, borderLeftWidth: 1, borderLeftColor: BORDER }}>
+          <Text style={[s.dataLabel, { width: 'auto', marginBottom: 3 }]}>Simple Payback</Text>
+          <Text style={{ fontSize: 16, fontFamily: FONT_MONO_BOLD, color: INK }}>
+            {out.paybackYears != null ? `${out.paybackYears} yr` : '—'}
+            {out.paybackDelta != null && Math.abs(out.paybackDelta) > 0.1 && (
+              <Text style={{ fontSize: 8, fontFamily: FONT_MONO, color: out.paybackDelta < 0 ? TEAL : RED, marginLeft: 4 }}>
+                {' '}{out.paybackDelta > 0 ? '+' : ''}{out.paybackDelta} yr
+              </Text>
+            )}
+          </Text>
+        </View>
+      </View>
+      {summary && (
+        <View style={s.tealBlock}>
+          <Text style={[s.tealText, { fontSize: 8.5 }]}>Inputs: {summary}</Text>
+        </View>
+      )}
+      <View style={[s.grayBlock, { borderLeftColor: AMBER, borderLeftWidth: 2 }]}>
+        <Text style={[s.blockText, { fontSize: 7.5, color: INK_MUTED, lineHeight: 1.4 }]}>
+          {SCENARIO_DISCLAIMER}
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+function formatLargeUSD(n) {
+  if (n == null) return '—'
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return Math.round(n).toLocaleString()
+}
+
+function ProjectPDFDoc({ project, current, aiMemo, scenario }) {
   const generatedDate = new Date().toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
   })
@@ -369,6 +431,14 @@ function ProjectPDFDoc({ project, current, aiMemo }) {
           </>
         )}
 
+        {/* ── Selected Scenario (when scenario provided) ── */}
+        {scenario && (
+          <>
+            <ScenarioSection scenario={scenario} />
+            <View style={s.divider} />
+          </>
+        )}
+
         {/* ── Pipeline ── */}
         <Text style={s.sectionLabel}>Development Pipeline</Text>
         <View style={{ marginBottom: 16 }}>
@@ -400,13 +470,17 @@ function ProjectPDFDoc({ project, current, aiMemo }) {
 }
 
 // ── Export function ───────────────────────────────────────────────────────────
-export async function exportProjectPDF(project, current, aiMemo = null) {
-  const doc  = <ProjectPDFDoc project={project} current={current} aiMemo={aiMemo} />
+// Optional `scenario` is a row from scenario_snapshots (with baseline_inputs +
+// scenario_inputs + outputs + name). When passed, the PDF gains a
+// "Selected Scenario" section between the AI memo and the pipeline visual.
+export async function exportProjectPDF(project, current, aiMemo = null, scenario = null) {
+  const doc  = <ProjectPDFDoc project={project} current={current} aiMemo={aiMemo} scenario={scenario} />
   const blob = await pdf(doc).toBlob()
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
+  const suffix = aiMemo ? '-deal-memo' : (scenario ? '-scenario' : '')
   a.href     = url
-  a.download = `${(project.name || 'project').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-tractova${aiMemo ? '-deal-memo' : ''}.pdf`
+  a.download = `${(project.name || 'project').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-tractova${suffix}.pdf`
   a.click()
   URL.revokeObjectURL(url)
 }

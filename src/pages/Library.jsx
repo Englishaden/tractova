@@ -1358,7 +1358,18 @@ function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
   )
 }
 
-function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false }) {
+// Compact USD formatter for the saved-scenarios chip + picker. Mirrors the
+// shape used inside ScenarioStudio so the same numbers read identically
+// across the studio and the project card. Pure / module-scope.
+function formatLargeUSD(n) {
+  if (n == null) return '—'
+  const abs = Math.abs(n)
+  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
+  if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return Math.round(n).toLocaleString()
+}
+
+function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, scenarios = [], onScenarioDelete }) {
   const [expanded,   setExpanded]   = useState(false)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
@@ -1400,6 +1411,10 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
   // redundancy. Now there's one path: it tries the AI memo, falls back
   // gracefully if the AI call fails or times out.
   const [memoExporting, setMemoExporting] = useState(false)
+  // Scenario selection — when set, the next PDF export embeds this scenario
+  // as a "Selected Scenario" section. null = data-only / no scenario embed.
+  const [selectedScenarioId, setSelectedScenarioId] = useState(null)
+  const [scenariosOpen, setScenariosOpen] = useState(false)
   const handleExportDealMemo = async (e) => {
     e.stopPropagation()
     setMemoExporting(true)
@@ -1442,8 +1457,11 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
         console.warn('[Deal Memo] AI fetch failed; exporting data-only PDF:', err.message)
       }
 
+      const selectedScenario = selectedScenarioId
+        ? scenarios.find(s => s.id === selectedScenarioId) || null
+        : null
       const { exportProjectPDF } = await import('../components/ProjectPDFExport')
-      await exportProjectPDF({ ...project, notes, stage }, stateOverride, memo)
+      await exportProjectPDF({ ...project, notes, stage }, stateOverride, memo, selectedScenario)
     } finally {
       setMemoExporting(false)
     }
@@ -1820,6 +1838,84 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
               </div>
             </TabsContent>
           </Tabs>
+
+          {/* ── Saved Scenarios — chip + expandable picker ── */}
+          {/* Backed by scenario_snapshots (migration 041) — list filtered to
+              this project_id by the parent's batched query. Tapping the chip
+              expands an inline picker; selecting a scenario marks it for the
+              next PDF export. Empty list → no chip rendered (graceful absence). */}
+          {scenarios.length > 0 && (
+            <div className="mt-5 pt-4" style={{ borderTop: '1px solid #E5E7EB' }}>
+              <button
+                onClick={() => setScenariosOpen(o => !o)}
+                className="flex items-center gap-2 text-[11px] font-semibold transition-colors hover:text-teal-700"
+                style={{ color: '#0F766E' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points={scenariosOpen ? '6 9 12 15 18 9' : '9 18 15 12 9 6'} />
+                </svg>
+                Saved Scenarios · {scenarios.length}
+                {selectedScenarioId && (
+                  <span className="text-[9px] font-mono uppercase tracking-[0.18em] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E' }}>
+                    1 in next PDF
+                  </span>
+                )}
+              </button>
+              {scenariosOpen && (
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {scenarios.map((snap) => {
+                    const isSel = snap.id === selectedScenarioId
+                    const out = snap.outputs || {}
+                    return (
+                      <div
+                        key={snap.id}
+                        className="rounded-md px-3 py-2 transition-colors"
+                        style={{
+                          background: isSel ? 'rgba(20,184,166,0.08)' : '#FAFAF7',
+                          border: isSel ? '1px solid rgba(20,184,166,0.40)' : '1px solid #E5E7EB',
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-semibold text-ink truncate">{snap.name}</p>
+                            <div className="text-[10px] text-gray-500 tabular-nums mt-0.5">
+                              ${formatLargeUSD(out.year1Revenue)}/yr · {out.paybackYears != null ? `${out.paybackYears}yr payback` : '—'}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const { error } = await supabase.from('scenario_snapshots').delete().eq('id', snap.id)
+                              if (!error && onScenarioDelete) onScenarioDelete(snap.id)
+                              if (selectedScenarioId === snap.id) setSelectedScenarioId(null)
+                            }}
+                            className="text-[10px] text-gray-400 hover:text-red-600 transition-colors px-1"
+                            aria-label={`Delete scenario ${snap.name}`}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedScenarioId(isSel ? null : snap.id)}
+                            className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+                            style={{
+                              background: isSel ? '#0F766E' : 'rgba(20,184,166,0.12)',
+                              color: isSel ? 'white' : '#0F766E',
+                              border: '1px solid rgba(20,184,166,0.30)',
+                            }}
+                          >
+                            {isSel ? '✓ In next PDF' : 'Include in PDF'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Action footer ── */}
           <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #E5E7EB' }}>
@@ -2371,6 +2467,7 @@ function LibraryContent() {
   const [filterTech,      setFilterTech]      = useState('')
   const [filterStage,     setFilterStage]     = useState('')
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
+  const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at}, ...]
 
   // Load live state program map for alert detection
   useEffect(() => {
@@ -2472,6 +2569,33 @@ function LibraryContent() {
           counts[row.project_id] = (counts[row.project_id] || 0) + 1
         }
         setShareCountMap(counts)
+      } catch { /* table missing or RLS denial -- silent */ }
+    })()
+    return () => { cancelled = true }
+  }, [user, projects.length])
+
+  // Per-project scenarios — one batched query, group by project_id. Used
+  // to render the "Scenarios: N" chip on each card and to feed the Export
+  // PDF button when the user wants to include a saved scenario. Scoped
+  // by RLS to the current user; null project_id (ad-hoc Lens scenarios)
+  // are excluded since they don't belong to any card.
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('scenario_snapshots')
+          .select('id, project_id, name, baseline_inputs, scenario_inputs, outputs, created_at')
+          .not('project_id', 'is', null)
+          .order('created_at', { ascending: false })
+        if (cancelled || error || !data) return
+        const grouped = {}
+        for (const row of data) {
+          if (!grouped[row.project_id]) grouped[row.project_id] = []
+          grouped[row.project_id].push(row)
+        }
+        setScenariosMap(grouped)
       } catch { /* table missing or RLS denial -- silent */ }
     })()
     return () => { cancelled = true }
@@ -3118,6 +3242,11 @@ function LibraryContent() {
                     selected={selectedIds.has(p.id)}
                     onToggleSelect={() => toggleSelect(p.id)}
                     selectionActive={selectedIds.size > 0}
+                    scenarios={scenariosMap[p.id] || []}
+                    onScenarioDelete={(snapId) => setScenariosMap(prev => ({
+                      ...prev,
+                      [p.id]: (prev[p.id] || []).filter(s => s.id !== snapId),
+                    }))}
                   />
                 ))}
               </div>
