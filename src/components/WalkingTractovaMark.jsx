@@ -1,71 +1,58 @@
 import { useEffect, useState, useRef } from 'react'
 
-// WalkingTractovaMark — anthropomorphized brand mark with little legs that
-// walks across the bottom of the screen, pauses briefly mid-page, then walks
-// off. A rare moment of kindness for the developer using the product.
+// Peeking Tractova mark — the brand logo pops in from one edge of the
+// screen, hovers in place for a few seconds with a gentle bob + tilt + glow
+// pulse (like it's curiously looking around), then slides back out the
+// same edge. Stays within ~60px of the screen edge throughout — never
+// crosses the page or competes with content.
 //
-// Frequency: once per browser session, tracked via sessionStorage. The user
-// won't see it more than once no matter how many times they hit Profile or
-// run a Lens query in the same session. Resets when they close the tab.
+// Frequency: once per browser session via sessionStorage. The user won't
+// see it more than once no matter how many times they hit Profile or run
+// a Lens query in the same session. Resets when they close the tab.
 //
 // Surfaces (per user direction):
 //   - Profile (renders always; gated by sessionStorage flag)
 //   - Lens loading state (renders during search; same flag)
 //
-// Boundaries:
-//   - Pointer-events: none (never blocks clicks)
-//   - Honors prefers-reduced-motion (skips the walk entirely)
-//   - z-20 (walks ON TOP of page content for full-screen visibility, but
-//     non-interactive)
-//   - 14s total animation duration: enter → walk to pause → pause → walk
-//     to exit → fade off
-//
-// Composition: SVG built from the canonical Tractova mark (navy rounded
-// square + teal lookup grid + center stem) plus two leg <rect>s that swing
-// in opposing rotations via CSS keyframes. Body bobs vertically on the
-// same 0.45s cadence so leg + body motion are synced like real walking.
+// Test escape hatch: append `?walk=1` to any URL to force the animation
+// to fire regardless of session flag. Useful for QA + showing it off.
 
-// Versioned key — bumping the v## suffix invalidates any previously-set
-// flags so existing users get to see the animation again after a refresh.
-const SESSION_KEY = 'tractova-walking-mark-shown-v2'
+const SESSION_KEY = 'tractova-walking-mark-shown-v3'
 
-export default function WalkingTractovaMark({ enabled = true, delayMs = 2500 }) {
+export default function WalkingTractovaMark({ enabled = true, delayMs = 2000 }) {
   const [active, setActive] = useState(false)
+  // Side + vertical position randomized per appearance so the cameo
+  // doesn't feel mechanical. Captured in a ref so re-renders during the
+  // animation don't change them mid-flight.
+  const config = useRef({
+    side: Math.random() < 0.5 ? 'left' : 'right',
+    topPct: 38 + Math.random() * 28,  // 38-66vh — anchored mid-page area
+  })
   const triggered = useRef(false)
 
   useEffect(() => {
     if (!enabled || triggered.current) return
 
-    // Honor reduced-motion preference — skip silently.
     if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
       return
     }
 
-    // ?walk=1 in the URL bypasses the once-per-session gate — useful for
-    // testing the animation without having to clear sessionStorage manually.
     const forceShow = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('walk') === '1'
 
-    // Once-per-session gate. sessionStorage may be blocked (private mode,
-    // some embedded contexts) — degrade silently if so (no-op, doesn't
-    // crash the parent component).
     if (!forceShow) {
       try {
         if (sessionStorage.getItem(SESSION_KEY) === '1') {
           console.debug('[WalkingTractovaMark] already shown this session; append ?walk=1 to retest')
           return
         }
-      } catch { /* fall through; treat as not-yet-shown */ }
+      } catch { /* fall through */ }
     }
 
     triggered.current = true
-
-    // Small delay before triggering — feels more organic if it shows up a
-    // few seconds AFTER page load rather than racing in alongside content.
     const t = setTimeout(() => {
-      // Set the session flag ONLY when the mark actually starts walking,
-      // not at component mount. Previous version set the flag on mount,
-      // which meant any prior page visit (even one cancelled before the
-      // 2.5s delay) would silently consume the once-per-session quota.
+      // Set the session flag only when the mark actually starts. If the
+      // component unmounts before the timeout fires, the flag stays unset
+      // and the next visit gets a fresh chance.
       if (!forceShow) {
         try { sessionStorage.setItem(SESSION_KEY, '1') } catch { /* best-effort */ }
       }
@@ -74,45 +61,51 @@ export default function WalkingTractovaMark({ enabled = true, delayMs = 2500 }) 
     return () => clearTimeout(t)
   }, [enabled, delayMs])
 
-  // Auto-cleanup after the walk completes — removes the element from the
-  // DOM so it can't accidentally interfere with anything else on the page.
+  // Auto-cleanup after the cameo completes — removes the element from the
+  // DOM so it can't accidentally interfere with anything else.
   useEffect(() => {
     if (!active) return
-    const t = setTimeout(() => setActive(false), 14500)  // 14s walk + 500ms buffer
+    const t = setTimeout(() => setActive(false), 7500)  // 7s cameo + 500ms buffer
     return () => clearTimeout(t)
   }, [active])
 
   if (!active) return null
 
+  const { side, topPct } = config.current
+
   return (
     <>
       <style>{`
-        @keyframes tractova-walk-across {
+        /* Peek in from the LEFT edge: slide from -60px (off-screen) to 12px
+           (just inside the edge), hold there, slide back out. */
+        @keyframes tractova-peek-left {
           0%   { transform: translateX(-60px); opacity: 0; }
-          5%   { transform: translateX(-30px); opacity: 1; }
-          35%  { transform: translateX(40vw);  opacity: 1; }
-          50%  { transform: translateX(40vw);  opacity: 1; }
-          95%  { transform: translateX(110vw); opacity: 1; }
-          100% { transform: translateX(110vw); opacity: 0; }
+          12%  { transform: translateX(12px);  opacity: 1; }
+          88%  { transform: translateX(12px);  opacity: 1; }
+          100% { transform: translateX(-60px); opacity: 0; }
         }
-        @keyframes tractova-body-bob {
-          0%, 100% { transform: translateY(0); }
-          50%      { transform: translateY(-2px); }
+        /* Peek in from the RIGHT edge: mirror of the above. */
+        @keyframes tractova-peek-right {
+          0%   { transform: translateX(60px);  opacity: 0; }
+          12%  { transform: translateX(-12px); opacity: 1; }
+          88%  { transform: translateX(-12px); opacity: 1; }
+          100% { transform: translateX(60px);  opacity: 0; }
         }
-        @keyframes tractova-leg-front {
-          0%, 100% { transform: rotate(22deg); }
-          50%      { transform: rotate(-22deg); }
+        /* Inner float: gentle vertical bob + slight tilt back-and-forth so
+           the mark reads as "curiously looking around" rather than static.
+           Independent cycle (1.6s) layered over the peek-in/out (7s) for
+           organic motion. */
+        @keyframes tractova-float-bob {
+          0%, 100% { transform: translateY(0)    rotate(-3deg); }
+          25%      { transform: translateY(-3px) rotate(2deg);  }
+          50%      { transform: translateY(0)    rotate(-2deg); }
+          75%      { transform: translateY(-3px) rotate(3deg);  }
         }
-        @keyframes tractova-leg-back {
-          0%, 100% { transform: rotate(-22deg); }
-          50%      { transform: rotate(22deg); }
-        }
-        /* Pause-mid-walk: freeze the leg cycle during the pause segment of
-           the walk-across keyframe. The body bob keeps going (subtle idle). */
-        @keyframes tractova-leg-cycle {
-          0%        { animation-play-state: running; }
-          35%, 50%  { animation-play-state: paused;  }
-          50.01%, 100% { animation-play-state: running; }
+        /* Pulsing teal halo emanation — separate cycle so the breath
+           doesn't sync with the bob. */
+        @keyframes tractova-float-glow {
+          0%, 100% { filter: drop-shadow(0 0 8px  rgba(20,184,166,0.45)); }
+          50%      { filter: drop-shadow(0 0 18px rgba(20,184,166,0.80)); }
         }
       `}</style>
 
@@ -120,64 +113,37 @@ export default function WalkingTractovaMark({ enabled = true, delayMs = 2500 }) 
         aria-hidden="true"
         className="fixed pointer-events-none"
         style={{
-          left: 0,
-          bottom: '24px',
+          [side]: 0,
+          top: `${topPct}vh`,
           // z-index 110 sits above both normal page content (z<100) and the
-          // LensOverlay's dark backdrop (z=100), so the mark is visible on
-          // either surface. pointer-events:none ensures it never blocks
-          // interactions even though it's the topmost layer.
+          // LensOverlay's dark backdrop (z=100). pointer-events:none ensures
+          // it never blocks interactions despite being topmost.
           zIndex: 110,
-          animation: 'tractova-walk-across 14s ease-in-out forwards',
+          animation: `${side === 'left' ? 'tractova-peek-left' : 'tractova-peek-right'} 7s ease-in-out forwards`,
           willChange: 'transform, opacity',
         }}
       >
-        {/* Body bob wrapper */}
+        {/* Float-bob wrapper: gentle vertical bob + slight tilt */}
         <div
           style={{
-            animation: 'tractova-body-bob 0.45s ease-in-out infinite',
+            animation: 'tractova-float-bob 1.6s ease-in-out infinite',
             transformOrigin: 'center bottom',
           }}
         >
-          <svg width="28" height="38" viewBox="0 0 26 36" style={{ overflow: 'visible' }}>
-            {/* Soft drop-shadow under the character */}
-            <ellipse
-              cx="13" cy="35" rx="9" ry="1.5"
-              fill="rgba(15,23,42,0.18)"
-              style={{ filter: 'blur(1px)' }}
-            />
-
-            {/* Back leg (rendered before body so it appears behind) */}
-            <g
-              style={{
-                transformBox: 'fill-box',
-                transformOrigin: '50% 0%',
-                animation: 'tractova-leg-back 0.45s ease-in-out infinite',
-              }}
-            >
-              <rect x="14.5" y="25.5" width="3" height="7.5" rx="1.5" fill="#0A132A" />
-            </g>
-
-            {/* Body — canonical Tractova mark, slightly elevated to make
-                room for legs at y=25-33. */}
-            <g style={{ filter: 'drop-shadow(0 2px 3px rgba(20,184,166,0.18))' }}>
+          {/* Glow-pulse wrapper: pulsing teal halo on independent cycle */}
+          <div
+            style={{
+              animation: 'tractova-float-glow 2.4s ease-in-out infinite',
+            }}
+          >
+            <svg width="32" height="32" viewBox="0 0 26 26" style={{ overflow: 'visible' }}>
               <rect width="26" height="26" rx="5" fill="#0F1A2E" />
               <rect x="5"     y="7"   width="16"  height="2.5" rx="1.25" fill="#14B8A6" />
               <rect x="11.75" y="9.5" width="2.5" height="10"  rx="1.25" fill="#14B8A6" />
               <rect x="6"     y="10"  width="0.8" height="2"   rx="0.4"  fill="#14B8A6" opacity="0.6" />
               <rect x="19.2"  y="10"  width="0.8" height="2"   rx="0.4"  fill="#14B8A6" opacity="0.6" />
-            </g>
-
-            {/* Front leg (rendered after body so it appears in front) */}
-            <g
-              style={{
-                transformBox: 'fill-box',
-                transformOrigin: '50% 0%',
-                animation: 'tractova-leg-front 0.45s ease-in-out infinite',
-              }}
-            >
-              <rect x="8.5" y="25.5" width="3" height="7.5" rx="1.5" fill="#0F1A2E" />
-            </g>
-          </svg>
+            </svg>
+          </div>
         </div>
       </div>
     </>
