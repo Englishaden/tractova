@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -52,31 +52,7 @@ export default function SignUp() {
 
   // ── Success / email confirmation screen ──────────────────────────────────────
   if (success) {
-    return (
-      <div className="min-h-screen bg-paper flex items-center justify-center px-4 pt-14">
-        <div className="w-full max-w-sm text-center">
-          <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(20,184,166,0.10)' }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-              <polyline points="22,6 12,13 2,6"/>
-            </svg>
-          </div>
-          <h2 className="text-lg font-bold text-gray-900 mb-2">Check your email</h2>
-          <p className="text-sm text-gray-500 leading-relaxed">
-            We sent a confirmation link to{' '}
-            <span className="font-medium text-gray-700">{email}</span>.
-            Click the link to activate your account.
-          </p>
-          <Link
-            to="/signin"
-            className="inline-block mt-6 text-sm font-medium hover:underline"
-            style={{ color: '#0F766E' }}
-          >
-            Back to Sign In →
-          </Link>
-        </div>
-      </div>
-    )
+    return <CheckYourEmailScreen email={email} />
   }
 
   // ── Sign up form ─────────────────────────────────────────────────────────────
@@ -197,6 +173,89 @@ export default function SignUp() {
             ← Back to dashboard
           </Link>
         </p>
+      </div>
+    </div>
+  )
+}
+
+// Post-signup confirmation screen with a Resend link. Address the audit gap:
+// previously this screen had no recovery path if the email was slow / lost
+// in spam / typo'd. The user just sat staring at "Check your email" with
+// no obvious next step. Now: 60s rate-limited Resend button + Back to Sign In.
+function CheckYourEmailScreen({ email }) {
+  const [resendState, setResendState] = useState('idle')  // idle | sending | sent | error | cooldown
+  const [cooldown, setCooldown] = useState(0)
+  const [resendError, setResendError] = useState(null)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setInterval(() => setCooldown((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(t)
+  }, [cooldown])
+
+  const handleResend = async () => {
+    if (cooldown > 0 || resendState === 'sending') return
+    setResendState('sending')
+    setResendError(null)
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    if (error) {
+      setResendError(humanizeError(error.message))
+      setResendState('error')
+      return
+    }
+    setResendState('sent')
+    setCooldown(60)  // Supabase rate-limits ~1/min for resend
+  }
+
+  return (
+    <div className="min-h-screen bg-paper flex items-center justify-center px-4 pt-14">
+      <div className="w-full max-w-sm text-center">
+        <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(20,184,166,0.10)' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+        </div>
+        <h2 className="text-lg font-bold text-gray-900 mb-2">Check your email</h2>
+        <p className="text-sm text-gray-500 leading-relaxed">
+          We sent a confirmation link to{' '}
+          <span className="font-medium text-gray-700">{email}</span>.
+          Click the link to activate your account.
+        </p>
+
+        {resendState === 'sent' && (
+          <div className="mt-5 px-3 py-2 rounded-md text-xs" style={{ background: 'rgba(20,184,166,0.07)', border: '1px solid rgba(20,184,166,0.30)', color: '#0F766E' }}>
+            New confirmation email sent. Check your inbox + spam folder.
+          </div>
+        )}
+        {resendState === 'error' && resendError && (
+          <div className="mt-5 px-3 py-2 rounded-md text-xs bg-red-50 border border-red-200 text-red-600">
+            {resendError}
+          </div>
+        )}
+
+        <p className="mt-5 text-xs text-gray-500">
+          Didn't get it?{' '}
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={cooldown > 0 || resendState === 'sending'}
+            className="font-medium hover:underline disabled:no-underline disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ color: '#0F766E' }}
+          >
+            {resendState === 'sending' ? 'Sending…'
+              : cooldown > 0   ? `Resend in ${cooldown}s`
+              : 'Resend the email'}
+          </button>
+        </p>
+
+        <Link
+          to="/signin"
+          className="inline-block mt-4 text-sm font-medium hover:underline"
+          style={{ color: '#0F766E' }}
+        >
+          ← Back to Sign In
+        </Link>
       </div>
     </div>
   )

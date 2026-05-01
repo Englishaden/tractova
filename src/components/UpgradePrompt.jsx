@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 
@@ -45,6 +45,30 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
   const config = FEATURE_CONFIG[feature] || FEATURE_CONFIG['Tractova Lens']
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
+  // Library-entry personalization: if the user already has saved projects
+  // (former Pro now lapsed, or signed up before paying then bookmarked
+  // /library), surface that count so the paywall reads "your N projects
+  // are waiting" instead of generic "save your pipeline" copy. Lens-entry
+  // path is personalized via URL params (below); this is the analogous
+  // path for Library-entry which has no URL context.
+  const [savedCount, setSavedCount] = useState(null)
+  useEffect(() => {
+    if (feature !== 'Library') return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user || cancelled) return
+        const { count, error: cErr } = await supabase
+          .from('projects')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+        if (cancelled || cErr) return
+        if (count > 0) setSavedCount(count)
+      } catch { /* paywall reads fine without personalization */ }
+    })()
+    return () => { cancelled = true }
+  }, [feature])
   // V3.1 onboarding polish: surface URL params (state/county/mw/technology/
   // stage) when the user arrives from a pre-filled link (WelcomeCard CTA,
   // shared lens URL, etc.). The paywall then references the exact analysis
@@ -132,6 +156,25 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
           </>
         ) : (
           <>
+            {/* Library-entry: when the user already has saved projects (e.g.
+                lapsed Pro returning), reframe the paywall around what's
+                already theirs instead of generic "save your pipeline" copy. */}
+            {feature === 'Library' && savedCount > 0 && (
+              <div
+                className="rounded-lg px-4 py-3 mb-5"
+                style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(15,118,110,0.22)' }}
+              >
+                <p className="font-mono text-[9px] uppercase tracking-[0.22em] font-bold mb-1" style={{ color: '#0F766E' }}>
+                  ◆ Your Library is waiting
+                </p>
+                <p className="text-sm font-semibold text-ink leading-snug">
+                  {savedCount} {savedCount === 1 ? 'project' : 'projects'} saved · ready for re-scoring
+                </p>
+                <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
+                  Pro re-opens your saved pipeline with live alerts and AI commentary on every project.
+                </p>
+              </div>
+            )}
             <h1 className="text-2xl font-serif font-semibold text-ink mb-3" style={{ letterSpacing: '-0.02em' }}>{config.headline}</h1>
             <p className="text-gray-500 text-sm leading-relaxed mb-7">{config.sub}</p>
           </>

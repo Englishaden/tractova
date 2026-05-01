@@ -1466,17 +1466,27 @@ function CopyButton({ text, label = 'Copy', className = '' }) {
 }
 
 function endpointStatus(val) {
-  // Returns 'ok' | 'partial' | 'failed'
-  // A sub-source that "failed" but is stale-tolerated counts as OK for
-  // verdict purposes: the data we have is still within the freshness
-  // window, so a transient upstream blip isn't worth alarming on.
+  // Returns 'ok' | 'stale-ok' | 'partial' | 'failed'
+  //   ok        — everything fresh and healthy
+  //   stale-ok  — most recent attempt failed but we still have data inside
+  //               the freshness window (Census 503 with last-good <90d, etc.)
+  //               Data the user sees is correct; no alarm, but signal the
+  //               soft-fail so admin knows the upstream is misbehaving.
+  //   partial   — some sub-sources hard-failed but others succeeded
+  //   failed    — no useful data (hard fail / no recent good)
   const isHardFail = (s) => s?.ok === false && !s?.stale_tolerated
+  const isStaleOk  = (s) => s?.ok === false && !!s?.stale_tolerated
   if (!val) return 'failed'
   if (val.error || (val.ok === false && !val.sources && !val.stale_tolerated)) return 'failed'
   if (val.sources) {
     const subs = Object.values(val.sources)
     const anyFail = subs.some(isHardFail)
     if (anyFail) return subs.every(isHardFail) ? 'failed' : 'partial'
+    // No hard-fails: if any sub-source is stale-tolerated, surface as stale-ok
+    if (subs.some(isStaleOk)) return 'stale-ok'
+  } else if (val.ok === false && val.stale_tolerated) {
+    // Non-multiplexed endpoint that stale-toleranced its own failure
+    return 'stale-ok'
   }
   return 'ok'
 }
@@ -1529,14 +1539,17 @@ function RefreshStatusBanner({ result }) {
 
   const eps = Object.entries(result.endpoints || {})
   const okCount   = eps.filter(([, v]) => endpointStatus(v) === 'ok').length
+  const staleOk   = eps.filter(([, v]) => endpointStatus(v) === 'stale-ok').length
   const partial   = eps.filter(([, v]) => endpointStatus(v) === 'partial').length
   const failed    = eps.filter(([, v]) => endpointStatus(v) === 'failed').length
 
-  const verdict = result.ok
-    ? { label: 'Refresh complete',  tone: 'emerald' }
+  const verdict = failed === 0 && partial === 0 && staleOk === 0
+    ? { label: 'Refresh complete',     tone: 'emerald' }
     : failed === eps.length
-      ? { label: 'Refresh failed',  tone: 'red' }
-      : { label: 'Partial refresh', tone: 'amber' }
+      ? { label: 'Refresh failed',     tone: 'red' }
+      : failed === 0 && partial === 0  // only stale-ok soft fails remain
+        ? { label: 'Refresh complete · stale-tolerated', tone: 'amber' }
+        : { label: 'Partial refresh',  tone: 'amber' }
 
   const tones = {
     emerald: { ring: 'border-emerald-200', wash: 'bg-emerald-50/40', dot: 'bg-emerald-500', text: 'text-emerald-800' },
@@ -1557,6 +1570,7 @@ function RefreshStatusBanner({ result }) {
           <span className={`font-serif text-sm font-medium ${t.text}`}>{verdict.label}</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-ink-muted truncate">
             {okCount}/{eps.length} ok
+            {staleOk > 0 ? ` · ${staleOk} stale-ok` : ''}
             {partial > 0 ? ` · ${partial} partial` : ''}
             {failed > 0 ? ` · ${failed} failed` : ''}
             {startedTime ? ` · ${startedTime}` : ''}
@@ -1582,9 +1596,9 @@ function EndpointRow({ name, val }) {
   const status = endpointStatus(val)
   const isMux  = !!val?.sources
 
-  const dots = { ok: 'bg-emerald-500', partial: 'bg-amber-500', failed: 'bg-red-500' }
-  const labels = { ok: 'OK', partial: 'PARTIAL', failed: 'FAILED' }
-  const labelColors = { ok: 'text-emerald-700', partial: 'text-amber-700', failed: 'text-red-700' }
+  const dots = { ok: 'bg-emerald-500', 'stale-ok': 'bg-amber-500', partial: 'bg-amber-500', failed: 'bg-red-500' }
+  const labels = { ok: 'OK', 'stale-ok': 'STALE-OK', partial: 'PARTIAL', failed: 'FAILED' }
+  const labelColors = { ok: 'text-emerald-700', 'stale-ok': 'text-amber-700', partial: 'text-amber-700', failed: 'text-red-700' }
 
   return (
     <div className="px-4 py-2.5">

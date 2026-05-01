@@ -80,6 +80,12 @@ export default function MemoView() {
   // here so the shared URL never leaks the owner's email to recipients.
   // Only sharedByName (display name) is rendered.
   const sharedDate = sharedAt ? new Date(sharedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : null
+  // Snapshot age — memos are frozen at share time. Past ~7d the underlying
+  // market data has likely shifted (state programs cap, IX queues move,
+  // tariffs update). Surface as an amber "stale snapshot" banner so the
+  // recipient knows to request a refreshed link before acting on numbers.
+  const sharedAgeDays = sharedAt ? Math.floor((Date.now() - new Date(sharedAt).getTime()) / 86400000) : null
+  const isStale = sharedAgeDays != null && sharedAgeDays >= 7
 
   return (
     <div className="min-h-screen bg-paper">
@@ -105,6 +111,37 @@ export default function MemoView() {
               </div>
             )}
           </div>
+
+          {/* Stale-snapshot banner — only surfaces when the memo is ≥7 days
+              old. Numbers in a frozen memo can drift far from current reality
+              (capacity caps, IX queue movement, ITC updates), so flag clearly
+              before the recipient acts on them. */}
+          {isStale && (
+            <div
+              className="rounded-lg flex items-start gap-3 px-4 py-3 mb-6"
+              style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
+            >
+              <svg
+                width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="#D97706" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round"
+                className="shrink-0 mt-0.5"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <div className="flex-1">
+                <p className="text-xs font-semibold leading-tight" style={{ color: '#92400E' }}>
+                  Snapshot is {sharedAgeDays} days old
+                </p>
+                <p className="text-[11px] mt-0.5 leading-snug" style={{ color: 'rgba(146,64,14,0.85)' }}>
+                  This memo was generated on {sharedDate}. Program capacity, interconnection queues, and ITC bonus eligibility may have shifted since then. Ask {sharedByName ? sharedByName : 'the project owner'} for an updated link before acting on the numbers below.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Headline metrics */}
           <div className="grid grid-cols-3 gap-4 mb-8">
