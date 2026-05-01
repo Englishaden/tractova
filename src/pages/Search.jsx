@@ -385,21 +385,32 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
               fires for ~8 top-CS-market states (CO/IL/MA/MD/ME/MN/NJ/NY); for
               the rest, the IX score is curated from stateProgram.ixDifficulty
               and this badge stays absent. Honest signal — no badge means
-              we didn't have live data, not that we're hiding something. */}
+              we didn't have live data, not that we're hiding something.
+              Tooltip mirrors the methodology popover's structured-box style. */}
           {coverage?.ix === 'live' && (
             <>
               <span className="text-gray-300 text-[9px]">/</span>
-              <span
-                className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold"
-                style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
-                title="IX sub-score blended with live ix_queue_data signals (mw_pending, avg_study_months) on top of the curated ixDifficulty baseline. Only fires for states with current queue-snapshot coverage."
-              >
-                <span
-                  className="relative inline-flex w-1.5 h-1.5 rounded-full"
-                  style={{ background: '#14B8A6', boxShadow: '0 0 5px rgba(20,184,166,0.65)' }}
-                />
-                IX · Live
-              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
+                    style={{ background: 'rgba(20,184,166,0.10)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }}
+                  >
+                    <span
+                      className="relative inline-flex w-1.5 h-1.5 rounded-full"
+                      style={{ background: '#14B8A6', boxShadow: '0 0 5px rgba(20,184,166,0.65)' }}
+                    />
+                    IX · Live
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="end" className="text-[10px]">
+                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Live IX Queue Data</p>
+                  <p>This state has current ISO/RTO queue-snapshot coverage. The Interconnection sub-score blends live signals on top of the curated <span className="font-mono">ixDifficulty</span> baseline.</p>
+                  <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — avg study months · total pending MW (weighted across utilities)</p>
+                  <p className="mt-0.5"><span className="text-amber-300 font-mono">CLAMP</span> — adjustment limited to ±10 so live signal can move the curated baseline meaningfully without dominating structural ISO context.</p>
+                  <p className="mt-1.5 text-gray-400">Absent badge = curated only. We don't fabricate live coverage where ISO scrapers haven't landed yet.</p>
+                </TooltipContent>
+              </Tooltip>
             </>
           )}
           {/* §7.4: scenario indicator in the eyebrow when active */}
