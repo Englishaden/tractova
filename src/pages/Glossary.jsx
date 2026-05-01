@@ -24,12 +24,21 @@ const TECH_TYPE_TERMS = Object.entries(TECH_DEFINITIONS).map(([_name, def]) => (
 // hardcoded array below — for terms like Site Control / IX / Offtake
 // that have richer hardcoded entries, those stay authoritative.
 const GLOSSARY_PILLAR_MAP = {
-  'Prime Farmland':   'site',
-  'Wetland Warning':  'site',
-  'Capacity Factor':  'offtake',
-  'Energy Community': 'offtake',
-  'IX · Live':        'ix',
-  'Site · Live':      'site',
+  'Prime Farmland':     'site',
+  'Wetland Warning':    'site',
+  'Capacity Factor':    'offtake',
+  'Energy Community':   'offtake',
+  'IX · Live':          'ix',
+  'Site · Live':        'site',
+  // Phase 2 — Scenario Studio terminology
+  'Scenario Studio':    'offtake',
+  'Achievable Baseline':'offtake',
+  'Year 1 Revenue':     'offtake',
+  'Simple Payback':     'offtake',
+  'Capex':              'offtake',
+  'IX Cost':            'ix',
+  'Program Allocation': 'offtake',
+  'REC Price':          'offtake',
 }
 const GLOSSARY_NEW_TERMS = Object.entries(GLOSSARY_DEFINITIONS)
   .filter(([key]) => key in GLOSSARY_PILLAR_MAP)

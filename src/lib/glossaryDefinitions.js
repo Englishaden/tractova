@@ -100,6 +100,54 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'When this badge appears, the Site Control sub-score is derived from authoritative federal sources for this specific county, not from a curated qualitative cell. Inputs are wetland coverage % (USFWS NWI) and prime farmland % (USDA SSURGO). Thresholds: wetlandWarning ≥ 15%, availableLand ≥ 25%. Replaces the legacy curated booleans for the 32 states that were never seeded — all 3,142 counties get live signals once the NWI seed completes.',
     inputs: 'USFWS NWI · USDA SSURGO · county_geospatial_data',
   },
+  'Scenario Studio': {
+    title: 'Scenario Studio',
+    short: 'Interactive sensitivity layer over an "achievable baseline" — drag sliders to see Year 1 revenue + payback shift in real time.',
+    long: 'Tractova\'s deal-structuring tool. Each Lens result has a Scenario Studio tab that pre-computes an achievable baseline (industry-standard capex, IX cost, capacity factor, REC price for the state). Drag any of six sliders to model alternative scenarios — larger system, cheaper capex, looser allocation. Outputs Year 1 revenue + simple payback so you can quickly explore the deal envelope. NOT an investment-grade pro-forma; engage a financial advisor for IC modeling.',
+    inputs: 'scenarioEngine · revenueEngine per-tech formulas · industry baselines',
+  },
+  'Achievable Baseline': {
+    title: 'Achievable Baseline',
+    short: 'Industry-standard reference point Tractova uses as the starting position for Scenario Studio sliders.',
+    long: 'Combines per-state revenue rates (bill credit, REC price, capacity factor) from the live scoring engine with industry baselines for inputs not in the rates table — IX cost ($0.10/W typical) and program allocation (100%). The baseline isn\'t a forecast; it\'s a defensible starting point so you can immediately see how shifting any single input moves Year 1 revenue and payback.',
+    inputs: 'revenue_rates table · curated industry-survey baselines',
+  },
+  'Year 1 Revenue': {
+    title: 'Year 1 Revenue',
+    short: 'Annualized gross revenue for the first year of operation — bill credits + RECs + ITC (annualized over 6 years).',
+    long: 'Sum of all revenue streams in the project\'s first operational year. For Community Solar: bill credit revenue (kWh × bill credit ¢/kWh × allocation) + REC revenue (MWh × $/REC) + 1/6 of the ITC value. For C&I: PPA revenue + 1/6 ITC. For BESS: capacity payment + demand-charge revenue + arbitrage revenue. ITC is amortized over 6 years to match how tax-equity partners typically monetize it.',
+    inputs: 'revenueEngine compute*Projection() per tech',
+  },
+  'Simple Payback': {
+    title: 'Simple Payback',
+    short: 'Total development cost (capex + IX cost) divided by Year 1 revenue — years to recoup capital.',
+    long: 'A first-pass capital efficiency metric, not a financed-IRR view. Total dev cost = system capex (mw × $/W × 1M) + IX cost (mw × $/W × 1M). Lower is better; CS payback typically lands in the 5-9 year range, BESS in 4-7. Doesn\'t account for tax-equity stacking, debt structure, or escalators — see the disclaimer and engage an advisor for IC-grade modeling.',
+    inputs: 'totalDevCost / year1Revenue · directional only',
+  },
+  'Capex': {
+    title: 'Capex (Capital Expenditure)',
+    short: 'Installed cost per watt of DC system capacity — covers panels, inverters, racking, BOS, and EPC labor.',
+    long: 'Excludes interconnection costs (modeled separately). 2026 industry baseline: $1.50-$1.80/W for utility-scale CS, $2.00-$2.40/W for C&I rooftop, $350-$420/kWh for BESS. Lower-cost markets (Southwest, large project sizes) trend toward the bottom of the range. Sourced from Wood Mac H2 2025 + per-state revenue_rates seed.',
+    inputs: 'revenue_rates.installed_cost_per_watt · Wood Mackenzie H2 2025',
+  },
+  'IX Cost': {
+    title: 'IX Cost (Interconnection Cost)',
+    short: 'Cost of grid upgrades + utility study fees needed to bring the project online — separate from system capex.',
+    long: 'Covers utility-required network upgrades, point-of-interconnection equipment, and study fees (Feasibility, System Impact, Facilities). Baseline assumption: $0.10/W for typical CS sized 2-5 MW behind a substation with capacity. Can balloon to $0.30+/W in capacity-constrained ISO regions (PJM, NYISO) or where deep system upgrades are triggered. Use the Lens IX score + ix_queue_data to gauge whether your IX cost slider should sit above or below baseline.',
+    inputs: 'industry survey baseline · ix_queue_data signals',
+  },
+  'Program Allocation': {
+    title: 'Program Allocation',
+    short: 'Fraction of the system\'s production that\'s actually compensated under the state CS program — capped at program rules.',
+    long: 'Most state CS programs cap project size or require a minimum/maximum per-subscriber allocation. 100% allocation = the entire system\'s output earns the program tariff. Lower allocation (e.g. 70%) models the reality that some production is uncompensated overflow when the program block fills. Slider lets you stress-test scenarios where allocation is constrained by block oversubscription.',
+    inputs: 'state CS program rules · Lens program runway data',
+  },
+  'REC Price': {
+    title: 'REC Price',
+    short: 'Per-MWh price for the project\'s renewable-attribute certificates — varies wildly by state and program tranche.',
+    long: 'Spans from near-$0 (no REC market) to $85+/MWh (NJ SREC-II, MA SMART). For states with ABP/REC programs (IL, MD), the contracted price is typically locked at award; this slider models alternative outcomes (next-block pricing, REC market shifts). For states with no REC market, leave at baseline (0). Major revenue lever in REC-market states.',
+    inputs: 'revenue_rates.rec_per_mwh · DSIRE · state regulatory filings',
+  },
 }
 
 // Convenience: shape for a `<GlossaryLabel>` short-tooltip use case.

@@ -26,6 +26,8 @@ import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, h
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import GlossaryLabel from '../components/ui/GlossaryLabel'
+import ScenarioStudio from '../components/ScenarioStudio'
+import { computeBaseline as computeScenarioBaseline } from '../lib/scenarioEngine'
 
 // Map sub-score display labels to canonical glossary keys so the
 // GlossaryLabel tooltip resolves correctly when the visible text differs
@@ -4265,6 +4267,24 @@ function SearchContent() {
               ixQueueSummary={results.ixQueueSummary}
             />
 
+            {/* §2.5: Scenario Studio — interactive sensitivity layer over an
+                "achievable baseline." Phase 2 launch feature. Sits between
+                Analyst Brief (qualitative) and Pillar Diagnostics (atomized
+                signals) so the user moves: AI narrative → quantitative
+                sensitivity → component scores. Pre-computed baseline reuses
+                revenueEngine via scenarioEngine.computeBaseline. */}
+            <SectionMarker index={3} label="Scenario Studio" sublabel="sensitivity · year-1 revenue + payback" />
+            <ScenarioStudio
+              baseline={computeScenarioBaseline({
+                stateId: results.stateProgram?.id || results.form.state,
+                technology: results.form.technology,
+                mw: results.form.mw,
+                rates: results.revenueRates,
+              })}
+              user={user}
+              countyName={results.form.county || ''}
+            />
+
             {/* Three pillar cards in a navy-tinted dossier band — visually
                 groups Offtake / IX / Site Control as the analytical core of
                 the Lens, and reduces the long-white-scroll feel without any
@@ -4281,7 +4301,7 @@ function SearchContent() {
                   className="text-[9px] font-bold tracking-[0.28em] uppercase"
                   style={{ color: '#0F1A2E', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
                 >
-                  § 03 · Pillar Diagnostics
+                  § 04 · Pillar Diagnostics
                 </span>
                 <span
                   className="text-[9px] tracking-[0.22em] uppercase"
