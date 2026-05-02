@@ -6,6 +6,8 @@ import StateDetailPanel from '../components/StateDetailPanel'
 import SectionDivider from '../components/SectionDivider'
 import WelcomeCard from '../components/WelcomeCard'
 import ApiErrorBanner from '../components/ApiErrorBanner'
+import IntelligenceBackground from '../components/IntelligenceBackground'
+import WalkingTractovaMark from '../components/WalkingTractovaMark'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 
@@ -225,7 +227,16 @@ export default function Dashboard({ previewMode = false }) {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className="min-h-screen bg-paper relative">
+      {/* Ambient intelligence layer + Tractova mark cameo — matches the
+          treatment now live on Profile, Glossary, Library, and the Lens
+          result page (cameo skipped on Lens for content-density reasons).
+          Dashboard is the daily-driver entry point, so we use the same
+          conservative settings as Library: low triggerProbability +
+          sessionGate so the cameo fires at most once per session. */}
+      <IntelligenceBackground />
+      <WalkingTractovaMark triggerProbability={0.25} sessionGate={true} />
+
       {effectivePreviewMode && (
         <div
           className="sticky top-14 z-30 flex items-center justify-between px-6 py-2.5"
@@ -246,7 +257,7 @@ export default function Dashboard({ previewMode = false }) {
           </a>
         </div>
       )}
-      <main className="max-w-dashboard mx-auto px-6 pt-20 pb-10">
+      <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-10">
         {/* V3-extension — first-run welcome card. Renders ONCE per
             user (DB-backed dismissal) for authed users on Dashboard.
             Shown above page header to be the first thing a new user
