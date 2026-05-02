@@ -29,13 +29,19 @@ const UTILITY_STATE_MAP = {
   'Ameren Illinois':  'IL',
   'Ameren':           'IL',
   'Xcel Energy':      'MN',
-  // NYISO
+  // NYISO — utility codes as they appear in NYISO's queue xlsx (verified
+  // 2026-05-02 against the active queue download). NYISO is single-state.
   'ConEdison':        'NY',
   'Con Edison':       'NY',
   'National Grid':    'NY',
+  'NM-NG':            'NY',  // NYISO's abbreviation for National Grid
   'NYSEG':            'NY',
   'RG&E':             'NY',
   'Central Hudson':   'NY',
+  'CHG&E':            'NY',  // NYISO's abbreviation for Central Hudson
+  'NYPA':             'NY',  // New York Power Authority (state-owned)
+  'LIPA':             'NY',  // Long Island Power Authority
+  'O&R':              'NY',  // Orange & Rockland
   // ISO-NE
   'National Grid MA': 'MA',
   'Eversource':       'MA',
@@ -111,30 +117,55 @@ async function scrapeMISO() {
 }
 
 async function scrapeNYISO() {
-  // NYISO ARIS: https://www.nyiso.com/interconnections
-  // They publish a downloadable Excel with all projects
-  const url = 'https://www.nyiso.com/documents/20142/1407078/NYISO-Interconnection-Queue.xlsx'
+  // Rewrite 2026-05-02. The previous scraper hit a JSON endpoint
+  // (https://www.nyiso.com/api/interconnections) that has been 404 since
+  // at least 2026-04-24. NYISO now publishes the queue as a monthly
+  // dated xlsx at /documents/20142/1407078/NYISO-Interconnection-Queue-MM-DD-YYYY.xlsx.
+  // The path before the date is stable; the date in the filename rolls
+  // monthly. We discover the current URL by scraping the public
+  // /interconnections landing page, then parse the xlsx with the `xlsx`
+  // package (already in deps).
 
-  // Since we can't parse XLSX natively, try their HTML/JSON endpoint first
-  const jsonUrl = 'https://www.nyiso.com/api/interconnections'
-  const res = await fetch(jsonUrl, {
-    headers: { 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(30000),
+  // Step 1: discover the current xlsx URL.
+  const landingRes = await fetch('https://www.nyiso.com/interconnections', {
+    signal: AbortSignal.timeout(20000),
   })
+  if (!landingRes.ok) throw new Error(`NYISO landing fetch failed: ${landingRes.status}`)
+  const html = await landingRes.text()
+  // Match: /documents/{path}/NYISO-Interconnection-Queue-MM-DD-YYYY.xlsx
+  // The bare URL (without the trailing /uuid?t=... that NYISO appends in
+  // the link element) returns 200 directly, so we trim at the .xlsx.
+  const match = html.match(/\/documents\/[^"'\s]+?NYISO-Interconnection-Queue-\d{2}-\d{2}-\d{4}\.xlsx/)
+  if (!match) throw new Error('NYISO: queue xlsx URL not found on landing page (selector may have shifted)')
+  const xlsxUrl = `https://www.nyiso.com${match[0]}`
 
-  if (!res.ok) throw new Error(`NYISO fetch failed: ${res.status}`)
-  const data = await res.json()
+  // Step 2: download the xlsx.
+  const xlsxRes = await fetch(xlsxUrl, { signal: AbortSignal.timeout(30000) })
+  if (!xlsxRes.ok) throw new Error(`NYISO xlsx fetch failed: ${xlsxRes.status} (${xlsxUrl})`)
+  const buf = Buffer.from(await xlsxRes.arrayBuffer())
 
-  const solar = (Array.isArray(data) ? data : []).filter(p =>
-    p.fuelType?.toLowerCase().includes('solar') &&
-    (parseFloat(p.capacity || p.mw || 0) < 25)
-  )
+  // Step 3: parse. Sheet name is "Interconnection Queue" with the
+  // active-queue rows (verified 2026-05-02 against the 03-31-2026 file).
+  const XLSX = await import('xlsx')
+  const wb = XLSX.read(buf, { type: 'buffer' })
+  const sheet = wb.Sheets['Interconnection Queue']
+  if (!sheet) throw new Error(`NYISO: 'Interconnection Queue' sheet missing — got [${wb.SheetNames.join(', ')}]`)
+  const rows = XLSX.utils.sheet_to_json(sheet)
 
-  return aggregateByUtility(solar, 'NYISO', {
-    utilityField: 'transmissionOwner',
-    mwField: 'capacity',
-    dateField: 'queueDate',
-  })
+  // Step 4: filter to community-scale solar (<25 MW, > 0 MW). Type/Fuel
+  // is "S" for Solar, "ES" for Energy Storage, "W" for Wind, etc.
+  const projects = rows
+    .filter((r) => {
+      const fuel = String(r['Type/ Fuel'] || '').trim().toUpperCase()
+      const mw = parseFloat(r['SP (MW)']) || 0
+      return /^S\b|^S$/.test(fuel) && mw > 0 && mw < 25
+    })
+    .map((r) => ({
+      utility: String(r['Utility'] || '').trim(),
+      mw: parseFloat(r['SP (MW)']) || 0,
+    }))
+
+  return aggregateProjects(projects, 'NYISO')
 }
 
 async function scrapeISONE() {
