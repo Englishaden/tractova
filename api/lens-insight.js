@@ -409,6 +409,7 @@ export default async function handler(req, res) {
   if (action === 'portfolio')    return handlePortfolio(body, res)
   if (action === 'compare')      return handleCompare(body, res)
   if (action === 'sensitivity')  return handleSensitivity(body, res)
+  if (action === 'scenario-commentary') return handleScenarioCommentary(body, res)
   if (action === 'news-summary') return handleNewsSummary(body, res)
   if (action === 'deal-memo')    return handleDealMemo(body, res)
   if (action === 'utility-outreach') return handleUtilityOutreach(body, res, user)
@@ -585,6 +586,160 @@ async function handleSensitivity(body, res) {
     clearTimeout(timeoutId)
     console.error('[lens-insight:sensitivity] error:', err.message)
     return res.status(200).json({ rationale: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario commentary — 2-3 sentence narrative for a saved Scenario Studio run
+// ─────────────────────────────────────────────────────────────────────────────
+// Different from `sensitivity` (which explains a peer-state Lens-score swap):
+// this handler explains the financial-modeling outputs from Scenario Studio
+// (Y1 revenue, IRR, payback, NPV, DSCR, equity IRR, LCOE) given the input
+// deltas the user dragged on the 9 sliders.
+//
+// Uses Haiku 4.5 instead of Sonnet because the task is narrow + structured —
+// no need for the heavyweight analyst persona. Cached for 30 days under a
+// content hash that collapses identical runs across users.
+const SCENARIO_COMMENTARY_PROMPT = `You are a senior renewables development analyst writing a one-shot note for a developer who just saved a financial sensitivity run in Tractova's Scenario Studio. Given the baseline and modified inputs plus the resulting metrics, produce 2-3 short sentences (max 60 words total) that:
+
+1. Name the dominant 1-2 input changes driving the metric shift.
+2. Quantify their impact — e.g., "a $0.20/W capex cut adds ~220 bps of IRR" beats "capex changes affect IRR."
+3. Call out any tension if relevant — e.g., a longer contract tenor that reduces revenue/$ deployed even while raising lifetime revenue.
+
+Do NOT restate the metric values — the developer can read them. Do NOT hedge ("may," "could," "might"). Use declarative present-tense sentences. Speak directly to the developer ("you," not "the project").
+
+If no scenario inputs diverge from baseline, respond with: { "commentary": "Baseline run — no inputs diverge from the achievable baseline." }
+
+OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences. Exact schema:
+{
+  "commentary": "2-3 sentences"
+}`
+
+// Maps slider keys to human-readable units for the prompt context. Mirrors
+// scenarioEngine.getSliderConfig — keep in sync if new sliders are added.
+const SCENARIO_INPUT_UNITS = {
+  systemSizeMW:     { label: 'System size',         unit: 'MW',     fmt: (v) => `${v}` },
+  capexPerWatt:     { label: 'Capex',               unit: '$/W',    fmt: (v) => `$${Number(v).toFixed(2)}/W` },
+  ixCostPerWatt:    { label: 'IX cost',             unit: '$/W',    fmt: (v) => `$${Number(v).toFixed(2)}/W` },
+  capacityFactor:   { label: 'Capacity factor',     unit: '%',      fmt: (v) => `${(Number(v) * 100).toFixed(1)}%` },
+  recPrice:         { label: 'REC price',           unit: '$/MWh',  fmt: (v) => `$${Number(v).toFixed(0)}/MWh` },
+  programAllocation:{ label: 'Program allocation',  unit: '%',      fmt: (v) => `${(Number(v) * 100).toFixed(0)}%` },
+  opexPerKwYr:      { label: 'Opex',                unit: '$/kW/yr',fmt: (v) => `$${Number(v).toFixed(0)}/kW/yr` },
+  discountRate:     { label: 'Discount rate',       unit: '%',      fmt: (v) => `${(Number(v) * 100).toFixed(1)}%` },
+  contractTenor:    { label: 'Contract tenor',      unit: 'yr',     fmt: (v) => `${v}yr` },
+}
+
+function describeScenarioDeltas(baselineInputs, scenarioInputs) {
+  const lines = []
+  for (const key of Object.keys(SCENARIO_INPUT_UNITS)) {
+    const b = baselineInputs?.[key]
+    const s = scenarioInputs?.[key]
+    if (b == null || s == null) continue
+    if (Math.abs(s - b) < 1e-9) continue
+    const cfg = SCENARIO_INPUT_UNITS[key]
+    const pct = b !== 0 ? ((s - b) / Math.abs(b)) * 100 : 0
+    const arrow = s > b ? '↑' : '↓'
+    lines.push(`  ${cfg.label}: ${cfg.fmt(b)} → ${cfg.fmt(s)} (${arrow} ${Math.abs(pct).toFixed(0)}%)`)
+  }
+  return lines
+}
+
+function formatScenarioOutputs(out) {
+  if (!out) return []
+  const lines = []
+  if (out.year1Revenue != null)  lines.push(`  Year 1 revenue: $${Math.round(out.year1Revenue).toLocaleString()}`)
+  if (out.paybackYears != null)  lines.push(`  Simple payback: ${out.paybackYears} yr`)
+  if (out.irr != null)           lines.push(`  Project IRR: ${(out.irr * 100).toFixed(1)}%`)
+  if (out.equityIrr != null)     lines.push(`  Equity IRR (70/30 lev): ${(out.equityIrr * 100).toFixed(1)}%`)
+  if (out.npv != null)           lines.push(`  NPV (at discount rate): $${Math.round(out.npv).toLocaleString()}`)
+  if (out.dscr != null)          lines.push(`  DSCR (Y1): ${out.dscr.toFixed(2)}`)
+  if (out.lcoe != null)          lines.push(`  LCOE: $${out.lcoe.toFixed(0)}/MWh`)
+  if (out.lifetimeRevenue != null) lines.push(`  Lifetime revenue: $${Math.round(out.lifetimeRevenue).toLocaleString()}`)
+  return lines
+}
+
+async function handleScenarioCommentary(body, res) {
+  const { stateId, technology, mw, county, baselineInputs, scenarioInputs, outputs, baselineOutputs } = body
+  if (!baselineInputs || !scenarioInputs || !outputs) {
+    return res.status(400).json({ error: 'baselineInputs, scenarioInputs, outputs required' })
+  }
+
+  // Round numeric inputs for cache hashing so 0.18001 vs 0.18 collapse.
+  const round = (obj) => {
+    const out = {}
+    for (const [k, v] of Object.entries(obj || {})) {
+      out[k] = typeof v === 'number' ? Math.round(v * 10000) / 10000 : v
+    }
+    return out
+  }
+  const cacheKey = buildCacheKey('scenario-commentary', {
+    stateId,
+    technology,
+    mw: Math.round((parseFloat(mw) || 0) * 10) / 10,
+    baseline: round(baselineInputs),
+    scenario: round(scenarioInputs),
+    outputs:  round(outputs),
+  })
+  const cached = await cacheGet(cacheKey)
+  if (cached) {
+    return res.status(200).json({ commentary: cached.commentary, cached: true })
+  }
+
+  const deltas = describeScenarioDeltas(baselineInputs, scenarioInputs)
+  if (deltas.length === 0) {
+    const fallback = 'Baseline run — no inputs diverge from the achievable baseline.'
+    cacheSet(cacheKey, 'scenario-commentary', { commentary: fallback }, 30 * 24 * 60 * 60)
+    return res.status(200).json({ commentary: fallback })
+  }
+
+  const lines = []
+  lines.push(`PROJECT: ${mw || '?'} MW ${technology || 'Solar'}${county ? ` | ${county} County` : ''}${stateId ? `, ${stateId}` : ''}`)
+  lines.push(`\nSCENARIO INPUTS (changes from baseline):`)
+  lines.push(...deltas)
+  if (baselineOutputs) {
+    lines.push(`\nBASELINE OUTPUTS:`)
+    lines.push(...formatScenarioOutputs(baselineOutputs))
+  }
+  lines.push(`\nSCENARIO OUTPUTS:`)
+  lines.push(...formatScenarioOutputs(outputs))
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 12000)
+  try {
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const message = await client.messages.create(
+      {
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 220,
+        system: SCENARIO_COMMENTARY_PROMPT,
+        messages: [{ role: 'user', content: lines.join('\n') }],
+      },
+      { signal: controller.signal }
+    )
+    clearTimeout(timeoutId)
+    const raw = message.content?.[0]?.text || ''
+    let commentary = null
+    try {
+      const match = raw.match(/\{[\s\S]*\}/)
+      const parsed = JSON.parse(match ? match[0] : raw)
+      if (parsed.commentary && typeof parsed.commentary === 'string') {
+        commentary = parsed.commentary.trim()
+      }
+    } catch {
+      // Fallback: accept raw text if it doesn't look like a JSON parse failure.
+      if (raw && raw.length > 20 && raw.length < 500 && !raw.trim().startsWith('{')) {
+        commentary = raw.trim().slice(0, 400)
+      }
+    }
+    if (!commentary) {
+      return res.status(200).json({ commentary: null, fallback: true, reason: 'parse_failed' })
+    }
+    cacheSet(cacheKey, 'scenario-commentary', { commentary }, 30 * 24 * 60 * 60)
+    return res.status(200).json({ commentary })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    console.error('[lens-insight:scenario-commentary] error:', err.message)
+    return res.status(200).json({ commentary: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }
 

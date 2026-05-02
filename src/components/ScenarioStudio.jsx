@@ -37,6 +37,11 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
   // Linger state — when set, the Save button morphs into "✓ Saved" for
   // ~2.5s so the persistence is impossible to miss. Resets via a timer.
   const [justSavedName, setJustSavedName] = useState(null)
+  // Auto-expand the AI commentary panel on the just-saved row so the
+  // value of saving (the analyst note explaining what the scenario means)
+  // is visible without an extra click. Cleared after a few seconds so
+  // re-renders don't keep re-firing the auto-expand.
+  const [justSavedId, setJustSavedId] = useState(null)
 
   // Reset sliders whenever baseline changes (new Lens result loaded).
   useEffect(() => {
@@ -118,17 +123,24 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
       return
     }
     setSaving(true)
-    const { error } = await supabase.from('scenario_snapshots').insert({
-      user_id: user.id,
-      project_id: projectId,
-      state_id: baseline.stateId,
-      county_name: countyName || null,
-      technology: baseline.technology,
-      name: savedName.trim(),
-      baseline_inputs: baseline.inputs,
-      scenario_inputs: scenario.inputs,
-      outputs: scenario.outputs,
-    })
+    // .select() so we get the inserted row's id back — passed to the
+    // history list as autoExpandId so the new row auto-opens its
+    // analyst-note panel post-save.
+    const { data: inserted, error } = await supabase
+      .from('scenario_snapshots')
+      .insert({
+        user_id: user.id,
+        project_id: projectId,
+        state_id: baseline.stateId,
+        county_name: countyName || null,
+        technology: baseline.technology,
+        name: savedName.trim(),
+        baseline_inputs: baseline.inputs,
+        scenario_inputs: scenario.inputs,
+        outputs: scenario.outputs,
+      })
+      .select('id')
+      .maybeSingle()
     setSaving(false)
     if (error) {
       showToast(`Save failed: ${error.message}`, 'error')
@@ -140,6 +152,13 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     setNaming(false)
     setJustSavedName(savedAs)
     setTimeout(() => setJustSavedName(null), 2500)
+    if (inserted?.id) {
+      setJustSavedId(inserted.id)
+      // Hold long enough that the history-list effect picks it up after the
+      // next loadSavedScenarios() rehydrates the rows. 4s also gives the
+      // Haiku call time to land before the auto-expand prop unwinds.
+      setTimeout(() => setJustSavedId(null), 4000)
+    }
     loadSavedScenarios()
   }
 
@@ -389,6 +408,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
             onLoad={loadScenario}
             onDelete={(snap) => deleteSnapshot(snap.id, { stopPropagation: () => {} })}
             baselineRevenue={baseline.outputs?.year1Revenue ?? null}
+            autoExpandId={justSavedId}
           />
         </div>
       )}

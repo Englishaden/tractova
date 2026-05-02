@@ -4,23 +4,72 @@
 
 ---
 
-## 🟢 Pickup — onboarding deepened (LensTour walkthrough on first-time-Pro Lens result)
+## 🟢 Pickup — AI scenario commentary on saved Studio runs + onboarding deepened (LensTour) + NWI catch-up running
 
-**Session 2026-05-02.** Closed the audit-roadmap "onboarding deepening"
-gap that was sitting at the top of the next-pickup list after the
-$29.99/mo launch roadmap shipped yesterday. First-time Pro users land
-on the staged IL/Will Lens result with a 5-step guided overlay that
-spotlights the Composite Feasibility Index, Pillar Diagnostics band,
-Scenario Studio, and Save-as-Project — closing the "post-confirmation
-tutorial trigger" gap the audit flagged as M-effort / HIGH trial-
-conversion impact.
+**Session 2026-05-02.** Two ship items + one long-running data refresh:
+
+1. **LensTour onboarding walkthrough** (`8848dd8`) — first-time-Pro Lens
+   tour, four-step coachmark with spotlight + closing card. Closed the
+   audit-roadmap "post-confirmation tutorial trigger" gap.
+2. **AI scenario commentary** (this commit) — every saved Scenario Studio
+   row gets an inline "▸ Why?" expander that fetches a 2-3 sentence
+   Haiku 4.5 narrative explaining the dominant 1-2 input drivers behind
+   the IRR/payback/NPV/DSCR shifts. Auto-fires on save so the value of
+   saving is visible without an extra click. Cached server-side under
+   a content hash so identical runs across users share a single API call.
+3. **NWI catch-up seed running in background** — `--refresh --parallel=2`
+   reprocessing 2,144 counties (anything with `wetland_last_updated > 90
+   days OR null`). Coverage was 79.9% pre-run (Aden recalled 57% but the
+   live probe showed we'd already advanced past that). Estimated 2h to
+   complete; logs at `.logs/nwi-seed-2026-05-02.log`.
 
 Migration **042 confirmed live in Supabase** via direct probe
 (`scenario_snapshots` 7 rows, `cancellation_feedback` 0 rows — table
-present, awaiting first prod survey submission). All 042 work from
-yesterday is now end-to-end functional.
+present, awaiting first prod survey submission).
 
-### What landed this session (`<commit>`)
+### What landed this session
+
+#### AI scenario commentary (this commit)
+
+- **`api/lens-insight.js`** — new `scenario-commentary` action routed
+  through the existing endpoint (12-function Hobby cap is full, so any
+  new AI feature has to multiplex). New `SCENARIO_COMMENTARY_PROMPT`
+  (analyst-tone, 60-word ceiling, declarative). New helpers
+  `describeScenarioDeltas()` + `formatScenarioOutputs()` build a structured
+  user-message context out of the JSONB columns from `scenario_snapshots`.
+  Uses **Haiku 4.5** (`claude-haiku-4-5-20251001`) for ~$0.001/call, 30-day
+  cache TTL keyed on hashed inputs+outputs (rounded to 4 decimals so
+  floating-point drift collapses). When no scenario inputs diverge from
+  baseline, the handler short-circuits to a "Baseline run" stock string
+  without burning an API call.
+- **`src/components/ScenarioHistoryList.jsx`** — per-row `▸ Why?` /
+  `▼ Hide` expand button surfaces the AI commentary inline beneath the
+  row metrics. Component-local state caches the response so re-toggling
+  is free. Loading / error / no-yet states render distinctly. Kept the
+  existing `↳ inputs` mechanical summary line since the AI narrative is
+  complementary, not a replacement.
+- **`src/components/ScenarioStudio.jsx`** — `handleSave()` now uses
+  `.select('id').maybeSingle()` so we capture the inserted row's id,
+  passed down as `autoExpandId={justSavedId}`. The history list's effect
+  picks it up after `loadSavedScenarios()` rehydrates and auto-fires the
+  commentary fetch. 4-second hold ensures the Haiku call lands inside
+  the auto-expand window.
+- **Library "Scenarios" tab** also benefits — same component, same prop
+  surface — without any Library.jsx change.
+
+**Verification:** `npm run verify` green (build 2.97s + 7 smoke tests
+in 15.7s). No new console warnings.
+
+**Manual prod check after Vercel redeploy:** open Lens for any saved
+project, drag a couple of sliders, save with a name → row appears in
+the history list with `◆ Analyst note` panel auto-open + Haiku commentary
+("a $0.20/W capex cut adds ~220 bps of project IRR; the 5% capacity-
+factor bump compounds the effect to lift Y1 revenue 12%."). Click
+`▼ Hide` to collapse. Expand again → instant (cached). Open any older
+saved row → `▸ Why?` fires a fresh fetch (or cache hit if another user
+ran the same scenario).
+
+#### LensTour onboarding (`8848dd8`)
 
 - **`src/components/LensTour.jsx`** (new, ~270 LOC). Reads
   `?onboarding=1` from URL + checks `tractova_lens_tour_completed_at`
@@ -73,9 +122,10 @@ DEMO_HREF wasn't referenced there).
 
 ### Next pickup options (priority-ordered)
 
-- **AI scenario commentary** — auto-explain "your IRR dropped 200 bps
-  because X" when a scenario is saved. M effort, MED impact (polish
-  on top of the Phase 2 killer feature).
+- **NWI seed completion check** — once the background `--refresh
+  --parallel=2` finishes, re-probe coverage % + decide whether another
+  pass is needed for stragglers. Aim is 95%+ NWI coverage on
+  `county_geospatial_data`.
 - **Mobile responsiveness audit** — Search.jsx is now 4500+ LOC with
   dense Lens result + scenario grid + tour overlay; likely breaks
   <640px. Aden's user base is desk-centric so LOW user impact, but
@@ -617,7 +667,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: LensTour onboarding walkthrough (4-step spotlight + closing card on first-time-Pro Lens result, gated on `?onboarding=1` URL flag + localStorage)
+- **Branch:** `main` · last commit: AI scenario commentary on saved Studio runs (Haiku 4.5, server-cached 30 days, auto-expands on save) + NWI catch-up seed running locally for 2,144 counties
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -673,6 +723,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| _pending push_ | AI scenario commentary — saved Studio rows expose a `▸ Why?` button that fetches a 2-3 sentence Haiku 4.5 narrative explaining the dominant 1-2 input drivers behind the IRR/payback/NPV/DSCR shifts; auto-fires on save (4s window for the call to land), 30-day server-side cache keyed on hashed inputs+outputs (cross-user collapse), Library Scenarios tab gets it for free |
 | `8848dd8` | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
 | `357d7f9` | ScenarioStudio polish: confirm-delete + visible-save + input-pill row + auto-Lens + Radix tooltips on header badges + dropped native title= attrs + dark-space tightening |
 | `a13f33d` | ScenarioStudio: vertical history list (replaces chip row) + orphan auto-promote on project save + Library "Scenarios" tab grouping all scenarios by Lens context + card header badge |
