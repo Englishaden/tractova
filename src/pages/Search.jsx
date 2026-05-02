@@ -28,6 +28,7 @@ import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import GlossaryLabel from '../components/ui/GlossaryLabel'
 import ScenarioStudio from '../components/ScenarioStudio'
 import { computeBaseline as computeScenarioBaseline } from '../lib/scenarioEngine'
+import LensTour from '../components/LensTour'
 
 // Map sub-score display labels to canonical glossary keys so the
 // GlossaryLabel tooltip resolves correctly when the visible text differs
@@ -4286,6 +4287,7 @@ function SearchContent() {
                 {/* Save as Project */}
                 <button
                   onClick={handleSave}
+                  data-tour-id="save"
                   className="flex items-center gap-2 bg-white border border-gray-200 text-sm font-medium text-gray-700 px-4 py-2 rounded-lg hover:border-primary hover:text-primary transition-colors"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -4296,15 +4298,17 @@ function SearchContent() {
 
             <SectionMarker index={1} label="Market Position" sublabel="composite feasibility · sensitivity scenarios" />
 
-            <MarketPositionPanel
-              stateProgram={results.stateProgram}
-              countyData={results.countyData}
-              programMap={programMap}
-              stage={results.form.stage}
-              technology={results.form.technology}
-              activeScenario={activeScenario}
-              ixQueueSummary={results.ixQueueSummary}
-            />
+            <div data-tour-id="composite">
+              <MarketPositionPanel
+                stateProgram={results.stateProgram}
+                countyData={results.countyData}
+                programMap={programMap}
+                stage={results.form.stage}
+                technology={results.form.technology}
+                activeScenario={activeScenario}
+                ixQueueSummary={results.ixQueueSummary}
+              />
+            </div>
 
             {/* §7.4: Scenario toggle row — sits with the gauge so toggling updates the gauge in place */}
             <LensScenarioRow
@@ -4340,23 +4344,26 @@ function SearchContent() {
                 sensitivity → component scores. Pre-computed baseline reuses
                 revenueEngine via scenarioEngine.computeBaseline. */}
             <SectionMarker index={3} label="Scenario Studio" sublabel="sensitivity · year-1 revenue + payback" />
-            <ScenarioStudio
-              baseline={computeScenarioBaseline({
-                stateId: results.stateProgram?.id || results.form.state,
-                technology: results.form.technology,
-                mw: results.form.mw,
-                rates: results.revenueRates,
-              })}
-              user={user}
-              projectId={matchingProjectId}
-              countyName={results.form.county || ''}
-            />
+            <div data-tour-id="scenario">
+              <ScenarioStudio
+                baseline={computeScenarioBaseline({
+                  stateId: results.stateProgram?.id || results.form.state,
+                  technology: results.form.technology,
+                  mw: results.form.mw,
+                  rates: results.revenueRates,
+                })}
+                user={user}
+                projectId={matchingProjectId}
+                countyName={results.form.county || ''}
+              />
+            </div>
 
             {/* Three pillar cards in a navy-tinted dossier band — visually
                 groups Offtake / IX / Site Control as the analytical core of
                 the Lens, and reduces the long-white-scroll feel without any
                 pattern or imagery. items-start: cards size independently. */}
             <div
+              data-tour-id="pillars"
               className="rounded-xl px-5 py-5 mt-8 mb-6"
               style={{
                 background: 'linear-gradient(180deg, rgba(15,26,46,0.022) 0%, rgba(15,26,46,0.045) 100%)',
@@ -4430,6 +4437,12 @@ function SearchContent() {
               technology={results.form.technology}
               mw={results.form.mw}
             />
+
+            {/* First-time-Pro guided tour. Inert unless `?onboarding=1` is in
+                the URL AND localStorage doesn't show prior completion. The
+                anchors above (data-tour-id="composite|pillars|scenario|save")
+                are the four spotlights it walks through. */}
+            <LensTour resultsReady={!!results} />
 
             {/* Bottom CTA / disclaimer */}
             <div className="mt-5 flex items-start gap-3 bg-white border border-gray-200 rounded-lg px-5 py-4">

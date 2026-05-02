@@ -9,7 +9,9 @@ import { supabase } from '../lib/supabase'
 // so the user lands directly on a real Lens result. Same href used by the
 // anonymous-visitor onboarding card (src/components/WelcomeCard.jsx) for
 // brand consistency: "the demo" is one specific, knowable example.
-const DEMO_HREF = '/search?state=IL&county=Will&mw=5&stage=Prospecting&technology=Community%20Solar'
+// `&onboarding=1` triggers the LensTour walkthrough on the result panel
+// (one-time per device; persists in localStorage).
+const DEMO_HREF = '/search?state=IL&county=Will&mw=5&stage=Prospecting&technology=Community%20Solar&onboarding=1'
 
 export default function UpgradeSuccess() {
   const { isPro, loading } = useSubscription()

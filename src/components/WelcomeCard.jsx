@@ -28,7 +28,9 @@ const STORAGE_KEY = 'tractova_welcome_dismissed'
 
 // Pre-filled Lens demo: high-feasibility IL CS project. Auto-submits
 // because all 5 params are URL-present (per existing Search.jsx logic).
-const DEMO_HREF = '/search?state=IL&county=Will&mw=5&stage=Prospecting&technology=Community%20Solar'
+// `&onboarding=1` fires the LensTour walkthrough once per device on the
+// resulting Lens panel.
+const DEMO_HREF = '/search?state=IL&county=Will&mw=5&stage=Prospecting&technology=Community%20Solar&onboarding=1'
 
 export default function WelcomeCard() {
   const { user } = useAuth()

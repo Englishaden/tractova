@@ -4,7 +4,92 @@
 
 ---
 
-## 🟢 Pickup — $29.99/mo launch roadmap shipped (Phases 0, 1, 2, 4 + churn) — needs migrations 041 + 042 in Supabase
+## 🟢 Pickup — onboarding deepened (LensTour walkthrough on first-time-Pro Lens result)
+
+**Session 2026-05-02.** Closed the audit-roadmap "onboarding deepening"
+gap that was sitting at the top of the next-pickup list after the
+$29.99/mo launch roadmap shipped yesterday. First-time Pro users land
+on the staged IL/Will Lens result with a 5-step guided overlay that
+spotlights the Composite Feasibility Index, Pillar Diagnostics band,
+Scenario Studio, and Save-as-Project — closing the "post-confirmation
+tutorial trigger" gap the audit flagged as M-effort / HIGH trial-
+conversion impact.
+
+Migration **042 confirmed live in Supabase** via direct probe
+(`scenario_snapshots` 7 rows, `cancellation_feedback` 0 rows — table
+present, awaiting first prod survey submission). All 042 work from
+yesterday is now end-to-end functional.
+
+### What landed this session (`<commit>`)
+
+- **`src/components/LensTour.jsx`** (new, ~270 LOC). Reads
+  `?onboarding=1` from URL + checks `tractova_lens_tour_completed_at`
+  in localStorage. If both clear and Lens results have rendered, fires
+  a 5-step coachmark walkthrough: spotlight ring (inverted box-shadow
+  trick → dim everywhere except the anchor) + tooltip card with serif
+  title + research-grade body copy + Step N/4 + Skip + Back/Next/Finish.
+  Closes with a "Now run your own analysis" centered modal. ESC dismisses
+  + persists. ArrowLeft/Right + Enter for keyboard nav. Re-measures on
+  resize/scroll. Falls forward gracefully if a `data-tour-id` anchor is
+  missing (skips the step rather than stranding the user).
+- **`src/pages/Search.jsx`**: 4 `data-tour-id` anchors added
+  (`composite` on MarketPositionPanel, `pillars` on the navy
+  Pillar Diagnostics band, `scenario` on ScenarioStudio, `save` on the
+  Save-as-Project button) + `<LensTour resultsReady={!!results} />`
+  mounted inside the result panel. ~12 LOC delta.
+- **`src/pages/UpgradeSuccess.jsx`** + **`src/components/WelcomeCard.jsx`**:
+  DEMO_HREF now appends `&onboarding=1` so first-time-Pro users (post-
+  Stripe redirect) and Dashboard onboarders both arrive with the tour
+  trigger primed.
+- **Persistence**: localStorage-only. Re-doing a 30-second walkthrough
+  on a new device isn't worth a migration; the existing welcome-card
+  pattern's DB column would have introduced 043 + a Supabase paste
+  burden for marginal value.
+
+### Verification
+
+`npm run verify` green (build 2.97s + 7 Playwright smoke tests in 17.4s).
+No new console warnings, no DOM-structure tests broken (smoke.spec
+doesn't touch the result panel internals; pro-smoke.spec would but
+DEMO_HREF wasn't referenced there).
+
+### Manual prod verification after Vercel redeploy
+
+- Sign in as a Pro test account, hit
+  `/search?state=IL&county=Will&mw=5&stage=Prospecting&technology=Community%20Solar&onboarding=1`
+- Lens auto-runs (existing 5-param auto-submit logic) → after results
+  render + ~600ms settle, Step 1 (Composite Feasibility Index) spotlight
+  fires, page scrolls the gauge to center, navy dim everywhere else.
+- Click Next → smooth scroll to Pillar Diagnostics + new tooltip.
+- Step 3 → Scenario Studio. Step 4 → smooth scroll back up to Save
+  button (anchor at top of result panel).
+- Click Finish → centered "You're set" close card. Click "Got it" →
+  tour exits + localStorage `tractova_lens_tour_completed_at` written.
+- Reload the same URL → tour does NOT re-fire (localStorage hit).
+- Open in a different browser/profile (clean localStorage) → tour fires
+  again — expected for the lean implementation.
+- ESC at any step → tour exits + persists.
+- Skip button at any step → same.
+
+### Next pickup options (priority-ordered)
+
+- **AI scenario commentary** — auto-explain "your IRR dropped 200 bps
+  because X" when a scenario is saved. M effort, MED impact (polish
+  on top of the Phase 2 killer feature).
+- **Mobile responsiveness audit** — Search.jsx is now 4500+ LOC with
+  dense Lens result + scenario grid + tour overlay; likely breaks
+  <640px. Aden's user base is desk-centric so LOW user impact, but
+  still a polish item.
+- **Search.jsx component extraction** — 4500-line monolith. L effort,
+  LOW user-visible impact (maintenance).
+- **Cron-runs latency monitor** (P2 backlog, see `dc85c18`).
+- **Path-toward-50-states-fully-live**: site (✅) → IX (scraper
+  expansion) → utility serving (EIA Form 861) → offtake (✅).
+- **Phase 3 multi-tenant RBAC** — when customer #2 is queued.
+
+---
+
+## ✅ Shipped 2026-05-01 (afternoon-evening) — $29.99/mo launch roadmap: Phases 0, 1, 2, 4 + churn
 
 **Session 2026-05-01 (afternoon-evening, ~8h after the morning Path B + audit
 work).** Senior-consultant audit scored the product 58/100 against the
@@ -532,7 +617,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: `357d7f9` — ScenarioStudio polish bundle (delete confirm, save feedback, input pills, auto-Lens, Radix tooltips)
+- **Branch:** `main` · last commit: LensTour onboarding walkthrough (4-step spotlight + closing card on first-time-Pro Lens result, gated on `?onboarding=1` URL flag + localStorage)
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -575,7 +660,7 @@ both blocks).
 | 039 | `county_geospatial_data.sql` | Path B: per-county wetland coverage % (NWI) + prime farmland % (SSURGO) for all 3,142 counties — closes Site Control gap | ✅ |
 | 040 | `dashboard_metrics_last_refresh.sql` | get_dashboard_metrics() returns lastRefreshAt from cron_runs so the Footer's "Data refreshed" caption reflects actual cron freshness rather than state_programs.last_verified | ✅ |
 | 041 | `scenario_snapshots.sql` | Phase 2 Scenario Studio: user-saved scenarios with nullable project_id (orphan promotion to project on save), state_id + county_name + technology context, jsonb baseline_inputs / scenario_inputs / outputs. RLS owner-only. | ✅ |
-| 042 | `cancellation_feedback.sql` | Pre-cancel exit-intent survey capture: reason category + free-text + email/tier snapshot + destination ("staying" / "stripe_portal"). RLS append-only own-rows. | ⏳ |
+| 042 | `cancellation_feedback.sql` | Pre-cancel exit-intent survey capture: reason category + free-text + email/tier snapshot + destination ("staying" / "stripe_portal"). RLS append-only own-rows. | ✅ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or
@@ -588,6 +673,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| _pending push_ | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
 | `357d7f9` | ScenarioStudio polish: confirm-delete + visible-save + input-pill row + auto-Lens + Radix tooltips on header badges + dropped native title= attrs + dark-space tightening |
 | `a13f33d` | ScenarioStudio: vertical history list (replaces chip row) + orphan auto-promote on project save + Library "Scenarios" tab grouping all scenarios by Lens context + card header badge |
 | `fd621a0` | Churn flow: pre-cancel exit-intent survey + cancellation_feedback table (migration 042) + reason categories + free-text capture + email/tier snapshot before Stripe portal handoff |
