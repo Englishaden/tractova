@@ -765,7 +765,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
-| _pending push_ | Cron-runs latency monitor — admin Data Health tab now aggregates last 30 days of `cron_runs` and flags any handler whose p95 > 70% of its parent function's `maxDuration` (warn / watch / ok severity bands), surfaces drift like `monthly-data-refresh` at 57% before it becomes a 504; pure JS aggregation (no migration) |
+| `efdc33b` | Cron-runs latency monitor — admin Data Health tab now aggregates last 30 days of `cron_runs` and flags any handler whose p95 > 70% of its parent function's `maxDuration` (warn / watch / ok severity bands), surfaces drift like `monthly-data-refresh` at 57% before it becomes a 504; pure JS aggregation (no migration) |
 | `2cd7399` | AI scenario commentary — saved Studio rows expose a `▸ Why?` button that fetches a 2-3 sentence Haiku 4.5 narrative explaining the dominant 1-2 input drivers behind the IRR/payback/NPV/DSCR shifts; auto-fires on save (4s window for the call to land), 30-day server-side cache keyed on hashed inputs+outputs (cross-user collapse), Library Scenarios tab gets it for free |
 | `8848dd8` | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
 | `357d7f9` | ScenarioStudio polish: confirm-delete + visible-save + input-pill row + auto-Lens + Radix tooltips on header badges + dropped native title= attrs + dark-space tightening |
