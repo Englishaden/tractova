@@ -2761,19 +2761,44 @@ function EmptyStateOnboarding({ stateProgramMap, lastRefresh }) {
             Each card click opens /search with the state pre-selected (county
             and tech stay user-chosen). The user's first interaction becomes
             "click a real state and see Lens in motion" instead of staring
-            at an empty form. */}
-        {liveMarkets.length > 0 && (
-          <div className="w-full max-w-2xl mt-6">
-            <div className="flex items-baseline gap-2 mb-2">
-              <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-bold" style={{ color: '#0F766E' }}>
-                ◆ Live markets right now
-              </span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
-                most recently verified
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {liveMarkets.map((s) => {
+            at an empty form.
+
+            Skeleton placeholders render while stateProgramMap hydrates so
+            the layout stays stable on first paint — without this guard the
+            strip silently disappears for the ~200-500ms it takes Supabase
+            to return state_programs, creating a jarring late-paint shift. */}
+        <div className="w-full max-w-2xl mt-6">
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-bold" style={{ color: '#0F766E' }}>
+              ◆ Live markets right now
+            </span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
+              most recently verified
+            </span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {liveMarkets.length === 0 ? (
+              // Skeleton — 4 placeholder cards while stateProgramMap loads
+              Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={`mkt-skel-${i}`}
+                  className="rounded-lg px-3 py-2.5"
+                  style={{
+                    background: 'rgba(255,255,255,0.55)',
+                    border: '1px solid rgba(20,184,166,0.10)',
+                    minHeight: 90,
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-1.5 mb-2">
+                    <div className="h-2 w-6 rounded-sm bg-gray-200/80 animate-pulse" />
+                    <div className="h-2 w-10 rounded-sm bg-gray-200/60 animate-pulse" />
+                  </div>
+                  <div className="h-3 w-3/4 rounded-sm bg-gray-200/80 mb-1.5 animate-pulse" />
+                  <div className="h-2 w-1/2 rounded-sm bg-gray-200/60 animate-pulse" />
+                </div>
+              ))
+            ) : (
+              liveMarkets.map((s) => {
                 const ageDays = Math.max(0, Math.floor((Date.now() - s._ts) / 86400000))
                 const ageLabel = ageDays === 0 ? 'today' : ageDays === 1 ? '1d ago' : `${ageDays}d ago`
                 const capacityLabel = s.capacityMW > 0
@@ -2810,10 +2835,10 @@ function EmptyStateOnboarding({ stateProgramMap, lastRefresh }) {
                     </p>
                   </Link>
                 )
-              })}
-            </div>
+              })
+            )}
           </div>
-        )}
+        </div>
 
         {/* Three value props — what saved projects unlock. Anchors the
             empty state's "why save?" question after the live-markets

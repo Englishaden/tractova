@@ -158,9 +158,17 @@ for (const m of missing) {
     ease_score:         null,
     avg_study_timeline: null,
     queue_notes:        QUEUE_NOTES_TEMPLATE(m.utility, m.iso),
-    available_land:     true,
+    // available_land + wetland_warning intentionally null. Setting these to
+    // true/false at the state-default level (the original 2026-05-02 v1
+    // approach) caused scoreEngine.computeSiteSubScore to return 82
+    // ("favorable") for any county in these 32 states until NWI/SSURGO
+    // catches up — over-claiming site quality without actual per-county
+    // research. Null pushes the score to the neutral 60 baseline, which
+    // is the honest value when we have curated copy in the notes fields
+    // but no per-county geospatial truth yet.
+    available_land:     null,
     land_notes:         LAND_NOTES_TEMPLATE,
-    wetland_warning:    false,
+    wetland_warning:    null,
     wetland_notes:      null,
     land_use_notes:     'State-level default — review county zoning and solar overlay districts before site selection.',
     last_verified:      new Date().toISOString(),

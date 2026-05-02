@@ -145,7 +145,7 @@ export default function WelcomeCard() {
               <Step n="01" title="Scan the market"
                 body="Click any state on the map below to drill into program status, IX conditions, and recent news." />
               <Step n="02" title="Run an analysis"
-                body="Tractova Lens delivers a county-level feasibility report with three-pillar AI commentary in seconds." />
+                body="Tractova Lens delivers a county-level intelligence report with three-pillar AI commentary in seconds." />
               <Step n="03" title="Track your pipeline"
                 body="Save Lens results to your Library, set alerts, share Deal Memos, and track stage progression." />
             </>
@@ -156,7 +156,7 @@ export default function WelcomeCard() {
               <Step n="02" title="Compare side-by-side"
                 body="Add states or projects to your Compare tray. Stack them on capacity, IX difficulty, LMI carveout, and ITC bonus stack." />
               <Step n="03" title="Unlock county-level Lens"
-                body="Pro adds a county-level feasibility report with AI commentary, scenario sensitivity, and saveable project library." />
+                body="Pro adds a county-level intelligence report with AI commentary, scenario sensitivity, and saveable project library." />
             </>
           )}
         </div>

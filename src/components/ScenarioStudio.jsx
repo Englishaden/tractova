@@ -153,13 +153,24 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     setJustSavedName(savedAs)
     setTimeout(() => setJustSavedName(null), 2500)
     if (inserted?.id) {
+      // Refresh BEFORE setting justSavedId so the row is already in the list
+      // when the auto-expand effect runs. Eliminates the race where the
+      // 4s magic-number timer could fire before async loadSavedScenarios
+      // returned (slow networks / DB latency), leaving the new row
+      // permanently un-expanded.
+      await loadSavedScenarios()
       setJustSavedId(inserted.id)
-      // Hold long enough that the history-list effect picks it up after the
-      // next loadSavedScenarios() rehydrates the rows. 4s also gives the
-      // Haiku call time to land before the auto-expand prop unwinds.
-      setTimeout(() => setJustSavedId(null), 4000)
+      // Tighter hold (1.5s) — the row is already in the list and the
+      // ScenarioHistoryList effect has already enqueued the fetch on the
+      // same tick. The hold only keeps the parent's "auto-expand intent"
+      // alive long enough that any incidental list re-renders don't
+      // re-trigger expansion. ScenarioHistoryList's expandedIds Set
+      // persists locally after first auto-expand, so the row stays open
+      // even after justSavedId clears.
+      setTimeout(() => setJustSavedId(null), 1500)
+    } else {
+      loadSavedScenarios()
     }
-    loadSavedScenarios()
   }
 
   function loadScenario(snap) {

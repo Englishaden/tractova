@@ -407,11 +407,11 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
               we didn't have live data, not that we're hiding something.
 
               Stale-data downgrade: when the underlying ISO scraper hasn't
-              refreshed within 7 days (PJM/NYISO/ISO-NE all 404'd from
-              2026-04-24 through ~2026-05-02 due to upstream URL changes),
-              the badge flips amber + adds "stale Nd" suffix. The tooltip
-              also explains the staleness explicitly so the user knows
-              the live signal is frozen, not current. */}
+              refreshed within 7 days (e.g. during upstream URL changes
+              that have hit PJM, NYISO, and ISO-NE in the past), the badge
+              flips amber + adds "stale Nd" suffix. The tooltip explains
+              the staleness explicitly so the user knows the live signal
+              is frozen, not current. */}
           {coverage?.ix === 'live' && (() => {
             const ageDays = ixQueueSummary?.dataAgeDays
             const isStale = ageDays != null && ageDays > 7
@@ -4200,7 +4200,7 @@ function SearchContent() {
                 Tractova Lens · New Analysis
               </p>
               <h2 className="font-serif text-lg font-semibold text-white leading-tight" style={{ letterSpacing: '-0.01em' }}>
-                Run a targeted feasibility report
+                Run a targeted intelligence report
               </h2>
             </div>
 

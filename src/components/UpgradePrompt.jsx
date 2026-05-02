@@ -151,7 +151,7 @@ export default function UpgradePrompt({ feature = 'Tractova Lens' }) {
               Run this report — and any other county.
             </h1>
             <p className="text-gray-500 text-sm leading-relaxed mb-7">
-              Tractova Lens delivers a county-level feasibility report with site, interconnection, and offtake commentary in seconds. Save unlimited projects, share Deal Memos with co-developers, and get alerts when program conditions shift.
+              Tractova Lens delivers a county-level intelligence report with site, interconnection, and offtake commentary in seconds. Save unlimited projects, share Deal Memos with co-developers, and get alerts when program conditions shift.
             </p>
           </>
         ) : (
