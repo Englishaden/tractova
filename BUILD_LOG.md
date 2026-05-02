@@ -160,17 +160,27 @@ DEMO_HREF wasn't referenced there).
 
 ### Next pickup options (priority-ordered)
 
-- **ISO scraper repair sprint (P1, blocks IX expansion)** — PJM, NYISO,
-  ISO-NE scrapers all 404 since 2026-04-24 due to upstream URL changes.
-  Lens IX · Live pill now correctly flips amber + "stale Nd" via the
-  staleness honesty pass. Repair needs a dedicated session: WebFetch
-  each ISO's current public landing, identify new download URLs
-  (NYISO has dated .xlsx like `NYISO-Interconnection-Queue-03-31-2026.xlsx`,
-  PJM moved post-Cycles reform, ISO-NE iRTT also moved), update parsers
-  (NYISO format went from JSON to xlsx so xlsx parsing needed), validate
-  end-to-end. Estimated 3-4h per ISO × 3 = ~9-12h. Once repaired, the
-  PJM expansion to DC/DE/OH/PA/VA/WV is ~30min of UTILITY_STATE_MAP
-  additions.
+- **ISO scraper repair status (in progress)**
+  - ✅ **NYISO restored (`94fe80c`)** — landing-page xlsx discovery
+    + parse with `xlsx` package. Active queue now flowing again.
+  - ⏸️ **PJM blocked on API-key registration.** PJM moved off public
+    CSV downloads to Data Miner 2 (api.pjm.com/api/v1) which requires
+    a free `Ocp-Apim-Subscription-Key`. **Aden action**: register at
+    https://dataminer2.pjm.com (free, no card), then add `PJM_API_KEY`
+    to Vercel env. Once that's in place, the scraper rewrite is ~1h:
+    swap to JSON endpoint with the header, map JSON fields back to
+    the existing `aggregateProjects` shape.
+  - ⏸️ **ISO-NE pending investigation.** Their landing pages
+    (system-planning/transmission-planning/interconnection-queue,
+    system-planning/key-study-areas/queues, system-planning/
+    system-plans-studies/interconnection-queue) all 404 to plain
+    HTTP probes — their site likely requires a specific user-agent
+    or JS rendering. Needs a focused 1-2h investigation session via
+    a real browser to discover the current xlsx URL pattern.
+  - Once PJM is restored, the originally requested PJM expansion to
+    DC/DE/OH/PA/VA/WV is ~30min of UTILITY_STATE_MAP additions
+    (utility codes and state mappings need to come from the live
+    Data Miner 2 response shape, which we haven't seen yet).
 - **NWI re-run for the 622 timeouts** — first pass 2026-05-02 hit 92.1%
   coverage; the remaining gap is mostly NWI-server-throttled counties
   in ND/SD/MT. A second `node scripts/seed-county-geospatial-nwi.mjs
@@ -779,7 +789,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
-| _pending push_ | NYISO scraper repair — replaces the dead `https://www.nyiso.com/api/interconnections` JSON endpoint (404 since 2026-04-24) with a 2-step xlsx flow: scrape `/interconnections` landing page for the latest dated `NYISO-Interconnection-Queue-MM-DD-YYYY.xlsx` URL, download, parse the "Interconnection Queue" sheet with the existing `xlsx` package, filter Type/Fuel="S" + SP(MW) > 0 + < 25, aggregate by Utility code. Live test: 29 solar <25MW projects across NM-NG (19), NYSEG (6), CHG&E (2), O&R (1), RG&E (1). UTILITY_STATE_MAP expanded to map NYISO's utility-code abbreviations (NM-NG, CHG&E, NYPA, LIPA, O&R) to NY. PJM and ISO-NE remain blocked: PJM requires Data Miner 2 API-key registration, ISO-NE landing pages 404 — both deferred to a follow-up session |
+| `94fe80c` | NYISO scraper repair — replaces the dead `https://www.nyiso.com/api/interconnections` JSON endpoint (404 since 2026-04-24) with a 2-step xlsx flow: scrape `/interconnections` landing page for the latest dated `NYISO-Interconnection-Queue-MM-DD-YYYY.xlsx` URL, download, parse the "Interconnection Queue" sheet with the existing `xlsx` package, filter Type/Fuel="S" + SP(MW) > 0 + < 25, aggregate by Utility code. Live test: 29 solar <25MW projects across NM-NG (19), NYSEG (6), CHG&E (2), O&R (1), RG&E (1). UTILITY_STATE_MAP expanded to map NYISO's utility-code abbreviations (NM-NG, CHG&E, NYPA, LIPA, O&R) to NY. PJM and ISO-NE remain blocked: PJM requires Data Miner 2 API-key registration, ISO-NE landing pages 404 — both deferred to a follow-up session |
 | `ad86917` | Privacy Policy + Terms of Service v1.0 — hand-rolled, comprehensive, sign-ready. /privacy + /terms public routes lazy-loaded; Footer links added. Privacy covers all sub-processors (Supabase/Vercel/Stripe/Anthropic/Resend/Cloudflare), explicit AI processing disclosure (Claude Sonnet 4.6 + Haiku 4.5 with Anthropic ZDR), every data source we synthesize (EIA Form 860/861, NREL PVWatts, Census ACS, USFWS NWI, USDA SSURGO, HUD QCT/DDA, CDFI NMTC, DOE NETL EDX Energy Community, DSIRE, ISO/RTO scrapers, RSS), CCPA-tier rights extended to all users, retention windows. ToS Section 06 is the legal-cover spine — every methodology limitation, scoring subjectivity, AI hallucination risk, coverage gap, and "research accelerator not professional advice" clause spelled out. Liability cap = greater of (12mo paid revenue, $100). NY governing law + JAMS arbitration + class waiver. Effective 2026-05-02 |
 | `87cea98` | IX scraper staleness honesty — Lens "IX · Live" pill now flips amber + "stale Nd" suffix when the underlying ix_queue_data row hasn't refreshed in >7 days; tooltip explains the upstream URL change reason. Admin Data Health tab gets a system-level "IX scraper staleness · N of M ISOs frozen" alert listing each stale ISO with its last successful pull date. Defensive disclosure pending the proper scraper repair sprint — PJM, NYISO, ISO-NE all 404 since 2026-04-24 |
 | `ec4b96f` | EIA Form 861 utility seed — adds default `county_intelligence` rows for the 32 states that previously had no curated state-default (AK/AL/AR/AZ/DE/GA/IA/ID/IN/KS/KY/LA/MO/MS/MT/NC/ND/NE/NH/NV/OH/OK/PA/SC/SD/TN/TX/UT/VT/WI/WV/WY). Each row has the dominant retail-customer utility per EIA Form 861 (2023, published 2024) — Alabama Power, Entergy LA, Duke Carolinas, NV Energy, Oncor, etc. Lens IX panel now displays a real serving utility for all 50 states instead of "Utility TBD". v1 = state-level default; v2 = per-county HIFLD spatial join, deferred. Site scores neutral (60 baseline) until per-county NWI ingest completes |
