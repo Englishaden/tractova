@@ -87,26 +87,42 @@ async function fetchEIAData() {
 }
 
 async function refreshFromEIA(eiaData) {
-  const changes = []
-
+  // Validate + bucket by state, then issue one batched upsert per state in
+  // parallel. Replaces the prior row-by-row sequential upsert which was the
+  // dominant tail-latency source on this cron — 8 states × ~100 rows ×
+  // ~25ms per supabase round-trip = ~20s spent in supabase alone, which is
+  // exactly the drift the latency monitor flagged (p95=34s on a 60s ceiling,
+  // 57% utilization, WATCH severity). Parallel batched upsert collapses
+  // this to ~1-2s.
+  const validRowsByState = {}
   for (const row of eiaData) {
-    if (!row.lat || !row.lon) continue // Skip rows without coordinates
-    // Validate: skip rows outside reasonable US bounds
-    if (row.lat < 24 || row.lat > 50 || row.lon < -125 || row.lon > -66) continue
-    // Validate: skip capacity outliers
-    if (row.capacity_mw > 5000) continue
-
-    const { error } = await supabaseAdmin
-      .from('substations')
-      .upsert(row, { onConflict: 'state_id,name' })
-
-    if (error) {
-      console.error(`Upsert failed for ${row.state_id}/${row.name}:`, error.message)
-    } else {
-      changes.push(`${row.state_id}: ${row.name} (${row.capacity_mw} MW)`)
-    }
+    if (!row.lat || !row.lon) continue                                         // missing coords
+    if (row.lat < 24 || row.lat > 50 || row.lon < -125 || row.lon > -66) continue  // outside US bounds
+    if (row.capacity_mw > 5000) continue                                       // capacity outlier
+    if (!validRowsByState[row.state_id]) validRowsByState[row.state_id] = []
+    validRowsByState[row.state_id].push(row)
   }
 
+  const settled = await Promise.allSettled(
+    Object.entries(validRowsByState).map(async ([stateId, rows]) => {
+      const { error } = await supabaseAdmin
+        .from('substations')
+        .upsert(rows, { onConflict: 'state_id,name' })
+      if (error) throw new Error(`${stateId} batch upsert: ${error.message}`)
+      return { stateId, rows }
+    })
+  )
+
+  const changes = []
+  for (const r of settled) {
+    if (r.status === 'fulfilled') {
+      for (const row of r.value.rows) {
+        changes.push(`${row.state_id}: ${row.name} (${row.capacity_mw} MW)`)
+      }
+    } else {
+      console.error('Substation batch upsert failed:', r.reason?.message || r.reason)
+    }
+  }
   return changes
 }
 
