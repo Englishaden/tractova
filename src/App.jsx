@@ -10,6 +10,7 @@ import CommandPalette from './components/CommandPalette'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
+import ScrollToTop from './components/ScrollToTop'
 
 // Eagerly loaded -- on the critical path for new visitors and most
 // signed-in returns (Dashboard is the home for authed users; Landing
@@ -54,6 +55,7 @@ function HomeRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <CompareProvider>
         <TooltipProvider delayDuration={200}>

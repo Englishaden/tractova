@@ -30,6 +30,7 @@ import ScenarioStudio from '../components/ScenarioStudio'
 import { computeBaseline as computeScenarioBaseline } from '../lib/scenarioEngine'
 import LensTour from '../components/LensTour'
 import DataLimitationsModal from '../components/DataLimitationsModal'
+import IntelligenceBackground from '../components/IntelligenceBackground'
 
 // Map sub-score display labels to canonical glossary keys so the
 // GlossaryLabel tooltip resolves correctly when the visible text differs
@@ -4170,8 +4171,14 @@ function SearchContent() {
   const labelCls = "block text-[10px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5"
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-surface relative">
       <style>{LENS_OVERLAY_STYLES}</style>
+      {/* Ambient intelligence layer (no Tractova mark cameo on Lens —
+          result panel is content-dense and a cameo crossing mid-read
+          would pull focus from Feasibility Index / Analyst Brief /
+          Scenario Studio. The ambient z-0 layer sits behind the white
+          result cards + navy form panel without competing for attention. */}
+      <IntelligenceBackground />
       <LensOverlay
         visible={analyzing}
         stateName={ALL_STATES.find(s => s.id === form.state)?.name || ''}

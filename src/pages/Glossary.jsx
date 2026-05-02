@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { TECH_DEFINITIONS } from '../lib/techDefinitions'
 import { GLOSSARY_DEFINITIONS } from '../lib/glossaryDefinitions'
+import IntelligenceBackground from '../components/IntelligenceBackground'
+import WalkingTractovaMark from '../components/WalkingTractovaMark'
 
 // Convert term name to a URL-safe anchor slug
 function toSlug(term) {
@@ -430,8 +432,16 @@ export default function Glossary() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
-      <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
+    <div className="min-h-screen bg-paper relative">
+      {/* Ambient intelligence layer + occasional Tractova mark cameo —
+          mirrors the Profile page treatment so the platform feels alive
+          end-to-end. WalkingTractovaMark uses sessionGate so it fires at
+          most once per session (Glossary is a reference surface users
+          may revisit; recurring cameos would annoy). */}
+      <IntelligenceBackground />
+      <WalkingTractovaMark triggerProbability={0.30} sessionGate={true} />
+
+      <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-16">
         {/* V3 hero — brand navy with teal accent rail; replaces legacy emerald-on-amber */}
         <div className="mt-6 mb-8">
           <div className="relative rounded-xl px-8 py-7 overflow-hidden"
@@ -448,6 +458,18 @@ export default function Glossary() {
             <div className="relative flex items-start justify-between gap-6">
               <div>
                 <div className="flex items-center gap-2.5 mb-2">
+                  {/* Pulsing dot mirrors the Library "data refreshed" treatment —
+                      visual signal that this is a live, growing surface. */}
+                  <span className="relative inline-flex w-1.5 h-1.5 shrink-0">
+                    <span
+                      className="absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping"
+                      style={{ background: '#14B8A6' }}
+                    />
+                    <span
+                      className="relative inline-flex rounded-full h-1.5 w-1.5"
+                      style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.65)' }}
+                    />
+                  </span>
                   <span className="font-mono text-[10px] font-bold uppercase tracking-[0.24em]"
                     style={{ color: '#5EEAD4' }}>Reference</span>
                   <span className="w-px h-3" style={{ background: 'rgba(20,184,166,0.40)' }} />

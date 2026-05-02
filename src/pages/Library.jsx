@@ -21,6 +21,8 @@ import { motion, useMotionValue, useSpring } from 'motion/react'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'
 import { TECH_COLORS } from '../lib/v3Tokens'
 import ScenarioHistoryList from '../components/ScenarioHistoryList'
+import IntelligenceBackground from '../components/IntelligenceBackground'
+import WalkingTractovaMark from '../components/WalkingTractovaMark'
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Stage / tech badge styles ────────────────────────────────────────────────
@@ -3298,8 +3300,16 @@ function LibraryContent() {
   }
 
   return (
-    <div className="min-h-screen bg-paper">
-      <main className="max-w-dashboard mx-auto px-6 pt-20 pb-16">
+    <div className="min-h-screen bg-paper relative">
+      {/* Ambient intelligence layer + Tractova mark cameo — matches Profile's
+          treatment so the daily-driver Library surface feels alive. Library
+          is high-traffic so we use a lower trigger probability and sessionGate
+          so users don't get fatigued by the cameo. The existing animated
+          "Data refreshed" pulsing dot in the hero stays as-is. */}
+      <IntelligenceBackground />
+      <WalkingTractovaMark triggerProbability={0.25} sessionGate={true} />
+
+      <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* V3: Brand-navy hero banner — adds institutional depth, replaces stark white-on-white */}
         <div
