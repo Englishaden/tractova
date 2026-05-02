@@ -2225,6 +2225,15 @@ function DataHealthTab() {
   return (
     <div className="space-y-8">
 
+      {/* ── Mission Control — single-screen executive snapshot of system health ──
+          Pulls the missionControl block surfaced by /api/data-health (the
+          same probes the bearer-token health-summary endpoint runs, just
+          inline-served to the admin's JWT). Sits at the very top so the
+          first thing the admin sees on Data Health is "is the platform
+          healthy." Detail surfaces (freshness grid, audit log, cron
+          rollups, cron latency, IX staleness alert) live below. */}
+      <MissionControl missionControl={data?.missionControl} cronRuns={data?.cronRuns || []} />
+
       {/* ── Action buttons + manual data-refresh trigger ── */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -2462,6 +2471,284 @@ function DataHealthTab() {
           maxDuration ceiling. Catches the next 504-class bug structurally
           before users see a red panel. */}
       <CronLatencyPanel />
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mission Control — single-screen system-health executive snapshot
+// ─────────────────────────────────────────────────────────────────────────────
+// Renders at the top of DataHealthTab. Three KPI cards:
+//   1. NWI coverage gauge (live geospatial seed completion %)
+//   2. IX freshness — per-ISO pills, colored by staleness
+//   3. Substations cron — latency bar vs the 60s function ceiling
+// Plus a usage-signals row (Scenario Studio saves + churn-defense surveys).
+//
+// Visual language: matches the rest of the platform (mono uppercase eyebrows,
+// serif titles, tinted bordered panels, brand teal/amber/navy palette).
+
+function MissionControl({ missionControl, cronRuns }) {
+  if (!missionControl) {
+    // Skeleton during initial load — keeps layout stable
+    return (
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-5">
+        <p className="text-[11px] text-gray-400 italic">Loading mission control…</p>
+      </div>
+    )
+  }
+
+  const { nwi_coverage, ix_freshness, scenario_snapshots_count, cancellation_feedback_count } = missionControl
+  const monthlyRun = (cronRuns || []).find((r) => r.cron_name === 'monthly-data-refresh' && r.status === 'success') || null
+
+  return (
+    <section
+      className="rounded-xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(180deg, rgba(15,26,46,0.025) 0%, rgba(15,26,46,0.05) 100%)',
+        border: '1px solid rgba(15,26,46,0.10)',
+      }}
+    >
+      {/* Header eyebrow */}
+      <div
+        className="px-5 py-3 flex items-baseline justify-between gap-3 border-b"
+        style={{ borderColor: 'rgba(15,26,46,0.08)', background: 'rgba(15,26,46,0.04)' }}
+      >
+        <div className="flex items-baseline gap-3">
+          <span
+            className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold"
+            style={{ color: '#0F1A2E' }}
+          >
+            ◆ Mission Control
+          </span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">
+            executive snapshot · live data
+          </span>
+        </div>
+        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
+          {new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+        </span>
+      </div>
+
+      {/* 3-card KPI grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
+        <NwiCoverageCard data={nwi_coverage} />
+        <IxFreshnessCard freshness={ix_freshness} />
+        <MonthlyCronCard run={monthlyRun} />
+      </div>
+
+      {/* Usage signals — small horizontal row */}
+      <div className="border-t border-gray-100 px-5 py-3 bg-white flex items-center gap-6 flex-wrap">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400 font-bold">
+          Usage signals
+        </span>
+        <UsageStat
+          label="Scenario Studio saves"
+          value={scenario_snapshots_count}
+          color="#0F766E"
+        />
+        <UsageStat
+          label="Churn-defense surveys"
+          value={cancellation_feedback_count}
+          color="#D97706"
+        />
+      </div>
+    </section>
+  )
+}
+
+// ── KPI Card 1: NWI coverage gauge ──
+function NwiCoverageCard({ data }) {
+  const pct = data?.pct ?? 0
+  const populated = data?.populated ?? 0
+  const total = data?.total ?? 0
+  // Goal is 95%+. Color the gauge by tier.
+  const tier = pct >= 95 ? 'good' : pct >= 85 ? 'watch' : 'warn'
+  const colorMap = {
+    good:  { stroke: '#0F766E', label: 'Goal met',  bg: 'rgba(15,118,110,0.06)', dot: '#10B981' },
+    watch: { stroke: '#D97706', label: 'Approaching', bg: 'rgba(217,119,6,0.06)', dot: '#D97706' },
+    warn:  { stroke: '#DC2626', label: 'Below goal', bg: 'rgba(220,38,38,0.06)', dot: '#DC2626' },
+  }
+  const c = colorMap[tier]
+  // Circular gauge — same construction as the Lens composite for visual continuity.
+  const R = 32
+  const C = 2 * Math.PI * R
+  const filled = (pct / 100) * C
+
+  return (
+    <div className="rounded-lg bg-white border border-gray-200 px-4 py-4 flex flex-col">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
+          ◆ NWI coverage
+        </span>
+        <span
+          className="font-mono text-[9px] uppercase tracking-[0.16em] px-1.5 py-0.5 font-bold"
+          style={{ background: c.bg, color: c.stroke, border: `1px solid ${c.stroke}40` }}
+        >
+          {c.label}
+        </span>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
+          <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+            <circle cx="40" cy="40" r={R} stroke="#F3F4F6" strokeWidth="6" fill="none" />
+            <circle
+              cx="40" cy="40" r={R}
+              stroke={c.stroke} strokeWidth="6" fill="none"
+              strokeDasharray={`${filled} ${C}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className="absolute font-mono text-xl font-bold tabular-nums text-ink">
+            {pct}<span className="text-xs text-gray-400">%</span>
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] text-gray-700 leading-snug">
+            <span className="font-bold tabular-nums">{populated.toLocaleString()}</span> of <span className="tabular-nums">{total.toLocaleString()}</span> counties
+          </p>
+          <p className="text-[10px] text-gray-400 leading-snug mt-0.5">
+            USFWS NWI wetlands · USDA SSURGO farmland
+          </p>
+          <p className="text-[10px] text-gray-400 leading-snug mt-0.5">
+            Goal: <span className="font-semibold text-gray-600">95%+</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── KPI Card 2: IX freshness pills per ISO ──
+function IxFreshnessCard({ freshness }) {
+  const list = freshness || []
+  const staleCount = list.filter((f) => f.stale).length
+  const totalCount = list.length
+
+  return (
+    <div className="rounded-lg bg-white border border-gray-200 px-4 py-4 flex flex-col">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
+          ◆ IX scrapers
+        </span>
+        <span
+          className="font-mono text-[9px] uppercase tracking-[0.16em] px-1.5 py-0.5 font-bold"
+          style={{
+            background: staleCount === 0 ? 'rgba(15,118,110,0.06)' : 'rgba(217,119,6,0.06)',
+            color:      staleCount === 0 ? '#0F766E' : '#92400E',
+            border: `1px solid ${staleCount === 0 ? '#0F766E40' : '#D9770640'}`,
+          }}
+        >
+          {staleCount} of {totalCount} stale
+        </span>
+      </div>
+      {list.length === 0 ? (
+        <p className="text-[11px] text-gray-400 italic">No IX queue data loaded.</p>
+      ) : (
+        <div className="space-y-1.5 flex-1">
+          {list.map((f) => {
+            const sty = f.stale
+              ? { bg: 'rgba(217,119,6,0.08)', border: 'rgba(217,119,6,0.30)', text: '#92400E', dot: '#D97706' }
+              : { bg: 'rgba(15,118,110,0.06)', border: 'rgba(15,118,110,0.25)', text: '#0F766E', dot: '#10B981' }
+            return (
+              <div
+                key={f.iso}
+                className="flex items-center justify-between text-[11px] px-2.5 py-1.5 rounded-md"
+                style={{ background: sty.bg, border: `1px solid ${sty.border}` }}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sty.dot }} />
+                  <span className="font-mono text-[10px] uppercase tracking-[0.14em] font-bold" style={{ color: sty.text }}>
+                    {f.iso}
+                  </span>
+                </div>
+                <span className="font-mono text-[10px] tabular-nums" style={{ color: sty.text }}>
+                  {f.ageDays}d ago
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <p className="text-[10px] text-gray-400 leading-snug mt-2 pt-2 border-t border-gray-100">
+        Stale = oldest fetched_at &gt; 7d
+      </p>
+    </div>
+  )
+}
+
+// ── KPI Card 3: monthly-data-refresh latency bar ──
+function MonthlyCronCard({ run }) {
+  const ceilingMs = 60_000
+  const durationMs = run?.duration_ms ?? null
+  const pct = durationMs != null ? Math.min(100, (durationMs / ceilingMs) * 100) : 0
+  const headroomPct = durationMs != null ? Math.max(0, Math.round((1 - durationMs / ceilingMs) * 100)) : null
+  const tier = headroomPct == null ? 'unknown' : headroomPct >= 50 ? 'good' : headroomPct >= 30 ? 'watch' : 'warn'
+  const colorMap = {
+    good:    { fill: '#0F766E', label: 'Healthy',    bg: 'rgba(15,118,110,0.06)' },
+    watch:   { fill: '#D97706', label: 'Watch',      bg: 'rgba(217,119,6,0.06)' },
+    warn:    { fill: '#DC2626', label: 'Drifting',   bg: 'rgba(220,38,38,0.06)' },
+    unknown: { fill: '#94A3B8', label: 'No data',    bg: 'rgba(148,163,184,0.06)' },
+  }
+  const c = colorMap[tier]
+  const fmtMs = (ms) => ms == null ? '—' : ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+  const finishedAgo = run?.finished_at
+    ? Math.floor((Date.now() - new Date(run.finished_at).getTime()) / (1000 * 60 * 60 * 24))
+    : null
+
+  return (
+    <div className="rounded-lg bg-white border border-gray-200 px-4 py-4 flex flex-col">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
+          ◆ Substations cron
+        </span>
+        <span
+          className="font-mono text-[9px] uppercase tracking-[0.16em] px-1.5 py-0.5 font-bold"
+          style={{ background: c.bg, color: c.fill, border: `1px solid ${c.fill}40` }}
+        >
+          {c.label}
+        </span>
+      </div>
+      <div className="mb-2">
+        <div className="flex items-baseline justify-between mb-1.5">
+          <span className="text-[11px] font-semibold text-gray-700">Last run duration</span>
+          <span className="font-mono text-sm font-bold tabular-nums" style={{ color: c.fill }}>
+            {fmtMs(durationMs)}
+          </span>
+        </div>
+        {/* Latency bar with ceiling marker */}
+        <div className="relative h-2 rounded-full overflow-hidden" style={{ background: '#F3F4F6' }}>
+          <div
+            className="absolute left-0 top-0 bottom-0 rounded-full transition-all"
+            style={{ width: `${pct}%`, background: c.fill }}
+          />
+          {/* 70% threshold tick — where WATCH would flip */}
+          <div className="absolute top-0 bottom-0 w-px bg-gray-300" style={{ left: '70%' }} />
+        </div>
+        <div className="flex items-baseline justify-between mt-1 text-[9px] font-mono text-gray-400 tabular-nums">
+          <span>0s</span>
+          <span style={{ color: '#6B7280' }}>ceiling 60s</span>
+        </div>
+      </div>
+      <p className="text-[10px] text-gray-500 leading-snug mt-1">
+        {durationMs != null
+          ? <>{headroomPct}% headroom · last successful run {finishedAgo == null ? 'unknown' : finishedAgo === 0 ? 'today' : `${finishedAgo}d ago`}</>
+          : 'No successful run found yet.'}
+      </p>
+      <p className="text-[10px] text-gray-400 leading-snug mt-2 pt-2 border-t border-gray-100">
+        api/refresh-substations · monthly cadence
+      </p>
+    </div>
+  )
+}
+
+// ── Small inline KPI for the usage-signals row ──
+function UsageStat({ label, value, color }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <span className="font-mono text-sm font-bold tabular-nums" style={{ color }}>
+        {Number(value || 0).toLocaleString()}
+      </span>
+      <span className="text-[11px] text-gray-500">{label}</span>
     </div>
   )
 }

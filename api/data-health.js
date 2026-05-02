@@ -361,7 +361,20 @@ async function handleHealthSummary(res) {
 
 // ── Freshness (default) ─────────────────────────────────────────────────────
 async function handleFreshness(req, res) {
-  const [freshnessResult, cronRunsResult, dataUpdatesResult] = await Promise.all([
+  // Mission Control augmentation — same probes the bearer-token health-summary
+  // endpoint runs, surfaced inline so the admin Data Health tab can render
+  // a single-screen executive snapshot. Cheap parallel queries + tiny
+  // aggregation; backwards compatible (missionControl is additive).
+  const [
+    freshnessResult,
+    cronRunsResult,
+    dataUpdatesResult,
+    countyTotalRes,
+    nwiPopulatedRes,
+    ixFreshnessRes,
+    scenarioCountRes,
+    cancellationCountRes,
+  ] = await Promise.all([
     supabaseAdmin.rpc('get_data_freshness'),
     supabaseAdmin
       .from('cron_runs')
@@ -373,12 +386,50 @@ async function handleFreshness(req, res) {
       .select('*')
       .order('updated_at', { ascending: false })
       .limit(30),
+    supabaseAdmin.from('county_acs_data').select('county_fips', { count: 'exact', head: true }),
+    supabaseAdmin
+      .from('county_geospatial_data')
+      .select('county_fips', { count: 'exact', head: true })
+      .not('wetland_coverage_pct', 'is', null),
+    supabaseAdmin.from('ix_queue_data').select('iso, fetched_at'),
+    supabaseAdmin.from('scenario_snapshots').select('id', { count: 'exact', head: true }),
+    supabaseAdmin.from('cancellation_feedback').select('id', { count: 'exact', head: true }),
   ])
+
+  // NWI coverage
+  const totalCounties = countyTotalRes.count || 0
+  const nwiPopulated = nwiPopulatedRes.count || 0
+  const nwiPct = totalCounties > 0 ? +(nwiPopulated / totalCounties * 100).toFixed(1) : null
+
+  // IX freshness per ISO — worst-case fetched_at across utilities
+  const ixByIso = {}
+  for (const row of (ixFreshnessRes.data || [])) {
+    if (!row.fetched_at) continue
+    const ts = new Date(row.fetched_at).getTime()
+    if (!ixByIso[row.iso] || ts < ixByIso[row.iso].oldestTs) {
+      ixByIso[row.iso] = { oldestTs: ts, oldestFetchedAt: row.fetched_at }
+    }
+  }
+  const now = Date.now()
+  const ixFreshness = Object.entries(ixByIso)
+    .map(([iso, v]) => ({
+      iso,
+      oldestFetchedAt: v.oldestFetchedAt,
+      ageDays: Math.floor((now - v.oldestTs) / (1000 * 60 * 60 * 24)),
+      stale: (now - v.oldestTs) > 7 * 24 * 60 * 60 * 1000,
+    }))
+    .sort((a, b) => b.ageDays - a.ageDays)
 
   return res.status(200).json({
     freshness: freshnessResult.data,
     cronRuns: cronRunsResult.data || [],
     dataUpdates: dataUpdatesResult.data || [],
+    missionControl: {
+      nwi_coverage: { populated: nwiPopulated, total: totalCounties, pct: nwiPct },
+      ix_freshness: ixFreshness,
+      scenario_snapshots_count: scenarioCountRes.count || 0,
+      cancellation_feedback_count: cancellationCountRes.count || 0,
+    },
   })
 }
 
