@@ -2508,12 +2508,13 @@ function MissionControl({ missionControl, cronRuns }) {
         border: '1px solid rgba(15,26,46,0.10)',
       }}
     >
-      {/* Header eyebrow */}
+      {/* Header eyebrow — wraps on narrow viewports so the timestamp drops
+          to its own line instead of colliding with the eyebrow text. */}
       <div
-        className="px-5 py-3 flex items-baseline justify-between gap-3 border-b"
+        className="px-5 py-3 flex items-baseline justify-between gap-3 border-b flex-wrap"
         style={{ borderColor: 'rgba(15,26,46,0.08)', background: 'rgba(15,26,46,0.04)' }}
       >
-        <div className="flex items-baseline gap-3">
+        <div className="flex items-baseline gap-3 flex-wrap">
           <span
             className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold"
             style={{ color: '#0F1A2E' }}
@@ -2576,7 +2577,7 @@ function NwiCoverageCard({ data }) {
 
   return (
     <div className="rounded-lg bg-white border border-gray-200 px-4 py-4 flex flex-col">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
           ◆ NWI coverage
         </span>
@@ -2626,7 +2627,7 @@ function IxFreshnessCard({ freshness }) {
 
   return (
     <div className="rounded-lg bg-white border border-gray-200 px-4 py-4 flex flex-col">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
           ◆ IX scrapers
         </span>
@@ -2697,7 +2698,7 @@ function MonthlyCronCard({ run }) {
 
   return (
     <div className="rounded-lg bg-white border border-gray-200 px-4 py-4 flex flex-col">
-      <div className="flex items-baseline justify-between mb-3">
+      <div className="flex items-baseline justify-between mb-3 gap-2 flex-wrap">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
           ◆ Substations cron
         </span>
