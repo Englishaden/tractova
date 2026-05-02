@@ -673,7 +673,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
-| _pending push_ | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
+| `8848dd8` | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
 | `357d7f9` | ScenarioStudio polish: confirm-delete + visible-save + input-pill row + auto-Lens + Radix tooltips on header badges + dropped native title= attrs + dark-space tightening |
 | `a13f33d` | ScenarioStudio: vertical history list (replaces chip row) + orphan auto-promote on project save + Library "Scenarios" tab grouping all scenarios by Lens context + card header badge |
 | `fd621a0` | Churn flow: pre-cancel exit-intent survey + cancellation_feedback table (migration 042) + reason categories + free-text capture + email/tier snapshot before Stripe portal handoff |
