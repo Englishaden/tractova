@@ -8,6 +8,18 @@
 // (e.g., first load before cache populates, or offline). The Supabase seed
 // (003_revenue_rates_seed.sql) matches these values; cron jobs update capacity
 // factors and retail rates over time.
+//
+// ── BESS rate freshness disclosure (audit 2026-05-02) ────────────────────────
+// BESS revenue rates (capacity payments, demand charges, arbitrage spreads) are
+// SEEDED constants — there is no automated refresh cron for them. ISO capacity-
+// market clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM) swing 2-9× year over
+// year, so these constants drift quickly. The `BESS_RATES_AS_OF` stamp below
+// is rendered visibly on the BESS revenue panel so users know the vintage.
+// Solar rates DO refresh quarterly via NREL PVWatts (capacity factor) + EIA
+// (retail rates), so this disclosure is BESS-specific. Bump this constant
+// whenever the BESS_REVENUE_DATA table is re-calibrated against fresh ISO
+// auction results.
+export const BESS_RATES_AS_OF = '2026-04'
 
 // ── Hardcoded fallback data (matches Supabase seed) ─────────────────────────
 const STATE_REVENUE_DATA = {
@@ -275,6 +287,10 @@ export function computeBESSProjection(stateId, mwAC, durationHrs = 4, rates) {
     capacityPerKwYear: data.capacityPerKwYear,
     demandChargePerKwMonth: data.demandChargePerKwMonth,
     arbitragePerMwh: data.arbitragePerMwh,
+    // Vintage of the seed constants (capacity payment, demand charge, arbitrage
+    // spread). Rendered as an "as of" stamp on the BESS revenue panel because
+    // these values do not auto-refresh and ISO clearing prices move fast.
+    ratesAsOf: BESS_RATES_AS_OF,
   }
 }
 

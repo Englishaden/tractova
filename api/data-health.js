@@ -374,6 +374,7 @@ async function handleFreshness(req, res) {
     ixFreshnessRes,
     scenarioCountRes,
     cancellationCountRes,
+    statePrograms_DriftRes,
   ] = await Promise.all([
     supabaseAdmin.rpc('get_data_freshness'),
     supabaseAdmin
@@ -394,6 +395,12 @@ async function handleFreshness(req, res) {
     supabaseAdmin.from('ix_queue_data').select('iso, fetched_at'),
     supabaseAdmin.from('scenario_snapshots').select('id', { count: 'exact', head: true }),
     supabaseAdmin.from('cancellation_feedback').select('id', { count: 'exact', head: true }),
+    // Mission Control "curation drift" — every state_program row's age signal.
+    // We compute drift in JS rather than SQL because last_verified can be null
+    // and we want to fall back to updated_at consistently.
+    supabaseAdmin
+      .from('state_programs')
+      .select('id, name, cs_status, last_verified, updated_at, capacity_mw, enrollment_rate_mw_per_month'),
   ])
 
   // NWI coverage
@@ -420,6 +427,46 @@ async function handleFreshness(req, res) {
     }))
     .sort((a, b) => b.ageDays - a.ageDays)
 
+  // state_programs curation drift — flag any active CS state whose
+  // max(last_verified, updated_at) is older than the warn threshold. The audit
+  // identified state_programs.capacity_mw drift as the highest-impact hand-
+  // curated value (it drives Runway and the Feasibility Index). Surfacing
+  // staleness in the admin Mission Control row forces visibility without
+  // auto-changing anything. Tunable via the constants below.
+  const DRIFT_WARN_DAYS = 30   // amber
+  const DRIFT_URGENT_DAYS = 60 // red
+  const drift = (statePrograms_DriftRes.data || []).map((s) => {
+    const v = s.last_verified ? new Date(s.last_verified).getTime() : 0
+    const u = s.updated_at ? new Date(s.updated_at).getTime() : 0
+    const latest = Math.max(v, u)
+    if (!latest) return null
+    const ageDays = Math.floor((now - latest) / (1000 * 60 * 60 * 24))
+    return {
+      state_id: s.id,
+      name: s.name,
+      cs_status: s.cs_status,
+      age_days: ageDays,
+      latest_at: new Date(latest).toISOString(),
+      severity: ageDays >= DRIFT_URGENT_DAYS ? 'urgent' : ageDays >= DRIFT_WARN_DAYS ? 'warn' : 'ok',
+      // Surface whether the row has the Runway-driving fields populated. A
+      // state with no capacity_mw or no enrollment_rate is silently breaking
+      // Runway; the admin should see that even if the row was recently
+      // "verified" with empty data.
+      has_capacity: s.capacity_mw != null && s.capacity_mw > 0,
+      has_enrollment_rate: s.enrollment_rate_mw_per_month != null && s.enrollment_rate_mw_per_month > 0,
+    }
+  }).filter(Boolean)
+  // Only return non-ok entries (warn + urgent). Sorted descending by age.
+  // Active CS states first (they're the user-facing surface) then others.
+  const driftToShow = drift
+    .filter((d) => d.severity !== 'ok')
+    .sort((a, b) => {
+      const aActive = a.cs_status === 'active' ? 0 : 1
+      const bActive = b.cs_status === 'active' ? 0 : 1
+      if (aActive !== bActive) return aActive - bActive
+      return b.age_days - a.age_days
+    })
+
   return res.status(200).json({
     freshness: freshnessResult.data,
     cronRuns: cronRunsResult.data || [],
@@ -429,6 +476,8 @@ async function handleFreshness(req, res) {
       ix_freshness: ixFreshness,
       scenario_snapshots_count: scenarioCountRes.count || 0,
       cancellation_feedback_count: cancellationCountRes.count || 0,
+      state_programs_drift: driftToShow,
+      state_programs_drift_thresholds: { warn_days: DRIFT_WARN_DAYS, urgent_days: DRIFT_URGENT_DAYS },
     },
   })
 }

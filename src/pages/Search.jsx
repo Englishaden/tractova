@@ -29,6 +29,7 @@ import GlossaryLabel from '../components/ui/GlossaryLabel'
 import ScenarioStudio from '../components/ScenarioStudio'
 import { computeBaseline as computeScenarioBaseline } from '../lib/scenarioEngine'
 import LensTour from '../components/LensTour'
+import DataLimitationsModal from '../components/DataLimitationsModal'
 
 // Map sub-score display labels to canonical glossary keys so the
 // GlossaryLabel tooltip resolves correctly when the visible text differs
@@ -1934,8 +1935,23 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                           <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv15)}</span>
                         </div>
                       </div>
-                      <div className="px-4 py-2 border-t border-gray-100">
+                      {/* Vintage stamp — BESS rate constants (capacity payment,
+                          demand charge, arbitrage spread) are seeded, not
+                          refreshed. ISO clearing prices swing 2-9× year over
+                          year, so users need to see the rate vintage at the
+                          point of decision. Mirrors the audit's #2 caveat
+                          surfaced in DataLimitationsModal. */}
+                      <div className="px-4 py-2 border-t border-gray-100 flex items-baseline justify-between gap-2 flex-wrap">
                         <p className="text-[9px] text-gray-400">Revenue depends on {proj.isoRegion} capacity market pricing — historically volatile. 15-year NPV reflects battery lifecycle.</p>
+                        {proj.ratesAsOf && (
+                          <span
+                            className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0"
+                            style={{ background: 'rgba(217,119,6,0.08)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
+                            title="BESS rates are seeded constants, not auto-refreshed. Verify against your ISO's most recent capacity-market clearing results before committing capital."
+                          >
+                            ◆ Rates as of {proj.ratesAsOf}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -3848,6 +3864,7 @@ function SearchContent() {
   const [matchingProjectId, setMatchingProjectId] = useState(null)
   const toast = useToast()
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
+  const [dataLimitationsOpen, setDataLimitationsOpen] = useState(false)
   const [saveName, setSaveName]   = useState('')
   const [saving, setSaving]       = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -4508,7 +4525,15 @@ function SearchContent() {
               <p className="text-xs text-gray-500 leading-relaxed">
                 <span className="font-semibold text-gray-700">Tractova intelligence is a research accelerator, not a substitute for site-specific due diligence.</span>{' '}
                 Verify interconnection conditions with the serving utility, confirm wetland boundaries with a site survey, and validate program capacity with your state PUC before committing capital.
-                Data is updated regularly but may not reflect the latest queue changes.
+                Data is updated regularly but may not reflect the latest queue changes.{' '}
+                <button
+                  type="button"
+                  onClick={() => setDataLimitationsOpen(true)}
+                  className="underline font-medium hover:text-gray-700 transition-colors"
+                  style={{ color: '#0F766E' }}
+                >
+                  Data limitations →
+                </button>
               </p>
             </div>
           </div>
@@ -4517,6 +4542,11 @@ function SearchContent() {
 
       {/* V3: SaveToast replaced by global ToastProvider (Radix Toast +
           Motion). Removed import of legacy SaveToast component below. */}
+
+      {/* Data limitations modal — surfaces the top 5 audit-identified
+          caveats one click away from the Lens disclaimer. Opens on
+          "Data limitations →" click in the bottom CTA block. */}
+      <DataLimitationsModal open={dataLimitationsOpen} onOpenChange={setDataLimitationsOpen} />
 
       {/* Save modal — sign-in prompt if not authed, name input if authed */}
       {saveModal && (
