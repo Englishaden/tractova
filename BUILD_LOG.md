@@ -4,24 +4,31 @@
 
 ---
 
-## 🟢 Pickup — AI scenario commentary on saved Studio runs + onboarding deepened (LensTour) + NWI catch-up running
+## 🟢 Pickup — Cron latency monitor + AI scenario commentary + onboarding deepened (LensTour) + NWI catch-up running
 
-**Session 2026-05-02.** Two ship items + one long-running data refresh:
+**Session 2026-05-02.** Three ship items + one long-running data refresh:
 
 1. **LensTour onboarding walkthrough** (`8848dd8`) — first-time-Pro Lens
    tour, four-step coachmark with spotlight + closing card. Closed the
    audit-roadmap "post-confirmation tutorial trigger" gap.
-2. **AI scenario commentary** (this commit) — every saved Scenario Studio
+2. **AI scenario commentary** (`2cd7399`) — every saved Scenario Studio
    row gets an inline "▸ Why?" expander that fetches a 2-3 sentence
    Haiku 4.5 narrative explaining the dominant 1-2 input drivers behind
-   the IRR/payback/NPV/DSCR shifts. Auto-fires on save so the value of
-   saving is visible without an extra click. Cached server-side under
-   a content hash so identical runs across users share a single API call.
-3. **NWI catch-up seed running in background** — `--refresh --parallel=2`
+   the IRR/payback/NPV/DSCR shifts. Auto-fires on save. Cached server-side
+   under a content hash so identical runs across users share one API call.
+3. **Cron-runs latency monitor** (this commit) — promoted from P2 backlog.
+   Admin Data Health tab now ends with a "Cron Latency" panel that pulls
+   the last 30 days of `cron_runs`, computes p95 / max / avg per
+   `cron_name`, maps each handler to its parent function's `maxDuration`
+   ceiling, and severity-bands the result (warn ≥ 70% of ceiling, watch
+   ≥ 50%, ok otherwise). First spot-check on live data flags
+   `monthly-data-refresh` (substations) at p95=34s on a 60s ceiling
+   (57% utilization, WATCH) — a real drift the team can act on before
+   it tips into a 504 like `bbc9543` did.
+4. **NWI catch-up seed running in background** — `--refresh --parallel=2`
    reprocessing 2,144 counties (anything with `wetland_last_updated > 90
-   days OR null`). Coverage was 79.9% pre-run (Aden recalled 57% but the
-   live probe showed we'd already advanced past that). Estimated 2h to
-   complete; logs at `.logs/nwi-seed-2026-05-02.log`.
+   days OR null`). Coverage was 79.9% pre-run; goal is 95%+. ETA ~2h;
+   logs at `.logs/nwi-seed-2026-05-02.log`.
 
 Migration **042 confirmed live in Supabase** via direct probe
 (`scenario_snapshots` 7 rows, `cancellation_feedback` 0 rows — table
@@ -29,7 +36,38 @@ present, awaiting first prod survey submission).
 
 ### What landed this session
 
-#### AI scenario commentary (this commit)
+#### Cron-runs latency monitor (this commit)
+
+- **`src/lib/cronLatencyMonitor.js`** (new). Pure helper:
+  `analyzeCronLatency(supabaseClient, daysBack=30)` queries `cron_runs`
+  for `status='success'` rows in the window, buckets by `cron_name`,
+  computes p95 (linear-interpolated), max, avg, and headroom-vs-ceiling.
+  `FUNCTION_BUDGETS_MS` mirrors `vercel.json` configured maxDurations
+  (refresh-data 300s, lens-insight + refresh-substations + refresh-ix-queue
+  + refresh-capacity-factors all 60s). Cron-name prefix-stripping handles
+  the `refresh-data:nmtc_lic` style. Default 60s ceiling for unconfigured
+  handlers (send-digest, send-alerts, check-staleness). Severity bands at
+  70% / 50% of ceiling. Sorts warn-first so the panel surfaces the drift
+  at the top.
+- **`src/pages/Admin.jsx`** — new `<CronLatencyPanel>` rendered at the
+  bottom of the Data Health tab. Mounts → loads the helper → renders a
+  table (Cron Name · Runs · p95 · Max · Avg · Ceiling · Headroom · Severity)
+  with brand-coloured severity pills (red warn / amber watch / emerald
+  ok). Inline copy explains the rationale and references the original
+  `bbc9543` 504 to make the value concrete.
+
+**Verification:** `npm run verify` green (build + 7 smoke tests in 16s).
+A live-DB spot check via `analyzeCronLatency()` returned 11 distinct
+crons over 239 samples; the only drift is `monthly-data-refresh` at
+57% utilization (WATCH) — the substations cron creeping toward its
+60s ceiling. Exactly the structural class of bug the monitor exists
+to catch before it becomes a 504.
+
+**Manual prod check after Vercel redeploy:** sign in as admin →
+`/admin?tab=8` (Data Health) → scroll past Last Run per Cron → "Cron
+Latency" table renders with the same WATCH on `monthly-data-refresh`.
+
+#### AI scenario commentary (`2cd7399`)
 
 - **`api/lens-insight.js`** — new `scenario-commentary` action routed
   through the existing endpoint (12-function Hobby cap is full, so any
@@ -126,6 +164,10 @@ DEMO_HREF wasn't referenced there).
   --parallel=2` finishes, re-probe coverage % + decide whether another
   pass is needed for stragglers. Aim is 95%+ NWI coverage on
   `county_geospatial_data`.
+- **Investigate `monthly-data-refresh` drift** — the new latency monitor
+  flagged it at 57% utilization on the 60s ceiling. Same structural
+  class of bug as the original `bbc9543` 504 (sequential per-state).
+  Worth a parallelization pass before it tips.
 - **Mobile responsiveness audit** — Search.jsx is now 4500+ LOC with
   dense Lens result + scenario grid + tour overlay; likely breaks
   <640px. Aden's user base is desk-centric so LOW user impact, but
@@ -667,7 +709,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: AI scenario commentary on saved Studio runs (Haiku 4.5, server-cached 30 days, auto-expands on save) + NWI catch-up seed running locally for 2,144 counties
+- **Branch:** `main` · last commit: Cron-runs latency monitor in admin Data Health (p95 vs maxDuration with severity bands, surfaces drifts before they 504) + NWI catch-up seed still running locally
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -723,6 +765,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| _pending push_ | Cron-runs latency monitor — admin Data Health tab now aggregates last 30 days of `cron_runs` and flags any handler whose p95 > 70% of its parent function's `maxDuration` (warn / watch / ok severity bands), surfaces drift like `monthly-data-refresh` at 57% before it becomes a 504; pure JS aggregation (no migration) |
 | `2cd7399` | AI scenario commentary — saved Studio rows expose a `▸ Why?` button that fetches a 2-3 sentence Haiku 4.5 narrative explaining the dominant 1-2 input drivers behind the IRR/payback/NPV/DSCR shifts; auto-fires on save (4s window for the call to land), 30-day server-side cache keyed on hashed inputs+outputs (cross-user collapse), Library Scenarios tab gets it for free |
 | `8848dd8` | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
 | `357d7f9` | ScenarioStudio polish: confirm-delete + visible-save + input-pill row + auto-Lens + Radix tooltips on header badges + dropped native title= attrs + dark-space tightening |
