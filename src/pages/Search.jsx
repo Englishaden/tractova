@@ -685,7 +685,7 @@ function SectionMarker({ index, label, sublabel, compact = false }) {
   return (
     <div className={`flex items-center gap-3 ${compact ? 'mb-3' : 'mt-8 mb-4'}`}>
       <span
-        className="text-[9px] font-bold tracking-[0.28em] uppercase shrink-0"
+        className="text-[11px] font-bold tracking-[0.20em] uppercase shrink-0"
         style={{ color: '#0F1A2E', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
       >
         § {String(index).padStart(2, '0')} · {label}
@@ -693,7 +693,7 @@ function SectionMarker({ index, label, sublabel, compact = false }) {
       <div className="flex-1 h-px" style={{ background: '#E2E8F0' }} />
       {sublabel && (
         <span
-          className="text-[9px] tracking-[0.22em] uppercase shrink-0"
+          className="text-[10px] tracking-[0.18em] uppercase shrink-0"
           style={{ color: '#94A3B8', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
         >
           {sublabel}
@@ -1043,22 +1043,36 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
           </span>
         </div>
 
-        {/* 4-factor risk tile grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+        {/* 4-factor risk strip — stacked rows so each factor's note has room
+            to breathe at the 1/3-viewport column width the parent grid forces.
+            Earlier 4-col grid squashed labels and notes into unreadable tiles. */}
+        <div className="space-y-1.5 mb-3">
           {tiles.map((t) => (
             <div
               key={t.label}
-              className="rounded-lg px-3 py-2.5 flex flex-col gap-1"
-              style={{ background: t.bg, borderTop: `3px solid ${t.color}` }}
+              className="flex items-start gap-3 rounded-md pl-2.5 pr-3 py-2"
+              style={{ background: t.bg, borderLeft: `3px solid ${t.color}` }}
             >
-              <div className="flex items-center gap-1.5" style={{ color: t.color }}>
-                {t.icon}
-                <span className="text-[10px] font-bold uppercase tracking-wider">{t.label}</span>
+              <span className="shrink-0 mt-0.5" style={{ color: t.color }}>{t.icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span
+                    className="font-mono text-[10px] font-bold uppercase tracking-[0.16em]"
+                    style={{ color: t.color }}
+                  >
+                    {t.label}
+                  </span>
+                  <span
+                    className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm"
+                    style={{ background: 'white', color: t.color, border: `1px solid ${t.color}40` }}
+                  >
+                    {t.status}
+                  </span>
+                </div>
+                {t.note && (
+                  <p className="text-[11px] text-gray-600 leading-relaxed">{t.note}</p>
+                )}
               </div>
-              <span className="text-xs font-semibold text-gray-700">{t.status}</span>
-              {t.note && (
-                <p className="text-[10px] text-gray-500 leading-relaxed mt-0.5">{t.note}</p>
-              )}
             </div>
           ))}
         </div>
@@ -1204,25 +1218,57 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
     >
       {/* Body */}
       <div className="px-5 py-4 space-y-4">
-        {/* Utility + queue */}
-        <div>
-          <SectionLabel>Serving Utility</SectionLabel>
-          <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
-            <DataRow label="Utility" value={servingUtility} />
-            <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
-              <span className="text-xs text-gray-500">Queue status</span>
-              <QueueBadge statusCode={queueStatusCode} />
-            </div>
-            <DataRow label="Avg study timeline" value={avgStudyTimeline} />
+        {/* Utility · Queue · Ease — single structured panel matching the
+            ISO Queue Data block below for visual consistency. Replaces the
+            two earlier `bg-surface` blocks (DataRow stack + centered gauge)
+            with a research-grade panel: amber left-border accent, mono
+            eyebrow, gauge inline-left, KV chips inline-right, interpretation
+            footer in a tinted strip. */}
+        <div
+          className="rounded-lg overflow-hidden"
+          style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
+        >
+          <div
+            className="px-3.5 py-2 flex items-baseline justify-between gap-2 border-b border-amber-100"
+            style={{ background: 'rgba(217,119,6,0.05)' }}
+          >
+            <span className="font-mono text-[10px] uppercase tracking-[0.18em] font-bold text-amber-800">
+              Utility · Queue · Study Window
+            </span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
+              county
+            </span>
           </div>
-        </div>
 
-        {/* Ease score */}
-        <div>
-          <SectionLabel>Ease Score</SectionLabel>
-          <div className="bg-surface rounded-md px-3 py-3 flex flex-col items-center">
-            <EaseArcGauge score={easeScore} />
-            <p className="text-xs text-gray-400 mt-1 text-center">
+          <div className="px-3.5 py-3 grid grid-cols-12 gap-3 items-center bg-white">
+            {/* Gauge — anchors the panel visually, pulled out of the centered
+                wrapper that ate vertical space. */}
+            <div className="col-span-5 flex flex-col items-center justify-center pr-2 border-r border-gray-100">
+              <EaseArcGauge score={easeScore} />
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-500 mt-0.5">
+                Ease Score
+              </p>
+            </div>
+            {/* KV chips — replaces the DataRow flat stack. Right-aligned values
+                sit on the same baseline as the labels for clean vertical rhythm. */}
+            <div className="col-span-7 space-y-1.5 min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 shrink-0">Utility</span>
+                <span className="text-[11px] font-semibold text-gray-800 truncate text-right">{servingUtility || '—'}</span>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 shrink-0">Queue</span>
+                <QueueBadge statusCode={queueStatusCode} />
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 shrink-0">Study window</span>
+                <span className="text-[11px] font-semibold text-gray-800 text-right">{avgStudyTimeline || '—'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="px-3.5 py-2 border-t border-amber-100" style={{ background: 'rgba(217,119,6,0.04)' }}>
+            <p className="text-[11px] text-amber-900 leading-relaxed">
               {easeScore >= 7 ? 'Strong interconnection conditions for this county.'
                : easeScore >= 5 ? 'Moderate difficulty — budget for potential upgrade costs.'
                : easeScore >= 3 ? 'Challenging territory — high upgrade costs likely.'
@@ -1294,11 +1340,17 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
           </div>
         )}
 
-        {/* Queue notes */}
+        {/* Queue notes — amber-tinted strip matches the rest of the IX card's
+            intelligence-style treatment. */}
         {queueNotes && (
-          <div>
-            <SectionLabel>County Queue Notes</SectionLabel>
-            <p className="text-xs text-gray-600 leading-relaxed bg-surface rounded-md px-3 py-2">{queueNotes}</p>
+          <div
+            className="rounded-md px-3 py-2"
+            style={{ background: 'rgba(217,119,6,0.05)', borderLeft: '3px solid rgba(217,119,6,0.45)' }}
+          >
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-amber-800 mb-1">
+              County queue notes
+            </p>
+            <p className="text-[11px] text-gray-700 leading-relaxed">{queueNotes}</p>
           </div>
         )}
 
@@ -4358,61 +4410,42 @@ function SearchContent() {
               />
             </div>
 
-            {/* Three pillar cards in a navy-tinted dossier band — visually
-                groups Offtake / IX / Site Control as the analytical core of
-                the Lens, and reduces the long-white-scroll feel without any
-                pattern or imagery. items-start: cards size independently. */}
+            {/* Pillar Diagnostics — same SectionMarker treatment as the other
+                § sections (Market Position / Analyst Brief / Scenario Studio)
+                so the four sections read as a single typographic family on a
+                consistent white surface. items-start: cards size independently. */}
+            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site" />
             <div
               data-tour-id="pillars"
-              className="rounded-xl px-5 py-5 mt-8 mb-6"
-              style={{
-                background: 'linear-gradient(180deg, rgba(15,26,46,0.022) 0%, rgba(15,26,46,0.045) 100%)',
-                border: '1px solid rgba(15,26,46,0.08)',
-              }}
+              className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start"
             >
-              <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-                <span
-                  className="text-[9px] font-bold tracking-[0.28em] uppercase"
-                  style={{ color: '#0F1A2E', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
-                >
-                  § 04 · Pillar Diagnostics
-                </span>
-                <span
-                  className="text-[9px] tracking-[0.22em] uppercase"
-                  style={{ color: '#94A3B8', fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" }}
-                >
-                  offtake · interconnect · site
-                </span>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
-                <OfftakeCard
-                  stateProgram={results.stateProgram}
-                  revenueStack={results.revenueStack}
-                  technology={results.form.technology}
-                  mw={results.form.mw}
-                  rates={results.revenueRates}
-                  energyCommunity={results.energyCommunity}
-                  nmtcLic={results.nmtcLic}
-                  hudQctDda={results.hudQctDda}
-                  county={results.form.county}
-                />
-                <InterconnectionCard
-                  interconnection={results.countyData?.interconnection}
-                  stateProgram={results.stateProgram}
-                  stateId={results.stateProgram?.id}
-                  mw={results.form.mw}
-                  queueSummary={results.ixQueueSummary}
-                />
-                <SiteControlCard
-                  siteControl={results.countyData?.siteControl}
-                  interconnection={results.countyData?.interconnection}
-                  stateName={results.stateProgram?.name || results.form.state}
-                  county={results.form.county}
-                  stateId={results.stateProgram?.id}
-                  mw={results.form.mw}
-                  substations={results.substations}
-                />
-              </div>
+              <OfftakeCard
+                stateProgram={results.stateProgram}
+                revenueStack={results.revenueStack}
+                technology={results.form.technology}
+                mw={results.form.mw}
+                rates={results.revenueRates}
+                energyCommunity={results.energyCommunity}
+                nmtcLic={results.nmtcLic}
+                hudQctDda={results.hudQctDda}
+                county={results.form.county}
+              />
+              <InterconnectionCard
+                interconnection={results.countyData?.interconnection}
+                stateProgram={results.stateProgram}
+                stateId={results.stateProgram?.id}
+                mw={results.form.mw}
+                queueSummary={results.ixQueueSummary}
+              />
+              <SiteControlCard
+                siteControl={results.countyData?.siteControl}
+                interconnection={results.countyData?.interconnection}
+                stateName={results.stateProgram?.name || results.form.state}
+                county={results.form.county}
+                stateId={results.stateProgram?.id}
+                mw={results.form.mw}
+                substations={results.substations}
+              />
             </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack

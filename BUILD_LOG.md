@@ -709,7 +709,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: Cron-runs latency monitor in admin Data Health (p95 vs maxDuration with severity bands, surfaces drifts before they 504) + NWI catch-up seed still running locally
+- **Branch:** `main` · last commit: Pillar Diagnostics format pass — bigger SectionMarker, white-surface § 04 (drops the navy band), Site Control tile grid → stacked rows so notes have room to breathe, IX Serving Utility + Ease Score combined into one structured panel matching the ISO Queue Data character (amber-bordered, mono eyebrow, gauge inline, KV chips). + NWI catch-up seed still running
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -765,6 +765,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| _pending push_ | Pillar Diagnostics format pass — SectionMarker text-[9px]→[11px] (slightly bigger, less letterspacing); § 04 drops the navy/grey wrapper and uses the same white-surface SectionMarker treatment as Market Position / Analyst Brief / Scenario Studio for visual consistency; SiteControl 4-col tile grid → 4 stacked rows (each factor's note now has room to wrap legibly at 1/3-viewport column width); IX Serving Utility + Ease Score combined into one structured panel matching the ISO Queue Data block's character (amber left-border + mono eyebrow + gauge inline + KV chips + interpretation footer); IX County Queue Notes also amber-tinted to match |
 | `efdc33b` | Cron-runs latency monitor — admin Data Health tab now aggregates last 30 days of `cron_runs` and flags any handler whose p95 > 70% of its parent function's `maxDuration` (warn / watch / ok severity bands), surfaces drift like `monthly-data-refresh` at 57% before it becomes a 504; pure JS aggregation (no migration) |
 | `2cd7399` | AI scenario commentary — saved Studio rows expose a `▸ Why?` button that fetches a 2-3 sentence Haiku 4.5 narrative explaining the dominant 1-2 input drivers behind the IRR/payback/NPV/DSCR shifts; auto-fires on save (4s window for the call to land), 30-day server-side cache keyed on hashed inputs+outputs (cross-user collapse), Library Scenarios tab gets it for free |
 | `8848dd8` | Onboarding deepening — LensTour 4-step coachmark walkthrough on first-time-Pro Lens result (composite gauge → pillars → Scenario Studio → save), `?onboarding=1` URL trigger appended to UpgradeSuccess + WelcomeCard demo links, localStorage persistence, ESC/skip/keyboard nav, graceful-fallthrough on missing anchor |
