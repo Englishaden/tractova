@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 // Relative-time formatter for the "Data refreshed" caption. Resolves to:
 //   <60s          → "just now"
@@ -81,6 +82,12 @@ export default function Footer() {
           >
             The Adder Newsletter ↗
           </a>
+          <Link to="/privacy" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+            Privacy
+          </Link>
+          <Link to="/terms" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+            Terms
+          </Link>
           <span className="text-xs font-mono text-gray-300">© {new Date().getFullYear()} Tractova</span>
         </div>
       </div>

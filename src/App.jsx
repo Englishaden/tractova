@@ -30,6 +30,8 @@ const Admin           = lazy(() => import('./pages/Admin'))
 const MemoView        = lazy(() => import('./pages/MemoView'))
 const UpgradeSuccess  = lazy(() => import('./pages/UpgradeSuccess'))
 const UpdatePassword  = lazy(() => import('./pages/UpdatePassword'))
+const Privacy         = lazy(() => import('./pages/Privacy'))
+const Terms           = lazy(() => import('./pages/Terms'))
 
 // Branded route-level Suspense fallback. Matches ProtectedRoute's
 // loading state visually so transitions feel coherent.
@@ -86,6 +88,9 @@ export default function App() {
             />
             <Route path="/glossary" element={<Glossary />} />
             <Route path="/admin" element={<Admin />} />
+            {/* Public legal pages — no auth */}
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms"   element={<Terms />} />
             {/* Public read-only Deal Memo by share token (no auth) */}
             <Route path="/memo/:token" element={<MemoView />} />
             <Route

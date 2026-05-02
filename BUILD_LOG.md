@@ -171,10 +171,12 @@ DEMO_HREF wasn't referenced there).
   end-to-end. Estimated 3-4h per ISO × 3 = ~9-12h. Once repaired, the
   PJM expansion to DC/DE/OH/PA/VA/WV is ~30min of UTILITY_STATE_MAP
   additions.
-- **NWI seed completion check** — once the background `--refresh
-  --parallel=2` finishes, re-probe coverage % + decide whether another
-  pass is needed for stragglers. Aim is 95%+ NWI coverage on
-  `county_geospatial_data`.
+- **NWI re-run for the 622 timeouts** — first pass 2026-05-02 hit 92.1%
+  coverage; the remaining gap is mostly NWI-server-throttled counties
+  in ND/SD/MT. A second `node scripts/seed-county-geospatial-nwi.mjs
+  --refresh --parallel=2` run would likely lift coverage to 95-97%.
+  Run it on a quieter day (mid-week, off-business-hours) to dodge the
+  NWI ArcGIS server's peak load.
 - **Investigate `monthly-data-refresh` drift** — the new latency monitor
   flagged it at 57% utilization on the 60s ceiling. Same structural
   class of bug as the original `bbc9543` 504 (sequential per-state).
@@ -720,7 +722,8 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit: Pillar Diagnostics format pass — bigger SectionMarker, white-surface § 04 (drops the navy band), Site Control tile grid → stacked rows so notes have room to breathe, IX Serving Utility + Ease Score combined into one structured panel matching the ISO Queue Data character (amber-bordered, mono eyebrow, gauge inline, KV chips). + NWI catch-up seed still running
+- **Branch:** `main` · Privacy Policy + Terms of Service v1.0 shipped (sign-ready, comprehensive coverage of every data source + every methodology limitation + every sub-processor). Today's session also shipped: LensTour onboarding, AI scenario commentary (Haiku 4.5), cron-runs latency monitor in admin Data Health, Pillar Diagnostics format pass (bigger SectionMarker + white surface + stacked Site Control tiles + structured IX panel), substations cron parallelization fix, EIA 861 utility seed (32 missing states now have a default row), IX scraper staleness honesty disclosure (3 of 4 ISOs frozen since 2026-04-24 — surfaced in Lens IX·Live pill + Admin Data Health alert).
+- **NWI catch-up seed completed.** 1522 of 2144 queue items succeeded; 622 NWI server timeouts (concentrated in ND/SD where the server throttled). Live coverage went from **79.9% → 92.1%** (gained 382 new counties). 249 counties still missing — a second `--refresh` run would catch most of the timeouts.
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
   - `county_acs_data` (3,142 counties Census ACS)
@@ -776,6 +779,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| _pending push_ | Privacy Policy + Terms of Service v1.0 — hand-rolled, comprehensive, sign-ready. /privacy + /terms public routes lazy-loaded; Footer links added. Privacy covers all sub-processors (Supabase/Vercel/Stripe/Anthropic/Resend/Cloudflare), explicit AI processing disclosure (Claude Sonnet 4.6 + Haiku 4.5 with Anthropic ZDR), every data source we synthesize (EIA Form 860/861, NREL PVWatts, Census ACS, USFWS NWI, USDA SSURGO, HUD QCT/DDA, CDFI NMTC, DOE NETL EDX Energy Community, DSIRE, ISO/RTO scrapers, RSS), CCPA-tier rights extended to all users, retention windows. ToS Section 06 is the legal-cover spine — every methodology limitation, scoring subjectivity, AI hallucination risk, coverage gap, and "research accelerator not professional advice" clause spelled out. Liability cap = greater of (12mo paid revenue, $100). NY governing law + JAMS arbitration + class waiver. Effective 2026-05-02 |
 | `87cea98` | IX scraper staleness honesty — Lens "IX · Live" pill now flips amber + "stale Nd" suffix when the underlying ix_queue_data row hasn't refreshed in >7 days; tooltip explains the upstream URL change reason. Admin Data Health tab gets a system-level "IX scraper staleness · N of M ISOs frozen" alert listing each stale ISO with its last successful pull date. Defensive disclosure pending the proper scraper repair sprint — PJM, NYISO, ISO-NE all 404 since 2026-04-24 |
 | `ec4b96f` | EIA Form 861 utility seed — adds default `county_intelligence` rows for the 32 states that previously had no curated state-default (AK/AL/AR/AZ/DE/GA/IA/ID/IN/KS/KY/LA/MO/MS/MT/NC/ND/NE/NH/NV/OH/OK/PA/SC/SD/TN/TX/UT/VT/WI/WV/WY). Each row has the dominant retail-customer utility per EIA Form 861 (2023, published 2024) — Alabama Power, Entergy LA, Duke Carolinas, NV Energy, Oncor, etc. Lens IX panel now displays a real serving utility for all 50 states instead of "Utility TBD". v1 = state-level default; v2 = per-county HIFLD spatial join, deferred. Site scores neutral (60 baseline) until per-county NWI ingest completes |
 | `39758ba` | refresh-substations: parallel batched upsert — fixes the `monthly-data-refresh` p95 drift the latency monitor flagged (was at 57% of its 60s ceiling). Sequential row-by-row supabase upsert (8 states × ~100 rows × ~25ms = ~20s in supabase alone) replaced with bucket-by-state + Promise.allSettled batched upsert — should collapse the supabase phase to 1-2s |
