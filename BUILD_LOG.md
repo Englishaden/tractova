@@ -160,6 +160,17 @@ DEMO_HREF wasn't referenced there).
 
 ### Next pickup options (priority-ordered)
 
+- **ISO scraper repair sprint (P1, blocks IX expansion)** — PJM, NYISO,
+  ISO-NE scrapers all 404 since 2026-04-24 due to upstream URL changes.
+  Lens IX · Live pill now correctly flips amber + "stale Nd" via the
+  staleness honesty pass. Repair needs a dedicated session: WebFetch
+  each ISO's current public landing, identify new download URLs
+  (NYISO has dated .xlsx like `NYISO-Interconnection-Queue-03-31-2026.xlsx`,
+  PJM moved post-Cycles reform, ISO-NE iRTT also moved), update parsers
+  (NYISO format went from JSON to xlsx so xlsx parsing needed), validate
+  end-to-end. Estimated 3-4h per ISO × 3 = ~9-12h. Once repaired, the
+  PJM expansion to DC/DE/OH/PA/VA/WV is ~30min of UTILITY_STATE_MAP
+  additions.
 - **NWI seed completion check** — once the background `--refresh
   --parallel=2` finishes, re-probe coverage % + decide whether another
   pass is needed for stragglers. Aim is 95%+ NWI coverage on
@@ -765,6 +776,7 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| _pending push_ | IX scraper staleness honesty — Lens "IX · Live" pill now flips amber + "stale Nd" suffix when the underlying ix_queue_data row hasn't refreshed in >7 days; tooltip explains the upstream URL change reason. Admin Data Health tab gets a system-level "IX scraper staleness · N of M ISOs frozen" alert listing each stale ISO with its last successful pull date. Defensive disclosure pending the proper scraper repair sprint — PJM, NYISO, ISO-NE all 404 since 2026-04-24 |
 | `ec4b96f` | EIA Form 861 utility seed — adds default `county_intelligence` rows for the 32 states that previously had no curated state-default (AK/AL/AR/AZ/DE/GA/IA/ID/IN/KS/KY/LA/MO/MS/MT/NC/ND/NE/NH/NV/OH/OK/PA/SC/SD/TN/TX/UT/VT/WI/WV/WY). Each row has the dominant retail-customer utility per EIA Form 861 (2023, published 2024) — Alabama Power, Entergy LA, Duke Carolinas, NV Energy, Oncor, etc. Lens IX panel now displays a real serving utility for all 50 states instead of "Utility TBD". v1 = state-level default; v2 = per-county HIFLD spatial join, deferred. Site scores neutral (60 baseline) until per-county NWI ingest completes |
 | `39758ba` | refresh-substations: parallel batched upsert — fixes the `monthly-data-refresh` p95 drift the latency monitor flagged (was at 57% of its 60s ceiling). Sequential row-by-row supabase upsert (8 states × ~100 rows × ~25ms = ~20s in supabase alone) replaced with bucket-by-state + Promise.allSettled batched upsert — should collapse the supabase phase to 1-2s |
 | `dde4877` | Pillar Diagnostics format pass — SectionMarker text-[9px]→[11px] (slightly bigger, less letterspacing); § 04 drops the navy/grey wrapper and uses the same white-surface SectionMarker treatment as Market Position / Analyst Brief / Scenario Studio for visual consistency; SiteControl 4-col tile grid → 4 stacked rows (each factor's note now has room to wrap legibly at 1/3-viewport column width); IX Serving Utility + Ease Score combined into one structured panel matching the ISO Queue Data block's character (amber left-border + mono eyebrow + gauge inline + KV chips + interpretation footer); IX County Queue Notes also amber-tinted to match |

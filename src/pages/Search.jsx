@@ -405,33 +405,58 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
               the rest, the IX score is curated from stateProgram.ixDifficulty
               and this badge stays absent. Honest signal — no badge means
               we didn't have live data, not that we're hiding something.
-              Tooltip mirrors the methodology popover's structured-box style. */}
-          {coverage?.ix === 'live' && (
-            <>
-              <span className="text-gray-300 text-[9px]">/</span>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span
-                    className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
-                    style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}
-                  >
+
+              Stale-data downgrade: when the underlying ISO scraper hasn't
+              refreshed within 7 days (PJM/NYISO/ISO-NE all 404'd from
+              2026-04-24 through ~2026-05-02 due to upstream URL changes),
+              the badge flips amber + adds "stale Nd" suffix. The tooltip
+              also explains the staleness explicitly so the user knows
+              the live signal is frozen, not current. */}
+          {coverage?.ix === 'live' && (() => {
+            const ageDays = ixQueueSummary?.dataAgeDays
+            const isStale = ageDays != null && ageDays > 7
+            const badgeStyle = isStale
+              ? { background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.45)' }
+              : { background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }
+            const dotStyle = isStale
+              ? { background: '#D97706', boxShadow: '0 0 5px rgba(217,119,6,0.65)' }
+              : { background: '#14B8A6', boxShadow: '0 0 5px rgba(20,184,166,0.65)' }
+            return (
+              <>
+                <span className="text-gray-300 text-[9px]">/</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
                     <span
-                      className="relative inline-flex w-1.5 h-1.5 rounded-full"
-                      style={{ background: '#14B8A6', boxShadow: '0 0 5px rgba(20,184,166,0.65)' }}
-                    />
-                    IX · Live
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" align="end" className="text-[10px]">
-                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Live IX Queue Data</p>
-                  <p>This state has current ISO/RTO queue-snapshot coverage. The Interconnection sub-score blends live signals on top of the curated <span className="font-mono">ixDifficulty</span> baseline.</p>
-                  <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — avg study months · total pending MW (weighted across utilities)</p>
-                  <p className="mt-0.5"><span className="text-amber-300 font-mono">CLAMP</span> — adjustment limited to ±10 so live signal can move the curated baseline meaningfully without dominating structural ISO context.</p>
-                  <p className="mt-1.5 text-gray-400">Absent badge = curated only. We don't fabricate live coverage where ISO scrapers haven't landed yet.</p>
-                </TooltipContent>
-              </Tooltip>
-            </>
-          )}
+                      className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
+                      style={badgeStyle}
+                    >
+                      <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={dotStyle} />
+                      {isStale ? `IX · Live · stale ${ageDays}d` : 'IX · Live'}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" align="end" className="text-[10px]">
+                    <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>
+                      {isStale ? 'Live IX Queue Data — STALE' : 'Live IX Queue Data'}
+                    </p>
+                    {isStale ? (
+                      <>
+                        <p>The ISO scraper for this state hasn't returned fresh data in {ageDays} days. The queue numbers below reflect the last successful pull on {ixQueueSummary?.oldestFetchedAt ? new Date(ixQueueSummary.oldestFetchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'an earlier date'}.</p>
+                        <p className="mt-1.5"><span className="text-amber-300 font-mono">REASON</span> — upstream public-CSV/JSON URLs changed on the ISO side; our scrapers are pending repair.</p>
+                        <p className="mt-1.5 text-gray-400">We're showing the badge in amber rather than hiding it so you can interpret the queue context honestly. Confirm current queue conditions with the serving utility before committing to a project plan.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>This state has current ISO/RTO queue-snapshot coverage. The Interconnection sub-score blends live signals on top of the curated <span className="font-mono">ixDifficulty</span> baseline.</p>
+                        <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — avg study months · total pending MW (weighted across utilities)</p>
+                        <p className="mt-0.5"><span className="text-amber-300 font-mono">CLAMP</span> — adjustment limited to ±10 so live signal can move the curated baseline meaningfully without dominating structural ISO context.</p>
+                        <p className="mt-1.5 text-gray-400">Absent badge = curated only. We don't fabricate live coverage where ISO scrapers haven't landed yet.</p>
+                      </>
+                    )}
+                  </TooltipContent>
+                </Tooltip>
+              </>
+            )
+          })()}
           {/* Live-Site indicator (Path B). Fires when this county has a row in
               county_geospatial_data — derived from USFWS NWI wetlands + USDA
               SSURGO prime farmland. Covers all 50 states / 3,142 counties once

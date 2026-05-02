@@ -653,7 +653,15 @@ export async function getDashboardMetrics() {
 
 // ── getIXQueueData ───────────────────────────────────────────────────────────
 // Returns raw IX queue rows for a state, grouped by utility.
-// Shape: { iso, utilities: [{ name, projectsInQueue, mwPending, ... }] }
+// Shape: { iso, utilities: [{ name, projectsInQueue, mwPending, ... }],
+//         oldestFetchedAt, newestFetchedAt, dataAgeDays }
+//
+// dataAgeDays is the worst-case (oldest) staleness across utilities — used
+// by the UI to flag IX-live data that's drifted past the freshness window
+// (the underlying ISO scrapers are not always reliable; PJM, NYISO, ISO-NE
+// scrapers all 404'd as of 2026-04-24, so live data in those ISOs has been
+// frozen for >7 days. The UI should signal this honestly rather than imply
+// the data is fresh).
 export async function getIXQueueData(stateId) {
   return withCache(`ix_queue:${stateId}`, async () => {
     const { data, error } = await supabase
@@ -663,6 +671,12 @@ export async function getIXQueueData(stateId) {
       .order('utility_name')
     if (error) throw error
     if (!data || data.length === 0) return null
+    const fetchedAts = data.map(r => r.fetched_at).filter(Boolean).sort()
+    const oldestFetchedAt = fetchedAts[0] || null
+    const newestFetchedAt = fetchedAts[fetchedAts.length - 1] || null
+    const dataAgeDays = oldestFetchedAt
+      ? Math.floor((Date.now() - new Date(oldestFetchedAt).getTime()) / (1000 * 60 * 60 * 24))
+      : null
     return {
       iso: data[0].iso,
       utilities: data.map(row => ({
@@ -673,7 +687,11 @@ export async function getIXQueueData(stateId) {
         withdrawalPct:   row.withdrawal_pct,
         avgUpgradeCostMW: row.avg_upgrade_cost_mw,
         queueTrend:      row.queue_trend,
+        fetchedAt:       row.fetched_at,
       })),
+      oldestFetchedAt,
+      newestFetchedAt,
+      dataAgeDays,
     }
   })
 }
@@ -711,6 +729,12 @@ export async function getIXQueueSummary(stateId, mwAC) {
     estimatedUpgradeCost,
     avgUpgradeCostPerMW: Math.round(weightedUpgrade),
     congestionLevel,
+    // Pass-through staleness metadata so the IX · Live pill can downgrade
+    // its badge styling (amber + 'stale Nd' suffix) when the underlying
+    // ISO scraper hasn't refreshed within the freshness window.
+    dataAgeDays: data.dataAgeDays,
+    oldestFetchedAt: data.oldestFetchedAt,
+    newestFetchedAt: data.newestFetchedAt,
   }
 }
 
