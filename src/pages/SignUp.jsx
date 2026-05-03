@@ -10,6 +10,12 @@ export default function SignUp() {
   const [error,    setError]    = useState(null)
   const [success,  setSuccess]  = useState(false)
   const [loading,  setLoading]  = useState(false)
+  // 18+ + Terms/Privacy acknowledgment. Required to submit. Statement-only
+  // language was already in Terms § 02; this checkbox makes the agreement
+  // an affirmative click rather than an implied acceptance, which is the
+  // SaaS norm and helps the IP-violation / trade-secret enforcement
+  // language in Terms § 04 hold up.
+  const [agreed,   setAgreed]   = useState(false)
 
   const navigate = useNavigate()
 
@@ -23,6 +29,10 @@ export default function SignUp() {
     }
     if (password.length < 6) {
       setError('Password must be at least 6 characters.')
+      return
+    }
+    if (!agreed) {
+      setError('Please confirm you are at least 18 years old and have read the Terms and Privacy Policy.')
       return
     }
 
@@ -149,13 +159,29 @@ export default function SignUp() {
               />
             </div>
 
+            <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+              <input
+                type="checkbox"
+                required
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 shrink-0 w-4 h-4 rounded-sm border-gray-300 text-teal-600 focus:ring-2 focus:ring-teal-500/30 cursor-pointer"
+              />
+              <span className="text-[11px] text-gray-600 leading-relaxed">
+                I am at least 18 years old and have read the{' '}
+                <Link to="/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Terms of Service</Link>
+                {' '}and{' '}
+                <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Privacy Policy</Link>.
+              </span>
+            </label>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !agreed}
               className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: '#14B8A6' }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
-              onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}
+              onMouseEnter={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#0F766E' }}
+              onMouseLeave={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#14B8A6' }}
             >
               {loading ? 'Creating account…' : 'Get started'}
             </button>

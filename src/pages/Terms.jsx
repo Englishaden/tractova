@@ -95,7 +95,21 @@ export default function Terms() {
           </List>
           <P>
             Violation of this section may result in immediate suspension or
-            termination of your account without refund.
+            termination of your account without refund. In addition, attempts
+            to reverse engineer, decompile, extract source code or non-public
+            infrastructure, scrape derived data in violation of the limits
+            above, or otherwise misappropriate the proprietary value-added
+            layers of the Service (subscores, eligibility calculators,
+            AI-generated commentary, methodology documentation, scenario
+            engine logic) may result in <strong>civil action for breach of
+            contract and misappropriation of trade secrets</strong> under
+            the Defend Trade Secrets Act (18 U.S.C. § 1836) and applicable
+            state trade-secret law. We reserve the right to pursue all
+            remedies available at law and in equity, including
+            <strong> injunctive relief</strong>, monetary damages, and
+            recovery of attorneys' fees and costs to the extent permitted by
+            law. We may also report criminal violations (computer fraud,
+            unauthorized access) to the appropriate authorities.
           </P>
         </Section>
 
