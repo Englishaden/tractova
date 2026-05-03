@@ -3181,6 +3181,15 @@ function LibraryContent() {
     })
   }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap, countyDataMap])
 
+  // Mirror displayProjects into a ref so the bulk select-all callback can
+  // read the current list without re-binding on every filter change.
+  const selectAllRef = useRef([])
+  useEffect(() => { selectAllRef.current = displayProjects }, [displayProjects])
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(selectAllRef.current.map((p) => p.id)))
+  }, [])
+  const allSelected = displayProjects.length > 0 && selectedIds.size >= displayProjects.length
+
   // Stage change locally + immediate score-change check (don't wait for next
   // Library reload). User feedback: stage changes the visible score, so the
   // audit log should reflect that pairing in the same moment.
@@ -3705,6 +3714,25 @@ function LibraryContent() {
             )}
             <SectionDivider />
 
+            {/* Inline "Select all" affordance — discreet text-button visible
+                BEFORE any selection is active so the affordance is
+                discoverable. Without this, users have to click one card's
+                checkbox first to learn the bulk toolbar exists. */}
+            {selectedIds.size === 0 && displayProjects.length > 1 && (
+              <div className="mb-2 flex items-center gap-3 text-[11px] font-mono">
+                <button
+                  type="button"
+                  onClick={handleSelectAll}
+                  className="font-medium uppercase tracking-[0.16em] hover:underline transition-colors"
+                  style={{ color: '#0F766E' }}
+                >
+                  Select all {displayProjects.length} →
+                </button>
+                <span className="text-gray-300">·</span>
+                <span className="text-gray-400">for bulk export, compare, or delete</span>
+              </div>
+            )}
+
             {/* Bulk-operations toolbar — appears as a sticky bar at the top
                 of the grid when ≥1 project is selected via the per-card
                 checkbox. Provides: bulk delete, bulk export to CSV, bulk
@@ -3722,6 +3750,14 @@ function LibraryContent() {
                   >
                     {selectedIds.size} selected
                   </span>
+                  <button
+                    type="button"
+                    onClick={allSelected ? clearSelection : handleSelectAll}
+                    className="text-[11px] font-medium hover:underline"
+                    style={{ color: '#5EEAD4' }}
+                  >
+                    {allSelected ? 'Deselect all' : `Select all (${displayProjects.length})`}
+                  </button>
                   <button
                     type="button"
                     onClick={clearSelection}

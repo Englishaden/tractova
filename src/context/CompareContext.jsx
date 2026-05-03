@@ -1,13 +1,21 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { computeSubScores } from '../lib/scoreEngine'
 
 const CompareContext = createContext(null)
 
 const STORAGE_KEY = 'tractova_compare'
 const MAX_ITEMS = 5
 
-// Normalize a Lens result into a compare item
+// Normalize a Lens result into a compare item.
+// Captures sub-scores + Path B geospatial percentages so the comparison
+// modal can show the offtake / IX / site breakdown alongside the composite,
+// plus the actual NWI wetland and SSURGO farmland coverage. These are the
+// highest-leverage decision signals — Aden's review pass flagged the
+// "where does each state shine vs lag" gap explicitly.
 export function lensResultToCompareItem(results) {
   const sp = results.stateProgram
+  const sub = sp ? computeSubScores(sp, results.countyData, results.form.stage, results.form.technology, results.ixQueueSummary) : null
+  const geo = results.countyData?.geospatial
   return {
     id:               `lens-${results.form.state}-${results.form.county.replace(/\s+/g, '-')}`,
     source:           'lens',
@@ -27,6 +35,13 @@ export function lensResultToCompareItem(results) {
     // would otherwise need a per-render state program lookup.
     lmiRequired:      sp?.lmiRequired ?? null,
     lmiPercent:       sp?.lmiPercent ?? null,
+    // Sub-score breakdown (added 2026-05-03 per site-walk review).
+    subOfftake:       sub?.offtake ?? null,
+    subIx:            sub?.ix ?? null,
+    subSite:          sub?.site ?? null,
+    // Path B geospatial percentages (USFWS NWI + USDA SSURGO).
+    wetlandPct:       geo?.wetlandCoveragePct ?? null,
+    farmlandPct:      geo?.primeFarmlandPct ?? null,
   }
 }
 

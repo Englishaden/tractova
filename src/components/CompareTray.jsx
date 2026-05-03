@@ -60,6 +60,9 @@ function CompareModal({ onClose }) {
   const [aiCompare, setAiCompare] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError,   setAiError]   = useState(null)
+  // AI panel collapses by default so the comparison row table gets the
+  // primary screen real estate. User opens via the eyebrow button.
+  const [aiOpen,    setAiOpen]    = useState(false)
 
   useEffect(() => {
     if (items.length < 2) return
@@ -106,11 +109,35 @@ function CompareModal({ onClose }) {
   // (subscriber-sourcing complexity) -- both decision-critical signals that
   // were previously missing from the compare view.
   const fmtCap = (mw) => mw == null ? '—' : mw >= 1000 ? `${(mw / 1000).toFixed(1)} GW` : `${Math.round(mw)} MW`
+  const fmtSubScore = (v) => {
+    if (v == null) return <span className="text-xs text-white/25 font-mono">—</span>
+    const tone = v >= 70 ? 'text-emerald-300' : v >= 50 ? 'text-amber-300' : 'text-orange-300'
+    return <span className={`text-xs font-mono font-semibold tabular-nums ${tone}`}>{Math.round(v)}<span className="text-white/35 ml-0.5 text-[10px]">/100</span></span>
+  }
+  const fmtPct = (v) => {
+    if (v == null) return <span className="text-xs text-white/25 font-mono">—</span>
+    return <span className="text-xs font-mono text-white/65 tabular-nums">{v < 1 ? v.toFixed(1) : Math.round(v)}%</span>
+  }
   const rows = [
     {
       label: 'Feasibility Index',
       section: 'COMPOSITE',
       render: (item) => <ScoreBar score={item.feasibilityScore} />,
+    },
+    {
+      label: 'Offtake sub-score',
+      section: 'COMPOSITE',
+      render: (item) => fmtSubScore(item.subOfftake),
+    },
+    {
+      label: 'Interconnection sub-score',
+      section: 'COMPOSITE',
+      render: (item) => fmtSubScore(item.subIx),
+    },
+    {
+      label: 'Site Control sub-score',
+      section: 'COMPOSITE',
+      render: (item) => fmtSubScore(item.subSite),
     },
     {
       label: 'CS Program Status',
@@ -167,6 +194,16 @@ function CompareModal({ onClose }) {
         }
         return <span className="text-xs text-white/25 font-mono">—</span>
       },
+    },
+    {
+      label: 'Wetland coverage',
+      section: 'COMPOSITE',
+      render: (item) => fmtPct(item.wetlandPct),
+    },
+    {
+      label: 'Prime farmland',
+      section: 'COMPOSITE',
+      render: (item) => fmtPct(item.farmlandPct),
     },
     {
       label: 'Project Size',
@@ -392,20 +429,45 @@ function CompareModal({ onClose }) {
             </div>
           ) : aiCompare?.comparison ? (
             <div className="mb-3 rounded-xl overflow-hidden" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.10)' }}>
-              <div className="px-4 pt-3 pb-2 flex items-center gap-2" style={{ borderBottom: '1px solid rgba(52,211,153,0.06)' }}>
-                <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.3), rgba(5,150,105,0.3))' }}>
+              <button
+                type="button"
+                onClick={() => setAiOpen(o => !o)}
+                className="w-full px-4 py-2.5 flex items-center gap-2 text-left transition-colors hover:brightness-125 cursor-pointer"
+                style={aiOpen ? { borderBottom: '1px solid rgba(52,211,153,0.06)' } : {}}
+                aria-expanded={aiOpen}
+              >
+                <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.3), rgba(5,150,105,0.3))' }}>
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 </div>
-                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#34D399' }}>AI Comparison Analysis</p>
-              </div>
-              <div className="px-4 py-3">
-                <p className="text-[11px] leading-relaxed text-white/65">{aiCompare.comparison}</p>
-              </div>
-              {aiCompare.reason && (
-                <div className="mx-4 mb-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.08)' }}>
-                  <svg className="w-3 h-3 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                  <p className="text-[10px] text-white/50 leading-relaxed">{aiCompare.reason}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: '#34D399' }}>
+                    AI Comparison {aiCompare.insightType ? `· ${aiCompare.insightType}` : 'Analysis'}
+                  </p>
+                  {!aiOpen && (
+                    <p className="text-[10px] text-white/40 truncate mt-0.5">{aiCompare.comparison}</p>
+                  )}
                 </div>
+                <svg
+                  width="11" height="11" viewBox="0 0 24 24"
+                  fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className="shrink-0 transition-transform"
+                  style={{ transform: aiOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                >
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+              {aiOpen && (
+                <>
+                  <div className="px-4 py-3">
+                    <p className="text-[11px] leading-relaxed text-white/65">{aiCompare.comparison}</p>
+                  </div>
+                  {aiCompare.reason && (
+                    <div className="mx-4 mb-3 px-3 py-2 rounded-lg flex items-start gap-2" style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.08)' }}>
+                      <svg className="w-3 h-3 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <p className="text-[10px] text-white/50 leading-relaxed">{aiCompare.reason}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ) : null}
