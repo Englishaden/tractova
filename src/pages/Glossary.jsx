@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { TECH_DEFINITIONS } from '../lib/techDefinitions'
 import { GLOSSARY_DEFINITIONS } from '../lib/glossaryDefinitions'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
 
-// Convert term name to a URL-safe anchor slug
-function toSlug(term) {
+// Convert term name to a URL-safe anchor slug. Exported so the
+// CommandPalette can build deep-link paths in the same shape the
+// hash-deep-link logic on the page expects.
+export function toSlug(term) {
   return term.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
@@ -51,7 +54,9 @@ const GLOSSARY_NEW_TERMS = Object.entries(GLOSSARY_DEFINITIONS)
     related: ['Feasibility Index'],
   }))
 
-const terms = [
+// Exported so CommandPalette + future surfaces can index the canonical
+// glossary set without duplicating term/pillar/definition data.
+export const GLOSSARY_TERMS = [
   // ── Development stages ──────────────────────────────────────────────────────
   {
     term: 'Prospecting',
@@ -205,6 +210,13 @@ const terms = [
     related: ['Lens Analysis', 'Market Intelligence', 'Feasibility Index'],
   },
   {
+    term: 'Best Case / Worst Case Scenario',
+    pillar: 'all',
+    definition:
+      'Pre-set P10 and P90 envelopes in the Scenario Studio. Best case applies favorable multipliers anchored to public industry data (capex −15% NREL ATB 2024 P10, IX cost −30% greenfield, capacity factor +5%, REC price +15%, allocation +10% capped at 110% of baseline). Worst case applies adverse multipliers (capex +20% NREL ATB P90, IX cost +150% network-upgrade shock, capacity factor −8%, REC price −15%, allocation −25% floored at 50%). The presets stay inside defensible-sensitivity territory — outlier scenarios (e.g. IX cost 5–10× baseline from a major distribution-feeder reinforcement) exist beyond the worst-case envelope and aren\'t modeled here. Hover the chip in Scenario Studio to see the full multiplier table.',
+    related: ['Scenario Studio', 'Sensitivity Analysis', 'Lens Analysis'],
+  },
+  {
     term: 'Add to Compare',
     pillar: 'all',
     definition:
@@ -291,6 +303,10 @@ const terms = [
   ...GLOSSARY_NEW_TERMS,
 ]
 
+// Local alias preserved so the rest of the file (filter/search/render
+// logic) keeps reading from `terms` without churn.
+const terms = GLOSSARY_TERMS
+
 // V3: pillar badges aligned to V3 palette — teal for offtake, amber for IX
 // (semantic caution per V3 §7.4), blue for site, slate-navy for stage, gray for all.
 const PILLAR_BADGE = {
@@ -343,6 +359,7 @@ export default function Glossary() {
   const [showDropdown, setShowDropdown] = useState(false)
   const [pillar, setPillar]         = useState(null)   // null = all
   const [highlighted, setHighlighted] = useState(null) // term name briefly flashing
+  const location = useLocation()
 
   const searchRef = useRef(null)
   const cardRefs  = useRef({})  // { [termName]: DOM element }
@@ -358,9 +375,12 @@ export default function Glossary() {
     return () => document.removeEventListener('mousedown', onOutside)
   }, [])
 
-  // Deep-link: scroll to hashed term on mount
+  // Deep-link: scroll to hashed term on mount AND on subsequent hash changes.
+  // The CommandPalette emits /glossary#<slug> navigations that don't remount
+  // the page (react-router stays on the same component), so we watch the
+  // hash via useLocation and re-fire the scroll-to-card flow each time.
   useEffect(() => {
-    const hash = window.location.hash.slice(1)
+    const hash = location.hash.slice(1)
     if (!hash) return
     const match = terms.find(t => toSlug(t.term) === hash)
     if (!match) return
@@ -372,7 +392,7 @@ export default function Glossary() {
         setTimeout(() => setHighlighted(null), 1400)
       }
     }, 200)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.hash])
 
   // Typeahead: match term names only
   const suggestions = query.trim()

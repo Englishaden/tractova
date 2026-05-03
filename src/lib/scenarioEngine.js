@@ -59,9 +59,19 @@ export const SCENARIO_DISCLAIMER =
   'NOT investment-grade pro-forma — engage a financial advisor for IC-grade modeling.'
 
 // ── Preset scenarios ────────────────────────────────────────────────────────
-// One-tap "what could go right / wrong" envelopes. Multipliers are modest
-// (15-25%) so the preset stays in defensible-sensitivity territory rather
-// than performing best/worst-case theatrics.
+// One-tap P10 / P90 envelopes anchored to public industry data. Each
+// multiplier and cap is documented in SCENARIO_PRESET_METHODOLOGY below
+// (mirrored verbatim into the chip tooltip + glossary entry so users can
+// audit the assumptions).
+//
+// Recalibration 2026-05-03:
+//   - Best-case allocation cap dropped 1.25 → 1.10. The 1.25 cap was
+//     allowing best-case to extrapolate program allocation past 110% of
+//     the curated baseline, which Aden flagged as not defensible.
+//   - Worst-case IX cost widened 1.50 → 2.50. Real-world IX cost shocks
+//     (network upgrades, distribution feeder reinforcement) routinely run
+//     5-10× the typical baseline — 1.50 was too gentle. Tooltip discloses
+//     that outlier IX cost scenarios still exist beyond this band.
 //
 // Applied as multipliers on the baseline inputs; UI calls applyScenario
 // with the resulting numbers. Tech-aware: REC/allocation are CS-specific
@@ -69,27 +79,55 @@ export const SCENARIO_DISCLAIMER =
 export const SCENARIO_PRESETS = {
   best: {
     label: 'Best case',
-    description: 'cheaper capex/IX · stronger production · favorable pricing',
+    description: 'P10 outcome — favorable cost, production, pricing',
     apply: (b) => ({
       systemSizeMW:    b.systemSizeMW,
       capexPerWatt:    b.capexPerWatt   != null ? round2(b.capexPerWatt   * 0.85) : null,
       ixCostPerWatt:   b.ixCostPerWatt  != null ? round2(b.ixCostPerWatt  * 0.70) : null,
       capacityFactor:  b.capacityFactor != null ? Math.min(0.28, b.capacityFactor * 1.05) : null,
       recPricePerMwh:  b.recPricePerMwh != null ? Math.round(b.recPricePerMwh * 1.15) : null,
-      programAllocation: b.programAllocation != null ? Math.min(1.25, b.programAllocation * 1.10) : null,
+      programAllocation: b.programAllocation != null ? Math.min(1.10, b.programAllocation * 1.10) : null,
     }),
   },
   worst: {
     label: 'Worst case',
-    description: 'cost overruns · production drag · weaker pricing',
+    description: 'P90 outcome — cost overruns, weaker pricing',
     apply: (b) => ({
       systemSizeMW:    b.systemSizeMW,
       capexPerWatt:    b.capexPerWatt   != null ? round2(b.capexPerWatt   * 1.20) : null,
-      ixCostPerWatt:   b.ixCostPerWatt  != null ? round2(b.ixCostPerWatt  * 1.50) : null,
+      ixCostPerWatt:   b.ixCostPerWatt  != null ? round2(b.ixCostPerWatt  * 2.50) : null,
       capacityFactor:  b.capacityFactor != null ? Math.max(0.12, b.capacityFactor * 0.92) : null,
       recPricePerMwh:  b.recPricePerMwh != null ? Math.round(b.recPricePerMwh * 0.85) : null,
       programAllocation: b.programAllocation != null ? Math.max(0.50, b.programAllocation * 0.75) : null,
     }),
+  },
+}
+
+// Methodology behind each preset multiplier. Surfaced in the preset-chip
+// Radix tooltip + Best/Worst case glossary entry so users can audit the
+// assumptions rather than treating the presets as a black box. Sources
+// are public — anchor each row to a specific industry survey or filing.
+export const SCENARIO_PRESET_METHODOLOGY = {
+  best: {
+    title: 'Best case · P10 industry outcome',
+    rows: [
+      { label: 'Capex',       multiplier: '−15%', source: 'NREL ATB 2024 P10 utility-PV cost' },
+      { label: 'IX cost',     multiplier: '−30%', source: 'Typical greenfield (no major upgrades)' },
+      { label: 'Capacity factor', multiplier: '+5% (cap 28%)', source: 'Top-quartile fixed-tilt siting' },
+      { label: 'REC price',   multiplier: '+15%', source: 'Historical 12mo upper band' },
+      { label: 'Allocation',  multiplier: '+10% (cap 110%)', source: 'Curated baseline + program fill upside' },
+    ],
+  },
+  worst: {
+    title: 'Worst case · P90 industry outcome',
+    rows: [
+      { label: 'Capex',       multiplier: '+20%', source: 'NREL ATB 2024 P90 utility-PV cost' },
+      { label: 'IX cost',     multiplier: '+150%', source: 'Network-upgrade shock (distribution feeder)' },
+      { label: 'Capacity factor', multiplier: '−8% (floor 12%)', source: 'Bottom-quartile / soiling / snow-loss' },
+      { label: 'REC price',   multiplier: '−15%', source: 'Historical 12mo lower band' },
+      { label: 'Allocation',  multiplier: '−25% (floor 50%)', source: 'Curated baseline − program fill drag' },
+    ],
+    caveat: 'Outlier IX-cost scenarios (5-10× baseline) exist beyond this band. Treat the worst-case envelope as defensible-sensitivity, not a tail risk.',
   },
 }
 

@@ -1,9 +1,36 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_DISCLAIMER, SCENARIO_PRESETS } from '../lib/scenarioEngine'
+import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_DISCLAIMER, SCENARIO_PRESETS, SCENARIO_PRESET_METHODOLOGY } from '../lib/scenarioEngine'
 import { supabase } from '../lib/supabase'
 import { useToast } from './ui/Toast'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/Tooltip'
 import GlossaryLabel from './ui/GlossaryLabel'
 import ScenarioHistoryList from './ScenarioHistoryList'
+
+// Tooltip body for the Best/Worst case preset chips. Renders the table
+// of multipliers + sources from SCENARIO_PRESET_METHODOLOGY so users can
+// audit the assumptions before clicking the chip.
+function PresetTooltipBody({ methodology }) {
+  if (!methodology) return null
+  return (
+    <div className="text-[10px]">
+      <p className="font-bold mb-2" style={{ color: '#5EEAD4' }}>{methodology.title}</p>
+      <table className="w-full">
+        <tbody>
+          {methodology.rows.map((r) => (
+            <tr key={r.label} className="align-top">
+              <td className="pr-2 font-mono text-gray-300 whitespace-nowrap">{r.label}</td>
+              <td className="pr-2 font-bold tabular-nums whitespace-nowrap" style={{ color: '#FCD34D' }}>{r.multiplier}</td>
+              <td className="text-gray-400">{r.source}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {methodology.caveat && (
+        <p className="mt-2 pt-2 border-t border-gray-700 text-gray-400">{methodology.caveat}</p>
+      )}
+    </div>
+  )
+}
 
 // Scenario Studio — interactive sensitivity layer over an "achievable
 // baseline." Lives inside the Lens result panel right after the Analyst
@@ -218,6 +245,13 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         )}
       </div>
 
+      <p className="px-6 pt-3 pb-1 text-[11px] text-gray-500 leading-relaxed">
+        Sliders move the <span className="font-semibold text-gray-700">financial outputs</span> below
+        (Y1 revenue, payback, IRR, NPV, DSCR) — not the Feasibility Index gauge above.
+        The gauge reflects market structure (program / IX / site); these sliders
+        stress-test the project economics within that market.
+      </p>
+
       <div className="px-6 py-5 grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: presets + sliders (3 cols) */}
         <div className="lg:col-span-3 space-y-4">
@@ -225,26 +259,41 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
               Applies modest 15-30% multipliers to the helpful sliders so the
               user can quickly see a reasonable upside vs. downside without
               learning the slider semantics first. */}
+          <TooltipProvider delayDuration={150}>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] font-mono uppercase tracking-[0.20em] text-gray-500 font-bold mr-1">
               Try
             </span>
-            <button
-              type="button"
-              onClick={() => handlePreset('best')}
-              className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all hover:brightness-110 hover:-translate-y-px"
-              style={{ background: 'rgba(20,184,166,0.15)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.45)' }}
-            >
-              ◆ Best case
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePreset('worst')}
-              className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all hover:brightness-110 hover:-translate-y-px"
-              style={{ background: 'rgba(217,119,6,0.15)', color: '#92400E', border: '1px solid rgba(217,119,6,0.45)' }}
-            >
-              ▼ Worst case
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('best')}
+                  className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all hover:brightness-110 hover:-translate-y-px"
+                  style={{ background: 'rgba(20,184,166,0.15)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.45)' }}
+                >
+                  ◆ Best case
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="!max-w-[420px]">
+                <PresetTooltipBody methodology={SCENARIO_PRESET_METHODOLOGY.best} />
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => handlePreset('worst')}
+                  className="cursor-pointer text-[10px] font-semibold px-2.5 py-1 rounded-md transition-all hover:brightness-110 hover:-translate-y-px"
+                  style={{ background: 'rgba(217,119,6,0.15)', color: '#92400E', border: '1px solid rgba(217,119,6,0.45)' }}
+                >
+                  ▼ Worst case
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="!max-w-[420px]">
+                <PresetTooltipBody methodology={SCENARIO_PRESET_METHODOLOGY.worst} />
+              </TooltipContent>
+            </Tooltip>
             {isDirty && (
               <button
                 type="button"
@@ -255,6 +304,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
               </button>
             )}
           </div>
+          </TooltipProvider>
 
           {sliderConfig.map((cfg) => (
             <SliderRow

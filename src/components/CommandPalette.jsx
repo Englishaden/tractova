@@ -6,6 +6,7 @@ import { getStateProgramMap } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { GLOSSARY_TERMS, toSlug } from '../pages/Glossary'
 
 // V3: Global Cmd-K command palette. Power-user shortcut signaling "data
 // product, not consumer SaaS". Indexes states + core nav routes; future
@@ -74,6 +75,19 @@ export default function CommandPalette() {
     return out
   }, [stateMap])
 
+  // Glossary entries — built once at mount from the canonical GLOSSARY_TERMS
+  // array exported by /pages/Glossary. The Glossary page's existing
+  // hash-deep-link logic resolves /glossary#<slug> on mount and scrolls +
+  // briefly highlights the matching card, so each item just needs the slug.
+  const glossaryItems = useMemo(() => {
+    return GLOSSARY_TERMS.map(t => ({
+      kind: 'glossary',
+      label: t.term,
+      hint: `Glossary · ${t.pillar === 'all' ? 'all pillars' : t.pillar}`,
+      path: `/glossary#${toSlug(t.term)}`,
+    }))
+  }, [])
+
   // Global Cmd/Ctrl-K hotkey
   useEffect(() => {
     const onKey = (e) => {
@@ -110,23 +124,28 @@ export default function CommandPalette() {
       hint: `${p.county || '—'}, ${p.state || '?'} · ${p.mw || '?'} MW · ${p.stage || 'no stage'}`,
       path: '/library',
     }))
-    // Default view (no query): nav + states + projects, no counties (too noisy).
+    // Default view (no query): nav + projects + states + a sample of glossary
+    // entries. Glossary terms surface here so the developer can flick to a
+    // definition without leaving their flow.
     if (!q.trim()) {
       return [
         ...NAV_ROUTES.map(r => ({ kind: 'nav', ...r })),
         ...projects.slice(0, 4),
-        ...states.slice(0, 8),
-      ].slice(0, 14)
+        ...states.slice(0, 6),
+        ...glossaryItems.slice(0, 4),
+      ].slice(0, 16)
     }
-    // Active search: include counties (large set) but rank states + projects first.
+    // Active search: include counties + glossary. Rank order:
+    //   nav → projects → states → glossary → counties.
     const needle = q.trim().toLowerCase()
     const matchFn = (it) => it.label.toLowerCase().includes(needle) || it.hint?.toLowerCase().includes(needle)
-    const navMatch     = NAV_ROUTES.map(r => ({ kind: 'nav', ...r })).filter(matchFn)
-    const projectMatch = projects.filter(matchFn)
-    const stateMatch   = states.filter(matchFn)
-    const countyMatch  = needle.length >= 2 ? countyItems.filter(matchFn).slice(0, 12) : []
-    return [...navMatch, ...projectMatch, ...stateMatch, ...countyMatch].slice(0, 18)
-  }, [q, stateMap, savedProjects, countyItems])
+    const navMatch      = NAV_ROUTES.map(r => ({ kind: 'nav', ...r })).filter(matchFn)
+    const projectMatch  = projects.filter(matchFn)
+    const stateMatch    = states.filter(matchFn)
+    const glossaryMatch = glossaryItems.filter(matchFn).slice(0, 8)
+    const countyMatch   = needle.length >= 2 ? countyItems.filter(matchFn).slice(0, 10) : []
+    return [...navMatch, ...projectMatch, ...stateMatch, ...glossaryMatch, ...countyMatch].slice(0, 20)
+  }, [q, stateMap, savedProjects, countyItems, glossaryItems])
 
   // Clamp activeIndex when items change
   useEffect(() => {
@@ -204,18 +223,20 @@ export default function CommandPalette() {
                               style={{ background: active ? 'rgba(15,118,110,0.08)' : 'transparent' }}
                             >
                               <span
-                                className="font-mono text-[9px] uppercase tracking-[0.20em] shrink-0 w-14"
+                                className="font-mono text-[9px] uppercase tracking-[0.20em] shrink-0 w-16"
                                 style={{
                                   color:
-                                    it.kind === 'state'   ? '#0F766E' :
-                                    it.kind === 'county'  ? '#14B8A6' :
-                                    it.kind === 'project' ? '#0F1A2E' :
-                                                            '#5A6B7A',
+                                    it.kind === 'state'    ? '#0F766E' :
+                                    it.kind === 'county'   ? '#14B8A6' :
+                                    it.kind === 'project'  ? '#0F1A2E' :
+                                    it.kind === 'glossary' ? '#7C3AED' :
+                                                             '#5A6B7A',
                                 }}
                               >
-                                {it.kind === 'state'   ? 'State' :
-                                 it.kind === 'county'  ? 'County' :
-                                 it.kind === 'project' ? 'Project' : 'Page'}
+                                {it.kind === 'state'    ? 'State' :
+                                 it.kind === 'county'   ? 'County' :
+                                 it.kind === 'project'  ? 'Project' :
+                                 it.kind === 'glossary' ? 'Glossary' : 'Page'}
                               </span>
                               <div className="flex-1 min-w-0">
                                 <p className="font-serif text-sm font-semibold text-ink leading-tight truncate">{it.label}</p>
