@@ -64,6 +64,12 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
   // Linger state — when set, the Save button morphs into "✓ Saved" for
   // ~2.5s so the persistence is impossible to miss. Resets via a timer.
   const [justSavedName, setJustSavedName] = useState(null)
+  // Library confirmation card — surfaces an inline "Saved to Library" panel
+  // beneath the save row for ~6s after a successful save. Aden's review
+  // flagged that the toast + button morph alone made it hard to tell where
+  // saved scenarios go; this card calls out the Library destination
+  // explicitly with a click-through. Object shape: { name, stateLabel }.
+  const [savedToLibrary, setSavedToLibrary] = useState(null)
   // Auto-expand the AI commentary panel on the just-saved row so the
   // value of saving (the analyst note explaining what the scenario means)
   // is visible without an extra click. Cleared after a few seconds so
@@ -179,6 +185,8 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     setNaming(false)
     setJustSavedName(savedAs)
     setTimeout(() => setJustSavedName(null), 2500)
+    setSavedToLibrary({ name: savedAs, stateLabel: baseline.stateLabel || baseline.stateId })
+    setTimeout(() => setSavedToLibrary(null), 6000)
     if (inserted?.id) {
       // Refresh BEFORE setting justSavedId so the row is already in the list
       // when the auto-expand effect runs. Eliminates the race where the
@@ -443,6 +451,33 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
                 </div>
               )}
             </div>
+
+            {/* Library confirmation card — shipped 2026-05-03 in response to
+                Aden's site-walk note that the toast + button morph alone
+                left users wondering where saved scenarios went. Holds for 6s
+                with an explicit Library destination + click-through. */}
+            {savedToLibrary && (
+              <a
+                href="/library?tab=scenarios"
+                className="mt-2 flex items-center gap-3 px-3 py-2 rounded-md no-underline transition-colors hover:brightness-110"
+                style={{ background: 'rgba(20,184,166,0.10)', border: '1px solid rgba(20,184,166,0.35)' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#14B8A6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold leading-tight" style={{ color: '#5EEAD4' }}>
+                    Saved to your Library
+                  </p>
+                  <p className="text-[10px] text-gray-400 truncate leading-tight mt-0.5">
+                    "{savedToLibrary.name}" · {savedToLibrary.stateLabel} · {baseline.technology.replace('-', ' ')}
+                  </p>
+                </div>
+                <span className="font-mono text-[10px] uppercase tracking-[0.18em] shrink-0" style={{ color: '#14B8A6' }}>
+                  view →
+                </span>
+              </a>
+            )}
           </div>
         </div>
       </div>

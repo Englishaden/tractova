@@ -1490,9 +1490,9 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
         <div className="pt-2 border-t border-gray-100">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
-            <a href="https://www.pjm.com/planning/services-requests/interconnection-queues" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">PJM Queue ↗</a>
+            <a href="https://planningcenter.pjm.com/planningcenter/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">PJM Queue ↗</a>
             <a href="https://www.misoenergy.org/planning/resource-utilization/GIQ/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">MISO GIQ ↗</a>
-            <a href="https://www.caiso.com/planning/Pages/QueueManagement/Default.aspx" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">CAISO Queue ↗</a>
+            <a href="https://www.caiso.com/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">CAISO ↗</a>
             <a href="https://www.nyiso.com/interconnections" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">NYISO IX ↗</a>
           </div>
         </div>
@@ -1756,7 +1756,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                       )}
                     </div>
                     <a
-                      href="https://energycommunities.gov/energy-community-tax-credit-bonus/"
+                      href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
@@ -1795,7 +1795,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                       )}
                     </div>
                     <a
-                      href="https://www.energy.gov/diversity/low-income-communities-bonus-credit-program"
+                      href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
@@ -2144,10 +2144,10 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
             <a href="https://programs.dsireusa.org/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DSIRE ↗</a>
-            <a href="https://energycommunities.gov/energy-community-tax-credit-bonus/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
-            <a href="https://www.energy.gov/diversity/low-income-communities-bonus-credit-program" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">§48(e) Bonus ↗</a>
+            <a href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
+            <a href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">§48(e) Bonus ↗</a>
             <a href="https://www.huduser.gov/portal/qct/index.html" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">HUD QCT/DDA ↗</a>
-            <a href="https://www.irs.gov/credits-deductions/businesses/investment-tax-credit-itc" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
+            <a href="https://www.irs.gov/forms-pubs/about-form-3468" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
           </div>
         </div>
         <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">

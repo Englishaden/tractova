@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
@@ -2925,6 +2925,15 @@ function LibraryContent() {
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
   const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' — top-level toggle
+
+  // ?tab=scenarios URL handling so external links (e.g. the "view in Library →"
+  // confirmation card in ScenarioStudio) can land directly on the Scenarios
+  // tab. Only applies on mount; in-page toggle still drives state afterwards.
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab === 'scenarios') setViewMode('scenarios')
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load live state program map for alert detection
   useEffect(() => {
