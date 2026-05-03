@@ -2531,6 +2531,50 @@ const CHIP_COLORS = {
   gray:   { bg: '#F3F4F6', text: '#374151', dot: '#9CA3AF' },
 }
 
+// V3 §9.3 — Site-walk Session 5 (review item #12, option A).
+// Collapsible drill-down row for the Analyst Brief sub-sections (Primary Risk,
+// Top Opportunity, Stage Guidance, Competitive Context). The brief and
+// Immediate Action stay always-visible above; everything else collapses behind
+// a chevron so the brief reads at a glance instead of as a wall of text.
+// Closed-state still shows the topic eyebrow + accent rule so users can see
+// what's available without clicking. ~12 LOC component, no new dependencies.
+function BriefDrilldown({ label, accent, eyebrowColor, children }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="pl-4 mt-2" style={{ position: 'relative' }}>
+      <div className="absolute left-0 top-2 bottom-0 w-[2px]" style={{ background: accent }} />
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 py-1.5 w-full text-left transition-opacity hover:opacity-80"
+        aria-expanded={open}
+      >
+        <svg
+          width="9"
+          height="9"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={eyebrowColor}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 200ms', flexShrink: 0 }}
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+        <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold m-0" style={{ color: eyebrowColor }}>
+          {label}
+        </p>
+      </button>
+      {open && (
+        <div className="pb-2 pt-0.5 ml-[17px]">
+          {children}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // §7.4: scenario state lifted to SearchContent; we read it from props now.
 function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading, ixQueueSummary }) {
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
@@ -2767,28 +2811,9 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
           )
         })()}
 
-        {/* V3: AI Spotlight as side-rule blocks (no fill, just left rule + eyebrow + body)
-            Editorial pattern -- looks like a sidebar in a research note, not a colored card */}
-        {showAI && !activeScenario && (aiInsight.primaryRisk || aiInsight.topOpportunity) && (
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 pt-5 border-t border-gray-100">
-            {aiInsight.primaryRisk && (
-              <div className="pl-4" style={{ borderLeft: '2px solid #DC2626' }}>
-                <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1.5" style={{ color: '#DC2626' }}>
-                  Primary Risk
-                </p>
-                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.primaryRisk}</p>
-              </div>
-            )}
-            {aiInsight.topOpportunity && (
-              <div className="pl-4" style={{ borderLeft: '2px solid #0F766E' }}>
-                <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1.5" style={{ color: '#0F766E' }}>
-                  Top Opportunity
-                </p>
-                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.topOpportunity}</p>
-              </div>
-            )}
-          </div>
-        )}
+        {/* AI Spotlight grid (Risk + Opportunity) was relocated into the
+            Drill-Down accordion below this block — Site-walk Session 5,
+            review item #12, option A. */}
 
         {/* V3: Ticker-tape signal strip -- mono caps, hairline-divided, no boxed cards */}
         {signals.length > 0 && (
@@ -2828,30 +2853,41 @@ function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, 
           </div>
         )}
 
-        {/* V3 §9.2: Stage Guidance — editorial side-rule pattern (matches the
-            Primary Risk / Top Opportunity / Immediate Action rhythm above).
-            No filled box, no inline icon — mono caps eyebrow + ink body carry
-            the institutional feel. */}
-        {showAI && aiInsight.stageSpecificGuidance && (
-          <div className="mt-5 pt-5 border-t border-gray-100 pl-4" style={{ position: 'relative' }}>
-            <div className="absolute left-0 top-5 bottom-0 w-[2px]" style={{ background: '#0F766E' }} />
-            <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1.5" style={{ color: '#0F766E' }}>
-              Stage Guidance — {form.stage || 'General'}
+        {/* Drill-Down accordion (Site-walk Session 5, review item #12, option A).
+            Brief + Immediate Action stay always-visible above; the deeper
+            analysis sections collapse behind chevrons so users skim before
+            drilling in. Risk + Opportunity hide while a scenario is active —
+            those are base-case signals and become misleading under a scenario
+            override; Stage Guidance + Competitive Context remain visible. */}
+        {showAI && (
+          (!activeScenario && (aiInsight.primaryRisk || aiInsight.topOpportunity)) ||
+          aiInsight.stageSpecificGuidance ||
+          aiInsight.competitiveContext
+        ) && (
+          <div className="mt-5 pt-5 border-t border-gray-100">
+            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400 mb-1">
+              Drill-Down
             </p>
-            <p className="text-[14px] text-ink leading-[1.55]">{aiInsight.stageSpecificGuidance}</p>
-          </div>
-        )}
-
-        {/* V3 §9.2: Competitive Context — same editorial pattern, blue accent
-            (intentional category-encoding per V3 §7.4 — distinct from teal
-            site/offtake and amber IX/caution). */}
-        {showAI && aiInsight.competitiveContext && (
-          <div className="mt-5 pt-5 border-t border-gray-100 pl-4" style={{ position: 'relative' }}>
-            <div className="absolute left-0 top-5 bottom-0 w-[2px]" style={{ background: '#2563EB' }} />
-            <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-1.5" style={{ color: '#1D4ED8' }}>
-              Competitive Context
-            </p>
-            <p className="text-[14px] text-ink leading-[1.55]">{aiInsight.competitiveContext}</p>
+            {!activeScenario && aiInsight.primaryRisk && (
+              <BriefDrilldown label="Primary Risk" accent="#DC2626" eyebrowColor="#DC2626">
+                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.primaryRisk}</p>
+              </BriefDrilldown>
+            )}
+            {!activeScenario && aiInsight.topOpportunity && (
+              <BriefDrilldown label="Top Opportunity" accent="#0F766E" eyebrowColor="#0F766E">
+                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.topOpportunity}</p>
+              </BriefDrilldown>
+            )}
+            {aiInsight.stageSpecificGuidance && (
+              <BriefDrilldown label={`Stage Guidance — ${form.stage || 'General'}`} accent="#0F766E" eyebrowColor="#0F766E">
+                <p className="text-[14px] text-ink leading-[1.55]">{aiInsight.stageSpecificGuidance}</p>
+              </BriefDrilldown>
+            )}
+            {aiInsight.competitiveContext && (
+              <BriefDrilldown label="Competitive Context" accent="#2563EB" eyebrowColor="#1D4ED8">
+                <p className="text-[14px] text-ink leading-[1.55]">{aiInsight.competitiveContext}</p>
+              </BriefDrilldown>
+            )}
           </div>
         )}
 

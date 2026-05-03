@@ -11,6 +11,7 @@ import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
+import { GLOSSARY_DEFINITIONS } from '../lib/glossaryDefinitions'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../components/ui/Dialog'
@@ -277,14 +278,25 @@ function PipelineProgress({ stage }) {
 }
 
 // ── Export shared schema ─────────────────────────────────────────────────────
-// Single source of truth for both CSV + XLSX export. Adds a column once and
-// both files inherit the change automatically.
+// Single source of truth for the XLSX project sheet. Sub-score columns are
+// computed on export via scoreEngine so the spreadsheet matches the in-app
+// Lens values exactly. CSV format was dropped 2026-05-03 (Site-walk Session 5);
+// XLSX with Methodology + Glossary tabs is the only export path now.
 const EXPORT_HEADERS = [
+  // Identity
   'Name', 'State', 'County', 'MW AC', 'Technology', 'Stage',
-  'CS Status', 'CS Program', 'Program Capacity Remaining (MW)', 'LMI Required (%)',
-  'Program Runway (months)', 'Feasibility Index',
-  'IX Difficulty', 'IX Notes (truncated)', 'Serving Utility',
-  'Est. Annual Revenue ($/MW/yr)', 'Risk Flags', 'Saved Date',
+  // Scores (composite + sub-scores from scoreEngine.computeSubScores)
+  'Feasibility Index', 'Offtake Sub-score', 'IX Sub-score', 'Site Sub-score',
+  // Program
+  'CS Status', 'CS Program', 'Program Capacity Remaining (MW)', 'LMI Required (%)', 'Program Runway (months)',
+  // IX
+  'IX Difficulty', 'IX Notes (truncated)',
+  // Site (Path B geospatial — NWI + SSURGO)
+  'Wetland Coverage (%)', 'Prime Farmland (%)',
+  // Operations
+  'Serving Utility', 'Est. Annual Revenue ($/MW/yr)',
+  // Meta
+  'Risk Flags', 'Saved Date',
 ]
 
 function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
@@ -292,6 +304,7 @@ function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
   const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
   return projects.map(p => {
     const sp = stateProgramMap[p.state] || {}
+    const cd = countyDataMap[`${p.state}::${p.county}`] || null
     let revPerMWperYear = ''
     try {
       const mwNum = parseFloat(p.mw) || 0
@@ -302,55 +315,116 @@ function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
     } catch {}
     const alerts = getAlerts(p, stateProgramMap, countyDataMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
     const ixNotes = (sp.ixNotes || '').replace(/\s+/g, ' ').slice(0, 200)
+    // Sub-scores: same engine the Lens result panel uses, so export numbers
+    // are guaranteed to match what the user saw in the app. countyData is
+    // best-effort — geospatial cells stay blank for cards never expanded.
+    const subs = sp.id ? computeSubScores(sp, cd, p.stage, p.technology) : null
+    const wetlandPct = cd?.geospatial?.wetlandCoveragePct
+    const farmlandPct = cd?.geospatial?.primeFarmlandPct
     return [
+      // Identity
       p.name,
       p.stateName || p.state,
       p.county,
       p.mw ? Number(p.mw) : '',
       p.technology || '',
       p.stage || '',
+      // Scores
+      p.feasibilityScore ?? '',
+      subs && typeof subs.offtake === 'number' ? subs.offtake : '',
+      subs && typeof subs.ix === 'number' ? subs.ix : '',
+      subs && typeof subs.site === 'number' ? subs.site : '',
+      // Program
       CS_LABEL[p.csStatus] || p.csStatus || '',
       p.csProgram || '',
       sp.capacityMW ?? '',
       sp.lmiRequired ? sp.lmiPercent : '',
       sp.runway?.months ?? '',
-      p.feasibilityScore ?? '',
+      // IX
       IX_LABEL[sp.ixDifficulty] || sp.ixDifficulty || '',
       ixNotes,
+      // Site
+      typeof wetlandPct === 'number' ? Math.round(wetlandPct * 10) / 10 : '',
+      typeof farmlandPct === 'number' ? Math.round(farmlandPct * 10) / 10 : '',
+      // Operations
       p.servingUtility || '',
       revPerMWperYear,
+      // Meta
       alerts,
       p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
     ]
   })
 }
 
-// ── CSV export ───────────────────────────────────────────────────────────────
-function exportCSV(projects, stateProgramMap = {}, countyDataMap = {}) {
-  const rows = buildExportRows(projects, stateProgramMap, countyDataMap)
-  const csv = [EXPORT_HEADERS, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv' })
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href = url
-  a.download = `tractova-projects-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
+// ── Methodology + sources sheet ──────────────────────────────────────────────
+// Static reference table mapping each scoring pillar to its underlying data
+// sources. URLs render as clickable hyperlinks in Excel via cell.l targets.
+// When sources change, update this constant — the exported workbook stays
+// synced because nothing else in the codebase needs to know about it.
+const METHODOLOGY_ROWS = [
+  ['Composite (Feasibility Index)', 'Tractova scoreEngine', 'https://www.tractova.com/glossary#feasibility-index', 'Weighted blend: Offtake 40% + IX 35% + Site 25%; per-pillar stage modifiers'],
+  ['Offtake — CS programs (50 states)', 'DSIRE — Database of State Incentives', 'https://www.dsireusa.org', 'Program status, capacity remaining, LMI carveout, REC pricing'],
+  ['Offtake — REC pricing', 'State regulatory program filings', 'https://www.dsireusa.org', 'Illinois Shines, NJ SREC, MA SMART, MD CS, NY VDER'],
+  ['Offtake — C&I (32 states)', 'EIA Form 861 — Commercial Retail Rates', 'https://www.eia.gov/electricity/sales_revenue_price/', 'Calibrated against 2024 commercial retail rates plus market-depth qualitative weights'],
+  ['Offtake — BESS (25 states)', 'ISO/RTO capacity-market clearing prices', 'https://www.iso-ne.com/markets-operations/markets/forward-capacity-market', '2024-2025 cycle; CAISO/ERCOT/PJM/NYISO/MISO/ISO-NE'],
+  ['IX — NYISO live', 'NYISO Interconnection Queue', 'https://www.nyiso.com/interconnections', 'Live xlsx feed parsed weekly'],
+  ['IX — PJM (queue stale)', 'PJM Data Miner 2', 'https://dataminer2.pjm.com/', 'Redistribution-restricted; Tractova may show stale signals only'],
+  ['IX — CAISO/ISO-NE/MISO/ERCOT', 'Curated baseline', 'https://www.tractova.com/glossary#ix', 'stateProgram.ixDifficulty enum (easy/moderate/hard/very_hard)'],
+  ['Site — Wetlands', 'USFWS National Wetlands Inventory', 'https://www.fws.gov/program/national-wetlands-inventory', 'County wetland coverage %; ≥15% triggers wetland warning + Section 404 flag'],
+  ['Site — Prime Farmland', 'USDA SSURGO via Soil Data Access', 'https://sdmdataaccess.sc.egov.usda.gov/', 'County prime farmland %; ≥25% flags FPPA conversion-review exposure'],
+  ['ITC adders — Energy Community', 'DOE NETL Energy Communities Data Layers', 'https://edx.netl.doe.gov/dataset/energy-communities-data-layers', '+10% bonus eligibility (closed coal / brownfield / fossil-employment tracts)'],
+  ['ITC adders — §48(e) Cat 1 LIC', 'HUD QCT/DDA dataset', 'https://www.huduser.gov/portal/datasets/qct.html', '+10% Low-Income Communities adder eligibility'],
+  ['ITC adders — NMTC LIC', 'CDFI Fund New Markets Tax Credit', 'https://www.cdfifund.gov/programs-training/programs/new-markets-tax-credit', 'Census-tract LIC eligibility for stacking adders'],
+  ['Capacity Factor', 'NREL PVWatts API v8', 'https://pvwatts.nrel.gov/', 'State-level fixed-tilt baseline; refreshed quarterly'],
+  ['Demographics — LMI / AMI', 'Census ACS 5-Year Estimates', 'https://www.census.gov/programs-surveys/acs', 'County LMI %, AMI bands for CS subscriber-eligibility math'],
+]
+
+function buildMethodologySheet(XLSX) {
+  const header = ['Pillar / Component', 'Source', 'URL', 'Notes']
+  const ws = XLSX.utils.aoa_to_sheet([header, ...METHODOLOGY_ROWS])
+  ws['!cols'] = [{ wch: 32 }, { wch: 36 }, { wch: 56 }, { wch: 60 }]
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+  // Wire URL column (C) as clickable hyperlinks. SheetJS hyperlink format:
+  // cell.l = { Target: 'https://...', Tooltip: '...' }
+  for (let r = 0; r < METHODOLOGY_ROWS.length; r++) {
+    const cellAddr = `C${r + 2}`
+    const cell = ws[cellAddr]
+    const url = METHODOLOGY_ROWS[r][2]
+    if (cell && url) cell.l = { Target: url, Tooltip: 'Open in browser' }
+  }
+  return ws
+}
+
+// ── Glossary sheet ───────────────────────────────────────────────────────────
+// Pulls from the same canonical source the in-app Glossary page uses. Three
+// columns: Term, Short definition, Long definition. Long defs run wide so
+// users can read them without clicking through to the app.
+function buildGlossarySheet(XLSX) {
+  const header = ['Term', 'Definition', 'Detail']
+  const rows = Object.values(GLOSSARY_DEFINITIONS).map(g => [g.title, g.short, g.long])
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows])
+  ws['!cols'] = [{ wch: 28 }, { wch: 60 }, { wch: 100 }]
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 }
+  // Word-wrap detail column so long defs stay readable without horizontal scroll.
+  for (let r = 2; r <= rows.length + 1; r++) {
+    const cell = ws[`C${r}`]
+    if (cell) cell.s = { alignment: { wrapText: true, vertical: 'top' } }
+  }
+  return ws
 }
 
 // ── XLSX export ──────────────────────────────────────────────────────────────
-// Lazy-loads the xlsx library on first click so the dependency doesn't bloat
-// the main bundle. Output is a properly-formatted .xlsx with column widths,
-// number formatting on numeric columns, and a frozen header row -- ready to
-// drop into a developer's internal model spreadsheet.
+// Lazy-loads xlsx on first click so the dependency stays out of the main
+// bundle. Output is a 3-sheet workbook:
+//   1. Projects — full data table including sub-scores from scoreEngine
+//   2. Methodology & Sources — pillar→source→URL hyperlink reference
+//   3. Glossary — terms used in Sheet 1, mirrors the in-app Glossary page
 async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
   const rows = buildExportRows(projects, stateProgramMap, countyDataMap)
   const XLSX = await import('xlsx')
 
-  // Build worksheet from arrays (header + rows).
+  // ── Sheet 1: Projects ──
   const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...rows])
-
-  // Column widths in chars -- tuned to typical content lengths.
   ws['!cols'] = [
     { wch: 28 }, // Name
     { wch: 12 }, // State
@@ -358,31 +432,36 @@ async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
     { wch: 8 },  // MW AC
     { wch: 16 }, // Technology
     { wch: 18 }, // Stage
+    { wch: 10 }, // Feas Idx
+    { wch: 12 }, // Offtake
+    { wch: 10 }, // IX
+    { wch: 10 }, // Site
     { wch: 10 }, // CS Status
     { wch: 22 }, // CS Program
     { wch: 14 }, // Program Capacity
     { wch: 10 }, // LMI %
     { wch: 12 }, // Runway
-    { wch: 10 }, // Feas Idx
     { wch: 12 }, // IX Diff
     { wch: 50 }, // IX Notes
+    { wch: 14 }, // Wetland %
+    { wch: 14 }, // Prime Farmland %
     { wch: 22 }, // Serving Utility
-    { wch: 14 }, // Revenue
+    { wch: 18 }, // Revenue
     { wch: 36 }, // Alerts
     { wch: 12 }, // Saved
   ]
-
-  // Freeze header row.
   ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-
-  // Apply number format on revenue column (P) -- USD whole dollars.
+  // USD whole-dollars on revenue column. Column letter for "Est. Annual
+  // Revenue" is U (21st column) given the new header order — was P pre-Session 5.
   for (let r = 2; r <= rows.length + 1; r++) {
-    const cell = ws[`P${r}`]
+    const cell = ws[`U${r}`]
     if (cell && typeof cell.v === 'number') cell.z = '"$"#,##0'
   }
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Projects')
+  XLSX.utils.book_append_sheet(wb, buildMethodologySheet(XLSX), 'Methodology & Sources')
+  XLSX.utils.book_append_sheet(wb, buildGlossarySheet(XLSX), 'Glossary')
   XLSX.writeFile(wb, `tractova-projects-${new Date().toISOString().slice(0, 10)}.xlsx`)
 }
 
@@ -3260,12 +3339,12 @@ function LibraryContent() {
     setBulkConfirm(false)
   }, [selectedIds])
 
-  // Bulk export to CSV. Reuses the existing exportCSV utility, just passing
-  // a filtered subset rather than the full project list.
-  const handleBulkExportCSV = useCallback(() => {
+  // Bulk export to XLSX. Reuses the export utility on a filtered subset.
+  // CSV path was retired 2026-05-03 — see Site-walk Session 5.
+  const handleBulkExportXLSX = useCallback(() => {
     const subset = projects.filter((p) => selectedIds.has(p.id))
     if (subset.length === 0) return
-    exportCSV(subset, stateProgramMap, countyDataMap)
+    exportXLSX(subset, stateProgramMap, countyDataMap)
     setSelectedIds(new Set())
   }, [projects, selectedIds, stateProgramMap, countyDataMap])
 
@@ -3379,38 +3458,21 @@ function LibraryContent() {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {projects.length > 0 && (
-                <>
-                  <button
-                    onClick={() => exportCSV(projects, stateProgramMap, countyDataMap)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-                    style={{
-                      color: 'rgba(255,255,255,0.85)',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                    title="Export all projects to CSV (universal format)"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    CSV
-                  </button>
-                  <button
-                    onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
-                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-                    style={{
-                      color: 'rgba(255,255,255,0.85)',
-                      background: 'rgba(255,255,255,0.05)',
-                      border: '1px solid rgba(255,255,255,0.12)',
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
-                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                    title="Export to Excel with column widths + number formatting"
-                  >
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    XLSX
-                  </button>
-                </>
+                <button
+                  onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
+                  style={{
+                    color: 'rgba(255,255,255,0.85)',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                  title="Export to Excel — Projects sheet + Methodology & Sources + Glossary"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export Excel
+                </button>
               )}
               <Link
                 to="/search"
@@ -3735,9 +3797,9 @@ function LibraryContent() {
 
             {/* Bulk-operations toolbar — appears as a sticky bar at the top
                 of the grid when ≥1 project is selected via the per-card
-                checkbox. Provides: bulk delete, bulk export to CSV, bulk
+                checkbox. Provides: bulk delete, bulk export to Excel, bulk
                 add to Compare tray. Reuses existing single-project utilities
-                (handleRequestRemove pattern, exportCSV, useCompare.add). */}
+                (handleRequestRemove pattern, exportXLSX, useCompare.add). */}
             {selectedIds.size > 0 && (
               <div
                 className="sticky top-14 z-20 mb-3 rounded-lg flex items-center justify-between gap-3 px-4 py-2.5"
@@ -3778,11 +3840,11 @@ function LibraryContent() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleBulkExportCSV}
+                    onClick={handleBulkExportXLSX}
                     className="text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors"
                     style={{ background: 'rgba(255,255,255,0.08)', color: 'white', border: '1px solid rgba(255,255,255,0.18)' }}
                   >
-                    Export CSV
+                    Export Excel
                   </button>
                   <button
                     type="button"
