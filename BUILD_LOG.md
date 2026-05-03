@@ -4,7 +4,85 @@
 
 ---
 
-## 🟢 Pickup — Cron latency monitor + AI scenario commentary + onboarding deepened (LensTour) + NWI catch-up running
+## 🟢 Pickup — Site-walk review fixes shipped (4 sessions, ~32 commits) → next: analyst-brief verbosity question + Aden DNS work
+
+**Session 2026-05-03.** Aden completed a manual end-to-end walkthrough
+of the production site and captured ~40 distinct findings in
+`Full Manual Site Review.md`. The plan
+(`~/.claude/plans/read-build-log-and-then-sorted-taco.md`) sequenced
+the fixes into Groups A–J. Sessions 1-4 closed every actionable item
+except the small handful flagged below as "needs Aden's call."
+
+### What landed across the 4 sessions
+
+**Session 1 — `a1c00dd`** · visual + animation + tooltip polish
+- Favicon `#0F6E56` → canonical teal `#0F766E`
+- StateDetailPanel SubStat sub-headers grey → teal (matches "Strong (75+)" legend)
+- Revenue stack ITC adder blue `#3B82F6` → amber `#D97706` so the +10% bonus reads distinctly from ITC base
+- Email "+15 idx" → "+15 pts"; digest "IDX" → "SCORE"
+- Score-drop alert: structured `delta` (from/to/change) + big "↓ N pts · X → Y" gutter cell in standalone alerts; digest pill shows "Score Drop · ↓N pts" inline
+- Profile "Considering canceling?" passive CTA removed (capture path: future Stripe-webhook on subscription.updated cancel_at_period_end=true)
+- IntelligenceBackground: removed the slow-flowing teal "fog" band; dots + WalkingTractovaMark wrapped in a gutter mask (initially 18-30% / 70-82%, tightened to 8-12% / 88-92% in Session 2 follow-up after Aden flagged dots still drifting through Pillar Diagnostics cards on a 1920px viewport where content extends 12.5-87.5%)
+- WalkingTractovaMark top/bottom variants narrowed to corner gutters
+- USMap legend swatches: methodology tooltips on all 7 tiers (Strong/Viable/Moderate/Weak/Non-viable + Pending + No program)
+- Site Control status badges: 8 tooltips citing USDA SSURGO / USFWS NWI / hosting-capacity sources
+- Data Limitations modal: scrollable (max-h-85vh overflow-y-auto) + cursor-pointer + ⓘ icon on trigger
+
+**Session 2 — `1268cbc`** · data-freshness honesty + Lens score transparency
+- Dashboard hero "data refreshed Nd ago" caption now sources from `cron_runs.finished_at` (same RPC as Footer + Admin) — closes the "27d ago" lag from `state_programs.last_verified`
+- Admin Data Health: each freshness card carries a `LIVE` / `CURATED` / `SEEDED` chip; new mode legend at top of section. `county_geospatial_data` (NWI+SSURGO) added as `SEEDED`
+- "Last Run per Cron" caption clarifies these are *cron completion* timestamps, not data freshness — addresses Aden's IX-scraper-says-stale-while-cron-says-success confusion
+- Market Position now surfaces `[STATE] baseline 81 ↓11 project` under the gauge with a tooltip explaining the divergence between Analyst Brief's "the market" (state baseline) and the gauge value (stage + county adjusted)
+- `lens-insight.js` SYSTEM_PROMPT rule 16: forbids the AI from conflating "the market" (state baseline) with "your project's score" (project-adjusted gauge)
+- Capacity Factor row gets a tooltip + `· NREL PVWatts` provenance suffix — confirms it's per-state averages with examples (CO 20% vs MA 16.5% vs MN 16%)
+- Revenue stack methodology dropdown title rewritten: "How we built this revenue stack — sources, ITC math, assumptions"
+- Site Control Land + Wetland tile notes now display the actual NWI + SSURGO percentages (Path B numbers were computed but never surfaced)
+
+**Session 3 — `288b1be` + `19b2638`** · scenarios + jump-to-glossary + source-link audit
+- `scenarioEngine.js` SCENARIO_PRESETS recalibrated: best-case allocation cap 1.25 → **1.10** (was extrapolating past 110% of curated baseline); worst-case IX cost 1.50 → **2.50** (real-world network-upgrade shocks are wider than ±50%)
+- Each multiplier anchored to a public industry source via new `SCENARIO_PRESET_METHODOLOGY` constant (NREL ATB 2024 P10/P90, top-quartile siting CF, historical 12mo REC band, network-upgrade shock IX)
+- Each preset chip wraps in Radix Tooltip rendering the multiplier + source table; "Best Case / Worst Case Scenario" added to Glossary
+- ScenarioStudio clarifying intro: "Sliders move the financial outputs (Y1 revenue, payback, IRR, NPV, DSCR) — not the Feasibility Index gauge above" — closes the dual-system confusion
+- `Glossary.jsx` exports `GLOSSARY_TERMS` + `toSlug`; CommandPalette indexes glossary entries (purple kind tag); Glossary deep-link useEffect now watches `location.hash` so navigations from the palette while already on /glossary re-fire the scroll-to-card flow
+- ScenarioStudio post-save: new inline `Saved to your Library · "name" · state · technology · view →` card holds for 6s with click-through to `/library?tab=scenarios`; Library reads `?tab=scenarios` on mount and switches viewMode
+- Source-attribution link audit via WebFetch: 4 broken URLs replaced
+  - PJM Queue 404 → `planningcenter.pjm.com/planningcenter/`
+  - CAISO `.aspx` 404 → `caiso.com/` root (CAISO restructured)
+  - `energycommunities.gov` ECONNREFUSED → IRS Low-Income Communities Bonus Credit page
+  - IRS ITC 404 → IRS Form 3468 page
+
+**Session 4 — `445bce9` + `a456cca`** · Library/Compare + legal
+- Compare AI summary collapsible (default closed) with `insightType` badge in header. `COMPARE_PROMPT` revamped to forbid score restatement and force one of three real insight types (Recommendation / Differentiator / Non-obvious insight); insightType field returned by API and surfaced in UI
+- 5 new Compare rows in COMPOSITE section: Offtake / IX / Site Control sub-scores + Wetland coverage + Prime farmland. `lensResultToCompareItem` captures sub-scores via `computeSubScores` + Path B geospatial percentages; library items gracefully degrade to "—"
+- Library "Select all": `handleSelectAll` callback fills selection from displayProjects via a ref mirror. Inline "Select all N →" link visible above the grid before any selection; toolbar gains a "Select all (N)" / "Deselect all" toggle
+- SignUp.jsx: required `agreed` checkbox — "I am at least 18 years old and have read the Terms of Service and Privacy Policy" with new-tab links. Submit button disabled until checked. Closes the implicit-consent gap left by the statement-only language in Terms § 02
+- Terms.jsx § 04 (Acceptable use): reverse-engineering / proprietary-misappropriation clause strengthened with explicit civil-action language citing the Defend Trade Secrets Act (18 U.S.C. § 1836), state trade-secret law, and reservation of all remedies at law and in equity (injunctive relief, damages, attorneys' fees, criminal-violation referral)
+
+### Verification
+
+`npm run verify` ran clean before each push (build + 7 Playwright smoke
+tests, 16-26s). Manual prod check guidance in each commit message
+covers the surfaces touched.
+
+### Items NOT addressed (need Aden's input or are out-of-band)
+
+1. **A2 — page title subtitle ("Market Intelligence for Solar Developers")**: kept verbatim. Aden hadn't picked between "keep" and "drop" in clarifying questions; recommendation in plan was "keep for SEO + first-impression clarity."
+2. **F4 — CSV/XLSX consolidation**: kept both formats untouched. Plan recommended dropping CSV in favor of XLSX-only with a second sheet for AI commentary; pending Aden's call.
+3. **G4 — full email audit (Gmail desktop+mobile rendering)**: requires sending real test emails through Resend + visual sweep across mail clients. Not done in this session; the score-drop + IDX-terminology fixes from Session 1 are the highest-impact items.
+4. **I3 — `hello@tractova.com` Cloudflare Email Routing**: DNS work Aden does himself. Runbook in plan file (Cloudflare → tractova.com → Email Routing → enable → forward to aden.walker67@gmail.com → Gmail confirm). No code change needed.
+5. **Aden review item #12 — Analyst Brief verbosity / dropdown redesign**: Aden flagged "should we make the analyst brief less wordy and more in a way you open up dropdowns or something like that? need your thoughts here." A meaningful UX redesign question; deliberately not touched without Aden's input. The brief currently renders all six fields (brief / primaryRisk / topOpportunity / immediateAction / stageSpecificGuidance / competitiveContext) inline.
+6. **J1 + J2 — Custom keyboard shortcuts + Library deal notes OneNote-like revamp**: explicitly deferred per plan ("way down the line" + "needs target UX").
+
+### Next pickup options
+
+- **Analyst Brief redesign** (review item #12). Two paths to discuss: (a) collapse all but `brief` + `immediateAction` into accordion drilldowns; (b) restructure into a single 5-bullet summary with a "Read full briefing →" expander. Need Aden's call on tone vs density tradeoff.
+- **CSV/XLSX consolidation** (F4). Drop CSV, or differentiate XLSX with a second sheet (AI commentary, sub-score breakdown, methodology references) so the format choice means something.
+- **Email rendering audit** (G4). Send test digest + alert + opportunity emails to Aden's Gmail; sweep desktop + mobile rendering; document any remaining formatting issues.
+- **Hello@tractova DNS** (I3). Aden completes the Cloudflare Email Routing setup per the plan runbook.
+
+---
+
+## Previous pickup — Cron latency monitor + AI scenario commentary + onboarding deepened (LensTour) + NWI catch-up running
 
 **Session 2026-05-02.** Three ship items + one long-running data refresh:
 
@@ -731,7 +809,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · Privacy Policy + Terms of Service v1.0 shipped (sign-ready, comprehensive coverage of every data source + every methodology limitation + every sub-processor). Today's session also shipped: LensTour onboarding, AI scenario commentary (Haiku 4.5), cron-runs latency monitor in admin Data Health, Pillar Diagnostics format pass (bigger SectionMarker + white surface + stacked Site Control tiles + structured IX panel), substations cron parallelization fix, EIA 861 utility seed (32 missing states now have a default row), IX scraper staleness honesty disclosure (3 of 4 ISOs frozen since 2026-04-24 — surfaced in Lens IX·Live pill + Admin Data Health alert).
+- **Branch:** `main` · 4-session site-walk fix sweep complete (commits `a1c00dd`, `1268cbc`, `288b1be`, `19b2638`, `445bce9`, `a456cca`) closing ~35 of ~40 review items. Highlights: favicon + sub-header recolor, ambient-animation gutter-mask, Active/Pending/No Program + Site Control tooltips, scrollable Data Limitations modal, Dashboard freshness via cron_runs (matches Footer), Admin LIVE/CURATED/SEEDED freshness chips, state-baseline-vs-project score line in Lens, NWI/SSURGO percentages surfaced in Site Control tiles, scenario presets recalibrated + methodology tooltips, jump-to-glossary in CommandPalette, scenario-save Library confirmation card, source-link audit (4 broken URLs replaced), Compare AI collapsible + insightType + sub-score rows, Library Select-all, 18+ signup checkbox, Terms § 04 strengthened with civil-action language. Pending Aden's input: analyst-brief verbosity redesign, CSV/XLSX consolidation, hello@ DNS setup.
 - **NWI catch-up seed completed.** 1522 of 2144 queue items succeeded; 622 NWI server timeouts (concentrated in ND/SD where the server throttled). Live coverage went from **79.9% → 92.1%** (gained 382 new counties). 249 counties still missing — a second `--refresh` run would catch most of the timeouts.
 - **Live data layers (all .gov / authoritative-source verified):**
   - `lmi_data` (state-level Census ACS)
@@ -788,6 +866,12 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `a456cca` | Site-walk Session 4 (legal): I1 18+ checkbox at signup (required `agreed` flag, blocked submit until checked, links open in new tabs) + I2 Terms § 04 reverse-engineering / proprietary-misappropriation clause strengthened with explicit civil-action language citing the Defend Trade Secrets Act (18 U.S.C. § 1836), state trade-secret law, and reservation of all remedies at law and in equity |
+| `445bce9` | Site-walk Session 4 (Library/Compare): F1 Compare AI summary collapsible (default closed) + COMPARE_PROMPT revamped to forbid score restatement (forces Recommendation / Differentiator / Non-obvious-insight) + insightType badge in UI · F2 5 new Compare rows (Offtake / IX / Site Control sub-scores + Wetland % + Prime farmland %) via lensResultToCompareItem + computeSubScores + Path B geospatial · F3 Library "Select all" inline link above grid + toolbar Select all/Deselect all toggle |
+| `19b2638` | Site-walk Session 3 final: H2 ScenarioStudio post-save inline "Saved to your Library · view →" card (6s hold, click → /library?tab=scenarios) + Library URL ?tab=scenarios handler · H4 source-attribution link audit (PJM 404 → planningcenter.pjm.com; CAISO .aspx 404 → caiso.com root; energycommunities.gov ECONNREFUSED → IRS Low-Income Communities Bonus Credit page; IRS ITC 404 → IRS Form 3468) |
+| `288b1be` | Site-walk Session 3 partial: E2 scenario presets recalibrated (best allocation cap 1.25→1.10 per Aden, worst IX cost 1.50→2.50 for network-upgrade-shock honesty) + SCENARIO_PRESET_METHODOLOGY constant anchoring multipliers to NREL ATB / Lazard P10/P90 + Radix Tooltip on each preset chip + Best/Worst case glossary entry · E5 ScenarioStudio clarifying intro ("sliders move financial outputs, not the gauge") · H1 jump-to-glossary in CommandPalette (GLOSSARY_TERMS + toSlug exports + location.hash listener for in-page nav) |
+| `1268cbc` | Site-walk Session 2: dot/T-mark mask tightened 18-30%/70-82% → 8-12%/88-92% (closes Pillar Diagnostics overlap on 1920px viewport) + WalkingTractovaMark top/bottom narrowed to corner gutters · C1 Dashboard hero "data refreshed" caption switched from state_programs.last_verified → cron_runs.finished_at (same source as Footer) · C2 Admin Data Health LIVE/CURATED/SEEDED chips on each freshness card + mode legend + Last Run per Cron clarifying caption · E1 Market Position state-baseline-vs-project line under gauge + lens-insight SYSTEM_PROMPT rule 16 forbidding score conflation · E3 Capacity Factor tooltip + NREL PVWatts provenance suffix · E4 revenue stack methodology drilldown title rewritten · E6 Site Control Land + Wetland tile notes now display NWI + SSURGO percentages |
+| `a1c00dd` | Site-walk Session 1: favicon green→teal · StateDetailPanel SubStat sub-headers grey→teal · revenue stack ITC adder blue→amber #D97706 · email "+15 idx"→"+15 pts"; digest IDX→SCORE · score-drop alert structured delta with big "↓ N pts · X→Y" gutter cell · Profile "Considering canceling?" passive CTA removed · IntelligenceBackground teal "fog" band removed; dots + T-mark wrapped in gutter mask · WalkingTractovaMark top/bottom variants narrowed to corner gutters · USMap legend tooltips on all 7 tiers · Site Control status badge tooltips citing SSURGO/NWI/hosting sources · Data Limitations modal scrollable + cursor-pointer + ⓘ icon |
 | _no commit_ | **PJM IX scraper officially abandoned for legal reasons.** Aden attempted Data Miner 2 API key registration; PJM's developer-portal landing page reads: *"Information and data contained in Data Miner 2 is for internal use only and redistribution of information and or data contained in or derived from Data Miner 2 is strictly prohibited without an effective PJM-issued Redistribution License."* That clause is incompatible with our SaaS model — Tractova surfaces derived metrics (queue counts, MW pending, study months) on customer-facing Lens results. Free Data Miner 2 access is internal-corporate-research-only; SaaS redistribution requires a separately-negotiated PJM Redistribution License (multi-week process, $5K-$50K/yr typical). **Decision (Aden 2026-05-02):** abandon PJM live coverage. Lens IX·Live pill stays amber for PJM states (`87cea98` already shipped honest disclosure). Future revisit only if (a) we pursue the redistribution license at scale, or (b) we find an alternative public-domain PJM queue path (FERC eLibrary Form 715/1 filings, PJM Manual 14H Attachment B). Other-ISO TOS audit (MISO/NYISO/ISO-NE) was inconclusive via WebFetch — bundled into the attorney-review checklist for formal launch. NYISO + MISO scrapers stay shipping (industry norm is permissive); ISO-NE repair stays deferred. |
 | _no commit_ | **NWI seed pass 2 complete — 100% coverage achieved.** 2,136 of 2,144 retried succeeded; 8 failures (KY/network blips). Live `county_geospatial_data` populated count: 3,144 of 3,143 counties (slight over-count from DC double-counting). Path B's Site Control sub-score now has live geospatial truth (NWI wetlands + SSURGO farmland) for every U.S. county. |
 | `c690b01` | Glossary scroll bug + ambient animation extension. (1) **Global ScrollToTop** — new `src/components/ScrollToTop.jsx` listens to `useLocation()` pathname changes, calls `window.scrollTo({top: 0, behavior: 'instant'})` when no hash. Mounted inside `<BrowserRouter>` above `<Routes>` in App.jsx. Fixes the Glossary land-at-bottom bug Aden reported and any other "navigate from long page → land at random offset" instance across the app. Glossary's existing hash-based deep-link logic preserved. (2) **IntelligenceBackground + WalkingTractovaMark on Glossary, Library, Lens** — extends the Profile ambient treatment. Glossary + Library get both (sessionGate=true, 30%/25% triggerProbability). Lens result page gets IntelligenceBackground only — no cameo on the content-dense Lens to avoid pulling focus mid-analysis. Glossary hero gains a pulsing teal dot matching the Library "Data refreshed" pattern |
