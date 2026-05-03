@@ -31,14 +31,18 @@ const SESSION_KEY = 'tractova-walking-mark-shown-v4'
 // ── Entry sides ─────────────────────────────────────────────────────────────
 // Each side defines: anchor edge, a positioning band on the perpendicular
 // axis, and the keyframe animation name that handles enter/hold/exit.
+//
+// Gutter rule: top/bottom cameos use `perpRanges` (plural) — a small array
+// of allowed bands. We pick one band uniformly at random per cameo so the
+// mark only ever lands in the LEFT (5-22vw) or RIGHT (78-95vw) gutter, never
+// the central 30-70vw reading column. Left/right cameos use `perpRange`
+// (singular, 30-70vh) since they enter from the side gutter already and
+// the vertical band doesn't conflict with reading content.
 const SIDES = [
-  // perpUnit matches the axis: vh when positioning vertically (top), vw
-  // when positioning horizontally (left). Using `vh` for `left` was a
-  // subtle bug — would compute horizontal position from viewport height.
-  { name: 'left',   anchor: { left: 0 },    perpAxis: 'top',  perpUnit: 'vh', perpRange: [30, 70], keyframe: 'tractova-peek-from-left'   },
-  { name: 'right',  anchor: { right: 0 },   perpAxis: 'top',  perpUnit: 'vh', perpRange: [30, 70], keyframe: 'tractova-peek-from-right'  },
-  { name: 'top',    anchor: { top: 0 },     perpAxis: 'left', perpUnit: 'vw', perpRange: [20, 70], keyframe: 'tractova-peek-from-top'    },
-  { name: 'bottom', anchor: { bottom: 0 },  perpAxis: 'left', perpUnit: 'vw', perpRange: [20, 70], keyframe: 'tractova-peek-from-bottom' },
+  { name: 'left',   anchor: { left: 0 },    perpAxis: 'top',  perpUnit: 'vh', perpRange:  [30, 70],                  keyframe: 'tractova-peek-from-left'   },
+  { name: 'right',  anchor: { right: 0 },   perpAxis: 'top',  perpUnit: 'vh', perpRange:  [30, 70],                  keyframe: 'tractova-peek-from-right'  },
+  { name: 'top',    anchor: { top: 0 },     perpAxis: 'left', perpUnit: 'vw', perpRanges: [[5, 22], [78, 95]],       keyframe: 'tractova-peek-from-top'    },
+  { name: 'bottom', anchor: { bottom: 0 },  perpAxis: 'left', perpUnit: 'vw', perpRanges: [[5, 22], [78, 95]],       keyframe: 'tractova-peek-from-bottom' },
 ]
 
 // ── In-place animation sets ─────────────────────────────────────────────────
@@ -102,7 +106,11 @@ export default function WalkingTractovaMark({
   const fireCameo = useCallback(() => {
     const side    = pickRandom(SIDES)
     const setVar  = pickRandom(ANIMATION_SETS)
-    const [min, max] = side.perpRange
+    // Resolve the band: left/right have a single perpRange; top/bottom have
+    // multiple gutter bands and pick one per fire so the mark stays out of
+    // the central reading column.
+    const band = side.perpRanges ? pickRandom(side.perpRanges) : side.perpRange
+    const [min, max] = band
     const perpPos = min + Math.random() * (max - min)
     setConfig({ side, setVar, perpPos, instanceId: Date.now() })
     setTimeout(() => setConfig(null), 7500)

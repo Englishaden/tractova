@@ -1,29 +1,28 @@
 import { useRef } from 'react'
 
-// IntelligenceBackground — fixed-position background layer for the Profile
-// page. Five stacked CSS layers create a "flowing intelligence platform"
-// atmosphere without competing with the centered profile content.
+// IntelligenceBackground — fixed-position background layer.
 //
 // Stacking strategy: this component renders inside a `relative` parent and
 // uses `z-0` (NOT negative). The parent must NOT have a solid background
-// color (e.g. remove `bg-surface`) so this layer paints visibly. The Profile
+// color (e.g. remove `bg-surface`) so this layer paints visibly. The page
 // main content sits at `relative z-10` above this layer.
 //
 // Layers:
 //   1. Edge wash radial gradients — soft teal blooms with off-canvas centers
 //      pulling visual weight to the gutters; static.
-//   2. Slow-flowing teal band — wide, blurred horizontal band that drifts
-//      across the page over 45s; continuous visibility.
-//   3. Cartographic parcel grid — 32px grid masked to LEFT and RIGHT 200px
-//      gutters via mask-image so it frames the centered profile; static.
-//   4. Floating accent dots — 8 dots in the pillar-color palette (teal /
+//   2. Cartographic parcel grid — 32px grid masked to LEFT and RIGHT
+//      gutters via mask-image so it frames the centered content; static.
+//   3. Floating accent dots — 8 dots in the pillar-color palette (teal /
 //      amber / blue / light-teal). Each picks a random START EDGE on mount
 //      and drifts toward the OPPOSITE edge. Constellation regenerates per
-//      page load, so refreshing Profile gives a fresh layout.
-//   5. Tractova T Easter egg — the brand mark drifts across the page on
+//      page load. Wrapper is gutter-masked so dots fade through the
+//      center reading column rather than passing across content.
+//   4. Tractova T Easter egg — the brand mark drifts across the page on
 //      one of 6 randomized paths per page session (4 cardinal + 2 diagonal).
-//      90s cycle (was 45s) so it stays a rare appearance. Path picked once
-//      on mount; same path repeats for the page session.
+//      90s cycle so it stays a rare appearance. Same gutter mask as dots.
+//
+// (The previous "slow-flowing teal band" layer was removed — too heavy
+// at the top of the screen, distracted from reading content.)
 //
 // All layers are pure CSS (GPU-accelerated, zero JS work per frame).
 // Honors `prefers-reduced-motion` (animations disabled, washes preserved).
@@ -90,13 +89,7 @@ export default function IntelligenceBackground() {
   return (
     <>
       <style>{`
-        /* ── Layer 2: flowing band ────────────────────────────────────── */
-        @keyframes tractova-intel-flow {
-          0%   { transform: translateX(-55%); }
-          100% { transform: translateX(55%); }
-        }
-
-        /* ── Layer 4: dot drift (one keyframe per direction) ──────────── */
+        /* ── Layer 3: dot drift (one keyframe per direction) ──────────── */
         @keyframes tractova-drift-up {
           0%   { transform: translateY(0)     translateX(0); opacity: 0; }
           10%  { opacity: 0.55; }
@@ -126,7 +119,7 @@ export default function IntelligenceBackground() {
           100% { transform: translateX(-110vw) translateY(6px);  opacity: 0; }
         }
 
-        /* ── Layer 5: Tractova T path keyframes ───────────────────────────
+        /* ── Layer 4: Tractova T path keyframes ───────────────────────────
            Each is 90s. Visible drift ~30s (15%–60% of the cycle), hidden
            gap ~32s (60%–100% + 0%–10%). Same opacity shape across all
            variants so the "rare appearance" feel is consistent. */
@@ -186,7 +179,6 @@ export default function IntelligenceBackground() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .intel-flow-band,
           .intel-dot,
           .intel-mark-egg { animation: none !important; opacity: 0 !important; }
         }
@@ -208,22 +200,7 @@ export default function IntelligenceBackground() {
           }}
         />
 
-        {/* Layer 2 — slow-flowing teal band (always visible, drifts L↔R). */}
-        <div
-          className="intel-flow-band absolute"
-          style={{
-            top: '20%',
-            left: '50%',
-            width: '160%',
-            height: '70px',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.32) 30%, rgba(94,234,212,0.42) 50%, rgba(20,184,166,0.32) 70%, transparent 100%)',
-            filter: 'blur(24px)',
-            animation: 'tractova-intel-flow 45s ease-in-out infinite alternate',
-            transformOrigin: 'center',
-          }}
-        />
-
-        {/* Layer 3 — cartographic parcel grid in gutters only */}
+        {/* Layer 2 — cartographic parcel grid in gutters only */}
         <div
           className="absolute inset-0"
           style={{
@@ -237,7 +214,20 @@ export default function IntelligenceBackground() {
           }}
         />
 
-        {/* Layer 4 — randomized constellation of pillar-color accent dots.
+        {/* Layers 3 + 4 wrapper — gutter mask so dots and the Tractova T
+            never pass through the central reading column. Mask is fully
+            opaque on the outer 22% of each side and transparent in the
+            inner 30-70% band, with smooth gradient transitions in between.
+            The dot/T animations remain identical; the mask just hides them
+            mid-drift rather than truncating the keyframe. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 18%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,1) 82%, rgba(0,0,0,1) 100%)',
+            maskImage:       'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 18%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,1) 82%, rgba(0,0,0,1) 100%)',
+          }}
+        >
+        {/* Layer 3 — randomized constellation of pillar-color accent dots.
             Each dot picks an edge + position + drift direction on mount;
             the configuration is stable per page session (refresh to reroll).
             Distributed across all 4 edges instead of clustered in gutters. */}
@@ -261,7 +251,7 @@ export default function IntelligenceBackground() {
           )
         })}
 
-        {/* Layer 5 — Tractova T Easter egg on a randomized 90s path. Path
+        {/* Layer 4 — Tractova T Easter egg on a randomized 90s path. Path
             and start position picked once at mount (refresh Profile to
             reroll). Two animations stacked: outer wrapper drifts via the
             path keyframe (90s), inner SVG pulses scale + halo (2.4s,
@@ -292,6 +282,7 @@ export default function IntelligenceBackground() {
               <rect x="19.2" y="10" width="0.8" height="2" rx="0.4" fill="#14B8A6" opacity="0.6" />
             </svg>
           </div>
+        </div>
         </div>
       </div>
     </>

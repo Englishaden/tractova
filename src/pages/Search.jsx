@@ -1000,6 +1000,9 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
       color: availableLand ? '#0F766E' : '#DC2626',
       bg: availableLand ? 'rgba(15,118,110,0.06)' : 'rgba(220,38,38,0.06)',
       note: landNotes,
+      tooltip: availableLand
+        ? 'USDA SSURGO prime-farmland coverage <25% in this county. Material siting headroom outside protected agricultural land.'
+        : 'USDA SSURGO prime-farmland coverage ≥25%. Greenfield siting may need state agricultural-land conversion approvals.',
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
@@ -1012,6 +1015,9 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
       color: wetlandWarning ? '#B45309' : '#0F766E',
       bg: wetlandWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
       note: wetlandNotes || (wetlandWarning ? null : 'Low wetland risk on typical upland sites'),
+      tooltip: wetlandWarning
+        ? 'USFWS NWI wetland coverage ≥15% in this county. Section 404 review and potential mitigation are likely on a typical site.'
+        : 'USFWS NWI wetland coverage <15%. Minimal Section 404 permitting exposure on most upland parcels.',
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
@@ -1024,6 +1030,9 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
       color: landUseNotes ? '#B45309' : '#6B7280',
       bg: landUseNotes ? 'rgba(180,83,9,0.06)' : 'rgba(107,114,128,0.06)',
       note: landUseNotes,
+      tooltip: landUseNotes
+        ? 'County zoning code restricts ground-mount solar in agricultural or rural-residential districts. Expect a special-use permit or text-amendment path.'
+        : 'No flagged zoning restriction at the county level. Confirm with local planning before site control is finalized.',
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/>
@@ -1036,6 +1045,9 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
       color: hostingStatus.color,
       bg: hostingStatus.bg,
       note: hostingStatus.note,
+      tooltip: hostingStatus.label === 'Constrained'
+        ? 'Local distribution feeders show hosting-capacity constraints. Expect upgrade-cost exposure or limited interconnection windows on a typical site.'
+        : 'No flagged hosting-capacity constraint on the relevant feeders. Site-specific hosting capacity should still be confirmed via the utility study.',
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -1089,12 +1101,17 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
                   >
                     {t.label}
                   </span>
-                  <span
-                    className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm"
-                    style={{ background: 'white', color: t.color, border: `1px solid ${t.color}40` }}
-                  >
-                    {t.status}
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className="text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-sm cursor-help"
+                        style={{ background: 'white', color: t.color, border: `1px solid ${t.color}40` }}
+                      >
+                        {t.status}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-[10px]">{t.tooltip}</TooltipContent>
+                  </Tooltip>
                 </div>
                 {t.note && (
                   <p className="text-[11px] text-gray-600 leading-relaxed">{t.note}</p>
@@ -1446,8 +1463,8 @@ function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queue
 
 function RevenueStackBar({ revenueStack }) {
   const segments = [
-    { label: 'ITC Base',  value: revenueStack.itcBase,          color: '#2563EB' },
-    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#3B82F6' },
+    { label: 'ITC Base',  value: revenueStack.itcBase,          color: '#1D4ED8' },
+    { label: 'ITC Adder', value: revenueStack.itcAdder,         color: '#D97706' },
     { label: 'IREC',      value: revenueStack.irecMarket,       color: '#7C3AED' },
     { label: 'Net Meter', value: revenueStack.netMeteringStatus, color: '#059669' },
   ]
@@ -4536,9 +4553,10 @@ function SearchContent() {
                 <button
                   type="button"
                   onClick={() => setDataLimitationsOpen(true)}
-                  className="underline font-medium hover:text-gray-700 transition-colors"
+                  className="inline-flex items-center gap-1 underline font-medium hover:text-gray-700 transition-colors cursor-pointer"
                   style={{ color: '#0F766E' }}
                 >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                   Data limitations →
                 </button>
               </p>

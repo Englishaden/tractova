@@ -58,7 +58,7 @@ const SEVERITY_STYLE = {
 export default function DataLimitationsModal({ open, onOpenChange }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
           <p
             className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold"

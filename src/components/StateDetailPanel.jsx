@@ -346,7 +346,7 @@ function SubscribersTab({ state }) {
                 const { lmiSubs, totalSubs } = subscribersForMW(mw)
                 return (
                   <div key={mw} className="rounded-md px-3 py-2.5 bg-white border border-gray-200">
-                    <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400 mb-0.5">
+                    <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#0F766E] mb-0.5">
                       {mw} MW project
                     </p>
                     <p className="font-mono text-base font-bold tabular-nums text-ink leading-none">
@@ -383,7 +383,7 @@ function SubscribersTab({ state }) {
 function SubStat({ label, value, sub, mono = true }) {
   return (
     <div>
-      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400 mb-0.5">{label}</p>
+      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#0F766E] mb-0.5">{label}</p>
       <p className={`text-sm font-semibold text-gray-800 ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</p>
       {sub && <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{sub}</p>}
     </div>

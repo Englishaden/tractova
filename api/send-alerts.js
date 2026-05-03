@@ -62,26 +62,48 @@ function getUrgentAlerts(project, stateMap) {
       ? { level: 'warning', label: 'Capacity Limited', detail: `The ${current.name} community solar program has moved to limited capacity.` }
       : { level: 'urgent',  label: 'Program Closed',   detail: `The ${current.name} community solar program is no longer active.` })
   }
-  if (project.opportunity_score != null && current.opportunityScore < project.opportunity_score - 10)
-    alerts.push({ level: 'warning', label: 'Opportunity Score Drop', detail: `Score dropped from ${project.opportunity_score} to ${current.opportunityScore}.` })
+  if (project.opportunity_score != null && current.opportunityScore < project.opportunity_score - 10) {
+    const drop = project.opportunity_score - current.opportunityScore
+    alerts.push({
+      level: 'warning',
+      label: 'Opportunity Score Drop',
+      delta: { from: project.opportunity_score, to: current.opportunityScore, change: -drop },
+      detail: `Feasibility Index dropped from ${project.opportunity_score} to ${current.opportunityScore} for "${project.name}".`,
+    })
+  }
   if (project.ix_difficulty && (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ix_difficulty] ?? 0))
     alerts.push({ level: 'warning', label: 'IX Queue Harder', detail: `Interconnection difficulty increased from ${project.ix_difficulty} to ${current.ixDifficulty}.` })
   return alerts
 }
 
 // V3 email-safe alert detail row — table-based, no flexbox.
+// When alert.delta is present (score-drop class), render a big delta number
+// in the right gutter so the magnitude reads at a glance.
 function alertDetailRow(a) {
   const isUrgent = a.level === 'urgent'
   const tone = isUrgent
     ? { bg: '#FEE2E2', tone: '#991B1B', rule: URGENT, label: 'URGENT' }
     : { bg: '#FEF3C7', tone: '#92400E', rule: AMBER, label: 'WARNING' }
+  const deltaCell = a.delta
+    ? `<td valign="top" align="right" width="84" style="white-space:nowrap;padding-left:12px;">
+        <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${tone.tone};letter-spacing:0.20em;text-transform:uppercase;line-height:1;">${a.delta.change > 0 ? '↑' : '↓'} ${Math.abs(a.delta.change)} pts</p>
+        <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:11px;color:${INK_MUTED};letter-spacing:0.04em;line-height:1;">${a.delta.from} → <span style="color:${INK};font-weight:700;">${a.delta.to}</span></p>
+      </td>`
+    : ''
   return `
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:6px;margin:0 0 10px 0;">
     <tr>
       <td width="3" style="background:${tone.rule};line-height:1;font-size:0;border-top-left-radius:6px;border-bottom-left-radius:6px;">&nbsp;</td>
       <td style="padding:14px 16px;">
-        <p style="margin:0 0 6px 0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${tone.tone};letter-spacing:0.22em;text-transform:uppercase;line-height:1;">${tone.label} · ${a.label}</p>
-        <p style="margin:0;font-family:${FONT_SANS};font-size:13px;color:${INK};line-height:1.5;">${a.detail}</p>
+        <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+          <tr>
+            <td valign="top">
+              <p style="margin:0 0 6px 0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${tone.tone};letter-spacing:0.22em;text-transform:uppercase;line-height:1;">${tone.label} · ${a.label}</p>
+              <p style="margin:0;font-family:${FONT_SANS};font-size:13px;color:${INK};line-height:1.5;">${a.detail}</p>
+            </td>
+            ${deltaCell}
+          </tr>
+        </table>
       </td>
     </tr>
   </table>`
@@ -582,7 +604,7 @@ export default async function handler(req, res) {
             label: '[TEST] Program Capacity Expansion',
             detail: `Illinois Shines added 250MW of capacity to the next REC block for ${stateMap[project.state]?.name || project.state}. Your project "${project.name}" sits inside the eligible window — submitting an enrollment package this month maximizes likelihood of placement.`,
             mechanism: 'Capacity expansion increases enrollment likelihood and shifts your project earlier in the queue.',
-            delta: '+15 idx',
+            delta: '+15 pts',
           }
           if (wantsEmail) {
             const subject = `[TEST] Market opportunity for "${project.name}"`

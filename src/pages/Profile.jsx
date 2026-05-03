@@ -33,18 +33,15 @@ function timeAgo(dateStr) {
 // V3: STAGE_COLORS + TECH_COLORS now imported from src/lib/v3Tokens.js
 
 // ── Manage Billing ───────────────────────────────────────────────────────────
-// Two paths: "Manage subscription" goes straight to Stripe portal (for
-// payment-method updates / plan changes — no friction). "Cancel
-// subscription" opens an exit-intent modal that captures reason +
-// optional free-text feedback, then routes to the same Stripe portal
-// (Stripe is hosted, so we can't intercept the actual cancel click).
-// The modal is voluntary: the user can hit "Continue to Stripe" without
-// providing a reason. Capture rate will be partial, but each row is
-// high-signal because it's self-identified pre-cancel intent.
+// Single path: "Manage subscription" routes to Stripe portal for payment
+// method, plan change, or cancellation. We deliberately do NOT surface a
+// passive "Considering canceling?" prompt — pushing the idea in front of
+// every Pro user is bad positioning. Cancellation feedback capture, when
+// we want it, will fire from a Stripe webhook on subscription.updated
+// with cancel_at_period_end=true (out of scope for this surface).
 function ManageBillingButton({ user, tier }) {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
-  const [cancelOpen, setCancelOpen] = useState(false)
 
   const openPortal = async () => {
     setLoading(true)
@@ -79,19 +76,6 @@ function ManageBillingButton({ user, tier }) {
       >
         {loading ? 'Loading...' : 'Manage subscription →'}
       </button>
-      <button
-        onClick={() => setCancelOpen(true)}
-        className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors mt-1.5 block"
-      >
-        Considering canceling?
-      </button>
-      <CancelSurveyModal
-        open={cancelOpen}
-        onClose={() => setCancelOpen(false)}
-        onContinueToPortal={openPortal}
-        user={user}
-        tier={tier}
-      />
     </div>
   )
 }

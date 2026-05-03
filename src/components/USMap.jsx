@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/Tooltip'
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -347,28 +348,37 @@ function CoverageSwatch({ tier }) {
 }
 
 function Legend() {
-  // V3: 5 score buckets that match getStateColor() exactly + 2 status states
+  // V3: 5 score buckets that match getStateColor() exactly + 2 status states.
+  // Each carries a `tooltip` line surfacing the methodology a developer needs
+  // to decode the swatch — score formula for the buckets, program-status
+  // definition for Pending / No program.
   const items = [
-    { color: '#0F766E', label: 'Strong (75+)' },
-    { color: '#14B8A6', label: 'Viable (60–74)' },
-    { color: '#2DD4BF', label: 'Moderate (45–59)' },
-    { color: '#99F6E4', label: 'Weak (25–44)' },
-    { color: '#F0FDFA', label: 'Non-viable (<25)', border: 'rgba(15,118,110,0.30)' },
-    { color: '#F59E0B', label: 'Pending' },
-    { color: '#E2E8F0', label: 'No program', border: 'rgba(0,0,0,0.12)' },
+    { color: '#0F766E', label: 'Strong (75+)',     tooltip: 'Active community-solar state with the strongest composite (75+) of offtake, interconnection, and site-control sub-scores.' },
+    { color: '#14B8A6', label: 'Viable (60–74)',   tooltip: 'Active state with a workable composite (60–74). Some pillar weakness, usually offset by another pillar.' },
+    { color: '#2DD4BF', label: 'Moderate (45–59)', tooltip: 'Active state with mixed signals (45–59). Multiple pillars at or below baseline; underwriting needs project-specific care.' },
+    { color: '#99F6E4', label: 'Weak (25–44)',     tooltip: 'Active state with a weak composite (25–44). Programs often capacity-constrained or carved-out beyond easy fit.' },
+    { color: '#F0FDFA', label: 'Non-viable (<25)', border: 'rgba(15,118,110,0.30)', tooltip: 'Active state with a non-viable composite (<25). Pillars stack against a typical CS project; expect to pivot to C&I or wholesale.' },
+    { color: '#F59E0B', label: 'Pending',          tooltip: 'Legislation enacted but program rules or utility procurement not yet finalized — no live project pipeline. Worth tracking, not yet bankable.' },
+    { color: '#E2E8F0', label: 'No program',       border: 'rgba(0,0,0,0.12)', tooltip: 'No state-level community-solar mandate. Direct C&I offtake or wholesale-only revenue model required.' },
   ]
   return (
+    <TooltipProvider delayDuration={120}>
     <div className="space-y-1.5 mt-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
         <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted font-semibold mr-1">Feasibility</span>
         {items.map((i) => (
-          <div key={i.label} className="flex items-center gap-1.5">
-            <span
-              className="w-3 h-3 rounded-xs shrink-0"
-              style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.10)'}` }}
-            />
-            <span className="text-xs text-gray-500">{i.label}</span>
-          </div>
+          <Tooltip key={i.label}>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5 cursor-help">
+                <span
+                  className="w-3 h-3 rounded-xs shrink-0"
+                  style={{ backgroundColor: i.color, border: `1px solid ${i.border || 'rgba(0,0,0,0.10)'}` }}
+                />
+                <span className="text-xs text-gray-500">{i.label}</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top">{i.tooltip}</TooltipContent>
+          </Tooltip>
         ))}
       </div>
       {/* V3 Strategy A — coverage tier guide. Hatch patterns mirror exactly
@@ -390,5 +400,6 @@ function Legend() {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   )
 }

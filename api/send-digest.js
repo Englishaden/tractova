@@ -68,8 +68,10 @@ function getAlerts(project, stateMap) {
       ? { level: 'warning', label: 'Capacity Limited' }
       : { level: 'urgent',  label: 'Program Closed'   })
   }
-  if (project.opportunity_score != null && current.opportunityScore < project.opportunity_score - 10)
-    alerts.push({ level: 'warning', label: 'Score Drop' })
+  if (project.opportunity_score != null && current.opportunityScore < project.opportunity_score - 10) {
+    const drop = project.opportunity_score - current.opportunityScore
+    alerts.push({ level: 'warning', label: `Score Drop · ↓${drop} pts` })
+  }
   if (project.ix_difficulty && (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ix_difficulty] ?? 0))
     alerts.push({ level: 'warning', label: 'Queue Harder' })
   return alerts
@@ -120,7 +122,7 @@ function projectCard(project, stateMap) {
             </td>
             <td valign="top" align="right" width="90" style="white-space:nowrap;">
               <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${statusColor};letter-spacing:0.18em;text-transform:uppercase;">${statusLabel}</p>
-              <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">IDX <span style="color:${INK};font-weight:700;font-size:15px;letter-spacing:-0.01em;">${score}</span></p>
+              <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">SCORE <span style="color:${INK};font-weight:700;font-size:15px;letter-spacing:-0.01em;">${score}</span></p>
             </td>
           </tr>
         </table>
@@ -181,7 +183,7 @@ function buildMotionSection(projects, stateMap, activity) {
                       <p style="margin:4px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.18em;font-weight:600;">${meta}</p>
                     </td>
                     ${s.score != null ? `<td valign="top" align="right" width="60" style="white-space:nowrap;">
-                      <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${INK_MUTED};letter-spacing:0.20em;text-transform:uppercase;">IDX</p>
+                      <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${INK_MUTED};letter-spacing:0.20em;text-transform:uppercase;">SCORE</p>
                       <p style="margin:3px 0 0 0;font-family:${FONT_MONO};font-size:20px;font-weight:700;color:${INK};letter-spacing:-0.02em;line-height:1;">${s.score}</p>
                     </td>` : ''}
                   </tr>
