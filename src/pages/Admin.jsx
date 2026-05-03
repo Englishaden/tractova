@@ -1840,19 +1840,36 @@ function DetailRow({ label, value, ok }) {
 // cron has never logged a success entry yet.
 // county_intelligence is the one exception: hand-curated, no cron, so we
 // keep its row-level field as primary.
+// `mode` clarifies how each table stays fresh — answers Aden's "I always
+// forget which data gets scraped and which doesn't":
+//   live    — auto-refreshed via a cron handler (Census/EIA/NREL/ISO/RSS).
+//             Stale = upstream source was unreachable on the last run.
+//   curated — hand-maintained by the operator with a periodic verify cron
+//             that just checks DSIRE / source URLs are still live. Stale
+//             = the row is overdue for a manual review, not that an API
+//             returned bad data.
+//   seeded  — one-time data load (NWI / SSURGO geospatial). No cron.
+//             Refresh requires a manual seed-script run.
 const FRESHNESS_CONFIG = {
-  state_programs:      { label: 'State Programs',      icon: '🗺', field: 'last_cron_success', fallbackField: 'newest_verified', staleField: 'stale_count', thresholds: [14, 30] },
-  lmi_data:            { label: 'LMI Data (Census)',   icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
-  ix_queue_data:       { label: 'IX Queue Data',       icon: '⚡', field: 'last_cron_success', fallbackField: 'newest_fetch',    staleField: 'stale_count', thresholds: [14, 30] },
-  substations:         { label: 'Substations',         icon: '🔌', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [45, 90] },
-  county_intelligence: { label: 'County Intelligence', icon: '📍', field: 'oldest_verified',   fallbackField: null,              staleField: 'stale_count', thresholds: [90, 180] },
-  county_acs_data:     { label: 'County ACS (Census)', icon: '📊', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
-  energy_community_data:{ label: 'Energy Community (IRA)', icon: '⚡', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
-  hud_qct_dda_data:    { label: 'HUD QCT / DDA',         icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
-  nmtc_lic_data:       { label: 'NMTC LIC §48(e)',       icon: '🎯', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
-  revenue_rates:       { label: 'Revenue Rates',       icon: '💰', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [120, 200] },
-  revenue_stacks:      { label: 'Revenue Stacks',      icon: '🏛', field: 'last_cron_success', fallbackField: 'newest_dsire_check', staleField: null,       thresholds: [14, 30] },
-  news_feed:           { label: 'News Feed',           icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },
+  state_programs:      { label: 'State Programs',      mode: 'curated', icon: '🗺', field: 'last_cron_success', fallbackField: 'newest_verified', staleField: 'stale_count', thresholds: [14, 30] },
+  lmi_data:            { label: 'LMI Data (Census)',   mode: 'live',    icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
+  ix_queue_data:       { label: 'IX Queue Data',       mode: 'live',    icon: '⚡', field: 'last_cron_success', fallbackField: 'newest_fetch',    staleField: 'stale_count', thresholds: [14, 30] },
+  substations:         { label: 'Substations',         mode: 'live',    icon: '🔌', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [45, 90] },
+  county_intelligence: { label: 'County Intelligence', mode: 'curated', icon: '📍', field: 'oldest_verified',   fallbackField: null,              staleField: 'stale_count', thresholds: [90, 180] },
+  county_acs_data:     { label: 'County ACS (Census)', mode: 'live',    icon: '📊', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
+  energy_community_data:{ label: 'Energy Community (IRA)', mode: 'live', icon: '⚡', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
+  hud_qct_dda_data:    { label: 'HUD QCT / DDA',         mode: 'live',    icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
+  nmtc_lic_data:       { label: 'NMTC LIC §48(e)',       mode: 'live',    icon: '🎯', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
+  revenue_rates:       { label: 'Revenue Rates',       mode: 'live',    icon: '💰', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [120, 200] },
+  revenue_stacks:      { label: 'Revenue Stacks',      mode: 'curated', icon: '🏛', field: 'last_cron_success', fallbackField: 'newest_dsire_check', staleField: null,       thresholds: [14, 30] },
+  news_feed:           { label: 'News Feed',           mode: 'live',    icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },
+  county_geospatial_data: { label: 'County Geospatial (NWI + SSURGO)', mode: 'seeded', icon: '🌿', field: 'last_seeded', fallbackField: null, staleField: null, thresholds: [180, 365] },
+}
+
+const MODE_BADGE = {
+  live:    { label: 'LIVE',    bg: 'rgba(15,118,110,0.10)',  text: '#0F766E', border: 'rgba(15,118,110,0.30)', tooltip: 'Auto-refreshed via cron (Census / EIA / NREL / ISO / RSS).' },
+  curated: { label: 'CURATED', bg: 'rgba(124,58,237,0.08)',  text: '#6D28D9', border: 'rgba(124,58,237,0.30)', tooltip: 'Hand-maintained by the operator with a periodic verify cron.' },
+  seeded:  { label: 'SEEDED',  bg: 'rgba(217,119,6,0.08)',   text: '#92400E', border: 'rgba(217,119,6,0.30)',  tooltip: 'One-time seed (NWI / SSURGO). No cron — refresh requires a manual seed-script run.' },
 }
 
 function daysSince(dateStr) {
@@ -2301,9 +2318,29 @@ function DataHealthTab() {
         <span className="font-mono">cron_runs</span> on success, which drives the freshness cards above.
       </p>
 
-      {/* ── Section 1: Freshness Grid ── */}
+      {/* ── Section 1: Freshness Grid ──
+          Each card now carries a LIVE / CURATED / SEEDED chip so the
+          operator can answer "is this auto-refreshed or hand-maintained"
+          without crossing into source code. The "Last updated Nd ago"
+          stamp tracks cron completion (last_cron_success) — it's the same
+          source the Footer uses, so per-source freshness here matches the
+          global "Data refreshed" caption. */}
       <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-3">Data Freshness</h3>
+        <div className="flex items-baseline justify-between mb-3 gap-3 flex-wrap">
+          <h3 className="text-sm font-bold text-gray-900">Data Freshness</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            {Object.entries(MODE_BADGE).map(([mode, cfg]) => (
+              <span
+                key={mode}
+                className="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-[0.16em] px-1.5 py-0.5 font-bold"
+                style={{ background: cfg.bg, color: cfg.text, border: `1px solid ${cfg.border}` }}
+                title={cfg.tooltip}
+              >
+                {cfg.label}
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {Object.entries(FRESHNESS_CONFIG).map(([key, cfg]) => {
             const tableData = freshness?.[key]
@@ -2317,12 +2354,13 @@ function DataHealthTab() {
             const staleCount = cfg.staleField ? (tableData[cfg.staleField] ?? 0) : null
             const colorMap = { green: 'border-emerald-200 bg-emerald-50/40', yellow: 'border-amber-200 bg-amber-50/40', red: 'border-red-200 bg-red-50/40', gray: 'border-gray-200 bg-gray-50' }
             const dotMap = { green: 'bg-emerald-500', yellow: 'bg-amber-400', red: 'bg-red-500', gray: 'bg-gray-300' }
+            const modeBadge = MODE_BADGE[cfg.mode] || MODE_BADGE.curated
 
             return (
               <div key={key} className={`rounded-lg border px-4 py-3 ${colorMap[color]}`}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-gray-700">{cfg.label}</span>
-                  <span className={`w-2 h-2 rounded-full ${dotMap[color]}`} />
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs font-semibold text-gray-700 truncate">{cfg.label}</span>
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${dotMap[color]}`} />
                 </div>
                 <p className="text-lg font-bold text-gray-900 tabular-nums">{rowCount} <span className="text-xs font-normal text-gray-400">rows</span></p>
                 <p className="text-[11px] text-gray-500 mt-1">
@@ -2332,9 +2370,18 @@ function DataHealthTab() {
                     <span className="text-gray-400">No data</span>
                   )}
                 </p>
-                {staleCount > 0 && (
-                  <p className="text-[10px] font-medium text-amber-600 mt-0.5">{staleCount} stale row{staleCount > 1 ? 's' : ''}</p>
-                )}
+                <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  <span
+                    className="font-mono text-[8px] uppercase tracking-[0.16em] px-1 py-0.5 font-bold"
+                    style={{ background: modeBadge.bg, color: modeBadge.text, border: `1px solid ${modeBadge.border}` }}
+                    title={modeBadge.tooltip}
+                  >
+                    {modeBadge.label}
+                  </span>
+                  {staleCount > 0 && (
+                    <span className="text-[10px] font-medium text-amber-600">{staleCount} stale row{staleCount > 1 ? 's' : ''}</span>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -2434,10 +2481,20 @@ function DataHealthTab() {
         )}
       </div>
 
-      {/* ── Last Cron Runs Summary from RPC ── */}
+      {/* ── Last Cron Runs Summary from RPC ──
+          Caption clarifies that this surface measures CRON COMPLETION, not
+          DATA FRESHNESS. A cron that completes "success" with 0 changes
+          still means the scraper is silently broken — cross-reference the
+          IX scraper staleness alert below for that signal. */}
       {freshness?.last_cron_runs && freshness.last_cron_runs.length > 0 && (
         <div>
-          <h3 className="text-sm font-bold text-gray-900 mb-3">Last Run per Cron</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-1">Last Run per Cron</h3>
+          <p className="text-[11px] text-gray-500 mb-3 leading-relaxed">
+            <span className="font-semibold text-gray-700">Cron-completion</span> timestamps
+            (when the handler returned success). A green cron with 0 changes
+            can still mean the upstream scraper is broken — check the IX
+            scraper staleness alert below for actual data freshness.
+          </p>
           <div className="flex gap-3">
             {freshness.last_cron_runs.map((r) => {
               const ago = daysSince(r.finished_at)

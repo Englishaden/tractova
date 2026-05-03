@@ -194,29 +194,37 @@ export default function Dashboard({ previewMode = false }) {
   const selectedState = selectedStateId ? stateProgramMap[selectedStateId] : null
 
   // Surface data freshness on the dashboard hero so the "live-updated weekly"
-  // promise is provable to the user, not just claimed. Computed from data
-  // already loaded — no new RPC. Pulls max(lastVerified, updatedAt) across
-  // active CS states (the rows the cron actively maintains). Amber when
-  // older than 14 days = at least one Sunday cron failed.
-  const lastRefresh = useMemo(() => {
-    const states = Object.values(stateProgramMap || {})
-    if (!states.length) return null
-    let latest = 0
-    for (const s of states) {
-      if (s.csStatus === 'none') continue
-      const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
-      const u = s.updatedAt    ? new Date(s.updatedAt).getTime()    : 0
-      if (v > latest) latest = v
-      if (u > latest) latest = u
-    }
-    if (!latest) return null
-    const ageDays = Math.floor((Date.now() - latest) / 86400000)
-    return {
-      date:    new Date(latest).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      ageDays,
-      isStale: ageDays > 14,
-    }
-  }, [stateProgramMap])
+  // promise is provable to the user, not just claimed.
+  //
+  // Source: /api/data-health?action=last-refresh — same public endpoint the
+  // Footer uses (max(cron_runs.finished_at WHERE status='success')). This
+  // is the authoritative cron-completion timestamp. Previously we derived
+  // freshness from state_programs.last_verified / updated_at, which can lag
+  // weeks behind actual cron runs (state-program rows only get touched when
+  // the curator updates them) — meaning the Dashboard caption could read
+  // "27 days ago" while the Footer/Admin showed a refresh from this morning.
+  const [lastRefresh, setLastRefresh] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/data-health?action=last-refresh')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return
+        if (!data?.finishedAt) return
+        const ageDays = Math.floor((Date.now() - new Date(data.finishedAt).getTime()) / 86400000)
+        setLastRefresh({
+          date:    new Date(data.finishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          ageDays,
+          isStale: ageDays > 14,
+        })
+      })
+      .catch(err => {
+        // Hero caption is a nice-to-have; degrade silently rather than
+        // breaking the page if the public endpoint hiccups.
+        console.warn('[Dashboard] last-refresh fetch failed:', err)
+      })
+    return () => { cancelled = true }
+  }, [])
 
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))

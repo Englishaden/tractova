@@ -41,8 +41,8 @@ const SESSION_KEY = 'tractova-walking-mark-shown-v4'
 const SIDES = [
   { name: 'left',   anchor: { left: 0 },    perpAxis: 'top',  perpUnit: 'vh', perpRange:  [30, 70],                  keyframe: 'tractova-peek-from-left'   },
   { name: 'right',  anchor: { right: 0 },   perpAxis: 'top',  perpUnit: 'vh', perpRange:  [30, 70],                  keyframe: 'tractova-peek-from-right'  },
-  { name: 'top',    anchor: { top: 0 },     perpAxis: 'left', perpUnit: 'vw', perpRanges: [[5, 22], [78, 95]],       keyframe: 'tractova-peek-from-top'    },
-  { name: 'bottom', anchor: { bottom: 0 },  perpAxis: 'left', perpUnit: 'vw', perpRanges: [[5, 22], [78, 95]],       keyframe: 'tractova-peek-from-bottom' },
+  { name: 'top',    anchor: { top: 0 },     perpAxis: 'left', perpUnit: 'vw', perpRanges: [[2, 10], [90, 98]],       keyframe: 'tractova-peek-from-top'    },
+  { name: 'bottom', anchor: { bottom: 0 },  perpAxis: 'left', perpUnit: 'vw', perpRanges: [[2, 10], [90, 98]],       keyframe: 'tractova-peek-from-bottom' },
 ]
 
 // ── In-place animation sets ─────────────────────────────────────────────────

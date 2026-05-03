@@ -215,16 +215,21 @@ export default function IntelligenceBackground() {
         />
 
         {/* Layers 3 + 4 wrapper — gutter mask so dots and the Tractova T
-            never pass through the central reading column. Mask is fully
-            opaque on the outer 22% of each side and transparent in the
-            inner 30-70% band, with smooth gradient transitions in between.
-            The dot/T animations remain identical; the mask just hides them
-            mid-drift rather than truncating the keyframe. */}
+            never pass through the central reading column.
+            Calibrated to the `max-w-dashboard` (1440px) content container.
+            On a 1920px viewport, content sits 240-1680px (12.5-87.5vw), so
+            we keep dots fully hidden through 12% and let them only fade in
+            past 8vw. Outer 8vw on each side is opaque (dots fully visible),
+            8-12% is the gradient zone, 12-88% is fully transparent (dots
+            invisible — never overlaps Lens / Library / Glossary content
+            including the Pillar Diagnostics cards at the bottom of Lens).
+            Earlier 18-30% transition zone left dots fading through the
+            edges of pillar cards; the tighter window fixes that. */}
         <div
           className="absolute inset-0"
           style={{
-            WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 18%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,1) 82%, rgba(0,0,0,1) 100%)',
-            maskImage:       'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 18%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,1) 82%, rgba(0,0,0,1) 100%)',
+            WebkitMaskImage: 'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 8%, rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,1) 92%, rgba(0,0,0,1) 100%)',
+            maskImage:       'linear-gradient(to right, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 8%, rgba(0,0,0,0) 12%, rgba(0,0,0,0) 88%, rgba(0,0,0,1) 92%, rgba(0,0,0,1) 100%)',
           }}
         >
         {/* Layer 3 — randomized constellation of pillar-color accent dots.

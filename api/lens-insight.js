@@ -99,6 +99,7 @@ RULES:
    - Development/NTP: What study milestone deadlines exist? ITC safe-harbor timing?
    - Construction/Operational: Revenue confirmation — are bill credits / capacity payments tracking to model?
 15. COMPETITIVE CONTEXT: Who else is developing in this county/state? Is the market saturating or underserved?
+16. SCORE LANGUAGE: The "STATE BASELINE feasibility composite" in the data panel is the market-level score (stage-agnostic, county-agnostic). When you reference it in prose, label it explicitly as "the [STATE] market" or "the state baseline" — never as "your project's score" or "your feasibility index." The user's project-adjusted gauge value (which applies stage modifiers + their county data) is shown elsewhere in the UI; you do not see it. Phrasing like "this 81/100 feasibility market" is fine; phrasing like "your 81/100 score" is wrong because it conflates the market baseline with the project gauge.
 
 OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
 {
@@ -137,7 +138,7 @@ function buildContext({ state, county, mw, stage, technology, stateProgram, coun
     }
     lines.push(`  Interconnection difficulty (state-level): ${stateProgram.ixDifficulty}`)
     if (stateProgram.ixNotes) lines.push(`  IX state notes: ${stateProgram.ixNotes}`)
-    lines.push(`  Feasibility score: ${stateProgram.feasibilityScore}/100`)
+    lines.push(`  STATE BASELINE feasibility composite: ${stateProgram.feasibilityScore}/100 (the market-level score, stage-agnostic and county-agnostic — what the developer sees when they hover any state on the dashboard map; this is "the market")`)
     if (stateProgram.programNotes) lines.push(`  Program notes: ${stateProgram.programNotes}`)
     if (runway) {
       lines.push(`  Program runway: ~${runway.months} months at current enrollment pace (urgency: ${runway.urgency})`)

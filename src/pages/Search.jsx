@@ -339,6 +339,14 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary)
   const baseScore = computeDisplayScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
   const delta = activeScenario ? score - baseScore : 0
+  // State-level baseline: stage-agnostic + county-agnostic. This is the
+  // "MN market = 81" number the Analyst Brief uses, distinct from the
+  // gauge's project-adjusted score (which applies stage modifiers + the
+  // user's specific county data). Surfacing both lets the user see why
+  // the brief's number and the gauge can diverge — they're measuring
+  // different things.
+  const stateBaseline = typeof stateProgram.feasibilityScore === 'number' ? stateProgram.feasibilityScore : null
+  const projectAdjustment = stateBaseline != null ? score - stateBaseline : 0
   // When state/county is outside our curated coverage, surface that to match
   // the honesty already in the revenue panel ("model not available"). Without
   // this, the user sees a feasibility number that looks researched but is
@@ -526,6 +534,31 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
             >
               {delta > 0 ? '↑' : '↓'} {delta > 0 ? '+' : ''}{delta} vs base ({baseScore})
             </span>
+          )}
+          {/* State baseline reference — surfaces the unadjusted state-level
+              composite (the same number the Analyst Brief cites as "the
+              market is X/100") so users can read the gauge as a delta from
+              market baseline rather than as an unmoored score. Suppressed
+              when projectAdjustment is small (≤2 pts — within rounding noise)
+              so the line only appears when there's something to explain. */}
+          {stateBaseline != null && Math.abs(projectAdjustment) > 2 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="mt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-gray-500 cursor-help inline-flex items-center gap-1.5">
+                  <span className="text-gray-400">{stateProgram.id} baseline</span>
+                  <span className="font-bold tabular-nums" style={{ color: '#0F1A2E' }}>{stateBaseline}</span>
+                  <span style={{ color: projectAdjustment >= 0 ? '#0F766E' : '#92400E' }}>
+                    {projectAdjustment >= 0 ? '↑' : '↓'} {Math.abs(projectAdjustment)} project
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-[10px]">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>State baseline vs your project</p>
+                <p>The {stateProgram.id} state-level composite ({stateBaseline}) is the unadjusted market score — what the Analyst Brief means when it cites "the market".</p>
+                <p className="mt-1.5">The gauge ({score}) is your project's adjusted score. Stage modifiers (Prospecting / Site Control / etc.) and your specific county data can shift it {projectAdjustment >= 0 ? 'up' : 'down'} from the state baseline.</p>
+                <p className="mt-1.5 text-gray-400">Both numbers are correct — they measure different things. Move the project to a later stage or a stronger county to close the gap.</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           <div
             className="mt-3 inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] font-bold"
@@ -972,9 +1005,17 @@ function PillarIcon({ type }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Pillar Cards
 // ─────────────────────────────────────────────────────────────────────────────
-function SiteControlCard({ siteControl, interconnection, stateName, county, stateId, mw, substations }) {
+function SiteControlCard({ siteControl, interconnection, geospatial, stateName, county, stateId, mw, substations }) {
   if (!siteControl) return null
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
+  // Path B authoritative percentages (USFWS NWI + USDA SSURGO). When
+  // present, append a measurement line to the Land + Wetland tile notes
+  // so the developer sees the actual coverage % driving the warning,
+  // not just the qualitative tier. Falls through to the curated qualitative
+  // notes when geospatial isn't available for this county.
+  const wetlandPct  = geospatial?.wetlandCoveragePct
+  const farmlandPct = geospatial?.primeFarmlandPct
+  const fmtPct = (v) => (v == null || Number.isNaN(v)) ? null : `${v < 1 ? v.toFixed(1) : Math.round(v)}%`
 
   // Derive hosting capacity status from IX ease score
   const hostingStatus = (() => {
@@ -993,13 +1034,15 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
     return 'rural'
   })()
 
+  const farmlandLine = fmtPct(farmlandPct) ? `Prime farmland: ${fmtPct(farmlandPct)} of soil-surveyed area · USDA SSURGO 2024` : null
+  const wetlandLine  = fmtPct(wetlandPct)  ? `Wetland coverage: ${fmtPct(wetlandPct)} of county · USFWS NWI 2024` : null
   const tiles = [
     {
       label: 'Land',
       status: availableLand ? 'Available' : 'Limited',
       color: availableLand ? '#0F766E' : '#DC2626',
       bg: availableLand ? 'rgba(15,118,110,0.06)' : 'rgba(220,38,38,0.06)',
-      note: landNotes,
+      note: [landNotes, farmlandLine].filter(Boolean).join(' · ') || null,
       tooltip: availableLand
         ? 'USDA SSURGO prime-farmland coverage <25% in this county. Material siting headroom outside protected agricultural land.'
         : 'USDA SSURGO prime-farmland coverage ≥25%. Greenfield siting may need state agricultural-land conversion approvals.',
@@ -1014,7 +1057,7 @@ function SiteControlCard({ siteControl, interconnection, stateName, county, stat
       status: wetlandWarning ? 'Warning' : 'Low Risk',
       color: wetlandWarning ? '#B45309' : '#0F766E',
       bg: wetlandWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
-      note: wetlandNotes || (wetlandWarning ? null : 'Low wetland risk on typical upland sites'),
+      note: [wetlandNotes || (wetlandWarning ? null : 'Low wetland risk on typical upland sites'), wetlandLine].filter(Boolean).join(' · ') || null,
       tooltip: wetlandWarning
         ? 'USFWS NWI wetland coverage ≥15% in this county. Section 404 review and potential mitigation are likely on a typical site.'
         : 'USFWS NWI wetland coverage <15%. Minimal Section 404 permitting exposure on most upland parcels.',
@@ -1562,8 +1605,20 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
             <span className="font-semibold text-gray-700 tabular-nums">{proj.annualMWh.toLocaleString()} MWh</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-500">Capacity factor</span>
-            <span className="font-semibold text-gray-700 tabular-nums">{proj.capacityFactor}%</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-gray-500 cursor-help inline-flex items-center gap-1">
+                  Capacity factor
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="text-[10px]">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>NREL PVWatts state average</p>
+                <p>Capacity factor varies materially by state — fixed-tilt PV in CO (~20%) vs MA (~16.5%) vs MN (~16%). We seed per-state averages from NREL PVWatts and refresh quarterly.</p>
+                <p className="mt-1.5 text-gray-400">Site-specific factors (tilt, orientation, soiling, snow loss) can shift this ±2 pts. A real PVsyst run on the candidate parcel is the bankable number.</p>
+              </TooltipContent>
+            </Tooltip>
+            <span className="font-semibold text-gray-700 tabular-nums">{proj.capacityFactor}% <span className="font-normal text-gray-400 text-[10px]">· NREL PVWatts</span></span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-500">Installed cost (est.)</span>
@@ -2058,7 +2113,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
       </div>
 
       {/* Methodology drilldown — click to expand */}
-      <CardDrilldown accentColor="#0F766E" label="Revenue stack methodology · ITC bonus rules · sources">
+      <CardDrilldown accentColor="#0F766E" label="How we built this revenue stack — sources, ITC math, assumptions">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Revenue stack composition</p>
           <ul className="space-y-1 text-gray-700 list-none">
@@ -4506,6 +4561,7 @@ function SearchContent() {
               <SiteControlCard
                 siteControl={results.countyData?.siteControl}
                 interconnection={results.countyData?.interconnection}
+                geospatial={results.countyData?.geospatial}
                 stateName={results.stateProgram?.name || results.form.state}
                 county={results.form.county}
                 stateId={results.stateProgram?.id}
