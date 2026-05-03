@@ -26,8 +26,10 @@ const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Ro
 const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif`
 const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace`
 
-const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
-const IX_RANK     = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
+const STATUS_RANK  = { active: 3, limited: 2, pending: 1, none: 0 }
+const STATUS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'Closed' }
+const IX_RANK      = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
+const IX_LABEL     = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very hard' }
 
 // Deterministic feasibility score — mirrors programData.js formula exactly.
 // Inlined here so this serverless function has no client-side import dependency.
@@ -72,7 +74,7 @@ function getUrgentAlerts(project, stateMap) {
     })
   }
   if (project.ix_difficulty && (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ix_difficulty] ?? 0))
-    alerts.push({ level: 'warning', label: 'IX Queue Harder', detail: `Interconnection difficulty increased from ${project.ix_difficulty} to ${current.ixDifficulty}.` })
+    alerts.push({ level: 'warning', label: 'IX Queue Harder', detail: `Interconnection difficulty increased from ${IX_LABEL[project.ix_difficulty] ?? project.ix_difficulty} to ${IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}.` })
   return alerts
 }
 
@@ -633,10 +635,11 @@ export default async function handler(req, res) {
         // In test mode, synthesize a representative alert if the user has no
         // real alerts firing -- otherwise the test silently sends nothing.
         if (testMode && !alerts.length) {
+          const liveStatus = stateMap[project.state]?.csStatus || 'active'
           alerts = [{
             level: 'urgent',
             label: '[TEST] Capacity Limited',
-            detail: `This is a TEST alert sent from the Admin panel. Your project "${project.name}" has not actually been flagged. The program is currently ${stateMap[project.state]?.csStatus || 'active'} in ${project.state_name || project.state}.`,
+            detail: `This is a TEST alert sent from the Admin panel. Your project "${project.name}" has not actually been flagged. The program is currently ${STATUS_LABEL[liveStatus] ?? liveStatus} in ${project.state_name || project.state}.`,
           }]
         }
         if (!alerts.length) continue

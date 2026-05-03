@@ -453,14 +453,35 @@ export default async function handler(req, res) {
         }
       }
       // Bucket data_updates by state. row_id for state_programs is just the state code.
+      // Field + value formatters keep raw DB enums (cs_status=limited, ix_difficulty=very_hard)
+      // out of user-visible copy.
+      const FIELD_LABELS = {
+        cs_status: 'Status',
+        ix_difficulty: 'IX difficulty',
+        capacity_mw: 'Program capacity',
+        lmi_percent: 'LMI requirement',
+        rec_price: 'REC price',
+      }
+      const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very hard' }
+      const formatChangeValue = (field, value) => {
+        if (value == null || value === '') return '—'
+        if (field === 'cs_status') return STATUS_LABEL[value] ?? value
+        if (field === 'ix_difficulty') return IX_LABEL[value] ?? value
+        if (field === 'capacity_mw') return `${value} MW`
+        if (field === 'lmi_percent') return `${value}%`
+        return value
+      }
       for (const upd of updRes.data ?? []) {
         const sid = upd.row_id
         if (!sid) continue
         if (!activity[sid]) activity[sid] = { newsCount: 0, updateCount: 0, headline: null, lastChange: null }
         activity[sid].updateCount++
         if (!activity[sid].lastChange) {
-          const fieldLabel = (upd.field || '').replace(/_/g, ' ')
-          activity[sid].lastChange = `${fieldLabel}: ${upd.old_value} → ${upd.new_value}`
+          const field = upd.field || ''
+          const fieldLabel = FIELD_LABELS[field] ?? field.replace(/_/g, ' ')
+          const from = formatChangeValue(field, upd.old_value)
+          const to   = formatChangeValue(field, upd.new_value)
+          activity[sid].lastChange = `${fieldLabel}: ${from} → ${to}`
         }
       }
     } catch (motionErr) {

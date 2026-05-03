@@ -38,7 +38,7 @@ function buildEmailHtml(issues) {
 <html>
 <body style="font-family:-apple-system,sans-serif;background:#f9fafb;margin:0;padding:24px;">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
-    <div style="background:#0F6E56;padding:20px 24px;">
+    <div style="background:#0F766E;padding:20px 24px;">
       <h1 style="margin:0;color:#fff;font-size:16px;font-weight:700;">Tractova Data Staleness Alert</h1>
       <p style="margin:4px 0 0;color:rgba(255,255,255,0.7);font-size:12px;">${issues.length} table${issues.length > 1 ? 's' : ''} need${issues.length === 1 ? 's' : ''} attention</p>
     </div>
@@ -54,7 +54,7 @@ function buildEmailHtml(issues) {
         <tbody>${rows}</tbody>
       </table>
       <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">
-        <a href="${APP_URL}/admin" style="color:#0F6E56;font-weight:600;">Open Data Admin →</a>
+        <a href="${APP_URL}/admin" style="color:#0F766E;font-weight:600;">Open Data Admin →</a>
       </p>
     </div>
   </div>
