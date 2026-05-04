@@ -2178,12 +2178,16 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
           </div>
         </div>
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage</p>
-          <ul className="space-y-1 text-[10px] text-gray-700 list-none">
-            <li><span className="font-semibold text-ink">Solar capex + bill credits + RECs</span> · {SOLAR_RATES_AS_OF} · Lazard LCOE+ v18 (Jun 2025) midpoints + RS Means 2024 state labor multipliers + DSIRE program tracking + EIA Form 861.</li>
-            <li><span className="font-semibold text-ink">C&amp;I PPA + retail rates</span> · {CI_RATES_AS_OF} · Lazard LCOE+ v18 commercial-scale capex + EIA Form 861 commercial retail tariffs.</li>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage &amp; sources</p>
+          <ul className="space-y-1.5 text-[10px] text-gray-700 list-none">
+            <li>
+              <span className="font-semibold text-ink">Solar capex $/W</span> · {SOLAR_RATES_AS_OF} · <span className="text-gray-700">Lazard LCOE+ v18 (Jun 2025) page 34 publishes Solar PV—Community &amp; C&amp;I capital cost range $1.60–$3.30/W nationally.</span> Per-state $/W is Tractova's allocation across that range based on RS Means labor index + observed permitting / IX friction. State allocation is editorial judgment, not data Lazard publishes.
+            </li>
+            <li><span className="font-semibold text-ink">Bill credits + REC pricing</span> · State-specific from DSIRE + state PUC tariff filings + NEPOOL GIS / PJM-EIS GATS / WREGIS / M-RETS depending on REC market.</li>
+            <li><span className="font-semibold text-ink">Capacity factors</span> · NREL PVWatts API v8 state averages (more granular than Lazard's 15–20% national range).</li>
+            <li><span className="font-semibold text-ink">C&amp;I PPA + retail</span> · {CI_RATES_AS_OF} · Lazard LCOE+ v18 commercial range + EIA Form 861 commercial retail tariffs 2024.</li>
             <li><span className="font-semibold text-ink">BESS capacity + arbitrage</span> · {BESS_RATES_AS_OF} · ISO/RTO clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA) + BloombergNEF 2024 utility-scale 4hr capex.</li>
-            <li className="text-gray-500 italic">All three datasets are seeded constants — Tractova will refresh them quarterly using updated Lazard / NREL ATB / BloombergNEF reports. State capacity factors are static (NREL PVWatts state baselines).</li>
+            <li className="text-gray-500 italic">All three datasets are seeded constants. Refresh cadence: Lazard v19 expected April–June 2026 (annual cycle); BESS rates re-anchored against ISO/RTO auctions as cycles complete. Automated refresh cron is on the backlog.</li>
           </ul>
         </div>
         <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">

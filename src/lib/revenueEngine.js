@@ -11,59 +11,82 @@
 //
 // ── Rate freshness disclosure ────────────────────────────────────────────────
 // All three rate tables (CS / C&I / BESS) are SEEDED constants. There is no
-// automated refresh cron yet (P2 backlog: quarterly cron pulling from NREL
-// ATB + Lazard LCOE + BloombergNEF). The AS_OF stamps are surfaced in the
+// automated refresh cron yet (P2 backlog: pull-quarterly cron from EIA Form
+// 860 + annual Lazard LCOE rebuild). The AS_OF stamps are surfaced in the
 // Lens revenue methodology dropdown so users see vintage at a glance.
 //
-// SOLAR_RATES_AS_OF: '2025-06' — Lazard LCOE+ v18 (Jun 2025) midpoints +
-//   NREL ATB 2024 community-solar capex + state labor multipliers (RS Means
-//   2024) + DSIRE REC pricing + EIA Form 861 retail rates.
-// CI_RATES_AS_OF:    '2025-06' — Lazard LCOE+ v18 commercial-scale capex +
-//   EIA Form 861 commercial retail rates 2024.
-// BESS_RATES_AS_OF:  '2026-04' — ISO/RTO capacity-market clearing prices
-//   (PJM RPM, NYISO ICAP, ISO-NE FCM) 2024-2025 cycle + BloombergNEF 2024
-//   utility-scale BESS capex.
+// ── Sources (literal, separated from Tractova synthesis) ────────────────────
 //
-// 2026-05-04 recalibration (Site-walk Session 5 follow-up):
-//   - CS $/W bumped 2025-vintage Lazard LCOE+ v18 — prior values were 2024
-//     vintage and ~$0.30-$0.70/W understated for community-solar scale +
-//     domestic content premium. Aden flagged via field testing.
-//   - 9 new "active CS program" states added (CA / FL / CT / HI / NM / OR /
-//     RI / VA / WA) so all 17 states with cs_status ∈ ('active','limited')
-//     have the same depth as the original 8.
-//   - C&I bumped 5-15% to track Lazard v18 commercial-scale PV.
-//   - BESS unchanged — BloombergNEF 2024 has utility-scale 4hr at $295-$340/kWh
-//     so current Tractova range ($350-$420) is conservative-defensible.
+// LAZARD LCOE+ v18.0 (June 2025), page 34 ("LCOE--Key Assumptions") —
+//   what Lazard literally publishes:
+//   - Solar PV—Community and C&I (one combined category):
+//       Total Capital Cost: $1,600 – $3,300 / kW   (= $1.60 – $3.30/W)
+//       Fixed O&M:          $13.00 – $20.00 / kW-yr
+//       Capacity Factor:    20% – 15%
+//       Facility Life:      30 years
+//       Net Facility Output: 2.0 MW (Lazard's assumed scale)
+//   - Solar PV—Utility:
+//       Total Capital Cost: $1,150 – $1,600 / kW   (= $1.15 – $1.60/W)
+//       Fixed O&M:          $11.00 – $14.00 / kW-yr
+//       Capacity Factor:    30% – 20%
+//       Facility Life:      35 years
+//
+// TRACTOVA SYNTHESIS on top of Lazard:
+//   - State allocation across Lazard's $1.60–$3.30/W national range is
+//     editorial judgment, not data Lazard publishes. Allocation reflects
+//     RS Means 2024 state labor cost index + observed permitting/IX friction
+//     + DSIRE program complexity. Median Tractova state value sits near
+//     Lazard's range midpoint ($2.45/W); spread runs $1.85–$3.10/W within
+//     Lazard's published $1.60–$3.30/W band.
+//   - Capacity Factor uses NREL PVWatts API v8 STATE averages (more granular
+//     than Lazard's 15–20% national range — Lazard CF range bracket is wider
+//     because CS projects don't always pick optimal sites).
+//   - Bill credits per state: state PUC tariff filings tracked via DSIRE.
+//   - REC prices per state: DSIRE state pages + GATS / PJM-EIS / M-RETS.
+//   - ITC: federal §48, 30% base + 10% adders per state qualifying status.
+//
+// BESS_RATES_AS_OF '2026-04' anchored on ISO/RTO clearing prices (PJM RPM,
+// NYISO ICAP, ISO-NE FCM, CAISO RA) + BloombergNEF 2024 utility-scale 4hr
+// BESS capex $295-$340/kWh — Lazard v18 LCOS chapter (page 17+) covers
+// storage but Tractova uses BloombergNEF for the cell-level primary.
+//
+// ── Recalibration history ──
+// 2026-05-04 (Site-walk Session 5): bumped CS $/W to align with Lazard v18's
+// ACTUAL $1.60–$3.30/W published range — prior 2024-vintage values were
+// ~$0.40–$0.85/W understated. Added 9 new states (CA/FL/CT/HI/NM/OR/RI/VA/WA)
+// so all 17 cs_status ∈ ('active','limited') states have parity. Citations
+// rewritten to separate Lazard's literal numbers from Tractova's synthesis.
 export const SOLAR_RATES_AS_OF = '2025-06'
 export const CI_RATES_AS_OF    = '2025-06'
 export const BESS_RATES_AS_OF  = '2026-04'
 
 // ── Hardcoded fallback data (matches Supabase seed in 003 + migration 043) ──
-// Capex sources per state: Lazard LCOE+ v18 (Jun 2025) community-solar
-// midpoint $1.85/W national + RS Means 2024 state labor multiplier.
-// Capacity factors: NREL PVWatts API v8 fixed-tilt state averages.
-// Bill credits: state PUC tariff filings (DSIRE-tracked).
-// REC prices: DSIRE state pages + GATS/PJM-EIS/M-RETS for tradable markets.
+// CS $/W per state = Tractova allocation across Lazard v18's published
+//   $1.60-$3.30/W Community & C&I range (page 34 of the v18 PDF).
+// Capacity factors = NREL PVWatts state averages (state-specific, finer-
+//   grained than Lazard's national 15-20% bracket).
+// Bill credits = state PUC tariffs via DSIRE; REC prices = DSIRE + GATS /
+//   PJM-EIS / M-RETS depending on state.
 const STATE_REVENUE_DATA = {
-  // ── 8 originally curated (recalibrated 2026-05-04) ──
-  IL: { billCreditCentsKwh: 8.2,  recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 1.85, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: 'Illinois Shines REC ~$71.50/MWh + ComEd bill credit ~8.2¢/kWh. ITC 30% + 10% LMI adder where qualifying. $/W per Lazard LCOE+ v18 (mid-cost PJM labor).' },
-  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0,     itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.0, installedCostPerWatt: 2.30, degradationPct: 0.5, label: 'New York (Value Stack)',         notes: 'NY-Sun / Value Stack ~10.5¢/kWh blended (LBMP + ICAP + E + DRV). No separate SREC market. ITC 30% + Community Adder. $/W per Lazard v18 + NYISO labor premium.' },
-  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 2.30, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)',      notes: 'Net metering ~12.8¢/kWh. SMART 3.0 adder varies by tranche. SREC-II ~$35/MWh. ITC 30% + LMI adder. $/W per Lazard v18 + ISO-NE labor premium.' },
-  MN: { billCreditCentsKwh: 9.5,  recPerMwh: 4.50,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 15.2, installedCostPerWatt: 1.75, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)',         notes: 'Value-of-Solar ~9.5¢/kWh (Xcel). Minimal REC market (~$4.50/MWh). ITC 30%. $/W per Lazard v18 (low-cost MISO labor).' },
-  CO: { billCreditCentsKwh: 8.8,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.3, installedCostPerWatt: 1.70, degradationPct: 0.5, label: 'Colorado (Xcel Energy)',          notes: 'Bill credit ~8.8¢/kWh. Minimal REC ($3/MWh). High capacity factor 18.3% (top irradiance). ITC 30%. $/W per Lazard v18 (low-cost SPP labor).' },
-  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.5, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)',     notes: 'Net metering ~11¢/kWh. SREC-II / SuSI ~$85/MWh — strongest REC market. ITC 30% + LMI. $/W per Lazard v18 + PJM-NJ labor.' },
-  ME: { billCreditCentsKwh: 9.0,  recPerMwh: 8.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.8, installedCostPerWatt: 2.15, degradationPct: 0.5, label: 'Maine',                           notes: 'Bill credit ~9¢/kWh. Class I REC ~$8/MWh. ITC 30%. $/W per Lazard v18 + ISO-NE rural labor.' },
-  MD: { billCreditCentsKwh: 9.5,  recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.8, installedCostPerWatt: 2.05, degradationPct: 0.5, label: 'Maryland',                        notes: 'Bill credit ~9.5¢/kWh. SREC ~$55/MWh. ITC 30% + LMI. $/W per Lazard v18 (PJM mid).' },
+  // ── 8 originally curated (re-recalibrated 2026-05-04 against literal Lazard v18) ──
+  IL: { billCreditCentsKwh: 8.2,  recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 2.10, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: 'Illinois Shines REC ~$71.50/MWh (DSIRE) + ComEd bill credit ~8.2¢/kWh (PUC tariff). ITC 30% + 10% LMI adder where qualifying. $/W in lower-mid Lazard v18 $1.60-$3.30/W range — PJM mid-cost labor + scale economies vs Lazard 2 MW assumption.' },
+  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0,     itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.0, installedCostPerWatt: 2.75, degradationPct: 0.5, label: 'New York (Value Stack)',         notes: 'NY-Sun / Value Stack ~10.5¢/kWh blended (LBMP + ICAP + E + DRV per NYSERDA). No separate SREC market. ITC 30% + Community Adder. $/W in upper-mid Lazard v18 range — NYISO labor premium + NY-Sun siting friction.' },
+  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 2.75, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)',      notes: 'Net metering ~12.8¢/kWh. SMART 3.0 adder varies by tranche (DOER tariff). SREC-II ~$35/MWh (NEPOOL GIS). ITC 30% + LMI adder. $/W in upper-mid Lazard v18 range — ISO-NE labor + SMART permitting overhead.' },
+  MN: { billCreditCentsKwh: 9.5,  recPerMwh: 4.50,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 15.2, installedCostPerWatt: 2.00, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)',         notes: 'Value-of-Solar ~9.5¢/kWh (Xcel VoS tariff). Minimal REC market (~$4.50/MWh, M-RETS). ITC 30%. $/W in lower Lazard v18 range — MISO Upper Midwest labor.' },
+  CO: { billCreditCentsKwh: 8.8,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.3, installedCostPerWatt: 1.90, degradationPct: 0.5, label: 'Colorado (Xcel Energy)',          notes: 'Bill credit ~8.8¢/kWh (PUC tariff). Minimal REC market ($3/MWh, WREGIS). NREL PVWatts CF 18.3% (top quartile). ITC 30%. $/W near Lazard v18 floor — SPP low-cost labor + premium siting.' },
+  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.5, installedCostPerWatt: 2.65, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)',     notes: 'Net metering ~11¢/kWh. SREC-II / SuSI ~$85/MWh (PJM-EIS GATS) — strongest REC market in nation. ITC 30% + LMI. $/W in upper Lazard v18 range — PJM-NJ labor + SREC market complexity.' },
+  ME: { billCreditCentsKwh: 9.0,  recPerMwh: 8.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.8, installedCostPerWatt: 2.45, degradationPct: 0.5, label: 'Maine',                           notes: 'Bill credit ~9¢/kWh (PUC tariff). Class I REC ~$8/MWh (NEPOOL GIS). ITC 30%. $/W at Lazard v18 midpoint — ISO-NE rural labor.' },
+  MD: { billCreditCentsKwh: 9.5,  recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.8, installedCostPerWatt: 2.30, degradationPct: 0.5, label: 'Maryland',                        notes: 'Bill credit ~9.5¢/kWh (PUC tariff). SREC ~$55/MWh (PJM-EIS GATS). ITC 30% + LMI. $/W at Lazard v18 midpoint — PJM-mid labor.' },
   // ── 9 new (added 2026-05-04 — full active+limited CS program coverage) ──
-  CA: { billCreditCentsKwh: 14.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 10, capacityFactorPct: 21.0, installedCostPerWatt: 2.40, degradationPct: 0.5, label: 'California (VNEM / NEM-ST)',      notes: 'Virtual Net Energy Metering blended ~14¢/kWh under NEM-ST tariff. CA RPS REC market thin (~$5/MWh). ITC 30% + LIC adder. CAISO labor premium. CS market is "limited" status as of 2026.' },
-  FL: { billCreditCentsKwh: 10.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.0, installedCostPerWatt: 1.75, degradationPct: 0.5, label: 'Florida (SolarTogether)',         notes: 'FPL/Duke SolarTogether bill credit ~10¢/kWh. No state REC market. ITC 30%. $/W per Lazard v18 + FL low-labor offset (weather risk premium absorbed in FPL EPC bids). Status "limited" — utility-administered, capped enrollment.' },
-  CT: { billCreditCentsKwh: 12.0, recPerMwh: 30.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'Connecticut (SCEF)',              notes: 'Shared Clean Energy Facility bill credit ~12¢/kWh. CT Class I REC + ZREC ~$30/MWh. ITC 30% + LMI. $/W per Lazard v18 + ISO-NE labor.' },
-  HI: { billCreditCentsKwh: 28.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 19.0, installedCostPerWatt: 2.70, degradationPct: 0.5, label: 'Hawaii (CBRE)',                   notes: 'Community-Based Renewable Energy: HECO bill credit ~28¢/kWh (highest in nation). RPS goal-based, no traded REC. ITC 30%. $/W per Lazard v18 + HI island logistics + prevailing-wage premium. Very high IX difficulty (small grid).' },
-  NM: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 22.0, installedCostPerWatt: 1.65, degradationPct: 0.5, label: 'New Mexico CS',                   notes: 'Bill credit ~10¢/kWh. NM RPS REC thin (~$5/MWh). ITC 30%. Strong irradiance drives 22% capacity factor (top in nation). $/W per Lazard v18 (low-cost WECC labor).' },
-  OR: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.5, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Oregon CS',                       notes: 'Oregon CS Program bill credit ~10¢/kWh. OR RPS REC ~$5/MWh. ITC 30%. $/W per Lazard v18 (Pacific NW labor).' },
-  RI: { billCreditCentsKwh: 13.0, recPerMwh: 45.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'Rhode Island CS',                 notes: 'Rhode Island CS bill credit ~13¢/kWh. RI Class I REC ~$45/MWh (strong). ITC 30% + LMI. $/W per Lazard v18 + ISO-NE labor.' },
-  VA: { billCreditCentsKwh: 9.0,  recPerMwh: 15.00, itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 17.0, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Virginia CS',                     notes: 'Virginia Shared Solar bill credit ~9¢/kWh. VA REC market ~$15/MWh. ITC 30%. $/W per Lazard v18 (PJM-South labor).' },
-  WA: { billCreditCentsKwh: 9.0,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 13.5, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Washington (Shared Renewables)',  notes: 'Washington Shared Renewables bill credit ~9¢/kWh. WA REC market thin (~$3/MWh). ITC 30%. $/W per Lazard v18 (Pacific NW labor). Lowest-irradiance state — 13.5% CF.' },
+  CA: { billCreditCentsKwh: 14.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 10, capacityFactorPct: 21.0, installedCostPerWatt: 2.85, degradationPct: 0.5, label: 'California (VNEM / NEM-ST)',      notes: 'Virtual Net Energy Metering blended ~14¢/kWh under NEM-ST (CPUC tariff). CA RPS REC market thin (~$5/MWh, WREGIS). ITC 30% + LIC adder. $/W in upper Lazard v18 range — CAISO labor + IX backlog. CS market "limited" status 2026.' },
+  FL: { billCreditCentsKwh: 10.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.0, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Florida (SolarTogether)',         notes: 'FPL/Duke SolarTogether bill credit ~10¢/kWh (utility tariff). No state REC market. ITC 30%. $/W in lower Lazard v18 range — FL low labor; weather risk priced into FPL EPC bids. Status "limited" — utility-administered, capped enrollment.' },
+  CT: { billCreditCentsKwh: 12.0, recPerMwh: 30.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.65, degradationPct: 0.5, label: 'Connecticut (SCEF)',              notes: 'Shared Clean Energy Facility bill credit ~12¢/kWh (PURA tariff). CT Class I REC + ZREC ~$30/MWh (NEPOOL GIS). ITC 30% + LMI. $/W in upper Lazard v18 range — ISO-NE labor.' },
+  HI: { billCreditCentsKwh: 28.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 19.0, installedCostPerWatt: 3.10, degradationPct: 0.5, label: 'Hawaii (CBRE)',                   notes: 'Community-Based Renewable Energy: HECO bill credit ~28¢/kWh (PUC tariff — highest in nation). RPS goal-based, no traded REC. ITC 30%. $/W near Lazard v18 ceiling — HI island logistics + prevailing-wage + small-grid IX overhead.' },
+  NM: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 22.0, installedCostPerWatt: 1.85, degradationPct: 0.5, label: 'New Mexico CS',                   notes: 'Bill credit ~10¢/kWh (PRC tariff). NM RPS REC thin (~$5/MWh, WREGIS). ITC 30%. NREL PVWatts CF 22% (top in nation). $/W near Lazard v18 floor — WECC low-cost labor.' },
+  OR: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.5, installedCostPerWatt: 2.25, degradationPct: 0.5, label: 'Oregon CS',                       notes: 'Oregon CS Program bill credit ~10¢/kWh (PUC tariff). OR RPS REC ~$5/MWh (WREGIS). ITC 30%. $/W in lower-mid Lazard v18 range — Pacific NW labor.' },
+  RI: { billCreditCentsKwh: 13.0, recPerMwh: 45.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.55, degradationPct: 0.5, label: 'Rhode Island CS',                 notes: 'Rhode Island CS bill credit ~13¢/kWh (PUC tariff). RI Class I REC ~$45/MWh (NEPOOL GIS — strong). ITC 30% + LMI. $/W in upper-mid Lazard v18 range — ISO-NE labor.' },
+  VA: { billCreditCentsKwh: 9.0,  recPerMwh: 15.00, itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 17.0, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'Virginia CS',                     notes: 'Virginia Shared Solar bill credit ~9¢/kWh (SCC tariff). VA REC market ~$15/MWh (PJM-EIS). ITC 30%. $/W in lower-mid Lazard v18 range — PJM-South labor.' },
+  WA: { billCreditCentsKwh: 9.0,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 13.5, installedCostPerWatt: 2.25, degradationPct: 0.5, label: 'Washington (Shared Renewables)',  notes: 'Washington Shared Renewables bill credit ~9¢/kWh (UTC tariff). WA REC market thin (~$3/MWh, WREGIS). ITC 30%. NREL PVWatts CF 13.5% (lowest-irradiance state). $/W in lower-mid Lazard v18 range — Pacific NW labor.' },
 }
 
 const CI_REVENUE_DATA = {
