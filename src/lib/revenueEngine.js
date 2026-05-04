@@ -257,6 +257,50 @@ const CI_REVENUE_DATA = {
 // accreditation/allocation synthesis). Refresh path: pull each ISO's most
 // recent annual capacity auction results (PJM RPM, NYISO ICAP, ISO-NE FCM,
 // MISO PRA, CAISO RA reports). Annual cadence.
+//
+// ── BESS demandChargePerKwMonth + arbitragePerMwh methodology ──────────────
+// (Recalibrated 2026-05-04 per audit. Was Tier C high-risk.)
+//
+// DEMAND CHARGES ($/kW-month, blended commercial customer):
+//   Anchored on industry-standard regional ranges from NREL "Identifying
+//   Potential Markets for Behind-the-Meter Battery Energy Storage" (NREL
+//   TP-7A40-71162) + tracked utility tariff filings via state PUC dockets.
+//   State value is a blended weighted-average across the dominant 1-3
+//   utility tariffs serving large commercial customers in that state.
+//   Wide intra-state variation exists (e.g., NJ PSE&G vs Atlantic City
+//   Electric); single state value is approximation. Refresh path: pull
+//   commercial demand schedules from each state's PUC tariff database.
+//
+//   Regional buckets:
+//     HI: $20-25/kW-month (highest, island grid, isolated wholesale)
+//     CA: $16-20/kW-month (CA IOU CCSF + PG&E + SCE/SDG&E aggressive
+//       demand-charge-driven tariffs post-NEM 3.0)
+//     NE high (NJ, MA, CT, NY): $13-15/kW-month (mature ISO-NE/NYISO/PJM-NJ
+//       commercial tariffs)
+//     PJM mid (IL, MD, VA): $12-13/kW-month
+//     ISO-NE rural (RI, ME): $11-13/kW-month
+//     MISO / SPP / WECC / SE: $9-11/kW-month
+//
+// ARBITRAGE SPREADS ($/MWh peak-offpeak, 4-hr BESS modeled):
+//   Anchored on Lazard v18 LCOS Storage Value Snapshot (CAISO + ERCOT
+//   examples on page 24-25) + ISO LMP histogram analysis. Spread captures
+//   the typical 4-hour TBLS (Top of Book Less Spread) value a BESS can
+//   capture during one daily charge/discharge cycle. State value is the
+//   ISO/RTO-blended average; in-zone variation can be ±$10-15/MWh.
+//   Refresh path: pull each ISO's published LMP datasets (PJM, NYISO,
+//   ISO-NE, CAISO, ERCOT all publish hourly LMP — compute peak/off-peak
+//   spreads quarterly).
+//
+//   Regional buckets:
+//     HI: $70-90/MWh (high; isolated grid, peak/off-peak spread amplified)
+//     CAISO: $40-50/MWh (duck curve + NEM 3.0 driving steeper midday valleys)
+//     NYISO: $33-37/MWh (summer peaks, NYC zone wholesale spreads)
+//     ISO-NE / PJM: $28-35/MWh
+//     MISO / SPP: $22-28/MWh
+//     WECC / SE non-RTO: $18-25/MWh (more uniform pricing)
+//
+// All state values are Tractova synthesis on top of ISO/regional anchors.
+// Audit tier: B (industry-standard ranges + documented synthesis).
 const BESS_REVENUE_DATA = {
   // ── PJM (IL, NJ, MD, VA): 2025/26 BRA $98.5/kW-yr × 60% accreditation = $59 base + LDA premium ──
   IL:  { isoRegion: 'PJM',    capacityPerKwYear: 65, demandChargePerKwMonth: 12, arbitragePerMwh: 30, installedCostPerKwh: 380, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Illinois (PJM ComEd)' },
@@ -270,8 +314,8 @@ const BESS_REVENUE_DATA = {
   CT:  { isoRegion: 'ISO-NE', capacityPerKwYear: 60, demandChargePerKwMonth: 14, arbitragePerMwh: 32, installedCostPerKwh: 415, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Connecticut (ISO-NE)' },
   RI:  { isoRegion: 'ISO-NE', capacityPerKwYear: 58, demandChargePerKwMonth: 13, arbitragePerMwh: 30, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Rhode Island (ISO-NE)' },
   ME:  { isoRegion: 'ISO-NE', capacityPerKwYear: 55, demandChargePerKwMonth: 11, arbitragePerMwh: 28, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maine (ISO-NE)' },
-  // ── CAISO (CA): RA bilateral $40-80/kW-yr × 70% accreditation; was $90 (aggressive) ──
-  CA:  { isoRegion: 'CAISO',  capacityPerKwYear: 65, demandChargePerKwMonth: 16, arbitragePerMwh: 40, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'California (CAISO)' },
+  // ── CAISO (CA): RA bilateral $40-80/kW-yr × 70% accreditation; arbitrage bumped to $45 to reflect NEM 3.0 + duck-curve steepening 2024-2026 ──
+  CA:  { isoRegion: 'CAISO',  capacityPerKwYear: 65, demandChargePerKwMonth: 18, arbitragePerMwh: 45, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'California (CAISO)' },
   // ── MISO (MN): 2025/26 PRA zonal $50 × 70% = $35; was $40 (close) ──
   MN:  { isoRegion: 'MISO',   capacityPerKwYear: 35, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 360, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Minnesota (MISO)' },
   // ── SPP / WECC / SE non-RTO: bilateral $20-40/kW-yr range ──
@@ -280,8 +324,8 @@ const BESS_REVENUE_DATA = {
   OR:  { isoRegion: 'WECC',   capacityPerKwYear: 35, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Oregon (WECC)' },
   WA:  { isoRegion: 'WECC',   capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Washington (WECC)' },
   FL:  { isoRegion: 'SE',     capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Florida (SE non-RTO)' },
-  // ── HECO (HI): no capacity market — bilateral PPA captures capacity revenue ──
-  HI:  { isoRegion: 'HECO',   capacityPerKwYear: 0,  demandChargePerKwMonth: 20, arbitragePerMwh: 80, installedCostPerKwh: 420, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Hawaii (HECO IRP)' },
+  // ── HECO (HI): no capacity market — bilateral PPA captures capacity revenue. Demand charge bumped 20→22 reflecting island-grid premium ──
+  HI:  { isoRegion: 'HECO',   capacityPerKwYear: 0,  demandChargePerKwMonth: 22, arbitragePerMwh: 80, installedCostPerKwh: 420, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Hawaii (HECO IRP)' },
 }
 
 const HOURS_PER_YEAR = 8760

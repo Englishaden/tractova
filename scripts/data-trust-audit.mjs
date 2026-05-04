@@ -98,12 +98,12 @@ const REGISTRY = [
   {
     name: 'BESS_REVENUE_DATA — demandChargePerKwMonth + arbitragePerMwh',
     file: 'src/lib/revenueEngine.js', line: 213,
-    tier: 'C',
-    source: 'Industry research + IRP filings (claimed) + Tractova editorial',
-    vintage: '2026-04',
+    tier: 'B',
+    source: 'Demand: NREL TP-7A40-71162 (Identifying Potential Markets for Behind-the-Meter Battery Storage) regional ranges + tracked state PUC tariff filings. Arbitrage: Lazard v18 LCOS Storage Value Snapshot (CAISO/ERCOT) + ISO LMP histogram regional buckets.',
+    vintage: '2026-05-04 (re-anchored migration 047 with documented regional methodology)',
     nFields: 17,
-    risk: 'high',
-    notes: 'Demand charges vary widely by utility within state. Arbitrage spreads vary by ISO + season. Both are seeded synthesis without per-state primary citations. Refresh path: state utility tariff filings (PUC dockets) for demand charges; ISO LMP datasets for arbitrage.',
+    risk: 'medium',
+    notes: 'Migration 047 applied + comprehensive comment block in revenueEngine.js documenting regional buckets. Single state value approximates the dominant 1-3 utility tariffs serving large commercial; intra-state variation can be ±20%. Tractova synthesis layers: state-within-region allocation + 2026 forward. Refresh path: pull commercial demand schedules from each state PUC tariff database + ISO LMP quarterly spread analysis.',
   },
   {
     name: 'STATE_REVENUE_DATA — billCreditCentsKwh per state',

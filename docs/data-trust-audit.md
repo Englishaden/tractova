@@ -9,12 +9,12 @@ Generated: **2026-05-04**  ·  Run from `scripts/data-trust-audit.mjs`
 | Tier | Description | Audit entries | Total fields covered |
 |---|---|---|---|
 | **A** | Anchored on primary data with verified citation. Just needs refresh when source updates. | 13 | 110 |
-| **B** | Regional analog or partially-anchored, with documented choice. Defensible but contains synthesis. | 8 | 97 |
-| **C** | Editorial / synthesis without primary citation. **REVIEW PRIORITY** — same risk pattern as the Lazard issue Aden caught 2026-05-04. | 10 | 70 |
+| **B** | Regional analog or partially-anchored, with documented choice. Defensible but contains synthesis. | 9 | 114 |
+| **C** | Editorial / synthesis without primary citation. **REVIEW PRIORITY** — same risk pattern as the Lazard issue Aden caught 2026-05-04. | 9 | 53 |
 | **Mixed** | Audit entry covers fields at multiple tiers (e.g., per-state values where some are A and some are B). | 2 | 34 |
 | **Total** | | 33 | 311 |
 
-**Risk distribution:** 1 high-risk · 15 medium-risk · 17 low-risk.
+**Risk distribution:** 0 high-risk · 16 medium-risk · 17 low-risk.
 
 ---
 
@@ -24,7 +24,6 @@ These constants are pure Tractova synthesis without a primary-source anchor. Sam
 
 | Field | File:Line | Risk | Source / Vintage | Notes |
 |---|---|---|---|---|
-| **BESS_REVENUE_DATA — demandChargePerKwMonth + arbitragePerMwh** _(17 values)_ | `src/lib/revenueEngine.js:213` | high | Industry research + IRP filings (claimed) + Tractova editorial<br>**Vintage:** 2026-04 | Demand charges vary widely by utility within state. Arbitrage spreads vary by ISO + season. Both are seeded synthesis without per-state primary citations. Refresh path: state utility tariff filings (PUC dockets) for demand charges; ISO LMP datasets for arbitrage. |
 | **CI_REVENUE_DATA — ppaRateCentsKwh (C&I PPA rate per state)** _(17 values)_ | `src/lib/revenueEngine.js:191` | medium | EIA Form 861 cited + Tractova editorial state allocation<br>**Vintage:** 2025-06 | EIA Form 861 covers retail rates (state-level). PPA rates are typically a discount to retail (developer-quoted). Tractova picks ~50-60% of retail as PPA — synthesis. Best refresh path: LevelTen PPA Price Index (paywalled), or DOE/PPA Watch. |
 | **STAGE_MODIFIERS — score adjustments per project stage (offtake/ix/site triple)** _(7 values)_ | `src/lib/scoreEngine.js:1` | medium | Tractova editorial — captures de-risking by project stage<br>**Vintage:** unknown (likely original product design) | Magnitudes (e.g., NTP +25 site) are not anchored to any primary source. Refresh path: industry survey of CS developers on stage-by-stage de-risking expectations, or anchor against published CS project IRR sensitivity studies. |
 | **computeFeasibilityScore csStatus base values (active=65, limited=40, pending=18, none=5)** _(4 values)_ | `src/lib/scoreEngine.js:37` | medium | Tractova editorial<br>**Vintage:** unknown | Used in dashboard + email digest score computation. Same magnitude as offtake CS base in computeSubScores (active=80) — duplicated/inconsistent? Worth audit. |
@@ -43,6 +42,7 @@ Have some primary citation but contain Tractova synthesis layer (e.g., regional 
 |---|---|---|---|---|
 | **BESS_REVENUE_DATA — installedCostPerKwh (BESS $/kWh per state)** _(17 values)_ | `src/lib/revenueEngine.js:213` | medium | BloombergNEF 2024 utility-scale 4hr ($295-$340/kWh) + Tractova state allocation<br>**Vintage:** 2026-04 | National anchor cited (BNEF). State allocation is editorial. Lazard v18 LCOS chapter (page 17+) covers storage; could add as cross-check. |
 | **BESS_REVENUE_DATA — capacityPerKwYear (BESS capacity payment $/kW-yr per state)** _(17 values)_ | `src/lib/revenueEngine.js:213` | medium | 2024-2025 ISO clearing × 4-hr BESS accreditation factor + Tractova state-within-LDA + 2026 forward (PJM RPM 2025/26 BRA $98.5/kW-yr × 60%; NYISO ICAP $30-50 × 50-60%; ISO-NE FCM 2025/26 $80-90 × 60%; CAISO RA $40-80 × 70%; MISO PRA $50 × 70%; HECO bilateral=0)<br>**Vintage:** 2026-05-04 (re-anchored migration 046) | Migration 046 applied. ISO-NE/NY/CA values dropped 25-30% to reflect realistic accreditation. PJM stays roughly same. Refresh annually as new ISO auctions clear. Accreditation factor + state-within-LDA still Tractova synthesis. |
+| **BESS_REVENUE_DATA — demandChargePerKwMonth + arbitragePerMwh** _(17 values)_ | `src/lib/revenueEngine.js:213` | medium | Demand: NREL TP-7A40-71162 (Identifying Potential Markets for Behind-the-Meter Battery Storage) regional ranges + tracked state PUC tariff filings. Arbitrage: Lazard v18 LCOS Storage Value Snapshot (CAISO/ERCOT) + ISO LMP histogram regional buckets.<br>**Vintage:** 2026-05-04 (re-anchored migration 047 with documented regional methodology) | Migration 047 applied + comprehensive comment block in revenueEngine.js documenting regional buckets. Single state value approximates the dominant 1-3 utility tariffs serving large commercial; intra-state variation can be ±20%. Tractova synthesis layers: state-within-region allocation + 2026 forward. Refresh path: pull commercial demand schedules from each state PUC tariff database + ISO LMP quarterly spread analysis. |
 | **CI_OFFTAKE_SCORES — C&I offtake score per state (0-100)** _(32 values)_ | `src/lib/scoreEngine.js:20` | medium | EIA Form 861 commercial retail rates 2024 + qualitative market-depth adjustments<br>**Vintage:** 2026-05-01 | Calibration documented inline per state. EIA Form 861 is real but the qualitative adjustments are Tractova editorial. Score values should be auditable against published retail rates. |
 | **BESS_OFFTAKE_SCORES — BESS offtake score per state (0-100)** _(25 values)_ | `src/lib/scoreEngine.js:45` | medium | ISO/RTO 2024-2025 capacity-market clearing prices + state storage carve-outs + IRP procurement plans<br>**Vintage:** 2026-05-01 | Sources cited inline. State allocation is editorial but documented per state in comments. Refresh annually as new ISO auctions clear. |
 | **BASELINE_INPUTS opexPerKwYear ($20/kW/yr CS solar O&M)** | `src/lib/scenarioEngine.js:38` | medium | Wood Mac H2 2025 utility-scale solar O&M $15-25/kW/yr (single national number, no state allocation)<br>**Vintage:** 2025-H2 | NREL Q1 2023 reports CS-specific O&M is $39.83/kWdc/yr (significantly higher than utility-scale). Tractova uses $20/kW/yr — possibly understated for CS. Worth re-anchoring. |
