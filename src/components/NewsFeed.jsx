@@ -34,7 +34,16 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
   const [page,     setPage]     = useState(0)
   const [liveNews, setLiveNews] = useState(null)
   const [pulse,    setPulse]    = useState(_pulseCache)
-  const [pulseLoading, setPulseLoading] = useState(false)
+  // Initialize pulseLoading based on cache presence — without this the
+  // gating condition `(pulse || pulseLoading)` keeps the Market Pulse block
+  // hidden during the news-fetch phase, so the TractovaLoader only flashes
+  // briefly (or not at all on warm caches). Aden flagged 2026-05-04 that
+  // he never sees the loader; this fix has it render from first paint when
+  // a fresh fetch is going to happen.
+  const [pulseLoading, setPulseLoading] = useState(!_pulseCache)
+  // J2-style collapsible (default collapsed) — match the Compare AI summary
+  // pattern. Expanded only when the user opts in via chevron.
+  const [pulseOpen, setPulseOpen] = useState(false)
 
   // If news wasn't passed as a prop (e.g. used standalone), fetch it ourselves
   useEffect(() => {
@@ -45,9 +54,9 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
 
   // Fetch Market Pulse AI summary once per session (Pro-gated; silently no-ops for free)
   useEffect(() => {
-    if (_pulseCache || pulseLoading || !newsData.length) return
+    if (_pulseCache) { setPulseLoading(false); setPulse(_pulseCache); return }
+    if (!newsData.length) return  // pulseLoading stays true until news arrives
     let cancelled = false
-    setPulseLoading(true)
     ;(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -120,14 +129,19 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
         </div>
       </div>
 
-      {/* Market Pulse — AI-summarized rollup of recent news (Pro only) */}
+      {/* Market Pulse — AI-summarized rollup of recent news (Pro only).
+          Collapsible: default closed, chevron toggle opens to reveal the AI
+          summary. While loading the TractovaLoader is shown inline whether
+          collapsed or expanded so the user sees something is happening. */}
       {(pulse || pulseLoading) && (
-        <div
-          className="px-5 py-3 border-b border-gray-100"
-          style={{ background: 'rgba(20,184,166,0.04)' }}
-        >
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="border-b border-gray-100" style={{ background: 'rgba(20,184,166,0.04)' }}>
+          <button
+            type="button"
+            onClick={() => setPulseOpen(o => !o)}
+            className="w-full px-5 py-2.5 flex items-center gap-2 text-left transition-colors hover:brightness-95"
+            aria-expanded={pulseOpen}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M2 12h4l2-7 4 14 2-7h4"/>
             </svg>
             <span className="text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: '#0F766E' }}>
@@ -136,16 +150,38 @@ export default function NewsFeed({ news: newsProp, previewMode = false }) {
             <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-sm text-teal-800" style={{ background: 'rgba(20,184,166,0.12)' }}>
               AI
             </span>
-          </div>
-          {pulseLoading ? (
-            <div className="flex items-center gap-3 py-1">
-              <TractovaLoader size={32} />
-              <p className="text-[11px] text-gray-500 leading-tight">
-                Synthesizing this week's policy + market signal…
-              </p>
+            {/* Inline preview when collapsed */}
+            {!pulseOpen && pulse && (
+              <span className="flex-1 min-w-0 text-[11px] text-gray-500 truncate">{pulse}</span>
+            )}
+            {!pulseOpen && pulseLoading && (
+              <span className="flex-1 min-w-0 flex items-center gap-2">
+                <TractovaLoader size={14} />
+                <span className="text-[11px] text-gray-500">Synthesizing this week's signal…</span>
+              </span>
+            )}
+            <svg
+              width="11" height="11" viewBox="0 0 24 24"
+              fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className="shrink-0 transition-transform"
+              style={{ transform: pulseOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            >
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {pulseOpen && (
+            <div className="px-5 pb-3 -mt-0.5">
+              {pulseLoading ? (
+                <div className="flex items-center gap-3 py-1">
+                  <TractovaLoader size={32} />
+                  <p className="text-[11px] text-gray-500 leading-tight">
+                    Synthesizing this week's policy + market signal…
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[12px] leading-relaxed text-gray-700">{pulse}</p>
+              )}
             </div>
-          ) : (
-            <p className="text-[12px] leading-relaxed text-gray-700">{pulse}</p>
           )}
         </div>
       )}
