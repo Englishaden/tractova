@@ -172,7 +172,7 @@ function buildAlertHtml(user, project, alerts) {
           <tr>
             <td style="background:#FFFFFF;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 8px 8px;padding:28px 32px;">
 
-              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">Good morning ${greeting},</p>
+              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">Hi ${greeting},</p>
               <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;color:${INK_MUTED};line-height:1.6;">
                 There ${alerts.length === 1 ? 'is an update' : 'are updates'} affecting one of your saved projects that may impact your underwriting.
               </p>
@@ -304,7 +304,7 @@ function buildOpportunityAlertHtml(user, project, opportunity) {
           <tr>
             <td style="background:#FFFFFF;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 8px 8px;padding:28px 32px;">
 
-              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">Good morning ${greeting},</p>
+              <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">Hi ${greeting},</p>
               <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;color:${INK_MUTED};line-height:1.6;">
                 A market shift in your portfolio creates new upside on a tracked project.
               </p>
@@ -403,14 +403,104 @@ function buildOpportunityAlertHtml(user, project, opportunity) {
 // from-address. Site-walk Session 5 / I3.
 const REPLY_TO_EMAIL = 'hello@tractova.com'
 
-async function sendEmail(to, subject, html) {
+// List-Unsubscribe headers per RFC 8058. Gmail/Outlook/Apple Mail surface a
+// one-click "Unsubscribe" UI when both mailto + https variants are present
+// + the One-Click POST header. Hits hello@ inbox for mail unsubscribes.
+const LIST_UNSUBSCRIBE_HEADER = '<mailto:hello@tractova.com?subject=Unsubscribe%20from%20Tractova%20Alerts>, <https://tractova.com/profile>'
+
+// Plain-text fallback for the urgent + policy alert email. Same payload
+// shape as the HTML — alert detail rows, project meta, CTA link. Improves
+// deliverability (multipart/alternative beats HTML-only on spam scoring)
+// and accessibility (screen readers, plain-text-preferring clients).
+function buildAlertText(user, project, alerts) {
+  const greeting = (user.email?.split('@')[0] ?? 'there').split('.')[0]
+  const meta = [
+    project.state_name ?? project.state,
+    project.county,
+    project.mw != null ? `${project.mw} MW` : null,
+  ].filter(Boolean).join(' · ')
+  const hasUrgent = alerts.some(a => a.level === 'urgent')
+
+  const alertLines = alerts.map(a => {
+    const tag = a.level === 'urgent' ? 'URGENT' : 'WARNING'
+    const deltaLine = a.delta ? `\n    Delta: ${a.delta.from} → ${a.delta.to} (${a.delta.change > 0 ? '+' : ''}${a.delta.change} pts)` : ''
+    return `[${tag}] ${a.label}\n  ${a.detail}${deltaLine}`
+  }).join('\n\n')
+
+  return [
+    hasUrgent ? 'TRACTOVA — URGENT POLICY ALERT' : 'TRACTOVA — POLICY ALERT',
+    '',
+    `Hi ${greeting},`,
+    '',
+    `There ${alerts.length === 1 ? 'is an update' : 'are updates'} affecting one of your saved projects that may impact your underwriting.`,
+    '',
+    `PROJECT: ${project.name}`,
+    `         ${meta}`,
+    '',
+    alertLines,
+    '',
+    `Review project: ${APP_URL}/library`,
+    '',
+    '---',
+    "You're receiving this because you have a Tractova Pro subscription.",
+    `Manage notifications: ${APP_URL}/profile`,
+    `Unsubscribe: reply to this email or visit ${APP_URL}/profile`,
+  ].join('\n')
+}
+
+// Plain-text fallback for the opportunity alert (the upside-detected email).
+function buildOpportunityText(user, project, opportunity) {
+  const greeting = (user.email?.split('@')[0] ?? 'there').split('.')[0]
+  const meta = [
+    project.state_name ?? project.state,
+    project.county,
+    project.mw != null ? `${project.mw} MW` : null,
+  ].filter(Boolean).join(' · ')
+  const delta = opportunity?.delta ?? '+upside'
+  const detail = opportunity?.detail ?? 'A favorable market shift was detected in one of your tracked states.'
+  const mechanism = opportunity?.mechanism ? `\n\n${opportunity.mechanism}` : ''
+
+  return [
+    'TRACTOVA — MARKET OPPORTUNITY',
+    '',
+    `Hi ${greeting},`,
+    '',
+    'A market shift in your portfolio creates new upside on a tracked project.',
+    '',
+    `PROJECT: ${project.name}`,
+    `         ${meta}`,
+    '',
+    `UPSIDE: ${opportunity?.label ?? 'Capacity Expansion'}    Delta: ${delta}`,
+    detail + mechanism,
+    '',
+    `Review opportunity: ${APP_URL}/library`,
+    '',
+    '---',
+    "You're receiving this because you opted into opportunity alerts.",
+    `Manage notifications: ${APP_URL}/profile`,
+    `Unsubscribe: reply to this email or visit ${APP_URL}/profile`,
+  ].join('\n')
+}
+
+async function sendEmail(to, subject, html, text) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_EMAIL, reply_to: REPLY_TO_EMAIL, to, subject, html }),
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      reply_to: REPLY_TO_EMAIL,
+      to,
+      subject,
+      html,
+      text,
+      headers: {
+        'List-Unsubscribe': LIST_UNSUBSCRIBE_HEADER,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    }),
   })
   if (!res.ok) {
     const err = await res.text()
@@ -616,8 +706,9 @@ export default async function handler(req, res) {
           if (wantsEmail) {
             const subject = `[TEST] Market opportunity for "${project.name}"`
             const html = buildOpportunityAlertHtml(user, project, opp)
+            const text = buildOpportunityText(user, project, opp)
             try {
-              await sendEmail(user.email, subject, html)
+              await sendEmail(user.email, subject, html, text)
               results.push({ email: user.email, project: project.name, type: 'opportunity' })
             } catch (err) {
               return res.status(500).json({ error: `Email send failed: ${err.message}` })
@@ -658,8 +749,9 @@ export default async function handler(req, res) {
             : `Policy update for your project "${project.name}"`
           const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject
           const html = buildAlertHtml(user, project, alerts)
+          const text = buildAlertText(user, project, alerts)
           try {
-            await sendEmail(user.email, subject, html)
+            await sendEmail(user.email, subject, html, text)
             results.push({ email: user.email, project: project.name, alerts: alerts.map(a => a.label) })
           } catch (err) {
             console.error(`[send-alerts] email failed for ${user.email}:`, err.message)

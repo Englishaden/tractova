@@ -7,6 +7,7 @@ import { ToastProvider } from './components/ui/Toast'
 import { LoadingDot } from './components/ui'
 import CompareTray from './components/CompareTray'
 import CommandPalette from './components/CommandPalette'
+import KeyboardShortcuts from './components/KeyboardShortcuts'
 import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -108,6 +109,7 @@ export default function App() {
         <Footer />
         <CompareTray />
         <CommandPalette />
+        <KeyboardShortcuts />
         </ToastProvider>
         </TooltipProvider>
         </CompareProvider>

@@ -277,9 +277,9 @@ function buildDigestHtml(user, projects, stateMap, activity) {
           <tr>
             <td style="background:#FFFFFF;border-left:1px solid ${BORDER};border-right:1px solid ${BORDER};border-bottom:1px solid ${BORDER};border-radius:0 0 8px 8px;padding:28px 32px;">
 
-              <!-- Greeting -->
+              <!-- Greeting (time-neutral — recipients open across timezones) -->
               <p style="margin:0 0 6px 0;font-family:${FONT_SANS};font-size:15px;color:${INK};line-height:1.5;">
-                Good morning ${greeting},
+                Hi ${greeting},
               </p>
               <p style="margin:0 0 24px 0;font-family:${FONT_SANS};font-size:14px;color:${INK_MUTED};line-height:1.6;">
                 Here's your snapshot of <strong style="color:${INK};font-weight:600;">${projects.length} tracked project${projects.length !== 1 ? 's' : ''}</strong>${hasAlerts ? ` — <strong style="color:#92400E;font-weight:600;">${flaggedCount} flagged for attention</strong>` : ''}.
@@ -376,14 +376,90 @@ function buildDigestHtml(user, projects, stateMap, activity) {
 // from-address. Site-walk Session 5 / I3.
 const REPLY_TO_EMAIL = 'hello@tractova.com'
 
-async function sendEmail(to, subject, html) {
+// List-Unsubscribe headers unlock Gmail's one-click "Unsubscribe" UI in the
+// inbox header, plus mark the message as transactional/preference-driven for
+// spam-filter scoring. Both header values are required for one-click flow:
+//   - mailto: lets users unsubscribe via email (handled by hello@ inbox)
+//   - https: lets clients show the inline button → /profile to flip prefs
+const LIST_UNSUBSCRIBE_HEADER = '<mailto:hello@tractova.com?subject=Unsubscribe%20from%20Tractova%20Digest>, <https://tractova.com/profile>'
+
+// Plain-text fallback generator. Resend will send HTML-only if `text` is
+// omitted, which (a) renders raw markup for accessibility tools and plain-
+// text-preferring clients, (b) hits spam-filter penalties for missing
+// multipart/alternative. Mirrors the HTML's information hierarchy without
+// the styling. Site-walk Session 5 / G4.
+function buildDigestText(user, projects, stateMap) {
+  const greeting = (user.email?.split('@')[0] ?? 'there').split('.')[0]
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+  const totalMW = projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)
+  const stateSet = new Set(projects.map(p => p.state).filter(Boolean))
+  const flaggedCount = projects.filter(p => getAlerts(p, stateMap).length > 0).length
+
+  const projectLines = projects.map(p => {
+    const state = stateMap[p.state]
+    const status = state?.csStatus ?? p.cs_status ?? 'active'
+    const score = state?.opportunityScore ?? p.opportunity_score ?? '—'
+    const meta = [
+      p.state_name ?? p.state,
+      p.county,
+      p.mw != null ? `${p.mw} MW` : null,
+      p.stage,
+    ].filter(Boolean).join(' · ')
+    const alerts = getAlerts(p, stateMap)
+    const alertText = alerts.length
+      ? alerts.map(a => `    [${a.level === 'urgent' ? 'URGENT' : 'WARNING'}] ${a.label}`).join('\n')
+      : null
+    return [
+      `  ${p.name}`,
+      `  ${meta}`,
+      `  Status: ${STATUS_LABEL[status] ?? status}    Score: ${score}`,
+      alertText,
+    ].filter(Boolean).join('\n')
+  }).join('\n\n')
+
+  return [
+    `TRACTOVA WEEKLY BRIEFING — ${today}`,
+    '',
+    `Hi ${greeting},`,
+    '',
+    `Your weekly Tractova digest covers ${projects.length} tracked project${projects.length !== 1 ? 's' : ''}${flaggedCount > 0 ? ` — ${flaggedCount} flagged for attention` : ''}.`,
+    '',
+    'PORTFOLIO',
+    `  Tracked:   ${projects.length}`,
+    `  Capacity:  ${totalMW.toFixed(1)} MW`,
+    `  States:    ${stateSet.size}`,
+    '',
+    'PROJECTS',
+    projectLines,
+    '',
+    `Open Library: ${APP_URL}/library`,
+    '',
+    '---',
+    "You're receiving this because you have a Tractova Pro subscription.",
+    `Manage notifications: ${APP_URL}/profile`,
+    `Unsubscribe: reply to this email or visit ${APP_URL}/profile`,
+  ].join('\n')
+}
+
+async function sendEmail(to, subject, html, text) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_EMAIL, reply_to: REPLY_TO_EMAIL, to, subject, html }),
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      reply_to: REPLY_TO_EMAIL,
+      to,
+      subject,
+      html,
+      text,
+      headers: {
+        'List-Unsubscribe': LIST_UNSUBSCRIBE_HEADER,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+    }),
   })
   if (!res.ok) {
     const err = await res.text()
@@ -530,10 +606,11 @@ export default async function handler(req, res) {
       if (projErr || !projects?.length) continue
 
       const html = buildDigestHtml(user, projects, stateMap, activity)
+      const text = buildDigestText(user, projects, stateMap)
       const baseSubject = `Your weekly Tractova digest — ${projects.length} project${projects.length !== 1 ? 's' : ''}`
       const subject = testMode ? `[TEST] ${baseSubject}` : baseSubject
 
-      await sendEmail(user.email, subject, html)
+      await sendEmail(user.email, subject, html, text)
       results.push({ email: user.email, projects: projects.length })
     }
 
