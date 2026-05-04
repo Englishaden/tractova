@@ -375,17 +375,19 @@ function CompareModal({ onClose }) {
           </div>
         </div>
 
-        {/* "Open in Lens" row */}
-        <div className="px-6 py-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div className="grid gap-4" style={{ gridTemplateColumns: `148px repeat(${items.length}, 1fr)` }}>
-            <span className="text-[9px] font-mono uppercase tracking-widest text-white/30 py-2 pr-2">
+        {/* "Open in Lens" row — condensed 2026-05-04 (Aden's call) so the
+            scrollable analysis table above gets more vertical breathing
+            room. ~22px shaved vs prior layout. */}
+        <div className="px-6 py-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="grid gap-4 items-center" style={{ gridTemplateColumns: `148px repeat(${items.length}, 1fr)` }}>
+            <span className="text-[9px] font-mono uppercase tracking-widest text-white/30 pr-2">
               Actions
             </span>
             {items.map((item) => (
-              <div key={item.id} className="py-2 px-1">
+              <div key={item.id} className="px-1">
                 <Link
                   to={`/search?state=${item.state}&county=${encodeURIComponent(item.county)}&mw=${item.mw || ''}&stage=${encodeURIComponent(item.stage || '')}&technology=${encodeURIComponent(item.technology || '')}`}
-                  className="text-[10px] font-semibold px-2 py-1 rounded-sm border transition-colors"
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded-sm border transition-colors inline-block"
                   style={{ color: '#34D399', borderColor: 'rgba(52,211,153,0.25)', background: 'rgba(52,211,153,0.08)' }}
                   onClick={onClose}
                 >
