@@ -4,6 +4,105 @@
 
 ---
 
+## 🟢 Pickup — Data-trust audit closed all 4 high-risk surfaces (sessions 5+6+audit arc, 24 commits since 2026-05-03) → next: Aden applies migrations 044-047 + post-audit menu
+
+**Session 2026-05-04.** Long uninterrupted block. Three threads finished
+end-to-end: (1) the original site-walk plan closed in entirety (Sessions
+1-6, 100% complete); (2) the LBNL ingestion plan Phase A shipped + got
+self-audited and corrected after Aden caught a Lazard-citation problem;
+(3) the data-trust audit Aden bookmarked got built, identified 4
+high-risk Tier C/B surfaces, and **all 4 are now closed** with the
+audit script as a permanent infrastructure piece for future scans.
+
+### Aden-side action items (apply when convenient)
+
+1. **Apply migrations 044, 045, 046, 047 in Supabase SQL editor** — each is
+   safe to re-run (`UPDATE ... WHERE state_id = '...'` pattern, targeted
+   columns only, doesn't touch other 16 fields). Order doesn't matter.
+   - **044** — CS $/W (PV-only) re-anchored on NREL+LBNL TTS + 2026 forward
+   - **045** — C&I $/W (commercial) re-anchored same methodology -$0.05
+   - **046** — BESS capacityPerKwYear on 2024-25 ISO clearing × accreditation
+   - **047** — BESS demand+arb documented + CA/HI refinements
+   - All four touch `revenue_rates` table only, different columns. Re-pasting
+     043 is no longer needed (044 supersedes its CS layer).
+2. **Test `hello@tractova.com` forwarding from a non-Gmail account.**
+   Gmail's loop-detection sometimes squashes self-forwards. Try work email
+   or any non-Gmail. Confirms migration of email infrastructure (commit
+   `563d004` wired `reply_to` on every Resend send).
+3. **G4 visual sweep** (still optional) — fire test digest + alert through
+   /admin → eyeball Gmail desktop + mobile rendering.
+
+### What landed since the last BUILD_LOG pickup (`bc192d9`, 2026-05-03 evening)
+
+**Site-walk Session 5+6 (closed the 4-session original plan in entirety):**
+- `b566fd2` — A2 title strip; G4 enum-leak fixes (IX/Status enum no longer leaks through alert/digest copy); admin staleness email teal correction
+- `2d0d78b` — F4 drop CSV + 3-sheet XLSX (Projects + Methodology hyperlinks + Glossary); #12 Analyst Brief Option A drilldown accordion (Brief + Immediate Action always visible; Risk/Opportunity/Stage/Competitive collapsed)
+- `563d004` — `reply_to: hello@tractova.com` wired on every Resend send (closes I3 once DNS forwards)
+- `06a9751` — Library compare missing sub-scores fixed + LMI scenario unit bug ($79/yr → $79K/yr — missing × 1000 MWh→kWh conversion)
+- `5fb2ac0` + `51e0e19` — Compare drawer: condensed Actions row + sticky project-name header
+- `30b26d6` — Initial recalibration to Lazard v18 ranges (later corrected)
+- `97260b1` — Lazard v18 honest recalibration (acknowledged state-level data isn't what Lazard publishes)
+- `5ef5970` — Session 6: G4 deeper email audit (plain-text fallback for spam-filter + a11y; List-Unsubscribe + One-Click POST headers; "Good morning" → "Hi" time-neutral); J1 keyboard shortcuts (Cmd/Ctrl+K palette + Cmd/Ctrl+L Lens + g+d/l/b/g/p vim chord nav + Cmd/Ctrl+/ help dialog); J2 deal notes markdown (Edit↔Preview toggle, toolbar B/I/H/•/1./link/code, ~80-LOC inline parser, no new dependency)
+- `279ef06` — Compare AI: rename "Non-obvious insight" → "Pattern"; Market Pulse collapsibility on dashboard NewsFeed; TractovaLoader visibility bug fixed (was hidden by gating condition)
+- `14f22fd` — StateDetailPanel Market Pulse: TractovaLoader + collapsibility parity with dashboard
+- `cd1056b` — Digest score-drop: render delta inline with SCORE (no standalone alerts-row pill — eliminated the ~60% taller card visual)
+
+**LBNL ingestion plan Phase A — multi-attempt CS $/W recalibration:**
+- `a7c44f9` — Initial: CS $/W re-anchored on LBNL TTS 2024 + Tractova forward. Aden then asked for self-audit.
+- `6af771d` — **Self-audit fixes** (3 issues caught): citation accuracy ("1-5 MW" → "0.5-5 MW LBNL large non-residential bracket"), forward methodology (NREL +22% YoY 2023→2024 explicitly used vs LBNL's modest trend), denominator ($1.91 actual TTS national median vs prior $2.40 midpoint-of-band synthesis). Corrected Tier A multipliers + values across 17 states.
+- Final per-state CS $/W (2026 vintage): NY $2.03, MA $3.38, CA $2.40 (Tier A from TTS observed); IL $2.70, NJ/ME $2.70, MD $2.45, MN $2.21, CO $2.21, NJ $2.70, FL $2.08, CT $3.19, HI $3.80, NM $2.08, OR $2.33, RI $2.94, VA $2.21, WA $2.33 (Tier B regional analog × $2.45 national 2026 anchor). IL $2.70 lands middle of Aden's stated $2.60-$3.00 EPC quote range.
+
+**Data-trust audit — built + run + closed all 4 high-risk:**
+- `1b81741` — `scripts/data-trust-audit.mjs` + `docs/data-trust-audit.md` (33 audit entries / 311 fields). Initial scan: 4 high-risk Tier C/B.
+- `ce8b2b7` — **C&I $/W** re-anchored same NREL+LBNL methodology with $0.05 CS-premium offset. NY $1.99, MA $3.31, CA $2.35, IL $2.64, HI $3.72, etc.
+- `8b7ba0e` — **BESS capacityPerKwYear** re-anchored on 2024-25 ISO clearing × 4-hr BESS accreditation. PJM 2025/26 BRA $98.5/kW-yr × 60% = $59 base; ISO-NE FCM × 60%; CAISO RA × 70%; NY-specific VDER+ICAP stack. Most ISO-NE/NY/CA values came down 25-30% to reflect realistic 4-hr accreditation cuts. PJM roughly stable.
+- `bb5574c` — **Composite weights (0.40/0.35/0.25)**: transparent editorial disclosure + Lens UI sensitivity tooltip. New `WEIGHT_SCENARIOS` export with 4 named schemes (default offtake-led, revenue-tilt, IX-tilt, permit-tilt) + `computeDisplayScoreRange()` returning min/max/spread. MarketPositionPanel surfaces "weight sensitivity X-Y" mono-caps line under verdict when spread > 4 pts (suppressed for clearly-strong/clearly-weak projects). Hover → full scenario table.
+- `4812f6f` — **BESS demand+arbitrage** documented + small refinements. Comprehensive 50-line methodology block above BESS_REVENUE_DATA covering NREL TP-7A40-71162 regional ranges + Lazard v18 LCOS + ISO LMP buckets. CA arb $40→$45 (NEM 3.0 + duck curve); CA demand $16→$18; HI demand $20→$22.
+
+### Audit final state (vs initial 1b81741)
+
+| Metric | Initial | Now |
+|---|---|---|
+| **High-risk Tier C/B** | **4** | **0** |
+| Tier A entries | 13 / 110 fields | 13 / 110 fields |
+| Tier B (regional analog) | 7 / 94 fields | 9 / 114 fields (+20 fields) |
+| Tier C (editorial) | 12 / 90 fields | 9 / 53 fields (-37 fields) |
+| Mixed | 1 / 17 fields | 2 / 34 fields (CS+CI) |
+
+Tier C entries that REMAIN are defensible editorial product-design choices
+where no primary source exists ("how do we map qualitative IX difficulty
+to a number 0-100?" — that's product methodology, not data). All
+medium-or-low-risk per the audit. Deferred for future product iterations
+or A/B testing. List in `docs/data-trust-audit.md`.
+
+### Lessons learned (now codebase-pattern)
+
+1. **Two-layer citations everywhere**: separate "what the source publishes" from "what Tractova synthesizes on top." `revenueEngine.js` header is the model.
+2. **Tier A/B/C disclosure** in code comments + audit registry. Saved feedback memory `feedback_no_synthesis_as_primary.md` ensures continuity.
+3. **Explicit refresh path** documented for every Tier-A/B field.
+4. **UI-level transparency for editorial choices** (composite-weight sensitivity tooltip).
+
+`scripts/data-trust-audit.mjs` is the canonical "what's our data trust state?" tool. Re-run anytime; report regenerates `docs/data-trust-audit.md`.
+
+### Next pickup options (priority-ordered)
+
+1. **LBNL Phase B — automated annual ingestion pipeline** (~3-5 days). Plan exists at `~/.claude/plans/what-about-sites-like-quiet-blanket.md`. Builds `solar_cost_index` table + cron + seed script so values refresh automatically when LBNL releases new TTS each October. Removes the manual "re-run aggregator + write migration" step.
+2. **IX scraper expansion** (CAISO/ERCOT/SPP/WECC, ~1-2 weeks). Currently scrape PJM/MISO/NYISO/ISO-NE only. Each ISO is its own ~1-2h investigation against their portal.
+3. **Mobile responsiveness audit** (~2-3 days). Search.jsx is 4500+ LOC dense. Likely breaks <640px. Aden's user base is desk-centric so LOW user-impact, but kills the email-footer mobile-disclaimer.
+4. **Phase 3 multi-tenant RBAC** (queued for customer #2).
+5. **Composite weights anchoring** (when developer-survey data becomes available — currently transparent disclosure suffices).
+6. **CI_REVENUE_DATA ppaRateCentsKwh** refresh (Tier C medium-risk per audit; refresh path = LevelTen PPA Index, paywalled, or DOE/PPA Watch).
+7. **Tier C remaining items (low priority)**: STAGE_MODIFIERS, score base values, LMI penalties, IX brackets, site sub-score values — could A/B test or anchor against developer-survey data.
+
+### Resume-prompt suggestions
+
+- *"Apply migration 044/045/046/047, then move to LBNL Phase B"*
+- *"Audit refresh — run `node scripts/data-trust-audit.mjs` and tell me what's stale"*
+- *"Continue with [option N]"*
+- Or just say what you want; the audit registry + saved memories carry the context.
+
+---
+
 ## 🟢 Pickup — Site-walk Session 5 shipped (`b566fd2` + `2d0d78b`) → next: Aden finishes Namecheap UI toggle, then I wire `replyTo: hello@tractova.com`
 
 **Session 2026-05-03 (Session 5 of the site-walk arc).** Aden returned
