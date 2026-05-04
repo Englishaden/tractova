@@ -14,68 +14,116 @@
 // automated refresh cron yet (P2 backlog). The AS_OF stamps are surfaced in
 // the Lens revenue methodology dropdown so users see vintage at a glance.
 //
-// ── CS $/W sources (literal, separated from Tractova synthesis) ─────────────
+// ── CS $/W sources (literal — separated from Tractova synthesis) ────────────
 //
-// PRIMARY 2024 ANCHOR (LBNL Tracking the Sun 2024, October 2024 release):
-//   - Large non-residential 2023 installed-price 20-80th percentile band:
-//       $1.7 – $3.1 / Wdc (LBNL TTS 2024 Report, page 35)
-//   - LBNL-reported 2022→2023 trend for non-residential: +$0.1-$0.2/W in
-//       real terms (first rise in 15 years; LBNL TTS 2024 Report, page 30)
-//   - State-level $/W medians (where n≥40) from the TTS public CSV
-//       (TTS_LBNL_public_file_29-Sep-2025_all.csv) for non-residential
-//       installs 1-5 MWdc, install years 2022-2024:
+// PRIMARY ANCHOR — NREL Q1 2023 Cost Benchmark, CS-specific MMP:
+//   - 3-MWdc community solar PV-only Modeled Market Price: $1.76/Wdc
+//   - 3-MWdc CS + 1.8 MW/7.2 MWh storage MMP: $2.94/Wdc
+//   - File: public/NLR Solar & Storage Costs 2023.pdf (= NREL Q1 2023, "NLR"
+//     is the NREL document number prefix). NREL Q1 2024 cost benchmark
+//     (public/NREL Q1 2024 Cost benchmark.pdf) switched the CPV scale model
+//     to a 3-MWdc agrivoltaic ground-mount ($1.55/Wdc) — the dedicated CS
+//     line item was discontinued in 2024, so 2023 remains the last published
+//     NREL CS-specific anchor. We treat $1.76/Wdc as the 2023 CS national
+//     baseline.
+//
+// STATE-LEVEL DIFFERENTIATOR — LBNL Tracking the Sun 2024 + public TTS CSV:
+//   - LBNL TTS 2024 Report (public/Tracking the Sun 2024_Report.pdf):
+//     "Installed-Price Variation Across Systems" section reports the 2023
+//     installed-price 20-80th percentile band for large non-residential
+//     (LBNL definition: >500 kW): $1.7 – $3.1 /Wdc. Non-residential 2022→2023
+//     trend: +$0.10-$0.20/W in real terms (first sustained rise in 15 years).
+//   - State-level medians from the TTS public CSV (2025-09 release,
+//     public/TTS_LBNL_public_file_29-Sep-2025_all.csv, ~3.66M projects).
+//     Aggregated via scripts/aggregate-tts-cs-scale.mjs filtering to
+//     non-residential customer segments + 0.5–5 MW DC + install years
+//     2022-2024. National TTS median for that bracket: $1.91/W (n=839).
+//     State-level medians where n≥40:
 //       NY: $1.58/W (n=183) | MA: $2.64/W (n=84) | CA: $1.87/W (n=468)
+//     (Strict 1-5 MW bracket has thinner samples and a national median of
+//     $1.65/W (n=346). The 0.5-5 MW LBNL "large non-residential" definition
+//     is used for stronger sample sizes.)
 //
-// SECONDARY ANCHOR (NREL Q1 2024 Cost Benchmark + Q1 2023 CS-specific):
-//   - Q1 2023 NREL benchmarked 3-MWdc community solar PV-only at MMP
-//       $1.76/Wdc (modeled market price); PV+1.8MW/7.2MWh storage at $2.94/Wdc
-//   - Q1 2024 NREL benchmark switched the CPV scale model to a 3-MWdc
-//       agrivoltaic ground-mount ($1.55/Wdc MMP) — the modeled CS line item
-//       was discontinued in 2024. Use 2023 NREL CS as last published
-//       NREL-specific CS anchor.
+// CROSS-CHECK (NREL Spring 2025 Industry Update, public PDF):
+//   - Page 57 reports H2 2024 Distributed PV system pricing by size bracket
+//     from state utility filings: 1-5 MWdc median $1.69/W with +22% YoY change
+//     2023→2024. This is utility-FILED EPC cost (not CS-specific, includes
+//     all 1-5 MW non-res); lower than NREL CS MMP ($1.76 modeled) and lower
+//     than TTS observed customer-paid ($1.91). Different cost concepts:
+//       • Utility-filed EPC: install-as-reported-to-grid, often excludes
+//         soft costs, dealer markups, financing premium
+//       • NREL MMP: bottom-up modeled including ITC-bonus-eligible scenarios
+//       • TTS observed customer-paid: real customer payment, may include
+//         dealer fees per LBNL caveat
+//   - We anchor on NREL CS MMP because it's CS-specific. The +22% YoY signal
+//     informs the magnitude of our forward extrapolation (vs LBNL's modest
+//     +$0.10-$0.20/W trend, which is for the broader large non-res category).
 //
-// TRACTOVA SYNTHESIS on top of these anchors (forward extrapolation 2024 → 2026):
-//   - National 2024 PV-only large non-res anchor: $2.55/Wdc
-//       = LBNL TTS 2023 large non-res median (~$2.40, midpoint of $1.7-$3.1
-//         band) + 1-yr forward at LBNL-published +$0.10-$0.20/W trend
-//   - National 2024→2026 forward bump: +$0.20-$0.35/Wdc (PV-only); driver
-//       breakdown:
-//         • FEOC restrictions phasing in (IRA §45X, post-2024 ITC eligibility
-//           restrictions on Chinese-supplier components → premium for
-//           non-Chinese supply): +$0.05-$0.10/W
-//         • Reshoring + domestic content threshold rising (IRA bonus credit
-//           threshold 40%→55% by 2027; US module mfg capacity insufficient
-//           to meet demand at premium-free pricing): +$0.03-$0.05/W
-//         • Iran-Israel conflict / oil-logistics pass-through (Brent $80-110
-//           ranges 2024-2025 raise transport, polymer feedstock, install-
-//           labor diesel cost): +$0.02-$0.05/W
-//         • Continued LBNL observed trend (non-residential prices rising
-//           +$0.10-$0.20/W per year, first sustained rise in 15 years): +$0.10/W
-//   - National 2026 PV-only anchor (after forward): $2.80/Wdc
-//   - National 2026 PV+storage hybrid anchor: $3.15/Wdc (NREL 2023 MMP $2.94
-//       + battery cost component movement + same forward layers)
-//   - State-level multipliers:
-//       Tier A (TTS observed, n≥40): NY 0.66, MA 1.10, CA 0.78
-//         (computed as state TTS median ÷ national 2023 large non-res median ~$2.40)
-//       Tier B (regional analog with LBNL/NREL state-cost gradient):
-//         see per-state notes below
-//   - Forward extrapolation magnitudes are Tractova editorial judgment, not
-//     numbers LBNL or NREL published. Each driver named explicitly above for
-//     transparency. Replace any of these +$X.XX bumps as new primary-source
-//     data becomes available.
+// TRACTOVA SYNTHESIS — explicit 2023 → 2026 forward:
+//   National 2023 anchor: NREL CS PV-only MMP $1.76/Wdc (literal NREL number)
+//   2023 → 2024: +$0.20-$0.30/Wdc
+//     Anchored on NREL Spring 2025's observed +22% YoY for the 1-5 MW segment
+//     (utility-filed cost concept), applied conservatively to NREL CS MMP
+//     (modeled CS-specific cost concept). Yields ~$2.00-$2.10/Wdc 2024 anchor.
+//   2024 → 2025: +$0.10-$0.15/Wdc (continued tariff/FEOC pricing pressure
+//     post-IRA implementation peak)
+//   2025 → 2026 (current): +$0.10-$0.20/Wdc, driver-by-driver:
+//     • FEOC restrictions fully phased in (IRA §45X — Chinese-supplier
+//       components excluded from ITC eligibility; non-Chinese supply
+//       commands premium): +$0.05-$0.10/W
+//     • Reshoring + IRA bonus credit threshold rising 40%→55% by 2027
+//       (US mfg capacity insufficient at premium-free pricing): +$0.03-$0.05/W
+//     • Iran-Israel conflict / oil-logistics pass-through (Brent $80-110
+//       ranges raise transport, polymer feedstock, install-labor diesel
+//       cost): +$0.02-$0.05/W
+//   National 2026 PV-only anchor (after forward): $2.45/Wdc
+//   National 2026 PV+storage hybrid anchor: $3.15/Wdc (NREL 2023 MMP $2.94
+//     + battery cost movement + same forward layers; computed in
+//     computeHybridProjection by combining new PV $/W + existing BESS $/kWh)
+//
+//   STATE MULTIPLIERS:
+//   - Tier A (TTS observed n≥40, 0.5-5 MW LBNL large non-res bracket, install
+//     years 2022-2024): state TTS median ÷ national TTS median ($1.91)
+//       NY: 1.58 / 1.91 = 0.83
+//       MA: 2.64 / 1.91 = 1.38
+//       CA: 1.87 / 1.91 = 0.98
+//     IMPORTANT ASSUMPTION: state cost gradient observed in 2023 TTS data is
+//     assumed stable across 2023→2026. Real state markets diverge — NY's
+//     mature CS market may absorb forward bumps differently than emerging
+//     states. This is editorial Tractova synthesis.
+//   - Tier B (regional analog, no TTS observed sample; multiplier is
+//     Tractova editorial judgment based on regional labor + permitting
+//     intuition + the Tier A states' observed ratios as anchors for similar
+//     regions):
+//       ISO-NE high (CT): 1.30 (between MA 1.38 and ISO-NE rural)
+//       ISO-NE mid (RI): 1.20
+//       ISO-NE rural (ME): 1.10
+//       PJM mature CS (IL, NJ): 1.10 (NJ 1.10 / IL 1.10 — both have mature
+//         programs that constrain pricing despite premium labor)
+//       PJM mid (MD): 1.00
+//       PJM south (VA): 0.90
+//       MISO Upper Midwest (MN): 0.90
+//       Pacific NW (OR, WA): 0.95
+//       SE non-RTO (FL): 0.85
+//       SPP/Mountain (CO): 0.90 (high CF helps lower per-W but labor mid)
+//       WECC low (NM): 0.85
+//       HI island logistics: 1.55 (above any CONUS tier; documented HI
+//         premium 30-50% above CONUS in industry sources)
+//
+// All forward extrapolation magnitudes are Tractova editorial judgment, not
+// numbers LBNL or NREL published. Each driver named for transparency.
 //
 // CAVEAT: LBNL TTS notes its observed prices may include dealer fees adding
-// 5-50% for loan-financed systems; the >$1,000 kW segment we care about is
-// less affected by this loan-financing distortion (commercial-scale projects
-// rarely use consumer loan products) but the band still overstates "delivered
-// EPC cost" by some amount. Tractova's per-state values are our best estimate
-// of all-in delivered project cost a CS developer faces for a 1-5 MW project
-// in 2026 vintage.
+// 5-50% for loan-financed systems; the >500 kW segment we care about is
+// less affected by this distortion (commercial-scale rarely uses consumer
+// loans). Tractova's per-state values are our best estimate of all-in
+// delivered project cost a CS developer faces for a 1-5 MW project in 2026
+// vintage.
 //
-// CAPACITY FACTORS: NREL PVWatts API v8 state averages (state-specific,
-// not Lazard's 15-20% national range).
+// CAPACITY FACTORS: NREL PVWatts API v8 state averages.
 // BILL CREDITS: state PUC tariff filings tracked via DSIRE.
-// REC PRICES: DSIRE + GATS / PJM-EIS / M-RETS depending on state.
+// REC PRICES: DSIRE + GATS / PJM-EIS / M-RETS / NEPOOL GIS / WREGIS / M-RETS
+// depending on state.
 // ITC: federal §48, 30% base + 10% adders per state qualifying status.
 //
 // BESS_RATES_AS_OF '2026-04' anchored on ISO/RTO clearing prices (PJM RPM,
@@ -83,18 +131,26 @@
 // BESS capex $295-$340/kWh.
 //
 // ── Recalibration history ──
-// 2026-05-04 (Session 5): Lazard v18-anchored values shipped; values were
-// based on Lazard's published $1.60-$3.30/W "Community & C&I" range with
-// Tractova state allocation. Aden caught the citation problem (state-level
-// data isn't what Lazard publishes) and the magnitude problem (Aden's
-// IL EPC-with-domestic-content quotes ran $2.6-3.0/W, well above what
-// Lazard-derived synthesis produced).
-// 2026-05-04 (Session 6): re-anchored on LBNL TTS 2024 observed market data
-// (1-5 MW non-res) with explicit 2024→2026 forward extrapolation. State
-// values reflect all-in delivered EPC cost for 1-5 MW PV-only CS projects in
-// 2026 vintage. Hybrid (PV+storage) computed by computeHybridProjection
-// combining the new PV-only $/W with existing BESS_REVENUE_DATA $/kWh.
-export const SOLAR_RATES_AS_OF = '2024 LBNL TTS + Tractova 2026 forward'
+// 2026-05-04 (Session 5): Lazard v18-anchored values shipped. Aden caught
+//   the citation problem (Lazard publishes a national range, not per-state)
+//   and magnitude problem (synthesis-derived state values understated his
+//   IL EPC-with-domestic-content quotes of $2.60-$3.00/W).
+// 2026-05-04 (Session 6, first pass — commit a7c44f9): re-anchored on LBNL
+//   TTS 2024 observed market with 2024→2026 Tractova forward. Self-audit
+//   (Aden's request) found three issues: (1) state TTS data cited as "1-5 MW"
+//   when actually from 0.5-5 MW bracket; (2) forward methodology cited two
+//   conflicting trend signals (LBNL +$0.10-$0.20/W vs NREL +22% YoY) but
+//   applied only the lower one without disclosure; (3) "$2.40 national
+//   median" was actually midpoint-of-band synthesis, not a published median.
+// 2026-05-04 (Session 6, second pass — current): all three fixed.
+//   (1) citations corrected to "0.5-5 MW LBNL large non-residential bracket".
+//   (2) forward methodology now anchored on NREL +22% YoY (more relevant to
+//       1-5 MW segment) with explicit explanation of why it's preferred over
+//       LBNL's modest trend.
+//   (3) actual TTS-derived national median ($1.91/W from CSV streaming, n=839)
+//       replaces the prior midpoint-of-band proxy. Per-state Tier A
+//       multipliers recomputed.
+export const SOLAR_RATES_AS_OF = '2023 NREL CS MMP + LBNL TTS 2024 + Tractova 2026 forward'
 export const CI_RATES_AS_OF    = '2025-06'
 export const BESS_RATES_AS_OF  = '2026-04'
 
@@ -105,25 +161,31 @@ export const BESS_RATES_AS_OF  = '2026-04'
 // Where TTS thin: regional analog, with the regional choice documented per
 //   state in the `notes` field.
 const STATE_REVENUE_DATA = {
-  // ── Tier A: TTS observed median × forward (n≥40 in TTS public CSV) ──────
-  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0,     itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.0, installedCostPerWatt: 1.85, degradationPct: 0.5, label: 'New York (Value Stack)',         notes: '$/W: TTS observed median $1.58/W (n=183 large non-res 1-5 MW 2022-2024) × Tractova 2024→2026 forward (+~$0.27/W). NY-Sun is the largest CS market in nation, mature EPC bidding drives below-national pricing. Bill credit: NY-Sun / Value Stack ~10.5¢/kWh blended (LBMP + ICAP + E + DRV per NYSERDA). ITC 30% + Community Adder.' },
-  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 3.08, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)',      notes: '$/W: TTS observed median $2.64/W (n=84 large non-res 1-5 MW 2022-2024) × Tractova 2024→2026 forward. SMART 3.0 permitting overhead + ISO-NE labor premium drive top-of-band pricing. Bill credit: NEM ~12.8¢/kWh + SMART 3.0 tranche adder (DOER). SREC-II ~$35/MWh (NEPOOL GIS). ITC 30% + LMI adder.' },
-  CA: { billCreditCentsKwh: 14.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 10, capacityFactorPct: 21.0, installedCostPerWatt: 2.18, degradationPct: 0.5, label: 'California (VNEM / NEM-ST)',      notes: '$/W: TTS observed median $1.87/W (n=468 large non-res 1-5 MW 2022-2024) × Tractova 2024→2026 forward. CAISO economies of scale offset prevailing-wage premium. Bill credit: VNEM blended ~14¢/kWh under NEM-ST (CPUC tariff). RPS REC thin (~$5/MWh, WREGIS). ITC 30% + LIC adder. CS status "limited" 2026.' },
-  // ── Tier B: Regional analog × national 2026 anchor ($2.80/W PV-only) ─────
-  IL: { billCreditCentsKwh: 8.2,  recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 2.94, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: '$/W: PJM mature CS regional analog ($2.80 national × 1.05 IL premium) — Illinois Shines mature program, premium prevailing wage labor (CCC), Cook County permitting overhead. Matches 2026 IL EPC quote range ($2.60-$3.00 with domestic content per dev intel). REC: Illinois Shines ABP ~$71.50/MWh (DSIRE). Bill credit: ComEd ~8.2¢/kWh (PUC tariff). ITC 30% + 10% LMI adder.' },
-  MN: { billCreditCentsKwh: 9.5,  recPerMwh: 4.50,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 15.2, installedCostPerWatt: 2.66, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)',         notes: '$/W: MISO Upper Midwest regional analog ($2.80 × 0.95) — mature Xcel CSG program, reasonable labor cost vs national avg. Bill credit: Value-of-Solar ~9.5¢/kWh (Xcel VoS tariff). Minimal REC (~$4.50/MWh, M-RETS). ITC 30%.' },
-  CO: { billCreditCentsKwh: 8.8,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.3, installedCostPerWatt: 2.38, degradationPct: 0.5, label: 'Colorado (Xcel Energy)',          notes: '$/W: SPP/Mountain low-cost regional analog ($2.80 × 0.85) — top-quartile NREL PVWatts CF (18.3%) lets developers pay less per W; SPP labor + simple permitting. Bill credit: ~8.8¢/kWh (PUC tariff). REC thin ($3/MWh, WREGIS). ITC 30%.' },
-  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.5, installedCostPerWatt: 2.80, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)',     notes: '$/W: PJM-NJ regional analog at national anchor ($2.80) — mature SREC-II/SuSI market keeps EPC competitive; high SREC value drives developer interest, balances PJM-NJ labor premium. Bill credit: NEM ~11¢/kWh. SREC-II / SuSI ~$85/MWh (PJM-EIS GATS) — strongest REC market in nation. ITC 30% + LMI.' },
-  ME: { billCreditCentsKwh: 9.0,  recPerMwh: 8.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.8, installedCostPerWatt: 2.80, degradationPct: 0.5, label: 'Maine',                           notes: '$/W: ISO-NE rural regional analog at national anchor ($2.80) — between MA premium and lower-cost states; rural development with reasonable labor. Bill credit: ~9¢/kWh (PUC tariff). Class I REC ~$8/MWh (NEPOOL GIS). ITC 30%.' },
-  MD: { billCreditCentsKwh: 9.5,  recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.8, installedCostPerWatt: 2.66, degradationPct: 0.5, label: 'Maryland',                        notes: '$/W: PJM-mid regional analog ($2.80 × 0.95) — mature CS Pilot, mid-cost PJM labor, no extreme premium. Bill credit: ~9.5¢/kWh (PUC tariff). SREC ~$55/MWh (PJM-EIS GATS). ITC 30% + LMI.' },
-  FL: { billCreditCentsKwh: 10.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.0, installedCostPerWatt: 2.38, degradationPct: 0.5, label: 'Florida (SolarTogether)',         notes: '$/W: SE non-RTO low-labor regional analog ($2.80 × 0.85) — FL low labor; FPL/Duke utility-administered EPC procurement keeps prices competitive; weather risk priced in by FPL bidding network. Bill credit: SolarTogether ~10¢/kWh (utility tariff). No state REC. ITC 30%. CS status "limited" — capped enrollment.' },
-  CT: { billCreditCentsKwh: 12.0, recPerMwh: 30.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 3.08, degradationPct: 0.5, label: 'Connecticut (SCEF)',              notes: '$/W: ISO-NE high-labor regional analog ($2.80 × 1.10) — premium ISO-NE labor + CT permitting overhead, similar to MA pricing posture. Bill credit: SCEF ~12¢/kWh (PURA tariff). CT Class I REC + ZREC ~$30/MWh (NEPOOL GIS). ITC 30% + LMI.' },
-  HI: { billCreditCentsKwh: 28.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 19.0, installedCostPerWatt: 4.06, degradationPct: 0.5, label: 'Hawaii (CBRE)',                   notes: '$/W: HI island-logistics premium ($2.80 × 1.45) — multi-leg shipping, prevailing wage, small-grid IX overhead. Above all-CONUS ranges; consistent with documented HI premium. Bill credit: HECO ~28¢/kWh (PUC tariff — highest in nation). RPS goal-based, no traded REC. ITC 30%.' },
-  NM: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 22.0, installedCostPerWatt: 2.38, degradationPct: 0.5, label: 'New Mexico CS',                   notes: '$/W: WECC low-labor regional analog ($2.80 × 0.85) — top NREL PVWatts CF (22%, best in nation) and low WECC labor allow lower per-W pricing. Bill credit: ~10¢/kWh (PRC tariff). NM RPS REC thin (~$5/MWh, WREGIS). ITC 30%.' },
-  OR: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.5, installedCostPerWatt: 2.66, degradationPct: 0.5, label: 'Oregon CS',                       notes: '$/W: Pacific NW regional analog ($2.80 × 0.95) — moderate labor premium balanced by reasonable permitting environment. Bill credit: ~10¢/kWh (PUC tariff). OR RPS REC ~$5/MWh (WREGIS). ITC 30%.' },
-  RI: { billCreditCentsKwh: 13.0, recPerMwh: 45.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.94, degradationPct: 0.5, label: 'Rhode Island CS',                 notes: '$/W: ISO-NE mid regional analog ($2.80 × 1.05) — between MA and ME on the ISO-NE labor curve. Strong RI Class I REC market. Bill credit: ~13¢/kWh (PUC tariff). RI Class I REC ~$45/MWh (NEPOOL GIS — strong). ITC 30% + LMI.' },
-  VA: { billCreditCentsKwh: 9.0,  recPerMwh: 15.00, itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 17.0, installedCostPerWatt: 2.52, degradationPct: 0.5, label: 'Virginia CS',                     notes: '$/W: PJM-South regional analog ($2.80 × 0.90) — emerging CS market, lower labor than PJM-North/Mid. Bill credit: VA Shared Solar ~9¢/kWh (SCC tariff). VA REC ~$15/MWh (PJM-EIS). ITC 30%.' },
-  WA: { billCreditCentsKwh: 9.0,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 13.5, installedCostPerWatt: 2.66, degradationPct: 0.5, label: 'Washington (Shared Renewables)',  notes: '$/W: Pacific NW regional analog ($2.80 × 0.95) — Pacific NW labor, low NREL PVWatts CF (13.5%, lowest-irradiance state) is a generation/economics issue not a capex issue. Bill credit: ~9¢/kWh (UTC tariff). WA REC thin (~$3/MWh, WREGIS). ITC 30%.' },
+  // ── Tier A: TTS observed median (0.5-5 MW LBNL large non-res, install
+  // years 2022-2024, n≥40) × forward applied via NREL CS MMP anchor. State
+  // multiplier = state TTS median ÷ national TTS median ($1.91/W). National
+  // 2026 anchor $2.45/W = NREL Q1 2023 CS MMP $1.76 + Tractova 2023→2026
+  // forward (NREL Spring 2025 +22% YoY 2023→2024 + FEOC + reshoring + oil).
+  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0,     itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.0, installedCostPerWatt: 2.03, degradationPct: 0.5, label: 'New York (Value Stack)',         notes: '$/W: TTS observed median $1.58/W (n=183 large non-res 0.5-5 MW DC, install years 2022-2024) ÷ TTS national median $1.91/W = 0.83 × national 2026 anchor $2.45/W. NY-Sun is the largest CS market in nation; mature EPC bidding drives below-national pricing. Bill credit: NY-Sun / Value Stack ~10.5¢/kWh blended (LBMP + ICAP + E + DRV per NYSERDA). ITC 30% + Community Adder.' },
+  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 3.38, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)',      notes: '$/W: TTS observed median $2.64/W (n=84 large non-res 0.5-5 MW DC, 2022-2024) ÷ TTS national $1.91 = 1.38 × national 2026 anchor $2.45/W. SMART 3.0 permitting overhead + ISO-NE labor premium drive top-of-band pricing. Bill credit: NEM ~12.8¢/kWh + SMART 3.0 tranche adder (DOER). SREC-II ~$35/MWh (NEPOOL GIS). ITC 30% + LMI adder.' },
+  CA: { billCreditCentsKwh: 14.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 10, capacityFactorPct: 21.0, installedCostPerWatt: 2.40, degradationPct: 0.5, label: 'California (VNEM / NEM-ST)',      notes: '$/W: TTS observed median $1.87/W (n=468 large non-res 0.5-5 MW DC, 2022-2024) ÷ TTS national $1.91 = 0.98 × national 2026 anchor $2.45/W. CAISO economies of scale roughly balance prevailing-wage premium. Bill credit: VNEM blended ~14¢/kWh under NEM-ST (CPUC tariff). RPS REC thin (~$5/MWh, WREGIS). ITC 30% + LIC adder. CS status "limited" 2026.' },
+  // ── Tier B: Regional analog (no TTS observed sample at n≥40). Multiplier
+  // is Tractova editorial judgment anchored on the Tier A states' observed
+  // ratios for similar regions. National 2026 anchor $2.45/W applied.
+  IL: { billCreditCentsKwh: 8.2,  recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 2.70, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: '$/W: PJM mature CS regional analog (1.10 × $2.45 national 2026 anchor) — Illinois Shines mature program, premium prevailing wage labor (CCC), Cook County permitting overhead. Lands middle of 2026 IL EPC quote range $2.60-$3.00 (Aden dev intel, with domestic content). REC: Illinois Shines ABP ~$71.50/MWh (DSIRE). Bill credit: ComEd ~8.2¢/kWh (PUC tariff). ITC 30% + 10% LMI adder.' },
+  MN: { billCreditCentsKwh: 9.5,  recPerMwh: 4.50,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 15.2, installedCostPerWatt: 2.21, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)',         notes: '$/W: MISO Upper Midwest regional analog (0.90 × $2.45) — mature Xcel CSG program, reasonable labor vs national avg. Bill credit: Value-of-Solar ~9.5¢/kWh (Xcel VoS tariff). Minimal REC (~$4.50/MWh, M-RETS). ITC 30%.' },
+  CO: { billCreditCentsKwh: 8.8,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.3, installedCostPerWatt: 2.21, degradationPct: 0.5, label: 'Colorado (Xcel Energy)',          notes: '$/W: SPP/Mountain regional analog (0.90 × $2.45) — top-quartile NREL PVWatts CF (18.3%) helps unit economics; SPP labor mid-tier; simple permitting. Bill credit: ~8.8¢/kWh (PUC tariff). REC thin ($3/MWh, WREGIS). ITC 30%.' },
+  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.5, installedCostPerWatt: 2.70, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)',     notes: '$/W: PJM-NJ mature CS regional analog (1.10 × $2.45) — strong SREC-II/SuSI market keeps EPC competitive but PJM-NJ labor premium. Bill credit: NEM ~11¢/kWh. SREC-II / SuSI ~$85/MWh (PJM-EIS GATS) — strongest REC market in nation. ITC 30% + LMI.' },
+  ME: { billCreditCentsKwh: 9.0,  recPerMwh: 8.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.8, installedCostPerWatt: 2.70, degradationPct: 0.5, label: 'Maine',                           notes: '$/W: ISO-NE rural regional analog (1.10 × $2.45) — softer than MA SMART premium but on the ISO-NE labor curve. Bill credit: ~9¢/kWh (PUC tariff). Class I REC ~$8/MWh (NEPOOL GIS). ITC 30%.' },
+  MD: { billCreditCentsKwh: 9.5,  recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.8, installedCostPerWatt: 2.45, degradationPct: 0.5, label: 'Maryland',                        notes: '$/W: PJM-mid regional analog (1.00 × $2.45) — mature CS Pilot, mid-cost PJM labor. Bill credit: ~9.5¢/kWh (PUC tariff). SREC ~$55/MWh (PJM-EIS GATS). ITC 30% + LMI.' },
+  FL: { billCreditCentsKwh: 10.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.0, installedCostPerWatt: 2.08, degradationPct: 0.5, label: 'Florida (SolarTogether)',         notes: '$/W: SE non-RTO low-labor regional analog (0.85 × $2.45) — FL low labor; FPL/Duke utility-administered EPC procurement keeps prices competitive; weather risk priced in by bidding network. Bill credit: SolarTogether ~10¢/kWh (utility tariff). No state REC. ITC 30%. CS status "limited" — capped enrollment.' },
+  CT: { billCreditCentsKwh: 12.0, recPerMwh: 30.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 3.19, degradationPct: 0.5, label: 'Connecticut (SCEF)',              notes: '$/W: ISO-NE high-labor regional analog (1.30 × $2.45) — between MA observed 1.38 and ISO-NE rural 1.10; CT premium permitting + ISO-NE labor. Bill credit: SCEF ~12¢/kWh (PURA tariff). CT Class I REC + ZREC ~$30/MWh (NEPOOL GIS). ITC 30% + LMI.' },
+  HI: { billCreditCentsKwh: 28.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 19.0, installedCostPerWatt: 3.80, degradationPct: 0.5, label: 'Hawaii (CBRE)',                   notes: '$/W: HI island-logistics premium (1.55 × $2.45) — multi-leg shipping, prevailing wage, small-grid IX overhead. Above any CONUS tier; consistent with documented industry HI premium of 30-50% over CONUS. Bill credit: HECO ~28¢/kWh (PUC tariff — highest in nation). RPS goal-based, no traded REC. ITC 30%.' },
+  NM: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 22.0, installedCostPerWatt: 2.08, degradationPct: 0.5, label: 'New Mexico CS',                   notes: '$/W: WECC low-labor regional analog (0.85 × $2.45) — top NREL PVWatts CF (22%, best in nation) and low WECC labor allow lower per-W pricing. Bill credit: ~10¢/kWh (PRC tariff). NM RPS REC thin (~$5/MWh, WREGIS). ITC 30%.' },
+  OR: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.5, installedCostPerWatt: 2.33, degradationPct: 0.5, label: 'Oregon CS',                       notes: '$/W: Pacific NW regional analog (0.95 × $2.45) — moderate labor premium balanced by reasonable permitting environment. Bill credit: ~10¢/kWh (PUC tariff). OR RPS REC ~$5/MWh (WREGIS). ITC 30%.' },
+  RI: { billCreditCentsKwh: 13.0, recPerMwh: 45.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.94, degradationPct: 0.5, label: 'Rhode Island CS',                 notes: '$/W: ISO-NE mid regional analog (1.20 × $2.45) — between MA observed 1.38 and ME 1.10 on the ISO-NE labor curve. Strong RI Class I REC. Bill credit: ~13¢/kWh (PUC tariff). RI Class I REC ~$45/MWh (NEPOOL GIS — strong). ITC 30% + LMI.' },
+  VA: { billCreditCentsKwh: 9.0,  recPerMwh: 15.00, itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 17.0, installedCostPerWatt: 2.21, degradationPct: 0.5, label: 'Virginia CS',                     notes: '$/W: PJM-South regional analog (0.90 × $2.45) — emerging CS market, lower labor than PJM-North/Mid. Bill credit: VA Shared Solar ~9¢/kWh (SCC tariff). VA REC ~$15/MWh (PJM-EIS). ITC 30%.' },
+  WA: { billCreditCentsKwh: 9.0,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 13.5, installedCostPerWatt: 2.33, degradationPct: 0.5, label: 'Washington (Shared Renewables)',  notes: '$/W: Pacific NW regional analog (0.95 × $2.45) — Pacific NW labor; low NREL PVWatts CF (13.5%, lowest-irradiance state) is a generation/economics issue not a capex issue. Bill credit: ~9¢/kWh (UTC tariff). WA REC thin (~$3/MWh, WREGIS). ITC 30%.' },
 }
 
 const CI_REVENUE_DATA = {
