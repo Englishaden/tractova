@@ -152,7 +152,7 @@
 //       multipliers recomputed.
 export const SOLAR_RATES_AS_OF = '2023 NREL CS MMP + LBNL TTS 2024 + Tractova 2026 forward'
 export const CI_RATES_AS_OF    = '2023 NREL CS MMP -$0.05 C&I premium + LBNL TTS 2024 + Tractova 2026 forward (capex only; PPA + retail rates still 2025-Q2)'
-export const BESS_RATES_AS_OF  = '2026-04'
+export const BESS_RATES_AS_OF  = '2025/26 ISO clearing × accreditation + Tractova 2026 forward (capacity); BNEF 2024 (capex); demand+arb still seeded synthesis'
 
 // ── Hardcoded fallback data ──────────────────────────────────────────────────
 // CS $/W per state: 2024 LBNL TTS observed anchor + 2024→2026 Tractova
@@ -221,26 +221,67 @@ const CI_REVENUE_DATA = {
   WA: { ppaRateCentsKwh: 5.5,  escalatorPct: 2.0, installedCostPerWatt: 2.28, itcPct: 30, capacityFactorPct: 13.5, degradationPct: 0.5, retailRateCentsKwh: 10.0, label: 'Washington (C&I PPA)' },
 }
 
+// ── BESS capacityPerKwYear methodology (recalibrated 2026-05-04 per audit) ──
+// Anchored on 2024-2025 ISO clearing prices × 4-hr BESS accreditation factor:
+//
+//   PJM RPM 2025/26 BRA cleared at $269.92/MW-day = $98.5/kW-yr (huge spike
+//     from prior $10.5/kW-yr); BESS accreditation ~60% for 4-hr → ~$59/kW-yr
+//     effective. + 2026 forward (load growth + reserve margin tightening).
+//   NYISO ICAP 2024-2025: $30-50/kW-yr by zone × ~50-60% accreditation
+//     → ~$25-35/kW-yr effective. NY-specific: VDER + ICAP zone stack pushes
+//     paired-storage to ~$50/kW-yr.
+//   ISO-NE FCM 2025/26 FCA: cleared $80-90/kW-yr × ~60% accreditation
+//     → ~$48-54/kW-yr effective. Higher zones (MA/CT) +10%.
+//   CAISO RA 2024 bilateral: $40-80/kW-yr × ~70% accreditation → ~$30-55
+//     effective. Plus market opportunity for high-load events.
+//   MISO PRA 2025/26 zonal: ~$50/kW-yr × 70% accreditation → ~$35/kW-yr.
+//   SPP, WECC, SE: bilateral $20-40/kW-yr range.
+//   HECO: no capacity market — IRP/Stage-3 RFP bilateral procurement
+//     embedded in PPA, so capacityPerKwYear=0 (revenue captured in PPA price).
+//
+// Tractova synthesis layers:
+//   - Accreditation factor for 4-hr BESS: 60-70% (ISO-specific, evolving as
+//     ISOs revise methodologies — citing ISO accreditation rule pages).
+//   - State-within-LDA allocation: editorial (PJM has 6+ LDAs, ISO-NE has
+//     8 zones; state ≠ zone exactly).
+//   - 2026 forward: +5-10% on 2025/26 clearing reflects load growth +
+//     data-center demand surge + reserve margin tightening.
+//
+// All values are Tractova best estimate of 2026 vintage 4-hr BESS capacity
+// revenue. Values were aggressively HIGH in prior version (especially
+// ISO-NE / NY / CA) — not reflecting the substantial accreditation
+// discount applied by ISOs to short-duration storage. Recalibration 2026-05-04
+// brings them in line with realistic 4-hr BESS economics.
+//
+// Audit note: still Tier B (anchored on ISO public data + Tractova
+// accreditation/allocation synthesis). Refresh path: pull each ISO's most
+// recent annual capacity auction results (PJM RPM, NYISO ICAP, ISO-NE FCM,
+// MISO PRA, CAISO RA reports). Annual cadence.
 const BESS_REVENUE_DATA = {
-  // ── 8 originally curated (BESS unchanged — BloombergNEF 2024 supports current values) ──
-  IL:  { isoRegion: 'PJM',    capacityPerKwYear: 65, demandChargePerKwMonth: 12, arbitragePerMwh: 30, installedCostPerKwh: 380, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Illinois (PJM)' },
-  NY:  { isoRegion: 'NYISO',  capacityPerKwYear: 70, demandChargePerKwMonth: 14, arbitragePerMwh: 35, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New York (NYISO)' },
-  MA:  { isoRegion: 'ISO-NE', capacityPerKwYear: 80, demandChargePerKwMonth: 13, arbitragePerMwh: 32, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Massachusetts (ISO-NE)' },
-  MN:  { isoRegion: 'MISO',   capacityPerKwYear: 40, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 360, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Minnesota (MISO)' },
-  CO:  { isoRegion: 'SPP',    capacityPerKwYear: 35, demandChargePerKwMonth: 11, arbitragePerMwh: 25, installedCostPerKwh: 350, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Colorado (SPP)' },
-  NJ:  { isoRegion: 'PJM',    capacityPerKwYear: 70, demandChargePerKwMonth: 15, arbitragePerMwh: 32, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New Jersey (PJM)' },
-  ME:  { isoRegion: 'ISO-NE', capacityPerKwYear: 75, demandChargePerKwMonth: 11, arbitragePerMwh: 28, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maine (ISO-NE)' },
-  MD:  { isoRegion: 'PJM',    capacityPerKwYear: 60, demandChargePerKwMonth: 13, arbitragePerMwh: 28, installedCostPerKwh: 375, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maryland (PJM)' },
-  // ── 9 new (added 2026-05-04 — capacity payments per ISO + state regs) ──
-  CA:  { isoRegion: 'CAISO',  capacityPerKwYear: 90, demandChargePerKwMonth: 16, arbitragePerMwh: 40, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'California (CAISO)' },
-  FL:  { isoRegion: 'SE',     capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Florida (SE non-RTO)' },
-  CT:  { isoRegion: 'ISO-NE', capacityPerKwYear: 80, demandChargePerKwMonth: 14, arbitragePerMwh: 32, installedCostPerKwh: 415, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Connecticut (ISO-NE)' },
-  HI:  { isoRegion: 'HECO',   capacityPerKwYear: 0,  demandChargePerKwMonth: 20, arbitragePerMwh: 80, installedCostPerKwh: 420, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Hawaii (HECO IRP)' },
-  NM:  { isoRegion: 'WECC',   capacityPerKwYear: 50, demandChargePerKwMonth: 10, arbitragePerMwh: 25, installedCostPerKwh: 355, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New Mexico (WECC)' },
-  OR:  { isoRegion: 'WECC',   capacityPerKwYear: 40, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Oregon (WECC)' },
-  RI:  { isoRegion: 'ISO-NE', capacityPerKwYear: 78, demandChargePerKwMonth: 13, arbitragePerMwh: 30, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Rhode Island (ISO-NE)' },
-  VA:  { isoRegion: 'PJM',    capacityPerKwYear: 60, demandChargePerKwMonth: 12, arbitragePerMwh: 28, installedCostPerKwh: 385, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Virginia (PJM)' },
+  // ── PJM (IL, NJ, MD, VA): 2025/26 BRA $98.5/kW-yr × 60% accreditation = $59 base + LDA premium ──
+  IL:  { isoRegion: 'PJM',    capacityPerKwYear: 65, demandChargePerKwMonth: 12, arbitragePerMwh: 30, installedCostPerKwh: 380, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Illinois (PJM ComEd)' },
+  NJ:  { isoRegion: 'PJM',    capacityPerKwYear: 68, demandChargePerKwMonth: 15, arbitragePerMwh: 32, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New Jersey (PJM EMAAC)' },
+  MD:  { isoRegion: 'PJM',    capacityPerKwYear: 62, demandChargePerKwMonth: 13, arbitragePerMwh: 28, installedCostPerKwh: 375, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maryland (PJM)' },
+  VA:  { isoRegion: 'PJM',    capacityPerKwYear: 62, demandChargePerKwMonth: 12, arbitragePerMwh: 28, installedCostPerKwh: 385, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Virginia (PJM)' },
+  // ── NYISO (NY): VDER + ICAP zone stack ~$50/kW-yr; was $70 (high) ──
+  NY:  { isoRegion: 'NYISO',  capacityPerKwYear: 50, demandChargePerKwMonth: 14, arbitragePerMwh: 35, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New York (NYISO)' },
+  // ── ISO-NE (MA, CT, RI, ME): 2025/26 FCA $80-90/kW-yr × 60% = $48-54; was $75-80 (high) ──
+  MA:  { isoRegion: 'ISO-NE', capacityPerKwYear: 60, demandChargePerKwMonth: 13, arbitragePerMwh: 32, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Massachusetts (ISO-NE)' },
+  CT:  { isoRegion: 'ISO-NE', capacityPerKwYear: 60, demandChargePerKwMonth: 14, arbitragePerMwh: 32, installedCostPerKwh: 415, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Connecticut (ISO-NE)' },
+  RI:  { isoRegion: 'ISO-NE', capacityPerKwYear: 58, demandChargePerKwMonth: 13, arbitragePerMwh: 30, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Rhode Island (ISO-NE)' },
+  ME:  { isoRegion: 'ISO-NE', capacityPerKwYear: 55, demandChargePerKwMonth: 11, arbitragePerMwh: 28, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maine (ISO-NE)' },
+  // ── CAISO (CA): RA bilateral $40-80/kW-yr × 70% accreditation; was $90 (aggressive) ──
+  CA:  { isoRegion: 'CAISO',  capacityPerKwYear: 65, demandChargePerKwMonth: 16, arbitragePerMwh: 40, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'California (CAISO)' },
+  // ── MISO (MN): 2025/26 PRA zonal $50 × 70% = $35; was $40 (close) ──
+  MN:  { isoRegion: 'MISO',   capacityPerKwYear: 35, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 360, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Minnesota (MISO)' },
+  // ── SPP / WECC / SE non-RTO: bilateral $20-40/kW-yr range ──
+  CO:  { isoRegion: 'SPP',    capacityPerKwYear: 30, demandChargePerKwMonth: 11, arbitragePerMwh: 25, installedCostPerKwh: 350, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Colorado (SPP)' },
+  NM:  { isoRegion: 'WECC',   capacityPerKwYear: 40, demandChargePerKwMonth: 10, arbitragePerMwh: 25, installedCostPerKwh: 355, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New Mexico (WECC)' },
+  OR:  { isoRegion: 'WECC',   capacityPerKwYear: 35, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Oregon (WECC)' },
   WA:  { isoRegion: 'WECC',   capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Washington (WECC)' },
+  FL:  { isoRegion: 'SE',     capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Florida (SE non-RTO)' },
+  // ── HECO (HI): no capacity market — bilateral PPA captures capacity revenue ──
+  HI:  { isoRegion: 'HECO',   capacityPerKwYear: 0,  demandChargePerKwMonth: 20, arbitragePerMwh: 80, installedCostPerKwh: 420, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Hawaii (HECO IRP)' },
 }
 
 const HOURS_PER_YEAR = 8760

@@ -14,7 +14,7 @@ Generated: **2026-05-04**  ·  Run from `scripts/data-trust-audit.mjs`
 | **Mixed** | Audit entry covers fields at multiple tiers (e.g., per-state values where some are A and some are B). | 2 | 34 |
 | **Total** | | 33 | 311 |
 
-**Risk distribution:** 3 high-risk · 14 medium-risk · 16 low-risk.
+**Risk distribution:** 2 high-risk · 15 medium-risk · 16 low-risk.
 
 ---
 
@@ -42,8 +42,8 @@ Have some primary citation but contain Tractova synthesis layer (e.g., regional 
 
 | Field | File:Line | Risk | Source / Vintage | Notes |
 |---|---|---|---|---|
-| **BESS_REVENUE_DATA — capacityPerKwYear (BESS capacity payment $/kW-yr per state)** _(17 values)_ | `src/lib/revenueEngine.js:213` | high | PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA clearing prices + Tractova state allocation<br>**Vintage:** 2026-04 | ISO clearing prices swing 2-9× year over year. BESS_RATES_AS_OF disclosure flags this in UI but the constants drift fast. Need annual refresh against actual ISO auction results. PJM RPM 2026/2027 BRA clearing was in 2025; should re-anchor. |
 | **BESS_REVENUE_DATA — installedCostPerKwh (BESS $/kWh per state)** _(17 values)_ | `src/lib/revenueEngine.js:213` | medium | BloombergNEF 2024 utility-scale 4hr ($295-$340/kWh) + Tractova state allocation<br>**Vintage:** 2026-04 | National anchor cited (BNEF). State allocation is editorial. Lazard v18 LCOS chapter (page 17+) covers storage; could add as cross-check. |
+| **BESS_REVENUE_DATA — capacityPerKwYear (BESS capacity payment $/kW-yr per state)** _(17 values)_ | `src/lib/revenueEngine.js:213` | medium | 2024-2025 ISO clearing × 4-hr BESS accreditation factor + Tractova state-within-LDA + 2026 forward (PJM RPM 2025/26 BRA $98.5/kW-yr × 60%; NYISO ICAP $30-50 × 50-60%; ISO-NE FCM 2025/26 $80-90 × 60%; CAISO RA $40-80 × 70%; MISO PRA $50 × 70%; HECO bilateral=0)<br>**Vintage:** 2026-05-04 (re-anchored migration 046) | Migration 046 applied. ISO-NE/NY/CA values dropped 25-30% to reflect realistic accreditation. PJM stays roughly same. Refresh annually as new ISO auctions clear. Accreditation factor + state-within-LDA still Tractova synthesis. |
 | **CI_OFFTAKE_SCORES — C&I offtake score per state (0-100)** _(32 values)_ | `src/lib/scoreEngine.js:20` | medium | EIA Form 861 commercial retail rates 2024 + qualitative market-depth adjustments<br>**Vintage:** 2026-05-01 | Calibration documented inline per state. EIA Form 861 is real but the qualitative adjustments are Tractova editorial. Score values should be auditable against published retail rates. |
 | **BESS_OFFTAKE_SCORES — BESS offtake score per state (0-100)** _(25 values)_ | `src/lib/scoreEngine.js:45` | medium | ISO/RTO 2024-2025 capacity-market clearing prices + state storage carve-outs + IRP procurement plans<br>**Vintage:** 2026-05-01 | Sources cited inline. State allocation is editorial but documented per state in comments. Refresh annually as new ISO auctions clear. |
 | **BASELINE_INPUTS opexPerKwYear ($20/kW/yr CS solar O&M)** | `src/lib/scenarioEngine.js:38` | medium | Wood Mac H2 2025 utility-scale solar O&M $15-25/kW/yr (single national number, no state allocation)<br>**Vintage:** 2025-H2 | NREL Q1 2023 reports CS-specific O&M is $39.83/kWdc/yr (significantly higher than utility-scale). Tractova uses $20/kW/yr — possibly understated for CS. Worth re-anchoring. |
