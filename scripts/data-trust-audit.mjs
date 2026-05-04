@@ -48,12 +48,12 @@ const REGISTRY = [
   {
     name: 'CI_REVENUE_DATA — installedCostPerWatt (C&I commercial $/W per state)',
     file: 'src/lib/revenueEngine.js', line: 191,
-    tier: 'C',
-    source: 'Lazard v18 + RS Means feel synthesis (never re-anchored on real data)',
-    vintage: '2026-05-04 (last touched but not re-anchored)',
+    tier: 'mixed', // 3 states Tier A, 14 states Tier B (same as CS post-recalibration)
+    source: 'NREL Q1 2023 CS MMP $1.76 - $0.05 C&I premium offset = $1.71 anchor + LBNL TTS 2024 state ratios + Tractova 2023→2026 forward',
+    vintage: '2026-05-04 (re-anchored migration 045)',
     nFields: 17,
-    risk: 'high', // same problem CS had
-    notes: 'Same Tier-C synthesis pattern that was just fixed for CS. Should be re-anchored using same NREL + LBNL TTS methodology applied to commercial-scale (small commercial 100-500 kW or large commercial 0.5-5 MW depending on definition).',
+    risk: 'low', // same data-anchored as CS post-fix
+    notes: 'Migration 045 applied. Same Tier A/B pattern as CS. Tier A: NY/MA/CA. Tier B: 14 regional analogs. Slight $0.05 discount vs CS to reflect C&I has no subscriber acquisition + LMI compliance overhead.',
   },
   {
     name: 'CI_REVENUE_DATA — ppaRateCentsKwh (C&I PPA rate per state)',

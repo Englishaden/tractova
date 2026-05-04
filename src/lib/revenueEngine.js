@@ -151,7 +151,7 @@
 //       replaces the prior midpoint-of-band proxy. Per-state Tier A
 //       multipliers recomputed.
 export const SOLAR_RATES_AS_OF = '2023 NREL CS MMP + LBNL TTS 2024 + Tractova 2026 forward'
-export const CI_RATES_AS_OF    = '2025-06'
+export const CI_RATES_AS_OF    = '2023 NREL CS MMP -$0.05 C&I premium + LBNL TTS 2024 + Tractova 2026 forward (capex only; PPA + retail rates still 2025-Q2)'
 export const BESS_RATES_AS_OF  = '2026-04'
 
 // ── Hardcoded fallback data ──────────────────────────────────────────────────
@@ -188,26 +188,37 @@ const STATE_REVENUE_DATA = {
   WA: { billCreditCentsKwh: 9.0,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 13.5, installedCostPerWatt: 2.33, degradationPct: 0.5, label: 'Washington (Shared Renewables)',  notes: '$/W: Pacific NW regional analog (0.95 × $2.45) — Pacific NW labor; low NREL PVWatts CF (13.5%, lowest-irradiance state) is a generation/economics issue not a capex issue. Bill credit: ~9¢/kWh (UTC tariff). WA REC thin (~$3/MWh, WREGIS). ITC 30%.' },
 }
 
+// ── C&I $/W methodology (recalibrated 2026-05-04 per audit) ───────────────
+// Same Tier-A/B pattern as STATE_REVENUE_DATA. Anchor: $2.40/W national 2026
+// (CS anchor $2.45 minus ~$0.05 CS-specific soft cost premium per NREL Q1 2023
+// — C&I projects have single offtaker, no subscriber acquisition, no LMI
+// compliance overhead). Same TTS state ratios apply since LBNL TTS 2024
+// "large non-residential" bracket includes both CS and C&I projects.
+//   Tier A (NY/MA/CA, n≥40 in TTS): state TTS median ÷ TTS national $1.91
+//   Tier B (other 14 states): regional analog same as CS rebuild
+// PPA rates + retail rates retained from prior 2025-Q2 EIA Form 861 anchor —
+// not touched in this commit (see data-trust audit Tier C: ppaRateCentsKwh
+// is editorial synthesis on top of retail; refresh path = LevelTen PPA Index).
 const CI_REVENUE_DATA = {
-  // ── 8 originally curated (recalibrated 2026-05-04) ──
-  IL: { ppaRateCentsKwh: 7.0,  escalatorPct: 2.0, installedCostPerWatt: 2.30, itcPct: 30, capacityFactorPct: 17.5, degradationPct: 0.5, retailRateCentsKwh: 12.5, label: 'Illinois (C&I PPA)' },
-  NY: { ppaRateCentsKwh: 8.0,  escalatorPct: 2.0, installedCostPerWatt: 2.55, itcPct: 30, capacityFactorPct: 14.0, degradationPct: 0.5, retailRateCentsKwh: 18.5, label: 'New York (C&I PPA)' },
-  MA: { ppaRateCentsKwh: 8.5,  escalatorPct: 1.5, installedCostPerWatt: 2.55, itcPct: 30, capacityFactorPct: 16.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Massachusetts (C&I PPA)' },
-  MN: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 15.2, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Minnesota (C&I PPA)' },
-  CO: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.5, installedCostPerWatt: 2.10, itcPct: 30, capacityFactorPct: 18.3, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Colorado (C&I PPA)' },
-  NJ: { ppaRateCentsKwh: 7.5,  escalatorPct: 2.0, installedCostPerWatt: 2.45, itcPct: 30, capacityFactorPct: 15.5, degradationPct: 0.5, retailRateCentsKwh: 16.0, label: 'New Jersey (C&I PPA)' },
-  ME: { ppaRateCentsKwh: 6.5,  escalatorPct: 1.5, installedCostPerWatt: 2.30, itcPct: 30, capacityFactorPct: 14.8, degradationPct: 0.5, retailRateCentsKwh: 15.5, label: 'Maine (C&I PPA)' },
-  MD: { ppaRateCentsKwh: 7.0,  escalatorPct: 2.0, installedCostPerWatt: 2.35, itcPct: 30, capacityFactorPct: 15.8, degradationPct: 0.5, retailRateCentsKwh: 13.5, label: 'Maryland (C&I PPA)' },
-  // ── 9 new (added 2026-05-04) ──
-  CA: { ppaRateCentsKwh: 9.0,  escalatorPct: 2.5, installedCostPerWatt: 2.65, itcPct: 30, capacityFactorPct: 21.0, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'California (C&I PPA)' },
-  FL: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.10, itcPct: 30, capacityFactorPct: 18.0, degradationPct: 0.5, retailRateCentsKwh: 13.0, label: 'Florida (C&I PPA)' },
-  CT: { ppaRateCentsKwh: 8.5,  escalatorPct: 1.5, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 23.0, label: 'Connecticut (C&I PPA)' },
-  HI: { ppaRateCentsKwh: 18.0, escalatorPct: 2.0, installedCostPerWatt: 3.10, itcPct: 30, capacityFactorPct: 19.0, degradationPct: 0.5, retailRateCentsKwh: 38.0, label: 'Hawaii (C&I PPA)' },
-  NM: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.5, installedCostPerWatt: 2.00, itcPct: 30, capacityFactorPct: 22.0, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'New Mexico (C&I PPA)' },
-  OR: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Oregon (C&I PPA)' },
-  RI: { ppaRateCentsKwh: 8.0,  escalatorPct: 1.5, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Rhode Island (C&I PPA)' },
-  VA: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 17.0, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Virginia (C&I PPA)' },
-  WA: { ppaRateCentsKwh: 5.5,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 13.5, degradationPct: 0.5, retailRateCentsKwh: 10.0, label: 'Washington (C&I PPA)' },
+  // ── Tier A: TTS observed (n≥40 in 0.5-5 MW LBNL large non-res) × $2.40 anchor ──
+  NY: { ppaRateCentsKwh: 8.0,  escalatorPct: 2.0, installedCostPerWatt: 1.99, itcPct: 30, capacityFactorPct: 14.0, degradationPct: 0.5, retailRateCentsKwh: 18.5, label: 'New York (C&I PPA)' },
+  MA: { ppaRateCentsKwh: 8.5,  escalatorPct: 1.5, installedCostPerWatt: 3.31, itcPct: 30, capacityFactorPct: 16.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Massachusetts (C&I PPA)' },
+  CA: { ppaRateCentsKwh: 9.0,  escalatorPct: 2.5, installedCostPerWatt: 2.35, itcPct: 30, capacityFactorPct: 21.0, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'California (C&I PPA)' },
+  // ── Tier B: Regional analog × $2.40 national C&I anchor ──
+  IL: { ppaRateCentsKwh: 7.0,  escalatorPct: 2.0, installedCostPerWatt: 2.64, itcPct: 30, capacityFactorPct: 17.5, degradationPct: 0.5, retailRateCentsKwh: 12.5, label: 'Illinois (C&I PPA)' },
+  MN: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.16, itcPct: 30, capacityFactorPct: 15.2, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Minnesota (C&I PPA)' },
+  CO: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.5, installedCostPerWatt: 2.16, itcPct: 30, capacityFactorPct: 18.3, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Colorado (C&I PPA)' },
+  NJ: { ppaRateCentsKwh: 7.5,  escalatorPct: 2.0, installedCostPerWatt: 2.64, itcPct: 30, capacityFactorPct: 15.5, degradationPct: 0.5, retailRateCentsKwh: 16.0, label: 'New Jersey (C&I PPA)' },
+  ME: { ppaRateCentsKwh: 6.5,  escalatorPct: 1.5, installedCostPerWatt: 2.64, itcPct: 30, capacityFactorPct: 14.8, degradationPct: 0.5, retailRateCentsKwh: 15.5, label: 'Maine (C&I PPA)' },
+  MD: { ppaRateCentsKwh: 7.0,  escalatorPct: 2.0, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 15.8, degradationPct: 0.5, retailRateCentsKwh: 13.5, label: 'Maryland (C&I PPA)' },
+  FL: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.04, itcPct: 30, capacityFactorPct: 18.0, degradationPct: 0.5, retailRateCentsKwh: 13.0, label: 'Florida (C&I PPA)' },
+  CT: { ppaRateCentsKwh: 8.5,  escalatorPct: 1.5, installedCostPerWatt: 3.12, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 23.0, label: 'Connecticut (C&I PPA)' },
+  HI: { ppaRateCentsKwh: 18.0, escalatorPct: 2.0, installedCostPerWatt: 3.72, itcPct: 30, capacityFactorPct: 19.0, degradationPct: 0.5, retailRateCentsKwh: 38.0, label: 'Hawaii (C&I PPA)' },
+  NM: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.5, installedCostPerWatt: 2.04, itcPct: 30, capacityFactorPct: 22.0, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'New Mexico (C&I PPA)' },
+  OR: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.0, installedCostPerWatt: 2.28, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Oregon (C&I PPA)' },
+  RI: { ppaRateCentsKwh: 8.0,  escalatorPct: 1.5, installedCostPerWatt: 2.88, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Rhode Island (C&I PPA)' },
+  VA: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.16, itcPct: 30, capacityFactorPct: 17.0, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Virginia (C&I PPA)' },
+  WA: { ppaRateCentsKwh: 5.5,  escalatorPct: 2.0, installedCostPerWatt: 2.28, itcPct: 30, capacityFactorPct: 13.5, degradationPct: 0.5, retailRateCentsKwh: 10.0, label: 'Washington (C&I PPA)' },
 }
 
 const BESS_REVENUE_DATA = {

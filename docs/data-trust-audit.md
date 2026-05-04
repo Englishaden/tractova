@@ -10,11 +10,11 @@ Generated: **2026-05-04**  ·  Run from `scripts/data-trust-audit.mjs`
 |---|---|---|---|
 | **A** | Anchored on primary data with verified citation. Just needs refresh when source updates. | 13 | 110 |
 | **B** | Regional analog or partially-anchored, with documented choice. Defensible but contains synthesis. | 7 | 94 |
-| **C** | Editorial / synthesis without primary citation. **REVIEW PRIORITY** — same risk pattern as the Lazard issue Aden caught 2026-05-04. | 12 | 90 |
-| **Mixed** | Audit entry covers fields at multiple tiers (e.g., per-state values where some are A and some are B). | 1 | 17 |
+| **C** | Editorial / synthesis without primary citation. **REVIEW PRIORITY** — same risk pattern as the Lazard issue Aden caught 2026-05-04. | 11 | 73 |
+| **Mixed** | Audit entry covers fields at multiple tiers (e.g., per-state values where some are A and some are B). | 2 | 34 |
 | **Total** | | 33 | 311 |
 
-**Risk distribution:** 4 high-risk · 14 medium-risk · 15 low-risk.
+**Risk distribution:** 3 high-risk · 14 medium-risk · 16 low-risk.
 
 ---
 
@@ -24,7 +24,6 @@ These constants are pure Tractova synthesis without a primary-source anchor. Sam
 
 | Field | File:Line | Risk | Source / Vintage | Notes |
 |---|---|---|---|---|
-| **CI_REVENUE_DATA — installedCostPerWatt (C&I commercial $/W per state)** _(17 values)_ | `src/lib/revenueEngine.js:191` | high | Lazard v18 + RS Means feel synthesis (never re-anchored on real data)<br>**Vintage:** 2026-05-04 (last touched but not re-anchored) | Same Tier-C synthesis pattern that was just fixed for CS. Should be re-anchored using same NREL + LBNL TTS methodology applied to commercial-scale (small commercial 100-500 kW or large commercial 0.5-5 MW depending on definition). |
 | **BESS_REVENUE_DATA — demandChargePerKwMonth + arbitragePerMwh** _(17 values)_ | `src/lib/revenueEngine.js:213` | high | Industry research + IRP filings (claimed) + Tractova editorial<br>**Vintage:** 2026-04 | Demand charges vary widely by utility within state. Arbitrage spreads vary by ISO + season. Both are seeded synthesis without per-state primary citations. Refresh path: state utility tariff filings (PUC dockets) for demand charges; ISO LMP datasets for arbitrage. |
 | **computeDisplayScore composite weights (offtake 0.40, ix 0.35, site 0.25)** _(3 values)_ | `src/lib/scoreEngine.js:269` | high | Tractova methodology (per glossary) — synthesis<br>**Vintage:** unknown (original product design) | These three weights determine the composite Feasibility Index that drives every score in the product. Currently a Tractova editorial choice. No anchoring. Could be sensitivity-tested or anchored against CS developer survey on which factors most predict project success. |
 | **CI_REVENUE_DATA — ppaRateCentsKwh (C&I PPA rate per state)** _(17 values)_ | `src/lib/revenueEngine.js:191` | medium | EIA Form 861 cited + Tractova editorial state allocation<br>**Vintage:** 2025-06 | EIA Form 861 covers retail rates (state-level). PPA rates are typically a discount to retail (developer-quoted). Tractova picks ~50-60% of retail as PPA — synthesis. Best refresh path: LevelTen PPA Price Index (paywalled), or DOE/PPA Watch. |
@@ -76,6 +75,7 @@ Anchored on primary data with verified citation. Refresh when source updates.
 | Field | File:Line | Risk | Source / Vintage | Notes |
 |---|---|---|---|---|
 | **STATE_REVENUE_DATA — installedCostPerWatt (CS PV-only $/W per state)** _(17 values)_ | `src/lib/revenueEngine.js:163` | low | NREL Q1 2023 CS MMP $1.76 anchor + LBNL TTS 2024 state ratios (NY/MA/CA n≥40) + Tractova 2023→2026 forward (NREL +22% YoY + FEOC + reshoring + oil)<br>**Vintage:** 2026-05-04 | Migration 044 applied. Tier A: NY/MA/CA. Tier B: 14 regional analogs. |
+| **CI_REVENUE_DATA — installedCostPerWatt (C&I commercial $/W per state)** _(17 values)_ | `src/lib/revenueEngine.js:191` | low | NREL Q1 2023 CS MMP $1.76 - $0.05 C&I premium offset = $1.71 anchor + LBNL TTS 2024 state ratios + Tractova 2023→2026 forward<br>**Vintage:** 2026-05-04 (re-anchored migration 045) | Migration 045 applied. Same Tier A/B pattern as CS. Tier A: NY/MA/CA. Tier B: 14 regional analogs. Slight $0.05 discount vs CS to reflect C&I has no subscriber acquisition + LMI compliance overhead. |
 
 ---
 
