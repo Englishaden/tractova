@@ -824,6 +824,74 @@ export async function getAllRevenueRates() {
   })
 }
 
+// ── Specific Yield lineage (Phase G) ─────────────────────────────────────────
+// Per-state aggregate of observed AC capacity factor from CS-developer
+// public fleet data (Nexamp + SR Energy + Catalyze). Returns null when the
+// table doesn't exist yet (migration 053 not applied) or no rows for state.
+//
+// Engine continues reading PVWatts modeled capacity factor as primary
+// (revenue_rates.capacity_factor_pct). This lineage block is the data
+// trust evidence the SpecificYieldPanel surfaces alongside.
+//
+// Capacity-basis split: AC observations (Nexamp) and DC observations
+// (SR Energy / Catalyze) compute SY against different denominators —
+// AC-basis SY runs ~17–22% higher than DC-basis SY for the same project.
+// We return both groups separately so the UI can show them side-by-side
+// rather than averaging across (which would be apples-to-oranges).
+export async function getSpecificYieldLineage(stateId) {
+  return withCache(`specific_yield:${stateId}`, async () => {
+    try {
+      const { data, error } = await supabase
+        .from('cs_specific_yield')
+        .select('project_id, project_name, source, source_url, system_size_kw_ac, system_size_kw_dc, capacity_basis, annual_production_kwh, specific_yield_kwh_per_kwp_yr, observed_capacity_factor_pct, cod_year, last_updated')
+        .eq('state', stateId)
+      if (error || !data || data.length === 0) return null
+
+      const ac = data.filter(r => r.capacity_basis === 'AC')
+      const dc = data.filter(r => r.capacity_basis === 'DC')
+
+      function summarize(rows) {
+        if (rows.length === 0) return null
+        const sys = rows.map(r => Number(r.specific_yield_kwh_per_kwp_yr))
+        const cfs = rows.map(r => Number(r.observed_capacity_factor_pct))
+        const sortedCfs = [...cfs].sort((a, b) => a - b)
+        const median = sortedCfs[Math.floor(sortedCfs.length / 2)]
+        const p25 = sortedCfs[Math.floor(sortedCfs.length * 0.25)]
+        const p75 = sortedCfs[Math.floor(sortedCfs.length * 0.75)]
+        return {
+          count:        rows.length,
+          mean_sy:      Number((sys.reduce((s, n) => s + n, 0) / sys.length).toFixed(0)),
+          mean_cf:      Number((cfs.reduce((s, n) => s + n, 0) / cfs.length).toFixed(2)),
+          median_cf:    Number(median.toFixed(2)),
+          p25_cf:       Number(p25.toFixed(2)),
+          p75_cf:       Number(p75.toFixed(2)),
+          min_sy:       Math.round(Math.min(...sys)),
+          max_sy:       Math.round(Math.max(...sys)),
+          sources:      [...new Set(rows.map(r => r.source))],
+        }
+      }
+
+      // Nearest-MW-target sample is computed by the panel using rates.mwInput;
+      // here we just return the smallest-to-largest sorted rows for display.
+      const sample = [...data]
+        .sort((a, b) => Number(b.system_size_kw_ac || b.system_size_kw_dc) - Number(a.system_size_kw_ac || a.system_size_kw_dc))
+        .slice(0, 6)
+
+      return {
+        state:         stateId,
+        total_count:   data.length,
+        ac_summary:    summarize(ac),
+        dc_summary:    summarize(dc),
+        sources_in_use: [...new Set(data.map(r => r.source))],
+        last_updated:  data[0]?.last_updated || null,
+        sample,
+      }
+    } catch {
+      return null
+    }
+  })
+}
+
 // ── getCsMarketSnapshot ──────────────────────────────────────────────────────
 // Per-state aggregate of operating CS projects from cs_projects (NREL Sharing
 // the Sun). Returns null when the table doesn't exist (migration 050 not yet

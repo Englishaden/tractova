@@ -4,7 +4,99 @@
 
 ---
 
-## 🟢 Pickup — Phase E shipped: lower n threshold to 3 + tiered confidence disclosure (3 → 10 Tier-A states, 5 visual variants) → next: Aden applies migration 052 + re-runs seed-solar-cost-index, then Phase G (Specific Yield from Nexamp/SR Energy/Catalyze)
+## 🟢 Pickup — Phase G shipped: cs_specific_yield (Nexamp + SR Energy + Catalyze fleet) → next: Aden applies migrations 052 + 053 + 054, runs both seed scripts
+
+**Session 2026-05-04 (continuation, sessions 11–12).** Phase G shipped on
+top of Phase E in the approved sequence. Both data-lineage layers now
+exist: cost (solar_cost_index, lower threshold n≥3 + tiered) and
+production (cs_specific_yield, three-source fleet observed SY).
+
+### What landed (this commit, on top of Phase E `6ebcee9`)
+
+- **Migration 053** — `cs_specific_yield` table per the plan
+  (`~/.claude/plans/nexamp-srenergy-specific-yield-fleet-data.md`).
+  Per-project rows with capacity_basis (AC/DC), specific_yield_kwh_per_kwp_yr,
+  observed_capacity_factor_pct, source attribution, CHECK SY ∈ [600, 2400].
+  RLS public-read.
+- **Migration 054** — `get_data_freshness()` + cs_specific_yield block.
+- **Three-source seed `scripts/seed-cs-specific-yield.mjs`** — Nexamp
+  (sitemap → per-project HTML scrape, ~300-500 projects), SR Energy
+  (listing scrape with 10s crawl-delay, ~80-150 projects), Catalyze
+  (listing scrape, drop rows missing production, ~9 SY-eligible). Rate-
+  limited per source. `--source=NAME` and `--dry-run` flags. `--inspect=NAME`
+  dumps raw HTML for regex tuning.
+- **`getSpecificYieldLineage(stateId)` in `programData.js`** — defensive
+  try/catch lineage fetch (null when migration 053 not applied yet).
+  Returns AC + DC summaries separately (capacity-basis split) so the UI
+  doesn't apples-to-oranges average across them.
+- **`SpecificYieldPanel` component** — three confidence-tier visual
+  variants reusing the Phase E pattern (strong/modest/thin). Tier-A · Thin
+  treatment uses the same amber-tinged-teal as cost lineage. AC and DC
+  basis-rows render side-by-side. Headline source attribution +
+  bottom-of-card bias caveat with COI disclosure of Nexamp affiliation.
+- **`MaybeSpecificYieldPanel` wrapper** in Search.jsx, placed between
+  `MaybeRegulatoryPanel` and `MaybeCsMarketPanel` (real ground truth
+  before curated supplements).
+- **Methodology dropdown PVWatts line updated** — adds the cross-check
+  sentence pointing to the observed-fleet panel + bias disclosure.
+- **`Privacy.jsx`** — 5 new `<Source>` bullets: Nexamp (with explicit
+  COI disclosure), SR Energy, Catalyze, plus a single bullet naming all
+  15 reviewed-but-excluded developers (Standard Solar, Soltage, MEI,
+  BlueWave, US Solar, CCR, AES Distributed, Pivot, New Leaf, Borrego,
+  DSD, NEE, Lightsource bp, IGS, Coronal — checked, none publish full
+  size+production). New paragraph on three-source bias. EFFECTIVE_DATE
+  bumped to May 4, 2026; VERSION → 1.2.
+- **`Admin.jsx` FRESHNESS_CONFIG** — new `cs_specific_yield` entry,
+  mode='seeded', thresholds [120, 270] days.
+
+### Aden-side action items
+
+1. **Apply migrations 052, 053, 054 in Supabase SQL editor.** Order
+   matters: 052 (Phase E) → 053 → 054 (Phase G freshness depends on 053).
+2. **Re-run `node scripts/seed-solar-cost-index.mjs`** (Phase E). Confirms
+   3 → 10 Tier-A row publication.
+3. **Run `node scripts/seed-cs-specific-yield.mjs --dry-run`** first to
+   confirm parsers extract sane data from Nexamp/SR Energy/Catalyze
+   pages. The regex patterns are best-effort; if rows look thin or wrong,
+   use `--inspect=nexamp` (or `=srenergy` / `=catalyze`) to dump raw HTML
+   for tuning. Then re-run without `--dry-run` to upsert.
+4. **(Optional) BUILD_LOG flip migrations 052/053/054 to ✅** after
+   applying.
+
+### Where the data spine stands now
+
+| Layer | Source | State coverage |
+|---|---|---|
+| Solar capex anchor (national) | NREL Q1 2023 + LBNL TTS national + NREL ATB 2024 | 3 independent benchmarks |
+| Solar capex per-state observed (Phase B + E) | LBNL TTS w/ tier ladder | 10 Tier-A (3 strong + 3 modest + 4 thin) + 9 Tier-B (5 structural + 4 thin-below-floor) |
+| BESS capex | NREL ATB 2024 | national, no paywall |
+| BESS capacity revenue | ISO/RTO clearing | per-ISO |
+| Operating CS market (Phase C-pivoted) | NREL Sharing the Sun | 3,799 projects, all 50 states |
+| Capacity factor primary | NREL PVWatts API v8 | all 50 states (modeled) |
+| **Capacity factor observed (Phase G — new)** | **3-developer fleet (Nexamp/SR Energy/Catalyze)** | **pending seed run; estimated ~6-8 states with n≥3 after vintage filter** |
+
+Five data-lineage layers, three independent national benchmarks, every
+synthesis basis disclosed in Privacy.jsx + Lens UI.
+
+### Next pickup options
+
+1. **Run both seed scripts** (Phase E re-seed + Phase G first seed)
+   and visually verify the new panels render correctly.
+2. **Tune Phase G regex parsers** if dry-run output is sparse — `--inspect`
+   flag is provided for this.
+3. **Path-2 ground-truthing** of remaining structural-gap states
+   (LevelTen PPA Index, dev outreach).
+4. **IX scraper expansion** (CAISO/ERCOT/SPP/WECC).
+5. **Mobile responsiveness audit**.
+
+### Resume-prompt suggestions
+
+- *"Apply 052/053/054, run both seed scripts, then [N]"*
+- *"Phase G seed regex needs tuning — `--inspect=nexamp` and let's iterate"*
+
+---
+
+## Pickup (prior, 2026-05-04 evening) — Phase E shipped: lower n threshold to 3 + tiered confidence disclosure
 
 **Session 2026-05-04 (continuation, sessions 9–10).** The framing-problem
 plan landed. Approved + shipped in approval-mode → execution flow.
@@ -1411,6 +1503,8 @@ both blocks).
 | 050 | `cs_projects.sql` | Phase C-pivoted: NREL Sharing the Sun ground-truth ingestion. ~3,800 individual operating CS projects with utility/developer/size/vintage/LMI attribution. | ⏳ |
 | 051 | `freshness_cs_projects.sql` | RPC + cs_projects block (row_count, states_covered, latest_vintage, source_release, last_updated). | ⏳ |
 | 052 | `solar_cost_index_confidence_tier.sql` | Phase E: confidence_tier (strong/modest/thin) + aggregation_window_years + CHECK n≥3. Tier-B prefix backfill on revenue_rates.notes for 9 states. | ⏳ |
+| 053 | `cs_specific_yield.sql` | Phase G: per-project observed Specific Yield from Nexamp + SR Energy + Catalyze public fleet. capacity_basis (AC/DC), SY ∈ [600, 2400] CHECK. | ⏳ |
+| 054 | `freshness_cs_specific_yield.sql` | RPC + cs_specific_yield block. | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or

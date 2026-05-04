@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda, getNmtcLic, getCsMarketSnapshot } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda, getNmtcLic, getCsMarketSnapshot, getSpecificYieldLineage } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -11,6 +11,7 @@ import SectionDivider from '../components/SectionDivider'
 import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
 import ComparableDealsPanel from '../components/ComparableDealsPanel'
 import CsMarketPanel from '../components/CsMarketPanel'
+import SpecificYieldPanel from '../components/SpecificYieldPanel'
 import CoverageBadge from '../components/CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
@@ -2383,7 +2384,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
               <span className="font-semibold text-ink">Independent benchmarks (cross-check)</span> · <span className="text-gray-700">NREL ATB 2024 Solar - PV Distributed Commercial CAPEX $2,058/kW = $2.06/W (Advanced scenario, Class 1, 2022 base; falls to $1,845/kW next year per NREL forward modeling). NREL ATB 2024 Solar - Utility PV CAPEX $1,483/kW = $1.48/W (Class 1, 2022 base). LBNL TTS observed national median $1.91/W (n=839) for 2022-2024 install years. Tractova's $2.45/W national 2026 anchor sits ~$0.40-$0.50 above ATB's modeled forward — that delta is the FEOC + tariff + reshoring shock layer that ATB's moderate-scenario projection doesn't include.</span> ATB refreshes annually each Q1.
             </li>
             <li><span className="font-semibold text-ink">Bill credits + REC pricing</span> · State-specific from DSIRE + state PUC tariff filings + NEPOOL GIS / PJM-EIS GATS / WREGIS / M-RETS depending on REC market.</li>
-            <li><span className="font-semibold text-ink">Capacity factors</span> · NREL PVWatts API v8 state averages (more granular than Lazard's 15–20% national range).</li>
+            <li><span className="font-semibold text-ink">Capacity factors</span> · NREL PVWatts API v8 state averages (more granular than Lazard's 15–20% national range). Where a Nexamp / SR Energy / Catalyze operating-fleet sample exists for the state, the observed AC capacity factor is shown alongside PVWatts modeled in the lens for cross-check. Single-developer / three-source bias disclosed in the Privacy Policy; not engine input.</li>
             <li><span className="font-semibold text-ink">C&amp;I PPA + retail</span> · {CI_RATES_AS_OF} · Lazard LCOE+ v18 commercial range + EIA Form 861 commercial retail tariffs 2024.</li>
             <li><span className="font-semibold text-ink">BESS capacity + arbitrage</span> · {BESS_RATES_AS_OF} · ISO/RTO clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA) + NREL ATB 2024 Commercial Battery Storage CAPEX $1,450/kWh + Utility-Scale Battery Storage CAPEX $1,290/kWh (2022 base, Advanced scenario).</li>
             <li className="text-gray-500 italic">All three datasets are seeded constants. Refresh cadence: NREL ATB 2025 expected Q1 2026 (annual cycle); Lazard v19 expected April–June 2026; BESS rates re-anchored against ISO/RTO auctions as cycles complete. Automated refresh cron is on the backlog.</li>
@@ -4160,6 +4161,29 @@ function MaybeRegulatoryPanel({ state, stateName }) {
   )
 }
 
+function MaybeSpecificYieldPanel({ state, stateName, mw }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (!state) { setShow(false); return }
+    let cancelled = false
+    getSpecificYieldLineage(state).then(snap => {
+      if (!cancelled) setShow(!!snap && snap.total_count >= 3)
+    }).catch(err => {
+      // cs_specific_yield table may not exist yet (migration 053 pending).
+      // Hide gracefully — matches the "no data" empty case.
+      console.warn('[MaybeSpecificYieldPanel] getSpecificYieldLineage failed:', err)
+    })
+    return () => { cancelled = true }
+  }, [state])
+  if (!show) return null
+  return (
+    <>
+      <SectionDivider />
+      <SpecificYieldPanel state={state} stateName={stateName} mw={mw} />
+    </>
+  )
+}
+
 function MaybeCsMarketPanel({ state, stateName, mw }) {
   const [show, setShow] = useState(false)
   useEffect(() => {
@@ -4889,6 +4913,11 @@ function SearchContent() {
             <MaybeRegulatoryPanel
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
+            />
+            <MaybeSpecificYieldPanel
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
+              mw={results.form.mw}
             />
             <MaybeCsMarketPanel
               state={results.stateProgram?.id || results.form.state}

@@ -13,7 +13,7 @@ import { Link } from 'react-router-dom'
 // changelog.
 
 const EFFECTIVE_DATE = 'May 4, 2026'
-const VERSION = '1.1'
+const VERSION = '1.2'
 
 export default function Privacy() {
   return (
@@ -163,6 +163,10 @@ export default function Privacy() {
             <Li><Source>LBNL Tracking the Sun (TTS)</Source> — observed installed-PV-cost percentiles for non-residential installations 0.5–5 MW DC, last three install years (Lawrence Berkeley National Laboratory; emp.lbl.gov/tracking-the-sun). Coverage is uneven across states by design: states whose primary solar incentive is a per-MWh REC strike (Illinois, Pennsylvania, Oregon, Delaware, Washington) generate no TTS paper trail and are presented as Tier B regional-analog estimates rather than observed data. Where observed sample exists we publish three confidence tiers — strong (n≥40), modest (n=10–39), thin (n=3–9) — and disclose the sample size on every state lens.</Li>
             <Li><Source>NREL Sharing the Sun</Source> — operating community-solar project data (~3,800 individual projects with utility, developer, capacity, vintage, and LMI attribution). National Renewable Energy Laboratory; nrel.gov/solar/market-research-analysis/community-solar-data.html.</Li>
             <Li><Source>NREL Annual Technology Baseline (ATB)</Source> — modeled $/kW capex benchmarks for utility-scale, distributed commercial, and battery-storage technologies; cross-checked against Tractova synthesis (atb.nrel.gov).</Li>
+            <Li><Source>Nexamp public project listing</Source> — operating community-solar projects with publicly disclosed system size, annual production, and location (nexamp.com/projects). Tractova's operator has a professional relationship with Nexamp; we cite their public project data using the same standard as any other public source.</Li>
+            <Li><Source>SR Energy (Summit Ridge Energy) public project listing</Source> — operating community-solar projects with publicly disclosed system size and annual production (srenergy.com/projects).</Li>
+            <Li><Source>Catalyze public project listing</Source> — operating distributed-solar projects with publicly disclosed system size and, for a subset, annual production (catalyze.com/projects). Approximately 30% of Catalyze projects expose both size and annual kWh; rows missing production are dropped from the Specific Yield lineage layer.</Li>
+            <Li><Source>Other community-solar developers reviewed but excluded</Source> — On 2026-05-04 we reviewed Standard Solar, Soltage, Madison Energy Infrastructure, BlueWave, US Solar, Cypress Creek Renewables, AES Distributed Energy, Pivot Energy, New Leaf Energy, Borrego, DSD Renewables, New Energy Equity, Lightsource bp, IGS Solar, and Coronal Energy. None publish both system size and annual production at per-project granularity. They are listed here for full review transparency; if any subsequently publishes the necessary data, we will add them as additional sources.</Li>
             <Li><Source>US Census American Community Survey (ACS)</Source> — state and county demographic data, low-and-moderate-income (LMI) household estimates (census.gov).</Li>
             <Li><Source>USFWS National Wetlands Inventory (NWI)</Source> — per-county wetland coverage percentages and feature counts (US Fish and Wildlife Service; fws.gov/program/national-wetlands-inventory).</Li>
             <Li><Source>USDA SSURGO Soil Survey</Source> — per-county prime farmland percentages (US Department of Agriculture Soil Survey Geographic Database; nrcs.usda.gov).</Li>
@@ -186,6 +190,20 @@ export default function Privacy() {
             analysis lens and label the synthesized capex value as a
             regional-analog estimate. Sample sizes are surfaced on every
             published row.
+          </P>
+          <P>
+            Specific-yield lineage data drawn from CS-developer public
+            fleets is a three-source dataset (Nexamp, SR Energy, Catalyze).
+            It is informative but biased: three developers' design
+            philosophies (tilt, mounting, panel selection, racking,
+            inverter sizing) are over-represented relative to the broader
+            CS industry. We reviewed twelve additional developers and none
+            published both system size and annual production at per-project
+            granularity. The Service uses observed Specific Yield as a
+            cross-check / data lineage, not as an engine input —
+            capacity-factor calculations continue to reference NREL PVWatts
+            modeled values. Where observed and modeled diverge, both are
+            surfaced with explicit attribution.
           </P>
         </Section>
 
