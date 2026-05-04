@@ -65,15 +65,18 @@ function getAlerts(project, stateMap) {
   const currentRank = STATUS_RANK[current.csStatus]     ?? 2
   if (currentRank < savedRank) {
     alerts.push(current.csStatus === 'limited'
-      ? { level: 'warning', label: 'Capacity Limited' }
-      : { level: 'urgent',  label: 'Program Closed'   })
+      ? { level: 'warning', kind: 'status',     label: 'Capacity Limited' }
+      : { level: 'urgent',  kind: 'status',     label: 'Program Closed'   })
   }
   if (project.opportunity_score != null && current.opportunityScore < project.opportunity_score - 10) {
     const drop = project.opportunity_score - current.opportunityScore
-    alerts.push({ level: 'warning', label: `Score Drop · ↓${drop} pts` })
+    // kind:'score_drop' so projectCard can render the delta inline with the
+    // SCORE cell instead of as a standalone alerts-row pill — keeps cards
+    // visually consistent in height when score-drop is the only alert.
+    alerts.push({ level: 'warning', kind: 'score_drop', drop, label: `Score Drop · ↓${drop} pts` })
   }
   if (project.ix_difficulty && (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ix_difficulty] ?? 0))
-    alerts.push({ level: 'warning', label: 'Queue Harder' })
+    alerts.push({ level: 'warning', kind: 'queue', label: 'Queue Harder' })
   return alerts
 }
 
@@ -88,16 +91,23 @@ function alertPill(alert) {
 
 // V3 project card — TABLE-based for email-client safety.
 // Left teal/red rule via 3px-wide td. Two-column inner table for identity
-// (left) and status+score (right). Alerts below in their own row.
+// (left) and status+score (right). Score-drop alert renders inline with the
+// SCORE cell (no extra row); other alerts (Program Closed, Capacity Limited,
+// Queue Harder) get a tight footer row below identity. 2026-05-04 fix:
+// score-drop-only cards used to inflate ~60% taller than non-alerted cards
+// because the alerts row added a chunky band of whitespace around a single
+// pill — Aden flagged this in the original site-walk review and again 2026-05-04.
 function projectCard(project, stateMap) {
-  const alerts  = getAlerts(project, stateMap)
-  const state   = stateMap[project.state]
-  const status  = state?.csStatus ?? project.cs_status ?? 'active'
-  const score   = state?.opportunityScore ?? project.opportunity_score ?? '—'
-  const hasUrgent = alerts.some(a => a.level === 'urgent')
-  const accentColor = hasUrgent ? '#DC2626' : (typeof score === 'number' && score >= 60) ? TEAL_DEEP : '#94A3B8'
-  const statusLabel = STATUS_LABEL[status] ?? status
-  const statusColor = STATUS_COLOR[status] ?? INK_MUTED
+  const alerts        = getAlerts(project, stateMap)
+  const scoreDrop     = alerts.find(a => a.kind === 'score_drop')
+  const otherAlerts   = alerts.filter(a => a.kind !== 'score_drop')
+  const state         = stateMap[project.state]
+  const status        = state?.csStatus ?? project.cs_status ?? 'active'
+  const score         = state?.opportunityScore ?? project.opportunity_score ?? '—'
+  const hasUrgent     = alerts.some(a => a.level === 'urgent')
+  const accentColor   = hasUrgent ? '#DC2626' : (typeof score === 'number' && score >= 60) ? TEAL_DEEP : '#94A3B8'
+  const statusLabel   = STATUS_LABEL[status] ?? status
+  const statusColor   = STATUS_COLOR[status] ?? INK_MUTED
   const meta = [
     (project.state_name ?? project.state ?? '').toUpperCase(),
     (project.county ?? '').toUpperCase(),
@@ -105,8 +115,17 @@ function projectCard(project, stateMap) {
     (project.stage ?? '').toUpperCase(),
   ].filter(Boolean).join(' · ')
 
-  const alertsRow = alerts.length
-    ? `<tr><td colspan="2" style="padding:10px 16px 14px 16px;font-family:${FONT_SANS};">${alerts.map(alertPill).join('&nbsp;&nbsp;')}</td></tr>`
+  // Inline score-drop indicator next to the SCORE number in the right cell.
+  // Visual: "SCORE 67  ↓41" with the delta in amber to draw the eye.
+  const scoreDropInline = scoreDrop
+    ? ` <span style="color:#92400E;font-weight:700;font-size:11px;letter-spacing:0;margin-left:4px;">↓${scoreDrop.drop}</span>`
+    : ''
+
+  // Alerts row only renders when there are non-score-drop alerts. Tightened
+  // padding (was 10/14, now 8/10) so a single-pill row doesn't read as a
+  // big band of whitespace.
+  const alertsRow = otherAlerts.length
+    ? `<tr><td colspan="2" style="padding:8px 16px 10px 16px;font-family:${FONT_SANS};">${otherAlerts.map(alertPill).join('&nbsp;&nbsp;')}</td></tr>`
     : ''
 
   return `
@@ -120,9 +139,9 @@ function projectCard(project, stateMap) {
               <p style="margin:0;font-family:${FONT_SERIF};font-size:16px;font-weight:600;color:${INK};letter-spacing:-0.015em;line-height:1.25;">${project.name}</p>
               <p style="margin:4px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">${meta}</p>
             </td>
-            <td valign="top" align="right" width="90" style="white-space:nowrap;">
+            <td valign="top" align="right" width="110" style="white-space:nowrap;">
               <p style="margin:0;font-family:${FONT_MONO};font-size:9px;font-weight:700;color:${statusColor};letter-spacing:0.18em;text-transform:uppercase;">${statusLabel}</p>
-              <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">SCORE <span style="color:${INK};font-weight:700;font-size:15px;letter-spacing:-0.01em;">${score}</span></p>
+              <p style="margin:6px 0 0 0;font-family:${FONT_MONO};font-size:10px;color:${INK_MUTED};letter-spacing:0.06em;">SCORE <span style="color:${INK};font-weight:700;font-size:15px;letter-spacing:-0.01em;">${score}</span>${scoreDropInline}</p>
             </td>
           </tr>
         </table>
