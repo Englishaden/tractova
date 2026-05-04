@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as RadixTabs from '@radix-ui/react-tabs'
 import { motion } from 'motion/react'
 import { supabase } from '../lib/supabase'
+import TractovaLoader from './ui/TractovaLoader'
 import { useSubscription } from '../hooks/useSubscription'
 import { getPucDockets, getLmiData } from '../lib/programData'
 import RegulatoryActivityPanel from './RegulatoryActivityPanel'
@@ -393,20 +394,28 @@ function SubStat({ label, value, sub, mono = true }) {
 // ── News tab ───────────────────────────────────────────────────────────────
 function NewsTab({ state, news }) {
   const cacheKey = `${state.id}::${todayKey()}`
-  const [summary, setSummary] = useState(_stateNewsSummaryCache.get(cacheKey) ?? null)
-  const [summaryLoading, setSummaryLoading] = useState(false)
+  const cachedSummary = _stateNewsSummaryCache.get(cacheKey) ?? null
+  const [summary, setSummary] = useState(cachedSummary)
+  // Initial summaryLoading mirrors cache state — same fix pattern as
+  // NewsFeed.jsx so the TractovaLoader is visible from first paint when a
+  // fresh fetch is going to happen, not flash briefly mid-flight.
+  const [summaryLoading, setSummaryLoading] = useState(!cachedSummary)
+  // Collapsible (default closed) — matches the dashboard NewsFeed Market
+  // Pulse pattern so users get consistent AI-summary disclosure.
+  const [pulseOpen, setPulseOpen] = useState(false)
 
   // Fetch a state-scoped AI pulse the first time the user lands on this tab.
   // Cached per-state per-day so revisiting is free; one paragraph synthesizing
   // the recent items into "what matters for this state's developers."
   useEffect(() => {
-    if (summary || summaryLoading || news.length === 0) return
+    if (summary) { setSummaryLoading(false); return }
+    if (news.length === 0) return  // pulseLoading stays true until news arrives
     if (_stateNewsSummaryCache.has(cacheKey)) {
       setSummary(_stateNewsSummaryCache.get(cacheKey))
+      setSummaryLoading(false)
       return
     }
     let cancelled = false
-    setSummaryLoading(true)
     ;(async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -449,22 +458,56 @@ function NewsTab({ state, news }) {
 
   return (
     <div className="px-5 py-4">
-      {/* AI pulse — state-scoped synthesis (Pro only; free users silently skip) */}
+      {/* AI pulse — state-scoped synthesis (Pro only; free users silently skip).
+          Collapsible with chevron toggle, default closed. While loading, the
+          TractovaLoader is shown inline whether collapsed or expanded so the
+          user sees the brand loader instead of a generic dot. */}
       {(summary || summaryLoading) && (
         <div
-          className="mb-4 px-3 py-2.5 rounded-md"
+          className="mb-4 rounded-md overflow-hidden"
           style={{ background: 'rgba(15,118,110,0.05)', border: '1px solid rgba(15,118,110,0.18)' }}
         >
-          <p className="font-mono text-[9px] uppercase tracking-[0.20em] mb-1.5" style={{ color: '#0F766E' }}>
-            ◆ Market Pulse · {state.name}
-          </p>
-          {summaryLoading && !summary ? (
-            <div className="flex items-center gap-2 text-[11px] text-ink-muted">
-              <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
-              Synthesizing recent activity…
+          <button
+            type="button"
+            onClick={() => setPulseOpen(o => !o)}
+            className="w-full px-3 py-2 flex items-center gap-2 text-left transition-colors hover:brightness-95"
+            aria-expanded={pulseOpen}
+          >
+            <span className="font-mono text-[9px] uppercase tracking-[0.20em]" style={{ color: '#0F766E' }}>
+              ◆ Market Pulse · {state.name}
+            </span>
+            {/* Inline preview when collapsed */}
+            {!pulseOpen && summary && (
+              <span className="flex-1 min-w-0 text-[11px] text-gray-500 truncate">{summary}</span>
+            )}
+            {!pulseOpen && summaryLoading && !summary && (
+              <span className="flex-1 min-w-0 flex items-center gap-2">
+                <TractovaLoader size={14} />
+                <span className="text-[11px] text-ink-muted">Synthesizing recent activity…</span>
+              </span>
+            )}
+            <svg
+              width="11" height="11" viewBox="0 0 24 24"
+              fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className="shrink-0 transition-transform"
+              style={{ transform: pulseOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            >
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+          {pulseOpen && (
+            <div className="px-3 pb-2.5 -mt-0.5">
+              {summaryLoading && !summary ? (
+                <div className="flex items-center gap-3 py-1">
+                  <TractovaLoader size={32} />
+                  <p className="text-[11px] text-ink-muted leading-tight">
+                    Synthesizing recent activity…
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[12px] leading-relaxed text-ink">{summary}</p>
+              )}
             </div>
-          ) : (
-            <p className="text-[12px] leading-relaxed text-ink">{summary}</p>
           )}
         </div>
       )}
