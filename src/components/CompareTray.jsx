@@ -312,35 +312,47 @@ function CompareModal({ onClose }) {
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-auto px-6 py-4 scrollbar-dark">
-          {/* Column headers */}
+        {/* Drop top padding from the scroll container so the sticky header
+            below can sit flush against the Modal Header. The pb-4 keeps
+            bottom breathing room; pt-3 was moved into the sticky header
+            div so it scrolls correctly. */}
+        <div className="flex-1 overflow-auto px-6 pb-4 scrollbar-dark">
+          {/* Column headers — sticky 2026-05-04 (Aden's call) so devs always
+              see which projects they're comparing while scrolling the
+              analysis rows below. Tightened internals (text-xs → text-[11px],
+              pb-3 → pb-2, removed mb-0.5 between name and state subline)
+              shave ~8px of header row height vs prior. */}
           <div
-            className="grid gap-4 pb-3 mb-1"
-            style={{ gridTemplateColumns: `148px repeat(${items.length}, 1fr)`, borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+            className="grid gap-4 pt-3 pb-2 mb-1 sticky top-0 z-10"
+            style={{
+              gridTemplateColumns: `148px repeat(${items.length}, 1fr)`,
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              background: '#080E1A',
+            }}
           >
             <div />
             {items.map((item) => (
               <div key={item.id} className="px-1">
-                <div className="flex items-start justify-between gap-1 mb-0.5">
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-bold text-white/85 leading-snug">{item.name}</p>
+                <div className="flex items-start justify-between gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-[11px] font-bold text-white/85 leading-snug">{item.name}</p>
                     {aiCompare?.recommendedId === item.id && (
-                      <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ color: '#34D399', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                      <span className="text-[7.5px] font-bold uppercase tracking-wider px-1 py-px rounded-full" style={{ color: '#34D399', background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)' }}>
                         Recommended
                       </span>
                     )}
                   </div>
                   <button
                     onClick={() => remove(item.id)}
-                    className="text-white/20 hover:text-red-400 transition-colors shrink-0 mt-0.5"
+                    className="text-white/20 hover:text-red-400 transition-colors shrink-0"
                     aria-label={`Remove ${item.name}`}
                   >
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor">
+                    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
                       <path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/>
                     </svg>
                   </button>
                 </div>
-                <p className="text-[9px] font-mono text-white/30 uppercase tracking-wider">{item.stateName}</p>
+                <p className="text-[8.5px] font-mono text-white/30 uppercase tracking-wider">{item.stateName}</p>
               </div>
             ))}
           </div>
