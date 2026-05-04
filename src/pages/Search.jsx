@@ -1710,6 +1710,91 @@ function RevenueProjectionSection({ stateId, mw, rates }) {
   )
 }
 
+// ── Solar capex $/W per-state data lineage ──────────────────────────────────
+// Renders the state-specific evidence layer for `installed_cost_per_watt`,
+// the highest-impact synthesized field in the engine. Visibly distinguishes:
+//   • Tier A — observed LBNL TTS percentiles (when n>=40 in the 0.5-5 MW
+//     large non-res bracket): shows median + sample size + p25-p75 band +
+//     vintage, alongside the Tractova 2026-forward synthesized value
+//   • Tier B — no qualifying observed sample: explicitly says so + which
+//     regional analog drives the synthesis. No silent extrapolation pretense.
+//
+// This is the user-facing surface for the Phase B data-lineage layer
+// (solar_cost_index table). Honest 3-vs-14 disclosure: today only CA / MA /
+// NY have enough TTS sample to publish; the other 14 active CS states ride
+// regional analogs. As LBNL adds more samples each October, more states
+// flip to Tier A automatically — no UI change needed, the panel just renders
+// the lineage when present.
+function SolarCostLineagePanel({ rates, stateName }) {
+  if (!rates) return null
+  const stateLabel = stateName || rates.state_id || ''
+  const synthValue = rates.installed_cost_per_watt
+  const lineage = rates.solar_cost_lineage
+  if (synthValue == null) return null
+
+  const fmtDollar = (n) => (n == null ? '—' : `$${Number(n).toFixed(2)}/W`)
+
+  if (lineage) {
+    return (
+      <div className="pt-2 border-t border-gray-100">
+        <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>
+          Solar capex $/W — observed data lineage for {stateLabel}
+        </p>
+        <div className="rounded-md border px-3 py-2.5" style={{ borderColor: 'rgba(15,118,110,0.30)', background: 'rgba(15,118,110,0.04)' }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="font-mono text-[8px] uppercase tracking-[0.16em] px-1.5 py-0.5 font-bold" style={{ background: 'rgba(15,118,110,0.10)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.30)' }}>
+              Tier A · LBNL observed
+            </span>
+            <span className="text-[10px] text-gray-500">vintage {lineage.vintage_window}</span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-700">
+            <div>Sample size · <span className="font-semibold tabular-nums">{lineage.install_count} projects</span></div>
+            <div>Bracket · <span className="font-semibold">0.5–5 MW non-res</span></div>
+            <div>Median (p50) · <span className="font-semibold tabular-nums">{fmtDollar(lineage.p50_per_watt)}</span></div>
+            <div>p25–p75 band · <span className="font-semibold tabular-nums">{fmtDollar(lineage.p25_per_watt)} – {fmtDollar(lineage.p75_per_watt)}</span></div>
+            <div className="col-span-2 text-[9px] text-gray-500">p10 {fmtDollar(lineage.p10_per_watt)} · p90 {fmtDollar(lineage.p90_per_watt)}</div>
+          </div>
+          <div className="mt-2 pt-2 border-t border-teal-200/60 text-[10px] text-gray-700">
+            <span className="font-semibold text-ink">→ Tractova 2026 anchor:</span> <span className="font-semibold tabular-nums">{fmtDollar(synthValue)}</span>
+            <span className="text-gray-500"> · explicit forward extrapolation from observed median (NREL +22% YoY 2023→2024 + FEOC + reshoring + logistics layers — see methodology paragraph below).</span>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <a href="https://emp.lbl.gov/tracking-the-sun" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">LBNL Tracking the Sun ↗</a>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Tier B: no observed lineage. Be explicit about it.
+  return (
+    <div className="pt-2 border-t border-gray-100">
+      <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>
+        Solar capex $/W — synthesis basis for {stateLabel}
+      </p>
+      <div className="rounded-md border px-3 py-2.5" style={{ borderColor: 'rgba(217,119,6,0.30)', background: 'rgba(217,119,6,0.04)' }}>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span className="font-mono text-[8px] uppercase tracking-[0.16em] px-1.5 py-0.5 font-bold" style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}>
+            Tier B · regional analog
+          </span>
+          <span className="text-[10px] text-gray-500">no qualifying LBNL TTS sample (n&lt;40)</span>
+        </div>
+        <p className="text-[10px] text-gray-700 leading-relaxed">
+          {stateLabel} has insufficient observed sample in the LBNL Tracking the Sun public CSV (0.5–5 MW large non-residential bracket, 2022–2024 install years). Synthesized value <span className="font-semibold tabular-nums">{fmtDollar(synthValue)}</span> is a Tractova editorial Tier B regional-analog multiplier × $2.45/W national 2026 anchor (NREL Q1 2023 CS MMP $1.76 + explicit 2023→2026 forward layers).
+        </p>
+        {rates.notes && (
+          <p className="mt-1.5 pt-1.5 border-t border-amber-200/60 text-[10px] text-gray-600 leading-relaxed">
+            <span className="font-semibold text-ink">State-specific basis:</span> {rates.notes}
+          </p>
+        )}
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <a href="https://emp.lbl.gov/tracking-the-sun" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors">LBNL TTS (national reference) ↗</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
@@ -2216,11 +2301,12 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
             <a href="https://www.irs.gov/forms-pubs/about-form-3468" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
           </div>
         </div>
+        <SolarCostLineagePanel rates={rates} stateName={stateProgram?.name} />
         <div className="pt-2 border-t border-gray-100">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage &amp; sources</p>
           <ul className="space-y-1.5 text-[10px] text-gray-700 list-none">
             <li>
-              <span className="font-semibold text-ink">Solar capex $/W</span> · {SOLAR_RATES_AS_OF} · <span className="text-gray-700">Anchored on NREL Q1 2023 CS-specific Modeled Market Price ($1.76/Wdc PV-only / $2.94/Wdc PV+storage). State multipliers from LBNL TTS 2024 public CSV (0.5-5 MW LBNL large non-residential bracket, install years 2022-2024): NY $1.58/W (n=183), MA $2.64/W (n=84), CA $1.87/W (n=468), national median $1.91/W (n=839). Forward-extrapolated 2023→2026 (+$0.40-$0.70/W cumulative) with explicit driver layers: NREL Spring 2025 observed +22% YoY 2023→2024 (+$0.20-$0.30), FEOC restrictions (+$0.05-$0.10), reshoring + IRA bonus credit threshold 40%→55% (+$0.03-$0.05), Iran-Israel oil/logistics pass-through (+$0.02-$0.05). National 2026 PV-only anchor $2.45/W; PV+storage hybrid $3.15/W.</span> Forward magnitudes + Tier B regional multipliers are Tractova editorial judgment, not LBNL/NREL-published. Refreshes when new annual TTS / NREL data lands.
+              <span className="font-semibold text-ink">Solar capex $/W national anchor</span> · {SOLAR_RATES_AS_OF} · <span className="text-gray-700">Anchored on NREL Q1 2023 CS-specific Modeled Market Price ($1.76/Wdc PV-only / $2.94/Wdc PV+storage). National TTS reference: $1.91/W median (n=839, 0.5-5 MW large non-res, install years 2022-2024). Forward-extrapolated 2023→2026 (+$0.40-$0.70/W cumulative) with explicit driver layers: NREL Spring 2025 observed +22% YoY 2023→2024 (+$0.20-$0.30), FEOC restrictions (+$0.05-$0.10), reshoring + IRA bonus credit threshold 40%→55% (+$0.03-$0.05), Iran-Israel oil/logistics pass-through (+$0.02-$0.05). National 2026 PV-only anchor $2.45/W; PV+storage hybrid $3.15/W.</span> Forward magnitudes + Tier B regional multipliers are Tractova editorial judgment, not LBNL/NREL-published. Refreshes when new annual TTS / NREL data lands.
             </li>
             <li><span className="font-semibold text-ink">Bill credits + REC pricing</span> · State-specific from DSIRE + state PUC tariff filings + NEPOOL GIS / PJM-EIS GATS / WREGIS / M-RETS depending on REC market.</li>
             <li><span className="font-semibold text-ink">Capacity factors</span> · NREL PVWatts API v8 state averages (more granular than Lazard's 15–20% national range).</li>

@@ -4,7 +4,77 @@
 
 ---
 
-## 🟢 Pickup — LBNL Phase B shipped: solar_cost_index pipeline + annual cron + seed script + freshness card → next: Aden applies migrations 044-049, runs seed script locally, then picks Phase D (UI surfacing) or option 2/3 from the menu
+## 🟢 Pickup — LBNL Phase D shipped: solar_cost_lineage now visible in Lens methodology dropdown (3-vs-14 honest disclosure) → next: Aden picks Phase C (EIA Form 860 cross-check), IX scraper expansion, or path 2 ground-truthing
+
+**Session 2026-05-04 (continuation, third commit).** Phase D landed as a
+sibling to Phase B's table + pipeline. Honest 3-vs-14 disclosure: every
+Lens result for a CS state now surfaces an explicit data-lineage panel
+above the methodology paragraph — Tier A teal panel with observed LBNL
+percentiles + sample size + p25-p75 band when n≥40, Tier B amber panel
+explicitly stating "no qualifying LBNL TTS sample" + the regional analog
+basis when not. Both link out to LBNL Tracking the Sun.
+
+### What landed in Phase D (this session, third commit)
+
+- **`SolarCostLineagePanel`** new component in `Search.jsx:1713` (above
+  `OfftakeCard`). Reads `rates.solar_cost_lineage` (attached by Phase B's
+  `getRevenueRates`) and renders one of two visual states:
+  - **Tier A — observed**: teal panel, "LBNL observed" mono-caps badge,
+    install_count + p10/p25/p50/p75/p90 grid, vintage stamp, → Tractova
+    2026 anchor synthesized value. LBNL link.
+  - **Tier B — regional analog**: amber panel, "no qualifying sample
+    (n<40)" disclosure, synthesized value, state-specific basis pulled
+    from `rates.notes` (per-state rationale from migration 044).
+- **Methodology paragraph rewritten** at `Search.jsx:2222` — the
+  state-specific NY/MA/CA values previously hardcoded into the static
+  paragraph are now pulled into the dynamic per-state panel above. Static
+  paragraph retains the national 2026 anchor + forward-extrapolation
+  driver layers (NREL +22% YoY / FEOC / reshoring / logistics).
+
+### Visible state of CS coverage today (after seed-solar-cost-index ran)
+
+| Tier | Count | States |
+|---|---|---|
+| **A — LBNL observed** | 3 | CA, MA, NY (n=468 / 84 / 183) |
+| **B — regional analog** | 14 | IL, MN, CO, NJ, ME, MD, FL, CT, HI, NM, OR, RI, VA, WA |
+
+Every Lens result now shows which tier the user is looking at. The
+asymmetry is no longer a hidden engine detail — it's the first thing in
+the data-lineage block.
+
+### Aden-side action items (carried over from previous pickup)
+
+1. **Apply migrations 044, 045, 046, 047, 048, 049 in Supabase SQL editor.**
+   048 must precede 049 (049 references the table 048 creates).
+2. **Migration 048 already applied** — confirmed by tonight's
+   successful `node scripts/seed-solar-cost-index.mjs` run (3 rows
+   upserted).
+3. **(Optional) Configure `LBNL_TTS_CSV_URL`** in Vercel env vars to
+   enable the annual cron.
+
+### Next pickup options (priority-ordered)
+
+1. **Phase C — EIA Form 860 utility-scale cross-check** (~1-2 days). Add
+   a second source feeding `solar_cost_index` for utility-scale ≤25 MW
+   solar. Validation across two independent federal datasets. Plan
+   detail at `~/.claude/plans/what-about-sites-like-quiet-blanket.md`.
+2. **Path 2 — Ground-truth Tier B states**. LevelTen PPA Index (paywalled,
+   ~$1.5K/yr), industry-developer survey, or direct outreach to state
+   programs for cost-data validation. The Phase D UI now makes the gap
+   visible; this closes it.
+3. **IX scraper expansion** (CAISO/ERCOT/SPP/WECC, ~1-2 wks).
+4. **Mobile responsiveness audit** (~2-3 days).
+5. **Phase 3 multi-tenant RBAC** (queued for customer #2).
+
+### Resume-prompt suggestions
+
+- *"Phase C — wire EIA Form 860 as a second source"*
+- *"What's the cheapest path to Tier-A coverage on the 14 Tier-B states?"*
+- *"Continue with [option N]"*
+
+---
+
+## 🟢 Pickup (prior, 2026-05-04 evening) — LBNL Phase B shipped: solar_cost_index pipeline + annual cron + seed script + freshness card
 
 **Session 2026-05-04 (continuation).** Phase B of the LBNL ingestion plan
 landed. Solar $/W upstream truth (LBNL Tracking the Sun observed
