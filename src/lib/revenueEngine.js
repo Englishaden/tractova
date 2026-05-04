@@ -127,8 +127,12 @@
 // ITC: federal §48, 30% base + 10% adders per state qualifying status.
 //
 // BESS_RATES_AS_OF '2026-04' anchored on ISO/RTO clearing prices (PJM RPM,
-// NYISO ICAP, ISO-NE FCM, CAISO RA) + BloombergNEF 2024 utility-scale 4hr
-// BESS capex $295-$340/kWh.
+// NYISO ICAP, ISO-NE FCM, CAISO RA) + NREL ATB 2024 Commercial Battery
+// Storage CAPEX $1,450/kWh (2022 base, Advanced scenario; energy + power
+// stacks combined) and Utility-Scale Battery Storage CAPEX $1,290/kWh
+// (same vintage / scenario). ATB sheets in public/2024 NREL ATB Electricity.xlsx.
+// Replaces prior BloombergNEF 2024 dependency (paywalled, unverifiable);
+// ATB is free, NREL-published, and refreshes annually each Q1.
 //
 // ── Recalibration history ──
 // 2026-05-04 (Session 5): Lazard v18-anchored values shipped. Aden caught
@@ -152,7 +156,7 @@
 //       multipliers recomputed.
 export const SOLAR_RATES_AS_OF = '2023 NREL CS MMP + LBNL TTS 2024 + Tractova 2026 forward'
 export const CI_RATES_AS_OF    = '2023 NREL CS MMP -$0.05 C&I premium + LBNL TTS 2024 + Tractova 2026 forward (capex only; PPA + retail rates still 2025-Q2)'
-export const BESS_RATES_AS_OF  = '2025/26 ISO clearing × accreditation + Tractova 2026 forward (capacity); BNEF 2024 (capex); demand+arb still seeded synthesis'
+export const BESS_RATES_AS_OF  = '2025/26 ISO clearing × accreditation + Tractova 2026 forward (capacity); NREL ATB 2024 Commercial + Utility-Scale Battery Storage (capex); demand+arb still seeded synthesis'
 
 // ── Hardcoded fallback data ──────────────────────────────────────────────────
 // CS $/W per state: 2024 LBNL TTS observed anchor + 2024→2026 Tractova
