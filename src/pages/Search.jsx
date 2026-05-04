@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda, getNmtcLic } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda, getNmtcLic, getCsMarketSnapshot } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -10,6 +10,7 @@ import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
 import ComparableDealsPanel from '../components/ComparableDealsPanel'
+import CsMarketPanel from '../components/CsMarketPanel'
 import CoverageBadge from '../components/CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
@@ -4086,6 +4087,29 @@ function MaybeRegulatoryPanel({ state, stateName }) {
   )
 }
 
+function MaybeCsMarketPanel({ state, stateName, mw }) {
+  const [show, setShow] = useState(false)
+  useEffect(() => {
+    if (!state) { setShow(false); return }
+    let cancelled = false
+    getCsMarketSnapshot(state).then(snap => {
+      if (!cancelled) setShow(!!snap && snap.projectCount > 0)
+    }).catch(err => {
+      // cs_projects table may not exist yet (migration 050 pending). Hide
+      // gracefully — matches the "no projects" empty case.
+      console.warn('[MaybeCsMarketPanel] getCsMarketSnapshot failed:', err)
+    })
+    return () => { cancelled = true }
+  }, [state])
+  if (!show) return null
+  return (
+    <>
+      <SectionDivider />
+      <CsMarketPanel state={state} stateName={stateName} mw={mw} />
+    </>
+  )
+}
+
 function MaybeComparableDealsPanel({ state, stateName, technology, mw }) {
   const [show, setShow] = useState(false)
   useEffect(() => {
@@ -4792,6 +4816,11 @@ function SearchContent() {
             <MaybeRegulatoryPanel
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
+            />
+            <MaybeCsMarketPanel
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
+              mw={results.form.mw}
             />
             <MaybeComparableDealsPanel
               state={results.stateProgram?.id || results.form.state}

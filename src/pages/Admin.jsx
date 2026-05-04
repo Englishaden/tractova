@@ -1865,6 +1865,7 @@ const FRESHNESS_CONFIG = {
   news_feed:           { label: 'News Feed',           mode: 'live',    icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },
   county_geospatial_data: { label: 'County Geospatial (NWI + SSURGO)', mode: 'seeded', icon: '🌿', field: 'last_seeded', fallbackField: null, staleField: null, thresholds: [180, 365] },
   solar_cost_index:    { label: 'Solar Cost Index (LBNL TTS)', mode: 'live',    icon: '☀', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [400, 540] },
+  cs_projects:         { label: 'CS Projects (NREL Sharing the Sun)', mode: 'seeded', icon: '🌞', field: 'last_updated', fallbackField: null, staleField: null, thresholds: [180, 365] },
 }
 
 const MODE_BADGE = {

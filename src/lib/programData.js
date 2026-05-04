@@ -824,6 +824,104 @@ export async function getAllRevenueRates() {
   })
 }
 
+// ── getCsMarketSnapshot ──────────────────────────────────────────────────────
+// Per-state aggregate of operating CS projects from cs_projects (NREL Sharing
+// the Sun). Returns null when the table doesn't exist (migration 050 not yet
+// applied) or no rows for the state.
+//
+// Powers the Lens "Operating CS Projects" panel — real ground truth on which
+// states have a meaningful operating CS market vs. an active program
+// designation with thin deployment.
+export async function getCsMarketSnapshot(stateId, { sampleMwTarget = null, sampleSize = 6 } = {}) {
+  return withCache(`cs_market:${stateId}:${sampleMwTarget ?? 'any'}`, async () => {
+    try {
+      const { data, error } = await supabase
+        .from('cs_projects')
+        .select('project_id, project_name, city, state, utility_name, utility_type, developer_name, system_size_mw_ac, system_size_mw_dc, vintage_year, lmi_required, lmi_portion_pct, source_release, last_updated')
+        .eq('state', stateId)
+      if (error || !data) return null
+      if (data.length === 0) return null
+
+      // Aggregate
+      const sizes = data.map(r => Number(r.system_size_mw_ac)).filter(n => !isNaN(n) && n > 0)
+      const totalMw = sizes.reduce((s, n) => s + n, 0)
+      const sortedSizes = [...sizes].sort((a, b) => a - b)
+      const median = sortedSizes.length
+        ? sortedSizes[Math.floor(sortedSizes.length / 2)]
+        : null
+      const vintageYears = data.map(r => r.vintage_year).filter(y => y != null)
+      const vintageMin = vintageYears.length ? Math.min(...vintageYears) : null
+      const vintageMax = vintageYears.length ? Math.max(...vintageYears) : null
+      const last5y = vintageMax != null
+        ? data.filter(r => r.vintage_year >= vintageMax - 4).length
+        : 0
+
+      // Developer concentration — top 3 by project count (filter null/'.')
+      const devCounts = new Map()
+      for (const r of data) {
+        const dev = r.developer_name
+        if (!dev || dev === '.' || dev.length < 2) continue
+        devCounts.set(dev, (devCounts.get(dev) || 0) + 1)
+      }
+      const topDevelopers = [...devCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name, count]) => ({ name, projectCount: count }))
+
+      // Utility-type mix (Investor Owned / Cooperative / Municipal / etc.)
+      const utilityTypeCounts = new Map()
+      for (const r of data) {
+        const t = r.utility_type
+        if (!t) continue
+        utilityTypeCounts.set(t, (utilityTypeCounts.get(t) || 0) + 1)
+      }
+      const utilityTypeMix = [...utilityTypeCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([type, count]) => ({ type, count }))
+
+      // LMI penetration (subset where lmi_required === true)
+      const lmiRequiredCount = data.filter(r => r.lmi_required === true).length
+      const lmiPctValues = data.map(r => r.lmi_portion_pct).filter(p => p != null && p > 0)
+      const lmiAvgPct = lmiPctValues.length
+        ? lmiPctValues.reduce((s, n) => s + Number(n), 0) / lmiPctValues.length
+        : null
+
+      // Sample projects: closest to target MW if provided, otherwise largest.
+      let sample
+      if (sampleMwTarget != null && sampleMwTarget > 0) {
+        sample = [...data]
+          .filter(r => r.system_size_mw_ac != null)
+          .sort((a, b) => Math.abs(a.system_size_mw_ac - sampleMwTarget) - Math.abs(b.system_size_mw_ac - sampleMwTarget))
+          .slice(0, sampleSize)
+      } else {
+        sample = [...data]
+          .filter(r => r.system_size_mw_ac != null)
+          .sort((a, b) => b.system_size_mw_ac - a.system_size_mw_ac)
+          .slice(0, sampleSize)
+      }
+
+      return {
+        state: stateId,
+        projectCount: data.length,
+        totalOperationalMwAc: Number(totalMw.toFixed(1)),
+        medianSizeMwAc: median != null ? Number(median.toFixed(2)) : null,
+        vintageMin,
+        vintageMax,
+        recentInstallsLast5y: last5y,
+        topDevelopers,
+        utilityTypeMix,
+        lmiRequiredCount,
+        lmiAvgPct: lmiAvgPct != null ? Number(lmiAvgPct.toFixed(1)) : null,
+        sourceRelease: data[0]?.source_release || null,
+        lastUpdated: data[0]?.last_updated || null,
+        sample,
+      }
+    } catch {
+      return null
+    }
+  })
+}
+
 // ── getAllIXQueueData ─────────────────────────────────────────────────────────
 export async function getAllIXQueueData() {
   return withCache('ix_queue_all', async () => {

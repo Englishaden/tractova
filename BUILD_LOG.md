@@ -4,7 +4,135 @@
 
 ---
 
-## 🟢 Pickup — LBNL Phase D shipped: solar_cost_lineage now visible in Lens methodology dropdown (3-vs-14 honest disclosure) → next: Aden picks Phase C (EIA Form 860 cross-check), IX scraper expansion, or path 2 ground-truthing
+## 🟢 Pickup — Phase C-pivoted shipped: cs_projects (NREL Sharing the Sun) ground-truth ingestion → next: Aden applies migrations 050-051 + runs seed script + revisits $/W question
+
+**Session 2026-05-04 (continuation, sessions 7-8).** All migrations 044-049
+confirmed applied to live DB. hello@tractova.com forwarding tested working
+(non-Gmail senders confirm inbound). Phase C originally scoped as EIA Form
+860 utility-scale cross-check was pivoted mid-session — quick probe of
+NREL's "Sharing the Sun: Community Solar Project Data (Jan 2026).xlsx"
+(already in `public/`) revealed 3,799 individual operating CS projects
+with state / utility / developer / size / vintage / LMI attribution but
+**no cost data**. Right call: drop the EIA cost cross-check (scale-mismatched
+with TTS 0.5-5 MW non-res anyway) and ingest Sharing the Sun as a
+completely new ground-truth layer for CS market activity.
+
+Aden's instruction: ship the ingestion, then take a beat to think about
+the $/W question independently before committing to path-2 ground-truthing.
+
+### What landed (this session, two commits)
+
+**`f79be0e` (already shipped earlier)** — Phase B (table + cron + seed + freshness)
+**`7e71044` (already shipped earlier)** — Phase D (Lens lineage panel)
+
+**This session's third commit:**
+- **Migration 050** (`cs_projects.sql`) — per-project CS ground truth (3,799
+  rows). 16 useful columns: project_id (PK), utility_id, project_name,
+  city, state, utility_name + utility_type, subscription_marketer,
+  program_name, developer_name, system_size_mw_ac + mw_dc, vintage_year,
+  lmi_required + lmi_portion_pct + lmi_size_mw_ac. Source attribution
+  (`NREL_SHARING_THE_SUN`) + `source_release` (e.g. 'Jan 2026'). Indexed
+  on (state), (state, vintage_year desc), (state, system_size_mw_ac desc).
+  RLS public-read + admin-write. `'Unknown'` and `'.'` source values
+  coerced to null in seed.
+- **Migration 051** (`freshness_cs_projects.sql`) — RPC + cs_projects
+  block (row_count, states_covered, latest_vintage, source_release,
+  last_updated). No cron (NREL serves through Drupal/Cloudflare; same
+  block as LBNL).
+- **`scripts/seed-cs-projects.mjs`** — canonical local refresh path.
+  Auto-picks the newest `Sharing the Sun*.xlsx` in `public/`, parses the
+  "Project List" sheet (47 cols, only 24 useful), filters to individual
+  (non-aggregated) projects with valid state + project_id + vintage_year,
+  reports per-state distribution before upsert. `--dry-run` available.
+  Exact-header column lookup via `Object.keys(headers).findIndex(...)`
+  so NREL adding columns mid-list won't break parsing.
+- **`src/lib/programData.js` getCsMarketSnapshot(stateId, opts)`** — new
+  per-state aggregate exporter. Returns `{projectCount, totalOperationalMwAc,
+  medianSizeMwAc, vintageMin/Max, recentInstallsLast5y, topDevelopers (3),
+  utilityTypeMix, lmiRequiredCount, lmiAvgPct, sourceRelease, sample (6)}`.
+  `sampleMwTarget` opt sorts the sample by closeness to user's target
+  MW. Defensive try/catch — null when migration 050 not applied.
+- **`src/components/CsMarketPanel.jsx`** — new presentational panel.
+  Header shows project count + Sharing the Sun release + state name.
+  4 KPI cells (operational MW, median size, vintage range, last-5-yr
+  installs). Two side-by-side lists (top developers, utility-type mix).
+  LMI line when penetration > 0. Sample of nearest-MW projects (6 rows,
+  closest-to-target sort when MW input present, largest-first otherwise).
+  Source footer with file attribution.
+- **`src/pages/Search.jsx`** — `MaybeCsMarketPanel` wrapper (mirrors
+  MaybeRegulatoryPanel/MaybeComparableDealsPanel pattern). Hides when no
+  data. Placed BETWEEN Regulatory and ComparableDeals panels — real
+  ground truth before curated supplements.
+- **Admin Data Health** — FRESHNESS_CONFIG entry for cs_projects
+  (mode='seeded', icon='🌞', thresholds [180, 365]).
+
+### Top 15 states by CS project count (NREL Sharing the Sun, Jan 2026)
+
+| State | Projects | Operational MW-AC |
+|-------|---------:|------------------:|
+| NY    | 1,351    | 2,698.0           |
+| MA    |   592    | 1,061.3           |
+| MN    |   563    |   931.7           |
+| ME    |   449    |   474.0           |
+| IL    |   261    |   512.6           |
+| MD    |   224    |   250.2           |
+| CO    |   192    |   231.0           |
+| NJ    |   164    |   194.2           |
+| FL    |    63    | 3,873.4           |
+| OR    |    52    |    92.0           |
+| WA    |    42    |    19.6           |
+| VT    |    30    |    10.9           |
+| GA    |    22    |   135.7           |
+| SC    |    21    |    24.0           |
+| CA    |    20    |   217.3           |
+
+(FL low project count + huge MW = utility-style large CS like FPL
+SolarTogether, makes sense. CA's tiny count tracks "limited" status.)
+
+### Aden-side action items (apply when convenient)
+
+1. **Apply migrations 050 + 051** in Supabase SQL editor.
+2. **Seed `cs_projects` locally**: `node scripts/seed-cs-projects.mjs`
+   (~3,799 rows from `public/Sharing the Sun Community Solar Project Data
+   (Jan 2026).xlsx`). `--dry-run` available.
+3. **Then revisit the $/W question** independently — the visible Phase D
+   lineage panel + the new Phase C-pivot ground truth gives you the
+   complete data-validity picture before deciding path-2 spend.
+
+### What NREL's Sharing the Sun unlocks for the platform
+
+- **Per-state market reality check**: validate `state_programs.cs_status`
+  against actual operating MW. Some states with `'active'` have thin
+  deployment; some with `'limited'` have huge utility-style CS markets.
+- **Real comparables for the Lens** — replaces synthesized comparable_deals
+  with actual operating projects matching MW + state.
+- **LMI deployment penetration per state** — informs §48(e) Cat 1 patterns.
+- **Developer concentration signal** — which players are active where.
+
+### Next pickup options
+
+1. **Path 2 — ground-truth Tier B states for $/W**. Now with full
+   data-validity picture visible (Phase D lineage + Phase C-pivot ground
+   truth), the cost question can be re-evaluated. LevelTen PPA Index
+   (~$1.5K/yr), industry-developer survey, or direct outreach to state
+   programs.
+2. **IX scraper expansion** (CAISO/ERCOT/SPP/WECC, ~1-2 wks).
+3. **Mobile responsiveness audit** (~2-3 days).
+4. **Phase 3 multi-tenant RBAC** (queued for customer #2).
+5. **Use cs_projects to validate `state_programs.cs_status`** — flag
+   states whose stated status doesn't match their actual operating MW.
+   Could be a small audit script.
+6. **Replace synthesized comparable_deals with cs_projects-driven**
+   real deal cards. Larger refactor of ComparableDealsPanel.
+
+### Resume-prompt suggestions
+
+- *"Apply 050 + 051, run seed-cs-projects, then [pickup option N]"*
+- *"What's the data-validity picture look like across both Phase B/D and the new ground truth?"*
+
+---
+
+## Pickup (prior, 2026-05-04 evening) — LBNL Phase D shipped: solar_cost_lineage now visible in Lens methodology dropdown (3-vs-14 honest disclosure)
 
 **Session 2026-05-04 (continuation, third commit).** Phase D landed as a
 sibling to Phase B's table + pipeline. Honest 3-vs-14 disclosure: every
@@ -1212,13 +1340,15 @@ both blocks).
 | 040 | `dashboard_metrics_last_refresh.sql` | get_dashboard_metrics() returns lastRefreshAt from cron_runs so the Footer's "Data refreshed" caption reflects actual cron freshness rather than state_programs.last_verified | ✅ |
 | 041 | `scenario_snapshots.sql` | Phase 2 Scenario Studio: user-saved scenarios with nullable project_id (orphan promotion to project on save), state_id + county_name + technology context, jsonb baseline_inputs / scenario_inputs / outputs. RLS owner-only. | ✅ |
 | 042 | `cancellation_feedback.sql` | Pre-cancel exit-intent survey capture: reason category + free-text + email/tier snapshot + destination ("staying" / "stripe_portal"). RLS append-only own-rows. | ✅ |
-| 043 | `revenue_rates_v18_recalibration.sql` | Lazard v18 re-anchored seed; superseded by 044 for the CS $/W column. | ⏳ |
-| 044 | `revenue_rates_cs_lbnl_anchor.sql` | CS $/W re-anchored on NREL Q1 2023 CS MMP + LBNL TTS 2024 + Tractova 2026 forward (Tier A/B per-state). | ⏳ |
-| 045 | `revenue_rates_ci_lbnl_anchor.sql` | C&I $/W re-anchored same methodology -$0.05 C&I premium offset. | ⏳ |
-| 046 | `revenue_rates_bess_capacity_iso_anchor.sql` | BESS capacityPerKwYear re-anchored on 2024-25 ISO clearing × 4-hr accreditation. | ⏳ |
-| 047 | `revenue_rates_bess_demand_arb_anchor.sql` | BESS demand+arb documented + CA/HI refinements. | ⏳ |
-| 048 | `solar_cost_index.sql` | Phase B: per-state LBNL TTS observed PV installed-cost percentiles. Data-lineage layer; engine still reads Tractova-synthesized $/W from revenue_rates. | ⏳ |
-| 049 | `freshness_solar_cost_index.sql` | RPC + solar_cost_index block (row_count, states_covered, latest_vintage, last_updated, last_cron_success). | ⏳ |
+| 043 | `revenue_rates_v18_recalibration.sql` | Lazard v18 re-anchored seed; superseded by 044 for the CS $/W column. | ✅ |
+| 044 | `revenue_rates_cs_lbnl_anchor.sql` | CS $/W re-anchored on NREL Q1 2023 CS MMP + LBNL TTS 2024 + Tractova 2026 forward (Tier A/B per-state). | ✅ |
+| 045 | `revenue_rates_ci_lbnl_anchor.sql` | C&I $/W re-anchored same methodology -$0.05 C&I premium offset. | ✅ |
+| 046 | `revenue_rates_bess_capacity_iso_anchor.sql` | BESS capacityPerKwYear re-anchored on 2024-25 ISO clearing × 4-hr accreditation. | ✅ |
+| 047 | `revenue_rates_bess_demand_arb_anchor.sql` | BESS demand+arb documented + CA/HI refinements. | ✅ |
+| 048 | `solar_cost_index.sql` | Phase B: per-state LBNL TTS observed PV installed-cost percentiles. Data-lineage layer; engine still reads Tractova-synthesized $/W from revenue_rates. | ✅ |
+| 049 | `freshness_solar_cost_index.sql` | RPC + solar_cost_index block (row_count, states_covered, latest_vintage, last_updated, last_cron_success). | ✅ |
+| 050 | `cs_projects.sql` | Phase C-pivoted: NREL Sharing the Sun ground-truth ingestion. ~3,800 individual operating CS projects with utility/developer/size/vintage/LMI attribution. | ⏳ |
+| 051 | `freshness_cs_projects.sql` | RPC + cs_projects block (row_count, states_covered, latest_vintage, source_release, last_updated). | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or
