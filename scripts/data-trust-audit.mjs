@@ -170,12 +170,12 @@ const REGISTRY = [
   {
     name: 'computeDisplayScore composite weights (offtake 0.40, ix 0.35, site 0.25)',
     file: 'src/lib/scoreEngine.js', line: 269,
-    tier: 'C',
-    source: 'Tractova methodology (per glossary) — synthesis',
-    vintage: 'unknown (original product design)',
+    tier: 'B',
+    source: 'Tractova editorial product methodology (no primary-data anchor for pillar weights). Disclosed via WEIGHT_SCENARIOS export + computeDisplayScoreRange exposing default/revenue-tilt/IX-tilt/permit-tilt schemes; Lens UI surfaces "weight sensitivity X-Y" tooltip when spread > 4 pts.',
+    vintage: '2026-05-04 (transparent disclosure shipped)',
     nFields: 3,
-    risk: 'high',
-    notes: 'These three weights determine the composite Feasibility Index that drives every score in the product. Currently a Tractova editorial choice. No anchoring. Could be sensitivity-tested or anchored against CS developer survey on which factors most predict project success.',
+    risk: 'low',
+    notes: 'Audit migration changed approach: instead of trying to "find a primary source" (none exists for pillar weighting), made the editorial choice transparent + added user-facing sensitivity tool. Lens shows "Score 73 (weight sensitivity 67-78)" — user can see if verdict is robust to methodology. If/when developer-survey or empirical IRR-vs-pillar data becomes available, replace WEIGHT_SCENARIOS defaults.',
   },
   {
     name: 'computeFeasibilityScore csStatus base values (active=65, limited=40, pending=18, none=5)',

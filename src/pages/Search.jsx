@@ -21,7 +21,7 @@ import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'mot
 // Market Position Panel — replaces the old mini state map
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, getOfftakeCoverageStates } from '../lib/scoreEngine'
+import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, computeDisplayScoreRange, getOfftakeCoverageStates } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
@@ -347,6 +347,13 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   // different things.
   const stateBaseline = typeof stateProgram.feasibilityScore === 'number' ? stateProgram.feasibilityScore : null
   const projectAdjustment = stateBaseline != null ? score - stateBaseline : 0
+  // Methodology-sensitivity range — composite weights (0.40/0.35/0.25) are
+  // Tractova editorial choice, not anchored on primary data. Show users how
+  // the score moves under reasonable alternative weights so they can see
+  // whether the project's verdict is robust to methodology choice.
+  // Surfaced when spread > 4 (meaningful sensitivity); suppressed otherwise
+  // so it doesn't add noise to clearly-strong / clearly-weak projects.
+  const scoreRange = computeDisplayScoreRange(offtake, ix, site)
   // When state/county is outside our curated coverage, surface that to match
   // the honesty already in the revenue panel ("model not available"). Without
   // this, the user sees a feasibility number that looks researched but is
@@ -567,6 +574,38 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: verdict.color }} />
             {verdict.label}
           </div>
+          {/* Methodology-sensitivity indicator (audit Tier C composite weights).
+              Shown when spread > 4 pts to flag projects where verdict
+              depends on which pillar weighting you use. */}
+          {scoreRange.spread > 4 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="mt-2 font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 cursor-help inline-flex items-center gap-1.5">
+                  <span>weight sensitivity</span>
+                  <span className="font-bold tabular-nums" style={{ color: '#5A6B7A' }}>
+                    {scoreRange.min}–{scoreRange.max}
+                  </span>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-[10px] max-w-xs">
+                <p className="font-bold mb-1.5" style={{ color: '#5EEAD4' }}>How sensitive is this score to methodology?</p>
+                <p className="mb-2">The composite weights (Offtake 40% / IX 35% / Site 25%) are Tractova editorial — there's no primary-data anchor for "how much should each pillar count." Score below under reasonable alternatives:</p>
+                <ul className="space-y-1 mb-2">
+                  {Object.entries(scoreRange.scenarios).map(([k, s]) => (
+                    <li key={k} className="flex items-center justify-between gap-3">
+                      <span className={k === 'default' ? 'text-white' : 'text-gray-300'}>
+                        {s.label}
+                      </span>
+                      <span className="font-mono font-bold tabular-nums" style={{ color: k === 'default' ? '#5EEAD4' : '#9CA3AF' }}>
+                        {s.score}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-gray-400 italic">Spread {scoreRange.spread} pts. Wider spread = the project's verdict depends on methodology choice; consider running multiple weight scenarios in your underwriting.</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         {/* Right — identity + sub-scores */}

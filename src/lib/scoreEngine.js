@@ -265,6 +265,60 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   return { offtake, ix, site, coverage: { offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage } }
 }
 
-export function computeDisplayScore(offtake, ix, site) {
-  return Math.round(offtake * 0.40 + ix * 0.35 + site * 0.25)
+// ── Composite weights ────────────────────────────────────────────────────────
+// Default weights for the headline Feasibility Index: offtake 40%, IX 35%,
+// site 25%. THESE ARE TRACTOVA EDITORIAL — there is no primary-source
+// citation for "how much should offtake matter vs IX vs site" in CS project
+// underwriting. The choice reflects product judgment:
+//   - Offtake (40%): the revenue mechanism. If the program is closed or
+//     CS rates are low, the project doesn't pencil regardless of other inputs.
+//   - IX (35%): typically the binary go/no-go gate. Long studies + huge
+//     upgrade costs kill projects mid-development.
+//   - Site (25%): more solvable than IX/offtake — wetlands and farmland are
+//     real friction but most CS projects find a workable parcel.
+//
+// Audit 2026-05-04 acknowledged this is editorial. To make it transparent
+// we expose alternate weight scenarios + a range computation so the Lens UI
+// can show "Score 73 (range 67-78 across reasonable weight schemes)" letting
+// users see how sensitive their project's score is to the methodology choice.
+//
+// If/when we get developer-survey or empirical IRR-vs-pillar data that would
+// anchor these weights, replace WEIGHT_SCENARIOS with the empirical values.
+export const WEIGHT_SCENARIOS = {
+  default:    { offtake: 0.40, ix: 0.35, site: 0.25, label: 'Default (offtake-led)',
+                rationale: 'Tractova default — offtake gets highest weight as the revenue mechanism, IX second as the binary go/no-go gate, site third as the most solvable.' },
+  revenue:    { offtake: 0.50, ix: 0.30, site: 0.20, label: 'Revenue-tilt',
+                rationale: 'For developers who view CS programs (REC value, capacity availability) as the dominant project-success predictor.' },
+  ix:         { offtake: 0.30, ix: 0.40, site: 0.30, label: 'IX-tilt',
+                rationale: 'For developers in long-queue ISO regions (PJM, MISO) where interconnection delays are the project killer.' },
+  permit:     { offtake: 0.30, ix: 0.30, site: 0.40, label: 'Permit-tilt',
+                rationale: 'For developers in permit-heavy markets (NJ farmland, MA wetlands) where site control is the dominant friction.' },
+}
+
+const DEFAULT_WEIGHTS = WEIGHT_SCENARIOS.default
+
+export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
+  return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site)
+}
+
+// Returns { default, min, max, scenarios } showing the score under each of
+// the WEIGHT_SCENARIOS so users can see methodology sensitivity. If the
+// range is wide (e.g., 15+ pts), the project's verdict is sensitive to
+// methodology choice and worth flagging in the UI.
+export function computeDisplayScoreRange(offtake, ix, site) {
+  const scenarios = {}
+  let min = Infinity, max = -Infinity
+  for (const [k, w] of Object.entries(WEIGHT_SCENARIOS)) {
+    const s = computeDisplayScore(offtake, ix, site, w)
+    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site } }
+    if (s < min) min = s
+    if (s > max) max = s
+  }
+  return {
+    default: scenarios.default.score,
+    min,
+    max,
+    spread: max - min,
+    scenarios,
+  }
 }

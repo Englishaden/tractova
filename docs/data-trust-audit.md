@@ -9,12 +9,12 @@ Generated: **2026-05-04**  ·  Run from `scripts/data-trust-audit.mjs`
 | Tier | Description | Audit entries | Total fields covered |
 |---|---|---|---|
 | **A** | Anchored on primary data with verified citation. Just needs refresh when source updates. | 13 | 110 |
-| **B** | Regional analog or partially-anchored, with documented choice. Defensible but contains synthesis. | 7 | 94 |
-| **C** | Editorial / synthesis without primary citation. **REVIEW PRIORITY** — same risk pattern as the Lazard issue Aden caught 2026-05-04. | 11 | 73 |
+| **B** | Regional analog or partially-anchored, with documented choice. Defensible but contains synthesis. | 8 | 97 |
+| **C** | Editorial / synthesis without primary citation. **REVIEW PRIORITY** — same risk pattern as the Lazard issue Aden caught 2026-05-04. | 10 | 70 |
 | **Mixed** | Audit entry covers fields at multiple tiers (e.g., per-state values where some are A and some are B). | 2 | 34 |
 | **Total** | | 33 | 311 |
 
-**Risk distribution:** 2 high-risk · 15 medium-risk · 16 low-risk.
+**Risk distribution:** 1 high-risk · 15 medium-risk · 17 low-risk.
 
 ---
 
@@ -25,7 +25,6 @@ These constants are pure Tractova synthesis without a primary-source anchor. Sam
 | Field | File:Line | Risk | Source / Vintage | Notes |
 |---|---|---|---|---|
 | **BESS_REVENUE_DATA — demandChargePerKwMonth + arbitragePerMwh** _(17 values)_ | `src/lib/revenueEngine.js:213` | high | Industry research + IRP filings (claimed) + Tractova editorial<br>**Vintage:** 2026-04 | Demand charges vary widely by utility within state. Arbitrage spreads vary by ISO + season. Both are seeded synthesis without per-state primary citations. Refresh path: state utility tariff filings (PUC dockets) for demand charges; ISO LMP datasets for arbitrage. |
-| **computeDisplayScore composite weights (offtake 0.40, ix 0.35, site 0.25)** _(3 values)_ | `src/lib/scoreEngine.js:269` | high | Tractova methodology (per glossary) — synthesis<br>**Vintage:** unknown (original product design) | These three weights determine the composite Feasibility Index that drives every score in the product. Currently a Tractova editorial choice. No anchoring. Could be sensitivity-tested or anchored against CS developer survey on which factors most predict project success. |
 | **CI_REVENUE_DATA — ppaRateCentsKwh (C&I PPA rate per state)** _(17 values)_ | `src/lib/revenueEngine.js:191` | medium | EIA Form 861 cited + Tractova editorial state allocation<br>**Vintage:** 2025-06 | EIA Form 861 covers retail rates (state-level). PPA rates are typically a discount to retail (developer-quoted). Tractova picks ~50-60% of retail as PPA — synthesis. Best refresh path: LevelTen PPA Price Index (paywalled), or DOE/PPA Watch. |
 | **STAGE_MODIFIERS — score adjustments per project stage (offtake/ix/site triple)** _(7 values)_ | `src/lib/scoreEngine.js:1` | medium | Tractova editorial — captures de-risking by project stage<br>**Vintage:** unknown (likely original product design) | Magnitudes (e.g., NTP +25 site) are not anchored to any primary source. Refresh path: industry survey of CS developers on stage-by-stage de-risking expectations, or anchor against published CS project IRR sensitivity studies. |
 | **computeFeasibilityScore csStatus base values (active=65, limited=40, pending=18, none=5)** _(4 values)_ | `src/lib/scoreEngine.js:37` | medium | Tractova editorial<br>**Vintage:** unknown | Used in dashboard + email digest score computation. Same magnitude as offtake CS base in computeSubScores (active=80) — duplicated/inconsistent? Worth audit. |
@@ -47,6 +46,7 @@ Have some primary citation but contain Tractova synthesis layer (e.g., regional 
 | **CI_OFFTAKE_SCORES — C&I offtake score per state (0-100)** _(32 values)_ | `src/lib/scoreEngine.js:20` | medium | EIA Form 861 commercial retail rates 2024 + qualitative market-depth adjustments<br>**Vintage:** 2026-05-01 | Calibration documented inline per state. EIA Form 861 is real but the qualitative adjustments are Tractova editorial. Score values should be auditable against published retail rates. |
 | **BESS_OFFTAKE_SCORES — BESS offtake score per state (0-100)** _(25 values)_ | `src/lib/scoreEngine.js:45` | medium | ISO/RTO 2024-2025 capacity-market clearing prices + state storage carve-outs + IRP procurement plans<br>**Vintage:** 2026-05-01 | Sources cited inline. State allocation is editorial but documented per state in comments. Refresh annually as new ISO auctions clear. |
 | **BASELINE_INPUTS opexPerKwYear ($20/kW/yr CS solar O&M)** | `src/lib/scenarioEngine.js:38` | medium | Wood Mac H2 2025 utility-scale solar O&M $15-25/kW/yr (single national number, no state allocation)<br>**Vintage:** 2025-H2 | NREL Q1 2023 reports CS-specific O&M is $39.83/kWdc/yr (significantly higher than utility-scale). Tractova uses $20/kW/yr — possibly understated for CS. Worth re-anchoring. |
+| **computeDisplayScore composite weights (offtake 0.40, ix 0.35, site 0.25)** _(3 values)_ | `src/lib/scoreEngine.js:269` | low | Tractova editorial product methodology (no primary-data anchor for pillar weights). Disclosed via WEIGHT_SCENARIOS export + computeDisplayScoreRange exposing default/revenue-tilt/IX-tilt/permit-tilt schemes; Lens UI surfaces "weight sensitivity X-Y" tooltip when spread > 4 pts.<br>**Vintage:** 2026-05-04 (transparent disclosure shipped) | Audit migration changed approach: instead of trying to "find a primary source" (none exists for pillar weighting), made the editorial choice transparent + added user-facing sensitivity tool. Lens shows "Score 73 (weight sensitivity 67-78)" — user can see if verdict is robust to methodology. If/when developer-survey or empirical IRR-vs-pillar data becomes available, replace WEIGHT_SCENARIOS defaults. |
 | **BASELINE_INPUTS discountRate (8%)** | `src/lib/scenarioEngine.js:154` | low | Industry standard for CS / DG project finance (Wood Mac, Lazard LCOE)<br>**Vintage:** unknown | User-adjustable in Scenario Studio. Default of 8% is reasonable industry midpoint. |
 | **BASELINE_INPUTS programAllocationPct (1.0 = 100% subscriber utilization)** | `src/lib/scenarioEngine.js:297` | low | Tractova default — 100% allocation; user adjusts in Scenario Studio<br>**Vintage:** unknown | Default is editorial but user-controllable. Documented in glossary. |
 
