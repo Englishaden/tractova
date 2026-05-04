@@ -4,14 +4,22 @@
 
 ---
 
-## 🟢 Pickup — Site-walk review fixes shipped (4 sessions, ~32 commits) → next: analyst-brief verbosity question + Aden DNS work
+## 🟢 Pickup — Site-walk Session 5 shipped (`b566fd2` + `2d0d78b`) → next: Aden finishes Namecheap UI toggle, then I wire `replyTo: hello@tractova.com`
 
-**Session 2026-05-03.** Aden completed a manual end-to-end walkthrough
-of the production site and captured ~40 distinct findings in
-`Full Manual Site Review.md`. The plan
-(`~/.claude/plans/read-build-log-and-then-sorted-taco.md`) sequenced
-the fixes into Groups A–J. Sessions 1-4 closed every actionable item
-except the small handful flagged below as "needs Aden's call."
+**Session 2026-05-03 (Session 5 of the site-walk arc).** Aden returned
+the 3 outstanding decisions; this session shipped them as two commits
+on `main`. The only remaining work in the entire site-walk arc is the
+Namecheap UI toggle for `hello@tractova.com` forwarding (Aden's hands)
+and the corresponding `replyTo` wiring (5-LOC commit, fires after Aden
+confirms hello@ lands in his Gmail).
+
+### Sessions 1-4 recap (still relevant for context — full detail below)
+
+Aden completed a manual end-to-end walkthrough of the production site
+2026-05-02 and captured ~40 findings in `Full Manual Site Review.md`.
+The plan (`~/.claude/plans/read-build-log-and-then-sorted-taco.md`)
+sequenced the fixes into Groups A–J. Sessions 1-4 closed nearly every
+actionable item; Session 5 closed the last 4 that needed Aden's input.
 
 ### What landed across the 4 sessions
 
@@ -64,21 +72,112 @@ except the small handful flagged below as "needs Aden's call."
 tests, 16-26s). Manual prod check guidance in each commit message
 covers the surfaces touched.
 
-### Items NOT addressed (need Aden's input or are out-of-band)
+### What landed in Session 5 (2 commits, 5 file changes)
 
-1. **A2 — page title subtitle ("Market Intelligence for Solar Developers")**: kept verbatim. Aden hadn't picked between "keep" and "drop" in clarifying questions; recommendation in plan was "keep for SEO + first-impression clarity."
-2. **F4 — CSV/XLSX consolidation**: kept both formats untouched. Plan recommended dropping CSV in favor of XLSX-only with a second sheet for AI commentary; pending Aden's call.
-3. **G4 — full email audit (Gmail desktop+mobile rendering)**: requires sending real test emails through Resend + visual sweep across mail clients. Not done in this session; the score-drop + IDX-terminology fixes from Session 1 are the highest-impact items.
-4. **I3 — `hello@tractova.com` Cloudflare Email Routing**: DNS work Aden does himself. Runbook in plan file (Cloudflare → tractova.com → Email Routing → enable → forward to aden.walker67@gmail.com → Gmail confirm). No code change needed.
-5. **Aden review item #12 — Analyst Brief verbosity / dropdown redesign**: Aden flagged "should we make the analyst brief less wordy and more in a way you open up dropdowns or something like that? need your thoughts here." A meaningful UX redesign question; deliberately not touched without Aden's input. The brief currently renders all six fields (brief / primaryRisk / topOpportunity / immediateAction / stageSpecificGuidance / competitiveContext) inline.
-6. **J1 + J2 — Custom keyboard shortcuts + Library deal notes OneNote-like revamp**: explicitly deferred per plan ("way down the line" + "needs target UX").
+**`b566fd2` — A2 page title strip + G4 email audit (code-level pass)**
+- **A2**: `index.html` `<title>Tractova — Market Intelligence for Solar Developers</title>` → `<title>Tractova</title>`. Aden's call: strip subtitle.
+- **G4 enum-leak fixes** (real findings from a code-level pass on `api/send-alerts.js` + `api/send-digest.js`):
+  - `send-alerts.js`: added `IX_LABEL` + `STATUS_LABEL` maps. The "IX Queue Harder" alert detail used to render raw `easy → very_hard` enums; now reads `Easy → Very hard`. The TEST alert no longer leaks raw `csStatus` enum.
+  - `send-digest.js`: "Markets in Motion" `lastChange` line now formats field names + values through `FIELD_LABELS` / `STATUS_LABEL` / `IX_LABEL` / unit suffixes. Used to render `cs status: active → limited` or `ix difficulty: easy → very_hard`; now reads `Status: Active → Limited`.
+  - `check-staleness.js`: legacy green `#0F6E56` → canonical teal `#0F766E` (admin-only staleness email; same drift the favicon had pre-Session 1).
+- **G4 deferred**: full Gmail desktop+mobile visual sweep (requires real test send + manual eyeball — not autonomous code work).
 
-### Next pickup options
+**`2d0d78b` — F4 drop CSV / enrich XLSX + #12 Analyst Brief drilldown accordion**
+- **F4**: `exportCSV()` and `handleBulkExportCSV` removed. CSV button + bulk action button retired. `exportXLSX()` rewritten as a 3-sheet workbook:
+  - **Sheet 1 "Projects"** — existing 18 columns + new sub-score cols (Offtake / IX / Site computed via `scoreEngine.computeSubScores()`) + Wetland Coverage % + Prime Farmland % from Path B geospatial. 23 columns. Header row frozen, USD format on revenue (col U).
+  - **Sheet 2 "Methodology & Sources"** — 15 reference rows mapping each pillar/component to authoritative source (DSIRE, EIA Form 861, ISO/RTOs, USFWS NWI, USDA SSURGO, DOE NETL, HUD QCT/DDA, CDFI NMTC, NREL PVWatts, Census ACS) with **clickable hyperlinks** via SheetJS `cell.l = { Target }`.
+  - **Sheet 3 "Glossary"** — pulls from canonical `src/lib/glossaryDefinitions.js` `GLOSSARY_DEFINITIONS`. Term + short + long, word-wrap on detail.
+  - Header button: dual `CSV` / `XLSX` → single `Export Excel`. Bulk-action toolbar: `Export CSV` → `Export Excel`.
+- **#12 (option A — Aden's call)**: new `<BriefDrilldown>` component (~40 LOC, no new dependencies). Chevron-toggled side-rule row with eyebrow always visible, body collapsed by default. ChevronRight rotates 90° on open, 200ms transition. `MarketIntelligenceSummary` restructured:
+  - **Always visible**: Brief pull-quote, Decision Signals strip, Immediate Action — Next 30 Days
+  - **Collapsed into "Drill-Down" accordion**: Primary Risk (red), Top Opportunity (teal), Stage Guidance — {stage} (teal), Competitive Context (blue)
+  - Original gating preserved: Risk + Opportunity hide while a scenario is active (those are base-case signals); Stage Guidance + Competitive Context remain visible always.
 
-- **Analyst Brief redesign** (review item #12). Two paths to discuss: (a) collapse all but `brief` + `immediateAction` into accordion drilldowns; (b) restructure into a single 5-bullet summary with a "Read full briefing →" expander. Need Aden's call on tone vs density tradeoff.
-- **CSV/XLSX consolidation** (F4). Drop CSV, or differentiate XLSX with a second sheet (AI commentary, sub-score breakdown, methodology references) so the format choice means something.
-- **Email rendering audit** (G4). Send test digest + alert + opportunity emails to Aden's Gmail; sweep desktop + mobile rendering; document any remaining formatting issues.
-- **Hello@tractova DNS** (I3). Aden completes the Cloudflare Email Routing setup per the plan runbook.
+`npm run verify` green on both commits (build + 7 smoke, 15.4s and 19.6s).
+
+### Items NOT addressed (need Aden's hands or are deferred)
+
+1. **G4 visual sweep** — Gmail desktop+mobile rendering audit. Aden sends a real test through Admin → Alert tester (urgent + opportunity + digest), eyeballs each in Gmail desktop + Gmail mobile, flags any layout drift. Not autonomous code work.
+2. **`hello@tractova.com` mailbox** — see "Where Aden is right now" section below for the live state of the DNS work and the exact next step.
+3. **J1 + J2** — custom keyboard shortcuts + Library deal-notes OneNote-style editor. Explicitly deferred per plan ("way down the line" + "needs target UX").
+
+### Where Aden is right now (DNS — the only blocker before `replyTo` lands)
+
+**Goal:** `hello@tractova.com` forwards to `aden.walker67@gmail.com`. Once
+that lands, I wire `replyTo: 'hello@tractova.com'` into the Resend send
+calls in `api/send-alerts.js` + `api/send-digest.js` (~5 LOC, one
+commit). Until then user replies to alerts/digests bounce on the
+no-monitor `alerts@` / `digest@` from-addresses.
+
+**Domain context (verified live via Google DNS HTTP API in Session 5):**
+- Domain: `tractova.com`, registrar: Namecheap (DNS hosted there too —
+  `dns1.registrar-servers.com`). No Cloudflare in the picture.
+- **Resend outbound infra is on the `send.tractova.com` subdomain** —
+  SPF `v=spf1 include:amazonses.com ~all` lives there. This is
+  independent of root-domain mail config. Don't touch `send.*`.
+- **Root `tractova.com` MX records (now correctly published, verified
+  2026-05-03):**
+  ```
+  10 eforward1.registrar-servers.com.
+  10 eforward2.registrar-servers.com.
+  10 eforward3.registrar-servers.com.
+  10 eforward4.registrar-servers.com.
+  10 eforward5.registrar-servers.com.
+  ```
+  These replaced a leftover `feedback-smtp.us-east-1.amazonses.com` MX
+  that had been at root from Resend's original verification flow. The
+  SES MX is for bounce-tracking metrics (mildly useful, not load-bearing
+  — Tractova's volume is low enough that fewer bounce details is fine).
+- **Root TXT (SPF) record (already there, kept as-is):**
+  `v=spf1 include:spf.efwd.registrar-servers.com ~all`
+
+**The block as of session end:**
+Even with all 5 eforward MX records correctly published on `@`,
+Namecheap's UI on the **Domain** tab is still showing
+*"Your domain is using other email service"* and the Redirect Email
+section is locked. The DNS plumbing is correct; what's missing is a
+**Namecheap UI toggle** — a "Mail Settings" dropdown / radio control
+on the Domain tab (separate from Advanced DNS) that has to be flipped
+to "Free Email Forwarding". Namecheap's UI checks that toggle, not the
+live DNS records, before unlocking the Redirect Email rules.
+
+**Aden's exact next step when he picks this back up:**
+1. Namecheap → Domain List → tractova.com → Manage → **Domain** tab
+   (default tab, leftmost — *not* Advanced DNS).
+2. Find a section/dropdown labeled one of: "Mail Settings", "Email",
+   "Redirect Email" header, or a left-side nav item. The control may
+   be a dropdown (options: Custom MX / Free Email Forwarding / MXE /
+   Private Email / No Email Service) OR a radio set OR a "Manage"
+   button next to "Email Forwarding".
+3. Set it to **"Free Email Forwarding"** → save.
+4. The Redirect Email card will unlock → add row: alias `hello` →
+   forward to `aden.walker67@gmail.com` → save.
+5. Wait 5-30 min for Namecheap-side propagation (DNS MX is already in
+   place from Session 5, so the wait is only Namecheap's internal
+   provisioning of the alias).
+6. Send a test email to `hello@tractova.com` from any other account —
+   confirm it arrives in Gmail (and check Spam folder for the very
+   first message).
+
+If the Domain tab UI doesn't expose any "Mail Settings" control at all,
+fallback option is to screenshot the page and I'll point at the right
+control — Namecheap reorganizes their UI periodically and the dropdown
+sometimes hides under a "Manage" button.
+
+**When Aden confirms `hello@tractova.com` lands in his Gmail:**
+- I add `replyTo: 'hello@tractova.com'` to the Resend `sendEmail()`
+  helpers in `api/send-alerts.js:399-413` (alerts) and
+  `api/send-digest.js:374-388` (digest). Single field added to the
+  fetch body. ~5 LOC change, one commit.
+- (Later, optional) wire Gmail "Send mail as `hello@tractova.com`"
+  via Resend SMTP so Aden can reply *as* hello@. Not blocking.
+
+### Next session start prompt
+
+Just say *"continue with the remaining items"* or *"hello@ landed,
+wire replyTo"* and Claude reads this section to pick up. The full
+context is here — DNS state, what's shipped, what's pending, exact
+next code change.
 
 ---
 
