@@ -2290,10 +2290,19 @@ const TTS_SIZE_MAX_KW = 5000
 const TTS_DOLLARS_PER_WATT_FLOOR = 0.50
 const TTS_DOLLARS_PER_WATT_CEIL  = 8.00
 
-// Minimum sample size before we publish a Tier-A state row. Below this we
-// skip the state entirely (consumers fall back to revenue_rates which has
-// regional-analog values for thin-data states).
-const TTS_MIN_SAMPLE_PER_STATE = 40
+// Tier ladder — MUST mirror scripts/seed-solar-cost-index.mjs constants
+// exactly. If these drift between the two files, refreshes will flip rows
+// between tiers between scheduled runs. Update both in lockstep.
+const TTS_TIER_FLOOR      = 3   // n<3 → not published, falls through to Tier B
+const TTS_TIER_MODEST_MIN = 10  // n=10-39 → 'modest'
+const TTS_TIER_STRONG_MIN = 40  // n>=40  → 'strong'
+
+function ttsAssignTier(n) {
+  if (n >= TTS_TIER_STRONG_MIN) return 'strong'
+  if (n >= TTS_TIER_MODEST_MIN) return 'modest'
+  if (n >= TTS_TIER_FLOOR)      return 'thin'
+  return null
+}
 
 function ttsPercentile(sortedArr, p) {
   if (!sortedArr.length) return null
@@ -2404,35 +2413,38 @@ async function refreshSolarCosts() {
   const stateSummary = []
   for (const [state, bucket] of byState) {
     const recent = bucket.all.filter(r => recentYears.has(r.year)).map(r => r.dpw)
-    if (recent.length < TTS_MIN_SAMPLE_PER_STATE) {
-      stateSummary.push({ state, install_count: recent.length, status: 'skipped_low_sample' })
+    const tier = ttsAssignTier(recent.length)
+    if (!tier) {
+      stateSummary.push({ state, install_count: recent.length, status: 'skipped_below_floor' })
       continue
     }
     const sorted = [...recent].sort((a, b) => a - b)
     const row = {
       state,
-      sector:        'large_non_res',
-      vintage_year:  latestYearSeen,
-      vintage_window: vintageWindow,
-      install_count: recent.length,
-      p10_per_watt: Number(ttsPercentile(sorted, 10).toFixed(2)),
-      p25_per_watt: Number(ttsPercentile(sorted, 25).toFixed(2)),
-      p50_per_watt: Number(ttsPercentile(sorted, 50).toFixed(2)),
-      p75_per_watt: Number(ttsPercentile(sorted, 75).toFixed(2)),
-      p90_per_watt: Number(ttsPercentile(sorted, 90).toFixed(2)),
-      source:       'LBNL_TTS',
-      source_url:   url,
-      notes:        `LBNL Tracking the Sun ${vintageWindow} install years, customer_segment ∈ {COM,NON-RES,AGRICULTURAL,SCHOOL,GOV,NON-PROFIT,OTHER TAX-EXEMPT}, ${TTS_SIZE_MIN_KW}-${TTS_SIZE_MAX_KW} kW DC.`,
-      last_updated: new Date().toISOString(),
+      sector:                   'large_non_res',
+      vintage_year:             latestYearSeen,
+      vintage_window:           vintageWindow,
+      install_count:            recent.length,
+      confidence_tier:          tier,
+      aggregation_window_years: 3,
+      p10_per_watt:             Number(ttsPercentile(sorted, 10).toFixed(2)),
+      p25_per_watt:             Number(ttsPercentile(sorted, 25).toFixed(2)),
+      p50_per_watt:             Number(ttsPercentile(sorted, 50).toFixed(2)),
+      p75_per_watt:             Number(ttsPercentile(sorted, 75).toFixed(2)),
+      p90_per_watt:             Number(ttsPercentile(sorted, 90).toFixed(2)),
+      source:                   'LBNL_TTS',
+      source_url:               url,
+      notes:                    `Tier=${tier}, n=${recent.length}; LBNL Tracking the Sun ${vintageWindow} install years, customer_segment ∈ {COM,NON-RES,AGRICULTURAL,SCHOOL,GOV,NON-PROFIT,OTHER TAX-EXEMPT}, ${TTS_SIZE_MIN_KW}-${TTS_SIZE_MAX_KW} kW DC.`,
+      last_updated:             new Date().toISOString(),
     }
     upsertRows.push(row)
-    stateSummary.push({ state, install_count: recent.length, p50: row.p50_per_watt, status: 'published' })
+    stateSummary.push({ state, install_count: recent.length, tier, p50: row.p50_per_watt, status: 'published' })
   }
 
   if (upsertRows.length === 0) {
     return {
       ok: false,
-      error: `No states cleared the n>=${TTS_MIN_SAMPLE_PER_STATE} sample threshold across ${byState.size} candidate states.`,
+      error: `No states cleared the n>=${TTS_TIER_FLOOR} sample floor across ${byState.size} candidate states.`,
       rows_scanned: rowsScanned,
       rows_kept: rowsKept,
       latest_year_seen: latestYearSeen,
@@ -2440,11 +2452,11 @@ async function refreshSolarCosts() {
     }
   }
 
-  // Upsert in a single batch — Phase B publishes ~17-25 state rows, well
-  // inside PostgREST's payload limit.
+  // Upsert in a single batch — published rows scale with state count
+  // (typically ~10-20 after Phase E), well inside PostgREST's payload limit.
   const { error: upsertErr } = await supabaseAdmin
     .from('solar_cost_index')
-    .upsert(upsertRows, { onConflict: 'state,sector,vintage_year,source' })
+    .upsert(upsertRows, { onConflict: 'state,sector,vintage_year,source,aggregation_window_years' })
   if (upsertErr) {
     return {
       ok: false,
@@ -2453,6 +2465,11 @@ async function refreshSolarCosts() {
     }
   }
 
+  const tierCounts = {
+    strong: upsertRows.filter(r => r.confidence_tier === 'strong').length,
+    modest: upsertRows.filter(r => r.confidence_tier === 'modest').length,
+    thin:   upsertRows.filter(r => r.confidence_tier === 'thin').length,
+  }
   return {
     ok: true,
     rows_scanned: rowsScanned,
@@ -2460,8 +2477,9 @@ async function refreshSolarCosts() {
     latest_year_seen: latestYearSeen,
     vintage_window: vintageWindow,
     states_published: upsertRows.length,
-    states_skipped_low_sample: stateSummary.filter(s => s.status === 'skipped_low_sample').length,
+    tier_counts: tierCounts,
+    states_skipped_below_floor: stateSummary.filter(s => s.status === 'skipped_below_floor').length,
     download_duration_ms: downloadDurationMs,
-    sample_states: upsertRows.slice(0, 5).map(r => ({ state: r.state, n: r.install_count, p50: r.p50_per_watt })),
+    sample_states: upsertRows.slice(0, 5).map(r => ({ state: r.state, tier: r.confidence_tier, n: r.install_count, p50: r.p50_per_watt })),
   }
 }

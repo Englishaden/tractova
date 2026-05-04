@@ -4,7 +4,68 @@
 
 ---
 
-## 🟢 Pickup — Phase C-pivoted shipped: cs_projects (NREL Sharing the Sun) ground-truth ingestion → next: Aden applies migrations 050-051 + runs seed script + revisits $/W question
+## 🟢 Pickup — Phase E shipped: lower n threshold to 3 + tiered confidence disclosure (3 → 10 Tier-A states, 5 visual variants) → next: Aden applies migration 052 + re-runs seed-solar-cost-index, then Phase G (Specific Yield from Nexamp/SR Energy/Catalyze)
+
+**Session 2026-05-04 (continuation, sessions 9–10).** The framing-problem
+plan landed. Approved + shipped in approval-mode → execution flow.
+
+### What landed (this commit)
+
+- **Migration 052** — adds `confidence_tier` + `aggregation_window_years`
+  to `solar_cost_index`. CHECK enforces n≥3 floor at the DB layer.
+  Extends unique key to (state, sector, vintage_year, source,
+  aggregation_window_years). Backfills `[TIER_B:STRUCTURAL incentive=SREC]`
+  prefix onto `revenue_rates.notes` for IL/PA/OR/DE/WA (5 SREC-design
+  states with no LBNL paper trail) and `[TIER_B:THIN n=N]` for FL/MD/NH/CT
+  (4 below-floor states). Idempotent; re-runs don't double-prefix.
+- **Seed script + API handler** — threshold lowered from 40 → 3 with a
+  three-tier ladder (`TIER_FLOOR=3 / TIER_MODEST_MIN=10 / TIER_STRONG_MIN=40`).
+  Constants mirrored across both files with `MUST mirror` lockstep
+  comments. Three-tier console output (STRONG/MODEST/THIN sub-tables).
+- **`SolarCostLineagePanel`** — 5 visual variants:
+  - Tier A · Strong (teal, full p10–p90)
+  - Tier A · Modest (teal + "modest sample" caveat)
+  - Tier A · Thin (amber-tinged teal; **p10/p90 suppressed** at thin n
+    where they're false precision; mandatory caveat)
+  - Tier B · Thin (amber + "below floor" copy; parsed from `[TIER_B:THIN]`
+    prefix)
+  - Tier B · Structural (amber + "incentive design generates no paper
+    trail" copy; parsed from `[TIER_B:STRUCTURAL]` prefix)
+  - Legacy/no-prefix Tier B graceful degrade preserved.
+- **`Privacy.jsx`** — three new `<Source>` entries (LBNL TTS with
+  structural-coverage disclosure, NREL Sharing the Sun, NREL ATB).
+  New paragraph about confidence-tier surface. EFFECTIVE_DATE → May 4,
+  2026; VERSION → 1.1.
+
+### State coverage projection (verified via seed --dry-run)
+
+| Tier | n range | States | Count |
+|---|---|---|---|
+| Strong | n≥40 | CA(468), MA(84), NY(183) | **3** |
+| Modest | n=10–39 | AZ(24), MN(17), TX(32) | **3** |
+| Thin | n=3–9 | CO(4), RI(8), UT(3), WI(9) | **4** |
+| **Tier A total** | | | **10** |
+| Tier B · Thin | n<3 | CT(1), DE(0)*, FL(2), MD(2), NH(2) | 5 |
+| Tier B · Structural | SREC design | IL, OR, PA, WA | 4 |
+
+*DE=0 in current TTS; classified as THIN because DE's incentive structure
+isn't formally SREC. May reclassify to STRUCTURAL in future audit.
+
+**Net result:** Tier-A coverage **3 → 10** out of 17 active CS states.
+Remaining 9 are visibly disclosed (with reason) on the Lens.
+
+### Aden-side action items
+
+1. **Apply migration 052 in Supabase SQL editor.**
+2. **Re-run `node scripts/seed-solar-cost-index.mjs`** (without `--dry-run`).
+   Confirms 3 → 10 Tier-A row publication. Migration 052's CHECK
+   constraint will enforce n≥3 at the DB layer.
+3. **(Then) Phase G** — Specific Yield from Nexamp + SR Energy + Catalyze.
+   Plan at `~/.claude/plans/nexamp-srenergy-specific-yield-fleet-data.md`.
+
+---
+
+## Pickup (prior, 2026-05-04 evening) — Phase C-pivoted shipped: cs_projects (NREL Sharing the Sun) ground-truth ingestion
 
 **Session 2026-05-04 (continuation, sessions 7-8).** All migrations 044-049
 confirmed applied to live DB. hello@tractova.com forwarding tested working
@@ -1349,6 +1410,7 @@ both blocks).
 | 049 | `freshness_solar_cost_index.sql` | RPC + solar_cost_index block (row_count, states_covered, latest_vintage, last_updated, last_cron_success). | ✅ |
 | 050 | `cs_projects.sql` | Phase C-pivoted: NREL Sharing the Sun ground-truth ingestion. ~3,800 individual operating CS projects with utility/developer/size/vintage/LMI attribution. | ⏳ |
 | 051 | `freshness_cs_projects.sql` | RPC + cs_projects block (row_count, states_covered, latest_vintage, source_release, last_updated). | ⏳ |
+| 052 | `solar_cost_index_confidence_tier.sql` | Phase E: confidence_tier (strong/modest/thin) + aggregation_window_years + CHECK n≥3. Tier-B prefix backfill on revenue_rates.notes for 9 states. | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or

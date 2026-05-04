@@ -751,7 +751,7 @@ async function fetchSolarCostLineage(stateId) {
   try {
     const { data, error } = await supabase
       .from('solar_cost_index')
-      .select('p10_per_watt, p25_per_watt, p50_per_watt, p75_per_watt, p90_per_watt, install_count, vintage_year, vintage_window, source, source_url, last_updated')
+      .select('p10_per_watt, p25_per_watt, p50_per_watt, p75_per_watt, p90_per_watt, install_count, confidence_tier, aggregation_window_years, vintage_year, vintage_window, source, source_url, last_updated')
       .eq('state', stateId)
       .eq('sector', 'large_non_res')
       .order('vintage_year', { ascending: false })
@@ -768,7 +768,7 @@ async function fetchAllSolarCostLineage() {
   try {
     const { data, error } = await supabase
       .from('solar_cost_index')
-      .select('state, p10_per_watt, p25_per_watt, p50_per_watt, p75_per_watt, p90_per_watt, install_count, vintage_year, vintage_window, source, source_url, last_updated')
+      .select('state, p10_per_watt, p25_per_watt, p50_per_watt, p75_per_watt, p90_per_watt, install_count, confidence_tier, aggregation_window_years, vintage_year, vintage_window, source, source_url, last_updated')
       .eq('sector', 'large_non_res')
       .order('vintage_year', { ascending: false })
     if (error) return []

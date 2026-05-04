@@ -12,8 +12,8 @@ import { Link } from 'react-router-dom'
 // the policy changes materially. The version field is for our internal
 // changelog.
 
-const EFFECTIVE_DATE = 'May 2, 2026'
-const VERSION = '1.0'
+const EFFECTIVE_DATE = 'May 4, 2026'
+const VERSION = '1.1'
 
 export default function Privacy() {
   return (
@@ -160,6 +160,9 @@ export default function Privacy() {
           <List>
             <Li><Source>EIA Form 860 + Form 861</Source> — substation locations, capacity, retail electricity rates by state and utility (US Energy Information Administration; eia.gov).</Li>
             <Li><Source>NREL PVWatts</Source> — solar capacity factor estimates by location (National Renewable Energy Laboratory; nrel.gov).</Li>
+            <Li><Source>LBNL Tracking the Sun (TTS)</Source> — observed installed-PV-cost percentiles for non-residential installations 0.5–5 MW DC, last three install years (Lawrence Berkeley National Laboratory; emp.lbl.gov/tracking-the-sun). Coverage is uneven across states by design: states whose primary solar incentive is a per-MWh REC strike (Illinois, Pennsylvania, Oregon, Delaware, Washington) generate no TTS paper trail and are presented as Tier B regional-analog estimates rather than observed data. Where observed sample exists we publish three confidence tiers — strong (n≥40), modest (n=10–39), thin (n=3–9) — and disclose the sample size on every state lens.</Li>
+            <Li><Source>NREL Sharing the Sun</Source> — operating community-solar project data (~3,800 individual projects with utility, developer, capacity, vintage, and LMI attribution). National Renewable Energy Laboratory; nrel.gov/solar/market-research-analysis/community-solar-data.html.</Li>
+            <Li><Source>NREL Annual Technology Baseline (ATB)</Source> — modeled $/kW capex benchmarks for utility-scale, distributed commercial, and battery-storage technologies; cross-checked against Tractova synthesis (atb.nrel.gov).</Li>
             <Li><Source>US Census American Community Survey (ACS)</Source> — state and county demographic data, low-and-moderate-income (LMI) household estimates (census.gov).</Li>
             <Li><Source>USFWS National Wetlands Inventory (NWI)</Source> — per-county wetland coverage percentages and feature counts (US Fish and Wildlife Service; fws.gov/program/national-wetlands-inventory).</Li>
             <Li><Source>USDA SSURGO Soil Survey</Source> — per-county prime farmland percentages (US Department of Agriculture Soil Survey Geographic Database; nrcs.usda.gov).</Li>
@@ -175,6 +178,14 @@ export default function Privacy() {
             derived form (subscores, eligibility flags, summaries). We do not
             assert ownership of the underlying public data. If you reuse our
             derivations, please retain the source attributions described above.
+          </P>
+          <P>
+            Where a per-state observed sample is below the n≥3 floor, or
+            where the state's incentive design produces no LBNL TTS paper
+            trail at all, we say so explicitly on the relevant state's
+            analysis lens and label the synthesized capex value as a
+            regional-analog estimate. Sample sizes are surfaced on every
+            published row.
           </P>
         </Section>
 

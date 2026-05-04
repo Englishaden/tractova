@@ -86,7 +86,20 @@ const SIZE_MIN_KW = 500
 const SIZE_MAX_KW = 5000
 const DPW_FLOOR = 0.50
 const DPW_CEIL  = 8.00
-const MIN_SAMPLE_PER_STATE = 40
+
+// Tier ladder — MUST mirror api/refresh-data.js → refreshSolarCosts() exactly.
+// If these constants drift between the two files, refreshes will flip rows
+// between tiers between scheduled runs. Update both in lockstep.
+const TIER_FLOOR        = 3   // n<3 → not published, falls through to Tier B
+const TIER_MODEST_MIN   = 10  // n=10-39 → 'modest'
+const TIER_STRONG_MIN   = 40  // n>=40  → 'strong'
+
+function assignTier(n) {
+  if (n >= TIER_STRONG_MIN) return 'strong'
+  if (n >= TIER_MODEST_MIN) return 'modest'
+  if (n >= TIER_FLOOR)      return 'thin'
+  return null
+}
 
 // ── stream-parse ────────────────────────────────────────────────────────────
 const rl = createInterface({ input: createReadStream(inputFile), crlfDelay: Infinity })
@@ -157,44 +170,63 @@ const upsertRows = []
 const skipped = []
 for (const [state, arr] of byState) {
   const recent = arr.filter(r => recentYears.has(r.year)).map(r => r.dpw)
-  if (recent.length < MIN_SAMPLE_PER_STATE) {
+  const tier = assignTier(recent.length)
+  if (!tier) {
     skipped.push({ state, n: recent.length })
     continue
   }
   const sorted = [...recent].sort((a, b) => a - b)
   upsertRows.push({
     state,
-    sector:        'large_non_res',
-    vintage_year:  latestYearSeen,
-    vintage_window: vintageWindow,
-    install_count: recent.length,
-    p10_per_watt: Number(percentile(sorted, 10).toFixed(2)),
-    p25_per_watt: Number(percentile(sorted, 25).toFixed(2)),
-    p50_per_watt: Number(percentile(sorted, 50).toFixed(2)),
-    p75_per_watt: Number(percentile(sorted, 75).toFixed(2)),
-    p90_per_watt: Number(percentile(sorted, 90).toFixed(2)),
-    source:       'LBNL_TTS',
-    source_url:   'https://emp.lbl.gov/tracking-the-sun',
-    notes:        `LBNL Tracking the Sun ${vintageWindow} install years, customer_segment ∈ {COM,NON-RES,AGRICULTURAL,SCHOOL,GOV,NON-PROFIT,OTHER TAX-EXEMPT}, ${SIZE_MIN_KW}-${SIZE_MAX_KW} kW DC.`,
-    last_updated: new Date().toISOString(),
+    sector:                   'large_non_res',
+    vintage_year:             latestYearSeen,
+    vintage_window:           vintageWindow,
+    install_count:            recent.length,
+    confidence_tier:          tier,
+    aggregation_window_years: 3,
+    p10_per_watt:             Number(percentile(sorted, 10).toFixed(2)),
+    p25_per_watt:             Number(percentile(sorted, 25).toFixed(2)),
+    p50_per_watt:             Number(percentile(sorted, 50).toFixed(2)),
+    p75_per_watt:             Number(percentile(sorted, 75).toFixed(2)),
+    p90_per_watt:             Number(percentile(sorted, 90).toFixed(2)),
+    source:                   'LBNL_TTS',
+    source_url:               'https://emp.lbl.gov/tracking-the-sun',
+    notes:                    `Tier=${tier}, n=${recent.length}; LBNL Tracking the Sun ${vintageWindow} install years, customer_segment ∈ {COM,NON-RES,AGRICULTURAL,SCHOOL,GOV,NON-PROFIT,OTHER TAX-EXEMPT}, ${SIZE_MIN_KW}-${SIZE_MAX_KW} kW DC.`,
+    last_updated:             new Date().toISOString(),
   })
 }
 
 upsertRows.sort((a, b) => a.state.localeCompare(b.state))
 
-console.log(`\nStates published (n>=${MIN_SAMPLE_PER_STATE}): ${upsertRows.length}`)
-console.log(`States skipped (low sample): ${skipped.length}`)
+const byTier = { strong: [], modest: [], thin: [] }
+for (const r of upsertRows) byTier[r.confidence_tier].push(r)
+
+console.log(`\nStates published (n>=${TIER_FLOOR}): ${upsertRows.length}`)
+console.log(`  · strong (n>=${TIER_STRONG_MIN}): ${byTier.strong.length}`)
+console.log(`  · modest (n=${TIER_MODEST_MIN}-${TIER_STRONG_MIN - 1}): ${byTier.modest.length}`)
+console.log(`  · thin   (n=${TIER_FLOOR}-${TIER_MODEST_MIN - 1}): ${byTier.thin.length}`)
+console.log(`States skipped (n<${TIER_FLOOR}): ${skipped.length}`)
 console.log()
-console.log(`STATE   n      p10    p25    p50    p75    p90`)
-console.log(`─────  ─────  ─────  ─────  ─────  ─────  ─────`)
-for (const r of upsertRows) {
-  console.log(
-    `  ${r.state}  ${r.install_count.toString().padStart(5)}  ${r.p10_per_watt.toFixed(2).padStart(5)}  ${r.p25_per_watt.toFixed(2).padStart(5)}  ${r.p50_per_watt.toFixed(2).padStart(5)}  ${r.p75_per_watt.toFixed(2).padStart(5)}  ${r.p90_per_watt.toFixed(2).padStart(5)}`
-  )
+
+function printTierTable(label, rows) {
+  if (!rows.length) return
+  console.log(`── ${label} ──`)
+  console.log(`STATE   n      p10    p25    p50    p75    p90`)
+  console.log(`─────  ─────  ─────  ─────  ─────  ─────  ─────`)
+  for (const r of rows) {
+    console.log(
+      `  ${r.state}  ${r.install_count.toString().padStart(5)}  ${r.p10_per_watt.toFixed(2).padStart(5)}  ${r.p25_per_watt.toFixed(2).padStart(5)}  ${r.p50_per_watt.toFixed(2).padStart(5)}  ${r.p75_per_watt.toFixed(2).padStart(5)}  ${r.p90_per_watt.toFixed(2).padStart(5)}`
+    )
+  }
+  console.log()
 }
 
+printTierTable(`STRONG (n>=${TIER_STRONG_MIN})`, byTier.strong)
+printTierTable(`MODEST (n=${TIER_MODEST_MIN}-${TIER_STRONG_MIN - 1})`, byTier.modest)
+printTierTable(`THIN   (n=${TIER_FLOOR}-${TIER_MODEST_MIN - 1})`, byTier.thin)
+
 if (skipped.length) {
-  console.log(`\nSkipped (n<${MIN_SAMPLE_PER_STATE}): ${skipped.map(s => `${s.state}(${s.n})`).join(', ')}`)
+  console.log(`Skipped (n<${TIER_FLOOR}): ${skipped.map(s => `${s.state}(${s.n})`).join(', ')}`)
 }
 
 if (DRY_RUN) {
@@ -205,7 +237,7 @@ if (DRY_RUN) {
 console.log(`\n→ Upserting ${upsertRows.length} rows to solar_cost_index…`)
 const { error } = await admin
   .from('solar_cost_index')
-  .upsert(upsertRows, { onConflict: 'state,sector,vintage_year,source' })
+  .upsert(upsertRows, { onConflict: 'state,sector,vintage_year,source,aggregation_window_years' })
 if (error) {
   console.error(`✗ Upsert failed: ${error.message}`)
   process.exit(1)
