@@ -398,6 +398,11 @@ function buildOpportunityAlertHtml(user, project, opportunity) {
 </html>`
 }
 
+// reply_to routes user replies to hello@tractova.com (Namecheap forwarding →
+// Aden's Gmail). Without this, replies bounce on the unattended alerts@
+// from-address. Site-walk Session 5 / I3.
+const REPLY_TO_EMAIL = 'hello@tractova.com'
+
 async function sendEmail(to, subject, html) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -405,7 +410,7 @@ async function sendEmail(to, subject, html) {
       'Authorization': `Bearer ${RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, reply_to: REPLY_TO_EMAIL, to, subject, html }),
   })
   if (!res.ok) {
     const err = await res.text()

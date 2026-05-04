@@ -113,6 +113,7 @@ export default async function handler(req, res) {
         headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: FROM_EMAIL,
+          reply_to: 'hello@tractova.com',
           to: ADMIN_EMAIL,
           subject,
           html: buildEmailHtml(results.issues),
