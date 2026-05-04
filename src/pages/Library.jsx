@@ -292,7 +292,7 @@ const EXPORT_HEADERS = [
   // IX
   'IX Difficulty', 'IX Notes (truncated)',
   // Site (Path B geospatial — NWI + SSURGO)
-  'Wetland Coverage (%)', 'Prime Farmland (%)',
+  'Wetland-richness Index (%)', 'Prime Farmland (%)',
   // Operations
   'Serving Utility', 'Est. Annual Revenue ($/MW/yr)',
   // Meta
@@ -343,8 +343,9 @@ function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
       // IX
       IX_LABEL[sp.ixDifficulty] || sp.ixDifficulty || '',
       ixNotes,
-      // Site
-      typeof wetlandPct === 'number' ? Math.round(wetlandPct * 10) / 10 : '',
+      // Site — wetland % capped at 100 (NWI overlap can push raw values
+      // above 100; the wetland_category bucket is the cleaner signal).
+      typeof wetlandPct === 'number' ? Math.round(Math.min(100, wetlandPct) * 10) / 10 : '',
       typeof farmlandPct === 'number' ? Math.round(farmlandPct * 10) / 10 : '',
       // Operations
       p.servingUtility || '',
@@ -370,7 +371,7 @@ const METHODOLOGY_ROWS = [
   ['IX — NYISO live', 'NYISO Interconnection Queue', 'https://www.nyiso.com/interconnections', 'Live xlsx feed parsed weekly'],
   ['IX — PJM (queue stale)', 'PJM Data Miner 2', 'https://dataminer2.pjm.com/', 'Redistribution-restricted; Tractova may show stale signals only'],
   ['IX — CAISO/ISO-NE/MISO/ERCOT', 'Curated baseline', 'https://www.tractova.com/glossary#ix', 'stateProgram.ixDifficulty enum (easy/moderate/hard/very_hard)'],
-  ['Site — Wetlands', 'USFWS National Wetlands Inventory', 'https://www.fws.gov/program/national-wetlands-inventory', 'County wetland coverage %; ≥15% triggers wetland warning + Section 404 flag'],
+  ['Site — Wetlands', 'USFWS National Wetlands Inventory', 'https://www.fws.gov/program/national-wetlands-inventory', 'County wetland-richness index (overlapping NWI classifications, may exceed 100%); ≥15% triggers wetland warning + Section 404 flag'],
   ['Site — Prime Farmland', 'USDA SSURGO via Soil Data Access', 'https://sdmdataaccess.sc.egov.usda.gov/', 'County prime farmland %; ≥25% flags FPPA conversion-review exposure'],
   ['ITC adders — Energy Community', 'DOE NETL Energy Communities Data Layers', 'https://edx.netl.doe.gov/dataset/energy-communities-data-layers', '+10% bonus eligibility (closed coal / brownfield / fossil-employment tracts)'],
   ['ITC adders — §48(e) Cat 1 LIC', 'HUD QCT/DDA dataset', 'https://www.huduser.gov/portal/datasets/qct.html', '+10% Low-Income Communities adder eligibility'],

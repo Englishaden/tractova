@@ -22,7 +22,7 @@ import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'mot
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, getOfftakeCoverageStates } from '../lib/scoreEngine'
-import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection } from '../lib/revenueEngine'
+import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import GlossaryLabel from '../components/ui/GlossaryLabel'
@@ -1013,9 +1013,29 @@ function SiteControlCard({ siteControl, interconnection, geospatial, stateName, 
   // so the developer sees the actual coverage % driving the warning,
   // not just the qualitative tier. Falls through to the curated qualitative
   // notes when geospatial isn't available for this county.
-  const wetlandPct  = geospatial?.wetlandCoveragePct
-  const farmlandPct = geospatial?.primeFarmlandPct
+  const wetlandPct      = geospatial?.wetlandCoveragePct
+  const wetlandCategory = geospatial?.wetlandCategory  // 'minimal' | 'moderate' | 'significant' | 'severe'
+  const farmlandPct     = geospatial?.primeFarmlandPct
   const fmtPct = (v) => (v == null || Number.isNaN(v)) ? null : `${v < 1 ? v.toFixed(1) : Math.round(v)}%`
+  // Wetland %: NWI's polygon library has overlapping classifications (one
+  // acre can count as both palustrine emergent + palustrine forested), so
+  // the summed coverage can exceed 100%. Cap the display at 100% and note
+  // overflow with a "+". The wetland_category bucket is the cleaner
+  // categorical signal and drives the score; we lead with category in the
+  // copy and surface the % as a secondary measurement. 2026-05-04 fix.
+  const fmtWetlandPct = (v) => {
+    if (v == null || Number.isNaN(v)) return null
+    const capped = Math.min(100, v)
+    const overflow = v > 100
+    const display = capped < 1 ? capped.toFixed(1) : Math.round(capped)
+    return `${display}%${overflow ? '+' : ''}`
+  }
+  const wetlandCategoryLabel = {
+    minimal:     'Minimal wetland presence',
+    moderate:    'Moderate wetland presence',
+    significant: 'Significant wetland presence',
+    severe:      'Severe wetland presence',
+  }[wetlandCategory] || null
 
   // Derive hosting capacity status from IX ease score
   const hostingStatus = (() => {
@@ -1035,7 +1055,14 @@ function SiteControlCard({ siteControl, interconnection, geospatial, stateName, 
   })()
 
   const farmlandLine = fmtPct(farmlandPct) ? `Prime farmland: ${fmtPct(farmlandPct)} of soil-surveyed area · USDA SSURGO 2024` : null
-  const wetlandLine  = fmtPct(wetlandPct)  ? `Wetland coverage: ${fmtPct(wetlandPct)} of county · USFWS NWI 2024` : null
+  // Lead with the categorical signal (the load-bearing input to the score),
+  // then surface the wetland-richness index in parentheses. Both fall back
+  // to one another if either is missing.
+  const wetlandLine  = wetlandCategoryLabel
+    ? `${wetlandCategoryLabel}${fmtWetlandPct(wetlandPct) ? ` (${fmtWetlandPct(wetlandPct)} richness index, USFWS NWI 2024)` : ''}`
+    : fmtWetlandPct(wetlandPct)
+      ? `Wetland-richness index: ${fmtWetlandPct(wetlandPct)} · USFWS NWI 2024`
+      : null
   const tiles = [
     {
       label: 'Land',
@@ -1059,8 +1086,8 @@ function SiteControlCard({ siteControl, interconnection, geospatial, stateName, 
       bg: wetlandWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
       note: [wetlandNotes || (wetlandWarning ? null : 'Low wetland risk on typical upland sites'), wetlandLine].filter(Boolean).join(' · ') || null,
       tooltip: wetlandWarning
-        ? 'USFWS NWI wetland coverage ≥15% in this county. Section 404 review and potential mitigation are likely on a typical site.'
-        : 'USFWS NWI wetland coverage <15%. Minimal Section 404 permitting exposure on most upland parcels.',
+        ? 'USFWS NWI wetland-richness index ≥15% in this county. Section 404 review and potential mitigation are likely on a typical site. The richness index sums overlapping NWI wetland classifications, so values >100% are possible — wetland_category is the cleaner categorical signal driving the score.'
+        : 'USFWS NWI wetland-richness index <15%. Minimal Section 404 permitting exposure on most upland parcels. The richness index sums overlapping NWI wetland classifications, so values >100% are possible — wetland_category is the cleaner categorical signal driving the score.',
       icon: (
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
@@ -2149,6 +2176,15 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
             <a href="https://www.huduser.gov/portal/qct/index.html" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">HUD QCT/DDA ↗</a>
             <a href="https://www.irs.gov/forms-pubs/about-form-3468" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
           </div>
+        </div>
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage</p>
+          <ul className="space-y-1 text-[10px] text-gray-700 list-none">
+            <li><span className="font-semibold text-ink">Solar capex + bill credits + RECs</span> · {SOLAR_RATES_AS_OF} · Lazard LCOE+ v18 (Jun 2025) midpoints + RS Means 2024 state labor multipliers + DSIRE program tracking + EIA Form 861.</li>
+            <li><span className="font-semibold text-ink">C&amp;I PPA + retail rates</span> · {CI_RATES_AS_OF} · Lazard LCOE+ v18 commercial-scale capex + EIA Form 861 commercial retail tariffs.</li>
+            <li><span className="font-semibold text-ink">BESS capacity + arbitrage</span> · {BESS_RATES_AS_OF} · ISO/RTO clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA) + BloombergNEF 2024 utility-scale 4hr capex.</li>
+            <li className="text-gray-500 italic">All three datasets are seeded constants — Tractova will refresh them quarterly using updated Lazard / NREL ATB / BloombergNEF reports. State capacity factors are static (NREL PVWatts state baselines).</li>
+          </ul>
         </div>
         <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">
           Tariff rates change quarterly. Verify CS program enrollment terms, IRA bonus designations, and current bill-credit values directly with state PUC and tax counsel before committing capital.

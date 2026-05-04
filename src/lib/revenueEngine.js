@@ -9,42 +9,87 @@
 // (003_revenue_rates_seed.sql) matches these values; cron jobs update capacity
 // factors and retail rates over time.
 //
-// ── BESS rate freshness disclosure (audit 2026-05-02) ────────────────────────
-// BESS revenue rates (capacity payments, demand charges, arbitrage spreads) are
-// SEEDED constants — there is no automated refresh cron for them. ISO capacity-
-// market clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM) swing 2-9× year over
-// year, so these constants drift quickly. The `BESS_RATES_AS_OF` stamp below
-// is rendered visibly on the BESS revenue panel so users know the vintage.
-// Solar rates DO refresh quarterly via NREL PVWatts (capacity factor) + EIA
-// (retail rates), so this disclosure is BESS-specific. Bump this constant
-// whenever the BESS_REVENUE_DATA table is re-calibrated against fresh ISO
-// auction results.
-export const BESS_RATES_AS_OF = '2026-04'
+// ── Rate freshness disclosure ────────────────────────────────────────────────
+// All three rate tables (CS / C&I / BESS) are SEEDED constants. There is no
+// automated refresh cron yet (P2 backlog: quarterly cron pulling from NREL
+// ATB + Lazard LCOE + BloombergNEF). The AS_OF stamps are surfaced in the
+// Lens revenue methodology dropdown so users see vintage at a glance.
+//
+// SOLAR_RATES_AS_OF: '2025-06' — Lazard LCOE+ v18 (Jun 2025) midpoints +
+//   NREL ATB 2024 community-solar capex + state labor multipliers (RS Means
+//   2024) + DSIRE REC pricing + EIA Form 861 retail rates.
+// CI_RATES_AS_OF:    '2025-06' — Lazard LCOE+ v18 commercial-scale capex +
+//   EIA Form 861 commercial retail rates 2024.
+// BESS_RATES_AS_OF:  '2026-04' — ISO/RTO capacity-market clearing prices
+//   (PJM RPM, NYISO ICAP, ISO-NE FCM) 2024-2025 cycle + BloombergNEF 2024
+//   utility-scale BESS capex.
+//
+// 2026-05-04 recalibration (Site-walk Session 5 follow-up):
+//   - CS $/W bumped 2025-vintage Lazard LCOE+ v18 — prior values were 2024
+//     vintage and ~$0.30-$0.70/W understated for community-solar scale +
+//     domestic content premium. Aden flagged via field testing.
+//   - 9 new "active CS program" states added (CA / FL / CT / HI / NM / OR /
+//     RI / VA / WA) so all 17 states with cs_status ∈ ('active','limited')
+//     have the same depth as the original 8.
+//   - C&I bumped 5-15% to track Lazard v18 commercial-scale PV.
+//   - BESS unchanged — BloombergNEF 2024 has utility-scale 4hr at $295-$340/kWh
+//     so current Tractova range ($350-$420) is conservative-defensible.
+export const SOLAR_RATES_AS_OF = '2025-06'
+export const CI_RATES_AS_OF    = '2025-06'
+export const BESS_RATES_AS_OF  = '2026-04'
 
-// ── Hardcoded fallback data (matches Supabase seed) ─────────────────────────
+// ── Hardcoded fallback data (matches Supabase seed in 003 + migration 043) ──
+// Capex sources per state: Lazard LCOE+ v18 (Jun 2025) community-solar
+// midpoint $1.85/W national + RS Means 2024 state labor multiplier.
+// Capacity factors: NREL PVWatts API v8 fixed-tilt state averages.
+// Bill credits: state PUC tariff filings (DSIRE-tracked).
+// REC prices: DSIRE state pages + GATS/PJM-EIS/M-RETS for tradable markets.
 const STATE_REVENUE_DATA = {
-  IL: { billCreditCentsKwh: 8.2, recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 1.65, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: 'Bill credit = supply + transmission (~8.2¢/kWh ComEd). REC via Illinois Shines (~$71.50/REC). ITC 30% + 10% LMI adder if qualifying.' },
-  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.0, installedCostPerWatt: 1.80, degradationPct: 0.5, label: 'New York (ConEd territory)', notes: 'Value Stack compensation (~10.5¢/kWh blended LBMP + ICAP + E + DRV). No separate SREC market. ITC 30% + Community Adder where available.' },
-  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 1.75, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)', notes: 'Net metering credit ~12.8¢/kWh. SMART 3.0 adder varies by tranche. SREC-II traded ~$35/MWh. ITC 30% + LMI adder potential.' },
-  MN: { billCreditCentsKwh: 9.5, recPerMwh: 4.50, itcPct: 30, itcAdderPct: 0, capacityFactorPct: 16.0, installedCostPerWatt: 1.60, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)', notes: 'Value-of-Solar rate ~9.5¢/kWh (Xcel). Minimal REC market (~$4.50/MWh). ITC 30% base, no state adder currently.' },
-  CO: { billCreditCentsKwh: 8.8, recPerMwh: 3.00, itcPct: 30, itcAdderPct: 0, capacityFactorPct: 20.0, installedCostPerWatt: 1.55, degradationPct: 0.5, label: 'Colorado (Xcel Energy)', notes: 'Bill credit ~8.8¢/kWh. Minimal REC value (~$3/MWh). Strong irradiance drives higher capacity factor (~20%). ITC 30%.' },
-  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 1.70, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)', notes: 'Net metering ~11¢/kWh. SREC-II / SuSI market ~$85/MWh — one of the strongest REC markets. ITC 30% + LMI adder.' },
-  ME: { billCreditCentsKwh: 9.0, recPerMwh: 8.00, itcPct: 30, itcAdderPct: 0, capacityFactorPct: 15.5, installedCostPerWatt: 1.70, degradationPct: 0.5, label: 'Maine', notes: 'Bill credit ~9¢/kWh. Modest REC value. ITC 30%.' },
-  MD: { billCreditCentsKwh: 9.5, recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.0, installedCostPerWatt: 1.65, degradationPct: 0.5, label: 'Maryland', notes: 'Bill credit ~9.5¢/kWh. SREC market ~$55/MWh. ITC 30% + LMI adder. Community Solar Pilot Program.' },
+  // ── 8 originally curated (recalibrated 2026-05-04) ──
+  IL: { billCreditCentsKwh: 8.2,  recPerMwh: 71.50, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 17.5, installedCostPerWatt: 1.85, degradationPct: 0.5, label: 'Illinois (ComEd territory)', notes: 'Illinois Shines REC ~$71.50/MWh + ComEd bill credit ~8.2¢/kWh. ITC 30% + 10% LMI adder where qualifying. $/W per Lazard LCOE+ v18 (mid-cost PJM labor).' },
+  NY: { billCreditCentsKwh: 10.5, recPerMwh: 0,     itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.0, installedCostPerWatt: 2.30, degradationPct: 0.5, label: 'New York (Value Stack)',         notes: 'NY-Sun / Value Stack ~10.5¢/kWh blended (LBMP + ICAP + E + DRV). No separate SREC market. ITC 30% + Community Adder. $/W per Lazard v18 + NYISO labor premium.' },
+  MA: { billCreditCentsKwh: 12.8, recPerMwh: 35.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 16.5, installedCostPerWatt: 2.30, degradationPct: 0.5, label: 'Massachusetts (SMART 3.0)',      notes: 'Net metering ~12.8¢/kWh. SMART 3.0 adder varies by tranche. SREC-II ~$35/MWh. ITC 30% + LMI adder. $/W per Lazard v18 + ISO-NE labor premium.' },
+  MN: { billCreditCentsKwh: 9.5,  recPerMwh: 4.50,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 15.2, installedCostPerWatt: 1.75, degradationPct: 0.5, label: 'Minnesota (Xcel Energy)',         notes: 'Value-of-Solar ~9.5¢/kWh (Xcel). Minimal REC market (~$4.50/MWh). ITC 30%. $/W per Lazard v18 (low-cost MISO labor).' },
+  CO: { billCreditCentsKwh: 8.8,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.3, installedCostPerWatt: 1.70, degradationPct: 0.5, label: 'Colorado (Xcel Energy)',          notes: 'Bill credit ~8.8¢/kWh. Minimal REC ($3/MWh). High capacity factor 18.3% (top irradiance). ITC 30%. $/W per Lazard v18 (low-cost SPP labor).' },
+  NJ: { billCreditCentsKwh: 11.0, recPerMwh: 85.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.5, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'New Jersey (SREC-II / SuSI)',     notes: 'Net metering ~11¢/kWh. SREC-II / SuSI ~$85/MWh — strongest REC market. ITC 30% + LMI. $/W per Lazard v18 + PJM-NJ labor.' },
+  ME: { billCreditCentsKwh: 9.0,  recPerMwh: 8.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.8, installedCostPerWatt: 2.15, degradationPct: 0.5, label: 'Maine',                           notes: 'Bill credit ~9¢/kWh. Class I REC ~$8/MWh. ITC 30%. $/W per Lazard v18 + ISO-NE rural labor.' },
+  MD: { billCreditCentsKwh: 9.5,  recPerMwh: 55.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 15.8, installedCostPerWatt: 2.05, degradationPct: 0.5, label: 'Maryland',                        notes: 'Bill credit ~9.5¢/kWh. SREC ~$55/MWh. ITC 30% + LMI. $/W per Lazard v18 (PJM mid).' },
+  // ── 9 new (added 2026-05-04 — full active+limited CS program coverage) ──
+  CA: { billCreditCentsKwh: 14.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 10, capacityFactorPct: 21.0, installedCostPerWatt: 2.40, degradationPct: 0.5, label: 'California (VNEM / NEM-ST)',      notes: 'Virtual Net Energy Metering blended ~14¢/kWh under NEM-ST tariff. CA RPS REC market thin (~$5/MWh). ITC 30% + LIC adder. CAISO labor premium. CS market is "limited" status as of 2026.' },
+  FL: { billCreditCentsKwh: 10.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 18.0, installedCostPerWatt: 1.75, degradationPct: 0.5, label: 'Florida (SolarTogether)',         notes: 'FPL/Duke SolarTogether bill credit ~10¢/kWh. No state REC market. ITC 30%. $/W per Lazard v18 + FL low-labor offset (weather risk premium absorbed in FPL EPC bids). Status "limited" — utility-administered, capped enrollment.' },
+  CT: { billCreditCentsKwh: 12.0, recPerMwh: 30.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'Connecticut (SCEF)',              notes: 'Shared Clean Energy Facility bill credit ~12¢/kWh. CT Class I REC + ZREC ~$30/MWh. ITC 30% + LMI. $/W per Lazard v18 + ISO-NE labor.' },
+  HI: { billCreditCentsKwh: 28.0, recPerMwh: 0,     itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 19.0, installedCostPerWatt: 2.70, degradationPct: 0.5, label: 'Hawaii (CBRE)',                   notes: 'Community-Based Renewable Energy: HECO bill credit ~28¢/kWh (highest in nation). RPS goal-based, no traded REC. ITC 30%. $/W per Lazard v18 + HI island logistics + prevailing-wage premium. Very high IX difficulty (small grid).' },
+  NM: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 22.0, installedCostPerWatt: 1.65, degradationPct: 0.5, label: 'New Mexico CS',                   notes: 'Bill credit ~10¢/kWh. NM RPS REC thin (~$5/MWh). ITC 30%. Strong irradiance drives 22% capacity factor (top in nation). $/W per Lazard v18 (low-cost WECC labor).' },
+  OR: { billCreditCentsKwh: 10.0, recPerMwh: 5.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 14.5, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Oregon CS',                       notes: 'Oregon CS Program bill credit ~10¢/kWh. OR RPS REC ~$5/MWh. ITC 30%. $/W per Lazard v18 (Pacific NW labor).' },
+  RI: { billCreditCentsKwh: 13.0, recPerMwh: 45.00, itcPct: 30, itcAdderPct: 10, capacityFactorPct: 14.5, installedCostPerWatt: 2.20, degradationPct: 0.5, label: 'Rhode Island CS',                 notes: 'Rhode Island CS bill credit ~13¢/kWh. RI Class I REC ~$45/MWh (strong). ITC 30% + LMI. $/W per Lazard v18 + ISO-NE labor.' },
+  VA: { billCreditCentsKwh: 9.0,  recPerMwh: 15.00, itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 17.0, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Virginia CS',                     notes: 'Virginia Shared Solar bill credit ~9¢/kWh. VA REC market ~$15/MWh. ITC 30%. $/W per Lazard v18 (PJM-South labor).' },
+  WA: { billCreditCentsKwh: 9.0,  recPerMwh: 3.00,  itcPct: 30, itcAdderPct: 0,  capacityFactorPct: 13.5, installedCostPerWatt: 1.95, degradationPct: 0.5, label: 'Washington (Shared Renewables)',  notes: 'Washington Shared Renewables bill credit ~9¢/kWh. WA REC market thin (~$3/MWh). ITC 30%. $/W per Lazard v18 (Pacific NW labor). Lowest-irradiance state — 13.5% CF.' },
 }
 
 const CI_REVENUE_DATA = {
-  IL: { ppaRateCentsKwh: 7.0, escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 17.5, degradationPct: 0.5, retailRateCentsKwh: 12.5, label: 'Illinois (C&I PPA)' },
-  NY: { ppaRateCentsKwh: 8.0, escalatorPct: 2.0, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 16.0, degradationPct: 0.5, retailRateCentsKwh: 18.5, label: 'New York (C&I PPA)' },
-  MA: { ppaRateCentsKwh: 8.5, escalatorPct: 1.5, installedCostPerWatt: 2.35, itcPct: 30, capacityFactorPct: 16.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Massachusetts (C&I PPA)' },
-  MN: { ppaRateCentsKwh: 6.5, escalatorPct: 2.0, installedCostPerWatt: 2.10, itcPct: 30, capacityFactorPct: 16.0, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Minnesota (C&I PPA)' },
-  CO: { ppaRateCentsKwh: 6.0, escalatorPct: 2.5, installedCostPerWatt: 2.00, itcPct: 30, capacityFactorPct: 20.0, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Colorado (C&I PPA)' },
-  NJ: { ppaRateCentsKwh: 7.5, escalatorPct: 2.0, installedCostPerWatt: 2.30, itcPct: 30, capacityFactorPct: 16.5, degradationPct: 0.5, retailRateCentsKwh: 16.0, label: 'New Jersey (C&I PPA)' },
-  ME: { ppaRateCentsKwh: 6.5, escalatorPct: 1.5, installedCostPerWatt: 2.15, itcPct: 30, capacityFactorPct: 15.5, degradationPct: 0.5, retailRateCentsKwh: 15.5, label: 'Maine (C&I PPA)' },
-  MD: { ppaRateCentsKwh: 7.0, escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 17.0, degradationPct: 0.5, retailRateCentsKwh: 13.5, label: 'Maryland (C&I PPA)' },
+  // ── 8 originally curated (recalibrated 2026-05-04) ──
+  IL: { ppaRateCentsKwh: 7.0,  escalatorPct: 2.0, installedCostPerWatt: 2.30, itcPct: 30, capacityFactorPct: 17.5, degradationPct: 0.5, retailRateCentsKwh: 12.5, label: 'Illinois (C&I PPA)' },
+  NY: { ppaRateCentsKwh: 8.0,  escalatorPct: 2.0, installedCostPerWatt: 2.55, itcPct: 30, capacityFactorPct: 14.0, degradationPct: 0.5, retailRateCentsKwh: 18.5, label: 'New York (C&I PPA)' },
+  MA: { ppaRateCentsKwh: 8.5,  escalatorPct: 1.5, installedCostPerWatt: 2.55, itcPct: 30, capacityFactorPct: 16.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Massachusetts (C&I PPA)' },
+  MN: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 15.2, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Minnesota (C&I PPA)' },
+  CO: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.5, installedCostPerWatt: 2.10, itcPct: 30, capacityFactorPct: 18.3, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Colorado (C&I PPA)' },
+  NJ: { ppaRateCentsKwh: 7.5,  escalatorPct: 2.0, installedCostPerWatt: 2.45, itcPct: 30, capacityFactorPct: 15.5, degradationPct: 0.5, retailRateCentsKwh: 16.0, label: 'New Jersey (C&I PPA)' },
+  ME: { ppaRateCentsKwh: 6.5,  escalatorPct: 1.5, installedCostPerWatt: 2.30, itcPct: 30, capacityFactorPct: 14.8, degradationPct: 0.5, retailRateCentsKwh: 15.5, label: 'Maine (C&I PPA)' },
+  MD: { ppaRateCentsKwh: 7.0,  escalatorPct: 2.0, installedCostPerWatt: 2.35, itcPct: 30, capacityFactorPct: 15.8, degradationPct: 0.5, retailRateCentsKwh: 13.5, label: 'Maryland (C&I PPA)' },
+  // ── 9 new (added 2026-05-04) ──
+  CA: { ppaRateCentsKwh: 9.0,  escalatorPct: 2.5, installedCostPerWatt: 2.65, itcPct: 30, capacityFactorPct: 21.0, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'California (C&I PPA)' },
+  FL: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.10, itcPct: 30, capacityFactorPct: 18.0, degradationPct: 0.5, retailRateCentsKwh: 13.0, label: 'Florida (C&I PPA)' },
+  CT: { ppaRateCentsKwh: 8.5,  escalatorPct: 1.5, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 23.0, label: 'Connecticut (C&I PPA)' },
+  HI: { ppaRateCentsKwh: 18.0, escalatorPct: 2.0, installedCostPerWatt: 3.10, itcPct: 30, capacityFactorPct: 19.0, degradationPct: 0.5, retailRateCentsKwh: 38.0, label: 'Hawaii (C&I PPA)' },
+  NM: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.5, installedCostPerWatt: 2.00, itcPct: 30, capacityFactorPct: 22.0, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'New Mexico (C&I PPA)' },
+  OR: { ppaRateCentsKwh: 6.0,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 11.0, label: 'Oregon (C&I PPA)' },
+  RI: { ppaRateCentsKwh: 8.0,  escalatorPct: 1.5, installedCostPerWatt: 2.40, itcPct: 30, capacityFactorPct: 14.5, degradationPct: 0.5, retailRateCentsKwh: 22.0, label: 'Rhode Island (C&I PPA)' },
+  VA: { ppaRateCentsKwh: 6.5,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 17.0, degradationPct: 0.5, retailRateCentsKwh: 12.0, label: 'Virginia (C&I PPA)' },
+  WA: { ppaRateCentsKwh: 5.5,  escalatorPct: 2.0, installedCostPerWatt: 2.20, itcPct: 30, capacityFactorPct: 13.5, degradationPct: 0.5, retailRateCentsKwh: 10.0, label: 'Washington (C&I PPA)' },
 }
 
 const BESS_REVENUE_DATA = {
+  // ── 8 originally curated (BESS unchanged — BloombergNEF 2024 supports current values) ──
   IL:  { isoRegion: 'PJM',    capacityPerKwYear: 65, demandChargePerKwMonth: 12, arbitragePerMwh: 30, installedCostPerKwh: 380, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Illinois (PJM)' },
   NY:  { isoRegion: 'NYISO',  capacityPerKwYear: 70, demandChargePerKwMonth: 14, arbitragePerMwh: 35, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New York (NYISO)' },
   MA:  { isoRegion: 'ISO-NE', capacityPerKwYear: 80, demandChargePerKwMonth: 13, arbitragePerMwh: 32, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Massachusetts (ISO-NE)' },
@@ -53,6 +98,16 @@ const BESS_REVENUE_DATA = {
   NJ:  { isoRegion: 'PJM',    capacityPerKwYear: 70, demandChargePerKwMonth: 15, arbitragePerMwh: 32, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New Jersey (PJM)' },
   ME:  { isoRegion: 'ISO-NE', capacityPerKwYear: 75, demandChargePerKwMonth: 11, arbitragePerMwh: 28, installedCostPerKwh: 400, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maine (ISO-NE)' },
   MD:  { isoRegion: 'PJM',    capacityPerKwYear: 60, demandChargePerKwMonth: 13, arbitragePerMwh: 28, installedCostPerKwh: 375, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Maryland (PJM)' },
+  // ── 9 new (added 2026-05-04 — capacity payments per ISO + state regs) ──
+  CA:  { isoRegion: 'CAISO',  capacityPerKwYear: 90, demandChargePerKwMonth: 16, arbitragePerMwh: 40, installedCostPerKwh: 390, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'California (CAISO)' },
+  FL:  { isoRegion: 'SE',     capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Florida (SE non-RTO)' },
+  CT:  { isoRegion: 'ISO-NE', capacityPerKwYear: 80, demandChargePerKwMonth: 14, arbitragePerMwh: 32, installedCostPerKwh: 415, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Connecticut (ISO-NE)' },
+  HI:  { isoRegion: 'HECO',   capacityPerKwYear: 0,  demandChargePerKwMonth: 20, arbitragePerMwh: 80, installedCostPerKwh: 420, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Hawaii (HECO IRP)' },
+  NM:  { isoRegion: 'WECC',   capacityPerKwYear: 50, demandChargePerKwMonth: 10, arbitragePerMwh: 25, installedCostPerKwh: 355, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'New Mexico (WECC)' },
+  OR:  { isoRegion: 'WECC',   capacityPerKwYear: 40, demandChargePerKwMonth: 10, arbitragePerMwh: 22, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Oregon (WECC)' },
+  RI:  { isoRegion: 'ISO-NE', capacityPerKwYear: 78, demandChargePerKwMonth: 13, arbitragePerMwh: 30, installedCostPerKwh: 410, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Rhode Island (ISO-NE)' },
+  VA:  { isoRegion: 'PJM',    capacityPerKwYear: 60, demandChargePerKwMonth: 12, arbitragePerMwh: 28, installedCostPerKwh: 385, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Virginia (PJM)' },
+  WA:  { isoRegion: 'WECC',   capacityPerKwYear: 30, demandChargePerKwMonth: 9,  arbitragePerMwh: 20, installedCostPerKwh: 370, roundTripEfficiency: 0.87, annualDegradationPct: 2.5, itcPct: 30, label: 'Washington (WECC)' },
 }
 
 const HOURS_PER_YEAR = 8760

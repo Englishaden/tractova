@@ -118,6 +118,14 @@ function CompareModal({ onClose }) {
     if (v == null) return <span className="text-xs text-white/25 font-mono">—</span>
     return <span className="text-xs font-mono text-white/65 tabular-nums">{v < 1 ? v.toFixed(1) : Math.round(v)}%</span>
   }
+  // Wetland % cap-at-100 — NWI polygons overlap, raw sums can exceed 100.
+  const fmtWetlandPct = (v) => {
+    if (v == null) return <span className="text-xs text-white/25 font-mono">—</span>
+    const capped = Math.min(100, v)
+    const overflow = v > 100
+    const display = capped < 1 ? capped.toFixed(1) : Math.round(capped)
+    return <span className="text-xs font-mono text-white/65 tabular-nums">{display}%{overflow ? '+' : ''}</span>
+  }
   const rows = [
     {
       label: 'Feasibility Index',
@@ -196,9 +204,9 @@ function CompareModal({ onClose }) {
       },
     },
     {
-      label: 'Wetland coverage',
+      label: 'Wetland-richness index',
       section: 'COMPOSITE',
-      render: (item) => fmtPct(item.wetlandPct),
+      render: (item) => fmtWetlandPct(item.wetlandPct),
     },
     {
       label: 'Prime farmland',
