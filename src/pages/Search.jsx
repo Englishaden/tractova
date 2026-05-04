@@ -2403,7 +2403,13 @@ function buildSensitivityScenarios(stateProgram, technology, mw) {
   if (technology === 'Community Solar') {
     if (!lmiRequired || lmiPercent < 50) {
       const lmiSubs = Math.round(mwNum * 250)
-      const revenueHaircut = Math.round(mwNum * 8760 * 0.17 * 0.085 * 0.125) // ~12.5% of bill credit revenue
+      // Bill credit revenue: MW × 8760 hr × CF = annual MWh; × 1000 → kWh;
+      // × $/kWh bill credit. The earlier expression dropped the MWh→kWh
+      // conversion and rendered a $79/yr haircut for a 5MW project.
+      // Aden flagged 2026-05-04: this should be ~$79K/yr, not $79/yr.
+      const annualMWh = mwNum * 8760 * 0.17
+      const billCreditRevenue = annualMWh * 1000 * 0.085 // $0.085/kWh blended bill credit
+      const revenueHaircut = Math.round(billCreditRevenue * 0.125) // ~12.5% of bill credit revenue
       scenarios.push({
         id: 'lmi_rises',
         label: 'LMI carveout raised to 50%',

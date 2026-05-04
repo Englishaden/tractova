@@ -543,9 +543,9 @@ function StagePicker({ stage, projectId, onChange }) {
 }
 
 // ── Compare chip (icon-only button, sits in card right controls) ─────────────
-function CompareChip({ project, stateProgram = null }) {
+function CompareChip({ project, stateProgram = null, countyData = null }) {
   const { add, remove, isInCompare, items, MAX_ITEMS } = useCompare()
-  const item = libraryProjectToCompareItem(project, stateProgram)
+  const item = libraryProjectToCompareItem(project, stateProgram, countyData)
   const inCompare = isInCompare(item.id)
   const atLimit = !inCompare && items.length >= MAX_ITEMS
 
@@ -1953,7 +1953,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
               )}
             </button>
           )}
-          <CompareChip project={project} stateProgram={current} />
+          <CompareChip project={project} stateProgram={current} countyData={countyData} />
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
             title="Remove project"
@@ -3359,7 +3359,14 @@ function LibraryContent() {
     for (const p of subset) {
       if (added >= slotsLeft) { skipped += subset.length - added; break }
       const sp = stateProgramMap[p.state]
-      const item = libraryProjectToCompareItem(p, sp)
+      // Pull the same countyData mapping the per-card CompareChip uses so
+      // bulk-added items get sub-scores + geospatial pcts when the data has
+      // been fetched. Falls through to null for cards never expanded — the
+      // Library compare row renders "—" in that case (matches existing
+      // behavior; sub-scores fill in once countyData populates and the row
+      // is re-added).
+      const cd = countyDataMap[`${p.state}::${p.county}`] || null
+      const item = libraryProjectToCompareItem(p, sp, cd)
       const ok = addToCompare(item)
       if (ok) added += 1
       else skipped += 1

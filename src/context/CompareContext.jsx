@@ -45,10 +45,17 @@ export function lensResultToCompareItem(results) {
   }
 }
 
-// Normalize a Library project into a compare item. `stateProgram` is optional;
-// when provided we capture the snapshot fields (capacity / LMI) the modal
-// renders alongside the project's own saved data.
-export function libraryProjectToCompareItem(project, stateProgram = null) {
+// Normalize a Library project into a compare item. `stateProgram` and
+// `countyData` are optional; when provided we capture sub-scores +
+// geospatial pcts so the Library compare shows the same depth as the Lens
+// compare. Without this parity the Compare modal renders blank cells for
+// Offtake/IX/Site sub-scores + Wetland/Farmland % when the user adds
+// projects from Library — Aden flagged this 2026-05-04 as a regression
+// from Session 4's compare-row expansion.
+export function libraryProjectToCompareItem(project, stateProgram = null, countyData = null) {
+  const sp = stateProgram
+  const sub = sp ? computeSubScores(sp, countyData, project.stage, project.technology) : null
+  const geo = countyData?.geospatial
   return {
     id:               `lib-${project.id}`,
     source:           'library',
@@ -60,12 +67,21 @@ export function libraryProjectToCompareItem(project, stateProgram = null) {
     technology:       project.technology,
     stage:            project.stage,
     csStatus:         project.csStatus || 'none',
-    csProgram:        project.csProgram || stateProgram?.csProgram || null,
+    csProgram:        project.csProgram || sp?.csProgram || null,
     feasibilityScore: project.feasibilityScore || null,
-    ixDifficulty:     project.ixDifficulty || stateProgram?.ixDifficulty || null,
-    capacityMW:       stateProgram?.capacityMW || null,
-    lmiRequired:      stateProgram?.lmiRequired ?? null,
-    lmiPercent:       stateProgram?.lmiPercent ?? null,
+    ixDifficulty:     project.ixDifficulty || sp?.ixDifficulty || null,
+    capacityMW:       sp?.capacityMW || null,
+    lmiRequired:      sp?.lmiRequired ?? null,
+    lmiPercent:       sp?.lmiPercent ?? null,
+    // Sub-score breakdown — same engine + arg shape as lensResultToCompareItem
+    // so a Library compare row matches a Lens compare row exactly when both
+    // point at the same state+county+technology+stage.
+    subOfftake:       sub?.offtake ?? null,
+    subIx:            sub?.ix ?? null,
+    subSite:          sub?.site ?? null,
+    // Path B geospatial percentages (USFWS NWI + USDA SSURGO).
+    wetlandPct:       geo?.wetlandCoveragePct ?? null,
+    farmlandPct:      geo?.primeFarmlandPct ?? null,
     savedAt:          project.savedAt,
   }
 }
