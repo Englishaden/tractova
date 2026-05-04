@@ -4,6 +4,96 @@
 
 ---
 
+## 🟢 Pickup — LBNL Phase B shipped: solar_cost_index pipeline + annual cron + seed script + freshness card → next: Aden applies migrations 044-049, runs seed script locally, then picks Phase D (UI surfacing) or option 2/3 from the menu
+
+**Session 2026-05-04 (continuation).** Phase B of the LBNL ingestion plan
+landed. Solar $/W upstream truth (LBNL Tracking the Sun observed
+percentiles) now has a dedicated table + automated annual ingestion
+pipeline. The data-lineage layer is ready for Phase D's UI surfacing.
+
+### Aden-side action items (apply when convenient)
+
+1. **Apply migrations 044, 045, 046, 047, 048, 049 in Supabase SQL editor.**
+   Order matters for 048 → 049 (049 references the table 048 creates).
+   044-047 are the data-trust-audit re-anchors from the previous pickup;
+   048-049 are Phase B (table + freshness RPC update).
+2. **Seed `solar_cost_index` locally**: `node scripts/seed-solar-cost-index.mjs`
+   (uses `public/TTS_LBNL_public_file_29-Sep-2025_all.csv` already on disk;
+   ~17-25 state rows for the 0.5-5 MW LBNL large non-res bracket, 2022-2024
+   install years). `--dry-run` available for inspect-without-upsert.
+3. **(Optional) Configure `LBNL_TTS_CSV_URL`** in Vercel env vars to enable
+   the annual cron (`0 8 1 11 *` — Nov 1 each year). Without the env var,
+   the cron returns ok:false with a "use seed script" message — graceful.
+
+### What landed in Phase B (this session)
+
+- **Migration 048** (`solar_cost_index.sql`) — per-state PV installed-cost
+  percentiles (p10/p25/p50/p75/p90) with sample size + vintage_year +
+  source attribution. RLS public-read + admin-write. Indexed on
+  (state, sector, vintage_year desc) for the latest-vintage lookup.
+- **Migration 049** (`freshness_solar_cost_index.sql`) — extends
+  `get_data_freshness()` RPC with a solar_cost_index block (row_count,
+  states_covered, latest_vintage, last_updated, last_cron_success).
+- **`api/refresh-data.js` → `refreshSolarCosts()`** — new handler. Streams
+  the LBNL TTS CSV via `LBNL_TTS_CSV_URL` env var, applies the same filter
+  as the Phase A aggregator (non-res segments + 0.5-5 MW DC + last 3
+  install years + sanity bounds), computes per-state percentiles, upserts.
+  Excluded from `?source=all` and `?source=fast` so weekly cron + admin
+  Refresh button never trigger the heavyweight 1.9 GB upstream fetch —
+  fires only on its own annual `?source=solar_costs` cron or explicit
+  invocation.
+- **`scripts/seed-solar-cost-index.mjs`** — canonical local refresh path.
+  Auto-picks the newest `public/TTS_LBNL_public_file_*.csv` by mtime, or
+  `--file=PATH` override. `--dry-run` prints the per-state aggregate
+  table without writing. Filter constants mirror the cron handler exactly.
+- **`src/lib/programData.js` getRevenueRates / getAllRevenueRates** — now
+  joins `solar_cost_index` lineage onto the rates payload as a new
+  `solar_cost_lineage` field (LBNL p10/p25/p50/p75/p90 + n + vintage +
+  source URL). Defensive: try/catch around the lineage fetch so production
+  doesn't break if migration 048 hasn't been applied yet — null lineage,
+  no throw. Engine still reads `installed_cost_per_watt` from
+  revenue_rates (Tractova's 2026-forward synthesis), unchanged. Lineage
+  is data-trust evidence for Phase D's Lens methodology surfacing.
+- **`vercel.json`** — annual cron entry `{ path: '/api/refresh-data?source=solar_costs', schedule: '0 8 1 11 *' }` (Nov 1 at 08:00 UTC).
+- **Admin freshness card** — `src/pages/Admin.jsx` FRESHNESS_CONFIG +
+  `api/data-health.js` cadence map both updated. Card shows row_count,
+  last cron success age, with thresholds [400, 540] days (annual data).
+
+### Architectural decision: solar_cost_index ≠ engine input
+
+`solar_cost_index` stores OBSERVED LBNL TTS truth (e.g. NY p50 ~$1.58/W
+for 2022-2024 install years). `revenue_rates.installed_cost_per_watt`
+carries Tractova-synthesized 2026 forward (e.g. NY $2.03/W = LBNL × 0.83
+multiplier × $2.45 national 2026 anchor with explicit NREL +22% YoY
+forward). Plan A originally proposed using LBNL p50 directly as the
+engine value, but the data-trust audit work that landed in 044-047 makes
+that a regression — it would silently undo the audit's careful 2-year
+forward extrapolation.
+
+The Phase B that actually shipped: LBNL is the data-lineage / upstream
+truth layer; Tractova-synthesized 2026 forward stays the engine value;
+Phase D will surface BOTH in the Lens methodology dropdown ("LBNL TTS
+2024 observed: $1.58/W (n=183) → Tractova 2026 anchor: $2.03/W").
+
+### Next pickup options
+
+1. **Phase D — Lens methodology UI surfacing** (~0.5 day). Wire
+   `solar_cost_lineage` into `Search.jsx:2116` revenue methodology
+   dropdown so users see "TTS observed $X.XX/W (n=Y, vintage 2024) →
+   Tractova 2026 anchor $Z.ZZ/W". Plan calls this Phase D.
+2. **Phase C — EIA Form 860 cross-check** (~1-2 days, optional). Add
+   second source feeding solar_cost_index for utility-scale validation.
+3. **IX scraper expansion** (CAISO/ERCOT/SPP/WECC, ~1-2 wks).
+4. **Mobile responsiveness audit** (~2-3 days).
+5. **Phase 3 multi-tenant RBAC** (queued for customer #2).
+
+### Resume-prompt suggestions
+
+- *"Apply migrations 044-049, run seed-solar-cost-index, then ship Phase D"*
+- *"Continue with [option N]"*
+
+---
+
 ## 🟢 Pickup — Data-trust audit closed all 4 high-risk surfaces (sessions 5+6+audit arc, 24 commits since 2026-05-03) → next: Aden applies migrations 044-047 + post-audit menu
 
 **Session 2026-05-04.** Long uninterrupted block. Three threads finished
@@ -1052,6 +1142,13 @@ both blocks).
 | 040 | `dashboard_metrics_last_refresh.sql` | get_dashboard_metrics() returns lastRefreshAt from cron_runs so the Footer's "Data refreshed" caption reflects actual cron freshness rather than state_programs.last_verified | ✅ |
 | 041 | `scenario_snapshots.sql` | Phase 2 Scenario Studio: user-saved scenarios with nullable project_id (orphan promotion to project on save), state_id + county_name + technology context, jsonb baseline_inputs / scenario_inputs / outputs. RLS owner-only. | ✅ |
 | 042 | `cancellation_feedback.sql` | Pre-cancel exit-intent survey capture: reason category + free-text + email/tier snapshot + destination ("staying" / "stripe_portal"). RLS append-only own-rows. | ✅ |
+| 043 | `revenue_rates_v18_recalibration.sql` | Lazard v18 re-anchored seed; superseded by 044 for the CS $/W column. | ⏳ |
+| 044 | `revenue_rates_cs_lbnl_anchor.sql` | CS $/W re-anchored on NREL Q1 2023 CS MMP + LBNL TTS 2024 + Tractova 2026 forward (Tier A/B per-state). | ⏳ |
+| 045 | `revenue_rates_ci_lbnl_anchor.sql` | C&I $/W re-anchored same methodology -$0.05 C&I premium offset. | ⏳ |
+| 046 | `revenue_rates_bess_capacity_iso_anchor.sql` | BESS capacityPerKwYear re-anchored on 2024-25 ISO clearing × 4-hr accreditation. | ⏳ |
+| 047 | `revenue_rates_bess_demand_arb_anchor.sql` | BESS demand+arb documented + CA/HI refinements. | ⏳ |
+| 048 | `solar_cost_index.sql` | Phase B: per-state LBNL TTS observed PV installed-cost percentiles. Data-lineage layer; engine still reads Tractova-synthesized $/W from revenue_rates. | ⏳ |
+| 049 | `freshness_solar_cost_index.sql` | RPC + solar_cost_index block (row_count, states_covered, latest_vintage, last_updated, last_cron_success). | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or

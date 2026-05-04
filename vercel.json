@@ -66,6 +66,10 @@
     {
       "path": "/api/refresh-data?source=all",
       "schedule": "0 7 * * 0"
+    },
+    {
+      "path": "/api/refresh-data?source=solar_costs",
+      "schedule": "0 8 1 11 *"
     }
   ]
 }

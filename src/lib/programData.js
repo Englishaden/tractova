@@ -738,29 +738,89 @@ export async function getIXQueueSummary(stateId, mwAC) {
   }
 }
 
+// ── solar_cost_index lineage helpers ─────────────────────────────────────────
+// solar_cost_index (migration 048) carries OBSERVED LBNL TTS percentiles. We
+// expose it as a `solar_cost_lineage` field on the revenue-rates payload so
+// the Lens methodology dropdown can show "TTS observed $X.XX/W (n=Y) → 2026
+// anchor $Z.ZZ/W" — the engine keeps reading the synthesized $/W from
+// revenue_rates.installed_cost_per_watt.
+//
+// Defensive: tolerate the table not existing yet (migration 048 applied
+// out-of-band by Aden in Supabase). Any error → null lineage, no throw.
+async function fetchSolarCostLineage(stateId) {
+  try {
+    const { data, error } = await supabase
+      .from('solar_cost_index')
+      .select('p10_per_watt, p25_per_watt, p50_per_watt, p75_per_watt, p90_per_watt, install_count, vintage_year, vintage_window, source, source_url, last_updated')
+      .eq('state', stateId)
+      .eq('sector', 'large_non_res')
+      .order('vintage_year', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+async function fetchAllSolarCostLineage() {
+  try {
+    const { data, error } = await supabase
+      .from('solar_cost_index')
+      .select('state, p10_per_watt, p25_per_watt, p50_per_watt, p75_per_watt, p90_per_watt, install_count, vintage_year, vintage_window, source, source_url, last_updated')
+      .eq('sector', 'large_non_res')
+      .order('vintage_year', { ascending: false })
+    if (error) return []
+    return data || []
+  } catch {
+    return []
+  }
+}
+
 // ── getRevenueRates ──────────────────────────────────────────────────────────
 // Returns full revenue rate data for a state (CS + C&I + BESS fields).
 export async function getRevenueRates(stateId) {
   return withCache(`revenue_rates:${stateId}`, async () => {
-    const { data, error } = await supabase
-      .from('revenue_rates')
-      .select('*')
-      .eq('state_id', stateId)
-      .maybeSingle()
-    if (error) throw error
-    return data
+    const [ratesRes, lineage] = await Promise.all([
+      supabase
+        .from('revenue_rates')
+        .select('*')
+        .eq('state_id', stateId)
+        .maybeSingle(),
+      fetchSolarCostLineage(stateId),
+    ])
+    if (ratesRes.error) throw ratesRes.error
+    if (!ratesRes.data) return null
+    return {
+      ...ratesRes.data,
+      solar_cost_lineage: lineage,
+    }
   })
 }
 
 // ── getAllRevenueRates ────────────────────────────────────────────────────────
 export async function getAllRevenueRates() {
   return withCache('revenue_rates_all', async () => {
-    const { data, error } = await supabase
-      .from('revenue_rates')
-      .select('*')
-      .order('state_id')
-    if (error) throw error
-    return data || []
+    const [ratesRes, lineageRows] = await Promise.all([
+      supabase
+        .from('revenue_rates')
+        .select('*')
+        .order('state_id'),
+      fetchAllSolarCostLineage(),
+    ])
+    if (ratesRes.error) throw ratesRes.error
+
+    // Pick the latest vintage row per state (lineage rows ordered desc).
+    const lineageByState = new Map()
+    for (const r of lineageRows) {
+      if (!lineageByState.has(r.state)) lineageByState.set(r.state, r)
+    }
+
+    return (ratesRes.data || []).map((row) => ({
+      ...row,
+      solar_cost_lineage: lineageByState.get(row.state_id) || null,
+    }))
   })
 }
 

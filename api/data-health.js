@@ -311,6 +311,7 @@ async function handleHealthSummary(res) {
     'refresh-data:revenue_stacks':  8,
     'refresh-data:news':            8,
     'refresh-data:geospatial_farmland': 35, // monthly-ish
+    'refresh-data:solar_costs':     400,  // annual (LBNL TTS releases each Oct)
     'monthly-data-refresh':         35,   // monthly
     'capacity-factor-refresh':      100,  // quarterly
     'ix-queue-refresh':             8,    // weekly
