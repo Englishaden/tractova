@@ -4,7 +4,47 @@
 
 ---
 
-## 🟢 Pickup — Phase G shipped: cs_specific_yield (Nexamp + SR Energy + Catalyze fleet) → next: Aden applies migrations 052 + 053 + 054, runs both seed scripts
+## 🟢 Pickup — Library bug-fixes + UX wins shipped (`362e222`) → next: Aden applies migrations 050-054 + runs three seed scripts, then build resumes in priority order: 2 → 1 → 3 → 4 → 5 → site audit → onboarding revamp
+
+**Session 2026-05-05 (close-out).** Bug-fix sweep on top of Phases B/D/E/G/Phase C-pivoted. Aden flagged four items off the live Vercel render after applying some migrations; all addressed.
+
+### What landed (commit `362e222`)
+
+1. **Portfolio Health + Geographic Spread NaN** — root cause was `Object.values(subs)` spreading the `coverage` object (4th key, with string values 'researched' / 'fallback') as the `weights` argument to `computeDisplayScore`. `weights.offtake = 'researched'`, so `number × string = NaN`, poisoning every per-project score and downstream aggregate. Fixed in `Library.jsx:2621` AND `Profile.jsx:346` (both had the same bug). Defensive `Number.isFinite` filters added in `healthScore` + `geoBreakdown` so a single bad row can't poison the aggregate again.
+2. **SolarCostLineagePanel promoted** out of the methodology dropdown into the top of `OfftakeCard` body. Tier A/B coloring (5 visual variants from Phase E) is now visible at first glance, not buried behind a click-to-expand. Methodology dropdown keeps the broader citation paragraph for context.
+3. **Pipeline Distribution collapsible.** Was eating ~150px of vertical space above the project grid. Default collapsed, chevron + summary count line; expand on click. Active filter forces-expand.
+4. **Audit-tab loader** — `LoadingDot` (green dot) → `TractovaLoader` per saved cinematic-loading feedback. Branded affordance for a discrete tab switch.
+
+### Aden-side action items (carried)
+
+1. **Apply migrations 050, 051, 052, 053, 054** in Supabase SQL editor (in order — 049 done previous session; 052 depends on 048; 054 depends on 053).
+2. **Re-run `seed-solar-cost-index.mjs`** — should populate 7 new rows (3 → 10 Tier-A states).
+3. **Run `seed-cs-projects.mjs`** — ~3,799 NREL Sharing the Sun rows.
+4. **Run `seed-cs-specific-yield.mjs --dry-run` FIRST** — regex parsers are best-effort. If output is sparse, use `--inspect=nexamp|srenergy|catalyze` to dump raw HTML, tune regexes, then live-run. (This is option 1 below.)
+
+### Locked priority order for the next sessions
+
+User-set 2026-05-05:
+
+1. **Option 2 — `cs_projects` audit of `cs_status` accuracy.** Once Sharing the Sun is seeded, flag states whose `state_programs.cs_status='active'` have negligible operating MW (or vice versa — `cs_status='limited'` but huge real deployment, e.g. FL). Small audit script + admin-curation queue. ~2-3 hours. **Highest leverage per hour.**
+2. **Option 1 — Phase G Specific Yield seed regex tuning.** Iterate on the three scrapers after the first `--dry-run` reveals which patterns extract sparsely vs cleanly. ~30-60 min of HTML inspection + regex refinement. Bounded.
+3. **Option 3 — Replace synthesized `comparable_deals` with `cs_projects`-backed real comparables.** Refactor `ComparableDealsPanel` to query `cs_projects` for nearby/similar operating projects matching MW + state + tech. ~1 day. The curated `comparable_deals` table is mostly empty and now has a real-data substitute.
+4. **Option 4 — Mobile responsiveness audit.** Search.jsx is 4,500+ LOC and likely breaks <640px. ~2-3 days. Lower urgency since Aden's user base is desk-centric, but unblocks the email-footer mobile-disclaimer story.
+5. **Option 5 — Path 2 ground-truthing.** LevelTen PPA Index (~$1.5K/yr) or industry-developer survey or direct state-program outreach. Closes the 9 Tier-B states (5 structural SREC + 4 below-floor) that the Lens UI now visibly discloses. Money/relationship spend, not engineering.
+
+### After option 5
+
+**Full site audit + UI/UX check** — comprehensive sweep matching the original site-walk arc style. Then **onboarding revamp** (the work paused a few sessions back; plan exists at `~/.claude/plans/huly-onboarding-revamp.md`).
+
+### Resume-prompt suggestions
+
+- *"Apply migrations + run seeds, then start option 2 (cs_status accuracy audit)"*
+- *"Phase G `--inspect=nexamp` — let's tune the regex"*
+- *"Skip ahead to option 3 — comparable_deals refactor"*
+
+---
+
+## Pickup (prior, 2026-05-04 evening) — Phase G shipped: cs_specific_yield (Nexamp + SR Energy + Catalyze fleet)
 
 **Session 2026-05-04 (continuation, sessions 11–12).** Phase G shipped on
 top of Phase E in the approved sequence. Both data-lineage layers now
