@@ -1001,6 +1001,71 @@ export async function getCsMarketSnapshot(stateId, { sampleMwTarget = null, samp
   })
 }
 
+// ── getCsProjectsAsComparables ───────────────────────────────────────────────
+// Per-state operating CS projects from cs_projects (NREL Sharing the Sun)
+// shaped to match the comparable_deals card schema so ComparableDealsPanel
+// can render them seamlessly alongside the curated benchmarks. This is the
+// option-3 substitute for the mostly-empty curated comparable_deals table.
+//
+// Filters:
+//   - state match
+//   - if mwRange = [lo, hi] provided, system_size_mw_ac must fall within
+//   - technology filter is informational only — Sharing the Sun is all CS,
+//     so 'Community Solar' / 'Hybrid' both match this dataset; 'BESS' / 'C&I'
+//     return empty (those aren't CS projects)
+//
+// Returns rows shaped like:
+//   { id, mw, technology, status, state, county, developer, servingUtility,
+//     filingDate (cod proxy from vintage_year), source, sourceUrl, notes }
+//
+// Defensive: returns [] when cs_projects table doesn't exist yet or no rows.
+export async function getCsProjectsAsComparables({ state, technology, mwRange } = {}) {
+  if (!state) return []
+  // BESS / C&I aren't CS — Sharing the Sun has only community solar.
+  if (technology && technology !== 'Community Solar' && technology !== 'Hybrid') return []
+
+  return withCache(`cs_comparables:${state}:${mwRange?.[0] ?? '_'}:${mwRange?.[1] ?? '_'}`, async () => {
+    try {
+      let q = supabase
+        .from('cs_projects')
+        .select('project_id, project_name, city, state, utility_name, utility_type, developer_name, system_size_mw_ac, vintage_year, lmi_required, lmi_portion_pct, source_release')
+        .eq('state', state)
+        .range(0, 4999)
+
+      if (mwRange && mwRange.length === 2) {
+        q = q.gte('system_size_mw_ac', mwRange[0]).lte('system_size_mw_ac', mwRange[1])
+      }
+      const { data, error } = await q
+      if (error || !data || data.length === 0) return []
+
+      return data.map((p) => ({
+        id:                p.project_id,
+        mw:                p.system_size_mw_ac,
+        technology:        'Community Solar',
+        status:            'operational',                 // Sharing the Sun = operating only
+        state:             p.state,
+        county:            null,                          // Sharing the Sun publishes city/town not county
+        developer:         p.developer_name && p.developer_name !== '.' ? p.developer_name : null,
+        servingUtility:    p.utility_name || null,
+        filingDate:        p.vintage_year ? `${p.vintage_year}-01-01` : null,
+        codTarget:         p.vintage_year ? `${p.vintage_year}-01-01` : null,
+        source:            'NREL Sharing the Sun',
+        sourceUrl:         'https://www.nrel.gov/solar/market-research-analysis/community-solar-data.html',
+        notes:             [
+          p.city ? `${p.city}, ${p.state}` : null,
+          p.utility_type ? `${p.utility_type} utility` : null,
+          p.lmi_required ? `LMI required${p.lmi_portion_pct ? ` (${Math.round(p.lmi_portion_pct)}%)` : ''}` : null,
+        ].filter(Boolean).join(' · '),
+        // Phase G hint for downstream use — internal flag the panel can
+        // optionally check to badge the card differently. Not required.
+        _csProjectsBacked: true,
+      }))
+    } catch {
+      return []
+    }
+  })
+}
+
 // ── getAllIXQueueData ─────────────────────────────────────────────────────────
 export async function getAllIXQueueData() {
   return withCache('ix_queue_all', async () => {

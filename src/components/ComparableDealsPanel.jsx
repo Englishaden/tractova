@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { getComparableDeals } from '../lib/programData'
+import { getComparableDeals, getCsProjectsAsComparables } from '../lib/programData'
 import { COMPARABLE_DEAL_SOURCES } from '../lib/pucPortals'
 import { LoadingDot } from './ui'
 
@@ -245,14 +245,32 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
     const targetMW = parseFloat(mw)
     // ±50% MW range when targetMW provided; else no MW filter
     const mwRange = targetMW > 0 ? [Math.max(0.1, targetMW * 0.5), targetMW * 2.0] : undefined
-    getComparableDeals({ state, technology, mwRange })
-      .then(rows => {
+
+    // 2026-05-05 (option 3): merge cs_projects (NREL Sharing the Sun, real
+    // operating projects, 4,280 rows) with the curated comparable_deals table.
+    // cs_projects gives volume + utility/developer attribution per row;
+    // curated comparable_deals adds richer metadata (estimatedCapexPerW,
+    // proposed/under-construction status, FERC filing dates) for selected
+    // benchmarks. Both are sorted together by closer-MW > more-recent.
+    Promise.all([
+      getCsProjectsAsComparables({ state, technology, mwRange }).catch(() => []),
+      getComparableDeals({ state, technology, mwRange }).catch(() => []),
+    ])
+      .then(([csRows, curatedRows]) => {
         if (cancelled) return
-        setDeals(sortDeals(rows, { mw: targetMW }).slice(0, 4))
+        // Dedupe: prefer curated row when both sources have the same project
+        // name + state (curated has richer metadata).
+        const curatedKeys = new Set((curatedRows || []).map(d => `${d.state}::${(d.developer || '').toLowerCase()}::${Math.round(parseFloat(d.mw) || 0)}`))
+        const csFiltered = (csRows || []).filter(d => {
+          const k = `${d.state}::${(d.developer || '').toLowerCase()}::${Math.round(parseFloat(d.mw) || 0)}`
+          return !curatedKeys.has(k)
+        })
+        const merged = [...(curatedRows || []), ...csFiltered]
+        setDeals(sortDeals(merged, { mw: targetMW }).slice(0, 6))
         setLoading(false)
       })
       .catch(err => {
-        console.warn('[comparable-deals] fetch failed:', err.message)
+        console.warn('[comparable-deals] merged fetch failed:', err.message)
         if (!cancelled) {
           setDeals([])
           setFetchError(true)
@@ -316,12 +334,12 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
           style={{ background: '#FAFAF7', border: '1px dashed #E2E8F0' }}
         >
           <p className="text-[13px] text-ink-muted leading-relaxed">
-            No Tractova-flagged comps for{' '}
+            No operating CS projects on record for{' '}
             <span className="font-medium text-ink">{technology}</span> in{' '}
-            <span className="font-medium text-ink">{labelName}</span>{mw ? ` near ${mw} MW` : ''} right now.
+            <span className="font-medium text-ink">{labelName}</span>{mw ? ` near ${mw} MW (±50%)` : ''}.
           </p>
           <p className="text-[11px] text-ink-muted mt-1.5 mb-3">
-            We curate selective benchmarks from federal filings — drill into FERC Form 1 or EIA Form 860 directly for the comprehensive deal universe.
+            Backed by NREL Sharing the Sun (operating CS projects) + Tractova-curated benchmarks. For the comprehensive deal universe, drill into FERC Form 1 or EIA Form 860 directly.
           </p>
           <ExploreDealSourcesButton />
         </div>
@@ -342,7 +360,7 @@ export default function ComparableDealsPanel({ state, stateName, technology, mw 
       </motion.div>
       <div className="mt-3 pt-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: '1px solid #E2E8F0' }}>
         <p className="text-[11px] text-ink-muted leading-relaxed">
-          Tractova-flagged benchmarks. <span className="text-ink-muted">For the full deal universe:</span>
+          Operating-fleet from NREL Sharing the Sun + Tractova-curated benchmarks. <span className="text-ink-muted">For the full deal universe:</span>
         </p>
         <ExploreDealSourcesButton />
       </div>

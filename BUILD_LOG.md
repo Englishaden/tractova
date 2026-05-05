@@ -4,7 +4,100 @@
 
 ---
 
-## 🟢 Pickup — Option 2 (cs_status accuracy audit) shipped + 1000-row truncation bug fixed → next: Aden applies migration 055, re-runs solar_cost_index seed, runs Phase G dry-run, then option 1 (Phase G regex tuning)
+## 🟢 Pickup — Option 3 shipped (ComparableDealsPanel from cs_projects). Phase G investigation revealed the data isn't observed — pause Phase G ingestion pending Aden's call. Next: option 4 (mobile audit) or revisit Phase G premise.
+
+**Session 2026-05-05 (background-run continuation).** Aden eating; ran the
+remaining seeds + dry-runs in background while shipping option 3 in parallel.
+Phase E re-seed completed (3 → 10 Tier-A states live). Phase G dry-run
+exposed a fundamental problem with the Phase G premise.
+
+### What landed (this commit)
+
+- **Option 3 — ComparableDealsPanel backed by cs_projects.** Refactored
+  the panel to merge cs_projects (NREL Sharing the Sun, 4,280 real
+  operating CS projects) with the existing curated comparable_deals
+  table. Curated wins on overlap (richer metadata: capex, filing dates,
+  proposed/under-construction status); cs_projects fills volume +
+  utility/developer attribution. Empty-state copy updated to reflect
+  the new dual-source design. Card limit bumped 4 → 6 to use the
+  expanded supply. New helper `getCsProjectsAsComparables` in
+  `programData.js` shapes cs_projects rows into the comparable_deals
+  schema. `MaybeComparableDealsPanel` wrapper in Search.jsx now probes
+  BOTH sources for visibility.
+- **Phase E re-seed completed.** solar_cost_index now has 10 rows
+  (3 strong + 3 modest + 4 thin). Lens tier coloring will show all
+  5 visual variants once a user opens any of the 10 covered states.
+
+### Phase G investigation (option 1) — dry-run findings
+
+Nexamp regex was tuned (Vuetify HTML uses `class="size"` / `class="location"`
+/ `class="data"` patterns; old generic regex extracted 0 of 270 URLs).
+Tuned regex extracted 266 of 270 cleanly. **But the data revealed Phase G's
+fundamental problem.**
+
+Per-state mean SY across 11 states clustered at ~1240 kWh/kWp/yr exactly:
+NY 75 projects · 1240 SY · 14.16% CF
+MA 70 projects · 1240 SY · 14.16% CF
+IL 66 projects · 1240 SY · 14.16% CF
+ME 31 projects · 1240 SY · 14.16% CF
+... etc. Every state same value within ±0.5%.
+
+Nexamp's HTML label is "Annual Estimated Production (kWh)" — **estimated**.
+Nexamp publishes one PVWatts-equivalent assumption applied uniformly across
+their fleet, not measured observed production. The Phase G value
+proposition (real CF as a counter to PVWatts modeled) collapses: we'd be
+re-publishing one developer's design-stage estimates as if they were
+ground truth.
+
+SR Energy is also gone — their projects page is a SPA, raw HTTP fetch
+returns the 4.5 KB shell; would need headless browser to revisit.
+
+Catalyze (the third source) URL was wrong (`/projects/` → `/portfolio/`,
+fixed) but contributes ~30% partial-disclosure rows at most. Not worth
+shipping in isolation.
+
+**Honest call: pause Phase G live ingestion.** The architecture is in
+place (migration 053 + 054 + table + `SpecificYieldPanel` + privacy
+disclosure) — but the data isn't what we thought. Three paths forward:
+
+1. **Ship Phase G with explicit "developer-modeled" caveat** — disclose
+   that observed SY is one developer's design-stage assumption, not
+   measured. Has limited cross-source value but is honest. Maybe 1 hr.
+2. **Headless-browser approach for SR Energy** — Playwright fetch to get
+   real measured production from SR Energy's SPA listing. ~1 day work.
+3. **Defer Phase G entirely** — leave architecture in place for future
+   sources; mark as "no usable observed-SY data found in public CS-developer
+   fleets after 18-developer sweep + Nexamp regex tune." Honest disclosure.
+
+My honest read: option 3 here (defer). Phase E + Phase B/D + Phase C-pivoted
++ NREL ATB benchmarks already give the data spine 5 lineage layers. Phase G
+was the speculative one; it didn't pan out. Document the finding, don't ship
+data we'd have to caveat away.
+
+### What's broken / unfinished
+
+- **Phase G live seed pending Aden's call** on the 3 paths above.
+- **9 cs_status flags** (option 2) still need triage — FL/MA/HI/CT/NM/TX/AR/GA/VA. Surfaced in /admin → Data Health → Mission Control.
+
+### Locked priority order (after Aden's Phase G decision)
+
+1. ~~Option 2~~ ✓ shipped
+2. ~~Option 1~~ Tuned but Phase G premise pivot needed (see above)
+3. ~~Option 3~~ ✓ shipped
+4. **Option 4 — Mobile responsiveness audit** (next, ~2-3 days)
+5. Option 5 — Path 2 ground-truthing
+6. Full site audit + UI/UX check
+7. Onboarding revamp
+
+### Resume-prompt suggestions
+
+- *"Defer Phase G — proceed to option 4 (mobile)"*
+- *"Ship Phase G option 1 (developer-modeled caveat)"*
+- *"Headless-browser SR Energy scrape — option 2 from the Phase G discovery"*
+
+---
+
+## Pickup (prior, 2026-05-05) — Option 2 (cs_status accuracy audit) shipped + 1000-row truncation bug fixed
 
 **Session 2026-05-05 (digging in).** Aden applied migrations 050-054. Three
 seeds were pending. Started session probing live state, found:

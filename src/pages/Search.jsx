@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getEnergyCommunity, getHudQctDda, getNmtcLic, getCsMarketSnapshot, getSpecificYieldLineage } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getPucDockets, getComparableDeals, getCsProjectsAsComparables, getEnergyCommunity, getHudQctDda, getNmtcLic, getCsMarketSnapshot, getSpecificYieldLineage } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -4223,12 +4223,16 @@ function MaybeComparableDealsPanel({ state, stateName, technology, mw }) {
     let cancelled = false
     const targetMW = parseFloat(mw)
     const mwRange = targetMW > 0 ? [Math.max(0.1, targetMW * 0.5), targetMW * 2.0] : undefined
-    getComparableDeals({ state, technology, mwRange }).then(rows => {
-      if (!cancelled) setShow((rows || []).length > 0)
+    // 2026-05-05 (option 3): panel now backed by cs_projects + curated. Check
+    // BOTH for visibility — panel renders if either source has matches. The
+    // panel's own merge dedupes when both have overlapping rows.
+    Promise.all([
+      getCsProjectsAsComparables({ state, technology, mwRange }).catch(() => []),
+      getComparableDeals({ state, technology, mwRange }).catch(() => []),
+    ]).then(([cs, curated]) => {
+      if (!cancelled) setShow((cs?.length || 0) + (curated?.length || 0) > 0)
     }).catch(err => {
-      // Same curation-gated pattern as MaybeRegulatoryPanel: hide on error
-      // to match the "no curated deals" empty case. Log for visibility.
-      console.warn('[MaybeComparableDealsPanel] getComparableDeals failed:', err)
+      console.warn('[MaybeComparableDealsPanel] merged probe failed:', err)
     })
     return () => { cancelled = true }
   }, [state, technology, mw])

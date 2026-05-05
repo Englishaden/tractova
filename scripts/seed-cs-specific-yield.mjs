@@ -127,43 +127,40 @@ async function scrapeNexamp() {
       const decoded = decodeHtmlEntities(html)
       const slug = url.split('/').pop()
 
-      // Extract project name (h1)
-      const nameMatch = decoded.match(/<h1[^>]*>([^<]+)<\/h1>/i)
+      // Extract project name (h1 or <title>)
+      const nameMatch = decoded.match(/<h1[^>]*>([^<]+)<\/h1>/i) ||
+                        decoded.match(/<title>([^<]+?)(?:\s*\|\s*Nexamp)?<\/title>/i)
       const projectName = nameMatch ? nameMatch[1].trim() : slug
 
-      // AC capacity — Nexamp formats as "2,589.12 kW" or similar. Look for
-      // patterns near "AC" or "Capacity" labels.
+      // Tuned 2026-05-05 against actual HTML — Nexamp uses Vuetify-rendered
+      // <div class="size">N.NN Kilowatts</div> + <div class="location">City, ST</div>
+      // + Annual Estimated Production (kWh):</div><div class="data">N,NNN,NNN</div>
       let acKw = null
-      const acPatterns = [
-        /(?:Capacity[^<]{0,40}|AC[^<]{0,40})([\d,]+(?:\.\d+)?)\s*kW(?!h)/i,
-        /([\d,]+(?:\.\d+)?)\s*kW(?:[^h]|$)[^<]{0,80}AC/i,
-        /Size[^<]{0,60}([\d,]+(?:\.\d+)?)\s*kW/i,
-      ]
-      for (const p of acPatterns) {
-        const m = decoded.match(p)
-        if (m) { acKw = parseNumber(m[1]); break }
-      }
+      const sizeMatch = decoded.match(/class="size"[^>]*>([\d,.]+)\s*Kilowatts?</i)
+      if (sizeMatch) acKw = parseNumber(sizeMatch[1])
 
-      // Annual production — "3,210,509 kWh" near "Annual Production" label
       let annualKwh = null
-      const prodPatterns = [
-        /Annual Production[^<]{0,60}([\d,]+)\s*kWh/i,
-        /([\d,]{6,})\s*kWh\s*(?:annually|per year|annual)/i,
-        /Production[^<]{0,40}([\d,]+)\s*kWh/i,
-      ]
-      for (const p of prodPatterns) {
-        const m = decoded.match(p)
-        if (m) { annualKwh = parseNumber(m[1]); break }
+      const prodMatch = decoded.match(/Annual Estimated Production[^<]*<\/div>\s*<div[^>]+class="data"[^>]*>([\d,]+)</i) ||
+                        decoded.match(/Annual Production[^<]{0,60}<\/div>\s*<div[^>]*>([\d,]+)/i)
+      if (prodMatch) annualKwh = parseNumber(prodMatch[1])
+
+      // Location: "<div class="location">Adamstown, MD</div>"
+      let state = null, city = null
+      const locMatch = decoded.match(/class="location"[^>]*>([^<]+)</i)
+      if (locMatch) {
+        const loc = locMatch[1].trim()
+        // Format "City, ST" — split and validate
+        const m = loc.match(/^(.+?),\s*([A-Z]{2})$/)
+        if (m && VALID_USPS.has(m[2])) {
+          city = m[1].trim()
+          state = m[2]
+        } else {
+          state = extractState(loc)
+        }
       }
+      if (!state) state = extractState(decoded)
 
-      // State + city — usually in the page body as "State: XX" or in a meta tag
-      const stateMatch = decoded.match(/State[\s:]+([A-Z]{2})\b/) ||
-                         decoded.match(/\b([A-Z]{2})\s*\d{5}\b/)  // ZIP code fallback
-      const state = stateMatch ? stateMatch[1] : extractState(decoded)
-      const cityMatch = decoded.match(/(?:City|Town)[\s:]+([A-Z][a-zA-Z .'-]+)/)
-      const city = cityMatch ? cityMatch[1].trim() : null
-
-      // Panel count + tracking
+      // Panel count + tracking — Nexamp body text fallbacks
       const panelMatch = decoded.match(/([\d,]+)\s*(?:American-made\s+)?solar\s+modules?/i)
       const panelCount = panelMatch ? parseInt(panelMatch[1].replace(/,/g, ''), 10) : null
       const trackerMatch = decoded.match(/(versatile tracker|single-axis|fixed-tilt|tracker)/i)
@@ -215,8 +212,16 @@ async function scrapeNexamp() {
 }
 
 // ── Source: SR Energy ──────────────────────────────────────────────────────
-// Listing page has cards inline with name/state/DC kW/annual kWh.
+// 2026-05-05: SR Energy projects page is a SPA — raw HTTP fetch returns ~4.5 KB
+// shell (content rendered via JS). The plan-mode WebFetch (which executes JS)
+// previously saw the data, but a raw fetch can't. Skipping for now; would
+// need a headless-browser approach (Playwright/Puppeteer) to revisit.
+// Returning empty array preserves the multi-source contract.
 async function scrapeSrEnergy() {
+  console.log(`\n[SR Energy] SKIP — site is a SPA; raw fetch returns shell only. Defer until headless-browser approach.`)
+  return []
+
+  // eslint-disable-next-line no-unreachable
   console.log(`\n[SR Energy] fetching listing… (10s crawl-delay per robots.txt)`)
   await sleep(2000)  // courtesy pre-fetch wait
   const html = await fetchText('https://srenergy.com/projects/', 'SR Energy listing')
@@ -291,8 +296,10 @@ async function scrapeSrEnergy() {
 // ~30 projects on catalyze.com/projects/; ~30% expose annual production.
 // Drop rows missing production.
 async function scrapeCatalyze() {
-  console.log(`\n[Catalyze] fetching listing…`)
-  const html = await fetchText('https://catalyze.com/projects/', 'Catalyze listing')
+  console.log(`\n[Catalyze] fetching portfolio…`)
+  // 2026-05-05: corrected URL from /projects/ to /portfolio/ — Catalyze
+  // returns 404 on /projects/ even though it appeared in the original probe.
+  const html = await fetchText('https://catalyze.com/portfolio/', 'Catalyze portfolio')
   const decoded = decodeHtmlEntities(html)
 
   const rows = []
@@ -358,7 +365,7 @@ if (inspectArg) {
   const inspectUrls = {
     nexamp: 'https://www.nexamp.com/project/adamstown-solar',
     srenergy: 'https://srenergy.com/projects/',
-    catalyze: 'https://catalyze.com/projects/',
+    catalyze: 'https://catalyze.com/portfolio/',
   }
   const url = inspectUrls[inspectArg]
   if (!url) { console.error(`Unknown source: ${inspectArg}`); process.exit(1) }
