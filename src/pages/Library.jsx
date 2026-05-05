@@ -1303,7 +1303,15 @@ function ProjectAuditTimeline({ projectId, refreshKey = 0 }) {
   }, [projectId, refreshKey])
 
   if (loading) {
-    return <LoadingDot message="Loading audit trail" />
+    // 2026-05-05: switched from LoadingDot (inline green dot) to
+    // TractovaLoader per saved feedback memory on cinematic loading style.
+    // The Audit tab is a discrete tab-switch; users want a branded loader,
+    // not a bare dot.
+    return (
+      <div className="flex items-center justify-center py-8">
+        <TractovaLoader size={48} label="Loading audit trail" />
+      </div>
+    )
   }
 
   if (!rawEvents || rawEvents.length === 0) {
@@ -2618,14 +2626,27 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
     const sp = stateProgramMap[p.state]
     if (!sp) return { ...p, score: 0 }
     const subs = computeSubScores(sp, null, p.stage, p.technology)
-    return { ...p, score: computeDisplayScore(...Object.values(subs)) }
+    // 2026-05-05 root-cause fix: Object.values(subs) spread `coverage` (the
+    // 4th key, an object) as the `weights` argument to computeDisplayScore.
+    // `weights.offtake = 'researched'` (string), so the multiplication
+    // returned NaN, poisoning every downstream aggregate. Destructure
+    // explicitly. Profile.jsx had the same bug — fixed in lockstep.
+    return { ...p, score: computeDisplayScore(subs.offtake, subs.ix, subs.site) }
   }), [projects, stateProgramMap])
 
-  // Portfolio health score (weighted avg)
+  // Portfolio health score (MW-weighted avg of valid scores).
+  //
+  // 2026-05-05 fix: when stateProgramMap[p.state] is undefined for a project
+  // (state not in curated map, or stateProgramMap still hydrating), the
+  // computeSubScores call returns NaN values which poisoned the weighted
+  // average and rendered "NaN" in the Portfolio Health chip. Filter to
+  // finite scores before aggregation; fall back to 0 when nothing valid.
   const healthScore = useMemo(() => {
-    if (!scored.length) return 0
-    const totalMW = scored.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
-    const weighted = scored.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0)
+    const valid = scored.filter(p => Number.isFinite(p.score))
+    if (!valid.length) return 0
+    const totalMW = valid.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
+    if (totalMW === 0) return 0
+    const weighted = valid.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0)
     return Math.round(weighted / totalMW)
   }, [scored])
 
@@ -2710,6 +2731,9 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
   }, [cacheKey, scored.length, Object.keys(stateProgramMap).length])
 
   // Geographic breakdown
+  // 2026-05-05 fix: same NaN-guard pattern as healthScore. Only push finite
+  // scores into the per-state scores array so a single bad row doesn't NaN
+  // the avgScore for the whole state.
   const geoBreakdown = useMemo(() => {
     const map = {}
     scored.forEach(p => {
@@ -2717,9 +2741,13 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
       if (!map[st]) map[st] = { count: 0, mw: 0, avgScore: 0, scores: [] }
       map[st].count++
       map[st].mw += parseFloat(p.mw) || 0
-      map[st].scores.push(p.score)
+      if (Number.isFinite(p.score)) map[st].scores.push(p.score)
     })
-    Object.values(map).forEach(v => { v.avgScore = Math.round(v.scores.reduce((a, b) => a + b, 0) / v.scores.length) })
+    Object.values(map).forEach(v => {
+      v.avgScore = v.scores.length
+        ? Math.round(v.scores.reduce((a, b) => a + b, 0) / v.scores.length)
+        : 0
+    })
     return Object.entries(map).sort((a, b) => b[1].mw - a[1].mw)
   }, [scored])
 
@@ -3179,6 +3207,7 @@ function LibraryContent() {
   const [filterState,     setFilterState]     = useState('')
   const [filterTech,      setFilterTech]      = useState('')
   const [filterStage,     setFilterStage]     = useState('')
+  const [pipelineExpanded, setPipelineExpanded] = useState(false)
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
@@ -3719,20 +3748,52 @@ function LibraryContent() {
                   }
                 })
                 const maxCount = Math.max(...stageCounts.map(s => s.count), 1)
+                // 2026-05-05: Pipeline Distribution made collapsible — was
+                // taking ~150px of vertical real estate above the project
+                // grid even when the user wasn't actively filtering by stage.
+                // Default collapsed; one click expands. Active filter
+                // forces-expand so the user sees what they're filtering by.
+                const totalProjects = stageCounts.reduce((s, c) => s + c.count, 0)
+                const totalMwSum = stageCounts.reduce((s, c) => s + c.mw, 0)
+                const showBars = pipelineExpanded || !!filterStage
                 return (
-                  <div className="mt-4 rounded-xl px-4 py-4 bg-white border border-gray-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pipeline Distribution</p>
+                  <div className="mt-4 rounded-xl px-4 py-3 bg-white border border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setPipelineExpanded(v => !v)}
+                      className="w-full flex items-center justify-between text-left"
+                      aria-expanded={showBars}
+                    >
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className="w-3 h-3 text-gray-400 transition-transform"
+                          style={{ transform: showBars ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                        >
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pipeline Distribution</p>
+                        {!showBars && (
+                          <span className="text-[10px] text-gray-400 font-mono tabular-nums">
+                            · {totalProjects} project{totalProjects !== 1 ? 's' : ''} · {totalMwSum.toFixed(1)} MW across {stageCounts.filter(s => s.count > 0).length} stage{stageCounts.filter(s => s.count > 0).length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
                       {filterStage && (
-                        <button
-                          onClick={() => setFilterStage('')}
-                          className="text-[10px] font-semibold text-teal-700 hover:text-teal-800"
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); setFilterStage('') }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setFilterStage('') } }}
+                          className="text-[10px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
                         >
                           Clear filter ✕
-                        </button>
+                        </span>
                       )}
-                    </div>
-                    <div className="flex items-end gap-2 h-16">
+                    </button>
+                    {showBars && (
+                    <>
+                    <div className="mt-3 flex items-end gap-2 h-16">
                       {stageCounts.map(({ stage, count, mw, color, stale }) => {
                         const isActive = filterStage === stage
                         const isDimmed = filterStage && filterStage !== stage
@@ -3799,6 +3860,8 @@ function LibraryContent() {
                         )
                       })}
                     </div>
+                    </>
+                    )}
                   </div>
                 )
               })()}

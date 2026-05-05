@@ -343,7 +343,10 @@ function PortfolioStats({ projects, stateProgramMap }) {
     const sp = stateProgramMap[p.state]
     if (!sp) return { ...p, score: 0 }
     const subs = computeSubScores(sp, null, p.stage, p.technology)
-    return { ...p, score: computeDisplayScore(...Object.values(subs)) }
+    // 2026-05-05 lockstep with Library.jsx fix: Object.values(subs) was
+    // spreading `coverage` as `weights`, returning NaN. Destructure the
+    // three numeric sub-scores explicitly.
+    return { ...p, score: computeDisplayScore(subs.offtake, subs.ix, subs.site) }
   }), [projects, stateProgramMap])
 
   const totalMW = useMemo(() =>

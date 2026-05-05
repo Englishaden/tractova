@@ -1882,6 +1882,12 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
       {/* Body */}
       <div className="px-5 py-4 space-y-4">
 
+        {/* Per-state $/W data lineage panel — promoted out of the methodology
+            dropdown 2026-05-05 so the Tier A/B confidence is visible at first
+            glance, not buried behind a click-to-expand. Self-hides when no
+            rates row exists (non-CS-active states). */}
+        <SolarCostLineagePanel rates={rates} stateName={stateProgram?.name} />
+
         {isCS ? (
           <>
             {/* CS program status — only for Community Solar */}
@@ -2373,7 +2379,10 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
             <a href="https://www.irs.gov/forms-pubs/about-form-3468" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
           </div>
         </div>
-        <SolarCostLineagePanel rates={rates} stateName={stateProgram?.name} />
+        {/* SolarCostLineagePanel was hosted here pre-2026-05-05; promoted to
+            OfftakeCard body so the tier disclosure is visible without an
+            expander click. The methodology dropdown keeps the broader citation
+            paragraph below for context. */}
         <div className="pt-2 border-t border-gray-100">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage &amp; sources</p>
           <ul className="space-y-1.5 text-[10px] text-gray-700 list-none">
