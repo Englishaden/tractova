@@ -841,10 +841,14 @@ export async function getAllRevenueRates() {
 export async function getSpecificYieldLineage(stateId) {
   return withCache(`specific_yield:${stateId}`, async () => {
     try {
+      // Same 1000-row default-limit caveat as getCsMarketSnapshot. Per-state
+      // SY samples are smaller (Nexamp's biggest fleet state is ~600 projects)
+      // but explicit range protects against future drift.
       const { data, error } = await supabase
         .from('cs_specific_yield')
         .select('project_id, project_name, source, source_url, system_size_kw_ac, system_size_kw_dc, capacity_basis, annual_production_kwh, specific_yield_kwh_per_kwp_yr, observed_capacity_factor_pct, cod_year, last_updated')
         .eq('state', stateId)
+        .range(0, 4999)
       if (error || !data || data.length === 0) return null
 
       const ac = data.filter(r => r.capacity_basis === 'AC')
@@ -903,10 +907,17 @@ export async function getSpecificYieldLineage(stateId) {
 export async function getCsMarketSnapshot(stateId, { sampleMwTarget = null, sampleSize = 6 } = {}) {
   return withCache(`cs_market:${stateId}:${sampleMwTarget ?? 'any'}`, async () => {
     try {
+      // Supabase default row limit is 1000. NY has 1,351 CS projects in
+      // Sharing the Sun — without an explicit higher limit the query
+      // silently truncates and the per-state aggregate is wrong. Use
+      // .range(0, 4999) to cover any state's full population (max state
+      // is NY at ~1,351; 5,000 is comfortable headroom and below
+      // PostgREST's hard ceiling).
       const { data, error } = await supabase
         .from('cs_projects')
         .select('project_id, project_name, city, state, utility_name, utility_type, developer_name, system_size_mw_ac, system_size_mw_dc, vintage_year, lmi_required, lmi_portion_pct, source_release, last_updated')
         .eq('state', stateId)
+        .range(0, 4999)
       if (error || !data) return null
       if (data.length === 0) return null
 

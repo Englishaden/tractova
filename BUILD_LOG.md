@@ -4,7 +4,86 @@
 
 ---
 
-## 🟢 Pickup — Library bug-fixes + UX wins shipped (`362e222`) → next: Aden applies migrations 050-054 + runs three seed scripts, then build resumes in priority order: 2 → 1 → 3 → 4 → 5 → site audit → onboarding revamp
+## 🟢 Pickup — Option 2 (cs_status accuracy audit) shipped + 1000-row truncation bug fixed → next: Aden applies migration 055, re-runs solar_cost_index seed, runs Phase G dry-run, then option 1 (Phase G regex tuning)
+
+**Session 2026-05-05 (digging in).** Aden applied migrations 050-054. Three
+seeds were pending. Started session probing live state, found:
+- cs_projects empty → ran seed → 4,280 rows live ✓
+- solar_cost_index re-seed FAILED with trigger error
+- cs_specific_yield empty
+- Plus discovered a production-affecting **1000-row truncation bug** in
+  `getCsMarketSnapshot` (and same risk in `getSpecificYieldLineage`)
+
+### What landed (this commit)
+
+- **Migration 055 — drop redundant updated_at triggers** on solar_cost_index,
+  cs_projects, cs_specific_yield. The generic `touch_updated_at()` trigger
+  function from earlier migrations expects `NEW.updated_at` but those tables
+  use `last_updated`. First INSERT works (trigger doesn't fire); UPDATE
+  (re-seed) fails with `record "new" has no field "updated_at"`. App sets
+  last_updated explicitly, so the trigger was never useful. Drop them.
+- **`getCsMarketSnapshot` + `getSpecificYieldLineage`: 1000-row truncation
+  fix.** Supabase default page is 1000 rows. NY has 1,351 CS projects in
+  Sharing the Sun. Without `.range(0, 4999)`, per-state aggregates were
+  silently truncated. Real production bug — this affected the
+  `MaybeCsMarketPanel` numbers Aden saw for high-deployment states.
+  Same `.range()` guard added to both helpers.
+- **Option 2 — `cs_status` accuracy audit script + Admin UI.** Joins
+  `state_programs.cs_status` against per-state operating MW from
+  `cs_projects`. Heuristic flags:
+  - DEAD_MARKET: `cs_status='active'` but <5 MW operational → likely 'limited'/'none'
+  - STRONG_MARKET: `cs_status='limited'` but >500 MW operational → likely 'active'
+  - MISSING_STATUS / MISSING_FROM_CURATION: `cs_status='none'` but >50 MW operational
+  - STALE_MARKET: 'active' but no installs in last 5 years
+  Surfaced in `/admin` → Data Health → Mission Control as `CsStatusAuditRow`
+  alongside the existing `CurationDriftRow`. Read-only triage queue;
+  user fixes via `/admin → State Programs` editor.
+
+### Real audit findings (9 flagged states from live cs_projects data)
+
+**HIGH severity (5):**
+- **FL** — cs='limited' but **3,873 MW** operational across 63 projects (largest CS market by MW; FPL SolarTogether). Likely should be 'active'.
+- **MA** — cs='limited' but **1,061 MW** operational across 592 projects (mature SMART market). Likely 'active'.
+- **HI** — cs='active' but only 4.3 MW. Should be 'limited' or 'none'.
+- **CT** — cs='active' but only 1.5 MW. Should be 'limited'.
+- **NM** — cs='active' but 0.1 MW. Brand-new program; should be 'limited'.
+
+**MEDIUM severity (4):**
+- **TX** — cs='none' but 333 MW operational across 20 projects. Add to curation.
+- **AR** — cs='none' but 183 MW. Add to curation.
+- **GA** — cs='none' but 136 MW across 22 projects. Add to curation.
+- **VA** — cs='active' but no installs since 2018. Market dormant; review.
+
+These are real data-quality findings. The product framing for FL is
+debatable (Aden's call — 'limited' might be intentional if developer-entry
+is what's hard, despite high utility-style deployment). MA / HI / CT / NM
+are clearer mismatches.
+
+### Aden-side action items
+
+1. **Apply migration 055** in Supabase SQL editor (3-line trigger drop).
+2. **Re-run `node scripts/seed-solar-cost-index.mjs`** — should write 7 new rows (3 → 10 Tier-A states).
+3. **Run `node scripts/seed-cs-specific-yield.mjs --dry-run`** — Phase G first dry-run; expect regex parsers may need tuning. Use `--inspect=nexamp|srenergy|catalyze` if output is sparse.
+4. **Triage cs_status flags** via `/admin → Data Health` → Mission Control → cs_status accuracy row. Fix in `/admin → State Programs` for the ones that need real updates.
+
+### Locked priority order (carried)
+
+1. ~~Option 2 — cs_status audit~~ ✓ shipped
+2. **Option 1 — Phase G regex tuning** (next, after step 3 above)
+3. Option 3 — comparable_deals refactor backed by cs_projects
+4. Option 4 — Mobile responsiveness audit
+5. Option 5 — Path 2 ground-truthing
+6. Full site audit + UI/UX check
+7. Onboarding revamp (per `~/.claude/plans/huly-onboarding-revamp.md`)
+
+### Resume-prompt suggestions
+
+- *"Apply 055, re-run seeds, then start option 1"*
+- *"Phase G `--inspect=nexamp` and tune the regex"*
+
+---
+
+## Pickup (prior, 2026-05-05) — Library bug-fixes + UX wins shipped
 
 **Session 2026-05-05 (close-out).** Bug-fix sweep on top of Phases B/D/E/G/Phase C-pivoted. Aden flagged four items off the live Vercel render after applying some migrations; all addressed.
 
@@ -1545,6 +1624,7 @@ both blocks).
 | 052 | `solar_cost_index_confidence_tier.sql` | Phase E: confidence_tier (strong/modest/thin) + aggregation_window_years + CHECK n≥3. Tier-B prefix backfill on revenue_rates.notes for 9 states. | ⏳ |
 | 053 | `cs_specific_yield.sql` | Phase G: per-project observed Specific Yield from Nexamp + SR Energy + Catalyze public fleet. capacity_basis (AC/DC), SY ∈ [600, 2400] CHECK. | ⏳ |
 | 054 | `freshness_cs_specific_yield.sql` | RPC + cs_specific_yield block. | ⏳ |
+| 055 | `drop_redundant_updated_at_triggers.sql` | Drop broken triggers on solar_cost_index / cs_projects / cs_specific_yield (generic touch_updated_at expected updated_at column; tables use last_updated). | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or

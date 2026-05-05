@@ -468,6 +468,13 @@ async function handleFreshness(req, res) {
       return b.age_days - a.age_days
     })
 
+  // ── cs_status accuracy audit ────────────────────────────────────────────
+  // Joins state_programs.cs_status against per-state operating MW from
+  // cs_projects (NREL Sharing the Sun seed). Flags states where the
+  // curated label doesn't match operational reality. See
+  // scripts/audit-cs-status-vs-deployment.mjs for the full logic + heuristics.
+  const csStatusAudit = await runCsStatusAudit(statePrograms_DriftRes.data || [])
+
   return res.status(200).json({
     freshness: freshnessResult.data,
     cronRuns: cronRunsResult.data || [],
@@ -479,8 +486,125 @@ async function handleFreshness(req, res) {
       cancellation_feedback_count: cancellationCountRes.count || 0,
       state_programs_drift: driftToShow,
       state_programs_drift_thresholds: { warn_days: DRIFT_WARN_DAYS, urgent_days: DRIFT_URGENT_DAYS },
+      cs_status_audit: csStatusAudit,
     },
   })
+}
+
+// ── cs_status accuracy audit helper ─────────────────────────────────────────
+const CS_AUDIT_DEAD_MW       = 5
+const CS_AUDIT_STRONG_MW     = 500
+const CS_AUDIT_MISSING_MW    = 50
+const CS_AUDIT_RECENT_YEARS  = 5
+
+async function runCsStatusAudit(programs) {
+  // Paginate cs_projects (default page size 1000; total ~4,280).
+  const projects = []
+  try {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabaseAdmin
+        .from('cs_projects')
+        .select('state, system_size_mw_ac, vintage_year')
+        .range(from, from + 999)
+      if (error) throw error
+      if (!data || data.length === 0) break
+      projects.push(...data)
+      if (data.length < 1000) break
+    }
+  } catch (e) {
+    // cs_projects may not be seeded yet (migration 050 applied but seed not run).
+    // Return empty audit — UI can hide the card gracefully.
+    return { available: false, error: e.message, findings: [] }
+  }
+  if (projects.length === 0) {
+    return { available: false, reason: 'cs_projects empty (seed not run)', findings: [] }
+  }
+
+  const programMap = new Map((programs || []).map(p => [p.id, p]))
+  const currentYear = projects.reduce((m, p) => Math.max(m, p.vintage_year || 0), 0)
+  const recentFloor = currentYear - CS_AUDIT_RECENT_YEARS
+
+  const byState = new Map()
+  for (const p of projects) {
+    const st = p.state
+    if (!byState.has(st)) byState.set(st, { count: 0, totalMw: 0, recentCount: 0, recentMw: 0, latestYear: 0 })
+    const b = byState.get(st)
+    b.count++
+    const mw = Number(p.system_size_mw_ac) || 0
+    b.totalMw += mw
+    if (p.vintage_year && p.vintage_year > b.latestYear) b.latestYear = p.vintage_year
+    if (p.vintage_year && p.vintage_year >= recentFloor) {
+      b.recentCount++
+      b.recentMw += mw
+    }
+  }
+
+  const findings = []
+  const allStates = new Set([...byState.keys(), ...(programs || []).map(p => p.id)])
+  for (const st of allStates) {
+    const sp = programMap.get(st)
+    const csStatus = sp?.cs_status || 'none'
+    const ops = byState.get(st) || { count: 0, totalMw: 0, recentCount: 0, recentMw: 0, latestYear: null }
+    const totalMw = Number(ops.totalMw.toFixed(1))
+
+    let flag = null, suggestion = null, severity = null
+    if (csStatus === 'active' && totalMw < CS_AUDIT_DEAD_MW) {
+      flag = 'DEAD_MARKET'
+      suggestion = `Only ${totalMw} MW operational; consider 'limited' or 'none'`
+      severity = 'high'
+    } else if (csStatus === 'limited' && totalMw > CS_AUDIT_STRONG_MW) {
+      flag = 'STRONG_MARKET'
+      suggestion = `${totalMw} MW operational across ${ops.count} projects — review whether 'active' fits`
+      severity = 'high'
+    } else if (csStatus === 'none' && totalMw > CS_AUDIT_MISSING_MW) {
+      flag = sp ? 'MISSING_STATUS' : 'MISSING_FROM_CURATION'
+      suggestion = sp
+        ? `cs_status='none' but ${totalMw} MW operational — state has real CS deployment`
+        : `Not in state_programs; ${totalMw} MW operational — add to curation queue`
+      severity = totalMw > 500 ? 'high' : 'medium'
+    } else if (csStatus === 'active' && totalMw < 50 && ops.recentCount === 0) {
+      flag = 'STALE_MARKET'
+      suggestion = `No installs in last ${CS_AUDIT_RECENT_YEARS} years (latest ${ops.latestYear || '—'}); market may be dormant`
+      severity = 'medium'
+    }
+
+    if (flag) {
+      findings.push({
+        state: st,
+        name: sp?.name || st,
+        cs_status: csStatus,
+        in_state_programs: !!sp,
+        total_projects: ops.count,
+        total_operational_mw: totalMw,
+        recent_projects: ops.recentCount,
+        recent_mw: Number(ops.recentMw.toFixed(1)),
+        latest_install_year: ops.latestYear || null,
+        capacity_mw_curated: sp?.capacity_mw ?? null,
+        flag, severity, suggestion,
+      })
+    }
+  }
+
+  // High-severity first, then by operational MW desc.
+  findings.sort((a, b) => {
+    const r = (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1)
+    if (r !== 0) return r
+    return b.total_operational_mw - a.total_operational_mw
+  })
+
+  return {
+    available: true,
+    total_states_seen: allStates.size,
+    cs_projects_count: projects.length,
+    latest_vintage: currentYear,
+    thresholds: {
+      dead_mw: CS_AUDIT_DEAD_MW,
+      strong_mw: CS_AUDIT_STRONG_MW,
+      missing_mw: CS_AUDIT_MISSING_MW,
+      recent_years: CS_AUDIT_RECENT_YEARS,
+    },
+    findings,
+  }
 }
 
 // ── Router ──────────────────────────────────────────────────────────────────
