@@ -65,6 +65,40 @@ export default defineConfig({
       testMatch: '**/pro-smoke.spec.js',
       dependencies: ['setup'],
     },
+    // 4. Mobile responsiveness audit — public routes at iPhone SE viewport.
+    // Uses Chromium with a 375x667 viewport (rather than WebKit-via-iPhone-SE
+    // device profile, which would require a separate browser install). The
+    // engine doesn't matter for overflow detection; the viewport size does.
+    // Run separately via `npm run test:mobile`.
+    {
+      name: 'mobile',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 375, height: 667 },
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      },
+      testMatch: '**/mobile.spec.js',
+    },
+    // 5. Mobile audit — authenticated Pro routes. Reuses the saved session
+    // from `setup` so Search/Library/Profile/Admin render past their
+    // paywalls. Where the dense Lens form + project grid live.
+    {
+      name: 'mobile-pro',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 375, height: 667 },
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+        storageState: 'tests/.auth/pro-user.json',
+      },
+      testMatch: '**/mobile-pro.spec.js',
+      dependencies: ['setup'],
+    },
   ],
 
   // Auto-boot the Vite dev server before running tests; tear it down after.

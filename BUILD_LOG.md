@@ -4,7 +4,72 @@
 
 ---
 
-## 🟢 Pickup — Option 3 shipped (ComparableDealsPanel from cs_projects). Phase G investigation revealed the data isn't observed — pause Phase G ingestion pending Aden's call. Next: option 4 (mobile audit) or revisit Phase G premise.
+## 🟢 Pickup — Option 4 (mobile audit) shipped. **Surface is mobile-clean** — 15 routes tested at 375px viewport, 0 horizontal-overflow failures. Next: full site audit + UI/UX check, or onboarding revamp.
+
+**Session 2026-05-05 (continuation).** Aden said "continue" — proceeded to
+option 4 (mobile responsiveness audit) per the locked sequence. Built
+automated horizontal-overflow detection at iPhone SE viewport (375x667).
+
+### What landed (this commit)
+
+- **`tests/mobile.spec.js`** — 11 public + Pro-paywall routes tested at
+  375px viewport. Each test asserts no horizontal overflow > 4px (sub-
+  pixel rounding tolerance). On failure, the assertion message includes
+  the top 6 widest-offender elements with class names + computed widths,
+  so future regressions point straight at the broken layout.
+- **`tests/mobile-pro.spec.js`** — companion spec for auth'd routes:
+  Search (Lens form), Library (project grid), Profile (portfolio stats),
+  Admin (Mission Control). Reuses the saved Pro session from
+  `auth.setup.js`. Where the dense 4,500-LOC Search component + Library
+  grid live.
+- **`playwright.config.js`** — two new projects: `mobile` and `mobile-pro`.
+  Both use Chromium with a forced 375x667 viewport + iPhone-SE user-agent
+  + `isMobile: true`, sidestepping the WebKit-only iPhone-SE device
+  profile (which would require a separate browser install).
+- **`package.json` scripts** — `npm run test:mobile` (public) and
+  `npm run test:mobile:pro` (auth'd, depends on setup).
+
+### Result
+
+**15 / 15 mobile route tests pass.** Tractova is mobile-clean at 375px on
+every public route + every Pro-paywall route + every auth'd Pro route.
+Tailwind's responsive defaults + the Phase D/E disclosure panels +
+`CardDrilldown` collapsibles + `Maybe*Panel` wrappers all behave at
+phone viewport. No fixed-width antipatterns leaked through.
+
+**What this audit doesn't test:**
+- Tap-target sizes (need accessibility audit, not viewport check)
+- Below-fold critical content
+- Modal / overlay positioning (CompareModal, CommandPalette, dropdowns)
+- POPULATED states (real Library projects, fired Lens result with all
+  panels rendered) — the empty/initial states all pass; populated may
+  reveal different issues
+
+### Aden-side next step (optional polish)
+
+Run `npm run test:mobile:pro` after running a Lens analysis manually + saving
+some Library projects, to validate populated states. The current pass means
+empty/initial states are clean, which is most of the surface a new user sees.
+
+### Locked priority order (carried)
+
+1. ~~Option 2~~ ✓ shipped
+2. ~~Option 1~~ Phase G regex tuned but data isn't observed — paused
+3. ~~Option 3~~ ✓ shipped
+4. ~~Option 4 — Mobile responsiveness audit~~ ✓ shipped (no fixes needed)
+5. **Option 5 — Path 2 ground-truthing** (LevelTen / dev survey / state outreach — money/relationship spend, not engineering)
+6. **Full site audit + UI/UX check** (engineering — natural next item)
+7. **Onboarding revamp** (per `~/.claude/plans/huly-onboarding-revamp.md`)
+
+### Resume-prompt suggestions
+
+- *"Full site audit + UI/UX check — start there"*
+- *"Onboarding revamp — pick that up"*
+- *"Phase G ship-with-caveat" (revisit Phase G's deferred decision)*
+
+---
+
+## Pickup (prior, 2026-05-05) — Option 3 shipped (ComparableDealsPanel from cs_projects). Phase G investigation revealed the data isn't observed
 
 **Session 2026-05-05 (background-run continuation).** Aden eating; ran the
 remaining seeds + dry-runs in background while shipping option 3 in parallel.

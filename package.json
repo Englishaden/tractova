@@ -8,6 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test:smoke": "playwright test --project=chromium",
+    "test:mobile": "playwright test --project=mobile",
+    "test:mobile:pro": "playwright test --project=setup --project=mobile-pro",
     "test:smoke:pro": "playwright test --project=setup --project=pro-chromium",
     "test:smoke:all": "playwright test",
     "test:smoke:ui": "playwright test --ui",
