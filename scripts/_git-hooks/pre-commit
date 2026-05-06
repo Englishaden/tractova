@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Tractova pre-commit hook — install via `node scripts/install-git-hooks.mjs`.
+#
+# Defends against:
+#   1. Committing secrets (Stripe keys, Supabase service-role keys, AWS,
+#      Anthropic, Resend, OpenAI, generic sk-* / Bearer / token=).
+#   2. Committing API code that fails syntax check (lint:api).
+#   3. Committing files that fail the citation lint (lint:citations).
+#
+# Bypass with --no-verify ONLY if you're certain the flagged content is
+# false-positive. Never silently bypass to ship faster.
+
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+# Files staged for this commit (modified + added, not deleted)
+staged_files() {
+  git diff --cached --name-only --diff-filter=AM
+}
+
+# 1. Secret pattern scan against staged content
+SECRET_PATTERNS='(sk-[a-zA-Z0-9_\-]{20,}|sk_live_[a-zA-Z0-9]{20,}|sk_test_[a-zA-Z0-9]{20,}|whsec_[a-zA-Z0-9]{20,}|rk_live_[a-zA-Z0-9]{20,}|re_[a-zA-Z0-9_]{20,}|eyJhbGciOi[A-Za-z0-9_\-]{50,}|AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|ANTHROPIC_API_KEY=|SUPABASE_SERVICE_ROLE_KEY=|STRIPE_SECRET_KEY=|RESEND_API_KEY=|CRON_SECRET=)'
+
+found=0
+for file in $(staged_files); do
+  case "$file" in
+    *.lock|*.log|*.snap|*.png|*.jpg|*.jpeg|*.gif|*.pdf|*.csv|*.xlsx|*.zip)
+      continue ;;
+    # Meta-files that document secret patterns by design — scanning
+    # them produces guaranteed false positives.
+    scripts/_git-hooks/pre-commit|docs/secrets-manifest.md|CLAUDE.md)
+      continue ;;
+  esac
+  # Use --cached to scan the staged blob (catches changes to .env.local
+  # if the file was un-gitignored in error).
+  if git diff --cached --no-color "$file" 2>/dev/null | grep -E "^\+" | grep -qE "$SECRET_PATTERNS"; then
+    echo "  ! pre-commit: possible secret in $file"
+    git diff --cached --no-color "$file" | grep -E "^\+" | grep -nE "$SECRET_PATTERNS" | head -3
+    found=1
+  fi
+done
+
+if [ "$found" = "1" ]; then
+  echo
+  echo "  Block: refusing to commit a possible secret. If false positive,"
+  echo "  bypass with: git commit --no-verify -m '...'"
+  echo
+  exit 1
+fi
+
+# 2. API lint (catches syntax errors in api/*.js before they hit Vercel)
+if [ -f scripts/lint-api.mjs ]; then
+  if ! node scripts/lint-api.mjs > /dev/null 2>&1; then
+    echo "  ! pre-commit: lint:api failed — fix syntax errors first."
+    node scripts/lint-api.mjs
+    exit 1
+  fi
+fi
+
+# 3. Citation lint (warns only — does not block by default)
+if [ -f scripts/lint-citations.mjs ]; then
+  node scripts/lint-citations.mjs --diff-only || true
+fi
+
+exit 0

@@ -22,8 +22,13 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Claude Code internal
-.claude/
+# Claude Code internal — gitignore everything inside .claude/ EXCEPT
+# the project-shared settings.json (deny rules + hooks for safety net
+# per CLAUDE.md). User-specific settings.local.json stays out.
+# Note: this uses .claude/* (contents) not .claude/ (directory) so the
+# whitelist for settings.json is reachable.
+.claude/*
+!.claude/settings.json
 claude.exe
 
 # Local notes / scratch files (not meant for the repo)
@@ -44,3 +49,7 @@ tests/.auth/
 # for parsing scripts; never commit. LBNL TTS CSV is ~1.9 GB.
 public/TTS_LBNL_public_file_*.csv
 public/Lazard*.pdf
+
+# Manual Supabase snapshots from scripts/dump-supabase-snapshot.mjs.
+# Stay local; never commit DB content.
+backups/

@@ -1,0 +1,125 @@
+#!/usr/bin/env node
+// Supabase manual snapshot — exports critical tables to timestamped
+// JSON files under backups/ (gitignored). Defense-in-depth alongside
+// Supabase's automatic daily backups + PITR.
+//
+// Why JSON instead of pg_dump? pg_dump needs direct database access
+// (port 5432) which Supabase exposes only on paid tiers, and it's
+// less portable across local environments. The Supabase JS client
+// works on every tier and from any machine with the service-role key.
+//
+// What this CAN restore: the row data of the listed tables, idempotent
+// upsert by primary key.
+// What this CANNOT restore on its own: schema (use migration files),
+// extensions, RLS policies (also migrations), Storage buckets (separate
+// flow), auth users (different export path).
+//
+// Run: `node scripts/dump-supabase-snapshot.mjs`
+// Output: backups/YYYY-MM-DD/<table>.json
+//
+// Tied to Plan B item B.3 (Backup posture).
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { resolve, join } from 'node:path'
+import { createClient } from '@supabase/supabase-js'
+
+const ROOT = resolve(import.meta.dirname, '..')
+
+try {
+  const raw = readFileSync(resolve(ROOT, '.env.local'), 'utf8')
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim()
+    if (!t || t.startsWith('#')) continue
+    const eq = t.indexOf('=')
+    if (eq === -1) continue
+    const k = t.slice(0, eq).trim()
+    let v = t.slice(eq + 1).trim()
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1)
+    if (process.env[k] === undefined) process.env[k] = v
+  }
+} catch { /* .env.local not present in CI */ }
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+if (!SUPABASE_URL || !SERVICE_KEY) {
+  console.error('  ! Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY. Cannot dump.')
+  process.exit(1)
+}
+
+const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+})
+
+// Critical tables — the load-bearing data layer for the product. New
+// tables should be added here when they become product-critical.
+// Ordering follows dependency: parent tables first, child tables last
+// (so a partial restore fails fast if FK constraints are violated).
+const TABLES = [
+  'profiles',
+  'state_programs',
+  'revenue_rates',
+  'cs_projects',
+  'cs_specific_yield',
+  'solar_cost_index',
+  'energy_community_designations',
+  'nmtc_lic_designations',
+  'hud_qct_dda',
+  'capacity_factor',
+  'ix_queue_data',
+  'cron_runs',
+  'saved_projects',
+  'project_scenarios',
+  'audit_log',
+  'puc_dockets',
+  'utility_geography',
+]
+
+const today = new Date().toISOString().slice(0, 10)
+const outDir = join(ROOT, 'backups', today)
+if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true })
+
+let totalRows = 0
+let totalBytes = 0
+let errors = 0
+
+console.log(`\n  Dumping snapshot to backups/${today}/\n`)
+
+for (const table of TABLES) {
+  const rows = []
+  let from = 0
+  const pageSize = 1000
+  let done = false
+  while (!done) {
+    const { data, error } = await admin
+      .from(table)
+      .select('*')
+      .range(from, from + pageSize - 1)
+    if (error) {
+      console.warn(`    ! ${table.padEnd(34)} ${error.message}`)
+      errors += 1
+      done = true
+      break
+    }
+    if (!data || data.length === 0) { done = true; break }
+    rows.push(...data)
+    if (data.length < pageSize) { done = true; break }
+    from += pageSize
+  }
+  if (rows.length === 0) continue
+  const json = JSON.stringify(rows, null, 2)
+  const file = join(outDir, `${table}.json`)
+  writeFileSync(file, json, 'utf8')
+  totalRows += rows.length
+  totalBytes += json.length
+  console.log(`    ✓ ${table.padEnd(34)} ${String(rows.length).padStart(6)} rows  ${(json.length / 1024).toFixed(0)} KB`)
+}
+
+const sizeStr = totalBytes > 1024 * 1024
+  ? `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
+  : `${(totalBytes / 1024).toFixed(0)} KB`
+console.log(`\n  Snapshot complete: ${totalRows.toLocaleString()} rows / ${sizeStr}${errors > 0 ? ` · ${errors} table(s) failed` : ''}`)
+console.log(`  Location: backups/${today}/`)
+console.log(`  Recovery drill: see docs/runbooks/restore-from-backup.md\n`)
+
+if (errors > 0) process.exit(1)
