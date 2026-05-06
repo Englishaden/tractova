@@ -640,6 +640,14 @@ async function refreshStateProgramsViaDsire() {
         dsire_summary:       dsireSummary,
         dsire_last_verified: new Date().toISOString(),
         dsire_match_quality: matchQuality,
+        // 2026-05-05 (A.4): bump last_verified on every DSIRE-matched row.
+        // Previously the DSIRE cron only updated DSIRE columns; rows that
+        // had been verified weeks ago drifted past the 30-day curation
+        // threshold even though the weekly cron had touched them.
+        // Bumping last_verified here closes the drift loop for any row
+        // the DSIRE pipeline successfully matches; manually-curated rows
+        // without DSIRE matches still need an admin "verify" action.
+        ...(bestMatch ? { last_verified: new Date().toISOString() } : {}),
       })
 
       if (results.samples.length < 3) {

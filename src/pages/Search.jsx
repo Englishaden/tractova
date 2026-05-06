@@ -2427,6 +2427,18 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
             <li className="text-gray-500 italic">All three datasets are seeded constants. Refresh cadence: NREL ATB 2025 expected Q1 2026 (annual cycle); Lazard v19 expected April–June 2026; BESS rates re-anchored against ISO/RTO auctions as cycles complete. Automated refresh cron is on the backlog.</li>
           </ul>
         </div>
+        {/* A.5 fix 2026-05-05: surface how feasibility freshness flows so users
+            know the score they see is live, not a cached snapshot. */}
+        <div className="pt-2 border-t border-gray-100">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>How freshness flows</p>
+          <p className="text-[10px] text-gray-700 leading-relaxed">
+            The Feasibility Index is computed <span className="font-semibold text-ink">live on every render</span> from the most recent
+            state_program / county / IX data — never a cached snapshot. When underlying data refreshes (DSIRE weekly, IX scrapers
+            weekly, NWI/SSURGO seeded), your scores update automatically on the next render — no manual re-run needed.
+            Saved Library projects record both the original feasibility score (at save time) and the current live score so we can flag
+            material drift. Dashboard "Markets on the Move" deltas come from `state_programs_snapshots` (append-only weekly captures).
+          </p>
+        </div>
         <p className="pt-2 border-t border-gray-100 text-[10px] text-gray-500 italic">
           Tariff rates change quarterly. Verify CS program enrollment terms, IRA bonus designations, and current bill-credit values directly with state PUC and tax counsel before committing capital.
         </p>

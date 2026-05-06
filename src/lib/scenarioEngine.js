@@ -245,8 +245,13 @@ export function getSliderConfig(baseline) {
       label: 'Capex',
       unit: '$/W',
       baseline: i.capexPerWatt,
-      min: 0.80,
-      max: 3.00,
+      // 2026-05-05 (A.1): dynamic ranges proportional to baseline so the
+      // user has ample headroom both directions. Cumberland County Maine
+      // ($2.70/W baseline) was previously pinned at 90% of the slider's
+      // right edge (max 3.00). Now: 0.50× to 2.00× baseline, clamped to
+      // the floor + ceiling that bound any realistic CS project capex.
+      min: i.capexPerWatt != null ? Math.max(0.60, Number((i.capexPerWatt * 0.50).toFixed(2))) : 0.80,
+      max: i.capexPerWatt != null ? Math.min(4.00, Number((i.capexPerWatt * 2.00).toFixed(2))) : 3.00,
       step: 0.05,
       format: (v) => `$${v.toFixed(2)}/W`,
       direction: 'lower-better',
@@ -257,8 +262,11 @@ export function getSliderConfig(baseline) {
       label: 'IX Cost',
       unit: '$/W',
       baseline: i.ixCostPerWatt,
-      min: 0.02,
-      max: 0.50,
+      // 2026-05-05 (A.1): floor drops to $0 to support the acquired-project
+      // case where the IX cost is paid by an external party. Max scales with
+      // baseline so high-IX-difficulty markets (NJ, MA) have enough headroom.
+      min: 0,
+      max: i.ixCostPerWatt != null ? Math.max(0.50, Number((i.ixCostPerWatt * 3.00).toFixed(2))) : 0.50,
       step: 0.01,
       format: (v) => `$${v.toFixed(2)}/W`,
       direction: 'lower-better',

@@ -50,7 +50,7 @@ const CAVEATS = [
   {
     n: '06',
     title: 'IX queue data may be stale during ISO scraper outages',
-    body: 'When an ISO\'s public queue download URL changes (PJM Cycles reform, NYISO portal moves), our scraper silently falls behind until repair. The "IX · Live" pill flips amber + adds "stale Nd" so you can see the freshness in real time — never act on a queue snapshot that\'s flagged stale without confirming current conditions with the serving utility. PJM live coverage is permanently disclosed-as-curated under their Data Miner 2 redistribution license terms.',
+    body: 'When an ISO\'s public queue download URL changes (PJM Cycles reform, NYISO portal moves) or adds a session-cookie handshake, our scraper silently falls behind until repair. The "IX · Live" pill flips amber + adds "stale Nd" so you can see the freshness in real time — never act on a queue snapshot that\'s flagged stale without confirming current conditions with the serving utility. **PJM** live coverage is permanently disclosed-as-curated under their Data Miner 2 redistribution license terms. **ISO-NE** is currently disclosed-as-stale: as of 2026-05-05, their public queue export endpoint added an ASP.NET session-cookie handshake that our scraper doesn\'t yet handle; CT / MA / ME / NH / RI / VT states will show amber IX freshness until we ship the cookie-aware repair. **MISO + NYISO** are working as of the most recent weekly cron run.',
     severity: 'medium',
   },
   {
