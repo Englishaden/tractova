@@ -43,6 +43,31 @@ export default async function handler(req, res) {
 
   const { type, data } = event
 
+  // Idempotency check (migration 060) — if Stripe retries the same event
+  // (timeout, network, edge), short-circuit BEFORE side effects. Two
+  // race conditions made this non-cosmetic: (1) two concurrent
+  // checkout.session.completed retries for the same user can interleave
+  // a stripe_customer_id assignment; (2) two subscription.updated
+  // retries can flap tier under tier-change windows. The table is
+  // service-role-only.
+  try {
+    const { data: alreadyProcessed } = await supabaseAdmin
+      .from('webhook_events_processed')
+      .select('event_id')
+      .eq('event_id', event.id)
+      .maybeSingle()
+    if (alreadyProcessed) {
+      return res.status(200).json({ received: true, deduped: true, eventId: event.id })
+    }
+  } catch (err) {
+    // If the dedup probe fails (table missing pre-migration / supabase
+    // outage), continue to process. Stripe still retries on non-2xx,
+    // and the upserts in each handler are individually idempotent for
+    // the common case. The race-condition window without dedup is the
+    // tradeoff we accept until 060 is applied.
+    console.warn('[webhook] dedup probe failed, processing without:', err?.message)
+  }
+
   try {
     switch (type) {
       case 'checkout.session.completed': {
@@ -116,6 +141,21 @@ export default async function handler(req, res) {
       default:
         // Unhandled event — ignore
         break
+    }
+
+    // Mark this event processed so Stripe retries short-circuit at the
+    // dedup probe above. Best-effort: a unique-constraint violation on
+    // race-retry is the desired behavior (insert-or-ignore semantics).
+    try {
+      await supabaseAdmin
+        .from('webhook_events_processed')
+        .insert({ event_id: event.id, source: 'stripe' })
+    } catch (err) {
+      // Race: another retry inserted first. That's fine — the next
+      // probe will still find it. Don't fail the handler.
+      if (!/duplicate key/i.test(err?.message || '')) {
+        console.warn('[webhook] processed-marker insert failed:', err?.message)
+      }
     }
 
     return res.status(200).json({ received: true })

@@ -141,16 +141,17 @@ live row count for that table to find the diff.
 
 - **Schema** — restored via migration files in `supabase/migrations/`
   applied in order through Supabase SQL editor or `supabase db push`.
-- **Auth users** — `auth.users` is not in the snapshot (separate
-  Supabase auth export path). Dump via:
-  ```sql
-  copy (select * from auth.users) to '/tmp/auth_users.csv' with csv header;
-  ```
-  But be aware: re-importing auth users requires careful UID
-  preservation if you want existing `profiles.id` FKs to reconnect.
+- **Auth password hashes** — `auth.users` IS in the snapshot
+  (id / email / role / metadata / sign-in timestamps), but
+  `encrypted_password` and recovery / confirmation tokens are NOT
+  exported by `supabaseAdmin.auth.admin.listUsers`. Re-importing auth
+  users requires either (a) preserving the original Supabase project
+  (most common DR path), or (b) sending password-reset emails to all
+  users so they re-establish credentials.
 - **Storage buckets** — Supabase Storage objects are blob-stored, not in
   the JSON. Use the dashboard or `supabase storage` CLI to dump objects
-  separately if a bucket goes down.
+  separately if a bucket goes down. (Tractova doesn't currently use
+  Storage in production; revisit if added.)
 - **RLS policies** — restored via migrations 058 + 059 + earlier.
 - **Extensions / triggers / functions** — same; from migration files.
 - **Cron schedules** — defined in `vercel.json` and re-deploy on push.

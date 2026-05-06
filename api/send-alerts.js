@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { isAdminFromBearer } from './_admin-auth.js'
+import { checkRateLimit, logRateLimited } from './_rate-limit.js'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -612,6 +613,17 @@ export default async function handler(req, res) {
     if (!adminCheck.ok) return res.status(401).json({ error: 'Unauthorized' })
     testMode = true
     testUserId = adminCheck.user.id
+    // Test-mode rate limit — bound admin-triggered alert spam to 5/hour
+    // per admin. Cron mode (CRON_SECRET / x-vercel-cron) is unaffected.
+    // Stops a curious admin (or compromised admin JWT) from accidentally
+    // burning Resend credits or paging real Pro users.
+    const rl = await checkRateLimit(supabaseAdmin, adminCheck.user.id, {
+      action: 'alert-test',
+      windowMs: 60 * 60 * 1000,
+      maxCalls: 5,
+    })
+    if (!rl.ok) return res.status(429).json(rl.response)
+    logRateLimited(supabaseAdmin, adminCheck.user.id, 'alert-test')
     // Channel + type selectors via query string OR JSON body
     const url = new URL(req.url, `https://${req.headers.host}`)
     const qChannel = url.searchParams.get('channel')

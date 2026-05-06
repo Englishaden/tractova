@@ -134,11 +134,48 @@ for (const table of TABLES) {
   console.log(`    ✓ ${table.padEnd(34)} ${String(rows.length).padStart(6)} rows  ${(json.length / 1024).toFixed(0)} KB`)
 }
 
+// auth.users — separate export path (not in public.* schema). Wired
+// in here so a single `dump-supabase-snapshot.mjs` invocation produces
+// a fully-restorable snapshot.
+console.log(`\n  Exporting auth.users…`)
+let authUsersCount = 0
+try {
+  const all = []
+  const PAGE = 1000
+  let page = 1
+  const KEEP = new Set([
+    'id', 'email', 'phone', 'role', 'aud',
+    'created_at', 'updated_at', 'last_sign_in_at',
+    'email_confirmed_at', 'phone_confirmed_at', 'banned_until',
+    'app_metadata', 'user_metadata', 'is_anonymous',
+  ])
+  while (true) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PAGE })
+    if (error) throw error
+    const users = data?.users ?? []
+    for (const u of users) {
+      const sanitized = {}
+      for (const k of Object.keys(u || {})) if (KEEP.has(k)) sanitized[k] = u[k]
+      all.push(sanitized)
+    }
+    if (users.length < PAGE) break
+    page += 1
+    if (page > 50) break
+  }
+  const file = join(outDir, 'auth_users.json')
+  writeFileSync(file, JSON.stringify(all, null, 2), 'utf8')
+  authUsersCount = all.length
+  console.log(`    ✓ auth_users                       ${String(authUsersCount).padStart(6)} users  (sanitized; password hashes never written)`)
+} catch (err) {
+  console.warn(`    ! auth_users export failed: ${err.message ?? err}`)
+  errors += 1
+}
+
 const sizeStr = totalBytes > 1024 * 1024
   ? `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
   : `${(totalBytes / 1024).toFixed(0)} KB`
-console.log(`\n  Snapshot complete: ${totalRows.toLocaleString()} rows / ${sizeStr}${errors > 0 ? ` · ${errors} table(s) failed` : ''}`)
+console.log(`\n  Snapshot complete: ${totalRows.toLocaleString()} rows + ${authUsersCount} users / ${sizeStr}${errors > 0 ? ` · ${errors} target(s) failed` : ''}`)
 console.log(`  Location: backups/${today}/`)
-console.log(`  Recovery drill: see docs/runbooks/restore-from-backup.md\n`)
+console.log(`  Recovery drill: see docs/runbooks/restore-from-snapshot.md\n`)
 
 if (errors > 0) process.exit(1)

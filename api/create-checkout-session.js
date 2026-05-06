@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { applyCors } from './_cors.js'
+import { checkRateLimit, logRateLimited } from './_rate-limit.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
@@ -26,6 +27,16 @@ export default async function handler(req, res) {
   const token = authHeader.slice(7)
   const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
   if (authErr || !user) return res.status(401).json({ error: 'Unauthorized' })
+
+  // Rate limit — bound checkout abuse to 5 sessions/hour/user. A single
+  // legitimate user usually creates 0-1 sessions in a billing cycle;
+  // 5/hr is plenty of retry headroom and clear abuse signal.
+  const rl = await checkRateLimit(supabaseAdmin, user.id, {
+    action: 'checkout-session',
+    windowMs: 60 * 60 * 1000,
+    maxCalls: 5,
+  })
+  if (!rl.ok) return res.status(429).json(rl.response)
 
   const { priceId, successUrl, cancelUrl } = await readBody(req)
 
@@ -78,6 +89,8 @@ export default async function handler(req, res) {
       subscription_data: { trial_period_days: 14 },
     })
 
+    // Log successful session for rate-limit accounting (fire-and-forget)
+    logRateLimited(supabaseAdmin, user.id, 'checkout-session')
     return res.status(200).json({ url: session.url })
   } catch (err) {
     console.error('Checkout session error:', err)
