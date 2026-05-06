@@ -187,6 +187,29 @@ export const GLOSSARY_TERMS = [
     related: ['IX Queue (Interconnection Queue)', 'Active Program', 'ITC (Investment Tax Credit)'],
   },
 
+  // ── Data confidence tiers (the trust spine) ─────────────────────────────────
+  {
+    term: 'Tier A · Observed',
+    pillar: 'all',
+    definition:
+      'A data point anchored on an observed, primary-source dataset (e.g., LBNL Tracking the Sun observed installed-PV-cost percentiles, NREL PVWatts modeled capacity factors, EIA Form 860 grid filings, USFWS NWI wetlands, USDA SSURGO soils, DSIRE-verified state programs). Tier A entries surface a sample size, vintage stamp, and source URL on every Lens render. Sub-tiers reflect confidence within Tier A: Strong (n ≥ 40), Modest (n = 10–39), Thin (n = 3–9). At Thin tier, p10/p90 percentiles are suppressed to avoid false precision — the median is shown alone with a caveat.',
+    related: ['Tier B · Regional Analog', 'Tier C · Editorial', 'Feasibility Index'],
+  },
+  {
+    term: 'Tier B · Regional Analog',
+    pillar: 'all',
+    definition:
+      'A data point anchored on a regional/programmatic analog with a Tractova-applied multiplier rather than an observed primary source. Used when no qualifying observed sample exists for that state in the relevant dataset. Example: Illinois CS $/W is published as 1.10 × $2.45/W national 2026 anchor based on PJM-mature-CS regional analog reasoning, not a per-state LBNL TTS observation. Two sub-classifications surface inline: Thin (sample exists but below the n ≥ 3 floor — FL/MD/NH/CT) and Structural (incentive design produces no observable paper trail regardless of program maturity — the SREC-strike states IL/PA/OR/DE/WA). Tier B values are defensible editorial synthesis but not "ground truth"; treat them as directional and cross-reference your own market intel before committing capital.',
+    related: ['Tier A · Observed', 'Tier C · Editorial', 'CS $/W'],
+  },
+  {
+    term: 'Tier C · Editorial',
+    pillar: 'all',
+    definition:
+      'A data point that is product-design methodology, not a number we sourced or synthesized from external data. Examples: composite weights (0.40 / 0.35 / 0.25 across offtake / IX / site), stage modifiers, IX difficulty bracket cutoffs, LMI penalty magnitudes. These are Tractova\'s editorial product-design choices about how to score things, not claims about the world. Surfaced transparently in Lens (the weight-sensitivity tooltip shows the score range across alternative weighting schemes) and tracked in scripts/data-trust-audit.mjs as "review priority" items. Tier C entries are the highest-leverage refinement targets — A/B-testing or developer-survey work could move them to Tier A over time.',
+    related: ['Tier A · Observed', 'Tier B · Regional Analog', 'Feasibility Index'],
+  },
+
   // ── Platform terms (Tractova-specific concepts) ─────────────────────────────
   {
     term: 'Lens Analysis',

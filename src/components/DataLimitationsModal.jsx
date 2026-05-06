@@ -1,21 +1,20 @@
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from './ui/Dialog'
 
-// DataLimitationsModal — shipped 2026-05-02 after the data-trust audit
-// (see plan: what-are-some-caveats-cached-kite.md).
+// DataLimitationsModal — refreshed 2026-05-05 against current data state
+// post Phases B/D/E (LBNL solar_cost_index 10 states, n>=3 tier ladder),
+// Phase C-pivoted (cs_projects 4,280 NREL Sharing the Sun rows backing
+// Comparable Deals), Phase G paused, NREL ATB 2024 BESS anchor, and
+// the cs_status accuracy audit.
 //
-// Discoverable from the Lens result disclaimer block. The audit identified
-// 5 developer-critical caveats that ToS Section 06 covers legally but that
-// users won't read in ToS — they need to be 1 click away from the actual
-// numbers a developer is about to act on.
-//
-// Each entry:
+// Discoverable from the Lens result disclaimer block. Caveats target
+// developer-critical numbers a CS dev is likely to act on. Each entry:
 //   - Names the limitation in plain language
-//   - Quantifies the actual real-world risk
+//   - Quantifies the real-world risk
 //   - Points the developer at how to verify before committing capital
 //
-// Trust = transparency. The audit's grading rubric (0-100) is summarized
-// at the top of the modal so the developer sees the platform's own
-// assessment of where the data is rock-solid vs. where they should hedge.
+// Tier system reference: A = observed ground truth, B = regional analog
+// (Tractova editorial), C = editorial product methodology. See
+// /privacy § 06 + Glossary for full taxonomy.
 
 const CAVEATS = [
   {
@@ -26,26 +25,38 @@ const CAVEATS = [
   },
   {
     n: '02',
-    title: 'BESS revenue rates are seeded constants, not refreshed',
-    body: 'ISO capacity payments swing 2–9× year over year (PJM RPM, NYISO ICAP, ISO-NE FCM). Our values are good as of the seed date stamped on the BESS revenue panel; they may be very wrong this year. Treat BESS Y1 revenue, payback, and IRR as illustrative — your own ISO\'s most recent capacity-auction results are the ground truth.',
+    title: 'state_programs.cs_status may not match operational reality',
+    body: 'Curated cs_status (active / limited / pending / none) is hand-set per state. The cs_status accuracy audit (admin Mission Control) joins curated status against operational MW from cs_projects (NREL Sharing the Sun); flagged states are surfaced for manual triage but corrections lag. Cross-check the curated label against the per-state Operating CS Projects panel below the Lens — large mismatches (e.g., "limited" with 1,000+ MW operational) indicate the curated label is stale.',
     severity: 'high',
   },
   {
     n: '03',
+    title: 'BESS revenue rates anchored on ISO auctions + NREL ATB capex — refresh is annual',
+    body: 'Capacity revenue uses 2025/26 ISO clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA) × 4-hour accreditation. Capex anchors on NREL ATB 2024. ISO auctions clear annually; ATB refreshes each Q1. Demand-charge + arbitrage components remain seeded synthesis. The "as of" stamp on the BESS revenue panel is the vintage anchor — for projects clearing more than 6 months past that date, verify with your ISO\'s most recent capacity auction before committing.',
+    severity: 'medium',
+  },
+  {
+    n: '04',
+    title: 'Solar $/W coverage is uneven by state — Tier system disclosed inline',
+    body: 'For 10 states (CA / MA / NY / AZ / MN / TX + WI / RI / CO / UT) we publish observed LBNL Tracking the Sun percentiles with explicit n disclosure (Tier A · strong / modest / thin). The remaining 7 active CS states ride a Tier B regional-analog × $2.45/W national 2026 anchor. Five of those (IL / PA / OR / DE / WA) are structural — their per-MWh REC incentive design produces no LBNL paper trail regardless of program maturity. The Lens panel labels every state\'s tier inline. Treat Tier B as directional, not anchored.',
+    severity: 'medium',
+  },
+  {
+    n: '05',
     title: 'IRR / Equity-IRR / DSCR use industry-typical defaults',
     body: 'Default assumptions: 8% discount rate, 70/30 debt/equity, 6.5% all-in debt rate, 18-year amortization, 25-year project life. Real deals diverge — a single notch of credit quality changes debt rate 100+ bps; tax-equity deals don\'t follow this capital stack at all. Scenario Studio sliders override every default; treat outputs as decision-support, not a pro forma your bank can underwrite.',
     severity: 'medium',
   },
   {
-    n: '04',
+    n: '06',
     title: 'IX queue data may be stale during ISO scraper outages',
-    body: 'When an ISO\'s public queue download URL changes (PJM Cycles reform, NYISO portal moves), our scraper silently falls behind until repair. The "IX · Live" pill flips amber + adds "stale Nd" so you can see the freshness in real time — never act on a queue snapshot that\'s flagged stale without confirming current conditions with the serving utility.',
+    body: 'When an ISO\'s public queue download URL changes (PJM Cycles reform, NYISO portal moves), our scraper silently falls behind until repair. The "IX · Live" pill flips amber + adds "stale Nd" so you can see the freshness in real time — never act on a queue snapshot that\'s flagged stale without confirming current conditions with the serving utility. PJM live coverage is permanently disclosed-as-curated under their Data Miner 2 redistribution license terms.',
     severity: 'medium',
   },
   {
-    n: '05',
-    title: '"Comparable Deals" is a curated sample, not a market census',
-    body: 'Roughly 20–50 representative deals, hand-curated from press releases and industry filings. CAPEX/W is self-reported and not normalized for project complexity, BOS pricing, or financing structure. Sample skews toward institutional developers; smaller deal shops underrepresented. Useful directional benchmark, not a comp-set for appraisal.',
+    n: '07',
+    title: 'Comparable Deals merges real operating data + curated benchmarks',
+    body: 'Backed by 4,280 individual operating CS projects from NREL Sharing the Sun (state, utility, developer, capacity, vintage, LMI attribution per project) merged with a smaller curated benchmarks layer (capex disclosure, FERC filings, status proposed/under-construction). Real operating data is observed; curated benchmarks add richer financial metadata for selected deals. Sample skews toward institutional developers in the curated layer; the operating-fleet layer is comprehensive. Capex per project is not consistently published — when shown, it\'s self-reported and not normalized for project complexity.',
     severity: 'medium',
   },
 ]
@@ -67,7 +78,7 @@ export default function DataLimitationsModal({ open, onOpenChange }) {
             ◆ Data limitations
           </p>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">
-            Audit 2026-05-02 · 5 caveats
+            Audit refreshed 2026-05-05 · 7 caveats
           </p>
         </div>
 

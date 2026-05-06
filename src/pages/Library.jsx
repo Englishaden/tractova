@@ -16,7 +16,6 @@ import { useCompare, libraryProjectToCompareItem } from '../context/CompareConte
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from '../components/ui/Dialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
-import { LoadingDot } from '../components/ui'
 import TractovaLoader from '../components/ui/TractovaLoader'
 import { motion, useMotionValue, useSpring } from 'motion/react'
 import { logProjectEvent, fetchProjectEvents } from '../lib/projectEvents'

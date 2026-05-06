@@ -153,6 +153,10 @@ function AvgCapacityDetail({ programs = [], previewMode = false }) {
   const total = states.reduce((sum, s) => sum + s.capacityMW, 0)
   const visible = previewMode ? states.slice(0, PREVIEW_ROW_LIMIT) : states
   const hidden  = previewMode ? Math.max(0, states.length - PREVIEW_ROW_LIMIT) : 0
+  // 2026-05-05 M7 fix: preview-mode signup-gate message previously claimed
+  // the FULL total when only some states were hidden, which didn't match
+  // the visible row count. Show the hidden-only sum.
+  const hiddenTotal = previewMode ? states.slice(PREVIEW_ROW_LIMIT).reduce((sum, s) => sum + s.capacityMW, 0) : 0
 
   const STATUS_BADGE = {
     active:  'bg-emerald-400/10 text-emerald-400 border-emerald-400/20',
@@ -193,7 +197,7 @@ function AvgCapacityDetail({ programs = [], previewMode = false }) {
         </tbody>
       </table>
       {previewMode && hidden > 0 && (
-        <PreviewSignupGate compact message={`Plus ${hidden} more state${hidden === 1 ? '' : 's'} (totaling ${total.toLocaleString()} MW of remaining capacity). Sign up to see the full breakdown.`} />
+        <PreviewSignupGate compact message={`Plus ${hidden} more state${hidden === 1 ? '' : 's'} (an additional ${hiddenTotal.toLocaleString()} MW of remaining capacity). Sign up to see the full breakdown.`} />
       )}
     </div>
   )

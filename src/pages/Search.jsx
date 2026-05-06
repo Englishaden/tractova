@@ -998,6 +998,7 @@ function RunwayBadge({ runway }) {
       <span
         className="text-xs font-semibold px-2 py-0.5 rounded-sm"
         style={{ background: c.bg, color: c.text }}
+        title="Runway = remaining capacity ÷ annual-average enrollment rate. Real CS programs cluster enrollment around tax-credit deadlines + project milestones, so a Q4 rush can exhaust capacity faster than the annual average suggests. Treat this as a planning horizon, not a deadline."
       >
         ~{runway.months} months{suffix}
       </span>
@@ -1909,7 +1910,13 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                   />
                   <DataRow
                     label="LMI allocation required"
-                    value={stateProgram.lmiRequired ? `Yes — ${stateProgram.lmiPercent}%` : 'No'}
+                    value={
+                      stateProgram.lmiRequired
+                        ? (stateProgram.lmiPercent > 0
+                            ? `Yes — ${stateProgram.lmiPercent}%`
+                            : 'Yes — % not yet finalized')
+                        : 'No'
+                    }
                   />
                   {mw && stateProgram.capacityMW > 0 && (
                     <DataRow
@@ -1985,10 +1992,11 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                       )}
                     </div>
                     <a
-                      href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit"
+                      href="https://energycommunities.gov/energy-community-tax-credit-bonus/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="shrink-0 font-mono text-[9px] uppercase tracking-[0.16em] font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+                      title="DOE NETL Energy Communities Tax Credit Bonus tool — the canonical lookup for IRA §45/§48 +10% adder eligibility"
                     >
                       Source ↗
                     </a>
@@ -2135,6 +2143,20 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                 <div className="space-y-3">
                   {proj ? (
                     <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(37,99,235,0.25)', borderLeft: '3px solid #2563EB' }}>
+                      {/* M1 fix 2026-05-05: surface CI rate vintage at top of
+                          card. PPA + retail rates anchor on EIA Form 861 +
+                          Lazard LCOE+ v18 — utility tariffs change quarterly,
+                          so the savings % can drift. Mirrors BESS pattern. */}
+                      <div className="px-4 pt-2.5 pb-1 flex items-center gap-2" style={{ background: 'rgba(37,99,235,0.05)' }}>
+                        <span
+                          className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0"
+                          style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
+                          title="C&I capex anchors on NREL CS MMP -$0.05 + LBNL TTS 2024; PPA + retail rates retained from prior 2025-Q2 EIA Form 861. Utility tariffs change quarterly — verify current PUC tariff filings before committing."
+                        >
+                          ◆ Rates as of {CI_RATES_AS_OF.split('+')[0].trim()}
+                        </span>
+                        <span className="text-[10px] text-gray-500 leading-tight">verify utility tariff before committing</span>
+                      </div>
                       <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(37,99,235,0.05)' }}>
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual PPA Revenue</p>
@@ -2191,6 +2213,25 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                 <div className="space-y-3">
                   {proj ? (
                     <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.25)', borderLeft: '3px solid #7C3AED' }}>
+                      {/* Vintage chip at the TOP of the BESS card — 2026-05-05
+                          C2 fix: the "as of" stamp used to live at the panel
+                          footer; users would read the headline number + payback
+                          first and miss the staleness disclosure. ISO capacity
+                          prices swing 2-9× YoY (per DataLimitationsModal §03),
+                          so the vintage IS the trust anchor. Surface it before
+                          the number, not after. */}
+                      {proj.ratesAsOf && (
+                        <div className="px-4 pt-2.5 pb-1 flex items-center gap-2" style={{ background: 'rgba(124,58,237,0.05)' }}>
+                          <span
+                            className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0"
+                            style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
+                            title="BESS rates anchor on 2025/26 ISO clearing × 4hr accreditation + NREL ATB 2024 capex. Demand charge + arbitrage components remain seeded synthesis. Verify against your ISO's most recent capacity-market clearing results before committing capital."
+                          >
+                            ◆ Rates as of {proj.ratesAsOf}
+                          </span>
+                          <span className="text-[10px] text-gray-500 leading-tight">verify ISO clearing before committing</span>
+                        </div>
+                      )}
                       <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(124,58,237,0.05)' }}>
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual Revenue</p>
@@ -2237,23 +2278,8 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                           <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv15)}</span>
                         </div>
                       </div>
-                      {/* Vintage stamp — BESS rate constants (capacity payment,
-                          demand charge, arbitrage spread) are seeded, not
-                          refreshed. ISO clearing prices swing 2-9× year over
-                          year, so users need to see the rate vintage at the
-                          point of decision. Mirrors the audit's #2 caveat
-                          surfaced in DataLimitationsModal. */}
-                      <div className="px-4 py-2 border-t border-gray-100 flex items-baseline justify-between gap-2 flex-wrap">
-                        <p className="text-[9px] text-gray-400">Revenue depends on {proj.isoRegion} capacity market pricing — historically volatile. 15-year NPV reflects battery lifecycle.</p>
-                        {proj.ratesAsOf && (
-                          <span
-                            className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0"
-                            style={{ background: 'rgba(217,119,6,0.08)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
-                            title="BESS rates are seeded constants, not auto-refreshed. Verify against your ISO's most recent capacity-market clearing results before committing capital."
-                          >
-                            ◆ Rates as of {proj.ratesAsOf}
-                          </span>
-                        )}
+                      <div className="px-4 py-2 border-t border-gray-100">
+                        <p className="text-[9px] text-gray-400">Revenue depends on {proj.isoRegion} capacity market pricing — historically volatile. 15-year NPV reflects battery lifecycle. (Rate vintage shown at top of card.)</p>
                       </div>
                     </div>
                   ) : (
@@ -2346,7 +2372,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Revenue stack composition</p>
           <ul className="space-y-1 text-gray-700 list-none">
-            <li><span className="font-semibold text-ink">ITC base</span> · 30% federal Investment Tax Credit (IRA §48). Available to all utility-scale projects meeting prevailing wage / apprenticeship requirements.</li>
+            <li><span className="font-semibold text-ink">ITC base</span> · 30% federal Investment Tax Credit (IRA §48) — requires prevailing-wage + apprenticeship compliance. Projects that don't meet PW&amp;A drop to a 6% base credit. Verify labor compliance with tax counsel before assuming the 30% figure.</li>
             <li><span className="font-semibold text-ink">ITC adders</span> · stack on the 30% base — Energy Community (+10%), §48(e) Cat 1 LIC (+10%, ≤5MW). Combined ceiling reaches 50% effective ITC for projects qualifying for both.</li>
             <li><span className="font-semibold text-ink">IREC / SREC market</span> · state-level renewable energy certificates. Tradable, $/MWh varies wildly by state (NJ $250, MA $30, IL $80 typical 2024).</li>
             <li><span className="font-semibold text-ink">Net metering / bill credit</span> · the per-kWh value of generation injected into the grid. Subject to NEM tariff rules — see precedent: CA NEM 3.0 cut bill credits 57% in Apr 2023.</li>
@@ -2373,7 +2399,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
             <a href="https://programs.dsireusa.org/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DSIRE ↗</a>
-            <a href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
+            <a href="https://energycommunities.gov/energy-community-tax-credit-bonus/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
             <a href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">§48(e) Bonus ↗</a>
             <a href="https://www.huduser.gov/portal/qct/index.html" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">HUD QCT/DDA ↗</a>
             <a href="https://www.irs.gov/forms-pubs/about-form-3468" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
