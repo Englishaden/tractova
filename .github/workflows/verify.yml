@@ -1,0 +1,47 @@
+name: Verify
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Static validation + unit tests + build. Playwright smoke is a local
+# pre-push gate (it needs a running dev server + Supabase env). If we
+# later want browser-based smoke in CI, add a separate workflow with
+# secrets and `playwright install --with-deps`.
+jobs:
+  verify:
+    name: Lint / unit / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: API syntax lint
+        run: npm run lint:api
+
+      - name: Citation lint
+        run: npm run lint:citations
+
+      - name: Unit tests (Vitest)
+        run: npm run test:unit
+
+      - name: Build (Vite)
+        run: npm run build
+        env:
+          # Build doesn't make network calls but Vite needs *something*
+          # in these to resolve import.meta.env at build time. The
+          # `.env.example` shape is fine; real secrets stay in Vercel.
+          VITE_SUPABASE_URL: 'https://placeholder.supabase.co'
+          VITE_SUPABASE_ANON_KEY: 'placeholder-anon-key-for-ci-build-only'
