@@ -301,6 +301,26 @@ export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS
   return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site)
 }
 
+// 2026-05-05 (C4 fix): defensive wrapper. If any sub-score is non-numeric
+// (null / undefined / NaN — e.g., partial data, computeSubScores returned
+// fallback shape), returns null instead of NaN. Consumers can render '—'.
+//
+// Earlier this session a Library.jsx bug spread `coverage` (a string-keyed
+// object) as `weights` into computeDisplayScore, producing NaN that
+// poisoned every downstream aggregate (Portfolio Health, Geographic
+// Spread). The destructure was fixed at the source but defense-in-depth
+// here means future bugs of the same shape can't re-poison.
+//
+// Use safeScore in EVERY consumer that displays the result; reserve
+// computeDisplayScore for internal score math where you know all 3 inputs
+// are valid finite numbers.
+export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
+  if (!Number.isFinite(offtake) || !Number.isFinite(ix) || !Number.isFinite(site)) return null
+  if (!weights || !Number.isFinite(weights.offtake) || !Number.isFinite(weights.ix) || !Number.isFinite(weights.site)) return null
+  const result = computeDisplayScore(offtake, ix, site, weights)
+  return Number.isFinite(result) ? result : null
+}
+
 // Returns { default, min, max, scenarios } showing the score under each of
 // the WEIGHT_SCENARIOS so users can see methodology sensitivity. If the
 // range is wide (e.g., 15+ pts), the project's verdict is sensitive to

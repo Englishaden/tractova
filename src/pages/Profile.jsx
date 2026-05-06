@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import { supabase } from '../lib/supabase'
 import { getStateProgramMap } from '../lib/programData'
-import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
+import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { Toggle, Input, Button } from '../components/ui'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { STAGE_COLORS, TECH_COLORS } from '../lib/v3Tokens'
@@ -346,7 +346,7 @@ function PortfolioStats({ projects, stateProgramMap }) {
     // 2026-05-05 lockstep with Library.jsx fix: Object.values(subs) was
     // spreading `coverage` as `weights`, returning NaN. Destructure the
     // three numeric sub-scores explicitly.
-    return { ...p, score: computeDisplayScore(subs.offtake, subs.ix, subs.site) }
+    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
   }), [projects, stateProgramMap])
 
   const totalMW = useMemo(() =>

@@ -9,7 +9,7 @@ import FilterSelect from '../components/ui/FilterSelect'
 import TechLabel from '../components/ui/TechLabel'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
-import { computeSubScores, computeDisplayScore } from '../lib/scoreEngine'
+import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { GLOSSARY_DEFINITIONS } from '../lib/glossaryDefinitions'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
@@ -120,7 +120,7 @@ function getAlerts(project, stateProgramMap, countyDataMap = {}) {
   // the score will refine as countyDataMap populates and the alert re-renders.
   const cd = countyDataMap[`${project.state}::${project.county}`] || null
   const currentSubs = computeSubScores(current, cd, project.stage, project.technology)
-  const currentLiveScore = computeDisplayScore(currentSubs.offtake, currentSubs.ix, currentSubs.site)
+  const currentLiveScore = safeScore(currentSubs.offtake, currentSubs.ix, currentSubs.site)
   if (project.feasibilityScore != null && currentLiveScore < project.feasibilityScore - 10) {
     alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility index fell from ${project.feasibilityScore} → ${currentLiveScore} (recomputed for ${project.technology || 'CS'} at ${project.stage || 'current stage'})` })
   }
@@ -1689,7 +1689,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
       let liveScore = null
       if (current) {
         const subs = computeSubScores(current, countyData, stage, project.technology)
-        liveScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
+        liveScore = safeScore(subs.offtake, subs.ix, subs.site)
       }
       const stateOverride = current ? { ...current, feasibilityScore: liveScore } : current
 
@@ -1755,7 +1755,7 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
   const { offtake, ix, site } = current
     ? computeSubScores(current, countyData, stage, project.technology)
     : { offtake: 0, ix: 0, site: 0 }
-  const liveScore = current ? computeDisplayScore(offtake, ix, site) : null
+  const liveScore = current ? safeScore(offtake, ix, site) : null
 
   // V3.1 color audit: consolidated all score-color triples (accent / bg /
   // text) to the canonical Tailwind v4 palette. Previously the bg used
@@ -2630,7 +2630,7 @@ function WeeklySummaryCard({ projects, stateProgramMap }) {
     // `weights.offtake = 'researched'` (string), so the multiplication
     // returned NaN, poisoning every downstream aggregate. Destructure
     // explicitly. Profile.jsx had the same bug — fixed in lockstep.
-    return { ...p, score: computeDisplayScore(subs.offtake, subs.ix, subs.site) }
+    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
   }), [projects, stateProgramMap])
 
   // Portfolio health score (MW-weighted avg of valid scores).
@@ -3396,7 +3396,7 @@ function LibraryContent() {
         try {
           const cd = countyDataMap[`${p.state}::${p.county}`] || null
           const subs = computeSubScores(sp, cd, p.stage, p.technology)
-          const liveScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
+          const liveScore = safeScore(subs.offtake, subs.ix, subs.site)
           const previous = p.lastObservedScore
           if (previous == null) {
             // First observation -- just seed the column, don't log an event.
@@ -3451,7 +3451,7 @@ function LibraryContent() {
     if (!sp) return -1
     const cd = countyDataMap[`${p.state}::${p.county}`] || null
     const subs = computeSubScores(sp, cd, p.stage, p.technology)
-    return computeDisplayScore(subs.offtake, subs.ix, subs.site)
+    return safeScore(subs.offtake, subs.ix, subs.site)
   }
 
   const displayProjects = useMemo(() => {
@@ -3489,7 +3489,7 @@ function LibraryContent() {
     try {
       const cd = countyDataMap[`${project.state}::${project.county}`] || null
       const subs = computeSubScores(sp, cd, newStage, project.technology)
-      const newScore = computeDisplayScore(subs.offtake, subs.ix, subs.site)
+      const newScore = safeScore(subs.offtake, subs.ix, subs.site)
       const previous = project.lastObservedScore
       if (previous == null) {
         await supabase.from('projects').update({ last_observed_score: newScore }).eq('id', id)

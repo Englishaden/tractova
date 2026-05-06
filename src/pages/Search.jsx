@@ -23,7 +23,7 @@ import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'mot
 // Market Position Panel — replaces the old mini state map
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { STAGE_MODIFIERS, computeSubScores, computeDisplayScore, computeDisplayScoreRange, getOfftakeCoverageStates } from '../lib/scoreEngine'
+import { STAGE_MODIFIERS, computeSubScores, computeDisplayScoreRange, getOfftakeCoverageStates, safeScore } from '../lib/scoreEngine'
 import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
@@ -336,11 +336,13 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   const { offtake, ix, site, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
-  const score = computeDisplayScore(offtake, ix, site)
+  const score = safeScore(offtake, ix, site)
   // Base-case score for delta calculation
   const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary)
-  const baseScore = computeDisplayScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
-  const delta = activeScenario ? score - baseScore : 0
+  const baseScore = safeScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
+  // Guard delta math against null scores (safeScore returns null when any
+  // sub-score isn't finite — e.g. partial data + edge-case state programs).
+  const delta = (activeScenario && score != null && baseScore != null) ? score - baseScore : 0
   // State-level baseline: stage-agnostic + county-agnostic. This is the
   // "MN market = 81" number the Analyst Brief uses, distinct from the
   // gauge's project-adjusted score (which applies stage modifiers + the
@@ -348,7 +350,7 @@ function MarketPositionPanel({ stateProgram, countyData, programMap, stage, tech
   // the brief's number and the gauge can diverge — they're measuring
   // different things.
   const stateBaseline = typeof stateProgram.feasibilityScore === 'number' ? stateProgram.feasibilityScore : null
-  const projectAdjustment = stateBaseline != null ? score - stateBaseline : 0
+  const projectAdjustment = (stateBaseline != null && score != null) ? score - stateBaseline : 0
   // Methodology-sensitivity range — composite weights (0.40/0.35/0.25) are
   // Tractova editorial choice, not anchored on primary data. Show users how
   // the score moves under reasonable alternative weights so they can see
@@ -2860,7 +2862,7 @@ function BriefDrilldown({ label, accent, eyebrowColor, children }) {
 function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading, ixQueueSummary }) {
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
   const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology, ixQueueSummary)
-  effectiveProgram.feasibilityScore = computeDisplayScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
+  effectiveProgram.feasibilityScore = safeScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
 
   // Brief feedback loop: when a scenario toggles, pulse a "Brief Updated"
