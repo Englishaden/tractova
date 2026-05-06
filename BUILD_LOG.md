@@ -63,7 +63,7 @@ inspection).
   - api/refresh-capacity-factors.js
   - api/send-alerts.js
 - Admin.jsx + Profile.jsx UI gates use a profiles.role lookup with same legacy fallback.
-- **Deferred** to a follow-up: RLS policies on admin-write tables (state_programs, county_intelligence, revenue_rates, etc.). Carries lockout risk; needs rollback testing.
+- **Sprint 6 followed up** (this commit): RLS policies on 11 admin-write tables migrated to role-based via migration 058 + new `public.is_admin()` SQL helper. Safer-rollout pattern: new policies coexist with legacy email policies during the rollout window. Both active = OR semantics → no lockout risk. Follow-up migration 059 will drop the legacy email policies after verification.
 
 ### Aden-side action items
 
@@ -1880,6 +1880,7 @@ both blocks).
 | 055 | `drop_redundant_updated_at_triggers.sql` | Drop broken triggers on solar_cost_index / cs_projects / cs_specific_yield (generic touch_updated_at expected updated_at column; tables use last_updated). | ⏳ |
 | 056 | `cs_status_corrections.sql` | Triage of 9 audit flags from the cs_status accuracy audit. HI/CT/NM/VA flip; FL/MA/TX/AR/GA stay (audit-flag annotations). | ⏳ |
 | 057 | `admin_role_and_audit.sql` | profiles.role enum (admin/curator/user) + admin_audit_log table. Backfills aden.walker67@gmail.com → role='admin'. RLS policies deferred. | ⏳ |
+| 058 | `rls_role_based_hardening.sql` | Sprint 6: role-based RLS policies on 11 admin-write tables (puc_dockets/comparable_deals/lmi_data/county_acs_data/energy_community_data/hud_qct_dda_data/nmtc_lic_data/county_geospatial_data/solar_cost_index/cs_projects/cs_specific_yield). New policies coexist with legacy email policies during rollout. is_admin() helper installed. | ⏳ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or
