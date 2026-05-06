@@ -1987,7 +1987,7 @@ both blocks).
 | 057 | `admin_role_and_audit.sql` | profiles.role enum (admin/curator/user) + admin_audit_log table. Backfills aden.walker67@gmail.com → role='admin'. RLS policies deferred. | ⏳ |
 | 058 | `rls_role_based_hardening.sql` | Sprint 6: role-based RLS policies on 11 admin-write tables (puc_dockets/comparable_deals/lmi_data/county_acs_data/energy_community_data/hud_qct_dda_data/nmtc_lic_data/county_geospatial_data/solar_cost_index/cs_projects/cs_specific_yield). New policies coexist with legacy email policies during rollout. is_admin() helper installed. | ⏳ |
 | 059 | `drop_legacy_email_rls.sql` | Plan B B.7: drops every legacy email-based RLS policy (DO block scans pg_policies for `auth.jwt() ->> 'email'` literals, drops each). is_admin() helper retains the email fallback for belt-and-suspenders, but no policy depends on it after 059. | ✅ |
-| 060 | `webhook_events_processed.sql` | Plan C Phase 1.4: Stripe webhook idempotency. Single-column PK table (event_id), RLS deny-all + service-role-only writes, 90d prune helper function. Closes race window where Stripe retries could re-link stripe_customer_id mid-checkout. | ⏳ |
+| 060 | `webhook_events_processed.sql` | Plan C Phase 1.4: Stripe webhook idempotency. Single-column PK table (event_id), RLS deny-all + service-role-only writes, 90d prune helper function. Closes race window where Stripe retries could re-link stripe_customer_id mid-checkout. | ✅ |
 
 > **Verification protocol going forward:** before asking the user to
 > re-run any migration, run `node scripts/check-migrations.mjs` (or
