@@ -42,6 +42,10 @@ export function lensResultToCompareItem(results) {
     // Path B geospatial percentages (USFWS NWI + USDA SSURGO).
     wetlandPct:       geo?.wetlandCoveragePct ?? null,
     farmlandPct:      geo?.primeFarmlandPct ?? null,
+    // 2026-05-05 (C5): timestamp the moment the user added this. CompareModal
+    // re-fetches fresh state/county on open + computes a delta so the user
+    // can see if scores have drifted since they queued the comparison.
+    addedAt:          new Date().toISOString(),
   }
 }
 
@@ -83,6 +87,7 @@ export function libraryProjectToCompareItem(project, stateProgram = null, county
     wetlandPct:       geo?.wetlandCoveragePct ?? null,
     farmlandPct:      geo?.primeFarmlandPct ?? null,
     savedAt:          project.savedAt,
+    addedAt:          new Date().toISOString(),
   }
 }
 

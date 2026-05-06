@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
+import { getStateProgram, getCountyData } from '../lib/programData'
+import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import TractovaLoader from './ui/TractovaLoader'
 
 const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
@@ -63,6 +65,58 @@ function CompareModal({ onClose }) {
   // AI panel collapses by default so the comparison row table gets the
   // primary screen real estate. User opens via the eyebrow button.
   const [aiOpen,    setAiOpen]    = useState(false)
+
+  // 2026-05-05 (C5): re-fetch fresh state/county data + recompute sub-scores
+  // on modal open. Compare items capture data at add-time; if a state's
+  // cs_status / capacity_mw / IX difficulty drifts between add and compare,
+  // the modal would otherwise show stale scores that diverge from live
+  // project cards. `refreshed` stores the recomputed sub-score per item,
+  // keyed by item.id; deltas surface in the comparison rows.
+  const [refreshed, setRefreshed]   = useState({})
+  const [refreshTs, setRefreshTs]   = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  useEffect(() => {
+    if (items.length === 0) return
+    let cancelled = false
+    setRefreshing(true)
+    Promise.all(items.map(async (it) => {
+      try {
+        const [sp, cd] = await Promise.all([
+          getStateProgram(it.state).catch(() => null),
+          it.county ? getCountyData(it.state, it.county).catch(() => null) : null,
+        ])
+        if (!sp) return [it.id, null]
+        const sub = computeSubScores(sp, cd, it.stage, it.technology)
+        const score = safeScore(sub.offtake, sub.ix, sub.site)
+        return [it.id, {
+          subOfftake: sub.offtake, subIx: sub.ix, subSite: sub.site,
+          score, csStatus: sp.csStatus, capacityMW: sp.capacityMW,
+          ixDifficulty: sp.ixDifficulty,
+        }]
+      } catch {
+        return [it.id, null]
+      }
+    })).then(entries => {
+      if (cancelled) return
+      const map = {}
+      for (const [id, val] of entries) if (val) map[id] = val
+      setRefreshed(map)
+      setRefreshTs(new Date())
+      setRefreshing(false)
+    })
+    return () => { cancelled = true }
+  }, [items.length])
+
+  // Helper: surface a delta badge when an item's stored score and refreshed
+  // score diverge by >2 pts. Returns null when scores match (no badge).
+  function scoreDelta(item) {
+    const r = refreshed[item.id]
+    if (!r || r.score == null || item.feasibilityScore == null) return null
+    const delta = r.score - item.feasibilityScore
+    if (Math.abs(delta) <= 2) return null
+    return delta
+  }
 
   useEffect(() => {
     if (items.length < 2) return
@@ -130,7 +184,28 @@ function CompareModal({ onClose }) {
     {
       label: 'Feasibility Index',
       section: 'COMPOSITE',
-      render: (item) => <ScoreBar score={item.feasibilityScore} />,
+      render: (item) => {
+        const delta = scoreDelta(item)
+        const r = refreshed[item.id]
+        // When refresh-time score differs from add-time stored score by
+        // >2 pts, surface the delta inline so the user sees the drift.
+        // Use refreshed score as the visible value (more accurate).
+        const displayScore = r?.score != null ? r.score : item.feasibilityScore
+        return (
+          <div>
+            <ScoreBar score={displayScore} />
+            {delta != null && (
+              <div
+                className="mt-1 text-[9px] font-mono uppercase tracking-widest"
+                style={{ color: delta > 0 ? '#34D399' : '#FBBF24' }}
+                title={`At add-time: ${item.feasibilityScore}. Recomputed against current state/county data: ${r.score}. Delta of ${delta > 0 ? '+' : ''}${delta} pts since added — state program data may have drifted.`}
+              >
+                {delta > 0 ? '↑ +' : '↓ '}{delta} pt vs at-add
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       label: 'Offtake sub-score',
@@ -298,6 +373,12 @@ function CompareModal({ onClose }) {
             <h2 className="text-sm font-bold text-white tracking-tight">Project Comparison</h2>
             <p className="text-[10px] font-mono text-white/30 mt-0.5 uppercase tracking-widest">
               {items.length} project{items.length !== 1 ? 's' : ''} · feasibility + key signals
+              {refreshing && <span className="ml-2 text-amber-300/70">· refreshing scores…</span>}
+              {!refreshing && refreshTs && (
+                <span className="ml-2 text-emerald-400/70">
+                  · scores recomputed at compare-open ({refreshTs.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })})
+                </span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3">
