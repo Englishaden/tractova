@@ -74,4 +74,29 @@ test.describe('Mobile responsiveness — authed Pro routes', () => {
       ).toBeLessThanOrEqual(OVERFLOW_TOLERANCE_PX)
     })
   }
+
+  // Populated-state coverage. Empty-state pass is necessary but insufficient
+  // — most overflow regressions land in dense data panels (cost lineage grid,
+  // BESS revenue tiles, OfftakeCard, Energy Community / §48(e) rows,
+  // ScenarioStudio sliders) that only render once a Lens has been run.
+  // Pre-fill via URL params, click Run Lens, wait for results, then re-audit.
+  test('Search (populated Lens result) fits 375px viewport', async ({ page }) => {
+    await page.setViewportSize(MOBILE_VIEWPORT)
+    await page.goto('/search?state=NY&county=Albany&mw=2&stage=Site+Identified&technology=Community+Solar')
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {})
+    const runBtn = page.getByRole('button', { name: /Run Lens Analysis/i })
+    await runBtn.waitFor({ state: 'visible', timeout: 10_000 })
+    if (await runBtn.isEnabled()) {
+      await runBtn.click()
+      // Result panel is gated on Anthropic round-trip + a few panel calls;
+      // give it generous time before falling back to overflow check anyway.
+      await page.waitForSelector('[data-lens-result], h2:has-text("County")', { timeout: 30_000 }).catch(() => {})
+      await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {})
+    }
+    const result = await checkOverflow(page, 'Search (populated Lens)')
+    expect(
+      result.overflow,
+      formatOverflowReport(result)
+    ).toBeLessThanOrEqual(OVERFLOW_TOLERANCE_PX)
+  })
 })

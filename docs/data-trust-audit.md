@@ -1,6 +1,6 @@
 # Tractova Data-Trust Audit
 
-Generated: **2026-05-04**  ·  Run from `scripts/data-trust-audit.mjs`
+Generated: **2026-05-06**  ·  Run from `scripts/data-trust-audit.mjs`
 
 ---
 

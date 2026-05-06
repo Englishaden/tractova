@@ -558,15 +558,15 @@ function SliderRow({ cfg, value, onChange }) {
   const fillPct = ((value - cfg.min) / (cfg.max - cfg.min)) * 100
   return (
     <div className={cfg.disabled ? 'opacity-50 pointer-events-none' : ''}>
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-1">
+        <div className="flex items-center gap-2 min-w-0 flex-wrap">
           <GlossaryLabel
             term={cfg.label}
             className="text-[11px] font-semibold text-ink"
           />
           {cfg.unit && <span className="text-[10px] text-gray-500 font-mono">{cfg.unit}</span>}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {isModified && (
             <span className="text-[9px] font-mono text-gray-400 tabular-nums">
               base: {cfg.format(baseline)}

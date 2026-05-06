@@ -1779,7 +1779,7 @@ function SolarCostLineagePanel({ rates, stateName }) {
             </span>
             <span className="text-[10px] text-gray-500">vintage {lineage.vintage_window} · n={lineage.install_count}</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-gray-700">
             <div>Sample size · <span className="font-semibold tabular-nums">{lineage.install_count} projects</span></div>
             <div>Bracket · <span className="font-semibold">0.5–5 MW non-res</span></div>
             <div>Median (p50) · <span className="font-semibold tabular-nums">{fmtDollar(lineage.p50_per_watt)}</span></div>
@@ -1787,7 +1787,7 @@ function SolarCostLineagePanel({ rates, stateName }) {
             {/* p10/p90 suppressed in thin tier — at n=3–9 they're essentially min/max,
                 conveying false precision. Strong + Modest still show them. */}
             {!isThin && (
-              <div className="col-span-2 text-[9px] text-gray-500">p10 {fmtDollar(lineage.p10_per_watt)} · p90 {fmtDollar(lineage.p90_per_watt)}</div>
+              <div className="sm:col-span-2 text-[9px] text-gray-500">p10 {fmtDollar(lineage.p10_per_watt)} · p90 {fmtDollar(lineage.p90_per_watt)}</div>
             )}
           </div>
           {isModest && (
@@ -2245,7 +2245,7 @@ function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energy
                         </div>
                       </div>
                       {/* Three revenue stream tiles */}
-                      <div className="grid grid-cols-3 gap-px bg-gray-100">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-gray-100">
                         {[
                           { label: 'Capacity Market', value: fmt(proj.capacityRevenue), sub: `$${proj.capacityPerKwYear}/kW-yr`, color: '#7C3AED' },
                           { label: 'Demand Charge', value: fmt(proj.demandChargeRevenue), sub: `$${proj.demandChargePerKwMonth}/kW-mo`, color: '#8B5CF6' },
