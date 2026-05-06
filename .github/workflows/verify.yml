@@ -34,6 +34,12 @@ jobs:
       - name: Citation lint
         run: npm run lint:citations
 
+      - name: Secret scan (shared with pre-commit hook)
+        run: npm run lint:secrets
+
+      - name: Dependency audit (allowlist-aware)
+        run: npm run lint:audit
+
       - name: Unit tests (Vitest)
         run: npm run test:unit
 

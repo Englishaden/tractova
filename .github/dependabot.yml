@@ -1,0 +1,56 @@
+# Dependabot config — weekly bumps for npm + GitHub Actions.
+#
+# The 4 root advisories on the project (xlsx prototype-pollution + ReDoS,
+# d3-color ReDoS via react-simple-maps, ip-address XSS via shadcn) are
+# tracked in scripts/audit-allowlist.json with explicit rationale +
+# review_due. CI gates on `node scripts/audit-check.mjs`, which fails
+# only on NEW high+ vulns or overdue allowlist rows. So we don't need
+# Dependabot to ignore them — npm audit alerts are fine in the GitHub
+# UI as a tracking signal.
+#
+# Reviewed quarterly per CLAUDE.md cadence.
+
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: 'America/New_York'
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: deps
+      include: scope
+    # Group all minor + patch bumps into a single weekly PR to reduce
+    # review noise. Major bumps stay as individual PRs (each could
+    # be breaking).
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    # Pin upstream-locked vulnerable packages so we don't get a
+    # downgrade-to-vulnerable PR. The allowlist + audit-check is the
+    # source of truth for accepting these.
+    ignore:
+      - dependency-name: 'react-simple-maps'
+        versions: ['1.x']  # don't suggest the npm-audit "downgrade fix"
+      - dependency-name: 'shadcn'
+        versions: ['<= 4.6.0']  # stay current; older versions don't fix the chain
+      - dependency-name: 'xlsx'
+        versions: ['*']  # no patch path on npm; tracked in allowlist
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '08:00'
+      timezone: 'America/New_York'
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: ci
+      include: scope

@@ -17,8 +17,10 @@
     "test:unit:watch": "vitest",
     "lint:api": "node scripts/lint-api.mjs",
     "lint:citations": "node scripts/lint-citations.mjs",
-    "verify": "npm run lint:api && npm run lint:citations && npm run test:unit && npm run build && npm run test:smoke",
-    "verify:full": "npm run lint:api && npm run lint:citations && npm run test:unit && npm run build && npm run test:smoke:all"
+    "lint:secrets": "node scripts/lint-secrets.mjs",
+    "lint:audit": "node scripts/audit-check.mjs",
+    "verify": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run test:unit && npm run build && npm run test:smoke",
+    "verify:full": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run test:unit && npm run build && npm run test:smoke:all"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
@@ -38,7 +40,7 @@
     "react-router-dom": "^6.23.1",
     "react-simple-maps": "^3.0.0",
     "recharts": "^2.12.7",
-    "shadcn": "^4.6.0",
+    "shadcn": "^4.7.0",
     "stripe": "^22.0.1",
     "tailwind-merge": "^3.5.0",
     "topojson-client": "^3.1.0",

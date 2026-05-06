@@ -1,0 +1,42 @@
+{
+  "_comment": "Documented-accepted security advisories. Run scripts/audit-check.mjs to validate the lockfile against this list. Each entry MUST include reason + review_due. CI fails on (a) any high+ advisory NOT in this list, (b) any allowlist row whose review_due has passed.",
+  "_review_cadence": "quarterly",
+  "advisories": [
+    {
+      "ghsa": "GHSA-36jr-mh4h-2g58",
+      "package": "d3-color",
+      "severity": "high",
+      "title": "d3-color vulnerable to ReDoS",
+      "reason": "Transitive via react-simple-maps@3.0.0 (d3-zoom -> d3-transition -> d3-interpolate -> d3-color). Cascades into 4 npm-audit entries (d3-color, d3-interpolate, d3-transition, d3-zoom) plus react-simple-maps itself = 5 total. Mitigations: (1) react-simple-maps 4.0.0-beta available — track upstream stable. (2) Consumed only in src/components/USMap.jsx for state-level visualization. The vulnerable regex parses color strings; USMap renders fixed brand colors (no user-controlled input reaches d3-color). Risk vector requires user-controlled string into d3-color/d3-interpolate which Tractova does not expose.",
+      "first_seen": "2026-05-06",
+      "review_due": "2026-08-06"
+    },
+    {
+      "ghsa": "GHSA-v2v4-37r5-5v8g",
+      "package": "ip-address",
+      "severity": "moderate",
+      "title": "ip-address XSS in Address6 HTML-emitting methods",
+      "reason": "Transitive via shadcn@4.7.0 -> @modelcontextprotocol/sdk -> express-rate-limit -> ip-address. Cascades into 4 npm-audit entries (ip-address, express-rate-limit, mcp-sdk, shadcn). Mitigations: (1) shadcn is a build-time CLI for component scaffolding — NOT a runtime dependency; the vulnerable code never reaches the deployed bundle. (2) The XSS is in Address6.* HTML-emitting methods which neither shadcn nor any Tractova code calls. Awaiting ip-address upstream patch (no fix available without a major shadcn downgrade to 3.8.3 which would also lose recent shadcn features).",
+      "first_seen": "2026-05-06",
+      "review_due": "2026-08-06"
+    },
+    {
+      "ghsa": "GHSA-4r6h-8v6p-xvw6",
+      "package": "xlsx",
+      "severity": "high",
+      "title": "Prototype Pollution in sheetJS",
+      "reason": "xlsx 0.18.5 is the latest version on npm; SheetJS publishes 0.20.2+ only via their own CDN (not npm). Mitigations: (1) Lazy-loaded — only triggered when a Pro user clicks Export in src/pages/Library.jsx (verified via dist/assets/xlsx-*.js separate chunk). (2) Tractova WRITES workbooks (XLSX.writeFile) — never PARSES user-uploaded files, which is the vulnerable code path. The Prototype Pollution attack requires reading a malicious workbook the attacker authored; no flow does this. Tracking SheetJS's npm-publishing posture; revisit in Q3 2026 or migrate to exceljs.",
+      "first_seen": "2026-05-06",
+      "review_due": "2026-08-06"
+    },
+    {
+      "ghsa": "GHSA-5pgg-2g8v-p4x9",
+      "package": "xlsx",
+      "severity": "high",
+      "title": "SheetJS Regular Expression Denial of Service (ReDoS)",
+      "reason": "Same xlsx 0.18.5 root as GHSA-4r6h-8v6p-xvw6. Same mitigations: lazy-loaded, write-only export flow, no parsing of user-uploaded data. ReDoS would require attacker-controlled string fed to xlsx parser — the only consumer is buildExportRows in Library.jsx which feeds Tractova-generated rows, not user input.",
+      "first_seen": "2026-05-06",
+      "review_due": "2026-08-06"
+    }
+  ]
+}
