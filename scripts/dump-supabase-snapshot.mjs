@@ -55,24 +55,43 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY, {
 // tables should be added here when they become product-critical.
 // Ordering follows dependency: parent tables first, child tables last
 // (so a partial restore fails fast if FK constraints are violated).
+//
+// Names verified against supabase/migrations/*.sql on 2026-05-06. If a
+// table here can't be found, the migration may have renamed it — fix
+// the name rather than letting the snapshot silently skip it.
 const TABLES = [
+  // — auth + product —
   'profiles',
+  'projects',
+  'project_events',
+  'share_tokens',
+  // — curated data layer —
   'state_programs',
+  'state_programs_snapshots',
   'revenue_rates',
+  'lmi_data',
+  'county_acs_data',
+  'county_geospatial_data',
+  'energy_community_data',
+  'hud_qct_dda_data',
+  'nmtc_lic_data',
+  'puc_dockets',
+  'comparable_deals',
+  // — observed external data —
+  'substations',
+  'ix_queue_data',
+  'ix_queue_snapshots',
+  'solar_cost_index',
   'cs_projects',
   'cs_specific_yield',
-  'solar_cost_index',
-  'energy_community_designations',
-  'nmtc_lic_designations',
-  'hud_qct_dda',
-  'capacity_factor',
-  'ix_queue_data',
+  // — user features —
+  'scenario_snapshots',
+  'cancellation_feedback',
+  // — operational telemetry —
   'cron_runs',
-  'saved_projects',
-  'project_scenarios',
-  'audit_log',
-  'puc_dockets',
-  'utility_geography',
+  'api_call_log',
+  'ai_response_cache',
+  'admin_audit_log',
 ]
 
 const today = new Date().toISOString().slice(0, 10)
