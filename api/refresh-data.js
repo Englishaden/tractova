@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
 import { isAdminFromBearer } from './_admin-auth.js'
+import { applyCors } from './_cors.js'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -36,10 +37,7 @@ const supabaseAdmin = createClient(
 const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs']
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
-  if (req.method === 'OPTIONS') return res.status(200).end()
+  if (applyCors(req, res)) return res.status(200).end()
   if (req.method !== 'GET' && req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' })
   }
@@ -73,17 +71,6 @@ export default async function handler(req, res) {
   if (!isAuthed && req.headers['x-vercel-cron']) {
     isAuthed = true
     authMode = 'vercel-cron'
-  }
-
-  // ── Diagnostic short-circuit (auth-bypass) ──────────────────────────────────
-  // ?debug=1 runs a single tiny Census fetch and returns full diagnostics
-  // (URL with key fully redacted, response status, headers, full body, key
-  // shape sanity checks). Auth is bypassed so we can hit it from a browser
-  // tab during incident response -- the response intentionally contains no
-  // secrets (key length only, no characters of the key itself).
-  if (req.query.debug === '1') {
-    const diag = await handleCensusDebug()
-    return res.status(200).json(diag)
   }
 
   if (!isAuthed) {
@@ -264,75 +251,6 @@ async function censusFetch(url, { timeoutMs = 30000 } = {}) {
   } finally {
     clearTimeout(timeoutId)
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Diagnostic mode: ?debug=1 short-circuits the normal multi-source flow and
-// runs a single tiny Census ACS request, returning full diagnostics so we
-// can distinguish IP throttling vs key vs upstream maintenance vs URL bug.
-// Key is redacted to last 4 chars in the response.
-// ─────────────────────────────────────────────────────────────────────────────
-async function handleCensusDebug() {
-  const apiKey = process.env.CENSUS_API_KEY || ''
-  const keyLen = apiKey.length
-  const keyTrimmedDiff = apiKey.length !== apiKey.trim().length
-    ? `WARNING: key has ${apiKey.length - apiKey.trim().length} surrounding whitespace char(s)`
-    : 'key has no surrounding whitespace'
-  // Census API keys are 40-char hex strings. Anything else is suspect.
-  const keyShapeOk = /^[0-9a-fA-F]{40}$/.test(apiKey)
-
-  // Smallest possible query: one state, two variables.
-  const baseUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME,B19013_001E&for=state:01`
-  const url = apiKey ? `${baseUrl}&key=${apiKey}` : baseUrl
-  const urlRedacted = apiKey ? `${baseUrl}&key=***REDACTED***` : baseUrl
-
-  const startTs = Date.now()
-  const out = {
-    debug: true,
-    request: {
-      url_redacted: urlRedacted,
-      user_agent: CENSUS_UA,
-      key_length: keyLen,
-      key_shape_ok: keyShapeOk,
-      key_whitespace_check: keyTrimmedDiff,
-      vercel_region: process.env.VERCEL_REGION || '(unknown)',
-    },
-    response: null,
-    error: null,
-    duration_ms: null,
-  }
-
-  try {
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 30000)
-    const resp = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'User-Agent': CENSUS_UA, 'Accept': 'application/json' },
-    })
-    clearTimeout(timer)
-
-    const interestingHeaders = ['server', 'retry-after', 'content-type', 'date',
-      'cf-ray', 'cf-mitigated', 'x-amz-cf-pop', 'via', 'x-cache']
-    const headersOut = {}
-    for (const h of interestingHeaders) {
-      const v = resp.headers.get(h)
-      if (v) headersOut[h] = v
-    }
-
-    const body = await resp.text().catch(() => '(body read failed)')
-    out.response = {
-      status: resp.status,
-      status_text: resp.statusText,
-      headers: headersOut,
-      body_length: body.length,
-      body: body.slice(0, 4000),
-    }
-  } catch (err) {
-    out.error = { name: err?.name, message: err?.message }
-  }
-
-  out.duration_ms = Date.now() - startTs
-  return out
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
