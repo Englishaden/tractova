@@ -4,7 +4,94 @@
 
 ---
 
-## 🟢 Pickup — Plan C Phase 0 + Phase 1 shipped (Security 8.7 → ~9.3) → next: apply migration 060, configure Vercel Log Drain, then start Phase 2 decomposition arc
+## 🟢 Pickup — Plan C Sprints 2.1 + 2.2 + 2.3 shipped (8,964 LOC decomposed across 3 commits) → next: Sprint 2.4 (Library.jsx → cards + helpers)
+
+**Session 2026-05-06 (continuation).** Aden applied migration 060 +
+asked to move on. Pushed Plan C Phase 2 forward by three sprints in
+one session — half the engineering decomposition arc complete.
+
+### What shipped this continuation (3 commits)
+
+**Sprint 2.1 (`5aa2b82`)** — `api/refresh-data.js` (2,493 LOC) → 10
+scrapers + thin orchestrator. NEW `api/scrapers/_scraperBase.js` (211
+LOC) holds the shared utilities (supabaseAdmin, censusFetch,
+applyStaleTolerance, logCronRun, FIPS_TO_USPS, BRACKET_UPPER/LOWER,
+normalizeCountyName, fetchArcgisPaged). Each scraper extracted to its
+own `_refresh-{source}.js` file (lmi, state-programs, county-acs,
+news, revenue-stacks, energy-community, hud-qct-dda, nmtc-lic,
+geospatial-farmland, solar-costs). Private helpers stay local where
+single-consumer (RSS parsing in news, ssurgoQuery in
+geospatial-farmland, ttsAssignTier in solar-costs). Orchestrator
+shrinks 2,493 → 163 LOC. Side win: `scripts/lint-api.mjs` upgraded to
+recurse into `api/**/*.js` (was scanning top-level only) — 13 files →
+26 files lint coverage.
+
+**Sprint 2.2 (`1640587`)** — `api/lens-insight.js` (1,366 LOC) → 9
+prompts + cache module + thin handler. NEW `api/prompts/{system,
+portfolio,compare,sensitivity,scenario-commentary,news-summary,
+deal-memo,utility-outreach,classify-docket}.js` — one file per
+prompt template. Template literals copied byte-for-byte (whitespace +
+line breaks matter for LLM-tuned prompts). NEW
+`api/lib/_aiCacheLayer.js` (77 LOC) — buildCacheKey, cacheGet,
+cacheSet, dataVersionFor; reusable for any future AI feature.
+Scenario-shape helpers (SCENARIO_INPUT_UNITS, describeScenarioDeltas,
+formatScenarioOutputs) co-located with the scenario-commentary
+prompt. lens-insight.js shrinks 1,366 → 1,003 LOC; still holds the
+10 routed handlers + buildContext + parseInsightResponse + the
+two-tier rate-limit block from Phase 1.3.
+
+**Sprint 2.3 (`3aeb02d`)** — `src/pages/Search.jsx` (5,105 LOC) → 6
+panels + helper. The largest decomposition. Function bodies
+character-for-character preserved. NEW
+`src/components/ArcGauge.jsx` (149 LOC, AnimatedScoreText helper +
+ArcGauge default export). NEW
+`src/components/MarketPositionPanel.jsx` (374 LOC). NEW
+`src/components/SiteControlCard.jsx` (307 LOC). NEW
+`src/components/InterconnectionCard.jsx` (222 LOC). NEW
+`src/components/OfftakeCard.jsx` (589 LOC — the largest). NEW
+`src/components/MarketIntelligenceSummary.jsx` (339 LOC). NEW
+`src/lib/lensHelpers.js` (142 LOC, generateMarketSummary). Search.jsx
+shrinks 5,105 → 3,038 LOC (-40%). Several inline helpers
+(CollapsibleCard, CardDrilldown, SectionLabel, DataRow, badges,
+RevenueStackBar, RevenueProjectionSection, SolarCostLineagePanel,
+BriefDrilldown) gained `export` keywords because the new panels
+import them — circular import is safe (references are inside
+function bodies, not module top-level). Verified by Playwright smoke
+hitting the actual populated Lens flow: 7/7 pass in 13.5s.
+
+### Updated rating — engineering progress measurable
+
+| Dimension | Before continuation | After continuation | Evidence |
+|---|---|---|---|
+| Engineering | 7.5 | **~8.3** | API mega-files decomposed: refresh-data 2,493 → 163, lens-insight 1,366 → 1,003. Top page mega-file Search 5,105 → 3,038 (-40%). 36 lint:api files (was 13). Smoke 7/7 pass post-refactor. Half of Phase 2 done in one session. Library + Admin + sprint 2.6 docs remain for full Engineering 9. |
+
+### Aden-side action items
+
+(All previous items still hold — apply migration 060 ✓ done; configure
+Vercel Log Drain still pending; etc.)
+
+No NEW Aden-side items from Sprints 2.1-2.3 — all three are pure
+engineering refactors with no migration/secret/DNS dependencies.
+
+### Phase 2 — remaining
+
+| Sprint | Scope | Effort | Status |
+|---|---|---|---|
+| 2.1 | refresh-data.js → 10 scrapers | 1-2 days | ✅ |
+| 2.2 | lens-insight.js → 9 prompts + cache | ~0.5 day | ✅ |
+| 2.3 | Search.jsx → 5 panels + hook | 2-3 days | ✅ |
+| 2.4 | Library.jsx → cards + helpers | 1 day | ⏳ next |
+| 2.5 | Admin.jsx → 6 tabs + helpers | 1 day | ⏳ |
+| 2.6 | Architecture docs + JSDoc + lint-locs budget gate | ~1 day | ⏳ |
+
+### Resume-prompt suggestions
+
+- *"Start Plan C Sprint 2.4 (Library.jsx → cards + helpers)"*
+- *"Configure Vercel Log Drain destination per docs/runbooks/observability.md, then continue Sprint 2.4"*
+
+---
+
+## Pickup (prior, 2026-05-06 earlier in day) — Plan C Phase 0 + Phase 1 shipped (Security 8.7 → ~9.3) → next: apply migration 060, configure Vercel Log Drain, then start Phase 2 decomposition arc
 
 **Session 2026-05-06.** Two-arc session. First arc: 5 audit-follow-ups
 from the post-Plan-B engineering/security audit. Second arc: Plan C
@@ -1924,7 +2011,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit `b8f5e5f` Plan C Phase 1. Plan A (8/8) + Plan B (8/8) + audit follow-ups #1-#5 (5 commits) + Plan C Phase 0 + Phase 1 (2 commits) all shipped. Migration 059 applied (verified via `scripts/probe-rls-policies.mjs`). Security 8.7 → ~9.3 with measurable evidence basis (allowlist-aware audit-check; CSP+COOP/COEP/CORP; rate limits on every paid+sensitive endpoint; webhook idempotency; CI/pre-commit secret-scan parity; backup posture validated end-to-end). Engineering 7.5 unchanged — Phase 2 decomposition arc deferred to dedicated multi-session work (8-10 days, 6 sprints). **Awaiting Aden:** (1) apply migration 060 (`webhook_events_processed`) in Supabase SQL editor; (2) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (3) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
+- **Branch:** `main` · last commit `3aeb02d` Plan C Sprint 2.3. Migration 060 applied (verified via webhook_events_processed table probe). Plan C Phase 2 progressing — Sprints 2.1 + 2.2 + 2.3 shipped (8,964 LOC decomposed: refresh-data 2,493→163, lens-insight 1,366→1,003, Search 5,105→3,038). Sprints 2.4 (Library), 2.5 (Admin), 2.6 (docs + JSDoc + lint-locs budget) remain. Engineering 7.5 → ~8.3. Path to 9 is the 3 remaining sprints. **Awaiting Aden:** (1) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (2) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
 - **Branch:** `main` · 4-session site-walk fix sweep complete (commits `a1c00dd`, `1268cbc`, `288b1be`, `19b2638`, `445bce9`, `a456cca`) closing ~35 of ~40 review items. Highlights: favicon + sub-header recolor, ambient-animation gutter-mask, Active/Pending/No Program + Site Control tooltips, scrollable Data Limitations modal, Dashboard freshness via cron_runs (matches Footer), Admin LIVE/CURATED/SEEDED freshness chips, state-baseline-vs-project score line in Lens, NWI/SSURGO percentages surfaced in Site Control tiles, scenario presets recalibrated + methodology tooltips, jump-to-glossary in CommandPalette, scenario-save Library confirmation card, source-link audit (4 broken URLs replaced), Compare AI collapsible + insightType + sub-score rows, Library Select-all, 18+ signup checkbox, Terms § 04 strengthened with civil-action language. Pending Aden's input: analyst-brief verbosity redesign, CSV/XLSX consolidation, hello@ DNS setup.
 - **NWI catch-up seed completed.** 1522 of 2144 queue items succeeded; 622 NWI server timeouts (concentrated in ND/SD where the server throttled). Live coverage went from **79.9% → 92.1%** (gained 382 new counties). 249 counties still missing — a second `--refresh` run would catch most of the timeouts.
 - **Live data layers (all .gov / authoritative-source verified):**
@@ -2000,6 +2087,9 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `3aeb02d` | **Plan C Sprint 2.3** — `src/pages/Search.jsx` (5,105 LOC) → 6 panels + helper. NEW `src/components/{ArcGauge,MarketPositionPanel,SiteControlCard,InterconnectionCard,OfftakeCard,MarketIntelligenceSummary}.jsx` + NEW `src/lib/lensHelpers.js` (generateMarketSummary). Search.jsx shrinks to 3,038 LOC (-40%). Function bodies copied character-for-character; JSX call sites unchanged. Several inline helpers gained `export` keywords because the new panels import them (circular import safe — references inside function bodies). Verified end-to-end: lint:api ✓ (36 files), test:unit ✓ (51/51), build ✓ (5.1s), test:smoke ✓ (7/7 Playwright in 13.5s — hits the actual populated Lens flow which would surface any prop-name typo or missing import as a render error). |
+| `1640587` | **Plan C Sprint 2.2** — `api/lens-insight.js` (1,366 LOC) → 9 prompts + cache + thin handler. NEW `api/prompts/{system,portfolio,compare,sensitivity,scenario-commentary,news-summary,deal-memo,utility-outreach,classify-docket}.js` (one file per prompt template, byte-for-byte copies). NEW `api/lib/_aiCacheLayer.js` (buildCacheKey, cacheGet, cacheSet, dataVersionFor — reusable for any future AI feature). Scenario-shape helpers co-located with the scenario-commentary prompt. lens-insight.js shrinks to 1,003 LOC; still holds the 10 routed handlers + buildContext + parseInsightResponse + the two-tier rate-limit block from Phase 1.3. Verified: lint:api ✓ (36 files), test:unit ✓ (51/51), build ✓ (5.82s). |
+| `5aa2b82` | **Plan C Sprint 2.1** — `api/refresh-data.js` (2,493 LOC) → 10 scrapers + thin orchestrator. NEW `api/scrapers/_scraperBase.js` (211 LOC, shared utilities) + 10 individual `_refresh-{source}.js` files. Private helpers stay local where single-consumer (RSS parsing in news, ssurgoQuery in geospatial-farmland, ttsAssignTier in solar-costs, CS_NAME_KEYWORDS in state-programs). Orchestrator shrinks 2,493 → 163 LOC. `scripts/lint-api.mjs` upgraded to recurse into api/**/*.js (was scanning top-level only — 13 → 26 → 36 files lint coverage as the API tree decomposed across this and the next two sprints). Verified end-to-end. |
 | `b8f5e5f` | **Plan C Phase 1** — Security to 9+. (1) **CSP + COOP/COEP/CORP** in `vercel.json`: Content-Security-Policy locks script-src 'self', connect-src to Supabase/Anthropic/Stripe/Resend, frame-src to Stripe, frame-ancestors 'none'. COOP same-origin + COEP credentialless (Google Fonts compatible) + CORP same-origin. SRI on Google Fonts deferred (Google rotates CSS per UA — CSP allow-list is equivalent defense). (2) **Rate limiting** via NEW `api/_rate-limit.js` shared helper: 5/hour/user on `api/create-checkout-session.js`; 5/hour/admin on `api/send-alerts.js` test mode. Mirrors lens-insight's working pattern; silent-fail-open. (3) **Stripe webhook idempotency** via NEW migration **060** (event_id PK, RLS deny-all, 90d prune fn) + dedup probe in `api/webhook.js` BEFORE side effects. (4) **Observability runbook** (`docs/runbooks/observability.md`) — documents the 4 existing log layers (cron_runs, api_call_log, admin_audit_log, webhook_events_processed) + Vercel Log Drains setup + 3am incident-response quick reference. (5) **auth.users export** via NEW `scripts/export-auth-users.mjs` wired into `dump-supabase-snapshot.mjs`. Fully-restorable snapshot in one command. |
 | `1a9d1a8` | **Plan C Phase 0** — Allowlist-aware audit + CI/pre-commit secret-scan parity. Discovered shadcn 4.6→4.7 doesn't close ip-address chain (transitive via @modelcontextprotocol/sdk → express-rate-limit) — every remaining vuln is upstream-blocked. Pivoted from `--audit-level=high` CI gate to NEW `scripts/audit-check.mjs` + `scripts/audit-allowlist.json`: 4 root advisories (the 10 npm-audit rows cascade from these) documented with reason + first_seen + review_due. CI fails on (a) NEW high+ vulns, (b) overdue allowlist rows. NEW `scripts/lint-secrets.mjs` is single source of truth for secret patterns; pre-commit hook + CI both call it. NEW `.github/dependabot.yml` weekly bumps with ignores for vuln-locked packages. NEW `docs/SECURITY_ROTATION_LOG.md` rotation tracker + DR drill log. |
 | `8e0048f` | **Audit follow-up #5** — GitHub Action runs verify on PR + push. NEW `.github/workflows/verify.yml`: Node 24 LTS, `npm ci`, then lint:api → lint:citations → test:unit → build with placeholder Supabase env vars (real secrets stay in Vercel). 10-min timeout. Closes the "verify only runs locally" gap from the audit. |
