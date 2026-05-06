@@ -95,6 +95,12 @@ function Badge({ label, map }) {
 // ── Alert detection ──────────────────────────────────────────────────────────
 const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
 
+// 2026-05-05 (A.6 + A.7): alerts now carry `kind` (concern | data_update |
+// neutral) so the card pill can render distinct colors per kind — a
+// "data refreshed" event is a GOOD thing and shouldn't share the amber
+// "concern" color. Each alert also carries an `evidence` block (A.7) with
+// source-field changed, as-of timestamps, and source URL so the user can
+// trace the rationale, not just see "what."
 function getAlerts(project, stateProgramMap, countyDataMap = {}) {
   const current = stateProgramMap[project.state]
   if (!current) return []
@@ -105,9 +111,33 @@ function getAlerts(project, stateProgramMap, countyDataMap = {}) {
 
   if (currentRank < savedRank) {
     if (current.csStatus === 'limited') {
-      alerts.push({ level: 'warning', pillar: 'Offtake', label: 'Capacity Limited', detail: `${current.name} program moved to limited capacity` })
+      alerts.push({
+        level: 'warning', kind: 'concern', pillar: 'Offtake',
+        label: 'Capacity Limited',
+        detail: `${current.name} program moved to limited capacity`,
+        evidence: {
+          field: 'state_programs.cs_status',
+          before: project.csStatus, after: current.csStatus,
+          beforeLabel: 'when you saved this project',
+          afterLabel: current.lastVerified ? `verified ${formatVerifiedDate(current.lastVerified)}` : 'most recent verification',
+          sourceUrl: current.dsireProgramUrl || 'https://programs.dsireusa.org/',
+          sourceLabel: 'DSIRE program detail',
+        },
+      })
     } else if (current.csStatus === 'none' || current.csStatus === 'pending') {
-      alerts.push({ level: 'urgent', pillar: 'Offtake', label: 'Program Closed', detail: `${current.name} CS program is no longer active` })
+      alerts.push({
+        level: 'urgent', kind: 'concern', pillar: 'Offtake',
+        label: 'Program Closed',
+        detail: `${current.name} CS program is no longer active`,
+        evidence: {
+          field: 'state_programs.cs_status',
+          before: project.csStatus, after: current.csStatus,
+          beforeLabel: 'when you saved this project',
+          afterLabel: current.lastVerified ? `verified ${formatVerifiedDate(current.lastVerified)}` : 'most recent verification',
+          sourceUrl: current.dsireProgramUrl || 'https://programs.dsireusa.org/',
+          sourceLabel: 'DSIRE program detail',
+        },
+      })
     }
   }
 
@@ -122,12 +152,36 @@ function getAlerts(project, stateProgramMap, countyDataMap = {}) {
   const currentSubs = computeSubScores(current, cd, project.stage, project.technology)
   const currentLiveScore = safeScore(currentSubs.offtake, currentSubs.ix, currentSubs.site)
   if (project.feasibilityScore != null && currentLiveScore < project.feasibilityScore - 10) {
-    alerts.push({ level: 'warning', pillar: 'Market', label: 'Score Drop', detail: `Feasibility index fell from ${project.feasibilityScore} → ${currentLiveScore} (recomputed for ${project.technology || 'CS'} at ${project.stage || 'current stage'})` })
+    alerts.push({
+      level: 'warning', kind: 'concern', pillar: 'Market',
+      label: 'Score Drop',
+      detail: `Feasibility index fell from ${project.feasibilityScore} → ${currentLiveScore} (recomputed for ${project.technology || 'CS'} at ${project.stage || 'current stage'})`,
+      evidence: {
+        field: 'feasibility_score (computed)',
+        before: project.feasibilityScore, after: currentLiveScore,
+        beforeLabel: 'at save time',
+        afterLabel: 'live recompute (current state_program + county data)',
+        sourceUrl: null,
+        sourceLabel: 'Feasibility Index = weighted offtake + IX + site sub-scores',
+      },
+    })
   }
 
   const IX_RANK = { easy: 0, moderate: 1, hard: 2, very_hard: 3 }
   if (project.ixDifficulty && (IX_RANK[current.ixDifficulty] ?? 0) > (IX_RANK[project.ixDifficulty] ?? 0)) {
-    alerts.push({ level: 'warning', pillar: 'IX', label: 'Queue Harder', detail: `${current.name} IX difficulty increased to ${current.ixDifficulty.replace('_', ' ')}` })
+    alerts.push({
+      level: 'warning', kind: 'concern', pillar: 'IX',
+      label: 'Queue Harder',
+      detail: `${current.name} IX difficulty increased to ${current.ixDifficulty.replace('_', ' ')}`,
+      evidence: {
+        field: 'state_programs.ix_difficulty',
+        before: project.ixDifficulty, after: current.ixDifficulty,
+        beforeLabel: 'when you saved',
+        afterLabel: 'most recent IX queue scrape',
+        sourceUrl: null,
+        sourceLabel: 'Curated from ISO/RTO interconnection-queue data',
+      },
+    })
   }
 
   if (current.updatedAt) {
@@ -136,24 +190,56 @@ function getAlerts(project, stateProgramMap, countyDataMap = {}) {
     const ageDays   = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24)
     if (updatedAt > savedAt && ageDays < 90) {
       const fmt = updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      alerts.push({ level: 'info', pillar: null, label: 'Data Refreshed', detail: `${current.name} data updated ${fmt}` })
+      alerts.push({
+        level: 'info', kind: 'data_update', pillar: null,
+        label: 'Data Refreshed',
+        detail: `${current.name} data updated ${fmt}`,
+        evidence: {
+          field: 'state_programs.updated_at',
+          before: project.savedAt ? new Date(project.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—',
+          after: updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          beforeLabel: 'when you saved',
+          afterLabel: 'most recent refresh',
+          sourceUrl: null,
+          sourceLabel: 'Weekly DSIRE verification cron + manual admin curation',
+        },
+      })
     }
   }
 
   return alerts
 }
 
+function formatVerifiedDate(iso) {
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  } catch { return 'recent' }
+}
+
 // ── Alert chip ───────────────────────────────────────────────────────────────
-// V3: deeper text colors for legibility (was red-700 / amber-700 / blue-600 -- fine
-// on the chip itself, but parent counters used too-light shades on too-light bgs).
+// 2026-05-05 (A.6): style by `kind` (concern vs data_update vs neutral) for
+// the chip palette, since the user's intuition is that alerts of different
+// KIND should look different at a glance. Within concern, level (urgent vs
+// warning) bumps the saturation. data_update gets a green/teal palette
+// distinct from amber/red so good news is visibly separable from concerns.
 const ALERT_STYLES = {
-  urgent:  { chip: 'bg-red-50 border-red-300 text-red-800',         dot: 'bg-red-600'   },
-  warning: { chip: 'bg-amber-50 border-amber-300 text-amber-800',   dot: 'bg-amber-500' },
-  info:    { chip: 'bg-teal-50 border-teal-300 text-teal-800',      dot: 'bg-teal-500'  },
+  // concern variants
+  urgent:      { chip: 'bg-red-50 border-red-300 text-red-800',           dot: 'bg-red-600'     },
+  warning:     { chip: 'bg-amber-50 border-amber-300 text-amber-800',     dot: 'bg-amber-500'   },
+  // data_update — green palette
+  data_update: { chip: 'bg-emerald-50 border-emerald-300 text-emerald-800', dot: 'bg-emerald-500' },
+  // legacy neutral (pre-kind-taxonomy alerts) — teal
+  info:        { chip: 'bg-teal-50 border-teal-300 text-teal-800',         dot: 'bg-teal-500'    },
+}
+
+function alertStyleFor(alert) {
+  if (alert.kind === 'data_update') return ALERT_STYLES.data_update
+  return ALERT_STYLES[alert.level] || ALERT_STYLES.info
 }
 
 function AlertChip({ alert }) {
-  const s = ALERT_STYLES[alert.level] || ALERT_STYLES.info
+  const s = alertStyleFor(alert)
+  const e = alert.evidence
   // V3: Radix Tooltip portal -- prevents clipping inside flex/grid containers
   // (the chip lives inside the alert strip which has overflow contexts).
   return (
@@ -168,8 +254,40 @@ function AlertChip({ alert }) {
           {alert.label}
         </div>
       </TooltipTrigger>
-      <TooltipContent side="top" className="max-w-[280px]">
-        {alert.detail}
+      <TooltipContent side="top" className="max-w-[320px]">
+        <div className="space-y-1.5">
+          <p className="font-semibold leading-snug">{alert.detail}</p>
+          {e && (
+            <div className="pt-1.5 mt-1.5 border-t border-white/10 space-y-1 font-mono text-[10px] tabular-nums">
+              {e.field && (
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="opacity-60 uppercase tracking-wider text-[9px]">field</span>
+                  <span>{e.field}</span>
+                </div>
+              )}
+              {e.before !== undefined && e.after !== undefined && (
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="opacity-60 uppercase tracking-wider text-[9px]">change</span>
+                  <span><span className="opacity-60">{String(e.before)}</span> → <span className="font-semibold">{String(e.after)}</span></span>
+                </div>
+              )}
+              {e.beforeLabel && (
+                <div className="opacity-70 text-[9px] leading-snug">{e.beforeLabel} → {e.afterLabel}</div>
+              )}
+              {e.sourceLabel && (
+                <div className="pt-1 border-t border-white/10 text-[9px] leading-snug opacity-80">
+                  {e.sourceUrl ? (
+                    <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                      {e.sourceLabel} ↗
+                    </a>
+                  ) : (
+                    <span>{e.sourceLabel}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </TooltipContent>
     </Tooltip>
   )
@@ -1730,6 +1848,11 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
   }
   const alerts    = getAlerts(project, stateProgramMap, countyDataMap)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
+  // 2026-05-05 (A.6): split alerts by kind so the pill can render
+  // distinct colors. data_update is good news (green); concern is
+  // amber/red. When both exist, render two chips side-by-side.
+  const concernAlerts    = alerts.filter(a => a.kind === 'concern' || (!a.kind && a.level !== 'info'))
+  const updateAlerts     = alerts.filter(a => a.kind === 'data_update' || (!a.kind && a.level === 'info'))
 
   // Blue dot: state data updated since project was saved
   const hasDataUpdate = (() => {
@@ -1842,7 +1965,11 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                 Updated
               </span>
             )}
-            {alerts.length > 0 && (
+            {/* 2026-05-05 (A.6): split into TWO chips when alerts of
+                different kinds exist on the same project. Concerns chip
+                shows amber/red; data_update chip shows emerald. Ordered
+                so concerns lead (urgency-first reading). */}
+            {concernAlerts.length > 0 && (
               <span
                 className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center"
                 style={hasUrgent
@@ -1850,9 +1977,6 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                   : { background: '#FEF3C7', color: '#92400E', borderColor: '#FCD34D', lineHeight: 1 }}
               >
                 <span
-                  // Inline-block + explicit margin keeps the dot reliably centered
-                  // with the cap-height of the 10px label across browsers; flex
-                  // gap + small dot can sit a half-pixel low otherwise.
                   style={{
                     display: 'inline-block',
                     width: '7px',
@@ -1863,7 +1987,27 @@ function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap,
                     flexShrink: 0,
                   }}
                 />
-                {alerts.length} alert{alerts.length > 1 ? 's' : ''}
+                {concernAlerts.length} alert{concernAlerts.length > 1 ? 's' : ''}
+              </span>
+            )}
+            {updateAlerts.length > 0 && (
+              <span
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center"
+                style={{ background: '#D1FAE5', color: '#065F46', borderColor: '#6EE7B7', lineHeight: 1 }}
+                title="Data update — fresher state-program data is now available"
+              >
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '9999px',
+                    marginRight: '5px',
+                    background: '#10B981',
+                    flexShrink: 0,
+                  }}
+                />
+                {updateAlerts.length} update{updateAlerts.length > 1 ? 's' : ''}
               </span>
             )}
             {/* V3 Wave 1.4: WoW delta chip — surfaces when this project's state
