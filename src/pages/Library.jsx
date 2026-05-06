@@ -2617,10 +2617,12 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
     ? Math.max(0, Math.round((Date.now() - new Date(project.savedAt).getTime()) / 86400000))
     : null
 
-  // J2: deal notes markdown editor — Edit/Preview toggle + formatting toolbar.
-  // Edit mode keeps the textarea (with markdown toolbar); Preview mode renders
-  // the same plain-text-with-markdown into formatted HTML via renderMarkdown.
-  const [notesPreview, setNotesPreview] = useState(false)
+  // 2026-05-05 (A.8): replaced the old edit/preview toggle with a
+  // side-by-side live-preview layout. Editing pane stays a textarea
+  // (markdown syntax visible as you type); preview pane renders the
+  // markdown into JSX continuously. Stacks vertically on mobile (<sm).
+  // The legacy `notesPreview` boolean state is removed; preview is
+  // always visible alongside the textarea.
   const notesTextareaRef = useRef(null)
 
   return (
@@ -2662,27 +2664,16 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Notes — side-by-side live preview (A.8 fix 2026-05-05).
+              Replaces the legacy edit/preview TOGGLE with two panes
+              rendered together: textarea on the left (markdown source),
+              live-rendered preview on the right. Stacks vertically on
+              mobile (<sm). Auto-save behavior + toolbar preserved. */}
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Deal Notes</p>
-                {/* Edit ↔ Preview toggle (J2 markdown). Hidden until the user
-                    has typed something — preview-of-empty is just blank. */}
-                {notes && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setNotesPreview((p) => !p) }}
-                    className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-sm border transition-colors"
-                    style={notesPreview
-                      ? { background: 'rgba(15,118,110,0.08)', borderColor: '#0F766E', color: '#0F766E' }
-                      : { background: 'white', borderColor: '#D1D5DB', color: '#5A6B7A' }
-                    }
-                    title={notesPreview ? 'Switch back to editor' : 'Render markdown formatting'}
-                  >
-                    {notesPreview ? 'Editing →' : '← Preview'}
-                  </button>
-                )}
+                <span className="text-[9px] font-mono text-gray-400">live preview</span>
               </div>
               {saveStatus === 'saving' && (
                 <span className="text-[9px] flex items-center gap-1 text-gray-500">
@@ -2697,7 +2688,7 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
                 </span>
               )}
             </div>
-            {!notes && !notesPreview && (
+            {!notes && (
               <div className="flex flex-wrap gap-1.5">
                 {['Landowner', 'Queue position', 'Key dates', 'ISA deposit', 'Site notes'].map((hint) => (
                   <button
@@ -2711,19 +2702,15 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
                 ))}
               </div>
             )}
-            {notesPreview ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {/* LEFT: editor pane (markdown source) */}
               <div
-                onClick={(e) => e.stopPropagation()}
-                className="w-full text-xs leading-relaxed rounded-lg px-3 py-2.5 min-h-[100px]"
-                style={{ background: '#FFFFFF', border: '1px solid #D1D5DB', color: '#111827' }}
-              >
-                {renderMarkdown(notes)}
-              </div>
-            ) : (
-              <div
-                className="w-full rounded-lg overflow-hidden transition-colors"
+                className="rounded-lg overflow-hidden flex flex-col"
                 style={{ background: '#FFFFFF', border: '1px solid #D1D5DB' }}
               >
+                <div className="flex items-center justify-between px-2 py-1 border-b border-gray-200 bg-gray-50/50">
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-gray-400">Editor</span>
+                </div>
                 <MarkdownToolbar textareaRef={notesTextareaRef} value={notes} onChange={setNotes} />
                 <textarea
                   ref={notesTextareaRef}
@@ -2731,12 +2718,28 @@ function YourDealSection({ project, stage, setStage, notes, setNotes, saveStatus
                   onChange={(e) => setNotes(e.target.value)}
                   onClick={(e) => e.stopPropagation()}
                   placeholder="Landowner · Queue position · Key dates · ISA deposit · Site findings · **bold** *italic* # heading - bullet"
-                  rows={4}
-                  className="w-full text-xs resize-none focus:outline-hidden leading-relaxed px-3 py-2.5"
+                  rows={6}
+                  className="w-full text-xs resize-y focus:outline-hidden leading-relaxed px-3 py-2.5 min-h-[140px] font-mono"
                   style={{ background: 'transparent', border: 'none', color: '#111827' }}
                 />
               </div>
-            )}
+              {/* RIGHT: live preview pane */}
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="rounded-lg overflow-hidden flex flex-col"
+                style={{ background: '#FFFFFF', border: '1px solid #D1D5DB' }}
+              >
+                <div className="flex items-center justify-between px-2 py-1 border-b border-gray-200 bg-gray-50/50">
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-teal-700">Preview</span>
+                </div>
+                <div className="px-3 py-2.5 text-xs leading-relaxed text-gray-900 min-h-[140px]">
+                  {notes
+                    ? renderMarkdown(notes)
+                    : <p className="text-[11px] text-gray-300 italic">Preview renders here as you type.</p>
+                  }
+                </div>
+              </div>
+            </div>
             <p className="text-[9px] font-mono text-gray-400 italic">
               Markdown supported — <span className="font-bold not-italic">**bold**</span>,{' '}
               <span className="italic not-italic">*italic*</span>,{' '}
