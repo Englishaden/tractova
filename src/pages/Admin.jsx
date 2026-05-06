@@ -3335,6 +3335,23 @@ function TestNotificationsTab() {
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth()
+  // 2026-05-05 (C1): role-based admin gate via profiles.role (migration 057).
+  // Loads the role on mount; defaults to legacy email check while the role
+  // value is still loading or if the migration isn't yet applied.
+  const [profileRole, setProfileRole] = useState(null)
+  const [roleLoaded, setRoleLoaded] = useState(false)
+  useEffect(() => {
+    if (!user) { setRoleLoaded(true); return }
+    let cancelled = false
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        setProfileRole(data?.role ?? null)
+        setRoleLoaded(true)
+      })
+      .catch(() => { if (!cancelled) setRoleLoaded(true) })
+    return () => { cancelled = true }
+  }, [user])
   const [tab, setTab] = useState(0)
 
   // Reset window scroll to top on mount + when switching tabs.
@@ -3345,11 +3362,15 @@ export default function Admin() {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [tab])
 
-  if (authLoading) {
+  if (authLoading || !roleLoaded) {
     return <div className="min-h-screen bg-paper flex items-center justify-center"><p className="text-sm text-gray-400">Loading...</p></div>
   }
 
-  if (!user || user.email !== ADMIN_EMAIL) {
+  // C1 fix 2026-05-05: role-based admin gate. Allows profiles.role='admin'
+  // (migration 057). Legacy email fallback for the rollout window — once
+  // role data is verified populated, the email match can be removed.
+  const isAdmin = profileRole === 'admin' || (profileRole == null && user?.email === ADMIN_EMAIL)
+  if (!user || !isAdmin) {
     return (
       <div className="min-h-screen bg-paper flex items-center justify-center">
         <p className="text-sm text-gray-500">Access denied.</p>

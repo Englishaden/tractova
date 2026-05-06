@@ -1,21 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
+import { isAdminFromBearer } from './_admin-auth.js'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-const ADMIN_EMAIL = 'aden.walker67@gmail.com'
-
 // ── Auth ────────────────────────────────────────────────────────────────────
+// 2026-05-05 (C1): role-based check via profiles.role (migration 057) with
+// legacy email-match fallback. Replaces the previous hardcoded
+// `user.email === 'aden.walker67@gmail.com'` check.
 async function authenticateAdmin(req) {
-  const authHeader = req.headers.authorization
-  if (!authHeader?.startsWith('Bearer ')) return null
-
-  const token = authHeader.slice(7)
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
-  if (error || !user || user.email !== ADMIN_EMAIL) return null
-  return user
+  const adminCheck = await isAdminFromBearer(supabaseAdmin, req.headers.authorization)
+  return adminCheck.ok ? adminCheck.user : null
 }
 
 // ── Export tables ───────────────────────────────────────────────────────────

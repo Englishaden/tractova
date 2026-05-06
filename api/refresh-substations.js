@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isAdminFromBearer } from './_admin-auth.js'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -252,10 +253,10 @@ async function handlerInner(req, res) {
 
   let isAdminAuth = false
   if (!isVercelCron && !isBearerAuth && authHeader?.startsWith('Bearer ')) {
-    try {
-      const { data: { user } } = await supabaseAdmin.auth.getUser(authHeader.slice(7))
-      if (user?.email === 'aden.walker67@gmail.com') isAdminAuth = true
-    } catch (_) { /* fall through */ }
+    // C1 fix 2026-05-05: role-based admin check via profiles.role (057)
+    // with legacy email fallback during rollout.
+    const adminCheck = await isAdminFromBearer(supabaseAdmin, authHeader)
+    if (adminCheck.ok) isAdminAuth = true
   }
 
   if (!isVercelCron && !isBearerAuth && !isAdminAuth) {

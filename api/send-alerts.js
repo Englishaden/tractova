@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isAdminFromBearer } from './_admin-auth.js'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -588,8 +589,6 @@ async function sendSlack(webhookUrl, payload) {
   }
 }
 
-const ADMIN_EMAIL = 'aden.walker67@gmail.com'
-
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
@@ -608,14 +607,11 @@ export default async function handler(req, res) {
   let testChannel = 'email'    // 'email' | 'slack'
   let testType    = 'alert'    // 'alert' | 'opportunity'
   if (!isVercelCron && !isManualWithSecret) {
-    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
-    if (!token) return res.status(401).json({ error: 'Unauthorized' })
-    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
-    if (authErr || !user || user.email !== ADMIN_EMAIL) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    // C1 fix 2026-05-05: role-based admin check via profiles.role (057).
+    const adminCheck = await isAdminFromBearer(supabaseAdmin, req.headers.authorization)
+    if (!adminCheck.ok) return res.status(401).json({ error: 'Unauthorized' })
     testMode = true
-    testUserId = user.id
+    testUserId = adminCheck.user.id
     // Channel + type selectors via query string OR JSON body
     const url = new URL(req.url, `https://${req.headers.host}`)
     const qChannel = url.searchParams.get('channel')

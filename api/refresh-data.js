@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'crypto'
+import { isAdminFromBearer } from './_admin-auth.js'
 
 const supabaseAdmin = createClient(
   process.env.VITE_SUPABASE_URL,
@@ -23,14 +24,14 @@ const supabaseAdmin = createClient(
 //                        and runs as the cron user. We accept any unauthed
 //                        request that arrives via Vercel's own infrastructure
 //                        OR matches CRON_SECRET if configured.
-//   2. Admin UI button — Authenticated POST with Bearer JWT; we verify the
-//                        token's email matches ADMIN_EMAIL.
+//   2. Admin UI button — Authenticated POST with Bearer JWT; we verify
+//                        profiles.role='admin' (migration 057). Defense
+//                        in depth: legacy email match falls through if
+//                        the role lookup fails (migration not yet applied).
 //
 // All handlers log to `cron_runs` (created in migration 006) so the Data
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const ADMIN_EMAIL = 'aden.walker67@gmail.com'
 
 const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs']
 
@@ -57,14 +58,13 @@ export default async function handler(req, res) {
       isAuthed = true
       authMode = 'cron-secret'
     } else {
-      // Admin JWT path
-      try {
-        const { data: { user } } = await supabaseAdmin.auth.getUser(token)
-        if (user?.email === ADMIN_EMAIL) {
-          isAuthed = true
-          authMode = 'admin'
-        }
-      } catch (_) { /* fall through */ }
+      // Admin JWT path — role-based check via profiles.role (migration 057)
+      // with legacy email-match fallback for the rollout window.
+      const adminCheck = await isAdminFromBearer(supabaseAdmin, authHeader)
+      if (adminCheck.ok) {
+        isAuthed = true
+        authMode = adminCheck._legacyFallback ? 'admin-legacy-email' : 'admin'
+      }
     }
   }
 

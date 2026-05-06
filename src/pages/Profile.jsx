@@ -493,6 +493,7 @@ export default function Profile() {
   const [signingOut, setSigningOut] = useState(false)
   const [allProjects, setAllProjects] = useState([])
   const [stateProgramMap, setStateProgramMap] = useState({})
+  const [profileRole, setProfileRole] = useState(null)
 
   useEffect(() => {
     if (!user) return
@@ -502,6 +503,11 @@ export default function Profile() {
       .eq('user_id', user.id)
       .order('saved_at', { ascending: false })
       .then(({ data }) => setAllProjects(data || []))
+
+    // Role lookup for the "Data Admin" link visibility (C1 fix 2026-05-05).
+    supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+      .then(({ data }) => setProfileRole(data?.role ?? null))
+      .catch(() => {})
 
     if (isPro) {
       getStateProgramMap().then(setStateProgramMap).catch(console.error)
@@ -586,8 +592,10 @@ export default function Profile() {
           </div>
 
           {/* Admin access — surfaced near the top so it's reachable without
-              scrolling. Only renders for the admin user. */}
-          {email === 'aden.walker67@gmail.com' && (
+              scrolling. Only renders for the admin user (role='admin' from
+              profiles, with legacy email fallback during migration-057
+              rollout). C1 fix 2026-05-05. */}
+          {(profileRole === 'admin' || (profileRole == null && email === 'aden.walker67@gmail.com')) && (
             <Link
               to="/admin"
               className="mb-5 flex items-center justify-between bg-white border border-gray-200 rounded-lg px-6 py-3 hover:border-primary/30 hover:bg-primary-50/20 transition-colors group"
