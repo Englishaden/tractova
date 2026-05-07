@@ -9,7 +9,7 @@ import { read, utils } from 'xlsx'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const file = resolve(process.cwd(), 'public/Sharing the Sun Community Solar Project Data (Jan 2026).xlsx')
+const file = resolve(process.cwd(), 'data/Sharing the Sun Community Solar Project Data (Jan 2026).xlsx')
 const wb = read(readFileSync(file), { type: 'buffer' })
 const XLSX = { utils }
 

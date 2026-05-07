@@ -19,22 +19,22 @@
 // PRIMARY ANCHOR — NREL Q1 2023 Cost Benchmark, CS-specific MMP:
 //   - 3-MWdc community solar PV-only Modeled Market Price: $1.76/Wdc
 //   - 3-MWdc CS + 1.8 MW/7.2 MWh storage MMP: $2.94/Wdc
-//   - File: public/NLR Solar & Storage Costs 2023.pdf (= NREL Q1 2023, "NLR"
+//   - File: data/NLR Solar & Storage Costs 2023.pdf (= NREL Q1 2023, "NLR"
 //     is the NREL document number prefix). NREL Q1 2024 cost benchmark
-//     (public/NREL Q1 2024 Cost benchmark.pdf) switched the CPV scale model
+//     (data/NREL Q1 2024 Cost benchmark.pdf) switched the CPV scale model
 //     to a 3-MWdc agrivoltaic ground-mount ($1.55/Wdc) — the dedicated CS
 //     line item was discontinued in 2024, so 2023 remains the last published
 //     NREL CS-specific anchor. We treat $1.76/Wdc as the 2023 CS national
 //     baseline.
 //
 // STATE-LEVEL DIFFERENTIATOR — LBNL Tracking the Sun 2024 + public TTS CSV:
-//   - LBNL TTS 2024 Report (public/Tracking the Sun 2024_Report.pdf):
+//   - LBNL TTS 2024 Report (data/Tracking the Sun 2024_Report.pdf):
 //     "Installed-Price Variation Across Systems" section reports the 2023
 //     installed-price 20-80th percentile band for large non-residential
 //     (LBNL definition: >500 kW): $1.7 – $3.1 /Wdc. Non-residential 2022→2023
 //     trend: +$0.10-$0.20/W in real terms (first sustained rise in 15 years).
 //   - State-level medians from the TTS public CSV (2025-09 release,
-//     public/TTS_LBNL_public_file_29-Sep-2025_all.csv, ~3.66M projects).
+//     data/TTS_LBNL_public_file_29-Sep-2025_all.csv, ~3.66M projects).
 //     Aggregated via scripts/aggregate-tts-cs-scale.mjs filtering to
 //     non-residential customer segments + 0.5–5 MW DC + install years
 //     2022-2024. National TTS median for that bracket: $1.91/W (n=839).
@@ -130,7 +130,7 @@
 // NYISO ICAP, ISO-NE FCM, CAISO RA) + NREL ATB 2024 Commercial Battery
 // Storage CAPEX $1,450/kWh (2022 base, Advanced scenario; energy + power
 // stacks combined) and Utility-Scale Battery Storage CAPEX $1,290/kWh
-// (same vintage / scenario). ATB sheets in public/2024 NREL ATB Electricity.xlsx.
+// (same vintage / scenario). ATB sheets in data/2024 NREL ATB Electricity.xlsx.
 // Replaces prior BloombergNEF 2024 dependency (paywalled, unverifiable);
 // ATB is free, NREL-published, and refreshes annually each Q1.
 //

@@ -23,7 +23,7 @@ import { createReadStream } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { resolve } from 'node:path'
 
-const file = resolve(process.cwd(), 'public/TTS_LBNL_public_file_29-Sep-2025_all.csv')
+const file = resolve(process.cwd(), 'data/TTS_LBNL_public_file_29-Sep-2025_all.csv')
 const rl = createInterface({ input: createReadStream(file), crlfDelay: Infinity })
 
 const VALID_USPS = new Set([

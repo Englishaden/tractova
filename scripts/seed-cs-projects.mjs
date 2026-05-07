@@ -1,7 +1,7 @@
 /**
  * One-shot seed for cs_projects from NREL "Sharing the Sun" XLSX.
  *
- *   Usage:  node scripts/seed-cs-projects.mjs                       # use newest "Sharing the Sun*.xlsx" in public/
+ *   Usage:  node scripts/seed-cs-projects.mjs                       # use newest "Sharing the Sun*.xlsx" in data/
  *           node scripts/seed-cs-projects.mjs --file=path/to.xlsx   # explicit path
  *           node scripts/seed-cs-projects.mjs --dry-run             # parse + report, no upsert
  *
@@ -61,12 +61,12 @@ const DRY_RUN = argSet.has('--dry-run')
 const fileArg = args.find(a => a.startsWith('--file='))?.split('=')[1]
 
 function newestXlsx() {
-  const dir = resolve(process.cwd(), 'public')
+  const dir = resolve(process.cwd(), 'data')
   const files = readdirSync(dir)
     .filter(f => /^Sharing the Sun.*\.xlsx$/i.test(f))
     .map(f => join(dir, f))
   if (!files.length) {
-    throw new Error('No "Sharing the Sun*.xlsx" found in public/. Download from nrel.gov community-solar-data, or pass --file=PATH.')
+    throw new Error('No "Sharing the Sun*.xlsx" found in data/. Download from nrel.gov community-solar-data, or pass --file=PATH.')
   }
   return files.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0]
 }

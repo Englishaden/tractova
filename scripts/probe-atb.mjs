@@ -7,7 +7,7 @@ import { read, utils } from 'xlsx'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const file = resolve(process.cwd(), 'public/2024 NREL ATB Electricity.xlsx')
+const file = resolve(process.cwd(), 'data/2024 NREL ATB Electricity.xlsx')
 const wb = read(readFileSync(file), { type: 'buffer' })
 
 function dumpSheetMetric(sheetName, rowMatcher, lookForward = false) {

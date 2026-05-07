@@ -6,7 +6,7 @@
  * The cron is best-effort yearly automation; if LBNL changes their host or
  * the CSV gets larger, fail-clean and Aden re-runs this locally.
  *
- *   Usage:  node scripts/seed-solar-cost-index.mjs                       # use newest TTS_LBNL_public_file_*.csv in public/
+ *   Usage:  node scripts/seed-solar-cost-index.mjs                       # use newest TTS_LBNL_public_file_*.csv in data/
  *           node scripts/seed-solar-cost-index.mjs --file=path/to.csv    # explicit path
  *           node scripts/seed-solar-cost-index.mjs --dry-run             # compute but don't upsert
  *
@@ -52,12 +52,12 @@ const DRY_RUN = argSet.has('--dry-run')
 const fileArg = args.find(a => a.startsWith('--file='))?.split('=')[1]
 
 function newestTtsCsv() {
-  const dir = resolve(process.cwd(), 'public')
+  const dir = resolve(process.cwd(), 'data')
   const files = readdirSync(dir)
     .filter(f => /^TTS_LBNL_public_file_.+_all\.csv$/i.test(f))
     .map(f => join(dir, f))
   if (!files.length) {
-    throw new Error('No TTS_LBNL_public_file_*.csv found in public/. Download from emp.lbl.gov/tracking-the-sun and place in public/, or pass --file=PATH.')
+    throw new Error('No TTS_LBNL_public_file_*.csv found in data/. Download from emp.lbl.gov/tracking-the-sun and place in data/, or pass --file=PATH.')
   }
   // Filename dates (29-Sep-2025) sort lexicographically wrong — pick by mtime.
   return files.sort((a, b) => statSync(b).mtimeMs - statSync(a).mtimeMs)[0]

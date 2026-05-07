@@ -45,8 +45,15 @@ Marketing-Outreach-Plan.md
 # Persisted Pro-user session for authed smoke tests — never commit
 tests/.auth/
 
-# Large public-dataset reference files (>100 MB GitHub limit). Keep locally
-# for parsing scripts; never commit. LBNL TTS CSV is ~1.9 GB.
+# Local research / reference data (xlsx / pdf / csv consumed by seed
+# scripts at `scripts/seed-*.mjs` and probe scripts at
+# `scripts/probe-*.mjs`). Stays local — these are upstream-publisher
+# files (EIA-860, NREL ATB, LBNL TTS, USPVDB, Sharing the Sun, state
+# agency reports) we re-download from the source. Repo bloat otherwise.
+data/
+
+# Legacy: large public-dataset reference files (>100 MB GitHub limit) —
+# kept for backwards compat; new files go in data/ above.
 public/TTS_LBNL_public_file_*.csv
 public/Lazard*.pdf
 
