@@ -4,7 +4,93 @@
 
 ---
 
-## 🟢 Pickup — Plan C COMPLETE (Phase 0 + Phase 1 + all 6 Phase 2 sprints) → next: pick a follow-up direction (onboarding revamp, ratchet decomposition further, or new feature work)
+## 🟢 Pickup — Plan D cleanup sweep DONE (post-Plan-C dedupe + dead code + file hygiene) → next: pick a feature direction (onboarding revamp, public/data folder cleanup, or new work)
+
+**Session 2026-05-06 (continuation, post Plan C).** After Plan C
+Phase 2 closed (5 mega-files decomposed + 4 API files tightened),
+two read-only Explore agents scanned for leftover cleanup
+opportunities. Headline: **data integrity 9.5/10** (zero schema
+drift, zero migration issues, zero cron drift, allowlists in sync).
+Cleanup wins were mostly dedupe / dead code / file hygiene —
+shipped in 4 short commits.
+
+### What shipped this continuation (4 commits)
+
+**D.1 (`f01b425`)** — Per-state `console.log` spam removed from 2
+cron handlers (refresh-capacity-factors logged 50× per quarterly run;
+refresh-substations logged 50× per monthly run, no operational
+signal). Aggregate completion logs preserved. Audit-agent A also
+flagged unused `applyCors` imports + an "unused" `IX_LABEL` export,
+but verification showed both claims false — no change there.
+
+**D.2 (`bb160a3`)** — Consolidated `supabaseAdmin` instantiation.
+18 inline `createClient(VITE_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`
+calls → 1 shared module. NEW `api/lib/_supabaseAdmin.js` (single
+source). `api/lib/_aiCacheLayer.js` + `api/scrapers/_scraperBase.js`
+re-export so callers that already imported from those base modules
+keep working unchanged. 16 inline-instantiating files updated to
+import from the new shared module. Net diff: -57 lines. Confirmed
+`createClient(` no longer appears anywhere in `api/` outside the new
+`_supabaseAdmin.js`. Behavior unchanged — Vercel Functions reuse
+module instances under Fluid Compute, so consolidating to one client
+per cold-start is the right shape (the 18 separate clients were
+operationally equivalent).
+
+**D.3 (`b7b5198`)** — Consolidated display labels. NEW
+`src/lib/statusMaps.js` exporting `IX_LABEL` + `CS_STATUS_LABEL`,
+the canonical chip-label maps. 5 src files updated:
+`src/lib/exportHelpers.js`, `src/components/CompareTray.jsx`,
+`src/components/ProjectPDFExport.jsx` drop their inline IX_LABEL
+const + import from statusMaps. `src/pages/Library.jsx` replaces
+two `export const X = {...}` with a single
+`export { IX_LABEL, CS_STATUS_LABEL } from '../lib/statusMaps.js'`
+re-export — ProjectCard.jsx imports from Library.jsx still resolve.
+Local intentional deviations preserved + documented:
+- ProjectPDFExport's verbose `CS_STATUS_LABEL` (`'Limited Capacity'`,
+  `'Pending Launch'`, `'No Program'`) stays local — PDF-specific
+  offline-readable copy.
+- exportHelpers + CompareTray's `CS_LABEL` (uses `'None'` instead
+  of canonical `'Closed'`) stays local — workbook + compare-tray
+  brevity convention.
+- Rank constants (`STATUS_RANK`, `IX_RANK`) stay local — each
+  consumer needs different sort semantics (alertHelpers ranks
+  easiest-first to detect "got worse"; Search.jsx peer-comparison
+  ranks easiest-highest for "good vs bad" tone).
+
+**D.4 (`5cc5db7`)** — File hygiene. 12 untracked files committed:
+9 probe scripts (probe-atb, probe-cs-projects, probe-ix-staleness,
+probe-phase-b, probe-sharing-the-sun, probe-sharing-the-sun-full,
+probe-state-programs-stale, probe-status-state, probe-tts), plus
+scripts/site-walk.mjs + docs/site-walk-checklist.md. Aden's product
+review notes "Full Manual Site Review.md" archived to
+`docs/archive/site-review-2026-05-03.md` alongside the V2/V3
+plan archives. lint:secrets coverage: 226 → 307 tracked files.
+
+### Out of scope (deferred per plan)
+
+- **25 raw research files in `public/*.xlsx,pdf,csv`** (EIA-860,
+  NREL ATB, Sharing the Sun, uspvdb, etc.) — moving to a gitignored
+  `data/` folder would require a full-tree grep first to verify no
+  `<a href="/EIA-860 Form.xlsx">`-style URL references. Skipped this
+  sprint until verified. Vercel serves /public at root.
+- **Email-frame builder consolidation** (would dedupe ~45 LOC
+  across 3 production email paths — ROI lower than the wins above).
+- **`daysSince()` cross-API/src dedupe** — architectural separation
+  between api/ and src/ kept on purpose.
+
+### Resume-prompt suggestions
+
+- *"Verify public/*.xlsx aren't URL-referenced anywhere, then move them to a gitignored data/ folder"*
+- *"Start the onboarding revamp per ~/.claude/plans/huly-onboarding-revamp.md"*
+- *"Configure Vercel Log Drain destination per docs/runbooks/observability.md"*
+
+### Pre-existing pickup chain
+
+(See prior pickup section below for Plan C COMPLETE detail.)
+
+---
+
+## Pickup (prior, 2026-05-06 evening) — Plan C COMPLETE (Phase 0 + Phase 1 + all 6 Phase 2 sprints) → next: pick a follow-up direction (onboarding revamp, ratchet decomposition further, or new feature work)
 
 **Session 2026-05-06 (full arc, day's work).** Plan A (8/8) + Plan B
 (8/8) verified at session start; then closed the cheap-five audit
@@ -2180,6 +2266,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
+- **Branch:** `main` · last commit `5cc5db7` Plan D.4. Plan D cleanup sweep complete (4 commits: D.1-D.4) on top of Plan C COMPLETE state. Single supabaseAdmin client (was 18); single statusMaps.js source for IX_LABEL + CS_STATUS_LABEL (was 5 inlines); 12 previously-untracked probe + site-walk files now in git; site review archived. lint coverage: 307 tracked files for secrets, 57 for api/**/*.js.
 - **Branch:** `main` · last commit `1e5bad5` Plan C Sprint 2.6. **Plan C COMPLETE** (Phase 0 + Phase 1 + Phase 2 all done, 9 commits this session). Migration 060 applied. Security 8.0 → ~9.3 / Engineering 6.5 → ~9.0 with measurable evidence (allowlist-aware audit, CSP + cross-origin, rate limits, webhook idempotency, 5 mega-files decomposed, JSDoc on hot exports, lint-locs CI gate). **Awaiting Aden:** (1) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (2) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
 - **Branch:** `main` · 4-session site-walk fix sweep complete (commits `a1c00dd`, `1268cbc`, `288b1be`, `19b2638`, `445bce9`, `a456cca`) closing ~35 of ~40 review items. Highlights: favicon + sub-header recolor, ambient-animation gutter-mask, Active/Pending/No Program + Site Control tooltips, scrollable Data Limitations modal, Dashboard freshness via cron_runs (matches Footer), Admin LIVE/CURATED/SEEDED freshness chips, state-baseline-vs-project score line in Lens, NWI/SSURGO percentages surfaced in Site Control tiles, scenario presets recalibrated + methodology tooltips, jump-to-glossary in CommandPalette, scenario-save Library confirmation card, source-link audit (4 broken URLs replaced), Compare AI collapsible + insightType + sub-score rows, Library Select-all, 18+ signup checkbox, Terms § 04 strengthened with civil-action language. Pending Aden's input: analyst-brief verbosity redesign, CSV/XLSX consolidation, hello@ DNS setup.
 - **NWI catch-up seed completed.** 1522 of 2144 queue items succeeded; 622 NWI server timeouts (concentrated in ND/SD where the server throttled). Live coverage went from **79.9% → 92.1%** (gained 382 new counties). 249 counties still missing — a second `--refresh` run would catch most of the timeouts.
@@ -2256,6 +2343,10 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `5cc5db7` | **Plan D.4** — File hygiene. Tracked 9 probe scripts (probe-atb, probe-cs-projects, probe-ix-staleness, probe-phase-b, probe-sharing-the-sun*, probe-state-programs-stale, probe-status-state, probe-tts) + scripts/site-walk.mjs + docs/site-walk-checklist.md. Archived "Full Manual Site Review.md" → `docs/archive/site-review-2026-05-03.md`. lint:secrets coverage 226 → 307 files. |
+| `b7b5198` | **Plan D.3** — Consolidate IX_LABEL + CS_STATUS_LABEL. NEW `src/lib/statusMaps.js` (single source of truth for chip labels). 5 src files updated: exportHelpers, CompareTray, ProjectPDFExport drop inline IX_LABEL const + import; Library.jsx replaces two inline exports with re-exports from statusMaps. Local intentional deviations preserved + documented (ProjectPDFExport verbose PDF labels; exportHelpers + CompareTray's `CS_LABEL = 'None'` brevity; alertHelpers + Search.jsx `IX_RANK` local with different sort orders). |
+| `bb160a3` | **Plan D.2** — Consolidate supabaseAdmin client. NEW `api/lib/_supabaseAdmin.js` (single `export const supabaseAdmin = createClient(...)`). 18 inline-instantiating files updated to import from it. _aiCacheLayer.js + _scraperBase.js re-export so callers that already imported from those base modules keep working. Net -57 lines. Behavior unchanged — Vercel Fluid Compute reuses module instances anyway. |
+| `f01b425` | **Plan D.1** — Drop per-state console.log spam in 2 cron handlers (refresh-capacity-factors logged 50× per quarterly run; refresh-substations logged 50× per monthly run). Aggregate completion logs kept. Audit-agent A claims of unused applyCors imports + unused IX_LABEL export verified false; no other changes. |
 | `1e5bad5` | **Plan C Sprint 2.6** (final sprint of Phase 2) — Architecture docs + JSDoc + lint-locs CI budget gate. NEW `scripts/lint-locs.mjs` + `scripts/locs-allowlist.json` (29 files checked, 7 allowlisted, ratchet pattern matches audit-check). NEW `docs/architecture.md` (217 LOC, one canonical view of the module tree + Plan C decomposition history table + cron schedule reference + verify-gate sequence + "where to look for what" lookup). JSDoc on every hot export across scoreEngine/revenueEngine/scenarioEngine/lensHelpers/alertHelpers/exportHelpers/markdownRender/adminHelpers/formatters — cheap halfway point to TS. `npm run verify` chain + `.github/workflows/verify.yml` extended. Verified: lint:api ✓, lint:locs ✓ (0 breaches), test:unit ✓ (51/51), build ✓. |
 | `948d920` | **CSP fix** — added `https://cdn.jsdelivr.net` to `connect-src` in `vercel.json`. Aden flagged that the preview-website Dashboard map wasn't rendering; root cause was the strict CSP shipped in Phase 1 (b8f5e5f) blocking the topojson fetch in `src/components/USMap.jsx:5` (react-simple-maps loads geo data via XHR, which goes through `connect-src`). Restoration of intended behavior, not a posture downgrade. Self-hosting us-atlas in /public is a future cleanup that lets us drop this allowance. |
 | `2ea5f3b` | **Plan C Sprint 2.5** — `src/pages/Admin.jsx` (3,425 LOC) → 6 tabs + helpers. NEW `src/components/admin/{StateProgramsTab,CountiesTab,RevenueRatesTab,NewsFeedTab,PucDocketsTab,DataHealthTab}.jsx` (subdirectory because the 6 tabs are clearly Admin-scoped). NEW `src/lib/adminHelpers.js` (endpointStatus + buildReportText + daysSince + freshnessColor pure helpers). Admin.jsx shrinks 3,425 → 1,914 LOC (-44%). ComparableDealsTab + IXQueueTab + StagingTab + TestNotificationsTab left inline (their state shape interlinks; not worth disturbing). Inline helpers (Field, ReadOnlyCell, SaveBar, Badge, plus all the DataHealth sub-cards: MissionControl, NwiCoverageCard, IxFreshnessCard, MonthlyCronCard, etc.) gained `export` keywords for the tab files to import. Cleanup: stripped unused imports (`getStatePrograms`, `getNewsFeed`, `computeFeasibilityScore`, `invalidateCacheEverywhere`, `TractovaLoader`, etc.). Verified end-to-end: lint:api ✓ (36 files), test:unit ✓ (51/51), build ✓ (7.66s, Admin chunk 112 kB), test:smoke ✓ (7/7 in 12.8s). |
