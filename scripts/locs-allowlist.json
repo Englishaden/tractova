@@ -22,13 +22,6 @@
       "current_at_baseline": 1914,
       "baseline_date": "2026-05-06",
       "note": "Reduced from 3,425 LOC in Sprint 2.5 (tabs extracted). ComparableDealsTab, IXQueueTab, StagingTab, TestNotificationsTab still inline (their state is interlinked). Target ceiling: 1,500."
-    },
-    {
-      "path": "api/data-health.js",
-      "ceiling": 700,
-      "current_at_baseline": 679,
-      "baseline_date": "2026-05-06",
-      "note": "Health-summary action + freshness aggregator + per-source stats. Could split into api/data-health/{action,summary,freshness}.js. Target ceiling: 500."
     }
   ]
 }
