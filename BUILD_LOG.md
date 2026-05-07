@@ -4,7 +4,84 @@
 
 ---
 
-## 🟢 Pickup — Plan C Sprints 2.1 + 2.2 + 2.3 shipped (8,964 LOC decomposed across 3 commits) → next: Sprint 2.4 (Library.jsx → cards + helpers)
+## 🟢 Pickup — Plan C Sprints 2.1–2.5 shipped (~16,000 LOC decomposed; +CSP-fix for dashboard map) → next: Sprint 2.6 (architecture docs + JSDoc + lint-locs budget gate) — last sprint of Phase 2
+
+**Session 2026-05-06 (continuation, sprints 2.4 + 2.5).** Pushed two
+more sprints + caught a real CSP regression Aden surfaced
+("preview website dashboard map does not show up").
+
+### What shipped this continuation (3 commits)
+
+**Sprint 2.4 (`1154913`)** — `src/pages/Library.jsx` (4,379 LOC) → 5
+components + 4 helper modules. Function bodies copied
+character-for-character; smoke 7/7. NEW
+`src/components/{AlertChip,ProjectAuditTimeline,ScenariosView,
+ProjectCard,YourDealSection}.jsx`. NEW
+`src/lib/{alertHelpers,exportHelpers,formatters}.js` + NEW
+`src/lib/markdownRender.jsx` (.jsx because the helpers return JSX
+elements; vite-plugin-react only transforms .jsx by default).
+Library.jsx shrinks to 2,703 LOC (-38%). Several inline helpers
+(StagePicker, CompareChip, ShareDealMemoButton, UtilityOutreachButton,
+MiniArcGauge, ScoreGauge, PipelineProgress, plus IX/CS_STATUS style
+constants) gained `export` keywords for the new components to import.
+Side cleanup: stripped unused imports left over from earlier
+refactors.
+
+**Sprint 2.5 (`2ea5f3b`)** — `src/pages/Admin.jsx` (3,425 LOC) → 6
+tabs + helpers. NEW `src/components/admin/{StateProgramsTab,
+CountiesTab,RevenueRatesTab,NewsFeedTab,PucDocketsTab,DataHealthTab}.jsx`
+in a dedicated subdirectory (more numerous than Search/Library
+extractions, so a subdir is cleaner). NEW `src/lib/adminHelpers.js`
+(69 LOC) with endpointStatus + buildReportText + daysSince +
+freshnessColor pure helpers. Admin.jsx shrinks to 1,914 LOC (-44%).
+ComparableDealsTab + IXQueueTab + StagingTab + TestNotificationsTab
+left inline (their state shape is more interlinked; not worth
+disturbing in this sprint). Inline helpers (Field, ReadOnlyCell,
+SaveBar, Badge, plus all the DataHealth sub-cards) gained `export`
+keywords for the tab files to import.
+
+**CSP fix for dashboard map** (rolled into Sprint 2.5 commit):
+Aden flagged that the preview-website Dashboard map wasn't
+rendering. Root cause: the strict CSP shipped in Phase 1 (commit
+`b8f5e5f`) locked `connect-src` to only Supabase / Anthropic /
+Stripe / Resend — but `src/components/USMap.jsx:5` fetches its
+topojson from `https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json`
+via the react-simple-maps `<Geographies geography={url}>` flow, which
+goes through `connect-src` (it's an XHR, not an `<img>` or
+`<script>`). Added `https://cdn.jsdelivr.net` to the connect-src
+allow-list in `vercel.json`. Will roll out on the next
+deploy-to-prod via push to main.
+
+### Updated rating — engineering progressing
+
+| Dimension | Before continuation | After continuation | Evidence |
+|---|---|---|---|
+| Engineering | ~8.3 | **~8.7** | All 5 mega-files now decomposed (refresh-data 2,493→163, lens-insight 1,366→1,003, Search 5,105→3,038, Library 4,379→2,703, Admin 3,425→1,914 = 16,768 → 9,821 LOC across the page+API monoliths). Modules in `api/scrapers/`, `api/prompts/`, `api/lib/`, `src/components/admin/`, plus 7 new helpers in `src/lib/`. Sprint 2.6 (docs + JSDoc + lint-locs CI budget gate) is the last engineering work to claim 9. |
+| Data security | ~9.3 | ~9.3 | CSP fix is restoration to intended behavior, not a posture change. Still allowlist-aware on `npm audit`; rate limits live; webhook idempotency live; CI/pre-commit secret-scan parity. |
+
+### Phase 2 — remaining (one sprint)
+
+| Sprint | Scope | Effort | Status |
+|---|---|---|---|
+| 2.1 | refresh-data.js → 10 scrapers | 1-2 days | ✅ |
+| 2.2 | lens-insight.js → 9 prompts + cache | ~0.5 day | ✅ |
+| 2.3 | Search.jsx → 5 panels + hook | 2-3 days | ✅ |
+| 2.4 | Library.jsx → cards + helpers | 1 day | ✅ |
+| 2.5 | Admin.jsx → 6 tabs + helpers | 1 day | ✅ |
+| 2.6 | Architecture docs + JSDoc + lint-locs budget gate | ~1 day | ⏳ next |
+
+### Resume-prompt suggestions
+
+- *"Start Plan C Sprint 2.6 — architecture docs + JSDoc + lint-locs"*
+- *"Configure Vercel Log Drain destination per docs/runbooks/observability.md, then continue Sprint 2.6"*
+
+### Pre-existing pickup chain
+
+(See prior pickup section below for Phase 0 + Phase 1 detail.)
+
+---
+
+## Pickup (prior, 2026-05-06 mid-day) — Plan C Sprints 2.1 + 2.2 + 2.3 shipped (8,964 LOC decomposed across 3 commits) → next: Sprint 2.4 (Library.jsx → cards + helpers)
 
 **Session 2026-05-06 (continuation).** Aden applied migration 060 +
 asked to move on. Pushed Plan C Phase 2 forward by three sprints in
@@ -2011,7 +2088,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
-- **Branch:** `main` · last commit `3aeb02d` Plan C Sprint 2.3. Migration 060 applied (verified via webhook_events_processed table probe). Plan C Phase 2 progressing — Sprints 2.1 + 2.2 + 2.3 shipped (8,964 LOC decomposed: refresh-data 2,493→163, lens-insight 1,366→1,003, Search 5,105→3,038). Sprints 2.4 (Library), 2.5 (Admin), 2.6 (docs + JSDoc + lint-locs budget) remain. Engineering 7.5 → ~8.3. Path to 9 is the 3 remaining sprints. **Awaiting Aden:** (1) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (2) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
+- **Branch:** `main` · last commit `2ea5f3b` Plan C Sprint 2.5 (CSP fix pending in working tree, will land with the next push). Migration 060 applied. Plan C Phase 2 progressing — Sprints 2.1–2.5 shipped (~16,768 LOC across 5 mega-files decomposed to 9,821 LOC; new modules in api/scrapers/, api/prompts/, api/lib/, src/components/, src/components/admin/, src/lib/). Engineering 7.5 → ~8.7. Sprint 2.6 (docs + JSDoc + lint-locs budget gate) remains — that's the last sprint. **Awaiting Aden:** (1) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (2) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
 - **Branch:** `main` · 4-session site-walk fix sweep complete (commits `a1c00dd`, `1268cbc`, `288b1be`, `19b2638`, `445bce9`, `a456cca`) closing ~35 of ~40 review items. Highlights: favicon + sub-header recolor, ambient-animation gutter-mask, Active/Pending/No Program + Site Control tooltips, scrollable Data Limitations modal, Dashboard freshness via cron_runs (matches Footer), Admin LIVE/CURATED/SEEDED freshness chips, state-baseline-vs-project score line in Lens, NWI/SSURGO percentages surfaced in Site Control tiles, scenario presets recalibrated + methodology tooltips, jump-to-glossary in CommandPalette, scenario-save Library confirmation card, source-link audit (4 broken URLs replaced), Compare AI collapsible + insightType + sub-score rows, Library Select-all, 18+ signup checkbox, Terms § 04 strengthened with civil-action language. Pending Aden's input: analyst-brief verbosity redesign, CSV/XLSX consolidation, hello@ DNS setup.
 - **NWI catch-up seed completed.** 1522 of 2144 queue items succeeded; 622 NWI server timeouts (concentrated in ND/SD where the server throttled). Live coverage went from **79.9% → 92.1%** (gained 382 new counties). 249 counties still missing — a second `--refresh` run would catch most of the timeouts.
 - **Live data layers (all .gov / authoritative-source verified):**
@@ -2087,6 +2164,8 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `2ea5f3b` | **Plan C Sprint 2.5** — `src/pages/Admin.jsx` (3,425 LOC) → 6 tabs + helpers. NEW `src/components/admin/{StateProgramsTab,CountiesTab,RevenueRatesTab,NewsFeedTab,PucDocketsTab,DataHealthTab}.jsx` (subdirectory because the 6 tabs are clearly Admin-scoped). NEW `src/lib/adminHelpers.js` (endpointStatus + buildReportText + daysSince + freshnessColor pure helpers). Admin.jsx shrinks 3,425 → 1,914 LOC (-44%). ComparableDealsTab + IXQueueTab + StagingTab + TestNotificationsTab left inline (their state shape interlinks; not worth disturbing). Inline helpers (Field, ReadOnlyCell, SaveBar, Badge, plus all the DataHealth sub-cards: MissionControl, NwiCoverageCard, IxFreshnessCard, MonthlyCronCard, etc.) gained `export` keywords for the tab files to import. Cleanup: stripped unused imports (`getStatePrograms`, `getNewsFeed`, `computeFeasibilityScore`, `invalidateCacheEverywhere`, `TractovaLoader`, etc.). Verified end-to-end: lint:api ✓ (36 files), test:unit ✓ (51/51), build ✓ (7.66s, Admin chunk 112 kB), test:smoke ✓ (7/7 in 12.8s). |
+| `1154913` | **Plan C Sprint 2.4** — `src/pages/Library.jsx` (4,379 LOC) → 5 components + 4 helper modules. NEW `src/components/{AlertChip,ProjectAuditTimeline,ScenariosView,ProjectCard,YourDealSection}.jsx`. NEW `src/lib/{alertHelpers,exportHelpers,formatters}.js` + `markdownRender.jsx` (.jsx because the helpers return JSX elements; vite-plugin-react only transforms .jsx by default). Library.jsx shrinks 4,379 → 2,703 LOC (-38%). Function bodies copied character-for-character; smoke 7/7. Inline helpers (StagePicker, CompareChip, ShareDealMemoButton, UtilityOutreachButton, MiniArcGauge, ScoreGauge, PipelineProgress + IX/CS_STATUS style constants) gained `export` keywords. Cleanup: stripped unused imports. |
 | `3aeb02d` | **Plan C Sprint 2.3** — `src/pages/Search.jsx` (5,105 LOC) → 6 panels + helper. NEW `src/components/{ArcGauge,MarketPositionPanel,SiteControlCard,InterconnectionCard,OfftakeCard,MarketIntelligenceSummary}.jsx` + NEW `src/lib/lensHelpers.js` (generateMarketSummary). Search.jsx shrinks to 3,038 LOC (-40%). Function bodies copied character-for-character; JSX call sites unchanged. Several inline helpers gained `export` keywords because the new panels import them (circular import safe — references inside function bodies). Verified end-to-end: lint:api ✓ (36 files), test:unit ✓ (51/51), build ✓ (5.1s), test:smoke ✓ (7/7 Playwright in 13.5s — hits the actual populated Lens flow which would surface any prop-name typo or missing import as a render error). |
 | `1640587` | **Plan C Sprint 2.2** — `api/lens-insight.js` (1,366 LOC) → 9 prompts + cache + thin handler. NEW `api/prompts/{system,portfolio,compare,sensitivity,scenario-commentary,news-summary,deal-memo,utility-outreach,classify-docket}.js` (one file per prompt template, byte-for-byte copies). NEW `api/lib/_aiCacheLayer.js` (buildCacheKey, cacheGet, cacheSet, dataVersionFor — reusable for any future AI feature). Scenario-shape helpers co-located with the scenario-commentary prompt. lens-insight.js shrinks to 1,003 LOC; still holds the 10 routed handlers + buildContext + parseInsightResponse + the two-tier rate-limit block from Phase 1.3. Verified: lint:api ✓ (36 files), test:unit ✓ (51/51), build ✓ (5.82s). |
 | `5aa2b82` | **Plan C Sprint 2.1** — `api/refresh-data.js` (2,493 LOC) → 10 scrapers + thin orchestrator. NEW `api/scrapers/_scraperBase.js` (211 LOC, shared utilities) + 10 individual `_refresh-{source}.js` files. Private helpers stay local where single-consumer (RSS parsing in news, ssurgoQuery in geospatial-farmland, ttsAssignTier in solar-costs, CS_NAME_KEYWORDS in state-programs). Orchestrator shrinks 2,493 → 163 LOC. `scripts/lint-api.mjs` upgraded to recurse into api/**/*.js (was scanning top-level only — 13 → 26 → 36 files lint coverage as the API tree decomposed across this and the next two sprints). Verified end-to-end. |
