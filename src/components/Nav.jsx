@@ -153,16 +153,19 @@ export default function Nav() {
             </div>
           ) : (
             // ── Logged-out: sign in / get started ─────────────────────────────
+            // 2026-05-07 mobile-audit: explicit min-h-[44px] +
+            // flex-center clears the 44px Apple HIG tap-target minimum
+            // regardless of inner text height.
             <>
               <Link
                 to="/signin"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 -mx-1 min-h-[44px] inline-flex items-center"
               >
                 Sign In
               </Link>
               <Link
                 to="/signup"
-                className="text-sm font-medium bg-primary text-white px-4 py-1.5 rounded-sm hover:bg-primary-700 transition-colors"
+                className="text-sm font-medium bg-primary text-white px-4 rounded-sm hover:bg-primary-700 transition-colors min-h-[44px] inline-flex items-center"
               >
                 Get Started
               </Link>

@@ -140,7 +140,7 @@ export default function SignIn() {
                   <button
                     type="button"
                     onClick={switchToReset}
-                    className="text-xs hover:underline"
+                    className="text-xs hover:underline py-2 px-1 -my-2 -mx-1"
                     style={{ color: '#0F766E' }}
                   >
                     Forgot your password?
@@ -157,7 +157,7 @@ export default function SignIn() {
 
               <button
                 type="submit" disabled={loading}
-                className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full text-white text-sm font-medium py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ background: '#14B8A6' }}
                 onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
                 onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}
@@ -183,7 +183,7 @@ export default function SignIn() {
 
               <button
                 type="submit" disabled={loading}
-                className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full text-white text-sm font-medium py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ background: '#14B8A6' }}
                 onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = '#0F766E' }}
                 onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = '#14B8A6' }}

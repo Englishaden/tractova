@@ -589,7 +589,7 @@ export default function Glossary() {
           <span className="text-xs text-gray-400 font-medium mr-1">Pillar:</span>
           <button
             onClick={() => setPillar(null)}
-            className={`text-xs px-2.5 py-0.5 rounded border font-medium transition-colors ${
+            className={`text-xs px-3 py-1.5 rounded border font-medium transition-colors ${
               pillar === null
                 ? 'bg-gray-800 text-white border-gray-800'
                 : 'bg-gray-100 text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'
@@ -601,7 +601,7 @@ export default function Glossary() {
             <button
               key={key}
               onClick={() => setPillar(pillar === key ? null : key)}
-              className={`text-xs px-2.5 py-0.5 rounded border font-medium transition-colors ${
+              className={`text-xs px-3 py-1.5 rounded border font-medium transition-colors ${
                 pillar === key
                   ? PILLAR_ACTIVE[key]
                   : PILLAR_BADGE[key] + ' hover:opacity-80'
@@ -666,7 +666,7 @@ export default function Glossary() {
                           <button
                             key={r}
                             onClick={() => scrollToTerm(r)}
-                            className="text-xs hover:underline transition-colors"
+                            className="text-xs hover:underline transition-colors py-2 -my-1.5 px-1 -mx-0.5"
                             style={{ color: '#0F766E' }}
                             onMouseEnter={(e) => { e.currentTarget.style.color = '#0A1828' }}
                             onMouseLeave={(e) => { e.currentTarget.style.color = '#0F766E' }}

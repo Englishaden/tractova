@@ -178,7 +178,7 @@ export default function SignUp() {
             <button
               type="submit"
               disabled={loading || !agreed}
-              className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full text-white text-sm font-medium py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: '#14B8A6' }}
               onMouseEnter={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#0F766E' }}
               onMouseLeave={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#14B8A6' }}

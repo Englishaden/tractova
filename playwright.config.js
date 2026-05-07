@@ -99,6 +99,24 @@ export default defineConfig({
       testMatch: '**/mobile-pro.spec.js',
       dependencies: ['setup'],
     },
+    // 6. Mobile DEEP audit — beyond overflow. Tap-target sizing, font
+    // legibility, text truncation. Saves full-page screenshots to
+    // test-results/mobile-audit/<route>.png for visual review.
+    // Run via `npx playwright test --project=mobile-audit`.
+    {
+      name: 'mobile-audit',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 375, height: 667 },
+        userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      },
+      testMatch: '**/mobile-audit.spec.js',
+      // Slower than the overflow-only test — more DOM walks per route.
+      timeout: 45_000,
+    },
   ],
 
   // Auto-boot the Vite dev server before running tests; tear it down after.

@@ -105,7 +105,7 @@ export default function UpdatePassword() {
             <p className="text-xs text-gray-500 mt-1 mb-5 leading-relaxed">{linkErr}</p>
             <Link
               to="/signin"
-              className="inline-flex items-center justify-center w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors"
+              className="inline-flex items-center justify-center w-full text-white text-sm font-medium py-3 rounded-md transition-colors"
               style={{ background: '#14B8A6' }}
               onMouseEnter={(e) => e.currentTarget.style.background = '#0F766E'}
               onMouseLeave={(e) => e.currentTarget.style.background = '#14B8A6'}
@@ -159,7 +159,7 @@ export default function UpdatePassword() {
 
               <button
                 type="submit" disabled={loading || !ready}
-                className="w-full text-white text-sm font-medium py-2.5 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full text-white text-sm font-medium py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ background: '#14B8A6' }}
                 onMouseEnter={(e) => { if (!loading && ready) e.currentTarget.style.background = '#0F766E' }}
                 onMouseLeave={(e) => { if (!loading && ready) e.currentTarget.style.background = '#14B8A6' }}
