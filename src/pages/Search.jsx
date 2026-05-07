@@ -12,7 +12,6 @@ import RegulatoryActivityPanel from '../components/RegulatoryActivityPanel'
 import ComparableDealsPanel from '../components/ComparableDealsPanel'
 import CsMarketPanel from '../components/CsMarketPanel'
 import SpecificYieldPanel from '../components/SpecificYieldPanel'
-import CoverageBadge from '../components/CoverageBadge'
 import ArcGauge from '../components/ArcGauge.jsx'
 import MarketPositionPanel from '../components/MarketPositionPanel.jsx'
 import SiteControlCard from '../components/SiteControlCard.jsx'
@@ -21,16 +20,15 @@ import OfftakeCard from '../components/OfftakeCard.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
 import { Tooltip, TooltipTrigger, TooltipContent } from '../components/ui/Tooltip'
 import { useToast } from '../components/ui/Toast'
-import TractovaLoader from '../components/ui/TractovaLoader'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
-import { motion, useMotionValue, useSpring, animate as motionAnimate } from 'motion/react'
+import { motion, useMotionValue, useSpring } from 'motion/react'
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Market Position Panel — replaces the old mini state map
-// ─────────────────────────────────────────────────────────────────────────────
+// 2026-05-07 cleanup: dropped 16 leftover Search.jsx imports that
+// became orphans after Sprint 2.3 extracted the panels (each panel
+// now imports its own scoreEngine / revenueEngine helpers directly).
+// Kept only the helpers Search.jsx itself still references.
 
-import { STAGE_MODIFIERS, computeSubScores, computeDisplayScoreRange, getOfftakeCoverageStates, safeScore } from '../lib/scoreEngine'
-import { computeRevenueProjection, hasRevenueData, computeCIRevenueProjection, hasCIRevenueData, computeBESSProjection, hasBESSRevenueData, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
+import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import GlossaryLabel from '../components/ui/GlossaryLabel'

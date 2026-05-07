@@ -10,8 +10,6 @@
  * Geometry: 44 × 24 track, 18 × 18 dot, 3px gutter on both sides in both
  * states.
  */
-import React from 'react'
-
 export default function Toggle({ on, onChange, onClick, disabled = false, ariaLabel, size = 'md' }) {
   const dims =
     size === 'sm'

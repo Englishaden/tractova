@@ -17,8 +17,6 @@
  * V3 chrome: hairline border, paper or white bg, teal focus ring,
  * mono caps eyebrow label.
  */
-import React from 'react'
-
 export default function Select({
   label,
   hint,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 // Tractova-mark cameo — pops in from one randomized edge of the screen,
 // hovers in place with one of four randomized animation sets, then slides

@@ -18,7 +18,6 @@
  *
  * Numeric inputs auto-apply font-mono so digits look like terminal readouts.
  */
-import React from 'react'
 
 export default function Input({
   label,
