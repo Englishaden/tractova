@@ -23,6 +23,13 @@ export const INK_MUTED = '#5A6B7A'
 export const PAPER = '#FAFAF7'
 export const BORDER = '#E2E8F0'
 
+// Status pill colors — used by the digest's project card for the status
+// eyebrow on each saved project. Lifted out of send-digest.js so the alert
+// email can reuse them if it ever wants to render a status pill (Sprint 2.8).
+export const STATUS_ACTIVE = '#047857'
+export const STATUS_LIMITED = '#B45309'
+export const STATUS_NONE = '#B91C1C'
+
 export const FONT_SERIF = `'Source Serif 4', 'Source Serif Pro', Georgia, 'Times New Roman', serif`
 export const FONT_SANS  = `Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif`
 export const FONT_MONO  = `'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Courier New', monospace`

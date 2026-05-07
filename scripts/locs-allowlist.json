@@ -29,13 +29,6 @@
       "current_at_baseline": 679,
       "baseline_date": "2026-05-06",
       "note": "Health-summary action + freshness aggregator + per-source stats. Could split into api/data-health/{action,summary,freshness}.js. Target ceiling: 500."
-    },
-    {
-      "path": "api/send-digest.js",
-      "ceiling": 700,
-      "current_at_baseline": 641,
-      "baseline_date": "2026-05-06",
-      "note": "Mirrors send-alerts.js shape. Same decomposition approach (template + classifier extraction) applies. Target ceiling: 500."
     }
   ]
 }
