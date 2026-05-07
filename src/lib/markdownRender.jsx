@@ -1,9 +1,17 @@
-// ── Minimal markdown renderer for deal notes (J2 quick-win) ─────────────────
-// Block elements: # h2 / ## h3 / ### h4, - or * bullets, 1. numbered lists,
-// blank line = paragraph break.
-// Inline: **bold**, *italic*, `code`, [text](url).
-// Skipped (non-goals for the quick-win): tables, blockquotes, images, code
-// fences. Full OneNote-style multi-page editing is the deferred J2 follow-up.
+// Minimal markdown renderer for deal notes — used by YourDealSection's
+// side-by-side preview. Block: # h2 / ## h3 / ### h4, - or * bullets,
+// 1. numbered lists, blank line = paragraph break. Inline: **bold**,
+// *italic*, `code`, [text](url). Out of scope: tables, blockquotes,
+// images, code fences (deferred follow-up).
+
+/**
+ * Renders inline markdown (bold/italic/code/links) inside a single
+ * line. Returns an array of React nodes that can be placed inside any
+ * inline-text container (h-tag, p, li).
+ *
+ * @param {string} text
+ * @returns {Array<string|JSX.Element>}
+ */
 export function renderMarkdownInline(text) {
   if (!text) return text
   const parts = []
@@ -32,6 +40,14 @@ export function renderMarkdownInline(text) {
   return coalesced
 }
 
+/**
+ * Renders block-level markdown (headings + bullets + numbered lists +
+ * paragraphs). Returns a fragment of React elements suitable for
+ * dropping into a pre-styled prose container.
+ *
+ * @param {string} text
+ * @returns {JSX.Element|null}
+ */
 export function renderMarkdown(text) {
   if (!text || !text.trim()) return <p className="text-xs text-gray-400 italic">No notes yet.</p>
   const lines = text.split('\n')

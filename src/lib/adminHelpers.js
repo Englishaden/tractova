@@ -2,6 +2,13 @@
 // refactor. These have no React dependencies and are shared across the
 // extracted Admin tab components plus Admin.jsx itself.
 
+/**
+ * Classifies a refresh-data endpoint result into one of four health
+ * tiers used by the Admin Data Health UI.
+ *
+ * @param {object|null} val — endpoint summary (may have `sources` for multiplexed endpoints)
+ * @returns {'ok'|'stale-ok'|'partial'|'failed'} — see comment below for semantics
+ */
 export function endpointStatus(val) {
   // Returns 'ok' | 'stale-ok' | 'partial' | 'failed'
   //   ok        — everything fresh and healthy
@@ -28,6 +35,14 @@ export function endpointStatus(val) {
   return 'ok'
 }
 
+/**
+ * Renders a refresh-data result as plain text — used by the "Copy
+ * report" button on the Admin Data Health tab so admin can paste a
+ * status snapshot into Slack / email when something's off.
+ *
+ * @param {{startedAt?:string, totalMs?:number, ok?:boolean, endpoints?:object}} result
+ * @returns {string}
+ */
 export function buildReportText(result) {
   const lines = [
     `Tractova data refresh report`,
@@ -56,11 +71,24 @@ export function buildReportText(result) {
   return lines.join('\n')
 }
 
+/**
+ * Days elapsed since `dateStr`, rounded. Returns null for null input
+ * so the caller can render a placeholder.
+ * @param {string|null|undefined} dateStr — ISO datetime string
+ * @returns {number|null}
+ */
 export function daysSince(dateStr) {
   if (!dateStr) return null
   return Math.round((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
 
+/**
+ * Maps a day-count to a freshness-tier color. Two thresholds carve up
+ * the green / yellow / red bands; null days renders gray.
+ * @param {number|null} days
+ * @param {[number, number]} thresholds — [greenMax, yellowMax]
+ * @returns {'gray'|'green'|'yellow'|'red'}
+ */
 export function freshnessColor(days, thresholds) {
   if (days == null) return 'gray'
   if (days <= thresholds[0]) return 'green'

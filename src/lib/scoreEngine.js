@@ -152,6 +152,19 @@ function computeSiteSubScore(technology, availableLand, wetlandWarning) {
   return 60
 }
 
+/**
+ * Main entry point — computes the three sub-scores (offtake, ix, site)
+ * + per-axis coverage tier strings. Engine is LIVE (re-evaluated on
+ * every render) so an underlying data refresh propagates without any
+ * cache-invalidation step.
+ *
+ * @param {object|null} stateProgram — row from state_programs
+ * @param {object|null} countyData — { siteControl, geospatial, ... }
+ * @param {string} [stage] — project stage ('Prospecting' .. 'Operational') for stage modifiers
+ * @param {'Community Solar'|'C&I Solar'|'BESS'|'Hybrid'} [technology]
+ * @param {{totalProjects:number, totalMW:number, avgStudyMonths:number}|null} [ixQueueSummary] — when present, blends ±10 pts onto the curated IX baseline
+ * @returns {{offtake:number, ix:number, site:number, coverage:{offtake:'researched'|'fallback', ix:'live'|'curated', site:'live'|'researched'|'fallback'}}}
+ */
 export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null) {
   if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched', ix: 'curated', site: 'researched' } }
 
@@ -297,23 +310,37 @@ export const WEIGHT_SCENARIOS = {
 
 const DEFAULT_WEIGHTS = WEIGHT_SCENARIOS.default
 
+/**
+ * Weighted feasibility score from three sub-scores. Internal — assumes
+ * all three inputs are finite. Use safeScore at consumer boundaries.
+ *
+ * @param {number} offtake — 0-100 sub-score
+ * @param {number} ix — 0-100 sub-score
+ * @param {number} site — 0-100 sub-score
+ * @param {{offtake:number, ix:number, site:number}} [weights] — defaults to WEIGHT_SCENARIOS.default
+ * @returns {number} rounded weighted average
+ */
 export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
   return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site)
 }
 
-// 2026-05-05 (C4 fix): defensive wrapper. If any sub-score is non-numeric
-// (null / undefined / NaN — e.g., partial data, computeSubScores returned
-// fallback shape), returns null instead of NaN. Consumers can render '—'.
-//
-// Earlier this session a Library.jsx bug spread `coverage` (a string-keyed
-// object) as `weights` into computeDisplayScore, producing NaN that
-// poisoned every downstream aggregate (Portfolio Health, Geographic
-// Spread). The destructure was fixed at the source but defense-in-depth
-// here means future bugs of the same shape can't re-poison.
-//
-// Use safeScore in EVERY consumer that displays the result; reserve
-// computeDisplayScore for internal score math where you know all 3 inputs
-// are valid finite numbers.
+/**
+ * Defensive wrapper around computeDisplayScore. Returns null when any
+ * sub-score or weight component is non-finite. Use this in EVERY
+ * consumer that renders the result so a partial-data shape can't
+ * poison downstream aggregates.
+ *
+ * Background: an earlier Library.jsx bug spread `coverage` (a
+ * string-keyed object) as `weights`, producing NaN that propagated
+ * through Portfolio Health + Geographic Spread. The bug was fixed at
+ * source but this wrapper means the same shape can't re-bite.
+ *
+ * @param {number|null|undefined} offtake
+ * @param {number|null|undefined} ix
+ * @param {number|null|undefined} site
+ * @param {object} [weights]
+ * @returns {number|null}
+ */
 export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
   if (!Number.isFinite(offtake) || !Number.isFinite(ix) || !Number.isFinite(site)) return null
   if (!weights || !Number.isFinite(weights.offtake) || !Number.isFinite(weights.ix) || !Number.isFinite(weights.site)) return null
@@ -321,10 +348,16 @@ export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
   return Number.isFinite(result) ? result : null
 }
 
-// Returns { default, min, max, scenarios } showing the score under each of
-// the WEIGHT_SCENARIOS so users can see methodology sensitivity. If the
-// range is wide (e.g., 15+ pts), the project's verdict is sensitive to
-// methodology choice and worth flagging in the UI.
+/**
+ * Computes the score under each of the four WEIGHT_SCENARIOS so the UI
+ * can show methodology sensitivity. A wide spread (15+ pts) = the
+ * verdict is sensitive to weight choice and worth flagging.
+ *
+ * @param {number} offtake
+ * @param {number} ix
+ * @param {number} site
+ * @returns {{default:number, min:number, max:number, spread:number, scenarios:object}}
+ */
 export function computeDisplayScoreRange(offtake, ix, site) {
   const scenarios = {}
   let min = Infinity, max = -Infinity

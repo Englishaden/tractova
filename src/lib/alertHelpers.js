@@ -9,6 +9,18 @@ const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
 // "concern" color. Each alert also carries an `evidence` block (A.7) with
 // source-field changed, as-of timestamps, and source URL so the user can
 // trace the rationale, not just see "what."
+/**
+ * Compute the alerts for a saved project by diffing its at-save snapshot
+ * against the current live state_program + county data. Each alert has
+ * `level` (urgent / warning / info), `kind` (concern / data_update /
+ * neutral) for color taxonomy, and `evidence` (field, before, after,
+ * verifiedAt, sourceUrl) for the "why?" tooltip.
+ *
+ * @param {object} project — saved project row including the at-save snapshot fields
+ * @param {object} stateProgramMap — keyed by state id → live state_program row
+ * @param {object} [countyDataMap] — keyed by county_fips → live county_intelligence
+ * @returns {Array<{level, kind, title, detail, evidence?}>}
+ */
 export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
   const current = stateProgramMap[project.state]
   if (!current) return []
@@ -140,6 +152,15 @@ const ALERT_STYLES = {
   info:        { chip: 'bg-teal-50 border-teal-300 text-teal-800',         dot: 'bg-teal-500'    },
 }
 
+/**
+ * Picks a color palette for an alert chip based on `kind`. data_update
+ * alerts render emerald (good news!) so they don't share the amber/red
+ * concern palette and visually drown out actual concerns on the same
+ * project card.
+ *
+ * @param {{level:string, kind:string}} alert
+ * @returns {{bg:string, border:string, text:string, dot:string}}
+ */
 export function alertStyleFor(alert) {
   if (alert.kind === 'data_update') return ALERT_STYLES.data_update
   return ALERT_STYLES[alert.level] || ALERT_STYLES.info

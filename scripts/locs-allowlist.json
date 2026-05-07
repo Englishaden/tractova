@@ -1,0 +1,55 @@
+{
+  "_comment": "Per-file LOC ceilings for files currently exceeding the global budgets in lint-locs.mjs. Each entry is a documented exception with a target for future decomposition. CI fails if a file in this list grows BEYOND its ceiling. New files must stay under the global budget (1500 LOC for src/pages, 500 LOC for top-level api/*.js).",
+  "_review_cadence": "every Phase 2 follow-up sprint",
+  "exceptions": [
+    {
+      "path": "src/pages/Search.jsx",
+      "ceiling": 3100,
+      "current_at_baseline": 3038,
+      "baseline_date": "2026-05-06",
+      "note": "Reduced from 5,105 LOC in Sprint 2.3 (panels extracted). Further reduction possible by extracting LensScenarioRow, RevenueProjectionSection, SolarCostLineagePanel, and the page-level form state into a useLensRequest hook. Target ceiling: 1,500."
+    },
+    {
+      "path": "src/pages/Library.jsx",
+      "ceiling": 2800,
+      "current_at_baseline": 2703,
+      "baseline_date": "2026-05-06",
+      "note": "Reduced from 4,379 LOC in Sprint 2.4 (cards extracted). Remaining bulk: WeeklySummaryCard + EmptyStateOnboarding + the LibraryContent page component itself. Target ceiling: 1,500."
+    },
+    {
+      "path": "src/pages/Admin.jsx",
+      "ceiling": 2000,
+      "current_at_baseline": 1914,
+      "baseline_date": "2026-05-06",
+      "note": "Reduced from 3,425 LOC in Sprint 2.5 (tabs extracted). ComparableDealsTab, IXQueueTab, StagingTab, TestNotificationsTab still inline (their state is interlinked). Target ceiling: 1,500."
+    },
+    {
+      "path": "api/lens-insight.js",
+      "ceiling": 1100,
+      "current_at_baseline": 1003,
+      "baseline_date": "2026-05-06",
+      "note": "Reduced from 1,366 LOC in Sprint 2.2 (prompts + cache extracted). Remaining bulk: 10 routed handlers (handlePortfolio, handleCompare, etc.) + buildContext + parseInsightResponse. Each handler could move to api/handlers/_lens-{action}.js for a true thin router. Target ceiling: 500."
+    },
+    {
+      "path": "api/send-alerts.js",
+      "ceiling": 850,
+      "current_at_baseline": 802,
+      "baseline_date": "2026-05-06",
+      "note": "Email template + alert classification all in one file. Could extract email HTML templates to api/templates/alerts.js and alert-row classifier to api/lib/_alertClassifier.js. Target ceiling: 500."
+    },
+    {
+      "path": "api/data-health.js",
+      "ceiling": 700,
+      "current_at_baseline": 679,
+      "baseline_date": "2026-05-06",
+      "note": "Health-summary action + freshness aggregator + per-source stats. Could split into api/data-health/{action,summary,freshness}.js. Target ceiling: 500."
+    },
+    {
+      "path": "api/send-digest.js",
+      "ceiling": 700,
+      "current_at_baseline": 641,
+      "baseline_date": "2026-05-06",
+      "note": "Mirrors send-alerts.js shape. Same decomposition approach (template + classifier extraction) applies. Target ceiling: 500."
+    }
+  ]
+}

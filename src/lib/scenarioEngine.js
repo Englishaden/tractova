@@ -175,9 +175,16 @@ export function applyScenario(baseline, sliders) {
   return { inputs: merged, outputs }
 }
 
-// Slider configuration per tech — the UI uses this to render only the
-// applicable controls and to set min/max/step bounds. `baseline` value
-// becomes the slider's tick marker and starting position.
+/**
+ * Slider configuration per tech. The Scenario Studio UI calls this to
+ * render only the applicable controls and to derive proportional
+ * min/max bounds (e.g. capex slider spans 0.5×–2.0× baseline so the
+ * user has headroom on both sides). Returns the config array;
+ * disabled sliders include a `disabled: true` flag.
+ *
+ * @param {{technology:string, inputs:object}|null} baseline
+ * @returns {Array<{key:string, label:string, unit:string, baseline:number, min:number, max:number, step:number, format:Function, direction:'higher-better'|'lower-better'|'neutral', disabled?:boolean}>}
+ */
 export function getSliderConfig(baseline) {
   if (!baseline) return []
   const i = baseline.inputs

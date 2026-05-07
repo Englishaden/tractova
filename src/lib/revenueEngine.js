@@ -396,8 +396,16 @@ export function getSupportedStates() {
   return Object.entries(STATE_REVENUE_DATA).map(([id, d]) => ({ id, label: d.label }))
 }
 
-// rates: optional Supabase revenue_rates row (snake_case). If provided,
-// overrides the hardcoded fallback for this computation.
+/**
+ * Community-solar (CS) revenue projection — bill credit + REC + ITC,
+ * 25-year NPV at an 8% discount rate. Returns null on null/zero/negative
+ * MW or unsupported state.
+ *
+ * @param {string} stateId — USPS state code
+ * @param {number|string} mwAC — system size in MW AC
+ * @param {object} [rates] — optional Supabase revenue_rates row (snake_case); overrides the seeded fallback
+ * @returns {{stateId, stateLabel, mw, capacityFactor, annualMWh, billCreditRevenue, recRevenue, itcValueOneTime, itcAnnualized, itcTotalPct, annualGrossRevenue, revenuePerMW, npv25, installedCostPerWatt, installedCostTotal, notes, billCreditCentsKwh, recPerMwh}|null}
+ */
 export function computeRevenueProjection(stateId, mwAC, rates) {
   const data = (rates ? mapCSRates(rates) : null) || STATE_REVENUE_DATA[stateId]
   if (!data || !mwAC || mwAC <= 0) return null
@@ -457,6 +465,16 @@ export function hasCIRevenueData(stateId) {
   return stateId in CI_REVENUE_DATA
 }
 
+/**
+ * C&I (commercial / industrial) PPA revenue projection — retail rate
+ * × capacity factor × hours, plus REC adder + ITC. Used by the C&I
+ * Solar tech mode in the Lens form.
+ *
+ * @param {string} stateId
+ * @param {number|string} mwAC
+ * @param {object} [rates] — optional Supabase override
+ * @returns {object|null}
+ */
 export function computeCIRevenueProjection(stateId, mwAC, rates) {
   const data = (rates ? mapCIRates(rates) : null) || CI_REVENUE_DATA[stateId]
   if (!data || !mwAC || mwAC <= 0) return null
@@ -514,6 +532,17 @@ export function hasBESSRevenueData(stateId) {
   return stateId in BESS_REVENUE_DATA
 }
 
+/**
+ * BESS (battery energy storage) projection — capacity-market clearing
+ * × accreditation + demand-charge management + arbitrage. Highly
+ * state-dependent (CA + TX top markets; PNW limited).
+ *
+ * @param {string} stateId
+ * @param {number|string} mwAC — power rating in MW AC
+ * @param {number} [durationHrs=4] — battery duration in hours
+ * @param {object} [rates] — optional Supabase override
+ * @returns {object|null}
+ */
 export function computeBESSProjection(stateId, mwAC, durationHrs = 4, rates) {
   const data = (rates ? mapBESSRates(rates) : null) || BESS_REVENUE_DATA[stateId]
   if (!data || !mwAC || mwAC <= 0) return null
@@ -572,6 +601,17 @@ export function computeBESSProjection(stateId, mwAC, durationHrs = 4, rates) {
 }
 
 // ── Hybrid projection (solar + storage) ──────────────────────────────────────
+/**
+ * Hybrid (solar + storage) projection — composes computeRevenueProjection
+ * + computeBESSProjection with shared interconnection economics.
+ *
+ * @param {string} stateId
+ * @param {number} solarMW
+ * @param {number} storageMW
+ * @param {number} [durationHrs=4]
+ * @param {object} [rates] — optional Supabase override
+ * @returns {object|null}
+ */
 export function computeHybridProjection(stateId, solarMW, storageMW, durationHrs = 4, rates) {
   const csProj = computeRevenueProjection(stateId, solarMW, rates)
   const bessProj = computeBESSProjection(stateId, storageMW, durationHrs, rates)

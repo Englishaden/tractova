@@ -40,6 +40,9 @@ jobs:
       - name: Dependency audit (allowlist-aware)
         run: npm run lint:audit
 
+      - name: File-size budgets (allowlist-aware)
+        run: npm run lint:locs
+
       - name: Unit tests (Vitest)
         run: npm run test:unit
 

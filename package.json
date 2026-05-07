@@ -19,8 +19,9 @@
     "lint:citations": "node scripts/lint-citations.mjs",
     "lint:secrets": "node scripts/lint-secrets.mjs",
     "lint:audit": "node scripts/audit-check.mjs",
-    "verify": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run test:unit && npm run build && npm run test:smoke",
-    "verify:full": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run test:unit && npm run build && npm run test:smoke:all"
+    "lint:locs": "node scripts/lint-locs.mjs",
+    "verify": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run test:unit && npm run build && npm run test:smoke",
+    "verify:full": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run test:unit && npm run build && npm run test:smoke:all"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

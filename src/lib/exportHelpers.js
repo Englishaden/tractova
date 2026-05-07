@@ -3,6 +3,16 @@ import { computeRevenueProjection, hasRevenueData } from './revenueEngine'
 import { GLOSSARY_DEFINITIONS } from './glossaryDefinitions'
 import { getAlerts } from './alertHelpers'
 
+/**
+ * Builds the row array for the Library xlsx export. Each row maps a
+ * saved project to flat columns suitable for Excel — sub-scores,
+ * revenue projection, alert flags, lineage timestamps.
+ *
+ * @param {Array<object>} projects — saved project rows
+ * @param {object} stateProgramMap — keyed by state id
+ * @param {object} [countyDataMap] — keyed by county_fips
+ * @returns {Array<object>}
+ */
 export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
   const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
@@ -84,6 +94,13 @@ const METHODOLOGY_ROWS = [
   ['Demographics — LMI / AMI', 'Census ACS 5-Year Estimates', 'https://www.census.gov/programs-surveys/acs', 'County LMI %, AMI bands for CS subscriber-eligibility math'],
 ]
 
+/**
+ * Companion sheet appended to the xlsx export — explains the scoring
+ * methodology + tier framework + IX live-blend semantics.
+ *
+ * @param {object} XLSX — lazy-loaded xlsx package
+ * @returns {object} XLSX worksheet
+ */
 export function buildMethodologySheet(XLSX) {
   const header = ['Pillar / Component', 'Source', 'URL', 'Notes']
   const ws = XLSX.utils.aoa_to_sheet([header, ...METHODOLOGY_ROWS])
@@ -104,6 +121,13 @@ export function buildMethodologySheet(XLSX) {
 // Pulls from the same canonical source the in-app Glossary page uses. Three
 // columns: Term, Short definition, Long definition. Long defs run wide so
 // users can read them without clicking through to the app.
+/**
+ * Companion sheet — glossary of every Tractova-defined term referenced
+ * elsewhere in the workbook (Tier A/B/C, Feasibility Index, etc.).
+ *
+ * @param {object} XLSX — lazy-loaded xlsx package
+ * @returns {object} XLSX worksheet
+ */
 export function buildGlossarySheet(XLSX) {
   const header = ['Term', 'Definition', 'Detail']
   const rows = Object.values(GLOSSARY_DEFINITIONS).map(g => [g.title, g.short, g.long])

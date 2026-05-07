@@ -1,6 +1,11 @@
-// Compact USD formatter for the saved-scenarios chip + picker. Mirrors the
-// shape used inside ScenarioStudio so the same numbers read identically
-// across the studio and the project card. Pure / module-scope.
+/**
+ * Compact USD formatter for the saved-scenarios chip + picker. Mirrors
+ * the shape used inside ScenarioStudio so the same numbers read
+ * identically across the studio and the project card.
+ *
+ * @param {number|null|undefined} n
+ * @returns {string} '—' for null/undefined; '12.34M' for >= $1M; '456K' for >= $1K; locale-grouped integer otherwise
+ */
 export function formatLargeUSD(n) {
   if (n == null) return '—'
   const abs = Math.abs(n)

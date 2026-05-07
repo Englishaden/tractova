@@ -1,6 +1,15 @@
-// Market Intelligence Summary — pure logic
-// Extracted from Search.jsx (Plan C, Sprint 2.3) for reuse and to keep the
-// page-level component focused on composition rather than copy generation.
+/**
+ * Composes the headline + verdict + 3-bullet rationale block shown in
+ * MarketIntelligenceSummary. Pure function — same input always produces
+ * the same output, so the AI insight panel can fall back to this when
+ * the Anthropic call hasn't returned yet.
+ *
+ * Extracted from Search.jsx in Plan C Sprint 2.3 for reuse and to keep
+ * the page component focused on composition rather than copy generation.
+ *
+ * @param {{stateProgram:object, countyData:object, form:{mw, technology, stage, county}}} args
+ * @returns {{verdict:string, headline:string, bullets:string[]}|null}
+ */
 export function generateMarketSummary({ stateProgram, countyData, form }) {
   if (!stateProgram) return null
 
