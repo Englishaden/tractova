@@ -2,6 +2,7 @@ import { computeSubScores } from './scoreEngine'
 import { computeRevenueProjection, hasRevenueData } from './revenueEngine'
 import { GLOSSARY_DEFINITIONS } from './glossaryDefinitions'
 import { getAlerts } from './alertHelpers'
+import { IX_LABEL } from './statusMaps.js'
 
 /**
  * Builds the row array for the Library xlsx export. Each row maps a
@@ -14,8 +15,9 @@ import { getAlerts } from './alertHelpers'
  * @returns {Array<object>}
  */
 export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
+  // CS_LABEL is export-specific — uses 'None' instead of the canonical
+  // 'Closed' from statusMaps.js (export workbook readability convention).
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
-  const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
   return projects.map(p => {
     const sp = stateProgramMap[p.state] || {}
     const cd = countyDataMap[`${p.state}::${p.county}`] || null

@@ -4,9 +4,11 @@ import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
 import { getStateProgram, getCountyData } from '../lib/programData'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { IX_LABEL } from '../lib/statusMaps.js'
 import TractovaLoader from './ui/TractovaLoader'
 
-const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
+// CS_LABEL is local — uses 'None' for compare-tray brevity; the canonical
+// CS_STATUS_LABEL in statusMaps.js uses 'Closed' for chip labels.
 const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
 
 const CS_CLS = {

@@ -131,7 +131,10 @@ export const IX_STYLES = {
   hard:      'bg-orange-50 text-orange-700 border-orange-200',
   very_hard: 'bg-red-50 text-red-700 border-red-200',
 }
-export const IX_LABEL = { easy: 'Easy', moderate: 'Moderate', hard: 'Hard', very_hard: 'Very Hard' }
+// IX_LABEL + CS_STATUS_LABEL re-exported from src/lib/statusMaps.js (the
+// single source of truth for these maps). Re-export keeps existing
+// imports from this module (e.g. ProjectCard.jsx) working unchanged.
+export { IX_LABEL, CS_STATUS_LABEL } from '../lib/statusMaps.js'
 
 // ── CS status display ────────────────────────────────────────────────────────
 export const CS_STATUS_STYLES = {
@@ -140,7 +143,6 @@ export const CS_STATUS_STYLES = {
   pending: 'bg-blue-50 text-blue-700 border-blue-200',
   none:    'bg-red-50 text-red-700 border-red-200',
 }
-export const CS_STATUS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'Closed' }
 
 // ── Pipeline progress ────────────────────────────────────────────────────────
 export function PipelineProgress({ stage }) {

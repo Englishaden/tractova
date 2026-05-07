@@ -1,5 +1,6 @@
 import { Document, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer'
 import { SCENARIO_DISCLAIMER, formatScenarioSummary } from '../lib/scenarioEngine'
+import { IX_LABEL } from '../lib/statusMaps.js'
 
 // ── V3 Brand tokens ───────────────────────────────────────────────────────────
 // PDF-native fonts only (Times/Courier/Helvetica) so we avoid Font.register
@@ -35,17 +36,14 @@ const PIPELINE_STAGES = [
 ]
 const PIPELINE_SHORT = ['Prospect', 'Site Ctrl', 'Pre-Dev', 'Dev', 'NTP', 'Construct', 'Oper.']
 
+// PDF-specific verbose labels — intentionally different from the canonical
+// CS_STATUS_LABEL in src/lib/statusMaps.js (which uses 'Closed' for chips).
+// PDFs render full-text labels for offline-readable context.
 const CS_STATUS_LABEL = {
   active:  'Active',
   limited: 'Limited Capacity',
   pending: 'Pending Launch',
   none:    'No Program',
-}
-const IX_LABEL = {
-  easy:      'Easy',
-  moderate:  'Moderate',
-  hard:      'Hard',
-  very_hard: 'Very Hard',
 }
 
 // ── V3 Styles ─────────────────────────────────────────────────────────────────
