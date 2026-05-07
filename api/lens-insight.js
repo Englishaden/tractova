@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
-import { createClient } from '@supabase/supabase-js'
 import { applyCors } from './_cors.js'
 import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from './lib/_aiCacheLayer.js'
+import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { SYSTEM_PROMPT } from './prompts/system.js'
 import handlePortfolio from './handlers/_lens-portfolio.js'
 import handleCompare from './handlers/_lens-compare.js'
@@ -13,11 +13,6 @@ import handleUtilityOutreach from './handlers/_lens-utility-outreach.js'
 import handleClassifyDocket from './handlers/_lens-classify-docket.js'
 import handleMemoCreate from './handlers/_lens-memo-create.js'
 import handleMemoView from './handlers/_lens-memo-view.js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build structured context string from project data

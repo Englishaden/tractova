@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
 import { isAdminFromBearer } from './_admin-auth.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'
 import { APP_URL } from './templates/_emailTheme.js'
@@ -12,11 +11,7 @@ import {
   buildOpportunityAlertHtml,
   buildOpportunityText,
 } from './templates/_opportunityEmail.js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'alerts@tractova.com'

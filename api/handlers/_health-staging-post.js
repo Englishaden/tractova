@@ -2,12 +2,7 @@
  * Staging POST — approve/reject staged state_programs edits, promote to live
  * Action: 'staging' (POST)
  */
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 
 const PROMOTABLE_FIELDS = [
   'cs_status', 'cs_program', 'capacity_mw', 'lmi_required', 'lmi_percent',

@@ -2,12 +2,7 @@
  * Health Summary — bearer-token-gated, machine-readable system-health snapshot
  * Action: 'health-summary'
  */
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 
 // ── Health Summary (bearer-token, machine-readable) ─────────────────────────
 // Returns the full set of probes the weekly remote routine needs, in a

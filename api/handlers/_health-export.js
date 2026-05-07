@@ -2,12 +2,7 @@
  * Export — JSON snapshot of selected admin tables for backup/audit
  * Action: 'export'
  */
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 
 // ── Export tables ───────────────────────────────────────────────────────────
 const EXPORT_TABLES = [

@@ -1,14 +1,9 @@
 import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
 import { applyCors } from './_cors.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'
+import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 async function readBody(req) {
   if (req.body) return typeof req.body === 'string' ? JSON.parse(req.body) : req.body

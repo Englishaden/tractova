@@ -12,12 +12,11 @@
  * and api/_cors.js: ESM imports, JSDoc-style file header, leading
  * underscore in the filename to flag this as an internal helper.
  */
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 
-export const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+// Re-export so the 10 scraper files that already import `supabaseAdmin`
+// from this base module keep working without churn.
+export { supabaseAdmin }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stale tolerance for slow-moving Census ACS sources.

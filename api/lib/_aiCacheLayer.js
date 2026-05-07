@@ -11,16 +11,17 @@
  * Mirrors the helper-module convention used by api/_cors.js and
  * api/scrapers/_scraperBase.js: ESM imports, JSDoc-style file header,
  * leading underscore in the filename to flag this as an internal helper.
- * Re-instantiates the supabaseAdmin client at module load (single
- * createClient call) — same pattern as _scraperBase.js.
+ * Re-exports the shared `supabaseAdmin` client from `_supabaseAdmin.js`
+ * for callers that want both the cache helpers AND the client from one
+ * import path.
  */
-import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
+import { supabaseAdmin } from './_supabaseAdmin.js'
 
-export const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+// Re-export so existing callers that already imported `supabaseAdmin`
+// from this file (api/handlers/_lens-memo-create.js, _lens-memo-view.js)
+// keep working without a churn-y rename across all of them.
+export { supabaseAdmin }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AI response cache — shared across users, time-bounded

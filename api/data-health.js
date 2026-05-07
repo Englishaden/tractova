@@ -1,15 +1,10 @@
-import { createClient } from '@supabase/supabase-js'
 import { isAdminFromBearer } from './_admin-auth.js'
 import handleExport from './handlers/_health-export.js'
 import handleStagingGet from './handlers/_health-staging-get.js'
 import handleStagingPost from './handlers/_health-staging-post.js'
 import handleHealthSummary from './handlers/_health-summary.js'
 import handleFreshness from './handlers/_health-freshness.js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 // 2026-05-05 (C1): role-based check via profiles.role (migration 057) with

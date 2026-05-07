@@ -2,12 +2,7 @@
  * Staging GET — list pending/approved/rejected staging records with diffs
  * Action: 'staging' (GET)
  */
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 
 // ── Staging ─────────────────────────────────────────────────────────────────
 const PROMOTABLE_FIELDS = [

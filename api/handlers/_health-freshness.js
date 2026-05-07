@@ -2,12 +2,7 @@
  * Freshness — admin Mission Control dashboard payload (default action)
  * Action: '' (default) — freshness RPC + cron telemetry + drift + cs_status audit
  */
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 
 // ── Freshness (default) ─────────────────────────────────────────────────────
 export default async function handleFreshness(req, res) {

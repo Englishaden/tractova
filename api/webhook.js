@@ -1,11 +1,7 @@
 import Stripe from 'stripe'
-import { createClient } from '@supabase/supabase-js'
+import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 // Read raw body (required for Stripe signature verification)
 async function getRawBody(req) {

@@ -1,10 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
 import { isAdminFromBearer } from './_admin-auth.js'
-
-const supabaseAdmin = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Capacity Factor Refresh — Annual Cron
