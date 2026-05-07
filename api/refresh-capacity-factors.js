@@ -173,8 +173,6 @@ async function handlerInner(req, res) {
       } else {
         results.unchanged++
       }
-
-      console.log(`PVWatts ${stateId}: ${cfPct}% capacity factor`)
     } catch (err) {
       results.errors.push(`${stateId}: ${err.message}`)
       console.error(`PVWatts error for ${stateId}:`, err.message)

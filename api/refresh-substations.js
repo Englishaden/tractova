@@ -73,7 +73,6 @@ async function fetchEIAData() {
         utility: row.operator_name || row.operatorName || null,
       })
     }
-    console.log(`EIA: ${stateId} → ${rows.length} rows, ${stateResults.length} after filter`)
     return stateResults
   }))
 
