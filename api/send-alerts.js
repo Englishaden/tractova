@@ -1,5 +1,6 @@
 import { isAdminFromBearer } from './_admin-auth.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'
+import { axiomLog } from './lib/_axiomLog.js'
 import { APP_URL } from './templates/_emailTheme.js'
 import {
   STATUS_LABEL,
@@ -339,6 +340,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ sent: results.length, slack: slackResults, testMode, results })
   } catch (err) {
     console.error('Alerts error:', err)
+    axiomLog('error', 'send-alerts handler threw', {
+      route:    'api/send-alerts',
+      testMode,
+      error:    err.message,
+      stack:    err.stack?.slice(0, 2000),
+    })
     return res.status(500).json({ error: err.message })
   }
 }

@@ -1,5 +1,6 @@
 import { isAdminFromBearer } from './_admin-auth.js'
 import { applyCors } from './_cors.js'
+import { axiomLog } from './lib/_axiomLog.js'
 import { supabaseAdmin, applyStaleTolerance, logCronRun } from './scrapers/_scraperBase.js'
 import refreshLmi from './scrapers/_refresh-lmi.js'
 import refreshStateProgramsViaDsire from './scrapers/_refresh-state-programs.js'
@@ -139,6 +140,13 @@ export default async function handler(req, res) {
       await logCronRun(source, result, authMode, startedAt)
     } catch (err) {
       const errMsg = err?.message || String(err)
+      axiomLog('error', `refresh-data ${source} threw`, {
+        route:    'api/refresh-data',
+        source,
+        authMode,
+        error:    errMsg,
+        stack:    err?.stack?.slice(0, 2000),
+      })
       let result = { ok: false, error: errMsg, duration_ms: Date.now() - srcStart }
       result = await applyStaleTolerance(source, result)
       results[source] = result

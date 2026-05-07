@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { applyCors } from './_cors.js'
 import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from './lib/_aiCacheLayer.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { axiomLog } from './lib/_axiomLog.js'
 import { SYSTEM_PROMPT } from './prompts/system.js'
 import handlePortfolio from './handlers/_lens-portfolio.js'
 import handleCompare from './handlers/_lens-compare.js'
@@ -369,6 +370,15 @@ export default async function handler(req, res) {
   } catch (err) {
     clearTimeout(timeoutId)
     console.error('[lens-insight] error:', err.message)
+    axiomLog('error', 'lens-insight verdict path failed', {
+      route:  'api/lens-insight',
+      action: body.action || 'verdict',
+      state:  body.state,
+      county: body.county,
+      mw:     body.mw,
+      error:  err.message,
+      stack:  err.stack?.slice(0, 2000),
+    })
     return res.status(200).json({ insight: null, fallback: true, reason: `api_error: ${String(err.message || err).slice(0, 120)}` })
   }
 }

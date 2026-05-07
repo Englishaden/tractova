@@ -1,4 +1,5 @@
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { axiomLog } from './lib/_axiomLog.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'alerts@tractova.com'
@@ -125,6 +126,11 @@ export default async function handler(req, res) {
   } catch (err) {
     results.error = err.message
     console.error('Staleness check failed:', err)
+    axiomLog('error', 'check-staleness threw', {
+      route: 'api/check-staleness',
+      error: err.message,
+      stack: err.stack?.slice(0, 2000),
+    })
   }
 
   // ── Data Retention Cleanup ──────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { STATUS_LABEL, buildStateMap } from './lib/_alertClassifier.js'
 import { buildDigestHtml, buildDigestText } from './templates/_digestEmail.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { axiomLog } from './lib/_axiomLog.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'digest@tractova.com'
@@ -193,6 +194,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ sent: results.length, testMode, results })
   } catch (err) {
     console.error('Digest error:', err)
+    axiomLog('error', 'send-digest handler threw', {
+      route: 'api/send-digest',
+      error: err.message,
+      stack: err.stack?.slice(0, 2000),
+    })
     return res.status(500).json({ error: err.message })
   }
 }

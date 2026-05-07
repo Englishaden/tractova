@@ -1,5 +1,6 @@
 import { isAdminFromBearer } from './_admin-auth.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { axiomLog } from './lib/_axiomLog.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IX Queue Refresh Cron
@@ -294,6 +295,11 @@ export default async function handler(req, res) {
     return await handlerInner(req, res)
   } catch (err) {
     console.error('[refresh-ix-queue] uncaught:', err)
+    axiomLog('error', 'refresh-ix-queue uncaught', {
+      route: 'api/refresh-ix-queue',
+      error: err?.message,
+      stack: err?.stack?.slice(0, 2000),
+    })
     return res.status(500).json({
       error: err?.message || String(err),
       where: 'refresh-ix-queue',

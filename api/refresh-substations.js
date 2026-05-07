@@ -1,5 +1,6 @@
 import { isAdminFromBearer } from './_admin-auth.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { axiomLog } from './lib/_axiomLog.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Monthly Data Refresh Cron
@@ -229,6 +230,11 @@ export default async function handler(req, res) {
     return await handlerInner(req, res)
   } catch (err) {
     console.error('[refresh-substations] uncaught:', err)
+    axiomLog('error', 'refresh-substations uncaught', {
+      route: 'api/refresh-substations',
+      error: err?.message,
+      stack: err?.stack?.slice(0, 2000),
+    })
     return res.status(500).json({
       error: err?.message || String(err),
       where: 'refresh-substations',

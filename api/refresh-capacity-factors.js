@@ -1,5 +1,6 @@
 import { isAdminFromBearer } from './_admin-auth.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { axiomLog } from './lib/_axiomLog.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Capacity Factor Refresh — Annual Cron
@@ -78,6 +79,11 @@ export default async function handler(req, res) {
     return await handlerInner(req, res)
   } catch (err) {
     console.error('[refresh-capacity-factors] uncaught:', err)
+    axiomLog('error', 'refresh-capacity-factors uncaught', {
+      route: 'api/refresh-capacity-factors',
+      error: err?.message,
+      stack: err?.stack?.slice(0, 2000),
+    })
     return res.status(500).json({
       error: err?.message || String(err),
       where: 'refresh-capacity-factors',
