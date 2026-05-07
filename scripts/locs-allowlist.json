@@ -24,13 +24,6 @@
       "note": "Reduced from 3,425 LOC in Sprint 2.5 (tabs extracted). ComparableDealsTab, IXQueueTab, StagingTab, TestNotificationsTab still inline (their state is interlinked). Target ceiling: 1,500."
     },
     {
-      "path": "api/lens-insight.js",
-      "ceiling": 1100,
-      "current_at_baseline": 1003,
-      "baseline_date": "2026-05-06",
-      "note": "Reduced from 1,366 LOC in Sprint 2.2 (prompts + cache extracted). Remaining bulk: 10 routed handlers (handlePortfolio, handleCompare, etc.) + buildContext + parseInsightResponse. Each handler could move to api/handlers/_lens-{action}.js for a true thin router. Target ceiling: 500."
-    },
-    {
       "path": "api/send-alerts.js",
       "ceiling": 850,
       "current_at_baseline": 802,
