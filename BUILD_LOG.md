@@ -4,7 +4,134 @@
 
 ---
 
-## 🟢 Pickup — Plan D cleanup sweep DONE (post-Plan-C dedupe + dead code + file hygiene) → next: pick a feature direction (onboarding revamp, public/data folder cleanup, or new work)
+## 🟢 Pickup — Away-session: mobile-UX tap targets fixed + 23 orphan imports removed → next: Vercel Log Drain debug (env var not reaching Production) or pick a feature direction
+
+**Session 2026-05-07 (away-session, ~5 commits while Aden stepped
+away).** Aden granted run-permission for diagnostics + safe fixes
+explicitly excluding new code that breaks anything. Worked through:
+
+### 1. Dependabot major-bump fix (`a7f99b5`)
+
+Dependabot opened 7 PRs in the last cycle, 6 of which were breaking
+major-version bumps (react 18→19, react-dom 18→19, react-router-dom
+6→7, recharts 2→3, actions/checkout v3→v6, actions/setup-node v3→v6).
+Each failed `npm install` and produced red preview deployments.
+
+Updated `.github/dependabot.yml` with a wildcard
+`update-types: ['version-update:semver-major']` ignore rule for
+BOTH npm and github-actions update groups. Major upgrades now require
+deliberate migration sprints, not drive-by Dependabot PRs.
+
+### 2. Public → data folder move (`b0a44ed`)
+
+Moved 28 raw research files (xlsx + pdf + csv) from `public/` to
+gitignored `data/`. Verified zero URL references first (no
+`<a href>`, `fetch()`, `<img src>` in src/). Updated 7 scripts
+(probe-* + seed-cs-projects + seed-solar-cost-index + aggregate) to
+read from `data/` instead. revenueEngine.js doc-comment paths
+updated. Build dropped from 6.16s → 2.34s (Vite no longer scans
+the 28 files in public/).
+
+### 3. Axiom HTTPS-direct logging (`b752d11`)
+
+NEW `api/lib/_axiomLog.js` (102 LOC) — fire-and-forget POST to
+Axiom's HTTPS ingest API, silent fail-open if env vars not set.
+Wired into 8 critical handler error paths (webhook, lens-insight,
+4 cron handlers, send-alerts, send-digest, check-staleness).
+Manual probe (`scripts/probe-axiom.mjs`) confirms Axiom-side
+works (200 OK + event in Stream).
+
+**KNOWN ISSUE (Aden side):** Vercel functions aren't yet reaching
+Axiom — env var likely not scoped to Production environment, OR
+the deploy needs a forced redeploy with cache off so the new
+process.env.AXIOM_TOKEN value flows to running function instances.
+Test via `curl -X POST https://www.tractova.com/api/webhook -H "stripe-signature: bogus" -d "test"` — should return
+"Webhook Error: Unable to extract..." AND fire an axiom event
+within 60s. If event doesn't appear, check Vercel → Settings →
+Environment Variables → confirm both AXIOM_TOKEN + AXIOM_DATASET
+are scoped to Production, then redeploy with "Use existing build
+cache" UNchecked.
+
+### 4. Mobile UX: 44px tap targets (`69aa3a2`)
+
+NEW `tests/mobile-audit.spec.js` — deeper mobile audit beyond
+overflow detection. Walks each route at 375px and reports tap
+targets <44px (Apple HIG), fonts <12px (mobile readability),
+text truncated without ellipsis. Saves screenshots to
+`test-results/mobile-audit/` for visual review.
+
+Initial audit found 60+ tap targets <44px on Landing/Preview, 186
+on Glossary, 12 on Privacy/Terms. Fixed:
+- Header (`src/components/Nav.jsx`) — Sign In + Get Started buttons
+  bumped to explicit `min-h-[44px] inline-flex items-center`.
+  Affects every route. Was 32px / 40px tall.
+- Auth form submits (SignIn, SignUp, UpdatePassword) — `py-2.5` →
+  `py-3` (40px → 44px tall).
+- "Forgot your password?" inline link — added negative-margin'd
+  vertical padding so hit area is 32×138px without changing the
+  visible text size or layout.
+- Glossary filter chips — `text-xs px-2.5 py-0.5` → `text-xs
+  px-3 py-1.5` (22px → 32px tall).
+- Glossary "see also" related-term buttons — added padding to
+  expand hit area without disrupting inline-flex flow.
+
+Remaining tap-target flags are mostly intentional design choices
+(10px eyebrow labels on legal pages, inline body-text email links).
+All 16 mobile + smoke + unit tests still green.
+
+### 5. Static bug scan + 23 orphan imports removed (`1501988`)
+
+NEW `scripts/scan-bugs.mjs` — read-only static scan flagging
+broken imports, orphan imports, console.log drift, silent catches,
+TODOs, useEffect with no dep array. Run via `node scripts/scan-bugs.mjs`.
+
+Initial scan results:
+- 0 broken imports ✓
+- 0 console.log drift in src/ ✓
+- 0 TODO/FIXME markers ✓
+- 8 silent catches (verified intentional best-effort JSON parse
+  patterns in AI-response handlers)
+- 23 orphan imports — all leftovers from Sprint 2.3 decomposition
+
+Removed all 23 orphans (verified by grep — each truly single-
+occurrence in its file):
+- `src/pages/Search.jsx` (16): CoverageBadge, TractovaLoader,
+  motionAnimate, entire scoreEngine line (5 imports), 8 from
+  revenueEngine line (kept computeRevenueProjection + hasRevenueData
+  which are still referenced)
+- `src/pages/Library.jsx` (1): TechLabel
+- `src/components/shadcn/ui/{badge,card}.jsx` (2):
+  `import * as React` — redundant under Vite + React 18 auto-JSX
+- `src/components/ui/{Input,Select,Toggle}.jsx` (3): `import React`
+- `src/components/WalkingTractovaMark.jsx` (1): useRef
+
+Build dropped from 2.90s → 1.85s after the cleanup.
+
+### Aden-side queue when back
+
+1. **Axiom Log Drain** — debug Vercel-side env var scoping (likely
+   AXIOM_TOKEN or AXIOM_DATASET not on Production environment, OR
+   running function instances haven't been cold-restarted since env
+   vars were added). Force redeploy with "Use existing build cache"
+   UNchecked, then re-test via the curl above.
+2. **Close 6 Dependabot major-bump PRs** in GitHub UI — comment
+   `@dependabot close` or click "Close pull request". Future runs
+   won't re-open them now that .github/dependabot.yml blocks
+   major-version bumps wildcard.
+
+### Resume-prompt suggestions
+
+- *"Debug the Axiom env-var scoping then re-test"*
+- *"Close the 6 dependabot major-bump PRs"*
+- *"Start the onboarding revamp per ~/.claude/plans/huly-onboarding-revamp.md"*
+
+### Pre-existing pickup chain
+
+(See prior pickup section below for Plan D cleanup sweep.)
+
+---
+
+## Pickup (prior, 2026-05-06) — Plan D cleanup sweep DONE (post-Plan-C dedupe + dead code + file hygiene) → next: pick a feature direction (onboarding revamp, public/data folder cleanup, or new work)
 
 **Session 2026-05-06 (continuation, post Plan C).** After Plan C
 Phase 2 closed (5 mega-files decomposed + 4 API files tightened),
@@ -2266,6 +2393,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
+- **Branch:** `main` · last commit `1501988` static bug scan + 23 orphan imports removed (away-session). Mobile UX 44px tap targets fixed in header + auth forms + Glossary (`69aa3a2`). Dependabot now blocks all major-version bumps (`a7f99b5`). NEW scan tool `scripts/scan-bugs.mjs` — clean codebase: 0 broken imports / 0 orphans / 0 console.log drift / 0 TODOs. **Aden-side queue:** (1) debug Axiom env-var scoping (force Vercel redeploy with cache off, then re-test); (2) close 6 Dependabot major-bump PRs.
 - **Branch:** `main` · last commit `5cc5db7` Plan D.4. Plan D cleanup sweep complete (4 commits: D.1-D.4) on top of Plan C COMPLETE state. Single supabaseAdmin client (was 18); single statusMaps.js source for IX_LABEL + CS_STATUS_LABEL (was 5 inlines); 12 previously-untracked probe + site-walk files now in git; site review archived. lint coverage: 307 tracked files for secrets, 57 for api/**/*.js.
 - **Branch:** `main` · last commit `1e5bad5` Plan C Sprint 2.6. **Plan C COMPLETE** (Phase 0 + Phase 1 + Phase 2 all done, 9 commits this session). Migration 060 applied. Security 8.0 → ~9.3 / Engineering 6.5 → ~9.0 with measurable evidence (allowlist-aware audit, CSP + cross-origin, rate limits, webhook idempotency, 5 mega-files decomposed, JSDoc on hot exports, lint-locs CI gate). **Awaiting Aden:** (1) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (2) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
 - **Branch:** `main` · 4-session site-walk fix sweep complete (commits `a1c00dd`, `1268cbc`, `288b1be`, `19b2638`, `445bce9`, `a456cca`) closing ~35 of ~40 review items. Highlights: favicon + sub-header recolor, ambient-animation gutter-mask, Active/Pending/No Program + Site Control tooltips, scrollable Data Limitations modal, Dashboard freshness via cron_runs (matches Footer), Admin LIVE/CURATED/SEEDED freshness chips, state-baseline-vs-project score line in Lens, NWI/SSURGO percentages surfaced in Site Control tiles, scenario presets recalibrated + methodology tooltips, jump-to-glossary in CommandPalette, scenario-save Library confirmation card, source-link audit (4 broken URLs replaced), Compare AI collapsible + insightType + sub-score rows, Library Select-all, 18+ signup checkbox, Terms § 04 strengthened with civil-action language. Pending Aden's input: analyst-brief verbosity redesign, CSV/XLSX consolidation, hello@ DNS setup.
@@ -2343,6 +2471,11 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `1501988` | **Static bug scan + 23 orphan imports removed.** NEW `scripts/scan-bugs.mjs` — read-only scan for orphan imports, broken imports, console.log drift, silent catches, TODOs, useEffect-no-dep. Initial run found 0 broken / 0 console.log / 0 TODOs / 8 intentional silent catches / 23 orphan imports. All 23 orphans were leftovers from Sprint 2.3 decomposition (Search.jsx 16, Library.jsx 1, shadcn+ui 5, WalkingTractovaMark useRef). Removed. Build dropped 2.90s → 1.85s. |
+| `69aa3a2` | **Mobile UX: 44px tap targets on header + auth + Glossary.** NEW `tests/mobile-audit.spec.js` — deeper mobile audit beyond overflow (tap targets, font sizes, truncation). Header buttons (Sign In + Get Started) bumped to explicit `min-h-[44px]` (was 32-40px). Auth form submits `py-2.5 → py-3` (40 → 44px). Glossary filter chips `py-0.5 → py-1.5` (22 → 32px). "Forgot password" + "see also" inline links got negative-margin'd hit-area expansion. Remaining flags are intentional (10px legal-page eyebrows, inline body-text links). 16/16 mobile + smoke + unit tests still green. |
+| `a7f99b5` | **dependabot: block ALL major-version bumps for npm + GitHub Actions.** Hotfix. Dependabot opened 7 PRs in last cycle; 6 were breaking major bumps (react 18→19, react-dom 18→19, react-router-dom 6→7, recharts 2→3, actions/checkout v3→v6, actions/setup-node v3→v6) that failed `npm install`. Added wildcard `update-types: ['version-update:semver-major']` ignore rule. Major upgrades now require deliberate migration sprints. |
+| `b752d11` | **Observability: Axiom HTTPS-direct logging (Hobby alternative to Vercel Log Drains).** NEW `api/lib/_axiomLog.js` (102 LOC) — fire-and-forget POST to Axiom ingest API, silent fail-open if env vars not set. Wired into 8 critical handler error paths (webhook, lens-insight, 4 cron handlers, send-alerts, send-digest, check-staleness). Manual probe via `scripts/probe-axiom.mjs` confirms Axiom-side works (200 OK + event in Stream). Vercel-side env var scoping pending Aden-side debug. |
+| `b0a44ed` | **Move 28 research files from public/ to data/ (gitignored).** xlsx/pdf/csv reference data (EIA-860, NREL ATB, LBNL TTS, USPVDB, Sharing the Sun, state agency reports) moved to gitignored `data/` folder. Verified zero URL references first. Updated 7 scripts (probe + seed + aggregate) to read from new path. revenueEngine doc-comments updated. Build 6.16s → 2.34s (Vite no longer scans). |
 | `5cc5db7` | **Plan D.4** — File hygiene. Tracked 9 probe scripts (probe-atb, probe-cs-projects, probe-ix-staleness, probe-phase-b, probe-sharing-the-sun*, probe-state-programs-stale, probe-status-state, probe-tts) + scripts/site-walk.mjs + docs/site-walk-checklist.md. Archived "Full Manual Site Review.md" → `docs/archive/site-review-2026-05-03.md`. lint:secrets coverage 226 → 307 files. |
 | `b7b5198` | **Plan D.3** — Consolidate IX_LABEL + CS_STATUS_LABEL. NEW `src/lib/statusMaps.js` (single source of truth for chip labels). 5 src files updated: exportHelpers, CompareTray, ProjectPDFExport drop inline IX_LABEL const + import; Library.jsx replaces two inline exports with re-exports from statusMaps. Local intentional deviations preserved + documented (ProjectPDFExport verbose PDF labels; exportHelpers + CompareTray's `CS_LABEL = 'None'` brevity; alertHelpers + Search.jsx `IX_RANK` local with different sort orders). |
 | `bb160a3` | **Plan D.2** — Consolidate supabaseAdmin client. NEW `api/lib/_supabaseAdmin.js` (single `export const supabaseAdmin = createClient(...)`). 18 inline-instantiating files updated to import from it. _aiCacheLayer.js + _scraperBase.js re-export so callers that already imported from those base modules keep working. Net -57 lines. Behavior unchanged — Vercel Fluid Compute reuses module instances anyway. |
