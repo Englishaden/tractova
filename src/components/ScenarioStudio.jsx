@@ -349,18 +349,26 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
                 delta={out.paybackDelta != null && Math.abs(out.paybackDelta) > 0.1 ? -out.paybackDelta : null}
                 format="years"
               />
+              {/* IRR / Equity IRR display: dash when ≤ 0. Newton-Raphson on
+                  near-degenerate cashflows (DSCR ~1.0, project IRR near the
+                  debt rate) is numerically unstable — small slider moves
+                  flip equity IRR between '—' and the −50% clamp value
+                  without a meaningful gradient. The dash convention also
+                  matches the OfftakeCard panel rule (G.4): a negative
+                  return rate doesn't communicate useful directional info,
+                  payback / NPV / DSCR deltas already do that work. */}
               <MetricCell
                 term="IRR"
-                value={out.irr != null ? `${(out.irr * 100).toFixed(1)}%` : '—'}
+                value={out.irr != null && out.irr > 0 ? `${(out.irr * 100).toFixed(1)}%` : '—'}
                 suffix="project"
-                delta={out.irrDelta != null && Math.abs(out.irrDelta) > 0.001 ? out.irrDelta : null}
+                delta={out.irr != null && out.irr > 0 && out.irrDelta != null && Math.abs(out.irrDelta) > 0.001 ? out.irrDelta : null}
                 format="irrPct"
               />
               <MetricCell
                 term="Equity IRR"
-                value={out.equityIrr != null ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'}
+                value={out.equityIrr != null && out.equityIrr > 0 ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'}
                 suffix="70/30 lev"
-                delta={out.equityIrrDelta != null && Math.abs(out.equityIrrDelta) > 0.001 ? out.equityIrrDelta : null}
+                delta={out.equityIrr != null && out.equityIrr > 0 && out.equityIrrDelta != null && Math.abs(out.equityIrrDelta) > 0.001 ? out.equityIrrDelta : null}
                 format="irrPct"
               />
               <MetricCell

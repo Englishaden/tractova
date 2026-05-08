@@ -278,8 +278,8 @@ function ScenarioSection({ scenario }) {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
         <ScenarioMetricTile label="Year 1 Revenue" value={`$${formatLargeUSD(out.year1Revenue)}`} suffix="/yr" />
         <ScenarioMetricTile label="Simple Payback" value={out.paybackYears != null ? `${out.paybackYears} yr` : '—'} />
-        <ScenarioMetricTile label="IRR · project" value={out.irr != null ? `${(out.irr * 100).toFixed(1)}%` : '—'} />
-        <ScenarioMetricTile label="IRR · equity" value={out.equityIrr != null ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'} />
+        <ScenarioMetricTile label="IRR · project" value={out.irr != null && out.irr > 0 ? `${(out.irr * 100).toFixed(1)}%` : '—'} />
+        <ScenarioMetricTile label="IRR · equity" value={out.equityIrr != null && out.equityIrr > 0 ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'} />
         <ScenarioMetricTile label="NPV" value={out.npv != null ? `$${formatLargeUSD(out.npv)}` : '—'} />
         <ScenarioMetricTile label="DSCR" value={out.dscr != null ? `${out.dscr.toFixed(2)}x` : '—'} />
         <ScenarioMetricTile label="LCOE" value={out.lcoe != null ? `$${out.lcoe.toFixed(0)}` : '—'} suffix="/MWh" />
