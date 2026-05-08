@@ -1,5 +1,6 @@
 import { computeCIRevenueProjection, computeBESSProjection, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
 import { computeBaseline } from '../lib/scenarioEngine'
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
 import RevenueStackBar from './RevenueStackBar'
@@ -301,14 +302,22 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           card. PPA + retail rates anchor on EIA Form 861 +
                           Lazard LCOE+ v18 — utility tariffs change quarterly,
                           so the savings % can drift. Mirrors BESS pattern. */}
-                      <div className="px-4 pt-2.5 pb-1 flex items-center gap-2" style={{ background: 'rgba(37,99,235,0.05)' }}>
-                        <span
-                          className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0"
-                          style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
-                          title="C&I capex anchors on NREL CS MMP -$0.05 + LBNL TTS 2024; PPA + retail rates retained from prior 2025-Q2 EIA Form 861. Utility tariffs change quarterly — verify current PUC tariff filings before committing."
-                        >
-                          ◆ Rates as of {CI_RATES_AS_OF.split('+')[0].trim()}
-                        </span>
+                      <div className="px-4 pt-2.5 pb-1 flex items-center gap-2 flex-wrap" style={{ background: 'rgba(37,99,235,0.05)' }}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span
+                              className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0 cursor-help"
+                              style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
+                            >
+                              ◆ Rates as of {CI_RATES_AS_OF.split('+')[0].trim()}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" align="start" className="text-[11px] max-w-xs leading-relaxed">
+                            <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>C&amp;I rates lineage</p>
+                            <p className="mb-1.5">{CI_RATES_AS_OF}</p>
+                            <p className="text-gray-300">Utility tariffs change quarterly — verify current PUC tariff filings before committing.</p>
+                          </TooltipContent>
+                        </Tooltip>
                         <span className="text-[10px] text-gray-500 leading-tight">verify utility tariff before committing</span>
                       </div>
                       <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(37,99,235,0.05)' }}>
@@ -376,14 +385,22 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           so the vintage IS the trust anchor. Surface it before
                           the number, not after. */}
                       {proj.ratesAsOf && (
-                        <div className="px-4 pt-2.5 pb-1 flex items-center gap-2" style={{ background: 'rgba(124,58,237,0.05)' }}>
-                          <span
-                            className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0"
-                            style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
-                            title="BESS rates anchor on 2025/26 ISO clearing × 4hr accreditation + NREL ATB 2024 capex. Demand charge + arbitrage components remain seeded synthesis. Verify against your ISO's most recent capacity-market clearing results before committing capital."
-                          >
-                            ◆ Rates as of {proj.ratesAsOf}
-                          </span>
+                        <div className="px-4 pt-2.5 pb-1 flex items-center gap-2 flex-wrap" style={{ background: 'rgba(124,58,237,0.05)' }}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0 cursor-help"
+                                style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
+                              >
+                                ◆ Rates as of {proj.ratesAsOf.split('+')[0].trim()}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" align="start" className="text-[11px] max-w-sm leading-relaxed">
+                              <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>BESS rates lineage</p>
+                              <p className="mb-1.5">{proj.ratesAsOf}</p>
+                              <p className="text-gray-300">Capacity-market prices swing 2-9× YoY — verify your ISO's most recent clearing results before committing capital.</p>
+                            </TooltipContent>
+                          </Tooltip>
                           <span className="text-[10px] text-gray-500 leading-tight">verify ISO clearing before committing</span>
                         </div>
                       )}

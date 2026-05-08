@@ -7,12 +7,18 @@
 // Capital structure assumed: 70/30 debt:equity, 6.5% all-in rate, 18-yr
 // amortization (typical IPP project finance norms — documented in
 // scenarioEngine.js INDUSTRY_BASELINE).
+//
+// Display rule: any IRR ≤ 0 renders as '—'. A negative or zero return on
+// the headline panel is noise — underwriters care about whether the deal
+// pencils, not by how much it doesn't. The Scenario Studio still shows
+// raw negative values because there the user is sensitivity-testing
+// directional impact and "−5% from baseline" is a real signal.
 export default function LeveragedReturnsRow({ outputs, accentColor = '#0F766E' }) {
   if (!outputs) return null
   const { irr, equityIrr, dscr } = outputs
   if (irr == null && equityIrr == null && dscr == null) return null
 
-  const fmtPct  = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`)
+  const fmtPct  = (v) => (v == null || v <= 0 ? '—' : `${(v * 100).toFixed(1)}%`)
   const fmtDscr = (v) => (v == null ? '—' : `${v.toFixed(2)}x`)
   // Lender threshold convention: <1.20 = tight, >=1.30 = healthy.
   const dscrColor = dscr == null ? accentColor : dscr < 1.20 ? '#DC2626' : dscr >= 1.30 ? '#059669' : '#D97706'
