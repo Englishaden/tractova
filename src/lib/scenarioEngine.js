@@ -83,6 +83,10 @@ export const SCENARIO_PRESETS = {
     apply: (b) => ({
       systemSizeMW:    b.systemSizeMW,
       capexPerWatt:    b.capexPerWatt   != null ? round2(b.capexPerWatt   * 0.85) : null,
+      // BESS capex (NREL ATB 2024 P10 — same band as utility-PV: ~−15%
+      // reflects the 2030 cost trajectory + supply-chain optimization
+      // toward $200-300/kWh.)
+      capexPerKwh:     b.capexPerKwh    != null ? Math.round(b.capexPerKwh   * 0.85) : null,
       ixCostPerWatt:   b.ixCostPerWatt  != null ? round2(b.ixCostPerWatt  * 0.70) : null,
       capacityFactor:  b.capacityFactor != null ? Math.min(0.28, b.capacityFactor * 1.05) : null,
       recPricePerMwh:  b.recPricePerMwh != null ? Math.round(b.recPricePerMwh * 1.15) : null,
@@ -95,6 +99,9 @@ export const SCENARIO_PRESETS = {
     apply: (b) => ({
       systemSizeMW:    b.systemSizeMW,
       capexPerWatt:    b.capexPerWatt   != null ? round2(b.capexPerWatt   * 1.20) : null,
+      // BESS capex (NREL ATB 2024 P90 — supply-chain shock / tariff push
+      // pushes 4-hr BESS capex toward $480-500/kWh.)
+      capexPerKwh:     b.capexPerKwh    != null ? Math.round(b.capexPerKwh   * 1.20) : null,
       ixCostPerWatt:   b.ixCostPerWatt  != null ? round2(b.ixCostPerWatt  * 2.50) : null,
       capacityFactor:  b.capacityFactor != null ? Math.max(0.12, b.capacityFactor * 0.92) : null,
       recPricePerMwh:  b.recPricePerMwh != null ? Math.round(b.recPricePerMwh * 0.85) : null,
@@ -342,8 +349,34 @@ export function getSliderConfig(baseline) {
     ]
   }
 
-  // BESS — only size + capex/kWh + IX + lifecycle sliders matter.
-  return [...common, ...lifecycleSliders]
+  // BESS — drop the $/W capex slider (not how BESS is priced) and swap
+  // in a $/kWh slider. Range anchored on NREL ATB 2024 utility-scale
+  // 4-hr BESS: 2024 baseline ~$350-420/kWh, 2030 trajectory ~$200/kWh
+  // (best case), tariff/supply-chain shock ~$700-800/kWh (worst case).
+  // baseline×0.5 to baseline×2 brackets that comfortably; floor clamped
+  // at $150/kWh (NREL ATB 2030 advanced floor + safety margin).
+  const bessCommon = common.filter(s => s.key !== 'capexPerWatt')
+  const capexPerKwhSlider = {
+    key: 'capexPerKwh',
+    label: 'Capex',
+    unit: '$/kWh',
+    baseline: i.capexPerKwh,
+    min: i.capexPerKwh != null ? Math.max(150, Math.round(i.capexPerKwh * 0.50)) : 200,
+    max: i.capexPerKwh != null ? Math.round(i.capexPerKwh * 2.00) : 700,
+    step: 5,
+    format: (v) => v == null ? '—' : `$${v.toFixed(0)}/kWh`,
+    direction: 'lower-better',
+    disabled: i.capexPerKwh == null,
+  }
+  // Insert the $/kWh capex slider where capexPerWatt sat in `common`
+  // (after systemSizeMW) so the visual ordering stays System → Capex → IX.
+  const sysIdx = bessCommon.findIndex(s => s.key === 'systemSizeMW')
+  const ordered = [
+    ...bessCommon.slice(0, sysIdx + 1),
+    capexPerKwhSlider,
+    ...bessCommon.slice(sysIdx + 1),
+  ]
+  return [...ordered, ...lifecycleSliders]
 }
 
 // Format a one-line summary of a scenario for chip + memo rendering.
@@ -354,8 +387,11 @@ export function formatScenarioSummary(scenario, baseline) {
   const i = scenario.inputs
   const b = baseline.inputs
   parts.push(`${(i.systemSizeMW ?? 0).toFixed(1)} MW`)
-  if (i.capexPerWatt != null && Math.abs((i.capexPerWatt - b.capexPerWatt) / b.capexPerWatt) > 0.01) {
+  if (i.capexPerWatt != null && b.capexPerWatt && Math.abs((i.capexPerWatt - b.capexPerWatt) / b.capexPerWatt) > 0.01) {
     parts.push(`$${i.capexPerWatt.toFixed(2)}/W capex`)
+  }
+  if (i.capexPerKwh != null && b.capexPerKwh && Math.abs((i.capexPerKwh - b.capexPerKwh) / b.capexPerKwh) > 0.01) {
+    parts.push(`$${i.capexPerKwh.toFixed(0)}/kWh capex`)
   }
   if (i.ixCostPerWatt != null && Math.abs((i.ixCostPerWatt - b.ixCostPerWatt) / Math.max(b.ixCostPerWatt, 0.01)) > 0.05) {
     parts.push(`$${i.ixCostPerWatt.toFixed(2)}/W IX`)
@@ -415,7 +451,8 @@ function extractInputs(tech, raw) {
     return {
       systemSizeMW: raw.mw,
       capacityFactor: null,
-      capexPerWatt: null,  // BESS uses $/kWh — handled internally
+      capexPerWatt: null,           // BESS prices in $/kWh (energy capacity), not $/W
+      capexPerKwh: raw.installedCostPerKwh,  // NREL ATB 2024 utility-scale 4-hr BESS
       recPricePerMwh: 0,
       ...common,
     }
@@ -526,15 +563,21 @@ function computeCIOutputs(raw, inputs, baseOutputs) {
 
 function computeBESSOutputs(raw, inputs, baseOutputs) {
   // BESS revenue scales linearly with MW (capacity, demand, arbitrage all
-  // scale 1:1). CF + REC are not applicable. Capex/kWh is fixed in raw.
+  // scale 1:1). CF + REC are not applicable. Capex per kWh is now slider-
+  // overridable: scale the baseline installed-cost dollars by the ratio of
+  // the override $/kWh to the raw NREL-ATB-anchored baseline.
   const mw = num(inputs.systemSizeMW)
   const ix = num(inputs.ixCostPerWatt)
+  const capexPerKwh = num(inputs.capexPerKwh)
   const baselineMW = raw.mw || 1
   const scale = baselineMW > 0 ? mw / baselineMW : 0
+  const baselineCapexPerKwh = raw.installedCostPerKwh || capexPerKwh || 1
+  const capexRatio = baselineCapexPerKwh > 0 ? capexPerKwh / baselineCapexPerKwh : 1
 
   const year1Revenue = (raw.annualGrossRevenue || 0) * scale
-  const installedCostTotal = (raw.installedCostTotal || 0) * scale
-  const itcAnnualized = ((raw.itcAnnualized || 0)) * scale
+  const installedCostTotal = (raw.installedCostTotal || 0) * scale * capexRatio
+  // ITC value tracks installed cost — moving capex moves the tax credit too.
+  const itcAnnualized = ((raw.itcAnnualized || 0)) * scale * capexRatio
   const ixCostTotal = mw * 1_000_000 * ix
   const totalDevCost = installedCostTotal + ixCostTotal
   const paybackYears = year1Revenue > 0 ? totalDevCost / year1Revenue : null

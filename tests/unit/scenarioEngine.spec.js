@@ -21,7 +21,8 @@ const baseBESS = (overrides = {}) => ({
   technology: 'bess',
   inputs: {
     systemSizeMW: 5,
-    capexPerWatt: 1.40,
+    capexPerWatt: null,           // BESS prices in $/kWh, not $/W
+    capexPerKwh: 400,             // NREL ATB 2024 utility-scale 4-hr (NY-equivalent)
     ixCostPerWatt: 0.12,
     opexPerKwYear: 18,
     discountRate: 0.08,
@@ -89,6 +90,49 @@ describe('getSliderConfig — IX cost slider', () => {
     const ix = findSlider(cfg, 'ixCostPerWatt')
     // 0.05 * 3.00 = 0.15, floor at 0.50
     expect(ix.max).toBe(0.50)
+  })
+})
+
+describe('getSliderConfig — BESS $/kWh capex slider (F.8)', () => {
+  it('BESS gets a $/kWh slider, not a $/W slider', () => {
+    const cfg = getSliderConfig(baseBESS())
+    expect(findSlider(cfg, 'capexPerKwh')).toBeDefined()
+    expect(findSlider(cfg, 'capexPerWatt')).toBeUndefined()
+  })
+
+  it('range is baseline × 0.5 to baseline × 2 (NREL ATB 2024 P10/P90 envelope)', () => {
+    const cfg = getSliderConfig(baseBESS({ capexPerKwh: 400 }))
+    const capex = findSlider(cfg, 'capexPerKwh')
+    expect(capex.min).toBe(200)   // 400 × 0.5
+    expect(capex.max).toBe(800)   // 400 × 2.0
+    expect(capex.unit).toBe('$/kWh')
+    expect(capex.direction).toBe('lower-better')
+  })
+
+  it('floor clamps at $150/kWh (2030 NREL advanced + safety margin)', () => {
+    // very low baseline shouldn't push the floor below $150/kWh
+    const cfg = getSliderConfig(baseBESS({ capexPerKwh: 200 }))
+    const capex = findSlider(cfg, 'capexPerKwh')
+    expect(capex.min).toBe(150)
+  })
+
+  it('disables + falls back when baseline is null', () => {
+    const cfg = getSliderConfig(baseBESS({ capexPerKwh: null }))
+    const capex = findSlider(cfg, 'capexPerKwh')
+    expect(capex.disabled).toBe(true)
+    expect(capex.format(null)).toBe('—')
+  })
+
+  it('format uses $/kWh, no decimals', () => {
+    const cfg = getSliderConfig(baseBESS())
+    const capex = findSlider(cfg, 'capexPerKwh')
+    expect(capex.format(380)).toBe('$380/kWh')
+  })
+
+  it('CS does NOT get a $/kWh slider (would confuse users)', () => {
+    const cfg = getSliderConfig(baseSolar())
+    expect(findSlider(cfg, 'capexPerKwh')).toBeUndefined()
+    expect(findSlider(cfg, 'capexPerWatt')).toBeDefined()
   })
 })
 
