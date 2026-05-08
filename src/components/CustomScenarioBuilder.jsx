@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { computeScoreDelta } from '../pages/Search.jsx'
+import { computeScoreDelta } from '../lib/searchShared.jsx'
 
 // ── Custom Scenario Builder ─────────────────────────────────────────────────
 export default function CustomScenarioBuilder({ stateProgram, technology }) {

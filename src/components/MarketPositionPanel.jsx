@@ -3,7 +3,7 @@ import ArcGauge from './ArcGauge.jsx'
 import CoverageBadge from './CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import SubScoreBar from './SubScoreBar'
-import { STATUS_CFG, getMarketRank } from '../pages/Search.jsx'
+import { STATUS_CFG, getMarketRank } from '../lib/searchShared.jsx'
 
 // V3 redesign: editorial-intelligence "research note" hero block.
 // Drops the dark gradient banner. Mono eyebrow strip up top with metadata,

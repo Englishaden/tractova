@@ -10,7 +10,7 @@ import {
   computeScoreDelta,
   buildSensitivityScenarios,
   CHIP_COLORS,
-} from '../pages/Search.jsx'
+} from '../lib/searchShared.jsx'
 
 // §7.4: scenario state lifted to SearchContent; we read it from props now.
 export default function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading, ixQueueSummary }) {

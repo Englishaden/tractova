@@ -1,6 +1,6 @@
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
-import { SectionLabel } from '../pages/Search.jsx'
+import { SectionLabel } from '../lib/searchShared.jsx'
 
 export default function RevenueProjectionSection({ stateId, mw, rates }) {
   const proj = computeRevenueProjection(stateId, mw, rates)

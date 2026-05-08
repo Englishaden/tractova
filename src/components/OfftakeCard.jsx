@@ -9,7 +9,7 @@ import {
   DataRow,
   CSStatusBadge,
   RunwayBadge,
-} from '../pages/Search.jsx'
+} from '../lib/searchShared.jsx'
 
 export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
-import { buildSensitivityScenarios } from '../pages/Search.jsx'
+import { buildSensitivityScenarios } from '../lib/searchShared.jsx'
 import CustomScenarioInline from './CustomScenarioInline'
 
 // V3 §7.4: Scenario toggle row — sits directly under MarketPositionPanel.
