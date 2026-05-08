@@ -1,8 +1,9 @@
 import { computeRevenueProjection, hasRevenueData } from '../lib/revenueEngine'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import { SectionLabel } from '../lib/searchShared.jsx'
+import LeveragedReturnsRow from './LeveragedReturnsRow'
 
-export default function RevenueProjectionSection({ stateId, mw, rates }) {
+export default function RevenueProjectionSection({ stateId, mw, rates, lifecycleOutputs = null }) {
   const proj = computeRevenueProjection(stateId, mw, rates)
   if (!proj) {
     if (!hasRevenueData(stateId)) return null
@@ -98,6 +99,8 @@ export default function RevenueProjectionSection({ stateId, mw, rates }) {
             <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv25)}</span>
           </div>
         </div>
+
+        <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#0F766E" />
 
         {/* Source note */}
         <div className="px-4 py-2 border-t border-gray-100">

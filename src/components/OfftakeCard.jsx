@@ -1,9 +1,11 @@
 import { computeCIRevenueProjection, computeBESSProjection, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
+import { computeBaseline } from '../lib/scenarioEngine'
 import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
 import RevenueStackBar from './RevenueStackBar'
 import RevenueProjectionSection from './RevenueProjectionSection'
 import SolarCostLineagePanel from './SolarCostLineagePanel'
+import LeveragedReturnsRow from './LeveragedReturnsRow'
 import {
   SectionLabel,
   DataRow,
@@ -15,6 +17,15 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
+
+  // Compute project-finance metrics (IRR project, IRR equity, DSCR) once
+  // so we can render LeveragedReturnsRow inside each tech panel without
+  // duplicating the work. computeBaseline returns null if state+tech has
+  // no curated revenue data — the row hides cleanly in that case.
+  const lifecycleBaseline = stateProgram?.id && mw
+    ? computeBaseline({ stateId: stateProgram.id, technology, mw, rates })
+    : null
+  const lifecycleOutputs = lifecycleBaseline?.outputs ?? null
 
   return (
     <CollapsibleCard
@@ -272,7 +283,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
             )}
 
             {/* Revenue Projection — quantitative $/MW estimate */}
-            <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} rates={rates} />
+            <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} rates={rates} lifecycleOutputs={lifecycleOutputs} />
           </>
         ) : (
           /* Non-CS technology — structured analysis per tech type */
@@ -332,6 +343,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv25)}</span>
                         </div>
                       </div>
+                      <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#2563EB" />
                       <div className="px-4 py-2 border-t border-gray-100">
                         <p className="text-[9px] text-gray-400">C&I success depends on anchor tenant credit quality and contract length. PPA rates are state-level estimates.</p>
                       </div>
@@ -421,6 +433,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv15)}</span>
                         </div>
                       </div>
+                      <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#7C3AED" />
                       <div className="px-4 py-2 border-t border-gray-100">
                         <p className="text-[9px] text-gray-400">Revenue depends on {proj.isoRegion} capacity market pricing — historically volatile. 15-year NPV reflects battery lifecycle. (Rate vintage shown at top of card.)</p>
                       </div>
@@ -482,6 +495,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.storageNpv15)}</span>
                         </div>
                       </div>
+                      <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#059669" />
                       <div className="px-4 py-2 border-t border-gray-100">
                         <p className="text-[9px] text-gray-400">Hybrid assumes {proj.storageMW}MW / {proj.durationHrs}hr co-located storage. ITC applied at 30% for both solar and storage components.</p>
                       </div>
