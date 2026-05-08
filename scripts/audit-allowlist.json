@@ -37,6 +37,24 @@
       "reason": "Same xlsx 0.18.5 root as GHSA-4r6h-8v6p-xvw6. Same mitigations: lazy-loaded, write-only export flow, no parsing of user-uploaded data. ReDoS would require attacker-controlled string fed to xlsx parser — the only consumer is buildExportRows in Library.jsx which feeds Tractova-generated rows, not user input.",
       "first_seen": "2026-05-06",
       "review_due": "2026-08-06"
+    },
+    {
+      "ghsa": "GHSA-q3j6-qgpj-74h6",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to path traversal via percent-encoded dot segments",
+      "reason": "Transitive via shadcn@4.7.0 -> @modelcontextprotocol/sdk -> ajv -> fast-uri. Same build-time-only chain as the allowlisted ip-address entry above: shadcn is a CLI for component scaffolding, not a runtime dependency. The vulnerable URI parsing path requires user-controlled URI input fed to ajv schema validation — neither shadcn nor any Tractova runtime code calls ajv with untrusted URIs (Tractova's request validation is direct field checks, not JSON Schema). No mitigation needed at the app layer; awaiting upstream ajv update.",
+      "first_seen": "2026-05-08",
+      "review_due": "2026-08-08"
+    },
+    {
+      "ghsa": "GHSA-v39h-62p7-jpjc",
+      "package": "fast-uri",
+      "severity": "high",
+      "title": "fast-uri vulnerable to host confusion via percent-encoded authority delimiters",
+      "reason": "Same fast-uri root as GHSA-q3j6-qgpj-74h6 (transitive via shadcn build-time CLI). Host-confusion attack requires URI input flowing into authority parsing — Tractova never feeds untrusted URIs to ajv. No runtime exposure; revisit when ajv ships a patched fast-uri.",
+      "first_seen": "2026-05-08",
+      "review_due": "2026-08-08"
     }
   ]
 }
