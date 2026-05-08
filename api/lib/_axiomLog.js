@@ -38,11 +38,11 @@
  *   })
  */
 
-const AXIOM_TOKEN   = process.env.AXIOM_TOKEN
-const AXIOM_DATASET = process.env.AXIOM_DATASET
-const INGEST_URL    = AXIOM_DATASET
-  ? `https://api.axiom.co/v1/datasets/${AXIOM_DATASET}/ingest`
-  : null
+// One-time diagnostic — emits to Vercel function logs the FIRST time
+// axiomLog is called per cold-start. Tells us at a glance whether
+// AXIOM_TOKEN is reaching the running function. After we confirm
+// production is wired, this can be removed in a cleanup commit.
+let _firstCallLogged = false
 
 /**
  * @param {'debug'|'info'|'warn'|'error'|'fatal'} level
@@ -50,7 +50,25 @@ const INGEST_URL    = AXIOM_DATASET
  * @param {object} [meta] — arbitrary structured fields (route, user_id, error_code, stack, etc.)
  */
 export function axiomLog(level, message, meta = {}) {
-  if (!AXIOM_TOKEN || !INGEST_URL) return  // not configured — silent no-op
+  // Read env vars at CALL time, not module load. On Vercel, env vars
+  // added/changed after a deploy take effect when the function instance
+  // cold-starts; module-load capture would freeze the value at first
+  // import. Call-time read picks up new values on every cold start.
+  const AXIOM_TOKEN   = process.env.AXIOM_TOKEN
+  const AXIOM_DATASET = process.env.AXIOM_DATASET
+
+  if (!_firstCallLogged) {
+    _firstCallLogged = true
+    const tokenShape = AXIOM_TOKEN ? `set (${AXIOM_TOKEN.length} chars, prefix=${AXIOM_TOKEN.slice(0, 6)}…)` : 'MISSING'
+    const datasetShape = AXIOM_DATASET ? `set ('${AXIOM_DATASET}')` : 'MISSING'
+    // Use console.warn so it shows in Vercel function logs (Hobby tier
+    // shows warn + error in the runtime tail).
+    console.warn(`[axiom] init: AXIOM_TOKEN=${tokenShape} · AXIOM_DATASET=${datasetShape} · VERCEL_ENV=${process.env.VERCEL_ENV || 'unknown'}`)
+  }
+
+  if (!AXIOM_TOKEN || !AXIOM_DATASET) return  // not configured — silent no-op
+
+  const INGEST_URL = `https://api.axiom.co/v1/datasets/${AXIOM_DATASET}/ingest`
 
   const event = {
     _time: new Date().toISOString(),
@@ -78,6 +96,12 @@ export function axiomLog(level, message, meta = {}) {
       'Content-Type':  'application/json',
     },
     body: JSON.stringify([event]),  // Axiom ingest expects an array
+  }).then(async r => {
+    // Surface non-2xx responses so we can debug. 200 = success (silent).
+    if (!r.ok) {
+      const body = await r.text().catch(() => '(unreadable)')
+      console.warn(`[axiom] ingest non-2xx: ${r.status} ${r.statusText} body=${body.slice(0, 200)}`)
+    }
   }).catch(err => {
     // Console-only fallback — never throw out of the log layer.
     console.warn('[axiom] ingest failed:', err?.message || err)
