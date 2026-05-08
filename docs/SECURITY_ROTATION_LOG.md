@@ -23,6 +23,7 @@ new value before declaring done.
 | `CRON_SECRET` | semi-annual | 2026-05-06 (baseline) | 2026-11-06 | OK |
 | `SUPABASE_SERVICE_ROLE_KEY` | annual | 2026-05-06 (baseline) | 2027-05-06 | OK |
 | `ANTHROPIC_API_KEY` | annual | 2026-05-06 (baseline) | 2027-05-06 | OK |
+| `AXIOM_TOKEN` | annual | 2026-05-07 (set + verified) | 2027-05-07 | OK |
 
 Status legend:
 - **OK** — current rotation horizon not yet reached.
