@@ -230,7 +230,7 @@ export default async function handler(req, res) {
     return await handlerInner(req, res)
   } catch (err) {
     console.error('[refresh-substations] uncaught:', err)
-    axiomLog('error', 'refresh-substations uncaught', {
+    await axiomLog('error', 'refresh-substations uncaught', {
       route: 'api/refresh-substations',
       error: err?.message,
       stack: err?.stack?.slice(0, 2000),

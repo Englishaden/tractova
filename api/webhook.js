@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     event = stripe.webhooks.constructEvent(rawBody, sig, process.env.STRIPE_WEBHOOK_SECRET)
   } catch (err) {
     console.error('Webhook signature error:', err.message)
-    axiomLog('error', 'stripe webhook signature failed', {
+    await axiomLog('error', 'stripe webhook signature failed', {
       route: 'api/webhook',
       error: err.message,
     })
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ received: true })
   } catch (err) {
     console.error('Webhook handler error:', err)
-    axiomLog('error', 'stripe webhook handler threw', {
+    await axiomLog('error', 'stripe webhook handler threw', {
       route:    'api/webhook',
       event_id: event?.id,
       type:     event?.type,

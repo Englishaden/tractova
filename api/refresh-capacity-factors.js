@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     return await handlerInner(req, res)
   } catch (err) {
     console.error('[refresh-capacity-factors] uncaught:', err)
-    axiomLog('error', 'refresh-capacity-factors uncaught', {
+    await axiomLog('error', 'refresh-capacity-factors uncaught', {
       route: 'api/refresh-capacity-factors',
       error: err?.message,
       stack: err?.stack?.slice(0, 2000),

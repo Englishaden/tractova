@@ -370,7 +370,7 @@ export default async function handler(req, res) {
   } catch (err) {
     clearTimeout(timeoutId)
     console.error('[lens-insight] error:', err.message)
-    axiomLog('error', 'lens-insight verdict path failed', {
+    await axiomLog('error', 'lens-insight verdict path failed', {
       route:  'api/lens-insight',
       action: body.action || 'verdict',
       state:  body.state,

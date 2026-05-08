@@ -295,7 +295,7 @@ export default async function handler(req, res) {
     return await handlerInner(req, res)
   } catch (err) {
     console.error('[refresh-ix-queue] uncaught:', err)
-    axiomLog('error', 'refresh-ix-queue uncaught', {
+    await axiomLog('error', 'refresh-ix-queue uncaught', {
       route: 'api/refresh-ix-queue',
       error: err?.message,
       stack: err?.stack?.slice(0, 2000),

@@ -126,7 +126,7 @@ export default async function handler(req, res) {
   } catch (err) {
     results.error = err.message
     console.error('Staleness check failed:', err)
-    axiomLog('error', 'check-staleness threw', {
+    await axiomLog('error', 'check-staleness threw', {
       route: 'api/check-staleness',
       error: err.message,
       stack: err.stack?.slice(0, 2000),

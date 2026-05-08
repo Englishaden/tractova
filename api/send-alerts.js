@@ -340,7 +340,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ sent: results.length, slack: slackResults, testMode, results })
   } catch (err) {
     console.error('Alerts error:', err)
-    axiomLog('error', 'send-alerts handler threw', {
+    await axiomLog('error', 'send-alerts handler threw', {
       route:    'api/send-alerts',
       testMode,
       error:    err.message,

@@ -194,7 +194,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ sent: results.length, testMode, results })
   } catch (err) {
     console.error('Digest error:', err)
-    axiomLog('error', 'send-digest handler threw', {
+    await axiomLog('error', 'send-digest handler threw', {
       route: 'api/send-digest',
       error: err.message,
       stack: err.stack?.slice(0, 2000),

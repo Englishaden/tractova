@@ -10,9 +10,13 @@
  *   - **Silent fail-open.** If `AXIOM_TOKEN` or `AXIOM_DATASET` env
  *     vars aren't set, the helper is a no-op. Dev / preview / fresh
  *     clones unaffected.
- *   - **Fire-and-forget.** Caller doesn't await — log delivery never
- *     blocks the actual feature. A slow Axiom endpoint can't slow a
- *     user response.
+ *   - **Awaitable.** Returns a Promise. Callers in error paths SHOULD
+ *     `await` it so the function instance stays alive long enough for
+ *     the fetch to complete. On Vercel serverless, fire-and-forget
+ *     fetches get killed when the handler returns — caller awaits
+ *     are necessary to get reliable delivery.
+ *   - **Bounded.** Fetch has an 8s hard timeout via AbortController.
+ *     A hung Axiom endpoint never delays a response by more than 8s.
  *   - **Best-effort.** A failed Axiom call is swallowed (one
  *     `console.warn` and move on). We will not lose the actual
  *     feature behavior because the log layer hiccupped.
@@ -45,11 +49,15 @@
 let _firstCallLogged = false
 
 /**
+ * Returns a Promise. Callers in error paths SHOULD `await` it so the
+ * fetch completes before the function instance is torn down.
+ *
  * @param {'debug'|'info'|'warn'|'error'|'fatal'} level
  * @param {string} message — short human-readable label
  * @param {object} [meta] — arbitrary structured fields (route, user_id, error_code, stack, etc.)
+ * @returns {Promise<void>}
  */
-export function axiomLog(level, message, meta = {}) {
+export async function axiomLog(level, message, meta = {}) {
   // Read env vars at CALL time, not module load. On Vercel, env vars
   // added/changed after a deploy take effect when the function instance
   // cold-starts; module-load capture would freeze the value at first
@@ -88,37 +96,47 @@ export function axiomLog(level, message, meta = {}) {
     }
   }
 
-  // Fire-and-forget. No await; failures swallowed.
-  fetch(INGEST_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${AXIOM_TOKEN}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify([event]),  // Axiom ingest expects an array
-  }).then(async r => {
-    // Surface non-2xx responses so we can debug. 200 = success (silent).
+  // 8s hard timeout — a hung Axiom endpoint should never delay a
+  // user response by more than that. Aborts the fetch via AbortSignal.
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000)
+
+  try {
+    const r = await fetch(INGEST_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${AXIOM_TOKEN}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify([event]),  // Axiom ingest expects an array
+      signal: controller.signal,
+    })
     if (!r.ok) {
       const body = await r.text().catch(() => '(unreadable)')
       console.warn(`[axiom] ingest non-2xx: ${r.status} ${r.statusText} body=${body.slice(0, 200)}`)
     }
-  }).catch(err => {
+  } catch (err) {
     // Console-only fallback — never throw out of the log layer.
     console.warn('[axiom] ingest failed:', err?.message || err)
-  })
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }
 
 /**
- * Convenience wrapper: log + respond with a 500 in one call. Returns
- * the express-style res object so callers can `return logAndRespond500(...)`.
+ * Convenience wrapper: log + respond with a 500 in one call. Awaits
+ * axiomLog so the fetch completes before the function instance is
+ * torn down. Returns the express-style res object so callers can
+ * `return await logAndRespond500(...)`.
  *
  * @param {object} res — Vercel/Express response object
  * @param {Error|string} err
  * @param {object} [context] — route, user_id, request shape, etc.
+ * @returns {Promise<object>}
  */
-export function logAndRespond500(res, err, context = {}) {
+export async function logAndRespond500(res, err, context = {}) {
   const message = err instanceof Error ? err.message : String(err)
-  axiomLog('error', message, {
+  await axiomLog('error', message, {
     ...context,
     stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined,
   })

@@ -140,7 +140,7 @@ export default async function handler(req, res) {
       await logCronRun(source, result, authMode, startedAt)
     } catch (err) {
       const errMsg = err?.message || String(err)
-      axiomLog('error', `refresh-data ${source} threw`, {
+      await axiomLog('error', `refresh-data ${source} threw`, {
         route:    'api/refresh-data',
         source,
         authMode,
