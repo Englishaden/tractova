@@ -349,16 +349,14 @@ export function getSliderConfig(baseline) {
     ]
   }
 
-  // BESS — drop the $/W capex slider (not how BESS is priced) and swap
-  // in a $/kWh slider. Range anchored on NREL ATB 2024 utility-scale
-  // 4-hr BESS: 2024 baseline ~$350-420/kWh, 2030 trajectory ~$200/kWh
-  // (best case), tariff/supply-chain shock ~$700-800/kWh (worst case).
-  // baseline×0.5 to baseline×2 brackets that comfortably; floor clamped
-  // at $150/kWh (NREL ATB 2030 advanced floor + safety margin).
-  const bessCommon = common.filter(s => s.key !== 'capexPerWatt')
+  // Storage capex slider — used by both BESS (replacing the $/W slider)
+  // and Hybrid (alongside the $/W solar slider). Range: $150 floor (NREL
+  // ATB 2030 advanced + safety margin) to baseline×2 (tariff/supply-chain
+  // shock envelope). Step $5. Same direction (lower-better) as the $/W
+  // version since cheaper storage = better economics.
   const capexPerKwhSlider = {
     key: 'capexPerKwh',
-    label: 'Capex',
+    label: 'Storage Capex',
     unit: '$/kWh',
     baseline: i.capexPerKwh,
     min: i.capexPerKwh != null ? Math.max(150, Math.round(i.capexPerKwh * 0.50)) : 200,
@@ -368,15 +366,46 @@ export function getSliderConfig(baseline) {
     direction: 'lower-better',
     disabled: i.capexPerKwh == null,
   }
-  // Insert the $/kWh capex slider where capexPerWatt sat in `common`
-  // (after systemSizeMW) so the visual ordering stays System → Capex → IX.
-  const sysIdx = bessCommon.findIndex(s => s.key === 'systemSizeMW')
-  const ordered = [
-    ...bessCommon.slice(0, sysIdx + 1),
+
+  if (tech === 'bess') {
+    // BESS: drop the $/W slider (not how storage is priced), insert $/kWh
+    // after systemSizeMW so visual ordering stays System → Capex → IX.
+    const bessCommon = common.filter(s => s.key !== 'capexPerWatt')
+    const sysIdx = bessCommon.findIndex(s => s.key === 'systemSizeMW')
+    const ordered = [
+      ...bessCommon.slice(0, sysIdx + 1),
+      { ...capexPerKwhSlider, label: 'Capex' },     // BESS-only: just "Capex"
+      ...bessCommon.slice(sysIdx + 1),
+    ]
+    return [...ordered, ...lifecycleSliders]
+  }
+
+  // Hybrid: keep the $/W slider for the solar arm, ADD $/kWh for storage,
+  // plus solar capacity factor (BESS has none). Both capex sliders are
+  // labeled clearly so the user knows which arm they're moving.
+  const solarCapexIdx = common.findIndex(s => s.key === 'capexPerWatt')
+  const renamedSolarCapex = { ...common[solarCapexIdx], label: 'Solar Capex' }
+  const hybridCommon = [
+    ...common.slice(0, solarCapexIdx),
+    renamedSolarCapex,
     capexPerKwhSlider,
-    ...bessCommon.slice(sysIdx + 1),
+    ...common.slice(solarCapexIdx + 1),
   ]
-  return [...ordered, ...lifecycleSliders]
+  return [
+    ...hybridCommon,
+    {
+      key: 'capacityFactor',
+      label: 'Solar Capacity Factor',
+      unit: '',
+      baseline: i.capacityFactor,
+      min: 0.12,
+      max: 0.28,
+      step: 0.005,
+      format: (v) => v == null ? '—' : `${(v * 100).toFixed(1)}%`,
+      direction: 'higher-better',
+    },
+    ...lifecycleSliders,
+  ]
 }
 
 // Format a one-line summary of a scenario for chip + memo rendering.
@@ -412,19 +441,51 @@ export function formatScenarioSummary(scenario, baseline) {
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
-// Normalize tech strings to the engine's three canonical buckets.
+// Normalize tech strings to the engine's four canonical buckets.
 function normalizeTech(t) {
   const s = String(t || '').toLowerCase()
   if (s.includes('bess') || s.includes('storage') || s.includes('battery')) return 'bess'
   if (s.includes('c&i') || s.includes('commercial') || s.includes('industrial')) return 'commercial-industrial'
-  if (s.includes('hybrid')) return 'community-solar'  // hybrid uses CS as primary scenario tech
+  if (s.includes('hybrid')) return 'hybrid'
   return 'community-solar'
 }
 
 function computeForTech(tech, stateId, mw, rates) {
   if (tech === 'commercial-industrial') return computeCIRevenueProjection(stateId, mw, rates)
   if (tech === 'bess') return computeBESSProjection(stateId, mw, 4, rates)
+  if (tech === 'hybrid') return computeHybridForScenario(stateId, mw, rates)
   return computeRevenueProjection(stateId, mw, rates)
+}
+
+// Hybrid scenario raw data — combines CS + BESS underlying revenue projections
+// into a single flat object that extractInputs/computeHybridOutputs consume.
+// Storage MW defaults to 50% of solar MW (industry-typical co-location ratio);
+// duration 4hr matches BESS_REVENUE_DATA. Returns null if state lacks either
+// dataset (8 states currently: IL/NY/MA/MN/CO/NJ/ME/MD).
+function computeHybridForScenario(stateId, mw, rates) {
+  const solar = computeRevenueProjection(stateId, mw, rates)
+  const storageMW = (parseFloat(mw) || 0) * 0.5
+  const bess = computeBESSProjection(stateId, storageMW, 4, rates)
+  if (!solar || !bess) return null
+  return {
+    stateId,
+    stateLabel: solar.stateLabel,
+    mw: solar.mw,
+    storageMW,
+    durationHrs: 4,
+    capacityFactor: solar.capacityFactor,                       // solar CF (storage has none)
+    installedCostPerWatt: solar.installedCostPerWatt,           // solar baseline
+    installedCostPerKwh: bess.installedCostPerKwh,              // storage baseline
+    solarRevenue: solar.annualGrossRevenue || 0,
+    storageRevenue: bess.annualGrossRevenue || 0,
+    annualGrossRevenue: (solar.annualGrossRevenue || 0) + (bess.annualGrossRevenue || 0),
+    solarInstalledCost: solar.installedCostTotal || 0,
+    storageInstalledCost: bess.installedCostTotal || 0,
+    installedCostTotal: (solar.installedCostTotal || 0) + (bess.installedCostTotal || 0),
+    annualMWh: solar.annualMWh || 0,
+    itcTotalPct: solar.itcTotalPct ?? 30,
+    degradationPct: solar.degradationPct ?? 0.5,
+  }
 }
 
 function extractInputs(tech, raw) {
@@ -457,6 +518,18 @@ function extractInputs(tech, raw) {
       ...common,
     }
   }
+  if (tech === 'hybrid') {
+    // Hybrid takes solar MW as the primary system size; storage MW is
+    // derived (50% of solar). Both capex sliders are user-controllable.
+    return {
+      systemSizeMW: raw.mw,
+      capacityFactor: raw.capacityFactor / 100,
+      capexPerWatt: raw.installedCostPerWatt,         // solar arm
+      capexPerKwh: raw.installedCostPerKwh,           // storage arm
+      recPricePerMwh: 0,
+      ...common,
+    }
+  }
   // CS
   return {
     systemSizeMW: raw.mw,
@@ -470,6 +543,7 @@ function extractInputs(tech, raw) {
 function computeOutputs(tech, raw, inputs, baseOutputs) {
   if (tech === 'commercial-industrial') return computeCIOutputs(raw, inputs, baseOutputs)
   if (tech === 'bess') return computeBESSOutputs(raw, inputs, baseOutputs)
+  if (tech === 'hybrid') return computeHybridOutputs(raw, inputs, baseOutputs)
   return computeCSOutputs(raw, inputs, baseOutputs)
 }
 
@@ -606,6 +680,75 @@ function computeBESSOutputs(raw, inputs, baseOutputs) {
     paybackYears: paybackYears != null ? round1(paybackYears) : null,
     ...lifecycle,
     lcoe: null,                         // not meaningful for storage
+  }, baseOutputs)
+}
+
+// Hybrid (co-located solar + storage). Scales solar revenue by the
+// systemSizeMW slider. Solar installed cost responds to capexPerWatt;
+// storage installed cost responds to capexPerKwh (NEW slider — lets the
+// user finally model "what if batteries cost +30%" on the storage arm
+// while leaving the solar arm independent). Lifecycle math runs on the
+// combined cashflow stream so IRR / Equity IRR / DSCR reflect the full
+// hybrid project, not either arm alone.
+function computeHybridOutputs(raw, inputs, baseOutputs) {
+  const mw = num(inputs.systemSizeMW)              // solar (and total) MW
+  const cf = num(inputs.capacityFactor)
+  const capexPerWatt = num(inputs.capexPerWatt)
+  const capexPerKwh = num(inputs.capexPerKwh)
+  const ix = num(inputs.ixCostPerWatt)
+  const baselineMW = raw.mw || 1
+  const scale = baselineMW > 0 ? mw / baselineMW : 0
+
+  // Solar arm
+  const annualMWh = mw * 8760 * cf
+  const solarRevenue = (raw.solarRevenue || 0) * scale
+  const solarInstalledCost = mw * 1_000_000 * capexPerWatt
+
+  // Storage arm — storage MW = 50% of solar (industry-typical co-location
+  // ratio mirrored from OfftakeCard hybrid panel + revenueEngine.computeHybridProjection)
+  const storageMW = mw * 0.5
+  const storageRevenue = (raw.storageRevenue || 0) * scale
+  const baselineCapexPerKwh = raw.installedCostPerKwh || capexPerKwh || 1
+  const capexRatio = baselineCapexPerKwh > 0 ? capexPerKwh / baselineCapexPerKwh : 1
+  const storageInstalledCost = (raw.storageInstalledCost || 0) * scale * capexRatio
+
+  // Combined investment + revenue
+  const installedCostTotal = solarInstalledCost + storageInstalledCost
+  const year1Revenue = solarRevenue + storageRevenue
+
+  // ITC: 30% on each arm. The solar arm gets ITC + storage gets the
+  // co-location adder (10%). We bake the co-location implicitly via raw
+  // since both projections used itcPct=30 — keep symmetric here.
+  const itcValue = installedCostTotal * 0.30
+  const itcAnnualized = itcValue / 6
+
+  const ixCostTotal = mw * 1_000_000 * ix
+  const totalDevCost = installedCostTotal + ixCostTotal
+  const paybackYears = year1Revenue > 0 ? totalDevCost / year1Revenue : null
+
+  const lifecycle = computeLifecycleMetrics({
+    totalDevCost,
+    year1Revenue,
+    itcAnnualized,
+    annualMWh,                                  // solar only — LCOE is solar's metric
+    mwAC: mw,
+    degradationPct: raw.degradationPct ?? 0.5,  // solar degradation; storage handled in raw revenue
+    contractYears: num(inputs.contractYears, INDUSTRY_BASELINE.contractYears),
+    opexPerKwYear: num(inputs.opexPerKwYear, INDUSTRY_BASELINE.opexPerKwYear),
+    discountRate: num(inputs.discountRate, INDUSTRY_BASELINE.discountRate),
+  })
+
+  return withDeltas({
+    year1Revenue: Math.round(year1Revenue),
+    solarRevenue: Math.round(solarRevenue),
+    storageRevenue: Math.round(storageRevenue),
+    installedCostTotal: Math.round(installedCostTotal),
+    solarInstalledCost: Math.round(solarInstalledCost),
+    storageInstalledCost: Math.round(storageInstalledCost),
+    ixCostTotal: Math.round(ixCostTotal),
+    totalDevCost: Math.round(totalDevCost),
+    paybackYears: paybackYears != null ? round1(paybackYears) : null,
+    ...lifecycle,
   }, baseOutputs)
 }
 

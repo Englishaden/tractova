@@ -136,6 +136,60 @@ describe('getSliderConfig — BESS $/kWh capex slider (F.8)', () => {
   })
 })
 
+describe('getSliderConfig — Hybrid (G.2: dual capex sliders)', () => {
+  const baseHybrid = (overrides = {}) => ({
+    technology: 'hybrid',
+    inputs: {
+      systemSizeMW: 5,
+      capexPerWatt: 1.40,           // solar arm
+      capexPerKwh: 400,             // storage arm
+      capacityFactor: 0.18,
+      ixCostPerWatt: 0.12,
+      opexPerKwYear: 18,
+      discountRate: 0.08,
+      contractYears: 25,
+      ...overrides,
+    },
+  })
+
+  it('Hybrid gets BOTH $/W (solar) and $/kWh (storage) sliders', () => {
+    const cfg = getSliderConfig(baseHybrid())
+    const solarCapex = findSlider(cfg, 'capexPerWatt')
+    const storageCapex = findSlider(cfg, 'capexPerKwh')
+    expect(solarCapex).toBeDefined()
+    expect(storageCapex).toBeDefined()
+    expect(solarCapex.label).toBe('Solar Capex')      // disambiguated label
+    expect(storageCapex.label).toBe('Storage Capex')  // disambiguated label
+  })
+
+  it('Hybrid solar capex uses baseline×2 envelope (same as CS)', () => {
+    const cfg = getSliderConfig(baseHybrid({ capexPerWatt: 2.50 }))
+    const capex = findSlider(cfg, 'capexPerWatt')
+    expect(capex.min).toBeCloseTo(1.25, 2)
+    expect(capex.max).toBeCloseTo(5.00, 2)
+  })
+
+  it('Hybrid storage capex uses baseline×2 envelope (same as BESS)', () => {
+    const cfg = getSliderConfig(baseHybrid({ capexPerKwh: 400 }))
+    const capex = findSlider(cfg, 'capexPerKwh')
+    expect(capex.min).toBe(200)
+    expect(capex.max).toBe(800)
+  })
+
+  it('Hybrid includes a Solar Capacity Factor slider (storage has none)', () => {
+    const cfg = getSliderConfig(baseHybrid())
+    const cf = findSlider(cfg, 'capacityFactor')
+    expect(cf).toBeDefined()
+    expect(cf.label).toBe('Solar Capacity Factor')
+  })
+
+  it('Hybrid uses 25-year contract (solar dominant), not 20 (BESS)', () => {
+    const cfg = getSliderConfig(baseHybrid())
+    const tenor = findSlider(cfg, 'contractYears')
+    expect(tenor.max).toBe(30)  // solar tier
+  })
+})
+
 describe('getSliderConfig — BESS contract tenor cap (battery-degradation envelope)', () => {
   it('community-solar tenor maxes at 30 years', () => {
     const cfg = getSliderConfig(baseSolar())
