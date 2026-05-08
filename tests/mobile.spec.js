@@ -72,6 +72,17 @@ function formatOverflowReport(r) {
 }
 
 test.describe('Mobile responsiveness (iPhone SE viewport)', () => {
+  // The mobile gate (src/components/MobileGate.jsx) intercepts <768px
+  // viewports in production and shows a "use desktop until app ships"
+  // message. The audit is still useful — when we eventually ship mobile
+  // first-class, these are the routes that need to render correctly —
+  // so we pre-dismiss the gate via sessionStorage on every test.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      try { sessionStorage.setItem('tractova_mobile_gate_dismissed', '1') } catch { /* private mode */ }
+    })
+  })
+
   // Public routes + Pro-paywall routes. The Pro routes render their paywall
   // page when unauthed, which is itself a real surface that needs to be
   // mobile-clean. Auth-gated DEEP routes (e.g. a populated Library list)

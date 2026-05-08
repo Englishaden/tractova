@@ -56,6 +56,15 @@ function formatOverflowReport(r) {
 }
 
 test.describe('Mobile responsiveness — authed Pro routes', () => {
+  // Pre-dismiss the mobile gate (introduced 2026-05-08) so the audit
+  // continues to verify the underlying pages render. See mobile.spec.js
+  // for the full rationale.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      try { sessionStorage.setItem('tractova_mobile_gate_dismissed', '1') } catch { /* private mode */ }
+    })
+  })
+
   const routes = [
     { path: '/search',    label: 'Search (Lens form)' },
     { path: '/library',   label: 'Library (project grid)' },

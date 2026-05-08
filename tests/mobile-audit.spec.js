@@ -31,6 +31,14 @@ const FONT_MIN       = 12     // px (mobile readability)
 
 mkdirSync('test-results/mobile-audit', { recursive: true })
 
+// Pre-dismiss the mobile gate (introduced 2026-05-08) so the audit can
+// still measure the underlying pages. See mobile.spec.js for rationale.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try { sessionStorage.setItem('tractova_mobile_gate_dismissed', '1') } catch { /* private mode */ }
+  })
+})
+
 for (const route of ROUTES) {
   test(`${route.label} (${route.path}) — deep mobile audit`, async ({ page }) => {
     await page.goto(route.path, { waitUntil: 'networkidle', timeout: 15000 })
