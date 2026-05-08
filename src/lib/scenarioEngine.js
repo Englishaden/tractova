@@ -252,13 +252,15 @@ export function getSliderConfig(baseline) {
       label: 'Capex',
       unit: '$/W',
       baseline: i.capexPerWatt,
-      // 2026-05-05 (A.1): dynamic ranges proportional to baseline so the
-      // user has ample headroom both directions. Cumberland County Maine
-      // ($2.70/W baseline) was previously pinned at 90% of the slider's
-      // right edge (max 3.00). Now: 0.50× to 2.00× baseline, clamped to
-      // the floor + ceiling that bound any realistic CS project capex.
+      // 2026-05-08 (F.3): the previous max was clamped at $4.00, which
+      // squeezed harder-cost states (HI $3.80, MA $3.31, CT $3.12, RI $2.94)
+      // against the right edge with almost no upside-sensitivity headroom.
+      // Removed the absolute ceiling — baseline×2 alone is the bound, so
+      // every state gets a comfortable 2× upside slider regardless of
+      // where its baseline sits. Floor stays clamped at $0.60/W (no real
+      // CS project comes in under that).
       min: i.capexPerWatt != null ? Math.max(0.60, Number((i.capexPerWatt * 0.50).toFixed(2))) : 0.80,
-      max: i.capexPerWatt != null ? Math.min(4.00, Number((i.capexPerWatt * 2.00).toFixed(2))) : 3.00,
+      max: i.capexPerWatt != null ? Number((i.capexPerWatt * 2.00).toFixed(2)) : 3.00,
       step: 0.05,
       format: (v) => `$${v.toFixed(2)}/W`,
       direction: 'lower-better',

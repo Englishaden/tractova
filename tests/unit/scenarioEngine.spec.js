@@ -40,13 +40,14 @@ describe('getSliderConfig — null guard', () => {
 })
 
 describe('getSliderConfig — capex range scales with baseline (A.1 fix)', () => {
-  it('Cumberland-Maine case: $2.70/W baseline → range ~$1.35 to $4.00 (clamped at ceiling)', () => {
+  it('Cumberland-Maine case: $2.70/W baseline → range $1.35 to $5.40 (proportional, no ceiling)', () => {
     const cfg = getSliderConfig(baseSolar({ capexPerWatt: 2.70 }))
     const capex = findSlider(cfg, 'capexPerWatt')
     expect(capex.min).toBeCloseTo(1.35, 2)
-    // 2.70 * 2.00 = 5.40, clamped to 4.00
-    expect(capex.max).toBe(4.00)
-    // baseline lives within the range — that was the bug pre-fix
+    // F.3 (2026-05-08): hardcoded $4.00 ceiling removed — was squeezing
+    // high-cost states (HI 3.80, MA 3.31, CT 3.12) against the right
+    // edge with no upside-sensitivity headroom. baseline×2 alone bounds.
+    expect(capex.max).toBeCloseTo(5.40, 2)
     expect(capex.baseline).toBeGreaterThan(capex.min)
     expect(capex.baseline).toBeLessThan(capex.max)
   })
