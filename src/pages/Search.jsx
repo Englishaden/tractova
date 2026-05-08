@@ -714,44 +714,46 @@ function SearchContent() {
     setResults(null)
     setAnalyzing(true)
 
-    // Get JWT for the API call
-    const { data: { session } } = await supabase.auth.getSession()
-    const accessToken = session?.access_token ?? ''
-
-    // Resolve live data from Supabase (cached — fast after first load)
-    const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic] = await Promise.all([
-      programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
-      getCountyData(form.state, form.county),
-      getRevenueStack(form.state),
-      getIXQueueSummary(form.state, form.mw),
-      getNearestSubstations(form.state, form.county),
-      getRevenueRates(form.state),
-      getEnergyCommunity(form.state, form.county),
-      getHudQctDda(form.state, form.county),
-      getNmtcLic(form.state, form.county),
-    ])
-    const runway = stateProgram?.runway ?? null
-
-    // AI fetch with abort support — ESC or cancel button can abort this
-    abortRef.current = new AbortController()
-    let aiInsight = null
     try {
-      const [aiResult] = await Promise.all([
-        fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken, signal: abortRef.current.signal }),
-        new Promise(resolve => setTimeout(resolve, 800)),
-      ])
-      aiInsight = aiResult?.insight ?? null
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        // Cancelled — still show results without AI insight
-        setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, aiInsight: null })
-        setAnalyzing(false)
-        return
-      }
-    }
+      const { data: { session } } = await supabase.auth.getSession()
+      const accessToken = session?.access_token ?? ''
 
-    setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, aiInsight })
-    setAnalyzing(false)
+      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic] = await Promise.all([
+        programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
+        getCountyData(form.state, form.county),
+        getRevenueStack(form.state),
+        getIXQueueSummary(form.state, form.mw),
+        getNearestSubstations(form.state, form.county),
+        getRevenueRates(form.state),
+        getEnergyCommunity(form.state, form.county),
+        getHudQctDda(form.state, form.county),
+        getNmtcLic(form.state, form.county),
+      ])
+      const runway = stateProgram?.runway ?? null
+
+      abortRef.current = new AbortController()
+      let aiInsight = null
+      try {
+        const [aiResult] = await Promise.all([
+          fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken, signal: abortRef.current.signal }),
+          new Promise(resolve => setTimeout(resolve, 800)),
+        ])
+        aiInsight = aiResult?.insight ?? null
+      } catch (err) {
+        if (err.name !== 'AbortError') console.warn('[Lens] AI insight failed, showing analysis without it:', err.message)
+        // AbortError or other AI failure → fall through with aiInsight=null;
+        // analysis is still useful without the AI verdict.
+      }
+
+      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, aiInsight })
+    } catch (err) {
+      // Any uncaught error in data fetching used to leave analyzing=true forever
+      // (the white-screen loading hang). Surface it to the user instead.
+      console.error('[Lens] analysis failed:', err)
+      toast.error('Analysis failed', { description: err?.message?.slice(0, 200) || 'Please try again. If the issue persists, check your connection.' })
+    } finally {
+      setAnalyzing(false)
+    }
   }
 
   const handleSave = () => {
