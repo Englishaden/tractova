@@ -12,6 +12,7 @@ import Nav from './components/Nav'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import ScrollToTop from './components/ScrollToTop'
+import ErrorBoundary from './components/ErrorBoundary'
 
 // Eagerly loaded -- on the critical path for new visitors and most
 // signed-in returns (Dashboard is the home for authed users; Landing
@@ -56,6 +57,7 @@ function HomeRoute() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ErrorBoundary>
       <ScrollToTop />
       <AuthProvider>
         <CompareProvider>
@@ -114,6 +116,7 @@ export default function App() {
         </TooltipProvider>
         </CompareProvider>
       </AuthProvider>
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }
