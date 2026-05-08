@@ -85,9 +85,13 @@ export default function LensOverlay({ visible, stateName, countyName, onCancel }
         position: 'fixed',
         inset: 0,
         zIndex: 100,
-        background: 'rgba(10,19,42,0.94)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
+        // F.5 (2026-05-08): solid scrim, no backdrop-filter. iOS Safari
+        // 15.0–15.3 has a known bug where backdrop-filter combined with
+        // position:fixed + inset:0 can render the entire overlay invisible
+        // (white-screens the whole Lens loader). Bumped opacity from 0.94
+        // to 0.96 to compensate visually for the lost blur — same look,
+        // bulletproof on every iOS.
+        background: 'rgba(10,19,42,0.96)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',

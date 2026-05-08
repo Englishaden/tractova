@@ -205,6 +205,9 @@ export default function Dashboard({ previewMode = false }) {
   // "27 days ago" while the Footer/Admin showed a refresh from this morning.
   const [lastRefresh, setLastRefresh] = useState(null)
   useEffect(() => {
+    // Dev mode: Vite doesn't serve api/ functions, so this would fetch
+    // back HTML and noisily fail JSON.parse in every smoke run.
+    if (!import.meta.env.PROD) return
     let cancelled = false
     fetch('/api/data-health?action=last-refresh')
       .then(r => r.ok ? r.json() : null)

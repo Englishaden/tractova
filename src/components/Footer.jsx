@@ -29,6 +29,12 @@ export default function Footer() {
   const [refreshAt, setRefreshAt] = useState(null)
 
   useEffect(() => {
+    // F.5 (2026-05-08): skip the fetch in dev mode. Vite's dev server
+    // doesn't run the api/ Vercel functions, so /api/data-health serves
+    // back index.html / a JS module → the JSON parse fails noisily in
+    // every Playwright + dev-server console output. The Footer
+    // timestamp is server-side data; not having it during dev is fine.
+    if (!import.meta.env.PROD) return
     let cancelled = false
     fetch('/api/data-health?action=last-refresh')
       .then(r => r.ok ? r.json() : null)
