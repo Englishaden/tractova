@@ -143,6 +143,43 @@
   animation: tractova-shimmer-flow 7s linear infinite;
 }
 
+/* Portfolio Health card — animated tech mesh + pulsing rings around the score
+   gauge. The grid drifts diagonally to give a "live data" feel; the rings
+   expand outward in a staggered loop. Tier color is passed via CSS var
+   --health-accent so the same animation reads teal/amber/red without
+   duplicating keyframes. */
+@keyframes tractova-health-grid-drift {
+  0%   { background-position: 0px 0px; }
+  100% { background-position: 24px 24px; }
+}
+@keyframes tractova-health-scan {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+@keyframes tractova-health-pulse-ring {
+  0%   { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.health-grid {
+  background-image:
+    linear-gradient(to right, var(--health-grid-color, rgba(15,118,110,0.08)) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--health-grid-color, rgba(15,118,110,0.08)) 1px, transparent 1px);
+  background-size: 24px 24px;
+  animation: tractova-health-grid-drift 12s linear infinite;
+}
+.health-scan {
+  background: linear-gradient(180deg, transparent 0%, var(--health-accent, rgba(15,118,110,0.18)) 50%, transparent 100%);
+  animation: tractova-health-scan 4.5s ease-in-out infinite;
+}
+.health-ring {
+  border: 1.5px solid var(--health-accent, rgba(15,118,110,0.5));
+  animation: tractova-health-pulse-ring 2.4s ease-out infinite;
+}
+.health-ring-2 { animation-delay: 0.8s; }
+.health-ring-3 { animation-delay: 1.6s; }
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
