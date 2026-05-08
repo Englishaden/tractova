@@ -7,10 +7,10 @@ import {
   Badge,
   RefreshStatusBanner,
   CensusDiagnosticPanel,
-  MissionControl,
-  IxStalenessAlert,
-  CronLatencyPanel,
 } from '../../pages/Admin.jsx'
+import MissionControl from './MissionControl.jsx'
+import IxStalenessAlert from './IxStalenessAlert.jsx'
+import CronLatencyPanel from './CronLatencyPanel.jsx'
 
 // Each card prefers `last_cron_success` (when did the cron last verify this
 // data against the live source?) -- migration 031 derives this from cron_runs
