@@ -4,7 +4,112 @@
 
 ---
 
-## 🟢 Pickup — Away-session: mobile-UX tap targets fixed + 23 orphan imports removed → next: Vercel Log Drain debug (env var not reaching Production) or pick a feature direction
+## 🟢 Pickup — Plan E COMPLETE: locs-allowlist EMPTY (Library + Admin + Search all under 1,500) + Axiom logging confirmed live → next: feature work (onboarding revamp queued)
+
+**Sessions 2026-05-07 → 2026-05-08 (continuation through to early
+morning, 11 commits).** Closed three open items end-to-end:
+
+1. **Axiom HTTPS logging fully wired in production.** Diagnostic line
+   surfaced in Vercel function logs → confirmed env vars were reaching
+   functions. Root cause of "no events" was Vercel-serverless tearing
+   down the function before the fire-and-forget fetch resolved. Made
+   axiomLog awaitable + added `await` at all 10 callsites
+   (`dfa36c3` + `c997fd6`). First production event landed
+   2026-05-07 22:54:11; reliable thereafter. AXIOM_TOKEN row added
+   to `docs/SECURITY_ROTATION_LOG.md` (annual cadence).
+
+2. **Dependabot major-bump cleanup.** All 6 broken major-bump PRs
+   auto-cleaned by Dependabot once `.github/dependabot.yml` blocked
+   the wildcard major-version-bump pattern (`a7f99b5`). Merged the
+   safe minor+patch group bump (`3127b6b`) — 6 deps bumped:
+   anthropic-ai-sdk 0.91.1→0.95.1, react-pdf-renderer 4.4→4.5,
+   supabase-js 2.103→2.105, stripe 22.0→22.1, postcss 8.4→8.5, vite
+   8.0.10→8.0.11. All within-major; full verify chain green incl.
+   smoke. npm-audit moderate count dropped 4 → 2 (one bumped dep
+   cut a transitive ip-address chain branch).
+
+3. **Plan E — final lint-locs ratchet.** All 3 page-level files
+   tightened to under the 1,500 LOC global budget. Each sprint
+   verified end-to-end (lint + locs + unit + build + smoke):
+
+| Sprint | File | Before | After | Δ |
+|---|---|---|---|---|
+| E.1 (`7d11350`) | `src/pages/Library.jsx` | 2,704 | 1,215 | -55% |
+| E.2 (`387834e`) | `src/pages/Admin.jsx`   | 1,914 | 603   | -69% |
+| E.3 (`c08fed2`) | `src/pages/Search.jsx`  | 3,036 | 1,384 | -54% |
+| **Total** | **3 page-level files** | **7,654** | **3,202** | **-58%** |
+
+39 new component / helper files across `src/components/`,
+`src/components/admin/`, `src/components/library/`.
+**`scripts/locs-allowlist.json` `exceptions` array is now EMPTY** —
+the entire codebase fits the global LOC budget without exceptions.
+Future regressions get caught by `npm run lint:locs` in CI.
+
+### What's in src/pages/ now (post Plan E)
+
+| File | LOC | Notes |
+|---|---|---|
+| Search.jsx | 1,384 | Lens form + composite render; small inline helpers + page state |
+| Library.jsx | 1,215 | Saved projects + Compare + scenarios tab |
+| Admin.jsx | 603 | Tab router + shared inline helpers (Field, SaveBar, CopyButton, etc.) |
+| Profile.jsx | ~720 | Subscription + cancel flow |
+| Glossary.jsx | ~700 | Tier definitions + glossary terms |
+| Landing.jsx | ~690 | Marketing |
+| (others < 500) | | |
+
+### Plan E summary — what was extracted
+
+**Sprint E.1 → src/components/library/** (9 files):
+ScoreGauge, PipelineProgress, StagePicker, CompareChip,
+ShareDealMemoButton, UtilityOutreachButton (with private ContextRow
++ KitSection helpers), MiniArcGauge, WeeklySummaryCard,
+EmptyStateOnboarding.
+
+**Sprint E.2 → src/components/admin/** (12 files):
+ComparableDealsTab, IXQueueTab, StagingTab, TestNotificationsTab
+(the 4 inline tabs), MissionControl (with co-located UsageStat),
+NwiCoverageCard, IxFreshnessCard, MonthlyCronCard, CurationDriftRow,
+CsStatusAuditRow, IxStalenessAlert, CronLatencyPanel.
+
+**Sprint E.3 → src/components/** (17 files):
+SubScoreBar, RunIdMasthead, SectionMarker, CollapsibleCard,
+CardDrilldown, RevenueStackBar, RevenueProjectionSection,
+SolarCostLineagePanel, BriefDrilldown, LensScenarioRow,
+CustomScenarioInline, CustomScenarioBuilder, LensOverlay (with
+LENS_OVERLAY_STYLES const), FieldSelect, CountyCombobox,
+AddToCompareButton, MaybeLensPanels (4 conditional wrappers
+consolidated).
+
+### Codebase health, end of arc
+
+- **0 broken imports** (verified via `scripts/scan-bugs.mjs`)
+- **0 orphan imports**
+- **0 console.log drift in src/**
+- **0 TODO/FIXME markers**
+- **0 LOC budget breaches** — entire codebase fits the global rule
+- **0 high-severity vulns** outside the 4 documented allowlisted CVEs
+- **51 unit tests + 7 smoke + 16 mobile + 10 mobile-pro** all green
+- **npm-audit moderate count: 2** (down from 4 at session start)
+
+### Aden-side queue
+
+**Empty.** Migration 060 applied; Vercel Log Drain (Axiom
+equivalent) wired and confirmed; Dependabot major-bumps blocked +
+cleaned up; minor/patch bumps merged.
+
+### Resume-prompt suggestions
+
+- *"Start the onboarding revamp per `~/.claude/plans/huly-onboarding-revamp.md`"* — the named feature item, deferred since Plan A/B closed
+- *"Quarterly review of `scripts/audit-allowlist.json` (review_due 2026-08-06)"*
+- *"Tighten api/lens-insight.js or send-alerts.js further"* — both already under their global 500 LOC budget but could go deeper
+
+### Pre-existing pickup chain
+
+(See prior pickup section below for the away-session fixes + Axiom debug arc.)
+
+---
+
+## Pickup (prior, 2026-05-07) — Away-session: mobile-UX tap targets fixed + 23 orphan imports removed → next: Vercel Log Drain debug (env var not reaching Production) or pick a feature direction
 
 **Session 2026-05-07 (away-session, ~5 commits while Aden stepped
 away).** Aden granted run-permission for diagnostics + safe fixes
@@ -2393,6 +2498,7 @@ stale-check finds the real last-good run.
 
 ## Status snapshot
 
+- **Branch:** `main` · last commit `c08fed2` Plan E Sprint E.3 (Search.jsx 3,036 → 1,384 LOC). **Plan E COMPLETE** — locs-allowlist.json `exceptions` array is EMPTY; all 3 page-level files (Library 1,215 / Admin 603 / Search 1,384) now under the 1,500 LOC global budget without exceptions. **Axiom logging confirmed live** in production. Codebase health end-of-arc: 0 broken imports / 0 orphans / 0 console.log drift / 0 TODOs / 0 LOC budget breaches / 51 unit + 7 smoke + 16 mobile + 10 mobile-pro tests all green / npm-audit moderate count 2 (down from 4). **Aden-side queue: empty.**
 - **Branch:** `main` · last commit `3127b6b` merge dependabot minor-and-patch group bump (6 deps: anthropic-ai-sdk 0.91.1→0.95.1, react-pdf-renderer 4.4→4.5, supabase-js 2.103→2.105, stripe 22.0→22.1, postcss 8.4→8.5, vite 8.0.10→8.0.11 — all minor/patch within-major; full verify chain green incl. smoke). **Axiom logging confirmed working in production** as of 2026-05-07; events flowing reliably with the awaited-fetch fix. **All 6 major-bump dependabot PRs auto-cleaned up** by Dependabot after our config block on major-version bumps (`a7f99b5`) took effect — branches no longer exist on remote. **Aden-side queue:** empty.
 - **Branch:** `main` · last commit `5cc5db7` Plan D.4. Plan D cleanup sweep complete (4 commits: D.1-D.4) on top of Plan C COMPLETE state. Single supabaseAdmin client (was 18); single statusMaps.js source for IX_LABEL + CS_STATUS_LABEL (was 5 inlines); 12 previously-untracked probe + site-walk files now in git; site review archived. lint coverage: 307 tracked files for secrets, 57 for api/**/*.js.
 - **Branch:** `main` · last commit `1e5bad5` Plan C Sprint 2.6. **Plan C COMPLETE** (Phase 0 + Phase 1 + Phase 2 all done, 9 commits this session). Migration 060 applied. Security 8.0 → ~9.3 / Engineering 6.5 → ~9.0 with measurable evidence (allowlist-aware audit, CSP + cross-origin, rate limits, webhook idempotency, 5 mega-files decomposed, JSDoc on hot exports, lint-locs CI gate). **Awaiting Aden:** (1) configure Vercel Log Drain destination per `docs/runbooks/observability.md` + record token in 1Password; (2) re-install pre-commit hook on any fresh clone (`node scripts/install-git-hooks.mjs`).
@@ -2471,6 +2577,13 @@ both blocks).
 
 | Commit | Subject |
 |--------|---------|
+| `c08fed2` | **Sprint E.3** — `src/pages/Search.jsx` 3,036 → 1,384 LOC (-54%). Plan E COMPLETE. 17 components extracted to `src/components/`: SubScoreBar, RunIdMasthead, SectionMarker, CollapsibleCard, CardDrilldown, RevenueStackBar, RevenueProjectionSection, SolarCostLineagePanel, BriefDrilldown, LensScenarioRow, CustomScenarioInline, CustomScenarioBuilder, LensOverlay, FieldSelect, CountyCombobox, AddToCompareButton, MaybeLensPanels (4 conditional wrappers consolidated). 5 sibling components updated their imports. **`scripts/locs-allowlist.json` `exceptions` array is now EMPTY** — entire codebase under the 1,500 / 500 LOC budgets without exceptions. |
+| `387834e` | **Sprint E.2** — `src/pages/Admin.jsx` 1,914 → 603 LOC (-69%). 13 components extracted to `src/components/admin/`: ComparableDealsTab, IXQueueTab, StagingTab, TestNotificationsTab (the 4 inline tabs), MissionControl (with co-located UsageStat), NwiCoverageCard, IxFreshnessCard, MonthlyCronCard, CurationDriftRow, CsStatusAuditRow, IxStalenessAlert, CronLatencyPanel. DataHealthTab.jsx flipped 3 imports from circular `'../../pages/Admin.jsx'` → sibling files. |
+| `7d11350` | **Sprint E.1** — `src/pages/Library.jsx` 2,704 → 1,215 LOC (-55%). 9 components extracted to `src/components/library/`: ScoreGauge, PipelineProgress, StagePicker, CompareChip, ShareDealMemoButton, UtilityOutreachButton (with private ContextRow + KitSection helpers), MiniArcGauge, WeeklySummaryCard, EmptyStateOnboarding. ProjectCard.jsx + YourDealSection.jsx import paths updated. Library.jsx removed from locs-allowlist (was 2 → now 2 entries... agent removed Library, only Search + Admin remained until E.2/E.3). |
+| `f0fe82c` | **deps + dependabot cleanup** — captured prior commit (3127b6b) merging the dependabot minor-and-patch group bump (6 deps: @anthropic-ai/sdk 0.91.1 → 0.95.1, @react-pdf/renderer 4.4 → 4.5, @supabase/supabase-js 2.103 → 2.105, stripe 22.0 → 22.1, postcss 8.4 → 8.5, vite 8.0.10 → 8.0.11) + BUILD_LOG capture. All 6 prior major-bump dependabot PRs auto-cleaned after the .github/dependabot.yml block on major-version bumps took effect. npm-audit moderate count dropped 4 → 2. |
+| `cf912d4` | **Axiom logging confirmed live in production** + AXIOM_TOKEN row added to `docs/SECURITY_ROTATION_LOG.md` (annual cadence). First event landed 2026-05-07 22:54:11 with full metadata (route, error, deploy, region iad1, env). |
+| `dfa36c3` | **axiom: await axiomLog in error paths** so fetch completes before serverless tear-down. Root cause for delivery: Vercel-Hobby serverless doesn't expose `event.waitUntil()`; fire-and-forget fetches get killed when handler returns. Fixed by making axiomLog awaitable + adding `await` at all 10 callsites (webhook ×2, lens-insight, refresh-data, refresh-substations, refresh-ix-queue, refresh-capacity-factors, send-alerts, send-digest, check-staleness). 8s AbortController hard timeout caps the worst-case latency penalty. |
+| `c997fd6` | **axiom diagnostic** — read env vars at call-time (was module-load), added one-time-per-cold-start `[axiom] init: AXIOM_TOKEN=set...` warn so Vercel function logs surface env var state. Confirmed env vars reaching production functions correctly. |
 | `1501988` | **Static bug scan + 23 orphan imports removed.** NEW `scripts/scan-bugs.mjs` — read-only scan for orphan imports, broken imports, console.log drift, silent catches, TODOs, useEffect-no-dep. Initial run found 0 broken / 0 console.log / 0 TODOs / 8 intentional silent catches / 23 orphan imports. All 23 orphans were leftovers from Sprint 2.3 decomposition (Search.jsx 16, Library.jsx 1, shadcn+ui 5, WalkingTractovaMark useRef). Removed. Build dropped 2.90s → 1.85s. |
 | `69aa3a2` | **Mobile UX: 44px tap targets on header + auth + Glossary.** NEW `tests/mobile-audit.spec.js` — deeper mobile audit beyond overflow (tap targets, font sizes, truncation). Header buttons (Sign In + Get Started) bumped to explicit `min-h-[44px]` (was 32-40px). Auth form submits `py-2.5 → py-3` (40 → 44px). Glossary filter chips `py-0.5 → py-1.5` (22 → 32px). "Forgot password" + "see also" inline links got negative-margin'd hit-area expansion. Remaining flags are intentional (10px legal-page eyebrows, inline body-text links). 16/16 mobile + smoke + unit tests still green. |
 | `a7f99b5` | **dependabot: block ALL major-version bumps for npm + GitHub Actions.** Hotfix. Dependabot opened 7 PRs in last cycle; 6 were breaking major bumps (react 18→19, react-dom 18→19, react-router-dom 6→7, recharts 2→3, actions/checkout v3→v6, actions/setup-node v3→v6) that failed `npm install`. Added wildcard `update-types: ['version-update:semver-major']` ignore rule. Major upgrades now require deliberate migration sprints. |
