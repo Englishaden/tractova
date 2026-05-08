@@ -12,13 +12,13 @@ import { formatLargeUSD } from '../lib/formatters'
 import AlertChip from './AlertChip.jsx'
 import ProjectAuditTimeline from './ProjectAuditTimeline.jsx'
 import YourDealSection from './YourDealSection.jsx'
+import StagePicker from './library/StagePicker.jsx'
+import CompareChip from './library/CompareChip.jsx'
+import ShareDealMemoButton from './library/ShareDealMemoButton.jsx'
+import UtilityOutreachButton from './library/UtilityOutreachButton.jsx'
+import MiniArcGauge from './library/MiniArcGauge.jsx'
+import ScoreGauge from './library/ScoreGauge.jsx'
 import {
-  StagePicker,
-  CompareChip,
-  ShareDealMemoButton,
-  UtilityOutreachButton,
-  MiniArcGauge,
-  ScoreGauge,
   CS_STATUS_STYLES,
   CS_STATUS_LABEL,
   IX_STYLES,

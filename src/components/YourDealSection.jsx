@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import TechLabel from './ui/TechLabel'
-import { StagePicker, PipelineProgress } from '../pages/Library.jsx'
+import StagePicker from './library/StagePicker.jsx'
+import PipelineProgress from './library/PipelineProgress.jsx'
 import { renderMarkdown } from '../lib/markdownRender.jsx'
 
 // Toolbar that wraps/prefixes selected textarea text with markdown syntax.

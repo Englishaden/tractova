@@ -10,13 +10,6 @@
       "note": "Reduced from 5,105 LOC in Sprint 2.3 (panels extracted). Further reduction possible by extracting LensScenarioRow, RevenueProjectionSection, SolarCostLineagePanel, and the page-level form state into a useLensRequest hook. Target ceiling: 1,500."
     },
     {
-      "path": "src/pages/Library.jsx",
-      "ceiling": 2800,
-      "current_at_baseline": 2703,
-      "baseline_date": "2026-05-06",
-      "note": "Reduced from 4,379 LOC in Sprint 2.4 (cards extracted). Remaining bulk: WeeklySummaryCard + EmptyStateOnboarding + the LibraryContent page component itself. Target ceiling: 1,500."
-    },
-    {
       "path": "src/pages/Admin.jsx",
       "ceiling": 2000,
       "current_at_baseline": 1914,
