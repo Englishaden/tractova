@@ -315,6 +315,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Queue conditions deteriorate to ${newLevel.replace('_', ' ')} — same trajectory PJM's 2024 cluster studies showed (avg 30 mo, $1.5M/MW upgrades, ~28% withdrawal rate). Add ${timelineMap[newLevel] ?? '18–30 months'} to your IX study timeline and budget ${costMap[newLevel] ?? '$1–3M'} in potential upgrade costs. At ${mwNum}MW, IX cost exposure could consume a significant portion of program enrollment value.`,
       revenueImpact: `Est. cost: +$${estUpgrade.toLocaleString()} in IX upgrades`,
       timelineImpact: `Study timeline extends to ~${timelineMap[newLevel] ?? '18–30 months'}`,
+      tone: 'negative',
     })
   }
   if (ixIdx > 0) {
@@ -330,6 +331,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Queue conditions ease to ${newLevel.replace('_', ' ')} — what MISO showed in 2023 with their fast-track cluster reform: 12 mo studies, sub-$500K/MW upgrades. Interconnection timelines compress and upgrade cost risk drops sharply. This is the upside case — valuable for sensitivity modeling but don't underwrite to it without a confirmed study result.`,
       revenueImpact: `Est. savings: $${estSavings.toLocaleString()} on IX upgrades`,
       timelineImpact: `Study timeline compresses to ~${timelineSavingsMap[newLevel] ?? '12–18 months'}`,
+      tone: 'positive',
     })
   }
 
@@ -345,6 +347,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `${csProgram ?? stateName} moves to limited capacity — same dynamic NJ's SuSI program saw in 2023 (capped in 6 weeks of opening, 18 mo gap before the next block).${pctStr} Enrollment windows for limited-capacity programs often close within 30–60 days of announcement. Submit your application now or risk missing the window.`,
       revenueImpact: `Risk: enrollment window closes in ~30–60 days`,
       timelineImpact: `Re-open delay: 6–18 months until next block`,
+      tone: 'negative',
     })
   }
   if (csStatus === 'limited' && technology === 'Community Solar') {
@@ -356,6 +359,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `A new capacity block in ${stateName} would immediately unlock enrollment — historically these periods see 3–5x developer activity within the first 60 days, like MA SMART's 2024 reopening. Position your project now so you can file on day one. Monitor the state PUC docket for block announcement filings.`,
       revenueImpact: `Upside: full enrollment economics restored`,
       timelineImpact: `First-mover advantage: ~60-day filing window`,
+      tone: 'positive',
     })
   }
 
@@ -378,6 +382,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
         detail: `A 50% LMI requirement means sourcing ~${lmiSubs.toLocaleString()} low-income subscriber households for a ${mwNum}MW project — same shift NY VDER saw in 2023 when carveouts were raised. Budget 6–9 months for aggregator contracting and expect a 10–15% revenue haircut to attract compliant subscribers.`,
         revenueImpact: `Est. revenue haircut: ~$${revenueHaircut.toLocaleString()}/yr`,
         timelineImpact: `Adds 6–9 months for aggregator contracting`,
+        tone: 'negative',
       })
     }
     if (lmiRequired && lmiPercent > 0) {
@@ -389,6 +394,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
         detail: `Removing the LMI requirement opens the full commercial and residential subscriber market — what CO Community Solar Gardens have always allowed. Dramatically easier customer acquisition and stronger bill credit economics. This is the regulatory upside case; watch for pending state PUC proceedings on LMI carveout rules.`,
         revenueImpact: `Upside: ~10–15% lift on bill credit revenue`,
         timelineImpact: `Subscriber acquisition compresses by 4–6 months`,
+        tone: 'positive',
       })
     }
   }
@@ -405,6 +411,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `A 15% PPA rate reduction compresses annual revenue and weakens the 25-year NPV substantially — small relative to CA's NEM 3.0 reset (Apr 2023, −57% bill credit) but illustrative of the same regulatory pressure on offtaker demand for below-market rates. Below 5.5¢/kWh is typically uneconomic in most markets.`,
       revenueImpact: `Annual revenue: -$${ciDropRevenue.toLocaleString()}`,
       timelineImpact: `25-year NPV impact: significant downside`,
+      tone: 'negative',
     })
     scenarios.push({
       id: 'ci_rate_rise',
@@ -414,6 +421,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Rising utility retail rates increase your offtaker's savings from the PPA and reduce re-contracting risk at term. The 3–5% trajectory matches Northeast IOUs from 2020–2024 (PSEG, Eversource, ConEd). At 3% annual escalation, the spread between your PPA and retail widens by ~50% over 10 years — this is the upside case for long-term C&I PPAs.`,
       revenueImpact: `Spread widens ~50% over 10 years`,
       timelineImpact: `Stronger re-contracting position at term`,
+      tone: 'positive',
     })
     const ciDefaultGWh = Math.round(ciAnnualMWh * 20 / 1000)
     scenarios.push({
@@ -424,6 +432,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Offtaker default in year 5 means re-contracting the remaining output. Re-contracting typically takes 3–6 months and may require a 5–10% rate concession. Credit risk is the #1 C&I concern — underwrite tenant creditworthiness before signing the PPA.`,
       revenueImpact: `Re-contracting concession: 5–10% rate haircut`,
       timelineImpact: `Re-contracting takes 3–6 months · ~${ciDefaultGWh.toLocaleString()} GWh exposed`,
+      tone: 'negative',
     })
   }
 
@@ -438,6 +447,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `A 30% capacity market decline reduces the largest BESS revenue stream significantly. PJM's 2024 base residual auction showed capacity prices can swing 40–60% between cycles, and ISO-NE has seen similar volatility. If capacity revenue drops, demand charge reduction and arbitrage must carry the project — stress-test your pro forma with floor-case capacity pricing.`,
       revenueImpact: `Capacity revenue: -$${bessCapDropPerYear.toLocaleString()}/yr`,
       timelineImpact: `Persists through next ISO auction cycle (3 years)`,
+      tone: 'negative',
     })
     scenarios.push({
       id: 'bess_degrade',
@@ -447,6 +457,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `At 3% annual degradation vs the typical 2.5% assumption, you lose ~8% more throughput by year 10 and ~15% by year 15. Real-world Tesla Megapack and CATL deployments have shown closer to 3% than the 2.5% modeled in most pro formas. This directly impacts arbitrage revenue and may trigger warranty-related capacity shortfalls.`,
       revenueImpact: `~15% throughput loss by year 15`,
       timelineImpact: `Warranty risk inflection: years 8–10`,
+      tone: 'negative',
     })
     const bessDemandUpside = Math.round(mwNum * 1000 * 12)
     scenarios.push({
@@ -457,6 +468,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Rising demand charges are the BESS upside case. CA IOUs (PG&E, SCE, SDG&E) have raised commercial demand charges 3–8% annually from 2020–2023. This trend favors behind-the-meter BESS economics.`,
       revenueImpact: `Upside: +$${bessDemandUpside.toLocaleString()}/yr per $1/kW-mo increase`,
       timelineImpact: `Compounds over 25-year asset life`,
+      tone: 'positive',
     })
   }
 
@@ -470,6 +482,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Losing the 10% co-location bonus reduces ITC value on the storage component. The co-location bonus under IRA Section 48 requires the storage to be placed in service with the solar facility — timeline delays that decouple the assets risk this adder.`,
       revenueImpact: `One-time ITC loss: -$${hybridITCLoss.toLocaleString()}`,
       timelineImpact: `Risk window: any decoupling of solar/storage COD`,
+      tone: 'negative',
     })
     scenarios.push({
       id: 'hybrid_clip',
@@ -478,6 +491,7 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       detail: `Solar clipping above 8% means the inverter is curtailing more generation than expected — reducing both bill credit revenue and the energy available for storage charging. Right-size the DC/AC ratio and storage duration to minimize clipping losses. Typical hybrid designs target 3–5% clipping.`,
       revenueImpact: `~3–5% revenue reduction from clipping above target`,
       timelineImpact: `Mitigated via DC/AC ratio + storage duration tuning`,
+      tone: 'negative',
     })
   }
 

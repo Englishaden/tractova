@@ -210,7 +210,13 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
                 {(activeScenario.revenueImpact || activeScenario.timelineImpact) && (
                   <div className="flex flex-wrap gap-2 mt-2.5">
                     {activeScenario.revenueImpact && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-sm border bg-red-50 text-red-700 border-red-200">
+                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm border ${
+                        activeScenario.tone === 'positive'
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : activeScenario.tone === 'negative'
+                            ? 'bg-red-50 text-red-700 border-red-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
                         {activeScenario.revenueImpact}
                       </span>
                     )}
