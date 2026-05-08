@@ -1,14 +1,14 @@
 import { computeCIRevenueProjection, computeBESSProjection, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
+import CollapsibleCard from './CollapsibleCard'
+import CardDrilldown from './CardDrilldown'
+import RevenueStackBar from './RevenueStackBar'
+import RevenueProjectionSection from './RevenueProjectionSection'
+import SolarCostLineagePanel from './SolarCostLineagePanel'
 import {
-  CollapsibleCard,
-  CardDrilldown,
   SectionLabel,
   DataRow,
-  RevenueStackBar,
-  RevenueProjectionSection,
   CSStatusBadge,
   RunwayBadge,
-  SolarCostLineagePanel,
 } from '../pages/Search.jsx'
 
 export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county }) {

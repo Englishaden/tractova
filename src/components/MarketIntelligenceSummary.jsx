@@ -4,12 +4,12 @@ import { supabase } from '../lib/supabase'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { generateMarketSummary } from '../lib/lensHelpers.js'
 import TractovaLoader from './ui/TractovaLoader'
+import BriefDrilldown from './BriefDrilldown'
 import {
   sanitizeBrief,
   computeScoreDelta,
   buildSensitivityScenarios,
   CHIP_COLORS,
-  BriefDrilldown,
 } from '../pages/Search.jsx'
 
 // §7.4: scenario state lifted to SearchContent; we read it from props now.

@@ -1,4 +1,6 @@
-import { CollapsibleCard, CardDrilldown, EaseArcGauge, QueueBadge, SectionLabel } from '../pages/Search.jsx'
+import CollapsibleCard from './CollapsibleCard'
+import CardDrilldown from './CardDrilldown'
+import { EaseArcGauge, QueueBadge, SectionLabel } from '../pages/Search.jsx'
 
 export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary }) {
   if (!interconnection) return null

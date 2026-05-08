@@ -1,5 +1,6 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
-import { CollapsibleCard, CardDrilldown } from '../pages/Search.jsx'
+import CollapsibleCard from './CollapsibleCard'
+import CardDrilldown from './CardDrilldown'
 
 export default function SiteControlCard({ siteControl, interconnection, geospatial, stateName, county, stateId, mw, substations }) {
   if (!siteControl) return null
