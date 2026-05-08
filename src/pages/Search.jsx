@@ -488,8 +488,9 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       id: 'hybrid_clip',
       label: 'What if solar clipping is 8%+?',
       override: { ixDifficulty: ixDifficulty },
-      detail: `Solar clipping above 8% means the inverter is curtailing more generation than expected — reducing both bill credit revenue and the energy available for storage charging. Right-size the DC/AC ratio and storage duration to minimize clipping losses. Typical hybrid designs target 3–5% clipping.`,
-      revenueImpact: `~3–5% revenue reduction from clipping above target`,
+      precedent: 'Industry convention (NREL PVWatts / PVsyst design defaults)',
+      detail: `Solar clipping above 8% means the inverter is curtailing more generation than expected — reducing both bill credit revenue and the energy available for storage charging. The 3–5% revenue reduction figure is an industry rule-of-thumb (NREL PVWatts and PVsyst design defaults), not a state-specific Tractova value — your actual loss depends on the project's irradiance profile, DC/AC ratio, storage dispatch strategy, and inverter clipping curve. Typical hybrid designs target 3–5% clipping.`,
+      revenueImpact: `~3–5% revenue reduction (industry rule-of-thumb)`,
       timelineImpact: `Mitigated via DC/AC ratio + storage duration tuning`,
       tone: 'negative',
     })
