@@ -72,22 +72,37 @@ export function useSubscription() {
         setLoading(false)
       })
 
-    // Real-time: update instantly when the webhook fires
-    const channel = supabase
-      .channel(`profile-sub:${user.id}:${instanceId.current}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
-        (payload) => {
-          setTier(payload.new.subscription_tier)
-          setStatus(payload.new.subscription_status)
-        }
-      )
-      .subscribe()
+    // Real-time: update instantly when the webhook fires.
+    //
+    // 2026-05-08 (F.6): wrapped in try/catch. On iOS Safari (and some
+    // restrictive browser configs / private modes), the WebSocket
+    // upgrade Supabase needs for realtime can throw "WebSocket not
+    // available: The operation is insecure." Without this guard, the
+    // throw bubbles up to React and the ErrorBoundary blanks the page.
+    // Realtime is a polish nicety — initial fetch already populated
+    // tier/status, so degrading silently is the correct trade.
+    let channel = null
+    try {
+      channel = supabase
+        .channel(`profile-sub:${user.id}:${instanceId.current}`)
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+          (payload) => {
+            setTier(payload.new.subscription_tier)
+            setStatus(payload.new.subscription_status)
+          }
+        )
+        .subscribe()
+    } catch (err) {
+      console.warn('[useSubscription] realtime subscribe unavailable; skipping:', err?.message)
+    }
 
     return () => {
       cancelled = true
-      supabase.removeChannel(channel)
+      if (channel) {
+        try { supabase.removeChannel(channel) } catch { /* best-effort */ }
+      }
     }
   }, [user?.id])
 

@@ -199,6 +199,11 @@ export function getSliderConfig(baseline) {
   // Lifecycle assumption sliders apply across all techs. Group at the
   // bottom so the user starts with the project-shape sliders (size, cost,
   // production) before adjusting the financial-model assumptions.
+  // 2026-05-08 (F.6): every slider format function null-guards its input.
+  // Radix Slider can call format(value) where value is null when the
+  // baseline isn't applicable to the current technology (e.g. BESS has
+  // no capexPerWatt — it uses installedCostPerKwh). Pre-fix, .toFixed
+  // on null threw and the ErrorBoundary blanked the page.
   const lifecycleSliders = [
     {
       key: 'opexPerKwYear',
@@ -208,7 +213,7 @@ export function getSliderConfig(baseline) {
       min: 8,
       max: 50,
       step: 1,
-      format: (v) => `$${v.toFixed(0)}/kW/yr`,
+      format: (v) => v == null ? '—' : `$${v.toFixed(0)}/kW/yr`,
       direction: 'lower-better',
     },
     {
@@ -219,7 +224,7 @@ export function getSliderConfig(baseline) {
       min: 0.04,
       max: 0.15,
       step: 0.005,
-      format: (v) => `${(v * 100).toFixed(1)}%`,
+      format: (v) => v == null ? '—' : `${(v * 100).toFixed(1)}%`,
       direction: 'lower-better',  // lower discount = higher NPV
     },
     {
@@ -230,7 +235,7 @@ export function getSliderConfig(baseline) {
       min: 10,
       max: tech === 'bess' ? 20 : 30,  // BESS capped to battery degradation envelope
       step: 1,
-      format: (v) => `${Math.round(v)} yr`,
+      format: (v) => v == null ? '—' : `${Math.round(v)} yr`,
       direction: 'higher-better',
     },
   ]
@@ -242,9 +247,9 @@ export function getSliderConfig(baseline) {
       unit: 'MW AC',
       baseline: i.systemSizeMW,
       min: 0.5,
-      max: Math.max(20, i.systemSizeMW * 2),
+      max: Math.max(20, (i.systemSizeMW || 0) * 2),
       step: 0.5,
-      format: (v) => `${v.toFixed(1)} MW`,
+      format: (v) => v == null ? '—' : `${v.toFixed(1)} MW`,
       direction: 'neutral',
     },
     {
@@ -252,17 +257,13 @@ export function getSliderConfig(baseline) {
       label: 'Capex',
       unit: '$/W',
       baseline: i.capexPerWatt,
-      // 2026-05-08 (F.3): the previous max was clamped at $4.00, which
-      // squeezed harder-cost states (HI $3.80, MA $3.31, CT $3.12, RI $2.94)
-      // against the right edge with almost no upside-sensitivity headroom.
-      // Removed the absolute ceiling — baseline×2 alone is the bound, so
-      // every state gets a comfortable 2× upside slider regardless of
-      // where its baseline sits. Floor stays clamped at $0.60/W (no real
-      // CS project comes in under that).
+      // F.3 (2026-05-08): hardcoded $4.00 ceiling removed; baseline×2
+      // alone bounds the slider so high-cost states (HI $3.80, MA $3.31,
+      // CT $3.12) get proper upside-sensitivity headroom.
       min: i.capexPerWatt != null ? Math.max(0.60, Number((i.capexPerWatt * 0.50).toFixed(2))) : 0.80,
       max: i.capexPerWatt != null ? Number((i.capexPerWatt * 2.00).toFixed(2)) : 3.00,
       step: 0.05,
-      format: (v) => `$${v.toFixed(2)}/W`,
+      format: (v) => v == null ? '—' : `$${v.toFixed(2)}/W`,
       direction: 'lower-better',
       disabled: i.capexPerWatt == null,
     },
@@ -277,8 +278,9 @@ export function getSliderConfig(baseline) {
       min: 0,
       max: i.ixCostPerWatt != null ? Math.max(0.50, Number((i.ixCostPerWatt * 3.00).toFixed(2))) : 0.50,
       step: 0.01,
-      format: (v) => `$${v.toFixed(2)}/W`,
+      format: (v) => v == null ? '—' : `$${v.toFixed(2)}/W`,
       direction: 'lower-better',
+      disabled: i.ixCostPerWatt == null,
     },
   ]
 
@@ -293,7 +295,7 @@ export function getSliderConfig(baseline) {
         min: 0.12,
         max: 0.28,
         step: 0.005,
-        format: (v) => `${(v * 100).toFixed(1)}%`,
+        format: (v) => v == null ? '—' : `${(v * 100).toFixed(1)}%`,
         direction: 'higher-better',
       },
       {
@@ -304,7 +306,7 @@ export function getSliderConfig(baseline) {
         min: 0,
         max: Math.max(120, (i.recPricePerMwh || 0) * 1.5),
         step: 1,
-        format: (v) => `$${v.toFixed(0)}/MWh`,
+        format: (v) => v == null ? '—' : `$${v.toFixed(0)}/MWh`,
         direction: 'higher-better',
       },
       {
@@ -315,7 +317,7 @@ export function getSliderConfig(baseline) {
         min: 0.25,
         max: 1.25,
         step: 0.05,
-        format: (v) => `${(v * 100).toFixed(0)}%`,
+        format: (v) => v == null ? '—' : `${(v * 100).toFixed(0)}%`,
         direction: 'higher-better',
       },
       ...lifecycleSliders,
@@ -333,7 +335,7 @@ export function getSliderConfig(baseline) {
         min: 0.12,
         max: 0.28,
         step: 0.005,
-        format: (v) => `${(v * 100).toFixed(1)}%`,
+        format: (v) => v == null ? '—' : `${(v * 100).toFixed(1)}%`,
         direction: 'higher-better',
       },
       ...lifecycleSliders,
