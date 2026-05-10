@@ -216,31 +216,32 @@ function LibraryContent() {
     getStateProgramDeltas().then(setStateDeltaMap).catch(console.error)
   }, [])
 
-  // Freshness signal — mirrors Dashboard hero (`e2c8b48`). Computed from
-  // already-loaded stateProgramMap. Pulls max(lastVerified, updatedAt)
-  // across active CS states; amber if older than 14 days (= a Sunday cron
-  // missed). The Library is the daily-driver surface for retention, so a
-  // visible "data refreshed" stamp here keeps the live-data promise on
-  // the user's main return loop, not just first-impression dashboard.
-  const lastRefresh = useMemo(() => {
-    const states = Object.values(stateProgramMap || {})
-    if (!states.length) return null
-    let latest = 0
-    for (const s of states) {
-      if (s.csStatus === 'none') continue
-      const v = s.lastVerified ? new Date(s.lastVerified).getTime() : 0
-      const u = s.updatedAt    ? new Date(s.updatedAt).getTime()    : 0
-      if (v > latest) latest = v
-      if (u > latest) latest = u
-    }
-    if (!latest) return null
-    const ageDays = Math.floor((Date.now() - latest) / 86400000)
-    return {
-      date:    new Date(latest).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-      ageDays,
-      isStale: ageDays > 14,
-    }
-  }, [stateProgramMap])
+  // Freshness signal — unified with Dashboard / Footer / Admin on the
+  // /api/data-health?action=last-refresh endpoint (max(cron_runs.finished_at)
+  // where status='success'). Previously this was a local useMemo over
+  // state_programs.last_verified|updated_at, which drifted from the other
+  // surfaces whenever the weekly cron ran successfully but DSIRE returned
+  // identical content (no row changes → local signal stays stale even
+  // though the platform refreshed). Single source of truth across surfaces.
+  const [lastRefresh, setLastRefresh] = useState(null)
+  useEffect(() => {
+    if (!import.meta.env.PROD) return
+    let cancelled = false
+    fetch('/api/data-health?action=last-refresh')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (cancelled) return
+        if (!data?.finishedAt) return
+        const ageDays = Math.floor((Date.now() - new Date(data.finishedAt).getTime()) / 86400000)
+        setLastRefresh({
+          date:    new Date(data.finishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+          ageDays,
+          isStale: ageDays > 14,
+        })
+      })
+      .catch(err => console.warn('[Library] last-refresh fetch failed:', err))
+    return () => { cancelled = true }
+  }, [])
 
   // Centralize county data fetch -- previously each ProjectCard fetched its
   // own, leaving the sort logic with no county info and ranking projects
