@@ -7,11 +7,21 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
 
   const TREND_ICON = { growing: '↑', stable: '→', shrinking: '↓' }
-  const TREND_COLOR = { growing: '#DC2626', stable: '#D97706', shrinking: '#0F766E' }
+  // Trend uses amber-family intensities to stay consistent with the IX
+  // card's overall palette — was teal for "shrinking" which clashed with
+  // the surrounding amber frame. Severity is now encoded by saturation:
+  // bright red-amber for growing, deep amber for stable, soft amber for
+  // shrinking. Direction icon (↑→↓) still carries the trend semantics.
+  const TREND_COLOR = { growing: '#B45309', stable: '#D97706', shrinking: '#FBBF24' }
+  // Congestion headline: same amber-family approach. High keeps the
+  // warning red (danger is danger), moderate is mid-amber, low is a
+  // soft amber wash — NOT green. The user-visible orange-on-amber
+  // consistency lines up with the "Utility · Queue · Study Window"
+  // panel directly above.
   const CONGESTION = {
-    high:     { label: 'High Congestion',     color: '#DC2626', bg: 'rgba(220,38,38,0.08)' },
+    high:     { label: 'High Congestion',     color: '#B45309', bg: 'rgba(180,83,9,0.10)' },
     moderate: { label: 'Moderate Congestion',  color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
-    low:      { label: 'Low Congestion',       color: '#0F766E', bg: 'rgba(15,118,110,0.08)' },
+    low:      { label: 'Low Congestion',       color: '#D97706', bg: 'rgba(217,119,6,0.04)' },
   }
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
