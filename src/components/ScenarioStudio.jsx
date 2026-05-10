@@ -93,7 +93,12 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     if (!user || !baseline) return
     let query = supabase
       .from('scenario_snapshots')
-      .select('id, name, scenario_inputs, outputs, project_id, created_at')
+      // 2026-05-10: include baseline_inputs/state_id/county_name/technology
+      // — without them the analyst-note panel POSTed `baselineInputs: undefined`
+      // to /api/lens-insight, which then returned 400 missing field. Matches
+      // the SELECT Library uses (Library.jsx:325) so both surfaces stay in
+      // lockstep.
+      .select('id, name, baseline_inputs, scenario_inputs, outputs, project_id, state_id, county_name, technology, created_at')
       .eq('user_id', user.id)
       .eq('state_id', baseline.stateId)
       .eq('technology', baseline.technology)
