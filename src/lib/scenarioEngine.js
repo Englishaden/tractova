@@ -165,7 +165,8 @@ export function computeBaseline({ stateId, technology, mw, rates }) {
   return {
     stateId,
     stateLabel: raw.stateLabel,
-    technology: tech,
+    technology: tech,                              // engine slug — for internal dispatch (applyScenario, computeOutputs)
+    technologyLabel: denormalizeTech(tech),        // display name — for UI, URL params, DB persistence
     inputs,
     outputs,
     raw,
@@ -448,6 +449,21 @@ function normalizeTech(t) {
   if (s.includes('c&i') || s.includes('commercial') || s.includes('industrial')) return 'commercial-industrial'
   if (s.includes('hybrid')) return 'hybrid'
   return 'community-solar'
+}
+
+// Inverse of normalizeTech — engine slug → display name. The engine uses
+// kebab-case slugs internally for dispatch; UI surfaces (dropdowns,
+// scenario_snapshots.technology, URL params, project.technology) use the
+// display name. Use this when something has the slug and needs the label.
+export function denormalizeTech(slug) {
+  const s = String(slug || '').toLowerCase()
+  if (s === 'bess')                  return 'BESS'
+  if (s === 'commercial-industrial') return 'C&I Solar'
+  if (s === 'hybrid')                return 'Hybrid'
+  if (s === 'community-solar')       return 'Community Solar'
+  // Pass-through for already-display values (so the call site doesn't have
+  // to know whether it has a slug or a label).
+  return slug
 }
 
 function computeForTech(tech, stateId, mw, rates) {

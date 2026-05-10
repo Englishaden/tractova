@@ -101,7 +101,11 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
       .select('id, name, baseline_inputs, scenario_inputs, outputs, project_id, state_id, county_name, technology, created_at')
       .eq('user_id', user.id)
       .eq('state_id', baseline.stateId)
-      .eq('technology', baseline.technology)
+      // Match both formats during the slug→label migration: pre-fix rows
+      // saved with the engine slug ("community-solar"), post-fix rows with
+      // the display label ("Community Solar"). Once existing rows have
+      // been migrated (or aged out), this collapses back to a single eq.
+      .in('technology', [baseline.technology, baseline.technologyLabel].filter(Boolean))
       .order('created_at', { ascending: false })
       .limit(25)
     if (projectId) query = query.eq('project_id', projectId)
@@ -171,7 +175,11 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         project_id: projectId,
         state_id: baseline.stateId,
         county_name: countyName || null,
-        technology: baseline.technology,
+        // Save the display label ("Community Solar"), not the engine slug
+        // ("community-solar"). Older saves used the slug, which produced
+        // weird-looking re-run URLs + form values. Library uses display
+        // labels in projects.technology; staying consistent.
+        technology: baseline.technologyLabel || baseline.technology,
         name: savedName.trim(),
         baseline_inputs: baseline.inputs,
         scenario_inputs: scenario.inputs,
@@ -483,7 +491,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
                     Saved to your Library
                   </p>
                   <p className="text-[10px] text-gray-400 truncate leading-tight mt-0.5">
-                    "{savedToLibrary.name}" · {savedToLibrary.stateLabel} · {baseline.technology.replace('-', ' ')}
+                    "{savedToLibrary.name}" · {savedToLibrary.stateLabel} · {baseline.technologyLabel || baseline.technology}
                   </p>
                 </div>
                 <span className="font-mono text-[10px] uppercase tracking-[0.18em] shrink-0" style={{ color: '#14B8A6' }}>

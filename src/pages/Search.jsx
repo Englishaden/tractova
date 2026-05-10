@@ -21,7 +21,7 @@ import { useToast } from '../components/ui/Toast'
 import { getIXQueueSummary } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import ScenarioStudio from '../components/ScenarioStudio'
-import { computeBaseline as computeScenarioBaseline } from '../lib/scenarioEngine'
+import { computeBaseline as computeScenarioBaseline, denormalizeTech } from '../lib/scenarioEngine'
 import LensTour from '../components/LensTour'
 import DataLimitationsModal from '../components/DataLimitationsModal'
 import IntelligenceBackground from '../components/IntelligenceBackground'
@@ -253,7 +253,11 @@ function SearchContent() {
   const initialCounty = searchParams.get('county') || ''
   const initialMW = searchParams.get('mw') || ''
   const initialStage = searchParams.get('stage') || ''
-  const initialTechnology = searchParams.get('technology') || ''
+  // Denormalize incoming engine-slug values ("community-solar" → "Community
+  // Solar") so the dropdown can match against TECHNOLOGIES list. Pass-through
+  // when already a display label. Handles legacy slug-format scenarios +
+  // any external links / bookmarks using the slug form.
+  const initialTechnology = denormalizeTech(searchParams.get('technology') || '')
 
   const [form, setForm] = useState({
     state: initialState,

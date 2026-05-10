@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import ScenarioHistoryList from './ScenarioHistoryList'
+import { denormalizeTech } from '../lib/scenarioEngine'
 
 // ── Scenarios view (Library tab) ────────────────────────────────────────────
 // Replaces the project grid when the user toggles to the Scenarios tab.
@@ -104,7 +105,12 @@ function ScenarioGroupCard({ group, onScenarioDelete }) {
   const headSize = group.scenarios[0]?.scenario_inputs?.systemSizeMW
                 || group.scenarios[0]?.baseline_inputs?.systemSizeMW
                 || 5
-  const lensHref = `/search?state=${group.state}&county=${encodeURIComponent(group.county)}&mw=${headSize}&technology=${encodeURIComponent(group.technology || '')}`
+  // Pre-fix rows have group.technology as an engine slug ("community-solar")
+  // which would land in the form as a non-matching dropdown value. Denormalize
+  // to the display label so Search.jsx pre-fill resolves cleanly. Post-fix
+  // rows already store the label; denormalizeTech is a pass-through for those.
+  const techLabel = denormalizeTech(group.technology)
+  const lensHref = `/search?state=${group.state}&county=${encodeURIComponent(group.county)}&mw=${headSize}&technology=${encodeURIComponent(techLabel || '')}`
 
   return (
     <div className="rounded-xl bg-white" style={{ border: isOrphan ? '1px solid rgba(245,158,11,0.40)' : '1px solid #E2E8F0' }}>
