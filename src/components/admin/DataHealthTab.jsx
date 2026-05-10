@@ -65,9 +65,9 @@ export default function DataHealthTab() {
   const [refreshing, setRefreshing] = useState(false)
   const [refreshResult, setRefreshResult] = useState(null)
   // Census diagnostic — hits /api/refresh-data?debug=1 to surface raw
-  // upstream state when Census handlers are misbehaving. Auth-bypass
-  // endpoint, response is fully redacted (no key chars), so no risk
-  // surfacing it inline.
+  // upstream state when Census handlers are misbehaving. Admin-gated
+  // (Bearer JWT). Response is redacted (no key chars in the URL or body),
+  // so safe to render inline in the panel.
   const [diagnosing, setDiagnosing] = useState(false)
   const [diagnostic, setDiagnostic] = useState(null)
 
@@ -187,13 +187,19 @@ export default function DataHealthTab() {
     setDiagnostic(null)
     const startedAt = new Date()
     try {
-      // ?debug=1 is intentionally auth-bypassed (response carries no
-      // secrets — key length only). 35s ceiling: the server-side fetch
-      // has a 30s timeout, plus a few seconds of network slack.
+      // ?debug=1 is admin-gated. Earlier implementation claimed auth-bypass
+      // but the API handler never short-circuited the auth check, so the
+      // fetch returned 401 Unauthorized. Now passes the admin Bearer JWT
+      // like every other admin endpoint. 35s ceiling: server-side fetch
+      // timeout is 30s, plus network slack.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Session expired — please log in again')
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 35000)
-      const resp = await fetch('/api/refresh-data?debug=1', { signal: controller.signal })
-        .finally(() => clearTimeout(timer))
+      const resp = await fetch('/api/refresh-data?debug=1', {
+        signal:  controller.signal,
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      }).finally(() => clearTimeout(timer))
       const json = await resp.json()
       setDiagnostic({ ok: resp.ok, json, fetchedAt: new Date().toISOString(), totalMs: Date.now() - startedAt.getTime() })
     } catch (err) {

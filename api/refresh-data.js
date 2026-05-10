@@ -82,6 +82,72 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
+  // ── Census diagnostic (?debug=1) ────────────────────────────────────────────
+  // Lightweight probe surfaced to the admin Data Health panel
+  // (DataHealthTab.jsx → CensusDiagnosticPanel). Returns the request/response
+  // shape that panel expects: key length + shape sanity, plus a tiny live
+  // probe against the Census ACS API.
+  // Auth: admin only (the Bearer-JWT check above covers it). Response is
+  // small + redacted (no key chars, body sliced).
+  if (req.query.debug === '1' || req.query.debug === 'census') {
+    const apiKey = process.env.CENSUS_API_KEY || ''
+    const trimmed = apiKey.trim()
+    const keyLength = trimmed.length
+    // Census ACS keys are 40-char hex (lowercase). Allow either case + bare
+    // length check so we don't flag valid-but-formatted-differently keys.
+    const keyShapeOk = /^[0-9a-fA-F]{40}$/.test(trimmed)
+    const whitespaceNote =
+      apiKey === trimmed
+        ? 'no surrounding whitespace'
+        : `surrounding whitespace detected (orig=${apiKey.length} trimmed=${keyLength})`
+
+    // Tiny probe: fetch a single state's NAME — minimal payload, fast,
+    // exercises the same auth + endpoint shape the full ACS handlers use.
+    const probeUrl = `https://api.census.gov/data/2022/acs/acs5?get=NAME&for=state:06${trimmed ? `&key=${trimmed}` : ''}`
+    let probeResp = null
+    let probeBody = ''
+    let probeErr = null
+    const probeStart = Date.now()
+    try {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 30000)
+      probeResp = await fetch(probeUrl, { signal: controller.signal })
+      clearTimeout(timer)
+      probeBody = await probeResp.text().catch(() => '')
+    } catch (err) {
+      probeErr = err?.message || String(err)
+    }
+    const durationMs = Date.now() - probeStart
+
+    const headersObj = {}
+    if (probeResp) {
+      for (const h of ['content-type', 'content-length', 'retry-after', 'cf-ray', 'cf-mitigated']) {
+        const v = probeResp.headers.get(h)
+        if (v != null) headersObj[h] = v
+      }
+    }
+
+    return res.status(200).json({
+      request: {
+        key_length:           keyLength,
+        key_shape_ok:         keyShapeOk,
+        key_whitespace_check: whitespaceNote,
+        vercel_region:        process.env.VERCEL_REGION || 'unknown',
+        probe_url_redacted:   probeUrl.replace(/key=[^&]+/, 'key=<redacted>'),
+      },
+      response: probeErr
+        ? { status: null, error: probeErr }
+        : {
+            status:    probeResp.status,
+            headers:   headersObj,
+            body_size: probeBody.length,
+            body_preview: probeBody.slice(0, 200),
+          },
+      duration_ms: durationMs,
+      auth_mode:   authMode,
+    })
+  }
+
   // ── Source routing ──────────────────────────────────────────────────────────
   // Accept either a single source ("lmi"), CSV ("lmi,county_acs"), "all"
   // (every supported source), or "fast" (everything except nmtc_lic, which
