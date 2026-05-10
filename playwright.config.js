@@ -117,6 +117,20 @@ export default defineConfig({
       // Slower than the overflow-only test — more DOM walks per route.
       timeout: 45_000,
     },
+    // 7. Pre-onboarding UI audit — deeper coverage than smoke (30-state
+    // click matrix, NaN-in-DOM scanning across major surfaces). Higher
+    // per-test timeout because we walk many routes serially. Run via
+    // `npx playwright test --project=audit-ui`.
+    {
+      name: 'audit-ui',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'tests/.auth/pro-user.json',
+      },
+      testMatch: '**/audit-ui.spec.js',
+      timeout: 120_000,
+      dependencies: ['setup'],
+    },
   ],
 
   // Auto-boot the Vite dev server before running tests; tear it down after.

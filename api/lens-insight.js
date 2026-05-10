@@ -335,9 +335,15 @@ export default async function handler(req, res) {
   }
 
   // ── Build context + call Claude (single-project analysis) ─────────────────
+  // Timeout: 45s. vercel.json sets maxDuration=60 for this function, so we
+  // have ~15s of buffer for parsing + cache write + serialization. Original
+  // 25s budget was tight against Sonnet 4.6's p99 response time — the
+  // 2026-05-10 audit caught two MA calls timing out at 25.5s when Sonnet
+  // ran a fraction longer than its typical 22-23s. Bumping closes that
+  // tail-latency gap; no upside to running tighter than the platform cap.
   const contextText = buildContext(body)
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 25000)
+  const timeoutId = setTimeout(() => controller.abort(), 45000)
 
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })

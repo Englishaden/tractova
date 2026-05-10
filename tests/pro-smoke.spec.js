@@ -63,7 +63,7 @@ test.describe('Tractova Pro smoke', () => {
     await page.goto('/search')
     // The Lens form header is the unique fingerprint of the gated content.
     // If isPro resolved false, UpgradePrompt would render instead.
-    await expect(page.getByText('Run a targeted feasibility report')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Run a targeted intelligence report')).toBeVisible({ timeout: 10_000 })
     // And we should NOT see UpgradePrompt copy.
     await expect(page.getByText(/upgrade to pro|tractova pro/i).first()).not.toBeVisible().catch(() => {
       // .not.toBeVisible() throws when locator resolves multiple matches;

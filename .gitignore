@@ -38,6 +38,9 @@ Genuinely useful for the consultant.txt
 Marketing-Outreach-Plan.md
 .logs/
 
+# Audit script raw outputs (timestamped JSON dumps from scripts/audit-*.mjs)
+.audit/
+
 # Playwright artifacts (smoke test outputs)
 /test-results/
 /playwright-report/

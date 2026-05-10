@@ -181,34 +181,50 @@ const inputCls = "w-full text-sm bg-transparent border-0 outline-hidden px-0 py-
 // AI Insight fetch helper — calls /api/lens-insight, returns insight or null
 // ─────────────────────────────────────────────────────────────────────────────
 async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue, accessToken, signal }) {
-  try {
-    const res = await fetch('/api/lens-insight', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`,
-      },
-      signal,
-      body: JSON.stringify({
-        state:        form.state,
-        county:       form.county,
-        mw:           form.mw,
-        stage:        form.stage,
-        technology:   form.technology,
-        stateProgram,
-        countyData,
-        revenueStack,
-        runway,
-        ixQueue,
-      }),
-    })
-    if (!res.ok) return { insight: null, reason: `http_${res.status}` }
-    const data = await res.json()
-    return { insight: data.insight ?? null, reason: data.reason ?? (data.insight ? 'ok' : 'null_insight') }
-  } catch (err) {
-    if (err.name === 'AbortError') throw err
-    return { insight: null, reason: `fetch_error: ${err.message}` }
+  const body = JSON.stringify({
+    state:        form.state,
+    county:       form.county,
+    mw:           form.mw,
+    stage:        form.stage,
+    technology:   form.technology,
+    stateProgram,
+    countyData,
+    revenueStack,
+    runway,
+    ixQueue,
+  })
+  const headers = {
+    'Content-Type':  'application/json',
+    'Authorization': `Bearer ${accessToken}`,
   }
+  // Single retry on 5xx — protects against transient Vercel platform errors
+  // (cold-start glitches, edge-node hiccups). The 2026-05-10 audit caught a
+  // ~3% rate of one-off 500s that didn't reproduce on second call. The
+  // Anthropic call itself is idempotent + cached, so retry is safe.
+  // 4xx is NOT retried (auth/rate-limit/validation errors don't self-heal).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch('/api/lens-insight', { method: 'POST', headers, signal, body })
+      if (res.ok) {
+        const data = await res.json()
+        return { insight: data.insight ?? null, reason: data.reason ?? (data.insight ? 'ok' : 'null_insight') }
+      }
+      if (res.status >= 500 && attempt === 0) {
+        // Brief backoff so we don't slam the same edge node again
+        await new Promise(r => setTimeout(r, 800))
+        continue
+      }
+      return { insight: null, reason: `http_${res.status}` }
+    } catch (err) {
+      if (err.name === 'AbortError') throw err
+      if (attempt === 0) {
+        await new Promise(r => setTimeout(r, 800))
+        continue
+      }
+      return { insight: null, reason: `fetch_error: ${err.message}` }
+    }
+  }
+  return { insight: null, reason: 'http_5xx_after_retry' }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
