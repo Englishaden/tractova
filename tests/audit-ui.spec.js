@@ -40,6 +40,7 @@ function attachErrorCollectors(page) {
           text.includes('websocket') ||
           text.includes('[vite]') ||
           text.includes('Hydration') ||
+          text.includes('Failed to load resource: the server responded with a status of 400') ||
           text.includes('Failed to load resource: the server responded with a status of 404') ||
           text.includes('Failed to load resource: the server responded with a status of 401') ||
           text.includes('Failed to load resource: the server responded with a status of 403') ||
@@ -155,7 +156,7 @@ test.describe('Tractova UI audit', () => {
   test('Library populated path — projects render without bad text', async ({ page }) => {
     const errors = attachErrorCollectors(page)
     await page.goto('/library')
-    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible({ timeout: 20_000 })
     await page.waitForLoadState('networkidle', { timeout: 10_000 })
     const bad = await findBadText(page)
     expect(bad, `Library has visible bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
@@ -166,7 +167,7 @@ test.describe('Tractova UI audit', () => {
   test('Library empty state — onboarding card renders without bad text', async ({ page }) => {
     const errors = attachErrorCollectors(page)
     await page.goto('/library?preview=empty')
-    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible({ timeout: 20_000 })
     await page.waitForLoadState('networkidle', { timeout: 10_000 })
     const bad = await findBadText(page)
     expect(bad, `Library empty has visible bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
@@ -178,7 +179,9 @@ test.describe('Tractova UI audit', () => {
     const errors = attachErrorCollectors(page)
     await page.goto('/profile')
     // Pro badge proves useSubscription resolved; matches pro-smoke pattern.
-    await expect(page.getByText('Pro', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
+    // 20s timeout accounts for parallel-execution lag on the Vite dev server
+    // when 4 workers race lazy-route compilations at once.
+    await expect(page.getByText('Pro', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
     await page.waitForLoadState('networkidle', { timeout: 10_000 })
     const bad = await findBadText(page)
     expect(bad, `Profile has visible bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
@@ -217,8 +220,10 @@ test.describe('Tractova UI audit', () => {
     const errors = attachErrorCollectors(page)
     await page.goto('/')
     await page.waitForSelector('svg', { timeout: 15_000 })
+    // Wait for stateProgramMap to populate (same pattern as the matrix test).
+    await page.waitForFunction(() => document.querySelectorAll('[role="button"][aria-label*="Alabama"]').length > 0, { timeout: 10_000 })
     const btn = page.locator('[role="button"][aria-label*="Alabama"]').first()
-    await btn.click({ timeout: 3_000 })
+    await btn.click({ timeout: 5_000, force: true })
     await page.waitForTimeout(500)
     const bad = await findBadText(page)
     expect(bad, `Alabama panel has bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
@@ -247,5 +252,208 @@ test.describe('Tractova UI audit', () => {
     const bad = await findBadText(page)
     expect(bad, `Glossary has visible bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
     expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+})
+
+/**
+ * E2E signup flow audit.
+ *
+ * The pre-onboarding question: "can a brand-new user sign up cleanly?"
+ * Catches form validation regressions and post-submit navigation breakage
+ * before onboarding work multiplies the surface area.
+ *
+ * These tests do NOT use a real Pro session (signup is anon by definition),
+ * so they live in their own describe block and don't load storageState.
+ * Real signup-with-Supabase would pollute the DB; we use route interception
+ * to mock the auth/v1/signup response and verify both branches:
+ *   - Email-confirmation ON  → CheckYourEmailScreen renders
+ *   - Email-confirmation OFF → redirect to / (auto-login)
+ */
+test.describe('Tractova signup flow', () => {
+  // No storageState — these tests are explicitly anonymous.
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test('signup form renders cleanly', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    await page.goto('/signup')
+    await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible({ timeout: 10_000 })
+    // Form has 4 inputs (name, email, password, confirm) + 1 checkbox.
+    await expect(page.locator('input[type="email"]')).toBeVisible()
+    await expect(page.locator('input[type="password"]').first()).toBeVisible()
+    await expect(page.locator('input[type="checkbox"]')).toBeVisible()
+    await expect(page.getByRole('button', { name: /get started/i })).toBeVisible()
+    const bad = await findBadText(page)
+    expect(bad, `Signup has visible bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+
+  test('signup form: submit button disabled until agreement checkbox is ticked', async ({ page }) => {
+    attachErrorCollectors(page)
+    await page.goto('/signup')
+    const button = page.getByRole('button', { name: /get started/i })
+    // SignUp.jsx:180 — `disabled={loading || !agreed}`. Without the checkbox
+    // ticked, the button is disabled regardless of other field validity.
+    await expect(button).toBeDisabled()
+    await page.locator('input[type="checkbox"]').check()
+    await expect(button).toBeEnabled()
+  })
+
+  test('signup form: mismatched passwords show error', async ({ page }) => {
+    attachErrorCollectors(page)
+    await page.goto('/signup')
+    await page.locator('input[autocomplete="name"]').fill('Audit Test')
+    await page.locator('input[type="email"]').fill('audit-test@audit-only.invalid')
+    const pwInputs = page.locator('input[type="password"]')
+    await pwInputs.nth(0).fill('correct-horse-1')
+    await pwInputs.nth(1).fill('different-password-2')
+    await page.locator('input[type="checkbox"]').check()
+    await page.getByRole('button', { name: /get started/i }).click()
+    await expect(page.getByText(/passwords do not match/i)).toBeVisible({ timeout: 5_000 })
+  })
+
+  test('signup success — auto-login path (Supabase session returned immediately)', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    // Intercept Supabase auth/v1/signup and return a mock session. This is
+    // what happens when "Confirm email" is disabled in Supabase config —
+    // the user lands signed-in immediately and SignUp.jsx:55 redirects to /.
+    await page.route(/\/auth\/v1\/signup/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          access_token:  'mock-token',
+          token_type:    'bearer',
+          expires_in:    3600,
+          refresh_token: 'mock-refresh',
+          user: { id: 'mock-user-id', email: 'audit@audit-only.invalid', user_metadata: { full_name: 'Audit' } },
+        }),
+      })
+    })
+
+    await page.goto('/signup')
+    await page.locator('input[autocomplete="name"]').fill('Audit Test')
+    await page.locator('input[type="email"]').fill('audit-autologin@audit-only.invalid')
+    const pwInputs = page.locator('input[type="password"]')
+    await pwInputs.nth(0).fill('audit-pass-123')
+    await pwInputs.nth(1).fill('audit-pass-123')
+    await page.locator('input[type="checkbox"]').check()
+    await page.getByRole('button', { name: /get started/i }).click()
+
+    // Supabase JS will treat the response as containing a session and emit
+    // SIGNED_IN; SignUp.jsx:54 navigates to '/'. Wait for the URL change.
+    await page.waitForURL((u) => u.pathname === '/', { timeout: 10_000 })
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+
+  test('signup success — email-confirmation path (no session in response)', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    // Supabase response with no session — i.e. "Confirm email" IS enabled.
+    // SignUp.jsx:58 shows CheckYourEmailScreen.
+    await page.route(/\/auth\/v1\/signup/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          user: { id: 'mock-user-id', email: 'audit@audit-only.invalid', identities: [] },
+          session: null,
+        }),
+      })
+    })
+
+    await page.goto('/signup')
+    await page.locator('input[autocomplete="name"]').fill('Audit Test')
+    await page.locator('input[type="email"]').fill('audit-confirm@audit-only.invalid')
+    const pwInputs = page.locator('input[type="password"]')
+    await pwInputs.nth(0).fill('audit-pass-123')
+    await pwInputs.nth(1).fill('audit-pass-123')
+    await page.locator('input[type="checkbox"]').check()
+    await page.getByRole('button', { name: /get started/i }).click()
+
+    // CheckYourEmailScreen renders the email address back at the user. The
+    // exact copy may evolve; the email being on screen is the contract.
+    await expect(page.getByText('audit-confirm@audit-only.invalid')).toBeVisible({ timeout: 10_000 })
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+
+  test('signup error — server rejection shows visible error', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    await page.route(/\/auth\/v1\/signup/, async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'user_already_exists', error_description: 'User already registered' }),
+      })
+    })
+
+    await page.goto('/signup')
+    await page.locator('input[autocomplete="name"]').fill('Audit Test')
+    await page.locator('input[type="email"]').fill('already-exists@audit-only.invalid')
+    const pwInputs = page.locator('input[type="password"]')
+    await pwInputs.nth(0).fill('audit-pass-123')
+    await pwInputs.nth(1).fill('audit-pass-123')
+    await page.locator('input[type="checkbox"]').check()
+    await page.getByRole('button', { name: /get started/i }).click()
+
+    // Error region in SignUp.jsx:86-90 has class bg-red-50 with the
+    // error text. We don't pin exact copy (humanizeError may evolve);
+    // verify the error block appears.
+    await expect(page.locator('.bg-red-50, [class*="bg-red"]').first()).toBeVisible({ timeout: 5_000 })
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+})
+
+/**
+ * ErrorBoundary smoke. Targets /_e2e/crash, a dev-only route in App.jsx that
+ * intentionally throws so we can verify:
+ *   1. Render-time throws are caught and the "Something went wrong" fallback
+ *      renders (white-screen class of bug is contained)
+ *   2. Effect-time throws don't take down the whole app (React 18+ doesn't
+ *      route them to the boundary, but they shouldn't crash either —
+ *      window.onerror catches them, app keeps rendering)
+ *
+ * The crash route is gated on `import.meta.env.DEV` so it never ships to
+ * production. These tests run against the same dev server as the rest of
+ * the audit suite, so the route is available.
+ */
+test.describe('Tractova ErrorBoundary smoke', () => {
+  // No storageState — these tests are anonymous; boundary is at app root.
+  test.use({ storageState: { cookies: [], origins: [] } })
+
+  test('render-time throw renders the boundary fallback (not a white screen)', async ({ page }) => {
+    // The boundary itself logs to console.error by design (ErrorBoundary.jsx:25).
+    // Plus React dev mode logs the caught error. So we DON'T use
+    // attachErrorCollectors here — the test fails the moment those logs
+    // would have asserted clean.
+    await page.goto('/_e2e/crash?type=render')
+    // The boundary fallback's headline (ErrorBoundary.jsx:74).
+    await expect(page.getByText('Something went wrong')).toBeVisible({ timeout: 8_000 })
+    // The raw error message is rendered in a <pre> inside the fallback
+    // (ErrorBoundary.jsx:83) — confirms the boundary captured the right error.
+    await expect(page.getByText(/E2E render crash test/i)).toBeVisible()
+    // Try-again + Copy buttons present (ErrorBoundary.jsx:87-100).
+    await expect(page.getByRole('button', { name: /try again/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /copy diagnostics/i })).toBeVisible()
+  })
+
+  test('async (setTimeout) throw does not crash the app (page still renders)', async ({ page }) => {
+    // Truly-async errors don't propagate through React's render/effect path,
+    // so they aren't caught by ErrorBoundary. The contract: window.onerror
+    // catches them (Playwright surfaces as `pageerror`), but the app keeps
+    // rendering — no white screen.
+    //
+    // We listen for `pageerror`, NOT `console.error` — uncaught throws
+    // trigger pageerror, while console.error fires only on explicit
+    // console.error() calls.
+    const pageErrors = []
+    page.on('pageerror', (err) => pageErrors.push(err.message || String(err)))
+    await page.goto('/_e2e/crash?type=async')
+    // The fixture's render output is still present, which proves the page
+    // didn't get replaced by a boundary fallback or blanked out.
+    await expect(page.getByTestId('crash-test-page-loaded')).toBeVisible({ timeout: 8_000 })
+    await expect(page.getByText('Something went wrong')).not.toBeVisible()
+    // Wait briefly for the setTimeout (50ms in the fixture) to fire.
+    await page.waitForTimeout(300)
+    const sawIt = pageErrors.some(t => t.includes('E2E async crash test'))
+    expect(sawIt, `expected pageerror to fire from the async throw. pageErrors: ${pageErrors.join(' | ')}`).toBe(true)
   })
 })

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CompareProvider } from './context/CompareContext'
@@ -95,6 +95,14 @@ export default function App() {
             />
             <Route path="/glossary" element={<Glossary />} />
             <Route path="/admin" element={<Admin />} />
+            {/* DEV-ONLY: dedicated crash route so the audit suite can verify
+                the ErrorBoundary catches render errors without polluting any
+                real component. import.meta.env.DEV is true under `vite dev`
+                (which is what Playwright runs against) and false in `vite
+                build`, so this is invisible in production bundles. */}
+            {import.meta.env.DEV && (
+              <Route path="/_e2e/crash" element={<DevCrashTest />} />
+            )}
             {/* Public legal pages — no auth */}
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms"   element={<Terms />} />
@@ -122,4 +130,28 @@ export default function App() {
       </ErrorBoundary>
     </BrowserRouter>
   )
+}
+
+// DEV-ONLY crash test fixture. Mounted at /_e2e/crash under vite dev only;
+// not in production bundles. Two test paths:
+//   ?type=render — throws during render → ErrorBoundary catches it
+//   ?type=async  — throws inside setTimeout → uncaught by boundary, but
+//                  the app should keep rendering (no white screen)
+function DevCrashTest() {
+  const type = new URLSearchParams(window.location.search).get('type') || 'render'
+  useEffect(() => {
+    if (type === 'async') {
+      // Truly-async error: setTimeout callback runs outside React's effect
+      // try/catch, so the boundary doesn't see it. window.onerror catches
+      // it, console.error logs it, but the app keeps rendering whatever's
+      // mounted.
+      setTimeout(() => {
+        throw new Error('E2E async crash test (uncaught by boundary; app should keep rendering)')
+      }, 50)
+    }
+  }, [type])
+  if (type === 'render') {
+    throw new Error('E2E render crash test (intentional)')
+  }
+  return <div data-testid="crash-test-page-loaded">Crash test loaded (type={type}). Page keeps rendering this line if no render-time error fired.</div>
 }
