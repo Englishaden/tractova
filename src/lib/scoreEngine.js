@@ -375,3 +375,48 @@ export function computeDisplayScoreRange(offtake, ix, site) {
     scenarios,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Portfolio-level helpers — used by Library + Profile to score a set of saved
+// projects and roll them up into a single MW-weighted health number.
+//
+// Both surfaces previously inlined identical `scored = projects.map(...)` and
+// near-identical (but subtly divergent) healthScore computations. Profile
+// silently skipped the `Number.isFinite` filter and the divide-by-zero guard,
+// which meant a project with a null score (state hydrating, score column
+// genuinely missing) would NaN-poison the Profile gauge while the Library
+// gauge correctly fell back to 0. Unifying here means both surfaces inherit
+// the same guards and the same answer.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Annotate each project with a `score` derived from the curated state program
+ * + the project's stage / technology. Projects whose state isn't in the
+ * program map get score=0 (treated as "no data" rather than NaN-poisoning the
+ * weighted average upstream).
+ */
+export function scoreProjects(projects, stateProgramMap) {
+  if (!Array.isArray(projects)) return []
+  return projects.map(p => {
+    const sp = stateProgramMap?.[p.state]
+    if (!sp) return { ...p, score: 0 }
+    const subs = computeSubScores(sp, null, p.stage, p.technology)
+    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
+  })
+}
+
+/**
+ * MW-weighted average score across a portfolio. Filters out non-finite scores
+ * (null from safeScore, or stale data) and guards divide-by-zero when every
+ * project has 0 MW. Falls back to 0 when nothing valid remains so the gauge
+ * always renders a number, never "NaN".
+ */
+export function computePortfolioHealth(scored) {
+  if (!Array.isArray(scored) || !scored.length) return 0
+  const valid = scored.filter(p => Number.isFinite(p.score))
+  if (!valid.length) return 0
+  const totalMW = valid.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
+  if (totalMW === 0) return 0
+  const weighted = valid.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0)
+  return Math.round(weighted / totalMW)
+}

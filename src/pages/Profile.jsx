@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import { supabase } from '../lib/supabase'
 import { getStateProgramMap } from '../lib/programData'
-import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { scoreProjects, computePortfolioHealth } from '../lib/scoreEngine'
 import { Toggle, Input, Button } from '../components/ui'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { STAGE_COLORS, TECH_COLORS } from '../lib/v3Tokens'
@@ -339,24 +339,13 @@ function AlertPreferences({ userId }) {
 
 // ── Portfolio Stats (Pro only) ────────────────────────────────────────────────
 function PortfolioStats({ projects, stateProgramMap }) {
-  const scored = useMemo(() => projects.map(p => {
-    const sp = stateProgramMap[p.state]
-    if (!sp) return { ...p, score: 0 }
-    const subs = computeSubScores(sp, null, p.stage, p.technology)
-    // 2026-05-05 lockstep with Library.jsx fix: Object.values(subs) was
-    // spreading `coverage` as `weights`, returning NaN. Destructure the
-    // three numeric sub-scores explicitly.
-    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
-  }), [projects, stateProgramMap])
+  // Per-project scores + MW-weighted portfolio health.
+  // Shared helpers in scoreEngine.js so Library + Profile stay in lockstep.
+  const scored      = useMemo(() => scoreProjects(projects, stateProgramMap), [projects, stateProgramMap])
+  const healthScore = useMemo(() => computePortfolioHealth(scored), [scored])
 
   const totalMW = useMemo(() =>
     projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0), [projects])
-
-  const healthScore = useMemo(() => {
-    if (!scored.length) return 0
-    const wMW = scored.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
-    return Math.round(scored.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0) / wMW)
-  }, [scored])
 
   const stageData = useMemo(() => {
     const map = {}

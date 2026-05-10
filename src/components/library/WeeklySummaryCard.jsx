@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { computeSubScores, safeScore } from '../../lib/scoreEngine'
+import { scoreProjects, computePortfolioHealth } from '../../lib/scoreEngine'
 import { TECH_COLORS } from '../../lib/v3Tokens'
 import TractovaLoader from '../ui/TractovaLoader'
 
@@ -19,34 +19,10 @@ export default function WeeklySummaryCard({ projects, stateProgramMap }) {
   const [aiInsight, setAiInsight] = useState(cacheKey ? (_portfolioInsightCache.get(cacheKey) ?? null) : null)
   const [aiLoading, setAiLoading] = useState(false)
 
-  // Compute per-project scores
-  const scored = useMemo(() => projects.map(p => {
-    const sp = stateProgramMap[p.state]
-    if (!sp) return { ...p, score: 0 }
-    const subs = computeSubScores(sp, null, p.stage, p.technology)
-    // 2026-05-05 root-cause fix: Object.values(subs) spread `coverage` (the
-    // 4th key, an object) as the `weights` argument to computeDisplayScore.
-    // `weights.offtake = 'researched'` (string), so the multiplication
-    // returned NaN, poisoning every downstream aggregate. Destructure
-    // explicitly. Profile.jsx had the same bug — fixed in lockstep.
-    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
-  }), [projects, stateProgramMap])
-
-  // Portfolio health score (MW-weighted avg of valid scores).
-  //
-  // 2026-05-05 fix: when stateProgramMap[p.state] is undefined for a project
-  // (state not in curated map, or stateProgramMap still hydrating), the
-  // computeSubScores call returns NaN values which poisoned the weighted
-  // average and rendered "NaN" in the Portfolio Health chip. Filter to
-  // finite scores before aggregation; fall back to 0 when nothing valid.
-  const healthScore = useMemo(() => {
-    const valid = scored.filter(p => Number.isFinite(p.score))
-    if (!valid.length) return 0
-    const totalMW = valid.reduce((s, p) => s + (parseFloat(p.mw) || 1), 0)
-    if (totalMW === 0) return 0
-    const weighted = valid.reduce((s, p) => s + ((parseFloat(p.mw) || 1) * p.score), 0)
-    return Math.round(weighted / totalMW)
-  }, [scored])
+  // Per-project scores + MW-weighted portfolio health.
+  // Shared helpers in scoreEngine.js so Library + Profile stay in lockstep.
+  const scored      = useMemo(() => scoreProjects(projects, stateProgramMap), [projects, stateProgramMap])
+  const healthScore = useMemo(() => computePortfolioHealth(scored), [scored])
 
   // MW by technology
   const techBreakdown = useMemo(() => {

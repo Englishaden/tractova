@@ -133,7 +133,9 @@ console.log('══════════════════════�
 
 // ── 5. Per-RSS-source freshness ────────────────────────────────────────────
 {
-  const sources = ['PV Magazine USA', 'Solar Industry Mag', 'Utility Dive', 'Solar Power World']
+  // Source list mirrors api/scrapers/_refresh-news.js RSS_SOURCES.
+  // 2026-05-10: Solar Industry Mag dropped (host unresponsive), PV-Tech added.
+  const sources = ['PV Magazine USA', 'PV-Tech', 'Utility Dive', 'Solar Power World']
   console.log('## 5. Per-RSS-source most-recent published_at')
   for (const src of sources) {
     const { data } = await admin
