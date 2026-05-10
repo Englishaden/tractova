@@ -58,11 +58,17 @@ export default function ScenarioHistoryList({
           outputs: snap.outputs,
         }),
       })
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
       if (json.commentary) {
         setCommentaries((c) => ({ ...c, [snap.id]: { commentary: json.commentary } }))
       } else {
-        setCommentaries((c) => ({ ...c, [snap.id]: { error: json.reason || 'no_commentary' } }))
+        // Surface whichever signal the server provided. `error` is the
+        // human-readable message (400 paths), `reason` is the short code
+        // (rate limit / fallback). Prefix with HTTP status when non-OK so
+        // 401/403 sessions don't masquerade as bland "no_commentary".
+        const statusPrefix = res.ok ? '' : `HTTP ${res.status} — `
+        const detail = json.error || json.reason || 'no_commentary'
+        setCommentaries((c) => ({ ...c, [snap.id]: { error: `${statusPrefix}${detail}` } }))
       }
     } catch (err) {
       setCommentaries((c) => ({ ...c, [snap.id]: { error: err?.message || 'fetch_failed' } }))

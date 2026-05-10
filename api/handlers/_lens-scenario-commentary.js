@@ -13,7 +13,18 @@ import { buildCacheKey, cacheGet, cacheSet } from '../lib/_aiCacheLayer.js'
 export default async function handleScenarioCommentary(body, res) {
   const { stateId, technology, mw, county, baselineInputs, scenarioInputs, outputs, baselineOutputs } = body
   if (!baselineInputs || !scenarioInputs || !outputs) {
-    return res.status(400).json({ error: 'baselineInputs, scenarioInputs, outputs required' })
+    // Name the missing field so the frontend can surface "scenario missing
+    // outputs" instead of an opaque "no_commentary" placeholder. Older
+    // saved scenarios (pre Plan G.2) sometimes lack `outputs` on the row.
+    const missing = [
+      !baselineInputs && 'baselineInputs',
+      !scenarioInputs && 'scenarioInputs',
+      !outputs        && 'outputs',
+    ].filter(Boolean)
+    return res.status(400).json({
+      error:  `Required field${missing.length > 1 ? 's' : ''} missing: ${missing.join(', ')}`,
+      reason: `missing_inputs:${missing.join(',')}`,
+    })
   }
 
   // Round numeric inputs for cache hashing so 0.18001 vs 0.18 collapse.
@@ -55,8 +66,11 @@ export default async function handleScenarioCommentary(body, res) {
   lines.push(`\nSCENARIO OUTPUTS:`)
   lines.push(...formatScenarioOutputs(outputs))
 
+  // Timeout: 25s. Haiku 4.5 typically responds in 2-4s but tail latency
+  // spikes to 10-15s under load — original 12s was right at the edge.
+  // Function maxDuration is 60s (vercel.json), so we have plenty of room.
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 12000)
+  const timeoutId = setTimeout(() => controller.abort(), 25000)
   try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const message = await client.messages.create(
