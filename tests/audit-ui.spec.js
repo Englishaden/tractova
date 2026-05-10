@@ -22,14 +22,13 @@ import { test, expect } from '@playwright/test'
  *     critical render paths only
  */
 
-// All 50 states + DC. Alaska + Hawaii + DC are rendered on the US map
-// (react-simple-maps' albersUsa projection inset-clips them into the view).
-// If the click test can't find them they fall into the failure-tolerance
-// budget — but they should be present and clickable.
+// All 50 states. DC was deliberately stripped from the map (USMap.jsx
+// skips geographies without a state_programs row) — 70 sq mi, not a
+// target community-solar market, and click was a silent no-op when it
+// was rendered.
 const STATE_NAMES = {
   AL: 'Alabama',         AK: 'Alaska',          AZ: 'Arizona',         AR: 'Arkansas',
   CA: 'California',      CO: 'Colorado',        CT: 'Connecticut',     DE: 'Delaware',
-  DC: 'District of Columbia',
   FL: 'Florida',         GA: 'Georgia',         HI: 'Hawaii',          ID: 'Idaho',
   IL: 'Illinois',        IN: 'Indiana',         IA: 'Iowa',            KS: 'Kansas',
   KY: 'Kentucky',        LA: 'Louisiana',       ME: 'Maine',           MD: 'Maryland',
@@ -105,7 +104,7 @@ async function findBadText(page) {
 
 test.describe('Tractova UI audit', () => {
   // ── Dashboard state-click matrix ──────────────────────────────────────────
-  test('Dashboard click matrix — all 50 states + DC render StateDetailPanel cleanly', async ({ page }) => {
+  test('Dashboard click matrix — all 50 states render StateDetailPanel cleanly', async ({ page }) => {
     test.slow() // 30 clicks × ~500ms each = ~15s + setup
     const errors = attachErrorCollectors(page)
     await page.goto('/')

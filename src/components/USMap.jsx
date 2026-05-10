@@ -164,12 +164,17 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                 {geographies.map((geo) => {
                   const fips = String(geo.id).padStart(2, '0')
                   const stateId = FIPS[fips]
+                  const stateInfo = stateProgramMap[stateId]
+                  // Drop geographies we have no data for (currently just DC —
+                  // 70-sqmi district, not a target community-solar market).
+                  // Without this, clicking would set selectedStateId but the
+                  // panel-render conditional in Dashboard falls through to
+                  // NewsFeed because stateProgramMap[stateId] is undefined,
+                  // producing a silent no-op the user can't make sense of.
+                  if (!stateInfo) return null
                   const isHovered  = hoveredId === stateId
                   const isSelected = selectedStateId === stateId
-                  const stateInfo = stateProgramMap[stateId]
-                  const ariaLabel = stateInfo
-                    ? `${stateInfo.name}: ${stateInfo.csStatus} community solar program${stateInfo.feasibilityScore ? `, feasibility index ${stateInfo.feasibilityScore} of 100` : ''}. Press Enter to view details.`
-                    : `${stateId || 'Unknown state'}. Press Enter to view details.`
+                  const ariaLabel = `${stateInfo.name}: ${stateInfo.csStatus} community solar program${stateInfo.feasibilityScore ? `, feasibility index ${stateInfo.feasibilityScore} of 100` : ''}. Press Enter to view details.`
                   return (
                     <Geography
                       key={geo.rsmKey}
@@ -184,7 +189,7 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                       onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); handleClick(geo) } }}
                       className="cursor-pointer transition-all duration-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500"
                       role="button"
-                      tabIndex={stateInfo ? 0 : -1}
+                      tabIndex={0}
                       aria-label={ariaLabel}
                       aria-pressed={isSelected}
                     />
@@ -198,6 +203,8 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                 {geographies.map((geo) => {
                   const fips = String(geo.id).padStart(2, '0')
                   const stateId = FIPS[fips]
+                  // Same gate as Layer 1 — skip geographies with no data row.
+                  if (!stateProgramMap[stateId]) return null
                   const overlayFill = getTierOverlayFill(stateId, stateProgramMap)
                   if (!overlayFill) return null
                   return (
