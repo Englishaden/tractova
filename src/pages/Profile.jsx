@@ -383,9 +383,6 @@ function PortfolioStats({ projects, stateProgramMap }) {
     return { strong, moderate, atRisk }
   }, [scored])
 
-  const healthColor = healthScore > 65 ? '#0F766E' : healthScore >= 40 ? '#D97706' : '#DC2626'
-  const healthBg = healthScore > 65 ? 'linear-gradient(135deg, #ECFDF5, #D1FAE5)' : healthScore >= 40 ? 'linear-gradient(135deg, #FFFBEB, #FEF3C7)' : 'linear-gradient(135deg, #FEF2F2, #FEE2E2)'
-
   if (!projects.length) return null
 
   return (
@@ -394,17 +391,42 @@ function PortfolioStats({ projects, stateProgramMap }) {
 
       {/* Health + KPIs row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Health gauge */}
-        <div className="rounded-xl px-4 py-4 flex flex-col items-center justify-center" style={{ background: healthBg }}>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Health</p>
-          <div className="relative w-14 h-14">
-            <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#E5E7EB" strokeWidth="3" />
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={healthColor} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
-            </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-lg font-bold tabular-nums" style={{ color: healthColor }}>{healthScore}</span>
-          </div>
-        </div>
+        {/* Health gauge — animated tech panel (mesh + scan + pulse rings),
+            mirrors Library WeeklySummaryCard. CSS keyframes live in index.css. */}
+        {(() => {
+          const tier = healthScore > 65 ? 'strong' : healthScore >= 40 ? 'moderate' : 'risk'
+          const tierBg = {
+            strong:   'radial-gradient(ellipse at center, #ECFDF5 0%, #D1FAE5 100%)',
+            moderate: 'radial-gradient(ellipse at center, #FFFBEB 0%, #FEF3C7 100%)',
+            risk:     'radial-gradient(ellipse at center, #FEF2F2 0%, #FEE2E2 100%)',
+          }[tier]
+          const accent     = { strong: 'rgba(15,118,110,0.32)', moderate: 'rgba(217,119,6,0.32)', risk: 'rgba(220,38,38,0.32)' }[tier]
+          const gridColor  = { strong: 'rgba(15,118,110,0.10)', moderate: 'rgba(217,119,6,0.10)', risk: 'rgba(220,38,38,0.10)' }[tier]
+          const ringStroke = { strong: '#0F766E', moderate: '#D97706', risk: '#DC2626' }[tier]
+          const tierLabel  = { strong: 'Strong', moderate: 'Moderate', risk: 'At Risk' }[tier]
+          const tierTextColor = { strong: '#059669', moderate: '#B45309', risk: '#DC2626' }[tier]
+          return (
+            <div
+              className="relative rounded-xl px-4 py-4 flex flex-col items-center justify-center overflow-hidden"
+              style={{ background: tierBg, '--health-accent': accent, '--health-grid-color': gridColor }}
+            >
+              <div className="absolute inset-0 health-grid pointer-events-none" aria-hidden="true" />
+              <div className="absolute inset-0 health-scan pointer-events-none" aria-hidden="true" />
+              <p className="relative text-[9px] font-bold uppercase tracking-wider text-gray-600 mb-1">Health</p>
+              <div className="relative w-14 h-14">
+                <span className="absolute inset-0 rounded-full health-ring pointer-events-none" aria-hidden="true" />
+                <span className="absolute inset-0 rounded-full health-ring health-ring-2 pointer-events-none" aria-hidden="true" />
+                <span className="absolute inset-0 rounded-full health-ring health-ring-3 pointer-events-none" aria-hidden="true" />
+                <svg viewBox="0 0 36 36" className="relative w-14 h-14 -rotate-90">
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="3" />
+                  <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke={ringStroke} strokeWidth="3" strokeDasharray={`${healthScore}, 100`} strokeLinecap="round" />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-lg font-bold tabular-nums" style={{ color: ringStroke }}>{healthScore}</span>
+              </div>
+              <p className="relative text-[9px] font-medium mt-1" style={{ color: tierTextColor }}>{tierLabel}</p>
+            </div>
+          )
+        })()}
 
         {/* Total MW */}
         <div className="rounded-xl px-4 py-4 bg-white border border-gray-100 flex flex-col justify-center">

@@ -22,9 +22,12 @@
 import { createHash } from 'crypto'
 import { supabaseAdmin } from './_scraperBase.js'
 
+// 2026-05-10: dropped Solar Industry Mag (host unresponsive — 0 rows ever
+// inserted across full cron history). Replaced with PV-Tech, which has
+// stronger IX-queue / FERC / policy-reform coverage to balance pillar mix.
 const RSS_SOURCES = [
   { name: 'PV Magazine USA',    url: 'https://pv-magazine-usa.com/feed/' },
-  { name: 'Solar Industry Mag', url: 'https://www.solarindustrymag.com/feed/rss' },
+  { name: 'PV-Tech',            url: 'https://www.pv-tech.org/feed/' },
   { name: 'Utility Dive',       url: 'https://www.utilitydive.com/feeds/news/' },
   { name: 'Solar Power World',  url: 'https://www.solarpowerworldonline.com/feed/' },
 ]
@@ -296,6 +299,12 @@ Score the article 0-100 for relevance to a developer making siting / offtake / i
   80-100  highly actionable -- state policy change, IX queue reform, REC/incentive update, major program ruling
   60-79   useful context    -- market trends, comparable deals, capacity statistics
   0-59    not relevant      -- residential rooftop, utility-scale only, EV-only, BESS-only, international
+
+Pick exactly ONE pillar based on the article's primary topic:
+  "ix"      -- interconnection queue, ISO/RTO study, FERC orders, transmission capacity, queue reform, withdrawal rates, study deposits, network-upgrade costs
+  "site"    -- siting, permits, land use, prime farmland, energy community, HUD QCT/DDA, county zoning, environmental review, brownfield/landfill projects
+  "offtake" -- everything else relevant: REC/SREC pricing, value of solar, NEM, tariffs, ITC/IRA/safe-harbor, state CS programs, low-income carve-outs, RPS, rate cases
+Default to "offtake" only if the article doesn't clearly fit "ix" or "site". Do not over-classify ambiguous policy as "offtake".
 
 Article:
 Title: ${item.title}
