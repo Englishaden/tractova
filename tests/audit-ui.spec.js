@@ -22,13 +22,25 @@ import { test, expect } from '@playwright/test'
  *     critical render paths only
  */
 
+// All 50 states + DC. Alaska + Hawaii + DC are rendered on the US map
+// (react-simple-maps' albersUsa projection inset-clips them into the view).
+// If the click test can't find them they fall into the failure-tolerance
+// budget — but they should be present and clickable.
 const STATE_NAMES = {
-  CA: 'California',     TX: 'Texas',         IL: 'Illinois',     NY: 'New York',     MA: 'Massachusetts',
-  NJ: 'New Jersey',     MD: 'Maryland',      PA: 'Pennsylvania', CO: 'Colorado',     AZ: 'Arizona',
-  FL: 'Florida',        OH: 'Ohio',          MI: 'Michigan',     WI: 'Wisconsin',    MN: 'Minnesota',
-  IN: 'Indiana',        MO: 'Missouri',      KS: 'Kansas',       NE: 'Nebraska',     GA: 'Georgia',
-  NC: 'North Carolina', SC: 'South Carolina', VA: 'Virginia',    WV: 'West Virginia', KY: 'Kentucky',
-  TN: 'Tennessee',      AL: 'Alabama',       AR: 'Arkansas',     LA: 'Louisiana',    OK: 'Oklahoma',
+  AL: 'Alabama',         AK: 'Alaska',          AZ: 'Arizona',         AR: 'Arkansas',
+  CA: 'California',      CO: 'Colorado',        CT: 'Connecticut',     DE: 'Delaware',
+  DC: 'District of Columbia',
+  FL: 'Florida',         GA: 'Georgia',         HI: 'Hawaii',          ID: 'Idaho',
+  IL: 'Illinois',        IN: 'Indiana',         IA: 'Iowa',            KS: 'Kansas',
+  KY: 'Kentucky',        LA: 'Louisiana',       ME: 'Maine',           MD: 'Maryland',
+  MA: 'Massachusetts',   MI: 'Michigan',        MN: 'Minnesota',       MS: 'Mississippi',
+  MO: 'Missouri',        MT: 'Montana',         NE: 'Nebraska',        NV: 'Nevada',
+  NH: 'New Hampshire',   NJ: 'New Jersey',      NM: 'New Mexico',      NY: 'New York',
+  NC: 'North Carolina',  ND: 'North Dakota',    OH: 'Ohio',            OK: 'Oklahoma',
+  OR: 'Oregon',          PA: 'Pennsylvania',    RI: 'Rhode Island',    SC: 'South Carolina',
+  SD: 'South Dakota',    TN: 'Tennessee',       TX: 'Texas',           UT: 'Utah',
+  VT: 'Vermont',         VA: 'Virginia',        WA: 'Washington',      WV: 'West Virginia',
+  WI: 'Wisconsin',       WY: 'Wyoming',
 }
 
 function attachErrorCollectors(page) {
@@ -93,7 +105,7 @@ async function findBadText(page) {
 
 test.describe('Tractova UI audit', () => {
   // ── Dashboard state-click matrix ──────────────────────────────────────────
-  test('Dashboard click matrix — 30 states render StateDetailPanel cleanly', async ({ page }) => {
+  test('Dashboard click matrix — all 50 states + DC render StateDetailPanel cleanly', async ({ page }) => {
     test.slow() // 30 clicks × ~500ms each = ~15s + setup
     const errors = attachErrorCollectors(page)
     await page.goto('/')
@@ -112,10 +124,16 @@ test.describe('Tractova UI audit', () => {
 
     for (const stateId of states) {
       const fullName = STATE_NAMES[stateId]
-      const button = page.locator(`[role="button"][aria-label*="${fullName}"]`).first()
-      const exists = await button.count() > 0
+      // Aria-label is `<Name>: <status> community solar...` when state_programs
+      // has a row, else `<stateId>. Press Enter...` (USMap.jsx:170-172;
+      // note the PERIOD after the bare ID). Falling back to the bare ID
+      // covers states without DB rows (e.g., DC has no row in our seed).
+      const byName  = page.locator(`[role="button"][aria-label*="${fullName}"]`).first()
+      const byId    = page.locator(`[role="button"][aria-label^="${stateId}."]`).first()
+      const button  = byName.or(byId)
+      const exists  = await button.count() > 0
       if (!exists) {
-        failures.push(`${stateId}: no clickable element found with aria-label containing "${fullName}"`)
+        failures.push(`${stateId}: no clickable element found (tried "${fullName}" and "${stateId} ")`)
         continue
       }
       try {
