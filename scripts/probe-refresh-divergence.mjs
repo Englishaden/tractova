@@ -126,7 +126,9 @@ console.log('══════════════════════�
   } else {
     for (const r of data) {
       const s = typeof r.summary === 'string' ? JSON.parse(r.summary) : r.summary || {}
-      const stats = ` updated=${s.updated ?? s.changed ?? '—'} unchanged=${s.unchanged ?? '—'} inserted=${s.inserted ?? '—'} skipped=${s.skipped ?? '—'} verifiedOnly=${s.verified_only ?? '—'}`
+      // state_programs return shape (api/scrapers/_refresh-state-programs.js:212):
+      //   states_checked, updates_applied, snapshots_written, verified, partial, no_match
+      const stats = ` checked=${s.states_checked ?? '—'} updated=${s.updates_applied ?? '—'} snapshots=${s.snapshots_written ?? '—'} verified=${s.verified ?? '—'} partial=${s.partial ?? '—'} no_match=${s.no_match ?? '—'}`
       console.log(`   ${r.status === 'success' ? '✅' : '❌'} ${fmt(r.finished_at)}${stats}`)
     }
   }

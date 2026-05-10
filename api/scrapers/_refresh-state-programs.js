@@ -55,6 +55,10 @@ export default async function refreshStateProgramsViaDsire() {
 
   const results = { verified: 0, partial: 0, no_match: 0, errors: 0, samples: [] }
   const updates = []
+  // Capture the first upstream-fetch error so `first_error` reflects what
+  // DSIRE actually said, not just a count. Previously every state could fail
+  // with `errors: 19, first_error: null` and the cron still report ok=true.
+  let firstFetchError = null
 
   for (const row of stateRows) {
     try {
@@ -69,6 +73,10 @@ export default async function refreshStateProgramsViaDsire() {
 
       if (!resp.ok) {
         results.errors++
+        if (!firstFetchError) {
+          const body = await resp.text().catch(() => '')
+          firstFetchError = `${row.id}: HTTP ${resp.status} from DSIRE — ${body.slice(0, 140)}`
+        }
         continue
       }
       const payload = await resp.json()
@@ -147,6 +155,7 @@ export default async function refreshStateProgramsViaDsire() {
       }
     } catch (e) {
       results.errors++
+      if (!firstFetchError) firstFetchError = `${row.id}: ${e?.message || String(e)}`
     }
   }
 
@@ -170,10 +179,16 @@ export default async function refreshStateProgramsViaDsire() {
     }
   }
 
-  // If every update failed -> surface as a hard failure. Otherwise the
-  // multiplexer reports ✓ even though no DSIRE columns were actually
-  // written, and the freshness panel stays stale forever.
-  const allFailed = updates.length > 0 && updates_applied === 0
+  // Honest success criterion: did this run produce ANY useful work?
+  // - updates_applied > 0 means we wrote DSIRE columns to at least one state
+  // - results.verified + results.partial > 0 means we matched at least one
+  //   program (even if the update later failed)
+  // Previously: `allFailed = updates.length > 0 && updates_applied === 0`,
+  // which silently passed when every upstream fetch 403'd (updates.length = 0,
+  // so allFailed = false, so ok = true). DSIRE revoking public API access in
+  // May 2026 is what surfaced this — 19 errors and 0 updates reported as ✓.
+  const noWorkDone = updates_applied === 0 && results.verified === 0 && results.partial === 0
+  const allFailed = noWorkDone && stateRows.length > 0
 
   // V3 Wave 1.4: append a snapshot row per state on every cron run so we
   // accumulate a feasibility-score time series. ~4 weeks of accumulation
@@ -209,9 +224,15 @@ export default async function refreshStateProgramsViaDsire() {
     console.warn('[state_programs_snapshots] hook failed:', e?.message)
   }
 
+  // Surface the most informative error. Upstream fetch failures (e.g. DSIRE
+  // 403) are usually the root cause — prefer those over per-row update errors,
+  // which are downstream symptoms.
+  const reportedError = firstFetchError || firstUpdateError
   return {
     ok:                !allFailed,
-    error:             allFailed ? `All ${updates.length} state_programs updates failed. First error: ${firstUpdateError}. Hint: confirm migration 026 (dsire_* columns) is applied.` : undefined,
+    error:             allFailed
+      ? `state_programs DSIRE pipeline did no useful work across ${stateRows.length} states. First error: ${reportedError || '(none captured)'}. Hint: DSIRE may have changed access policy or migration 026 may be missing.`
+      : undefined,
     states_checked:    stateRows.length,
     updates_applied,
     snapshots_written,
@@ -219,7 +240,7 @@ export default async function refreshStateProgramsViaDsire() {
     partial:           results.partial,
     no_match:          results.no_match,
     errors:            results.errors,
-    first_error:       firstUpdateError,
+    first_error:       reportedError,
     samples:           results.samples,
   }
 }

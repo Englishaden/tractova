@@ -47,6 +47,9 @@ export default async function refreshRevenueStacksViaDsire() {
 
   const results = { verified: 0, partial: 0, no_match: 0, errors: 0, samples: [] }
   const updates = []
+  // Capture first upstream-fetch error so first_error reflects what DSIRE
+  // actually said (mirrors the fix in _refresh-state-programs.js).
+  let firstFetchError = null
 
   for (const row of stackRows) {
     try {
@@ -59,7 +62,14 @@ export default async function refreshRevenueStacksViaDsire() {
       })
       clearTimeout(timeoutId)
 
-      if (!resp.ok) { results.errors++; continue }
+      if (!resp.ok) {
+        results.errors++
+        if (!firstFetchError) {
+          const body = await resp.text().catch(() => '')
+          firstFetchError = `${row.state_id}: HTTP ${resp.status} from DSIRE — ${body.slice(0, 140)}`
+        }
+        continue
+      }
       const payload = await resp.json()
       const programs = Array.isArray(payload) ? payload : (payload?.data || [])
 
@@ -128,6 +138,7 @@ export default async function refreshRevenueStacksViaDsire() {
       }
     } catch (e) {
       results.errors++
+      if (!firstFetchError) firstFetchError = `${row.state_id}: ${e?.message || String(e)}`
     }
   }
 
@@ -149,18 +160,25 @@ export default async function refreshRevenueStacksViaDsire() {
     }
   }
 
-  const allFailed = updates.length > 0 && updates_applied === 0
+  // Honest success criterion (mirrors state_programs fix): if every state
+  // 403'd, updates.length is 0, so the old check `updates.length > 0 &&
+  // updates_applied === 0` evaluated to false and the cron passed silently.
+  const noWorkDone = updates_applied === 0 && results.verified === 0 && results.partial === 0
+  const allFailed = noWorkDone && stackRows.length > 0
+  const reportedError = firstFetchError || firstUpdateError
 
   return {
     ok:              !allFailed,
-    error:           allFailed ? `All ${updates.length} revenue_stacks updates failed. First error: ${firstUpdateError}. Hint: confirm migration 029 (dsire_* columns) is applied.` : undefined,
+    error:           allFailed
+      ? `revenue_stacks DSIRE pipeline did no useful work across ${stackRows.length} states. First error: ${reportedError || '(none captured)'}. Hint: DSIRE may have changed access policy or migration 029 may be missing.`
+      : undefined,
     states_checked:  stackRows.length,
     updates_applied,
     verified:        results.verified,
     partial:         results.partial,
     no_match:        results.no_match,
     errors:          results.errors,
-    first_error:     firstUpdateError,
+    first_error:     reportedError,
     samples:         results.samples,
   }
 }
