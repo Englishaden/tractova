@@ -1,0 +1,19 @@
+# Tractova robots.txt
+# Crawlers welcome. Sitemap below has the canonical public-route list.
+
+User-agent: *
+Allow: /
+
+# Per-token memo share links — never index. The token is the only
+# auth on these pages; indexing them would leak private analyses.
+Disallow: /memo/
+
+# Admin surface — not for public consumption.
+Disallow: /admin
+Disallow: /admin/
+
+# Post-checkout / post-password-reset flows — transient, no SEO value.
+Disallow: /upgrade-success
+Disallow: /update-password
+
+Sitemap: https://www.tractova.com/sitemap.xml
