@@ -22,6 +22,7 @@ import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
 import ProjectTable from '../components/library/ProjectTable.jsx'
+import Pagination from '../components/library/Pagination.jsx'
 import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
 
 // Phase 2A · TRACTOVA-UX-001 — Library layout (cards | table | map) is
@@ -36,6 +37,21 @@ function loadLayout() {
 }
 function saveLayout(layout) {
   try { localStorage.setItem(LAYOUT_STORAGE_KEY, layout) } catch { /* quota / SSR — silent */ }
+}
+
+// Page-size persistence for client-side pagination. Valid sizes: 25, 50,
+// 100. Hidden ?all=1 URL flag bypasses pagination entirely (power-user
+// escape hatch).
+const PAGE_SIZE_KEY = 'tractova_library_page_size'
+const VALID_PAGE_SIZES = [25, 50, 100]
+function loadPageSize() {
+  try {
+    const v = typeof window !== 'undefined' ? parseInt(localStorage.getItem(PAGE_SIZE_KEY), 10) : NaN
+    return VALID_PAGE_SIZES.includes(v) ? v : 25
+  } catch { return 25 }
+}
+function savePageSize(n) {
+  try { localStorage.setItem(PAGE_SIZE_KEY, String(n)) } catch { /* silent */ }
 }
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
@@ -212,6 +228,20 @@ function LibraryContent() {
   const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' — top-level toggle
   const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' — Phase 2A
   const handleLayoutChange = useCallback((next) => { setLayoutState(next); saveLayout(next) }, [])
+
+  // Client-side pagination state — windows the rendered project list.
+  // Data fetch stays unbounded because the Pipeline Distribution +
+  // stat strip + score-change audit all need the full set. Hidden
+  // ?all=1 URL flag bypasses windowing for power users.
+  const showAllOverride = typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('all') === '1'
+  const [pageSize, setPageSizeState] = useState(loadPageSize)
+  const [page, setPage] = useState(1)
+  const handlePageSizeChange = useCallback((n) => {
+    setPageSizeState(n)
+    savePageSize(n)
+    setPage(1)  // reset to first page so the user always sees the top of the list
+  }, [])
 
   // ?tab=scenarios URL handling so external links (e.g. the "view in Library →"
   // confirmation card in ScenarioStudio) can land directly on the Scenarios
@@ -468,6 +498,30 @@ function LibraryContent() {
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
   }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap, countyDataMap])
+
+  // Reset to page 1 when the filtered list changes shape — otherwise a
+  // user on page 3 of 100 who applies a filter that yields 8 results
+  // ends up looking at an empty page 3. Triggers on filter/sort changes.
+  useEffect(() => {
+    setPage(1)
+  }, [filterState, filterTech, filterStage, sortBy])
+
+  // Windowed projects for rendering. Stat strip + Pipeline Distribution
+  // still use the full `displayProjects` (and `projects`) so portfolio-
+  // level intelligence is never windowed. ?all=1 bypasses the window.
+  const pagedProjects = useMemo(() => {
+    if (showAllOverride) return displayProjects
+    const start = (page - 1) * pageSize
+    return displayProjects.slice(start, start + pageSize)
+  }, [displayProjects, page, pageSize, showAllOverride])
+
+  // Clamp page when displayProjects shrinks below the current window
+  // (e.g. user is on page 5, then a filter reduces total to 12 results —
+  // page 5 would render nothing; jump to the last valid page instead).
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(displayProjects.length / pageSize))
+    if (page > maxPage) setPage(maxPage)
+  }, [displayProjects.length, pageSize, page])
 
   // Mirror displayProjects into a ref so the bulk select-all callback can
   // read the current list without re-binding on every filter change.
@@ -949,17 +1003,30 @@ function LibraryContent() {
           </div>
         ) : (projects.length > 0 && !previewEmpty) ? (
           <>
-            {/* "What Changed" banner */}
+            {/* "What Changed" banner — Phase 2A extended with state-move
+                counts. The per-card chips that show this (hasDataUpdate
+                badge, State ±X pt badge) now persist when cards expand;
+                this banner is the portfolio-level roll-up of those same
+                signals, visible in both Cards and Table layouts. */}
             {(() => {
               const updatedCount = projects.filter(p => {
                 const current = stateProgramMap[p.state]
                 return current?.lastUpdated && p.savedAt && new Date(current.lastUpdated) > new Date(p.savedAt)
               }).length
               const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap, countyDataMap).length, 0)
-              if (updatedCount === 0 && alertCount === 0) return null
+              // State moves week-over-week — counts distinct states with a
+              // non-zero snapshot delta that we have projects in. Mirrors
+              // the per-card "State ±X pt" chip's source data.
+              const movedStates = new Set()
+              for (const p of projects) {
+                const d = stateDeltaMap?.get?.(p.state)
+                if (d && d.delta !== 0) movedStates.add(p.state)
+              }
+              const stateMoveCount = movedStates.size
+              if (updatedCount === 0 && alertCount === 0 && stateMoveCount === 0) return null
               return (
                 <div
-                  className="flex items-center gap-3 rounded-lg px-4 py-3 mb-4"
+                  className="flex items-center gap-3 rounded-lg px-4 py-3 mb-4 flex-wrap"
                   style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.20)' }}
                 >
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0F766E' }} />
@@ -969,7 +1036,9 @@ function LibraryContent() {
                   <span className="text-gray-300">·</span>
                   <p className="text-xs font-medium text-ink">
                     {updatedCount > 0 && <span>{updatedCount} project{updatedCount > 1 ? 's have' : ' has'} updated market data</span>}
-                    {updatedCount > 0 && alertCount > 0 && <span className="text-gray-400"> · </span>}
+                    {updatedCount > 0 && stateMoveCount > 0 && <span className="text-gray-400"> · </span>}
+                    {stateMoveCount > 0 && <span>{stateMoveCount} state{stateMoveCount > 1 ? 's' : ''} moved week-over-week</span>}
+                    {(updatedCount > 0 || stateMoveCount > 0) && alertCount > 0 && <span className="text-gray-400"> · </span>}
                     {alertCount > 0 && <span>{alertCount} alert{alertCount > 1 ? 's' : ''} across your portfolio</span>}
                   </p>
                 </div>
@@ -1124,9 +1193,10 @@ function LibraryContent() {
             )}
 
             {displayProjects.length > 0 ? (
-              layout === 'table' ? (
+              <>
+              {layout === 'table' ? (
                 <ProjectTable
-                  projects={displayProjects}
+                  projects={pagedProjects}
                   stateProgramMap={stateProgramMap}
                   countyDataMap={countyDataMap}
                   stateDeltaMap={stateDeltaMap}
@@ -1144,7 +1214,7 @@ function LibraryContent() {
                 />
               ) : (
               <div className="grid gap-3">
-                {displayProjects.map((p) => (
+                {pagedProjects.map((p) => (
                   <ProjectCard
                     key={p.id}
                     project={p}
@@ -1166,7 +1236,21 @@ function LibraryContent() {
                   />
                 ))}
               </div>
-              )
+              )}
+              {/* Pagination strip — only shows when there's more than
+                  one page of results AND the ?all=1 override isn't set.
+                  Below the list so the user finishes scanning the page
+                  before deciding to advance. */}
+              {!showAllOverride && displayProjects.length > pageSize && (
+                <Pagination
+                  total={displayProjects.length}
+                  page={page}
+                  pageSize={pageSize}
+                  onPageChange={setPage}
+                  onPageSizeChange={handlePageSizeChange}
+                />
+              )}
+              </>
             ) : (
               <div className="text-center py-12">
                 <p className="text-sm font-medium text-gray-500">No projects match current filters.</p>

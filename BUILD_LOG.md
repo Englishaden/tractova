@@ -4,7 +4,39 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 2A IN PROGRESS · Slice 1 shipped (view-mode toggle + Table) · Slice 2 next (pagination + filter rail + StagePicker Radix)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 2A SHIPPED (Slices 1 + 2) · resume Phase 2B (Library Map view)
+
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 2B. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2B, then implement the Library Map view + sticky LibraryFilterRail.`
+
+**Phase 2A Slice 2 — shipped this session (on top of Slice 1):**
+- `src/components/library/StagePicker.jsx` — migrated from a hand-rolled `position: absolute` dropdown to `@radix-ui/react-popover`. Popover portals to <body> so the menu no longer clips against card bounds (design-vocab anti-pattern fixed). Outside-click, Esc, focus-trap, and keyboard nav now come from Radix.
+- `package.json` — added `@radix-ui/react-popover ^1.1.15` (matches existing Radix peer versions). Already installed transitively via the `radix-ui` umbrella; now declared explicitly.
+- `src/components/library/Pagination.jsx` — Bloomberg-styled pagination strip. Page-size selector (25 / 50 / 100), prev / next chevrons, "Showing X–Y of N" position indicator. Mono numerics + tabular-nums throughout.
+- `src/pages/Library.jsx` — added client-side pagination of the rendered list. `displayProjects` (filter + sort result) is windowed via `pagedProjects = displayProjects.slice(...)`. Page-size persisted in localStorage as `tractova_library_page_size` (default 25). Page auto-resets on filter / sort change; clamps to last valid page when filter shrinks results below current window. Hidden `?all=1` URL flag bypasses pagination for power users.
+- `src/components/ProjectCard.jsx` — removed `!expanded` guards on the "Updated" and "State ±X pt" chips so they persist when the card expands (previously dropped useful at-a-glance signals on expand).
+- `src/pages/Library.jsx` — extended the "Recent Updates" portfolio banner to count state moves week-over-week in addition to existing updated-projects + alert counts. Banner is the portfolio-level roll-up of the per-card chips, visible in both Cards and Table layouts.
+
+**Verification baseline at Slice 2 close:**
+- `npm run test:unit` — 127/127 green
+- `npm run build` — clean (~3.5s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs` — within budget
+- `npm run lint:api / lint:secrets` — clean
+
+**Why no fetch-side cursor pagination?** Library's Pipeline Distribution + stat strip + score-change audit + bulk export all rely on having the full project set client-side. Server-side cursor pagination would have broken those portfolio-level signals. Client-side windowing of the *rendered* list addresses the actual perf pain (rendering 100+ cards/rows is slow) without breaking anything else. If users ever hit thousands of projects we can revisit with a server cursor + a separate aggregate-stats endpoint.
+
+**What's NEXT (Phase 2B — Library Map view, ~10–14h):**
+- `<LibraryMap>` using `react-simple-maps` + `us-atlas` — states colored by MW-weighted aggregate score; project pins at county centroids
+- Build / ship `data/county_centroids.json` (generate from us-atlas)
+- Click pin → `<ProjectDrawer>` slide-in from right (480px)
+- Click state → filters Library to that state
+- Sticky `<LibraryFilterRail>` (deferred from 2A — bigger restructure)
+- Empty-state map with CTA when user has no projects
+- Cluster pins above 200 with state-count badge
+
+---
+
+## ARCHIVED Pickup — TRACTOVA-UX-001 Phase 2A IN PROGRESS · Slice 1 shipped (view-mode toggle + Table) · Slice 2 next (pagination + filter rail + StagePicker Radix)
 
 **Resume command:** `Resume TRACTOVA-UX-001 Phase 2A Slice 2. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2A, then implement Slice 2 (pagination + sticky LibraryFilterRail + StagePicker Radix Popover migration + lifted "Updated" / "State ±X pt" chips).`
 

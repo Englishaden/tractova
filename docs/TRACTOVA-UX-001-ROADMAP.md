@@ -463,7 +463,7 @@ Claude will pick up exactly where this session ended.
 |---|---|---|---|
 | 0 — Foundations + motion primitives | ✅ Shipped | `cfce269` | + design doc `59a6b30` |
 | 1 — Cmd-K nav spine | ✅ Shipped | (this commit) | parser + tests + CmdKHint + verb-mode palette |
-| 2A — Library Table view | 🟡 In progress | (Slice 1: this commit) | Slice 1 ships view-mode toggle + Table view + bulk-select earlier. Pagination + sticky filter rail + StagePicker Radix queued for Slice 2. |
+| 2A — Library Table view | ✅ Shipped (Slices 1 + 2) | (this commit) | Slice 1: view-mode toggle + Bloomberg Table + bulk-select earlier. Slice 2: StagePicker → Radix Popover + client-side pagination (25/50/100, `?all=1` escape) + persistent chips banner. Sticky LibraryFilterRail deferred to Phase 2B alongside Map. |
 | 2B — Library Map view | ⏳ Queued | — | ~10–14h |
 | 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ⏳ Queued | — | ~15–20h, has migration |
 | 3 — Lens polish + a11y | ⏳ Queued | — | ~10–14h |

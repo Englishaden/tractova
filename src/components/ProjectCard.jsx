@@ -238,7 +238,10 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-serif text-base font-semibold leading-snug text-ink" style={{ letterSpacing: '-0.015em' }}>{project.name}</h2>
             <StagePicker stage={stage} projectId={project.id} onChange={(s) => { setStage(s); onStageChange?.(project.id, s) }} />
-            {hasDataUpdate && !expanded && (
+            {/* Phase 2A: chip persists when card expands — was previously
+                hidden behind !expanded, dropping a useful at-a-glance
+                signal whenever the user opened a card. */}
+            {hasDataUpdate && (
               <span
                 className="text-[10px] font-semibold rounded-full px-2 py-0.5 border flex items-center gap-1"
                 style={{ background: 'rgba(37,99,235,0.12)', color: '#60A5FA', borderColor: 'rgba(37,99,235,0.25)' }}
@@ -296,7 +299,8 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                 moved week-over-week in the snapshot history. Honestly labeled
                 "State" because the source is state_programs_snapshots, not
                 a per-project history. Silent when delta is null/zero. */}
-            {stateDelta && stateDelta.delta !== 0 && !expanded && (
+            {/* Phase 2A: state-delta chip persists when expanded too. */}
+            {stateDelta && stateDelta.delta !== 0 && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
