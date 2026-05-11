@@ -1213,6 +1213,92 @@ export async function deletePucDocket(id) {
   invalidateCache('puc_dockets:*')
 }
 
+// ── Policy Impact Events (migration 059) ─────────────────────────────────────
+// Quantified enacted-bill effects ($/MW capex, IRR bps, ongoing fees, safe-
+// harbor + FEOC flags). Read here for the admin curation UI; the Lens API
+// reads the same table server-side via service-role (api/lens-insight.js).
+//
+// includeUnpublished=true surfaces drafts + pending_admin_review rows for the
+// admin review queue. Default returns published rows only.
+export async function getPolicyImpactEvents({ state, includeUnpublished = false } = {}) {
+  const cacheKey = `policy_impact_events:${state || 'all'}:${includeUnpublished ? 'all' : 'published'}`
+  return withCache(cacheKey, async () => {
+    let query = supabase
+      .from('policy_impact_events')
+      .select('*')
+      .eq('is_active', true)
+      .order('effective_date', { ascending: false, nullsFirst: false })
+    if (state) query = query.eq('state', state)
+    if (!includeUnpublished) query = query.eq('review_status', 'published')
+    const { data, error } = await query
+    if (error) {
+      console.warn('[policy_impact_events] fetch failed:', error.message)
+      return []
+    }
+    return (data || []).map(row => ({
+      id:                          row.id,
+      state:                       row.state,
+      eventName:                   row.event_name,
+      eventType:                   row.event_type,
+      effectiveDate:               row.effective_date,
+      status:                      row.status,
+      pillar:                      row.pillar,
+      capexImpactPerMwUsd:         row.capex_impact_per_mw_usd,
+      irrImpactBps:                row.irr_impact_bps,
+      ongoingFeePerMwYrUsd:        row.ongoing_fee_per_mw_yr_usd,
+      revenueHaircutPct:           row.revenue_haircut_pct,
+      impactConfidence:            row.impact_confidence,
+      impactMethodology:           row.impact_methodology,
+      appliesToNewApplications:    row.applies_to_new_applications,
+      appliesToExistingQueue:      row.applies_to_existing_queue,
+      appliesToOperatingProjects:  row.applies_to_operating_projects,
+      safeHarborEligible:          row.safe_harbor_eligible,
+      safeHarborCutoffDate:        row.safe_harbor_cutoff_date,
+      safeHarborNotes:             row.safe_harbor_notes,
+      feocComplianceRequired:      row.feoc_compliance_required,
+      feocNotes:                   row.feoc_notes,
+      minMwAc:                     row.min_mw_ac,
+      maxMwAc:                     row.max_mw_ac,
+      applicableTechnologies:      row.applicable_technologies,
+      applicableStages:            row.applicable_stages,
+      summary:                     row.summary,
+      analystNote:                 row.analyst_note,
+      sourceUrl:                   row.source_url,
+      discoveredVia:               row.discovered_via,
+      discoveryMetadata:           row.discovery_metadata,
+      reviewStatus:                row.review_status,
+      verifiedAt:                  row.verified_at,
+      createdAt:                   row.created_at,
+      updatedAt:                   row.updated_at,
+    }))
+  })
+}
+
+export async function upsertPolicyImpactEvent(fields) {
+  // Bump verified_at when publishing — that's the field Lens cache uses to
+  // detect "this state's policy context changed, invalidate cached verdicts".
+  const payload = { ...fields }
+  if (payload.review_status === 'published') {
+    payload.verified_at = new Date().toISOString()
+  }
+  const { error } = await supabase
+    .from('policy_impact_events')
+    .upsert(payload)
+  if (error) throw error
+  invalidateCache('policy_impact_events:*')
+}
+
+export async function deletePolicyImpactEvent(id) {
+  // Soft-delete (preserve audit trail). Bumping verified_at so Lens cache
+  // notices the removal.
+  const { error } = await supabase
+    .from('policy_impact_events')
+    .update({ is_active: false, verified_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+  invalidateCache('policy_impact_events:*')
+}
+
 export async function updateIXQueueRow(id, fields) {
   const { error } = await supabase
     .from('ix_queue_data')

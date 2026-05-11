@@ -8,6 +8,7 @@ import CountiesTab from '../components/admin/CountiesTab.jsx'
 import RevenueRatesTab from '../components/admin/RevenueRatesTab.jsx'
 import NewsFeedTab from '../components/admin/NewsFeedTab.jsx'
 import PucDocketsTab from '../components/admin/PucDocketsTab.jsx'
+import PolicyImpactTab from '../components/admin/PolicyImpactTab.jsx'
 import DataHealthTab from '../components/admin/DataHealthTab.jsx'
 import ComparableDealsTab from '../components/admin/ComparableDealsTab.jsx'
 import IXQueueTab from '../components/admin/IXQueueTab.jsx'
@@ -34,6 +35,7 @@ const TABS = [
   { label: 'News Feed',          color: 'indigo'  }, // info stream
   { label: 'IX Queue',           color: 'cyan'    }, // infrastructure
   { label: 'PUC Dockets',        color: 'violet'  }, // regulatory dockets
+  { label: 'Policy Impact',      color: 'fuchsia' }, // enacted-bill quantified effects
   { label: 'Comparable Deals',   color: 'rose'    }, // market intel
   { label: 'Staging',            color: 'orange'  }, // work / pending
   { label: 'Data Health',        color: 'teal'    }, // system / brand
@@ -49,6 +51,7 @@ const TAB_COLOR_CLASSES = {
   indigo:  { dot: 'bg-indigo-500',  activeBorder: 'border-indigo-500',  activeText: 'text-indigo-700' },
   cyan:    { dot: 'bg-cyan-500',    activeBorder: 'border-cyan-500',    activeText: 'text-cyan-700' },
   violet:  { dot: 'bg-violet-500',  activeBorder: 'border-violet-500',  activeText: 'text-violet-700' },
+  fuchsia: { dot: 'bg-fuchsia-500', activeBorder: 'border-fuchsia-500', activeText: 'text-fuchsia-700' },
   rose:    { dot: 'bg-rose-500',    activeBorder: 'border-rose-500',    activeText: 'text-rose-700' },
   orange:  { dot: 'bg-orange-500',  activeBorder: 'border-orange-500',  activeText: 'text-orange-700' },
   teal:    { dot: 'bg-teal-500',    activeBorder: 'border-teal-500',    activeText: 'text-teal-700' },
@@ -591,10 +594,11 @@ export default function Admin() {
             {tab === 3 && <NewsFeedTab />}
             {tab === 4 && <IXQueueTab />}
             {tab === 5 && <PucDocketsTab />}
-            {tab === 6 && <ComparableDealsTab />}
-            {tab === 7 && <StagingTab />}
-            {tab === 8 && <DataHealthTab />}
-            {tab === 9 && <TestNotificationsTab />}
+            {tab === 6 && <PolicyImpactTab />}
+            {tab === 7 && <ComparableDealsTab />}
+            {tab === 8 && <StagingTab />}
+            {tab === 9 && <DataHealthTab />}
+            {tab === 10 && <TestNotificationsTab />}
           </div>
         </div>
       </main>

@@ -68,11 +68,24 @@ export async function cacheSet(key, action, payload, ttlSeconds) {
 }
 
 // Cross-action: a "data version" bucket so cached entries auto-invalidate
-// when an admin updates the underlying state program. If lastUpdated is
-// missing we fall back to a coarse (per-day) bucket so stale data doesn't
-// hang around indefinitely.
-export function dataVersionFor(stateProgram) {
-  if (stateProgram?.lastUpdated) return String(stateProgram.lastUpdated)
-  const today = new Date().toISOString().slice(0, 10)
-  return `unknown:${today}`
+// when an admin updates the underlying state program OR adds/edits a
+// policy_impact_events row. If lastUpdated is missing we fall back to a
+// coarse (per-day) bucket so stale data doesn't hang around indefinitely.
+//
+// policyEvents (optional): the array of policy_impact_events rows fetched
+// for this state — folds the most recent verified_at across them into the
+// version so a newly-published policy edit forces a cache miss on the next
+// Lens call for that state.
+export function dataVersionFor(stateProgram, policyEvents) {
+  const programVersion = stateProgram?.lastUpdated
+    ? String(stateProgram.lastUpdated)
+    : `unknown:${new Date().toISOString().slice(0, 10)}`
+  if (!Array.isArray(policyEvents) || policyEvents.length === 0) return programVersion
+  // Max verified_at across the events; fall back to updated_at when
+  // verified_at is null (drafts being staged before publishing).
+  const latestPolicyTs = policyEvents.reduce((acc, ev) => {
+    const ts = ev?.verified_at || ev?.updated_at
+    return ts && ts > acc ? ts : acc
+  }, '')
+  return latestPolicyTs ? `${programVersion}|policy=${latestPolicyTs}` : programVersion
 }
