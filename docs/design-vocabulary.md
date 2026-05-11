@@ -118,6 +118,12 @@ Every motion in the app composes from these. No ad-hoc animations after Phase 0.
 | Primitive | Vocabulary | Where |
 |---|---|---|
 | `<PageTransition>` | Fade + 8px slide, 220ms | **Per-page scoped only** — DO NOT wrap all routes globally; that caused OOM on the Lens tree (incident 2026-05-11, reverted `238169a`). Use on lighter pages (Profile / Glossary) or replace with CSS-only fade on Suspense fallback in Phase 4. |
+
+### ⚠ Hard rule on height: auto animations
+
+`motion.div animate={{ height: 'auto' }}` is **forbidden** in collapsibles that wrap heavy content (policy event lists, cs_projects panels, comparable deal grids). It forces synchronous measurement of every child on mount, which blew memory on Lens (incident 2026-05-11, fix `ddc9173`). Plain `{open && <div>}` conditional render is the correct pattern for nested collapsibles around large subtrees. Chevron rotation animation on the toggle button is fine and stays.
+
+The existing `CollapsibleCard` (used by the 3 main pillar cards) currently still uses `height: auto`. It hasn't OOM'd because the pillar cards are heavy-but-bounded. Phase 4 should evaluate whether to migrate it too — but with caution, since changing the 3 main pillar collapsibles is broader blast radius.
 | `<RevealOnScroll>` | Fade + 12px lift, 380ms | Section reveals on first viewport entry |
 | `<HoverLift>` | translateY -2px + shadow deepen, 180ms | Cards, chips, buttons |
 | `<CountUp>` | RAF + cubic-easing | Score numerals, MW totals |

@@ -95,11 +95,19 @@ Complete end-to-end:
 - SectionDivider between § 04 and § 05
 - Glossary tooltips on `Active Policy`, `Policy Climate`, `Modeled in financials`, `Qualitative — not modeled`
 
-### ⚠ Phase 0 incident — PageTransition reverted (commit `238169a`)
+### ⚠ Phase 0 incident chain — TWO OOM fixes (commits `238169a` + `ddc9173`)
 
-Initial Phase 0 wrap of all Routes in `<PageTransition>` (AnimatePresence + motion.div keyed by pathname) caused a Chrome OOM crash on the Lens results page. The Lens tree is too heavy (IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette) for a global AnimatePresence parent — the loading screen → results swap blew per-tab memory budget.
+The OOM crash on the Lens results page took TWO fixes:
 
-**Lesson:** page-level motion must be **per-page scoped or CSS-only**. Global AnimatePresence wraps are not safe on dense pages. Phase 4 (motion rollout) revisits with CSS fade on Suspense fallback or scoped wraps for lighter pages (Profile / Glossary).
+1. **Fix 1 — PageTransition revert (`238169a`).** Wrapping all Routes in `<PageTransition>` (AnimatePresence + motion.div keyed by pathname) was the first offender. The Lens tree is too heavy (IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette) for a global AnimatePresence parent.
+
+2. **Fix 2 — `CollapsibleSubsection` height animation dropped (`ddc9173`).** After (1) deployed, Lens STILL crashed. The remaining offender was `CollapsibleSubsection`'s `motion.div animate={{ height: 'auto' }}` wrapping § 04 shadow pillar (22+ policy events from batch seed) + § 05 Operating Projects (CsMarketPanel with hundreds of cs_projects rows). motion's height animation forces synchronous measurement of all children, which cascaded during the loading-screen → results-render swap. Replaced motion.div body with plain `{open && <div>}` conditional render — same end state, no measurement pass. Chevron rotation animation kept.
+
+**Lessons:**
+1. Page-level motion must be **per-page scoped or CSS-only**. Global AnimatePresence wraps are not safe on dense pages.
+2. `height: auto` motion animations are **forbidden** in collapsibles wrapping heavy subtrees. Use plain conditional render. See `design-vocabulary.md § Motion` for the hard rule.
+
+Phase 4 (motion rollout) revisits page transitions with CSS fade on Suspense fallback or scoped wraps for lighter pages (Profile / Glossary), and evaluates whether `CollapsibleCard` (still uses height: auto) needs the same treatment — caution flagged.
 
 ### Phase 0 — Foundations + Motion Primitives — commit `cfce269` (with revert `238169a`)
 **This is the chassis for everything in Phases 1–6.**
