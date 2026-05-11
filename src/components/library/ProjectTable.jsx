@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useMotionValue, animate } from 'motion/react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import { getAlerts } from '../../lib/alertHelpers'
 import ProjectCard from '../ProjectCard.jsx'
@@ -29,35 +30,40 @@ function colorForScore(score) {
   return '#DC2626'                      // red
 }
 
-// Animated arc + count-up number, driven by a single requestAnimationFrame
-// loop per row. Number and arc derive from the SAME `display` value so
-// they stay in lockstep — never a frame where the arc is at 60% but the
-// number reads 0. Cubic ease-out (1 − (1 − t)^3) matches the same curve
-// the Phase 0 GaugeFill primitive + the Cards-view MiniArcGauge animate
-// with (`[0.16, 1, 0.3, 1]` cubic-bezier). Lighter than motion springs
-// — one setState per frame per row × 48 frames = ~2400 updates over the
-// 800ms reveal, well within React 18's frame budget at 50 rows.
+// Animated arc + count-up number. Phase 3 — replaced the hand-rolled
+// per-row requestAnimationFrame loop (which scheduled ~48 setStates
+// × N rows = 2400+ React renders per mount) with two cheaper paths:
+//   - Arc fill: CSS transition on stroke-dasharray. The browser
+//     handles the interpolation on the compositor thread; zero React
+//     renders during the animation.
+//   - Number readout: motion's `animate()` driving a useMotionValue,
+//     subscribed via .on('change'). One animation controller per row,
+//     not a hand-rolled RAF loop — motion batches across components.
+// Easing matches design-vocabulary.md § Motion: `[0.22, 1, 0.36, 1]`
+// for fills.
 function TableScoreArc({ score, size = 28 }) {
   const color = colorForScore(score)
   const target = score == null ? 0 : Math.max(0, Math.min(100, score))
-  const [display, setDisplay] = useState(0)
 
+  // Arc: mount paints at 0, next-frame state flip kicks off the CSS
+  // transition to `target`. requestAnimationFrame (not setTimeout) so
+  // the initial paint commits before the transition starts.
+  const [armed, setArmed] = useState(false)
   useEffect(() => {
-    let raf
-    let startTime = null
-    const duration = 800
-    const step = (now) => {
-      if (startTime === null) startTime = now
-      const t = Math.min((now - startTime) / duration, 1)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setDisplay(target * eased)
-      if (t < 1) raf = requestAnimationFrame(step)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [target])
+    const id = requestAnimationFrame(() => setArmed(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  const dash = `${armed ? target : 0}, 100`
 
-  const dash = `${display}, 100`
+  // Number: motion-driven count-up. Cleans up on unmount + re-target.
+  const mv = useMotionValue(0)
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    const controls = animate(mv, target, { duration: 0.8, ease: [0.22, 1, 0.36, 1] })
+    return () => controls.stop()
+  }, [target, mv])
+  useEffect(() => mv.on('change', v => setDisplay(Math.round(v))), [mv])
+
   return (
     <div className="shrink-0 relative mx-auto" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox="0 0 36 36" className="-rotate-90">
@@ -74,13 +80,14 @@ function TableScoreArc({ score, size = 28 }) {
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={dash}
+          style={{ transition: 'stroke-dasharray 0.8s cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
       <span
         className="absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums leading-none"
         style={{ color }}
       >
-        {score == null ? '—' : Math.round(display)}
+        {score == null ? '—' : display}
       </span>
     </div>
   )
@@ -148,6 +155,20 @@ export default function ProjectTable({
 }) {
   const [expandedId, setExpandedId] = useState(null)
 
+  // Phase 3 perf — precompute per-row {score, alerts} once when the
+  // underlying data changes, instead of recomputing inside the .map()
+  // on every render. Library re-renders on filter/sort/page change
+  // and on selection toggles; without this memo, computeSubScores +
+  // getAlerts ran N×re-renders times. Now they run N×data-change.
+  const rows = useMemo(() => projects.map(p => {
+    const sp = stateProgramMap[p.state]
+    const cd = countyDataMap[`${p.state}::${p.county}`] || null
+    const subs = sp ? computeSubScores(sp, cd, p.stage, p.technology) : null
+    const score = subs ? safeScore(subs.offtake, subs.ix, subs.site) : null
+    const alerts = sp ? getAlerts(p, stateProgramMap, countyDataMap) : []
+    return { p, score, alerts }
+  }), [projects, stateProgramMap, countyDataMap])
+
   return (
     <div className="rounded-xl border" style={{ borderColor: '#E5E7EB' }}>
       {/* Sticky header. Lives OUTSIDE any overflow-hidden ancestor so
@@ -176,12 +197,7 @@ export default function ProjectTable({
           sibling, not its descendant — and it gives the bottom-left /
           bottom-right corners a clean rounded clip. */}
       <ul role="list" className="rounded-b-xl overflow-hidden">
-        {projects.map((p) => {
-          const sp = stateProgramMap[p.state]
-          const cd = countyDataMap[`${p.state}::${p.county}`] || null
-          const subs = sp ? computeSubScores(sp, cd, p.stage, p.technology) : null
-          const score = subs ? safeScore(subs.offtake, subs.ix, subs.site) : null
-          const alerts = sp ? getAlerts(p, stateProgramMap, countyDataMap) : []
+        {rows.map(({ p, score, alerts }) => {
           const isOpen = expandedId === p.id
           const isSelected = selectedIds?.has(p.id)
           return (

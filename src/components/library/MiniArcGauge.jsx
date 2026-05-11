@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
-import { motion, useMotionValue, useSpring } from 'motion/react'
+import { motion, useMotionValue, animate } from 'motion/react'
 
-// V3.1: Mini animated arc gauge for the project-bar score indicator.
-// Replaces the static rounded-square bubble. Arc fills on mount + on
-// score change with a spring; the number itself animates the same way
-// (matches the ArcGauge pattern in Search.jsx so the visual language
-// stays consistent across the app). Sized for inline use in the
-// collapsed project row -- 44x44 footprint, same as the old bubble.
+// V3.1 / Phase 3 — Mini animated arc gauge for the project-bar score
+// indicator. Arc fills on mount + on score change using cubic-bezier
+// tweens (per design-vocabulary.md § Motion: entrances use
+// `[0.16, 1, 0.3, 1]`, fills use `[0.22, 1, 0.36, 1]`). Previously
+// used a `useSpring` for the number readout — replaced with an
+// `animate()` tween on the same curve so the gauge and number land
+// on the same beat without a spring vocabulary. 44×44 footprint.
 export default function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
   const target = score ?? 0
   const mv = useMotionValue(0)
-  const spring = useSpring(mv, { stiffness: 110, damping: 22, mass: 0.6 })
   const [display, setDisplay] = useState(0)
-  useEffect(() => { mv.set(target) }, [target, mv])
-  useEffect(() => spring.on('change', v => setDisplay(Math.round(v))), [spring])
+  useEffect(() => {
+    const controls = animate(mv, target, { duration: 0.85, ease: [0.22, 1, 0.36, 1] })
+    return () => controls.stop()
+  }, [target, mv])
+  useEffect(() => mv.on('change', v => setDisplay(Math.round(v))), [mv])
   const stroke = score == null ? fallbackColor : color
   return (
     <div className="shrink-0 relative" style={{ width: 44, height: 44 }}>

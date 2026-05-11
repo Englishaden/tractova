@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
-import { motion, useMotionValue, useSpring } from 'motion/react'
+import { motion, useMotionValue, animate } from 'motion/react'
 
 // V3: Precision tachometer — feasibility index as a measured instrument.
-// ViewBox sized generously so labels never crowd the arc or the score.
 // Animated number readout — counts up/down to target on score change.
-// Uses Motion's spring so the response feels like a real instrument needle
-// settling, not a linear tween. Renders inside SVG <text>.
+// Uses a cubic-bezier tween (`[0.22, 1, 0.36, 1]` per design-vocabulary
+// § Motion — "decelerating cubic curves — confident landing, no
+// oscillation, no bounce") instead of the prior useSpring. Same
+// settling-needle feel without the spring vocabulary the doc bans.
 function AnimatedScoreText({ value, ...textProps }) {
   const mv = useMotionValue(value)
-  const spring = useSpring(mv, { stiffness: 110, damping: 22, mass: 0.6 })
   const [display, setDisplay] = useState(value)
-  useEffect(() => { mv.set(value) }, [value, mv])
-  useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
+  useEffect(() => {
+    const controls = animate(mv, value, { duration: 0.9, ease: [0.22, 1, 0.36, 1] })
+    return () => controls.stop()
+  }, [value, mv])
+  useEffect(() => mv.on('change', (v) => setDisplay(Math.round(v))), [mv])
   return <text {...textProps}>{display}</text>
 }
 
@@ -107,7 +110,10 @@ export default function ArcGauge({ score }) {
           stroke: color,
         }}
         transition={{
-          strokeDashoffset: { type: 'spring', stiffness: 110, damping: 22, mass: 0.6 },
+          // Cubic-bezier fill curve per design-vocabulary.md §Motion.
+          // Confident landing, no oscillation. Matches the GaugeFill
+          // primitive + the ProjectTable RAF curve used elsewhere.
+          strokeDashoffset: { duration: 0.9, ease: [0.22, 1, 0.36, 1] },
           stroke: { duration: 0.4, ease: 'easeOut' },
         }}
       />

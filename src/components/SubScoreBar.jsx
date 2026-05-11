@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { motion, useMotionValue, useSpring } from 'motion/react'
+import { motion, useMotionValue, animate } from 'motion/react'
 import GlossaryLabel from './ui/GlossaryLabel'
 
 // Map sub-score display labels to canonical glossary keys so the
@@ -28,13 +28,17 @@ export default function SubScoreBar({ label, weight, value, color, baseValue }) 
   const delta = (typeof baseValue === 'number') ? value - baseValue : null
   const hasDelta = delta !== null && delta !== 0
 
-  // Animated number counter -- mirrors the AnimatedScoreText pattern used by
-  // the ArcGauge so the whole panel animates in unison.
+  // Phase 3 — cubic-bezier tween (per design-vocabulary.md § Motion)
+  // instead of the prior useSpring. Same landing-on-target rhythm,
+  // no spring vocabulary. Lockstep with the ArcGauge number readout
+  // so the panel animates as one.
   const mv = useMotionValue(safeValue)
-  const spring = useSpring(mv, { stiffness: 110, damping: 22, mass: 0.6 })
   const [display, setDisplay] = useState(safeValue)
-  useEffect(() => { mv.set(safeValue) }, [safeValue, mv])
-  useEffect(() => spring.on('change', (v) => setDisplay(Math.round(v))), [spring])
+  useEffect(() => {
+    const controls = animate(mv, safeValue, { duration: 0.85, ease: [0.22, 1, 0.36, 1] })
+    return () => controls.stop()
+  }, [safeValue, mv])
+  useEffect(() => mv.on('change', (v) => setDisplay(Math.round(v))), [mv])
 
   return (
     <div
