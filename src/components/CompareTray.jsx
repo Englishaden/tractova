@@ -589,6 +589,15 @@ export default function CompareTray() {
   const { items, remove, clear } = useCompare()
   const [modalOpen, setModalOpen] = useState(false)
 
+  // Cmd-K verb `:compare` dispatches this event. Open the modal if we have
+  // anything to compare; otherwise the tray isn't even mounted (items===0
+  // short-circuits below) and the event is a silent no-op.
+  useEffect(() => {
+    const onOpen = () => { if (items.length > 0) setModalOpen(true) }
+    window.addEventListener('tractova:open-compare', onOpen)
+    return () => window.removeEventListener('tractova:open-compare', onOpen)
+  }, [items.length])
+
   if (items.length === 0) return null
 
   return (

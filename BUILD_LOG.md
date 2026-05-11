@@ -4,7 +4,37 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 0 PARTIALLY SHIPPED (3 OOM reverts) · resume Phase 1 (Cmd-K nav spine)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 1 SHIPPED (Cmd-K nav spine) · resume Phase 2A (Library cockpit)
+
+**Read first after `/clear`:** `docs/TRACTOVA-UX-001-ROADMAP.md` § 0.1 DO-NOT-REPEAT LESSONS (critical motion-pattern gotchas from the OOM saga) + `docs/design-vocabulary.md` § Motion (height-auto hard rule). Plan mirror at `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
+
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 2A. Read docs/TRACTOVA-UX-001-ROADMAP.md including § 0.1 DO-NOT-REPEAT LESSONS, then implement Phase 2A per the plan.`
+
+**Phase 1 — Cmd-K nav spine shipped this session:**
+- `src/lib/commandParser.js` — verb grammar (`:lens <STATE> [<MW>] [<TECH>]`, `:portfolio`, `:scenarios`, `:compare`, `:gloss <TERM>`, `:state <ID>`, `:new`, `:rerun <project>`, `:help`). Pure module, 9 reserved verbs.
+- `tests/unit/commandParser.spec.js` — 37 unit tests (verb gate, prefix match, MW+tech parsing, MA/MD/ME ambiguity, case-insensitivity, glossary/rerun/state/static-verb runners). All green.
+- `CommandPalette.jsx` — verb-mode rendering, mono `:>` prompt indicator in verb mode, navy top-bar in verb mode (vs teal in fuzzy mode), Bloomberg status-line hint/error banner, per-user recents footer (last 5 from localStorage scoped to user.id, cap at 10), `Tab` autocompletes via `replaceQuery`, `Cmd+Enter` opens new tab.
+- `CmdKHint.jsx` — fixed bottom-right ⌘K chip, idle fade to 32% after 5s, platform-aware label (`⌘K` / `Ctrl K` / `TAP`), auth-gated, 1px teal hairline. Mounted in App.jsx.
+- `CompareTray.jsx` — listens for `tractova:open-compare` event (dispatched by `:compare` verb) and opens its modal when items > 0.
+- Nav.jsx — audit confirmed existing 2px teal `border-bottom` on active route already satisfies §-style underline spec. No change.
+
+**Verification baseline at Phase 1 close:**
+- `npm run test:unit` — 127/127 green (90 prior + 37 new commandParser tests)
+- `npm run build` — clean (1.55s); only pre-existing Glossary dynamic-import warning
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:api / lint:secrets / lint:locs` — all clean
+
+**What's NEXT (Phase 2A — Library Table view, ~12–15h):**
+- View-mode toggle: Cards | Table | Map (persist in localStorage `tractova_library_view`)
+- Bloomberg grid Table view, sticky filter rail, cursor pagination on `saved_at` (25/50/100)
+- Re-enable § 05 in Lens with bounded `CsMarketPanel` row sample OR move Operating Projects to Library cockpit (where it belongs)
+- Bulk-select visible whenever >1 projects; Shift-click range select
+- Replace StagePicker absolute-positioned dropdown with Radix Popover
+- Lift "Updated" / "State ±X pt" chips to persistent header
+
+---
+
+## ARCHIVED Pickup — TRACTOVA-UX-001 Phase 0 (3 OOM reverts)
 
 **Read first after `/clear`:** `docs/TRACTOVA-UX-001-ROADMAP.md` § 0.1 DO-NOT-REPEAT LESSONS (critical motion-pattern gotchas from the OOM saga) + `docs/design-vocabulary.md` § Motion (height-auto hard rule). Plan mirror at `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
 

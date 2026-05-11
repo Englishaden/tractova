@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-05-11
 **Project owner:** Aden (englishaden / aden.walker67@gmail.com)
-**Status:** Phase 0 shipped. Phases 1–6 planned + approved. Resume at Phase 1.
+**Status:** Phases 0 + 1 shipped. Phases 2–6 planned + approved. Resume at Phase 2A.
 
 ---
 
@@ -426,24 +426,34 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 ### Where we are
 - **✅ Phase 0 shipped** (commit `cfce269`) — foundations + motion primitives + standardized collapsible
 - **✅ Design vocabulary shipped** (commit `59a6b30`) — taste calibration doc
-- **🟢 NEXT: Phase 1** — Cmd-K becomes the nav spine
+- **✅ Phase 1 shipped** — Cmd-K verb grammar (`commandParser.js` + 37 unit tests), verb-mode CommandPalette, `CmdKHint.jsx` floating cue, recents footer (per-user localStorage, last 5), `:compare` event-wired to CompareTray, `Cmd+Enter` opens new tab, `Tab` autocompletes. Nav.jsx active-route underline already satisfied the spec — audit confirmed, no refactor needed.
+- **🟢 NEXT: Phase 2A** — Library Table view + cursor pagination + view-mode toggle; re-enable § 05 with bounded cs_projects row sample. See § 4 Phase 2A.
 
 ### Resume command
 After `/clear`, tell Claude:
 
 ```
-Resume TRACTOVA-UX-001 Phase 1. Read docs/TRACTOVA-UX-001-ROADMAP.md
-and docs/design-vocabulary.md, then implement Phase 1 per the plan.
+Resume TRACTOVA-UX-001 Phase 2A. Read docs/TRACTOVA-UX-001-ROADMAP.md
+including § 0.1 DO-NOT-REPEAT LESSONS, then implement Phase 2A per the plan.
 ```
 
 Claude will pick up exactly where this session ended.
 
-### Phase 1 entry checklist
-Before starting Phase 1:
-- [ ] Confirm Phase 0 deploy is live in prod (Vercel deployment for `cfce269` ready)
-- [ ] Read this file's § 4 Phase 1 section + design vocab § Interaction
-- [ ] Check existing `CommandPalette.jsx` to see what's already built (Phase 1 extends, doesn't replace)
-- [ ] Phase 1 deliverables: `commandParser.js` + tests, `CmdKHint.jsx`, expanded palette, `Nav.jsx` active-route underline
+### Phase 1 — Shipped (deliverables)
+
+- `src/lib/commandParser.js` — verb grammar, pure data-in/data-out
+- `tests/unit/commandParser.spec.js` — 37 cases (verb gate, prefix match, lens MW+tech, MA/MD/ME ambiguity, case-insensitivity, glossary/rerun/state/static-verb runners)
+- `src/components/CommandPalette.jsx` — extended with verb-mode rendering, mono `:>` prompt indicator in verb mode (vs magnifier icon in fuzzy mode), top-bar accent swap (teal → navy), Bloomberg-style status-line hint/error banner with left-bar accent, recents footer, Tab-autocomplete, Cmd+Enter new-tab, `:compare` action dispatches `tractova:open-compare`
+- `src/components/CmdKHint.jsx` — bottom-right floating ⌘K chip, idle fade to 32% after 5s, platform-aware label (⌘K / Ctrl K / TAP), auth-gated
+- `src/components/CompareTray.jsx` — listens for `tractova:open-compare` and opens its modal if items > 0
+- `src/App.jsx` — mounts `<CmdKHint />`
+- `src/components/Nav.jsx` — unchanged (existing 2px teal `border-bottom` already satisfies the §-style underline spec)
+
+**Verification at Phase 1 close:**
+- `npm run test:unit` — 127/127 green (90 prior + 37 new)
+- `npm run build` — clean (1.55s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:api / lint:secrets / lint:locs` — all clean
 
 ---
 
@@ -452,7 +462,7 @@ Before starting Phase 1:
 | Phase | Status | Commit(s) | Notes |
 |---|---|---|---|
 | 0 — Foundations + motion primitives | ✅ Shipped | `cfce269` | + design doc `59a6b30` |
-| 1 — Cmd-K nav spine | 🟢 Next | — | ~10–14h |
+| 1 — Cmd-K nav spine | ✅ Shipped | (this commit) | parser + tests + CmdKHint + verb-mode palette |
 | 2A — Library Table view | ⏳ Queued | — | ~12–15h |
 | 2B — Library Map view | ⏳ Queued | — | ~10–14h |
 | 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ⏳ Queued | — | ~15–20h, has migration |
