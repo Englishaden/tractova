@@ -17,6 +17,89 @@ import { buildCacheKey, cacheGet, cacheSet, supabaseAdmin } from '../lib/_aiCach
 import { expandIfUrl } from '../lib/_urlFetch.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tool schema — forces Haiku to emit structured output. Prompt-only
+// extraction is unreliable: Haiku reads "$2.80/kW AC monthly" in source text
+// but won't put 33.60 in annual_fee_per_kw_yr unless the API contract
+// REQUIRES it. Tool use makes the required fields a hard constraint —
+// the model can't return without populating them.
+// ─────────────────────────────────────────────────────────────────────────────
+const CLASSIFY_TOOL = {
+  name: 'submit_policy_classification',
+  description: 'Submit the classified policy event with all extracted fields. raw_provisions is required — extract every dollar amount, percentage, and fee figure that appears verbatim in the source text. Use null only when the source does not state the value.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      state:           { type: 'string',   description: '2-letter US state code (uppercase). Empty string if not determinable.' },
+      event_name:      { type: 'string',   description: 'e.g. "LD 1777", "VDER Tranche 6"' },
+      event_type:      { type: 'string',   enum: ['enacted_bill', 'puc_order', 'tariff_change', 'rule_filing', 'executive_order'] },
+      effective_date:  { type: ['string', 'null'], description: 'ISO YYYY-MM-DD. Null if not stated verbatim in source.' },
+      status:          { type: 'string',   enum: ['pending', 'enacted', 'partially_effective', 'overturned', 'expired'] },
+      pillar:          { type: 'string',   enum: ['offtake', 'ix', 'site', 'cross-cutting'] },
+
+      // ── REQUIRED structured raw provisions — extract verbatim numbers ────
+      raw_provisions: {
+        type: 'object',
+        description: 'Numeric provisions extracted verbatim from source. Use null only when the value is not stated in the source. ALWAYS convert monthly fees to annual: $X/kW/month → $(X*12)/kW/yr.',
+        properties: {
+          rate_cut_pct: {
+            type: ['number', 'null'],
+            description: 'Percent cut to compensation rate (NEB tariff, bill credit, REC value). Positive = cut. E.g., "reduces NEB by 30%" → 30.',
+          },
+          one_time_fee_per_kw: {
+            type: ['number', 'null'],
+            description: '$/kW one-time fee on new projects. E.g., "$200/kW grid-impact fee" → 200.',
+          },
+          annual_fee_per_kw_yr: {
+            type: ['number', 'null'],
+            description: '$/kW/yr recurring fee. CONVERT MONTHLY TO ANNUAL. "$2.80/kW/month" → 33.60 (= 2.80 × 12). "$10/kW/yr" → 10.',
+          },
+          retroactive_one_time_fee_per_kw: {
+            type: ['number', 'null'],
+            description: '$/kW one-time fee on EXISTING / operating projects only (not new applications). Used when the bill levies a one-time charge on already-built plants.',
+          },
+        },
+        required: ['rate_cut_pct', 'one_time_fee_per_kw', 'annual_fee_per_kw_yr', 'retroactive_one_time_fee_per_kw'],
+      },
+
+      // Applicability
+      applies_to_new_applications:    { type: 'boolean' },
+      applies_to_existing_queue:      { type: 'boolean' },
+      applies_to_operating_projects:  { type: 'boolean' },
+      // Safe harbor — critical for advising whether THIS project is in/out
+      safe_harbor_eligible:           { type: 'boolean' },
+      safe_harbor_cutoff_date:        { type: ['string', 'null'], description: 'ISO YYYY-MM-DD' },
+      safe_harbor_notes:              { type: ['string', 'null'], description: '1-2 sentences naming the gate (COD / IS / spend / other)' },
+      // FEOC
+      feoc_compliance_required:       { type: 'boolean' },
+      feoc_notes:                     { type: ['string', 'null'] },
+      // Sourcing
+      summary:                        { type: 'string',           description: '1-2 sentence why-developers-care, Tractova analyst voice' },
+      analyst_note:                   { type: ['string', 'null'], description: '3-5 sentence longer rationale + caveats. Mention any tier structure or thresholds.' },
+      source_url:                     { type: 'string',           description: 'URL of the source if present in input; else empty string' },
+    },
+    required: [
+      'state', 'event_name', 'event_type', 'status', 'pillar',
+      'raw_provisions',
+      'applies_to_new_applications', 'applies_to_existing_queue', 'applies_to_operating_projects',
+      'safe_harbor_eligible', 'feoc_compliance_required',
+      'summary', 'source_url',
+    ],
+  },
+}
+
+// Derive impact_confidence from extraction completeness. The handler picks
+// this — not the model — because confidence should reflect what was actually
+// extracted, not the model's subjective sense of certainty.
+function computeImpactConfidence(rawProvisions) {
+  if (!rawProvisions) return 'low'
+  const populated = ['rate_cut_pct', 'one_time_fee_per_kw', 'annual_fee_per_kw_yr', 'retroactive_one_time_fee_per_kw']
+    .filter(f => rawProvisions[f] != null).length
+  if (populated >= 2) return 'high'
+  if (populated === 1) return 'medium'
+  return 'low'
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Derive per-MW impact from raw provisions + state baseline data.
 //
 // Reads revenue_rates for the state (bill_credit_cents_kwh, rec_per_mwh,
@@ -164,11 +247,13 @@ export default async function handlePolicyClassify(body, res) {
   //        conversion + flat raw_provisions schema (citations removed).
   //        Earlier runs returned numbers in prose; this anchors structured
   //        extraction.
-  //   v=4: URL fetcher in place — cache key now keyed on EXPANDED text so
-  //        the same URL hits the same cache slot regardless of fetch
-  //        timestamp.
+  //   v=4: URL fetcher in place — cache key now keyed on EXPANDED text.
+  //   v=5: Switched to Anthropic tool use for structured output. Prompt-only
+  //        extraction was unreliable; Haiku read the numbers in source but
+  //        wouldn't populate raw_provisions JSON. Tool's required schema
+  //        forces the model to emit structured fields.
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     4,
+    v:     5,
     text:  usableText.trim(),
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',
@@ -203,67 +288,59 @@ export default async function handlePolicyClassify(body, res) {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
     const message = await client.messages.create(
       {
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 1200,
-        system:     POLICY_CLASSIFY_PROMPT,
-        messages:   [{ role: 'user', content: userContent }],
+        model:       'claude-haiku-4-5-20251001',
+        max_tokens:  2000,
+        system:      POLICY_CLASSIFY_PROMPT,
+        tools:       [CLASSIFY_TOOL],
+        tool_choice: { type: 'tool', name: 'submit_policy_classification' },
+        messages:    [{ role: 'user', content: userContent }],
       },
       { signal: controller.signal }
     )
     clearTimeout(timeoutId)
 
-    const raw = message.content?.[0]?.text || ''
-    let parsed = null
-    // Tier 1: strict
-    try { parsed = JSON.parse(raw.trim()) } catch (_) {}
-    // Tier 2: extract from prose-wrapped output
-    if (!parsed) {
-      try {
-        const match = raw.match(/\{[\s\S]*\}/)
-        if (match) parsed = JSON.parse(match[0])
-      } catch (_) {}
+    // Extract from the tool_use content block. With tool_choice forced,
+    // Haiku is guaranteed to emit a tool_use block instead of text. The
+    // input field is already a parsed object — no JSON parsing needed.
+    const toolBlock = message.content?.find(b => b?.type === 'tool_use')
+    if (!toolBlock?.input || typeof toolBlock.input !== 'object') {
+      return res.status(200).json({
+        draft:    null,
+        fallback: true,
+        reason:   'tool_use_missing — model returned text instead of tool call',
+      })
     }
+    const parsed = { ...toolBlock.input }
 
-    if (!parsed || typeof parsed !== 'object') {
-      return res.status(200).json({ draft: null, fallback: true, reason: 'parse_failed' })
-    }
-
-    // Force the four "derived" impact fields to null before derivation
-    // overwrites them with computed values. Belt-and-braces in case the
-    // model ignored the prompt and populated them with hallucinations.
+    // Force the four DERIVED impact fields to null — handler computes them.
     for (const f of ['capex_impact_per_mw_usd', 'irr_impact_bps', 'ongoing_fee_per_mw_yr_usd', 'revenue_haircut_pct']) {
       parsed[f] = null
     }
 
-    // Normalize empty-string dates to null (date inputs misparse '' in
-    // some browsers). Same defensive pattern classify-docket uses.
+    // Normalize empty-string dates to null (some browser date inputs
+    // misparse '' as today's date).
     for (const f of ['effective_date', 'safe_harbor_cutoff_date']) {
       if (parsed[f] === '') parsed[f] = null
     }
 
     // ── Derive impact from extracted raw_provisions + state baselines ────
-    // This is the meaningful work: AI extracts provisions from text, the
-    // handler computes per-MW $ impact using transparent multiplication
-    // against revenue_rates baselines. impact_methodology gets the full
-    // chain so the admin (and the Lens prompt) can verify.
     const rawProvisions = parsed.raw_provisions || {}
     const stateForDerive = (parsed.state || stateHint || '').toUpperCase()
     if (stateForDerive) {
       const derived = await deriveImpact(rawProvisions, stateForDerive)
       Object.assign(parsed, derived.impacts)
-      // Append the derivation chain to any AI-written methodology so we
-      // preserve the analyst's research lead + the computed proof.
       const aiNote = parsed.impact_methodology ? `${parsed.impact_methodology}\n\n— Derived: ` : '— Derived: '
       parsed.impact_methodology = aiNote + derived.methodology
-      // Stash baselines + raw_provisions in discovery_metadata for the
-      // admin UI to surface (and for any future re-derivation when
-      // baselines change).
       parsed.discovery_metadata = {
         ...(parsed.discovery_metadata || {}),
         raw_provisions: rawProvisions,
         baselines_used: derived.baselines,
       }
     }
+
+    // Derive confidence from extraction completeness (not from the model's
+    // self-assessment). 2+ provisions = high, 1 = medium, 0 = low.
+    parsed.impact_confidence = computeImpactConfidence(rawProvisions)
 
     // Drafts from this path always land in the admin review queue.
     parsed.review_status  = 'pending_admin_review'
