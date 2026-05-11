@@ -243,8 +243,11 @@ export default function PolicyImpactTab() {
         return
       }
       const d = json.draft
-      // Pre-fill the edit form. Admin reviews + edits + publishes. The four
-      // impact-number fields are intentionally null — admin fills those.
+      // Pre-fill the edit form. AI extracted raw_provisions from source text
+      // and the handler derived the four $/MW impact fields using state
+      // baselines from revenue_rates. Admin reviews, optionally overrides,
+      // and publishes. Numbers are honest because they're computed from
+      // extracted bill text + transparent baselines — not AI guesses.
       setEditData({
         state:                          (d.state || classifyStateHint || '').toUpperCase(),
         event_name:                     d.event_name || classifyEventHint || '',
@@ -252,10 +255,10 @@ export default function PolicyImpactTab() {
         effective_date:                 d.effective_date || '',
         status:                         d.status || 'enacted',
         pillar:                         d.pillar || 'cross-cutting',
-        capex_impact_per_mw_usd:        null,
-        irr_impact_bps:                 null,
-        ongoing_fee_per_mw_yr_usd:      null,
-        revenue_haircut_pct:            null,
+        capex_impact_per_mw_usd:        d.capex_impact_per_mw_usd ?? null,
+        irr_impact_bps:                 d.irr_impact_bps ?? null,
+        ongoing_fee_per_mw_yr_usd:      d.ongoing_fee_per_mw_yr_usd ?? null,
+        revenue_haircut_pct:            d.revenue_haircut_pct ?? null,
         impact_confidence:              d.impact_confidence || 'medium',
         impact_methodology:             d.impact_methodology || '',
         applies_to_new_applications:    !!d.applies_to_new_applications,
@@ -307,7 +310,7 @@ export default function PolicyImpactTab() {
           ◆ Curation cadence
         </p>
         <p className="text-[12px] text-ink leading-relaxed">
-          Track only ENACTED policies with material project impact — $/MW capex, IRR basis points, ongoing fees, revenue haircut. Cite the bill text or PUC order URL; quantified dollar/IRR numbers come from your own analyst research (never AI). Aim for 1-3 events per active state per year. Lens automatically threads these into the analyst brief for the relevant state.
+          Track only ENACTED policies with material project impact. Paste the bill text (or a detailed summary that names specific rate cuts / fees) into the AI Quick-Add; the system extracts raw provisions from the source and derives the per-MW dollar impact using revenue_rates baselines. The derivation chain shows in impact_methodology — verifiable, not opaque. Lens threads published events into the analyst brief for the relevant state.
         </p>
       </div>
 
@@ -338,7 +341,7 @@ export default function PolicyImpactTab() {
           )}
         </div>
         <p id="policy-classify-helper" className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
-          Paste bill text or a trade-press article. Haiku extracts state, event type, pillar, applicability flags, safe-harbor + FEOC signals, and writes a draft analyst note. <strong style={{ color: '#FCA5A5' }}>Dollar / IRR fields are left null on purpose</strong> — you research and fill those in from primary sources before publishing.
+          Paste bill text. Haiku extracts the raw provisions (rate cuts, $/kW fees, retroactive fees) from the source, then Tractova derives the per-MW dollar impact using state baselines from revenue_rates. <strong style={{ color: '#5EEAD4' }}>Derivation chain shows in impact_methodology</strong> so you can verify against the source. Qualitative articles (no specific numbers in source) won't produce derived $ — paste the actual bill text for those.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
           <input

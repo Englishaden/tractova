@@ -19,18 +19,43 @@ export const POLICY_CLASSIFY_PROMPT = `You are a senior regulatory analyst for T
 
 CRITICAL RULES — read carefully before responding.
 
-1. DO NOT propose dollar amounts or IRR basis points. Leave these fields null:
+1. EXTRACT RAW PROVISIONS from the source text. The system will derive the
+   per-MW dollar impact from these using state baseline data — your job is
+   ONLY to extract the literal numbers/percentages stated in the source.
+
+   Populate the raw_provisions object with whichever of these are stated
+   verbatim in the input (use null when the source doesn't state it —
+   NEVER estimate, NEVER infer from precedent, NEVER calculate):
+
+   - rate_cut_pct: number — % cut to the compensation rate (NEB tariff,
+     bill credit, PPA, REC value, etc.). Signed positive means a CUT.
+     E.g., "reduces NEB by 30%" → rate_cut_pct: 30.
+   - one_time_fee_per_kw: $/kW one-time fee imposed on projects. E.g.,
+     "$200/kW grid-impact fee" → one_time_fee_per_kw: 200.
+   - annual_fee_per_kw_yr: $/kW/yr recurring fee. E.g., "$10/kW/yr
+     monitoring assessment" → annual_fee_per_kw_yr: 10.
+   - retroactive_one_time_fee_per_kw: $/kW fee on EXISTING projects only
+     (different than new-application fees). Critical to capture separately
+     since safe-harbor + applies_to_existing_queue depend on it.
+
+   For each provision you extract, include a citations entry with the
+   verbatim quote from the source so the admin can verify.
+
+   If the source text contains NO specific numbers (qualitative summary
+   like "halts CS development"), leave all raw_provisions fields null and
+   add a citations entry: {"provision": "summary_only", "quote": "...",
+   "note": "source did not contain quantifiable provisions; admin should
+   paste the bill text itself for derived impact"}.
+
+2. NEVER populate the four derived impact fields directly. The handler
+   computes these from your raw_provisions + state baseline data:
    - capex_impact_per_mw_usd
    - irr_impact_bps
    - ongoing_fee_per_mw_yr_usd
    - revenue_haircut_pct
-   These numbers are admin-curated only — the analyst will research and
-   populate them from primary sources (bill text math, attorney reads,
-   developer outreach). An AI estimate here would masquerade as a
-   Tractova-verified figure and that is a hard "no". If the input
-   contains explicit numbers (e.g., "imposes a $500K/MW fee"), still
-   leave the field null — instead mention the figure in impact_methodology
-   so the admin sees it as a research lead.
+   Leave all four null in your response. The handler overwrites them
+   from raw_provisions + state baselines, with full methodology in
+   impact_methodology.
 
 2. State must be a 2-letter US state code (uppercase). Return "" if you can't determine it with high confidence.
 
@@ -91,7 +116,13 @@ CRITICAL RULES — read carefully before responding.
 
 12. analyst_note: 3-5 sentence longer-form rationale + caveats. Spell out safe-harbor + FEOC interplay if relevant. Note any provisions the admin should pay particular attention to.
 
-13. Output ONLY a single JSON object — no markdown fence, no prose around it. Return all keys (use null / empty string where unknown):
+13. impact_confidence: rate based on raw_provisions completeness.
+    - "high" — source provides specific numbers for all material provisions (rate cut % AND fees, or all fees, etc.)
+    - "medium" — source has SOME quantifiable provisions but is missing one or more key magnitudes
+    - "low" — source is qualitative only (no extractable numbers in raw_provisions)
+    Default to "low" when raw_provisions is mostly null.
+
+14. Output ONLY a single JSON object — no markdown fence, no prose around it:
 
 {
   "state": "ME",
@@ -100,12 +131,21 @@ CRITICAL RULES — read carefully before responding.
   "effective_date": "2024-09-01",
   "status": "enacted",
   "pillar": "cross-cutting",
+  "raw_provisions": {
+    "rate_cut_pct": null,
+    "one_time_fee_per_kw": null,
+    "annual_fee_per_kw_yr": null,
+    "retroactive_one_time_fee_per_kw": null,
+    "citations": [
+      { "provision": "rate_cut_pct", "quote": "exact quote from source", "value": null }
+    ]
+  },
   "capex_impact_per_mw_usd": null,
   "irr_impact_bps": null,
   "ongoing_fee_per_mw_yr_usd": null,
   "revenue_haircut_pct": null,
-  "impact_confidence": "medium",
-  "impact_methodology": "...",
+  "impact_confidence": "low",
+  "impact_methodology": "",
   "applies_to_new_applications": true,
   "applies_to_existing_queue": true,
   "applies_to_operating_projects": false,

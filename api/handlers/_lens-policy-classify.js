@@ -13,7 +13,116 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { POLICY_CLASSIFY_PROMPT } from '../prompts/policy-classify.js'
-import { buildCacheKey, cacheGet, cacheSet } from '../lib/_aiCacheLayer.js'
+import { buildCacheKey, cacheGet, cacheSet, supabaseAdmin } from '../lib/_aiCacheLayer.js'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Derive per-MW impact from raw provisions + state baseline data.
+//
+// Reads revenue_rates for the state (bill_credit_cents_kwh, rec_per_mwh,
+// capacity_factor_pct, installed_cost_per_watt) and translates the AI-
+// extracted raw provisions into the four impact fields the Lens prompt
+// consumes. All math is transparent — admin can read the methodology
+// string and verify against the source.
+//
+// IRR-bps is approximated via solar industry rules of thumb:
+//   - 1% revenue cut ≈ -18 bps equity IRR (typical CS deal levered)
+//   - $100K/MW capex add ≈ -50 bps IRR drag (against $2.7M/MW baseline)
+//   - $1K/MW/yr ongoing fee ≈ NPV-equivalent revenue haircut
+//
+// Methodology field documents every step so this is verifiable, not opaque.
+async function deriveImpact(rawProvisions, state) {
+  if (!rawProvisions || typeof rawProvisions !== 'object') {
+    return { impacts: {}, methodology: 'No raw_provisions extracted from source; impact not derivable.', baselines: null }
+  }
+  const hasAny =
+    rawProvisions.rate_cut_pct != null ||
+    rawProvisions.one_time_fee_per_kw != null ||
+    rawProvisions.annual_fee_per_kw_yr != null ||
+    rawProvisions.retroactive_one_time_fee_per_kw != null
+  if (!hasAny) {
+    return {
+      impacts: {},
+      methodology: 'Source contained no quantifiable provisions (rate cuts, fees, etc.). Paste the bill text itself or a more detailed summary for derived impact.',
+      baselines: null,
+    }
+  }
+
+  // Baseline: revenue_rates row for the state. Falls back to "unknown
+  // baseline" if not present (rare — table covers all 50 states).
+  const { data: rates } = await supabaseAdmin
+    .from('revenue_rates')
+    .select('bill_credit_cents_kwh, rec_per_mwh, capacity_factor_pct, installed_cost_per_watt')
+    .eq('state_id', state)
+    .maybeSingle()
+  if (!rates) {
+    return {
+      impacts: {},
+      methodology: `No revenue_rates baseline for ${state}; impact not derivable. Add the state to revenue_rates first.`,
+      baselines: null,
+    }
+  }
+
+  const baselineRevPerMwh = (rates.bill_credit_cents_kwh || 0) * 10 + (rates.rec_per_mwh || 0)
+  const annualMwhPerMw    = (rates.capacity_factor_pct / 100) * 8760
+  const baselineRevPerMwYr = baselineRevPerMwh * annualMwhPerMw
+  const baselineCapexPerMw = (rates.installed_cost_per_watt || 0) * 1_000_000
+
+  const impacts = {}
+  const steps = []
+  let irrBps = 0
+
+  if (rawProvisions.rate_cut_pct != null) {
+    const cut = Math.abs(Number(rawProvisions.rate_cut_pct))
+    impacts.revenue_haircut_pct = cut  // stored as positive number; sign convention is "% reduction"
+    const dollarLoss = baselineRevPerMwYr * cut / 100
+    steps.push(`Revenue haircut: ${cut}% rate cut → on baseline $${baselineRevPerMwh.toFixed(0)}/MWh × ${annualMwhPerMw.toFixed(0)} MWh/MW/yr = $${dollarLoss.toLocaleString()}/MW/yr revenue loss.`)
+    irrBps -= cut * 18  // ~18 bps per 1% revenue cut (solar deal rule of thumb)
+  }
+
+  if (rawProvisions.one_time_fee_per_kw != null) {
+    const feePerMw = Number(rawProvisions.one_time_fee_per_kw) * 1000
+    impacts.capex_impact_per_mw_usd = feePerMw
+    steps.push(`Capex impact: $${rawProvisions.one_time_fee_per_kw}/kW one-time × 1000 kW/MW = +$${feePerMw.toLocaleString()}/MW added to capex.`)
+    if (baselineCapexPerMw > 0) {
+      irrBps -= (feePerMw / 100_000) * 50  // ~50 bps per $100K/MW capex add
+    }
+  }
+
+  if (rawProvisions.annual_fee_per_kw_yr != null) {
+    const feePerMwYr = Number(rawProvisions.annual_fee_per_kw_yr) * 1000
+    impacts.ongoing_fee_per_mw_yr_usd = feePerMwYr
+    steps.push(`Ongoing fee: $${rawProvisions.annual_fee_per_kw_yr}/kW/yr × 1000 kW/MW = $${feePerMwYr.toLocaleString()}/MW/yr ongoing.`)
+    if (baselineRevPerMwYr > 0) {
+      const equivPct = feePerMwYr / baselineRevPerMwYr * 100
+      irrBps -= equivPct * 18  // recurring fee ≈ revenue haircut equivalent
+    }
+  }
+
+  if (rawProvisions.retroactive_one_time_fee_per_kw != null) {
+    // Stored separately in methodology — it hits existing queue / operating
+    // projects, not new applications. The applies_to_existing_queue flag
+    // surfaces this to the Lens prompt; methodology spells out the $$$.
+    const retroPerMw = Number(rawProvisions.retroactive_one_time_fee_per_kw) * 1000
+    steps.push(`Retroactive fee on existing queue: $${rawProvisions.retroactive_one_time_fee_per_kw}/kW × 1000 kW/MW = +$${retroPerMw.toLocaleString()}/MW. Applies to existing-queue + operating projects only.`)
+  }
+
+  if (irrBps !== 0) {
+    impacts.irr_impact_bps = Math.round(irrBps)
+    steps.push(`IRR impact (approximation): ${impacts.irr_impact_bps} bps. Rule-of-thumb: 1% revenue cut ≈ −18 bps, $100K/MW capex add ≈ −50 bps. Exact requires Scenario Studio sensitivity run.`)
+  }
+
+  return {
+    impacts,
+    methodology: steps.join(' ') + ` Baselines: ${state} bill credit $${baselineRevPerMwh.toFixed(0)}/MWh, ${rates.capacity_factor_pct}% CF (${Math.round(annualMwhPerMw)} MWh/MW/yr), $${(rates.installed_cost_per_watt).toFixed(2)}/W installed.`,
+    baselines: {
+      state,
+      revenue_per_mwh: Math.round(baselineRevPerMwh),
+      annual_mwh_per_mw: Math.round(annualMwhPerMw),
+      installed_cost_per_watt: rates.installed_cost_per_watt,
+      capacity_factor_pct: rates.capacity_factor_pct,
+    },
+  }
+}
 
 export default async function handlePolicyClassify(body, res) {
   const { rawText, stateHint, eventNameHint } = body
@@ -27,8 +136,11 @@ export default async function handlePolicyClassify(body, res) {
   // Cache 24h. Bump `v` whenever the system prompt changes materially so
   // existing cached drafts get re-fired against the new prompt.
   //   v=1: initial — explicit no-AI-dollars rule + safe-harbor + FEOC fields
+  //   v=2: AI now extracts raw_provisions; handler derives $/MW from state
+  //        baselines. Same response shape but the four impact fields are
+  //        now COMPUTED, not null.
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     1,
+    v:     2,
     text:  rawText.trim(),
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',
@@ -87,10 +199,9 @@ export default async function handlePolicyClassify(body, res) {
       return res.status(200).json({ draft: null, fallback: true, reason: 'parse_failed' })
     }
 
-    // Defense in depth: force the four impact-number fields to null even
-    // if the model ignored the prompt's "leave these null" instruction.
-    // Honest-data-freshness tenet — never silently surface AI-estimated
-    // dollar figures as Tractova-curated impact.
+    // Force the four "derived" impact fields to null before derivation
+    // overwrites them with computed values. Belt-and-braces in case the
+    // model ignored the prompt and populated them with hallucinations.
     for (const f of ['capex_impact_per_mw_usd', 'irr_impact_bps', 'ongoing_fee_per_mw_yr_usd', 'revenue_haircut_pct']) {
       parsed[f] = null
     }
@@ -101,9 +212,33 @@ export default async function handlePolicyClassify(body, res) {
       if (parsed[f] === '') parsed[f] = null
     }
 
+    // ── Derive impact from extracted raw_provisions + state baselines ────
+    // This is the meaningful work: AI extracts provisions from text, the
+    // handler computes per-MW $ impact using transparent multiplication
+    // against revenue_rates baselines. impact_methodology gets the full
+    // chain so the admin (and the Lens prompt) can verify.
+    const rawProvisions = parsed.raw_provisions || {}
+    const stateForDerive = (parsed.state || stateHint || '').toUpperCase()
+    if (stateForDerive) {
+      const derived = await deriveImpact(rawProvisions, stateForDerive)
+      Object.assign(parsed, derived.impacts)
+      // Append the derivation chain to any AI-written methodology so we
+      // preserve the analyst's research lead + the computed proof.
+      const aiNote = parsed.impact_methodology ? `${parsed.impact_methodology}\n\n— Derived: ` : '— Derived: '
+      parsed.impact_methodology = aiNote + derived.methodology
+      // Stash baselines + raw_provisions in discovery_metadata for the
+      // admin UI to surface (and for any future re-derivation when
+      // baselines change).
+      parsed.discovery_metadata = {
+        ...(parsed.discovery_metadata || {}),
+        raw_provisions: rawProvisions,
+        baselines_used: derived.baselines,
+      }
+    }
+
     // Drafts from this path always land in the admin review queue.
     parsed.review_status  = 'pending_admin_review'
-    parsed.discovered_via = 'manual'  // admin paste counts as manual discovery; cron path stamps news_ai_suggest
+    parsed.discovered_via = parsed.discovered_via || 'manual'
 
     cacheSet(classifyKey, 'policy-classify', parsed, 24 * 60 * 60)
     return res.status(200).json({ draft: parsed })
