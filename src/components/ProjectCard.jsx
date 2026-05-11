@@ -25,8 +25,11 @@ import {
   IX_LABEL,
 } from '../pages/Library.jsx'
 
-export default function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, scenarios = [], onScenarioDelete }) {
-  const [expanded,   setExpanded]   = useState(false)
+export default function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, scenarios = [], onScenarioDelete, defaultExpanded = false }) {
+  // defaultExpanded — Phase 2A Table view passes true so a row click
+  // expands directly into the full card, not into the collapsed banner
+  // (no double-click required).
+  const [expanded,   setExpanded]   = useState(defaultExpanded)
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
   const [stage,      setStage]      = useState(project.stage || '')
