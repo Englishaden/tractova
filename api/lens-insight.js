@@ -432,6 +432,7 @@ export default async function handler(req, res) {
   //   v=1: initial
   //   v=2: policy events injected
   //   v=3: untruncated methodology + analyst_note + verified provisions
+  //   v=4: IRR-delta format rule in system prompt (% for ≥100 bps, else bps)
   const verdictKey = buildCacheKey('verdict', {
     state:               body.state,
     county:              body.county,
@@ -439,7 +440,7 @@ export default async function handler(req, res) {
     stage:               body.stage,
     technology:          body.technology,
     dataVersion:         dataVersionFor(body.stateProgram, policyEvents),
-    buildContextVersion: 3,
+    buildContextVersion: 4,
   })
   const cachedVerdict = await cacheGet(verdictKey)
   if (cachedVerdict) {

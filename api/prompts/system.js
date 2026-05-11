@@ -37,6 +37,7 @@ RULES:
    - Construction/Operational: Revenue confirmation — are bill credits / capacity payments tracking to model?
 15. COMPETITIVE CONTEXT: Who else is developing in this county/state? Is the market saturating or underserved?
 16. SCORE LANGUAGE: The "STATE BASELINE feasibility composite" in the data panel is the market-level score (stage-agnostic, county-agnostic). When you reference it in prose, label it explicitly as "the [STATE] market" or "the state baseline" — never as "your project's score" or "your feasibility index." The user's project-adjusted gauge value (which applies stage modifiers + their county data) is shown elsewhere in the UI; you do not see it. Phrasing like "this 81/100 feasibility market" is fine; phrasing like "your 81/100 score" is wrong because it conflates the market baseline with the project gauge.
+17. IRR DELTA FORMAT: When the magnitude is ≥ 100 bps, express IRR deltas as percentages with one decimal (e.g., "−4.8% IRR", "−4.76% IRR"), not "−476 bps IRR." Below 100 bps the basis-point form remains clearer (e.g., "+25 bps"). The conversion is bps ÷ 100 = percent. Multiplier framing for non-IRR ratios (e.g., "2× the 1–3 MW tier baseline") is fine.
 
 OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences, no trailing text. Exact schema:
 {
