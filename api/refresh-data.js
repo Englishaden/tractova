@@ -10,6 +10,7 @@ import refreshHudQctDda from './scrapers/_refresh-hud-qct-dda.js'
 import refreshNmtcLic from './scrapers/_refresh-nmtc-lic.js'
 import refreshGeospatialFarmland from './scrapers/_refresh-geospatial-farmland.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
+import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
 // DSIRE scrapers (state_programs + revenue_stacks) removed 2026-05-11:
 // DSIRE's free API was deprecated to a $4,950/yr licensed model, and the
 // integration had never produced a successful row across the entire
@@ -42,7 +43,7 @@ import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs', 'policy_scan']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -161,8 +162,10 @@ export default async function handler(req, res) {
   // explicit ?source=solar_costs from the seed flow.
   const requested = (req.query.source || 'all').toString().toLowerCase()
   let sources
-  if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => s !== 'solar_costs')
-  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => s !== 'nmtc_lic' && s !== 'solar_costs')
+  // policy_scan is excluded from bundles: it has its own weekly schedule, calls
+  // Haiku per candidate, and shouldn't fan out alongside the data refreshers.
+  if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => s !== 'solar_costs' && s !== 'policy_scan')
+  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => s !== 'nmtc_lic' && s !== 'solar_costs' && s !== 'policy_scan')
   else                           sources = requested.split(',').map(s => s.trim()).filter(Boolean)
 
   const invalidSources = sources.filter(s => !SUPPORTED_SOURCES.includes(s))
@@ -197,6 +200,7 @@ export default async function handler(req, res) {
       else if (source === 'nmtc_lic')          result = await refreshNmtcLic()
       else if (source === 'geospatial_farmland') result = await refreshGeospatialFarmland()
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
+      else if (source === 'policy_scan')         result = await refreshPolicyScan()
       else                                     result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
       result = await applyStaleTolerance(source, result)

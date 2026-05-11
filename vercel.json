@@ -75,7 +75,7 @@
       "schedule": "0 8 1 11 *"
     },
     {
-      "path": "/api/scan-policy-candidates",
+      "path": "/api/refresh-data?source=policy_scan",
       "schedule": "0 9 * * 1"
     }
   ]
