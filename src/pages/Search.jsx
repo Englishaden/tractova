@@ -12,6 +12,7 @@ import InterconnectionCard from '../components/InterconnectionCard.jsx'
 import OfftakeCard from '../components/OfftakeCard.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
 import LensPolicyClimateSection from '../components/LensPolicyClimateSection.jsx'
+import LensComparablesSection from '../components/LensComparablesSection.jsx'
 import { useToast } from '../components/ui/Toast'
 
 // 2026-05-07 cleanup: dropped 16 leftover Search.jsx imports that
@@ -33,12 +34,7 @@ import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
 import AddToCompareButton from '../components/AddToCompareButton'
-import {
-  MaybeRegulatoryPanel,
-  MaybeSpecificYieldPanel,
-  MaybeCsMarketPanel,
-  MaybeComparableDealsPanel,
-} from '../components/MaybeLensPanels'
+import { MaybeRegulatoryPanel } from '../components/MaybeLensPanels'
 
 import { getNearestSubstations } from '../lib/substationEngine'
 
@@ -948,25 +944,23 @@ function SearchContent() {
                 pre-revenue and curation cadence is light. Admin tab
                 stays available so curation infrastructure is ready
                 when we have paying users to justify the labor. */}
-            <MaybeRegulatoryPanel
-              state={results.stateProgram?.id || results.form.state}
-              stateName={results.stateProgram?.name || results.form.state}
-            />
-            <MaybeSpecificYieldPanel
-              state={results.stateProgram?.id || results.form.state}
-              stateName={results.stateProgram?.name || results.form.state}
-              mw={results.form.mw}
-            />
-            <MaybeCsMarketPanel
-              state={results.stateProgram?.id || results.form.state}
-              stateName={results.stateProgram?.name || results.form.state}
-              mw={results.form.mw}
-            />
-            <MaybeComparableDealsPanel
+            {/* § 05 · Comparable Deals & Benchmarks — three collapsibles
+                (Operating Projects, Comparable Deals, Market Benchmarks)
+                under one SectionMarker. Section hides when none of the
+                three datasets has rows for this state. */}
+            <LensComparablesSection
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
               technology={results.form.technology}
               mw={results.form.mw}
+            />
+
+            {/* Regulatory Activity (PUC dockets) stays outside § 05 — it's
+                a different concept (regulatory filings, not deal/benchmark
+                data). Curation-gated. */}
+            <MaybeRegulatoryPanel
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
             />
 
             {/* First-time-Pro guided tour. Inert unless `?onboarding=1` is in

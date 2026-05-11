@@ -64,6 +64,24 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'When a source article describes a policy in prose but doesn\'t state the specific $/kW, %, or bps figures verbatim, the classifier marks it medium or low confidence. These rows are surfaced everywhere the high-confidence rows are — but with this badge to make clear that the IRR and feasibility numbers do NOT include any adjustment from them. To upgrade a row to "Modeled in financials", paste a source that quotes the numbers verbatim and re-scan.',
     inputs: 'impact_confidence in (medium, low) · raw_provisions sparsely populated',
   },
+  'Operating Projects': {
+    title: 'Operating CS Projects (ground truth)',
+    short: 'Real-world operating community-solar projects in the state, sourced from NREL\'s Sharing the Sun database.',
+    long: 'NREL publishes an annual dataset of every known operating community-solar project in the US — state, capacity, COD, owner/developer, utility, LMI status. Tractova seeds this into cs_projects to give the developer ground-truth on "what actually got built here." Count, total MW, vintage range, top developers, utility-type mix, and LMI penetration all come from this dataset. Refreshed annually as NREL re-issues the report.',
+    inputs: 'cs_projects table (seeded from NREL Sharing the Sun Excel)',
+  },
+  'Comparable Deals': {
+    title: 'Comparable Deals',
+    short: 'Point-estimate examples of similar projects — same state, same technology, MW within ±50% to 2× of yours.',
+    long: 'Two data sources merged: operating projects from cs_projects (NREL ground truth) and curated deal rows from comparable_deals (admin-curated from news articles + SEC filings + press releases). Each row shows MW AC, COD or expected COD, stage, and disclosed economics if any. Filtered to the developer\'s size band so the comps actually inform their underwriting.',
+    inputs: 'cs_projects + comparable_deals · filtered by state, technology, mwRange [mw×0.5, mw×2]',
+  },
+  'Market Benchmarks': {
+    title: 'Market Benchmarks',
+    short: 'Statistical aggregates from operating projects — observed kWh/kW specific yield, deal-flow medians, etc.',
+    long: 'Where Operating Projects shows raw per-project rows and Comparable Deals shows individual examples, Market Benchmarks shows the summary statistics. Today: specific-yield (kWh/kW/yr) observed from operating projects — used to validate the modeled production assumption Scenario Studio runs against. Future: median $/W installed, median IRR, deal-flow rates from comparable_deals once enough articles are seeded.',
+    inputs: 'cs_specific_yield table (currently) · future: comparable_deals statistical rollups',
+  },
   'LMI Carveout': {
     title: 'LMI Carveout (Low-to-Moderate Income)',
     short: 'Required percentage of Community Solar subscribers who must be LMI households.',
