@@ -463,8 +463,8 @@ Claude will pick up exactly where this session ended.
 |---|---|---|---|
 | 0 — Foundations + motion primitives | ✅ Shipped | `cfce269` | + design doc `59a6b30` |
 | 1 — Cmd-K nav spine | ✅ Shipped | (this commit) | parser + tests + CmdKHint + verb-mode palette |
-| 2A — Library Table view | ✅ Shipped (Slices 1 + 2) | (this commit) | Slice 1: view-mode toggle + Bloomberg Table + bulk-select earlier. Slice 2: StagePicker → Radix Popover + client-side pagination (25/50/100, `?all=1` escape) + persistent chips banner. Sticky LibraryFilterRail deferred to Phase 2B alongside Map. |
-| 2B — Library Map view | ⏳ Queued | — | ~10–14h |
+| 2A — Library Table view | ✅ Shipped | (prior commits) | Slice 1: view-mode toggle + Bloomberg Table + bulk-select earlier. Slice 2: StagePicker → Radix Popover + client-side pagination (10/25/50/100, `?all=1` escape) + persistent chips banner. |
+| 2B — Library Map view | ✅ Shipped | (this commit) | County centroids generator + LibraryMap (state-level MW-weighted choropleth + per-project pins + state-cluster bubble >200 pins) + ProjectDrawer slide-in (right, 480px, Radix Dialog). Click state → filters Library + switches to Table. Click pin → opens drawer with full ProjectCard. Sticky LibraryFilterRail deferred (would collide with sticky table header). |
 | 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ⏳ Queued | — | ~15–20h, has migration |
 | 3 — Lens polish + a11y | ⏳ Queued | — | ~10–14h |
 | 4 — Motion layer rollout | ⏳ Queued | — | ~8–12h |

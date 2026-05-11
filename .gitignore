@@ -53,7 +53,9 @@ tests/.auth/
 # `scripts/probe-*.mjs`). Stays local — these are upstream-publisher
 # files (EIA-860, NREL ATB, LBNL TTS, USPVDB, Sharing the Sun, state
 # agency reports) we re-download from the source. Repo bloat otherwise.
-data/
+# Anchored to root: src/data/ (containing allCounties.json,
+# county_centroids.json, etc.) is tracked normally.
+/data/
 
 # Legacy: large public-dataset reference files (>100 MB GitHub limit) —
 # kept for backwards compat; new files go in data/ above.

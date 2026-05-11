@@ -22,6 +22,8 @@ import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
 import ProjectTable from '../components/library/ProjectTable.jsx'
+import LibraryMap from '../components/library/LibraryMap.jsx'
+import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
 import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
 
@@ -32,7 +34,8 @@ const LAYOUT_STORAGE_KEY = 'tractova_library_view'
 function loadLayout() {
   try {
     const v = typeof window !== 'undefined' ? localStorage.getItem(LAYOUT_STORAGE_KEY) : null
-    return v === 'table' ? 'table' : 'cards'
+    if (v === 'table' || v === 'map') return v
+    return 'cards'
   } catch { return 'cards' }
 }
 function saveLayout(layout) {
@@ -226,8 +229,13 @@ function LibraryContent() {
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
   const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' — top-level toggle
-  const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' — Phase 2A
+  const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' | 'map' — Phase 2A + 2B
   const handleLayoutChange = useCallback((next) => { setLayoutState(next); saveLayout(next) }, [])
+
+  // Phase 2B — pin-click → ProjectDrawer. drawerProject is the project
+  // object to render in the slide-in panel; null when closed. Click a
+  // pin in LibraryMap to open; close via Esc / outside-click / X button.
+  const [drawerProject, setDrawerProject] = useState(null)
 
   // Client-side pagination state — windows the rendered project list.
   // Data fetch stays unbounded because the Pipeline Distribution +
@@ -1187,14 +1195,34 @@ function LibraryContent() {
               </div>
             )}
 
-            {/* Phase 2A · view-mode toolbar — Cards | Table | Map (Map disabled until 2B). */}
+            {/* Phase 2A + 2B · view-mode toolbar — Cards | Table | Map. */}
             {displayProjects.length > 0 && (
               <LibraryToolbar layout={layout} onLayoutChange={handleLayoutChange} count={displayProjects.length} />
             )}
 
             {displayProjects.length > 0 ? (
               <>
-              {layout === 'table' ? (
+              {layout === 'map' ? (
+                /* Phase 2B — Map view. Renders the full filtered
+                   pipeline as pins on a US choropleth. State click →
+                   filter Library + switch to Table so the user can
+                   inspect the narrowed list. Pin click → ProjectDrawer
+                   with full detail. */
+                <LibraryMap
+                  projects={displayProjects}
+                  stateProgramMap={stateProgramMap}
+                  countyDataMap={countyDataMap}
+                  filterState={filterState}
+                  onStateClick={(stateId, hasProjects) => {
+                    if (!hasProjects) return
+                    // Toggle: clicking the same state clears the filter.
+                    setFilterState(prev => prev === stateId ? '' : stateId)
+                    // Land the user on the list of what they just selected.
+                    if (filterState !== stateId) handleLayoutChange('table')
+                  }}
+                  onPinClick={(project) => setDrawerProject(project)}
+                />
+              ) : layout === 'table' ? (
                 <ProjectTable
                   projects={pagedProjects}
                   stateProgramMap={stateProgramMap}
@@ -1237,14 +1265,11 @@ function LibraryContent() {
                 ))}
               </div>
               )}
-              {/* Pagination strip — always visible when the portfolio
-                  has at least one project so the affordance is
-                  discoverable. Prev/next chevrons inside Pagination
-                  self-hide when there's only one page (the strip
-                  becomes a position indicator + page-size selector at
-                  that scale, never noise). Skipped entirely when the
-                  ?all=1 power-user override is set. */}
-              {!showAllOverride && displayProjects.length > 0 && (
+              {/* Pagination strip — always visible in Cards / Table when
+                  the portfolio has at least one project. Skipped in Map
+                  view (the map shows all projects as pins regardless of
+                  page; pagination is a list-view affordance). */}
+              {layout !== 'map' && !showAllOverride && displayProjects.length > 0 && (
                 <Pagination
                   total={displayProjects.length}
                   page={page}
@@ -1351,6 +1376,29 @@ function LibraryContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Phase 2B — ProjectDrawer slide-in. Triggered by clicking a pin
+          in LibraryMap. Lives at the page root so the slide-in animation
+          isn't clipped by any ancestor with overflow set. */}
+      <ProjectDrawer
+        project={drawerProject}
+        open={!!drawerProject}
+        onOpenChange={(open) => { if (!open) setDrawerProject(null) }}
+        stateProgramMap={stateProgramMap}
+        countyDataMap={countyDataMap}
+        stateDeltaMap={stateDeltaMap}
+        scenariosMap={scenariosMap}
+        shareCountMap={shareCountMap}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onStageChange={handleStageChange}
+        onRequestRemove={handleRequestRemove}
+        onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
+        onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
+          ...prev,
+          [projectId]: (prev[projectId] || []).filter(s => s.id !== snapId),
+        }))}
+      />
     </div>
   )
 }

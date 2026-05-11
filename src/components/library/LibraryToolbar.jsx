@@ -36,7 +36,7 @@ const VIEWS = [
   {
     id: 'map',
     label: 'Map',
-    hint: 'US pipeline map — Phase 2B',
+    hint: 'US choropleth · pipeline pins by county',
     icon: (
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 6v15l6-3 6 3 6-3V3l-6 3-6-3-6 3z"/>
@@ -44,7 +44,6 @@ const VIEWS = [
         <line x1="15" y1="6" x2="15" y2="21"/>
       </svg>
     ),
-    disabled: true,
   },
 ]
 

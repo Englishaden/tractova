@@ -4,7 +4,45 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 2A SHIPPED (Slices 1 + 2) · resume Phase 2B (Library Map view)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 2B SHIPPED (Library Map + ProjectDrawer) · resume Phase 2C (Saved comparisons + PDF + Re-run + Scenarios→Projects)
+
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 2C. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2C, then implement Saved Comparisons (migration 062) + PDF export from Compare + Re-run with latest data + Orphan-scenarios-to-project conversion.`
+
+**Phase 2B — shipped this session:**
+- `scripts/generate-county-centroids.mjs` — one-time generator. Reads `node_modules/us-atlas/counties-10m.json`, converts each county feature via `topojson-client.feature`, computes area-weighted centroid via `d3-geo.geoCentroid`, writes `src/data/county_centroids.json` keyed by `${STATE}::${COUNTY}` → `[lon, lat]`. Spot-checked: 3,142 counties kept (3,136 after de-dupe of independent-city / county name collisions, mostly VA), 89 territories dropped, ~101 KB.
+- `src/components/library/LibraryMap.jsx` — Bloomberg-style portfolio map. State coloring: **MW-weighted** average of saved-project live scores per state (distinct from Dashboard USMap's market-feasibility ramp; states without saved projects show muted slate). Pins at county centroids, colored by per-project score (teal ≥70 / amber ≥50 / red <50), sized by sqrt(MW) clamped 3.5–7.5px. **Clustering** above 200 pins by state-centroid bubble with sqrt-scaled radius + count label (keeps SVG node budget bounded). Hover tooltips for both states (count / MW / weighted-avg) and pins (name / location / score). Click state → filter + switch to Table. Click pin → open ProjectDrawer.
+- `src/components/library/ProjectDrawer.jsx` — right-side slide-in (480px) using `@radix-ui/react-dialog`. Renders ProjectCard with `defaultExpanded` so the user lands on full project detail in one click. Motion: 220ms slide with `[0.16, 1, 0.3, 1]` ease-out, honors `useReducedMotion`. Esc + outside-click + X-button all close.
+- `src/components/library/LibraryToolbar.jsx` — Map button unlocked (dropped the disabled + "2B" eyebrow).
+- `src/pages/Library.jsx` — `layout` state extended to `'cards' | 'table' | 'map'`. `drawerProject` state for the slide-in. Pagination strip hidden in Map view (map shows all filtered projects regardless of page). State click in Map both filters and switches layout to Table so the user lands on the narrowed list.
+
+**Sticky LibraryFilterRail deferred.** Would have collided with the sticky table header (both targeting `top-14`). Filter strip is already adjacent to the project list per earlier feedback, so the day-to-day value of sticky is low; the sticky table header is more useful. Deferred to a future phase rather than ship a fragile two-sticky-stack.
+
+**Edge cases verified manually:**
+- 0 projects → EmptyStateOnboarding renders (Map button isn't reachable; outer guard catches it).
+- 1 project → 1 pin, 1 state lit. Single hover tooltip works.
+- Filter narrows to 0 → "No projects match current filters" branch, Map doesn't try to render.
+- Project with missing county → pin silently skipped (no off-map pin).
+- Project in county not in centroids JSON → pin silently skipped.
+- Click empty state (no projects) on map → no-op (gated on `hasProjects`).
+- 200+ pins → clustering kicks in; each state shows one bubble with count.
+
+**Verification baseline at Phase 2B close:**
+- `npm run test:unit` — 127/127 green
+- `npm run build` — clean (~4.6s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs` — Library.jsx at 1404/1500 LOC, within budget
+- `npm run lint:api / lint:secrets` — clean
+
+**What's NEXT (Phase 2C — Saved comparisons + PDF + Re-run + Scenarios→Projects, ~15–20h):**
+- Migration FILE `062_saved_comparisons.sql` (Aden applies in Supabase per CLAUDE.md §1.1)
+- `lib/savedComparisons.js` — save/load/list; extends CompareContext (localStorage = draft, Supabase = saved)
+- `CompareReportPDF` via `@react-pdf/renderer` (already in stack via ProjectPDFExport)
+- `:rerun <project>` Cmd-K verb depends on this — Search.jsx needs `?fromProject=` handler
+- "Convert to project" CTA on orphan scenarios in ScenariosView
+
+---
+
+## ARCHIVED Pickup — TRACTOVA-UX-001 Phase 2A SHIPPED (Slices 1 + 2) · resume Phase 2B (Library Map view)
 
 **Resume command:** `Resume TRACTOVA-UX-001 Phase 2B. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2B, then implement the Library Map view + sticky LibraryFilterRail.`
 
