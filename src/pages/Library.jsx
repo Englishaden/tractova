@@ -1237,14 +1237,14 @@ function LibraryContent() {
                 ))}
               </div>
               )}
-              {/* Pagination strip — visible when the portfolio is large
-                  enough that pagination is a meaningful affordance (≥5
-                  projects). Prev/next chevrons inside Pagination
-                  self-hide when there's only one page, so on small
-                  portfolios this reads as a position indicator + page-
-                  size selector rather than a control surface. Skipped
-                  entirely when the ?all=1 power-user override is set. */}
-              {!showAllOverride && displayProjects.length >= 5 && (
+              {/* Pagination strip — always visible when the portfolio
+                  has at least one project so the affordance is
+                  discoverable. Prev/next chevrons inside Pagination
+                  self-hide when there's only one page (the strip
+                  becomes a position indicator + page-size selector at
+                  that scale, never noise). Skipped entirely when the
+                  ?all=1 power-user override is set. */}
+              {!showAllOverride && displayProjects.length > 0 && (
                 <Pagination
                   total={displayProjects.length}
                   page={page}

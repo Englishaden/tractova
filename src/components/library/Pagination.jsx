@@ -36,7 +36,10 @@ export default function Pagination({
   const atLast = page >= totalPages
 
   return (
-    <div className="flex items-center justify-between gap-3 mt-3 mb-1 px-1 flex-wrap">
+    <div
+      className="flex items-center justify-between gap-3 mt-4 mb-1 pt-3 px-1 flex-wrap"
+      style={{ borderTop: '1px solid #E5E7EB' }}
+    >
       <span className="text-[11px] font-mono tabular-nums" style={{ color: '#6B7280' }}>
         Showing <span className="font-semibold text-ink">{start}</span>
         <span className="mx-0.5 text-gray-400">–</span>
