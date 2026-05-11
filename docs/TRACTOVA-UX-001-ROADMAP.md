@@ -81,12 +81,11 @@ Complete end-to-end:
 - Glossary tooltips on all new terms
 - 90/90 unit tests + scalability discipline locked
 
-### § 05 — Comparable Deals & Benchmarks
-- Single SectionMarker banner with three subsections (`LensComparablesSection.jsx`)
-- ◆ Operating Projects (NREL Sharing the Sun)
-- ◆ Comparable Deals (URL-paste flow — admin side TBD)
-- ◆ Market Benchmarks (specific yield)
-- Always renders when state is valid; empty-state messages name what's missing
+### § 05 — Comparable Deals & Benchmarks (DISABLED — see § 4 Phase 2A)
+- Component lives at `src/components/LensComparablesSection.jsx`
+- Currently gated off in `Search.jsx` behind `{false &&}` (commit `4b183d0`)
+- Bisect confirmed it triggers Chrome OOM on heavy-rowcount states (MA 374, IL 261, NY 1351 cs_projects rows)
+- Defer the live re-enable to **Phase 2A** which re-architects this surface with paginated Table view + moves Operating Projects to the Library cockpit
 
 ### UX sweep (2026-05-11)
 - IX Low Congestion text color #92400E (was identical to Moderate)
@@ -95,13 +94,15 @@ Complete end-to-end:
 - SectionDivider between § 04 and § 05
 - Glossary tooltips on `Active Policy`, `Policy Climate`, `Modeled in financials`, `Qualitative — not modeled`
 
-### ⚠ Phase 0 incident chain — TWO OOM fixes (commits `238169a` + `ddc9173`)
+### ⚠ Phase 0 incident chain — THREE OOM fixes (commits `238169a` + `ddc9173` + `4b183d0`)
 
 The OOM crash on the Lens results page took TWO fixes:
 
 1. **Fix 1 — PageTransition revert (`238169a`).** Wrapping all Routes in `<PageTransition>` (AnimatePresence + motion.div keyed by pathname) was the first offender. The Lens tree is too heavy (IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette) for a global AnimatePresence parent.
 
 2. **Fix 2 — `CollapsibleSubsection` height animation dropped (`ddc9173`).** After (1) deployed, Lens STILL crashed. The remaining offender was `CollapsibleSubsection`'s `motion.div animate={{ height: 'auto' }}` wrapping § 04 shadow pillar (22+ policy events from batch seed) + § 05 Operating Projects (CsMarketPanel with hundreds of cs_projects rows). motion's height animation forces synchronous measurement of all children, which cascaded during the loading-screen → results-render swap. Replaced motion.div body with plain `{open && <div>}` conditional render — same end state, no measurement pass. Chevron rotation animation kept.
+
+3. **Fix 3 — § 05 fully gated off (`4b183d0`).** After (1) and (2) deployed, Lens STILL crashed. Bisect chain proved: shadow pillar alone works; § 05 with even just Operating Projects subsection crashes on heavy-rowcount states (MA 374, IL 261, NY 1351 cs_projects rows). Root cause is cumulative memory pressure: the Lens results tree is already heavy, and the cs_projects fetch + `CsMarketPanel` render tips it over Chrome's per-tab budget. Math doesn't add up to OOM on any individual component, but the combination does. Deferred § 05 to Phase 2A (Library cockpit rebuild), which will re-architect this surface with pagination + move Operating Projects to the Library where it belongs.
 
 **Lessons:**
 1. Page-level motion must be **per-page scoped or CSS-only**. Global AnimatePresence wraps are not safe on dense pages.
@@ -175,6 +176,8 @@ Ships in three sub-waves. Each independently deployable.
 
 #### Phase 2A — View modes + Table view (~12–15h)
 **Killer feature:** Table view shows 50 projects in one screen. Real portfolio density.
+
+**Important — re-enable § 05 here.** § 05 (Comparable Deals & Benchmarks) is currently gated off in `Search.jsx` due to the OOM incident chain. Phase 2A's new Table view + pagination naturally bounds the row count, which should resolve the underlying memory pressure. Move Operating Projects display from § 05 → Library cockpit (it belongs there anyway; developers compare across pipeline in Library, not while underwriting a single deal in Lens). Or: re-enable a lighter version of § 05 in Lens with a 6-row cap on `CsMarketPanel`'s sample, no row fetch beyond aggregate KPIs.
 
 **Scope:**
 - View-mode toggle in Library hero: Cards | Table | Map. Persist per user in localStorage (`tractova_library_view`)
