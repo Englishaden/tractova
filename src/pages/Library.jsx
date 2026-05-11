@@ -1205,9 +1205,12 @@ function LibraryContent() {
               {layout === 'map' ? (
                 /* Phase 2B — Map view. Renders the full filtered
                    pipeline as pins on a US choropleth. State click →
-                   filter Library + switch to Table so the user can
-                   inspect the narrowed list. Pin click → ProjectDrawer
-                   with full detail. */
+                   filter ONLY (stays on map; misclick on a map region
+                   shouldn't punt the user to a different layout).
+                   The map's own header surfaces an explicit "View as
+                   table →" CTA when a state filter is active so the
+                   user opts into the layout switch. Pin click →
+                   ProjectDrawer with full detail. */
                 <LibraryMap
                   projects={displayProjects}
                   stateProgramMap={stateProgramMap}
@@ -1215,11 +1218,9 @@ function LibraryContent() {
                   filterState={filterState}
                   onStateClick={(stateId, hasProjects) => {
                     if (!hasProjects) return
-                    // Toggle: clicking the same state clears the filter.
                     setFilterState(prev => prev === stateId ? '' : stateId)
-                    // Land the user on the list of what they just selected.
-                    if (filterState !== stateId) handleLayoutChange('table')
                   }}
+                  onSwitchToTable={() => handleLayoutChange('table')}
                   onPinClick={(project) => setDrawerProject(project)}
                 />
               ) : layout === 'table' ? (
