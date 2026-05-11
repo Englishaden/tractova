@@ -1,3 +1,5 @@
+import { computePolicyClimateScore } from './policyAdjustments'
+
 export const STAGE_MODIFIERS = {
   'Prospecting':              [  0,   0,   0 ],
   'Site Control':             [  0, +10, +15 ],
@@ -165,8 +167,8 @@ function computeSiteSubScore(technology, availableLand, wetlandWarning) {
  * @param {{totalProjects:number, totalMW:number, avgStudyMonths:number}|null} [ixQueueSummary] — when present, blends ±10 pts onto the curated IX baseline
  * @returns {{offtake:number, ix:number, site:number, coverage:{offtake:'researched'|'fallback', ix:'live'|'curated', site:'live'|'researched'|'fallback'}}}
  */
-export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null) {
-  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, coverage: { offtake: 'researched', ix: 'curated', site: 'researched' } }
+export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null, policyEvents = null, mw = null) {
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, policyClimate: 50, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', policy: 'none' } }
 
   let offtake, ix, site
   // 'researched' = state is in our curated coverage list for this tech / county
@@ -275,7 +277,22 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix      = Math.max(0, Math.min(100, ix      + dIX))
   site    = Math.max(0, Math.min(100, site    + dSite))
 
-  return { offtake, ix, site, coverage: { offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage } }
+  // ── Policy climate (new dimension — PIE-001 Phase C) ──
+  // Aggregates active high-confidence policy_impact_events for this state.
+  // Returns 50 (neutral) when events exist but no impact. Returns null
+  // when no policy data was passed in — signal to computeDisplayScore to
+  // rebalance composite weights and skip the policy contribution (preserves
+  // legacy score values for Library/Portfolio surfaces that don't have
+  // policy data plumbed yet).
+  let policyClimate = null
+  let policyCoverage = 'none'
+  if (Array.isArray(policyEvents)) {
+    const project = (mw || stage || technology) ? { mw, stage, technology } : null
+    policyClimate = computePolicyClimateScore(policyEvents, project)
+    policyCoverage = policyEvents.length > 0 ? 'live' : 'none'
+  }
+
+  return { offtake, ix, site, policyClimate, coverage: { offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage, policy: policyCoverage } }
 }
 
 // ── Composite weights ────────────────────────────────────────────────────────
@@ -298,13 +315,13 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
 // If/when we get developer-survey or empirical IRR-vs-pillar data that would
 // anchor these weights, replace WEIGHT_SCENARIOS with the empirical values.
 export const WEIGHT_SCENARIOS = {
-  default:    { offtake: 0.40, ix: 0.35, site: 0.25, label: 'Default (offtake-led)',
-                rationale: 'Tractova default — offtake gets highest weight as the revenue mechanism, IX second as the binary go/no-go gate, site third as the most solvable.' },
-  revenue:    { offtake: 0.50, ix: 0.30, site: 0.20, label: 'Revenue-tilt',
+  default:    { offtake: 0.36, ix: 0.31, site: 0.23, policy: 0.10, label: 'Default (offtake-led)',
+                rationale: 'Tractova default — offtake gets highest weight as the revenue mechanism, IX second as the binary go/no-go gate, site third as the most solvable. Policy climate (PIE-001) at 10% captures active high-confidence policy events not yet absorbed into structural baselines.' },
+  revenue:    { offtake: 0.45, ix: 0.27, site: 0.18, policy: 0.10, label: 'Revenue-tilt',
                 rationale: 'For developers who view CS programs (REC value, capacity availability) as the dominant project-success predictor.' },
-  ix:         { offtake: 0.30, ix: 0.40, site: 0.30, label: 'IX-tilt',
+  ix:         { offtake: 0.27, ix: 0.36, site: 0.27, policy: 0.10, label: 'IX-tilt',
                 rationale: 'For developers in long-queue ISO regions (PJM, MISO) where interconnection delays are the project killer.' },
-  permit:     { offtake: 0.30, ix: 0.30, site: 0.40, label: 'Permit-tilt',
+  permit:     { offtake: 0.27, ix: 0.27, site: 0.36, policy: 0.10, label: 'Permit-tilt',
                 rationale: 'For developers in permit-heavy markets (NJ farmland, MA wetlands) where site control is the dominant friction.' },
 }
 
@@ -320,8 +337,18 @@ const DEFAULT_WEIGHTS = WEIGHT_SCENARIOS.default
  * @param {{offtake:number, ix:number, site:number}} [weights] — defaults to WEIGHT_SCENARIOS.default
  * @returns {number} rounded weighted average
  */
-export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
-  return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site)
+export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS, policyClimate = null) {
+  // No policy data → rebalance weights across the 3 existing dimensions
+  // so the composite preserves legacy values. (Library bulk scoring,
+  // pre-PIE-001 callers).
+  if (policyClimate == null) {
+    const totalNonPolicy = weights.offtake + weights.ix + weights.site
+    if (totalNonPolicy <= 0) return 0
+    return Math.round((offtake * weights.offtake + ix * weights.ix + site * weights.site) / totalNonPolicy)
+  }
+  const pc = Number.isFinite(policyClimate) ? policyClimate : 50
+  const pw = Number.isFinite(weights.policy) ? weights.policy : 0
+  return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site + pc * pw)
 }
 
 /**
@@ -341,10 +368,10 @@ export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS
  * @param {object} [weights]
  * @returns {number|null}
  */
-export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
+export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS, policyClimate = null) {
   if (!Number.isFinite(offtake) || !Number.isFinite(ix) || !Number.isFinite(site)) return null
   if (!weights || !Number.isFinite(weights.offtake) || !Number.isFinite(weights.ix) || !Number.isFinite(weights.site)) return null
-  const result = computeDisplayScore(offtake, ix, site, weights)
+  const result = computeDisplayScore(offtake, ix, site, weights, policyClimate)
   return Number.isFinite(result) ? result : null
 }
 
@@ -358,12 +385,12 @@ export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
  * @param {number} site
  * @returns {{default:number, min:number, max:number, spread:number, scenarios:object}}
  */
-export function computeDisplayScoreRange(offtake, ix, site) {
+export function computeDisplayScoreRange(offtake, ix, site, policyClimate = null) {
   const scenarios = {}
   let min = Infinity, max = -Infinity
   for (const [k, w] of Object.entries(WEIGHT_SCENARIOS)) {
-    const s = computeDisplayScore(offtake, ix, site, w)
-    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site } }
+    const s = computeDisplayScore(offtake, ix, site, w, policyClimate)
+    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site, policy: w.policy } }
     if (s < min) min = s
     if (s > max) max = s
   }
@@ -395,13 +422,14 @@ export function computeDisplayScoreRange(offtake, ix, site) {
  * program map get score=0 (treated as "no data" rather than NaN-poisoning the
  * weighted average upstream).
  */
-export function scoreProjects(projects, stateProgramMap) {
+export function scoreProjects(projects, stateProgramMap, policyEventsByState = null) {
   if (!Array.isArray(projects)) return []
   return projects.map(p => {
     const sp = stateProgramMap?.[p.state]
     if (!sp) return { ...p, score: 0 }
-    const subs = computeSubScores(sp, null, p.stage, p.technology)
-    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
+    const policies = policyEventsByState?.[p.state] || null
+    const subs = computeSubScores(sp, null, p.stage, p.technology, null, policies, p.mw)
+    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site, undefined, subs.policyClimate) }
   })
 }
 

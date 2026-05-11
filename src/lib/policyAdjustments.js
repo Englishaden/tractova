@@ -50,10 +50,14 @@ const DEFAULT_APPLICABILITY_FLAG = 'applies_to_new_applications'
  * @param {{mw: number, stage: string, technology: string}} project
  * @returns {Array} filtered policies
  */
-export function filterApplicablePolicies(policies, { mw, stage, technology }) {
+export function filterApplicablePolicies(policies, { mw, stage, technology } = {}) {
   if (!Array.isArray(policies) || policies.length === 0) return []
-  const mwNum = Number(mw) || 0
-  const flag = STAGE_APPLICABILITY[stage] || DEFAULT_APPLICABILITY_FLAG
+  const hasMw = mw != null && Number.isFinite(Number(mw)) && Number(mw) > 0
+  const mwNum = hasMw ? Number(mw) : null
+  // When stage is null, accept policies with ANY applicability flag set
+  // (state-level scoring context — e.g. the map view, where we don't
+  // know what stage a hypothetical future project would be in).
+  const flag = stage ? (STAGE_APPLICABILITY[stage] || DEFAULT_APPLICABILITY_FLAG) : null
 
   return policies.filter(p => {
     if (!p) return false
@@ -61,23 +65,59 @@ export function filterApplicablePolicies(policies, { mw, stage, technology }) {
     if (p.is_active === false) return false
     if (p.review_status && p.review_status !== 'published') return false
 
-    // MW band: inclusive lower, exclusive upper (matches tier semantics —
-    // "1-3 MW AC" tier covers 1 MW up to but not including 3 MW; the 3 MW
-    // project gets the next tier).
-    if (p.min_mw_ac != null && mwNum < p.min_mw_ac) return false
-    if (p.max_mw_ac != null && mwNum >= p.max_mw_ac) return false
+    // MW band (skip filter when mw not provided — state-level context).
+    if (hasMw) {
+      if (p.min_mw_ac != null && mwNum < p.min_mw_ac) return false
+      if (p.max_mw_ac != null && mwNum >= p.max_mw_ac) return false
+    }
 
-    // Technology filter (null array = applies to all techs)
-    if (Array.isArray(p.applicable_technologies) && p.applicable_technologies.length > 0) {
+    // Technology filter (null array = applies to all techs; skip when
+    // technology not provided).
+    if (technology && Array.isArray(p.applicable_technologies) && p.applicable_technologies.length > 0) {
       if (!p.applicable_technologies.includes(technology)) return false
     }
 
-    // Stage filter via applicability flag. If the flag isn't set on the
-    // row, this stage isn't affected.
-    if (!p[flag]) return false
+    // Stage filter via applicability flag. When no stage given, accept
+    // policies whose ANY applicability flag is true.
+    if (flag) {
+      if (!p[flag]) return false
+    } else {
+      if (!p.applies_to_new_applications && !p.applies_to_existing_queue && !p.applies_to_operating_projects) return false
+    }
 
     return true
   })
+}
+
+/**
+ * Policy climate score: 0-100 scale where 50 = neutral.
+ * Aggregates signed irr_impact_bps across applicable high-confidence
+ * policies. Negative bps (headwinds) drop the score below 50; positive
+ * bps (tailwinds — e.g. program expansion, capacity increase) lift above.
+ *
+ * Calibration: 50 bps per score point, clamped to ±50 from baseline.
+ *   - ME LD 1777 alone at -476 bps → score 40
+ *   - Hypothetical state with +1000 bps stacked tailwinds → score 70
+ *   - Extreme headwind state at -2500 bps → score 0 (clamped)
+ *
+ * No project context (mw/stage/technology null) returns the state-level
+ * climate — applies all high-conf policies for the state regardless of
+ * size band or stage. Used by Library map view.
+ *
+ * @param {Array} policyEvents
+ * @param {{mw, stage, technology}|null} project
+ * @returns {number} 0-100 score (50 = neutral)
+ */
+export function computePolicyClimateScore(policyEvents, project = null) {
+  if (!Array.isArray(policyEvents) || policyEvents.length === 0) return 50
+  const applicable = filterApplicablePolicies(policyEvents, project || {})
+  if (applicable.length === 0) return 50
+
+  const totalBps = applicable.reduce((sum, p) => sum + (Number(p.irr_impact_bps) || 0), 0)
+  // 50 bps per score point: -476 bps → -9.5 shift → score 40
+  const rawShift = totalBps / 50
+  const shift = Math.max(-50, Math.min(50, rawShift))
+  return Math.round(50 + shift)
 }
 
 /**

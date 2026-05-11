@@ -822,6 +822,8 @@ function SearchContent() {
                 technology={results.form.technology}
                 activeScenario={activeScenario}
                 ixQueueSummary={results.ixQueueSummary}
+                policyEvents={results.policyEvents || []}
+                mw={results.form.mw}
               />
             </div>
 
