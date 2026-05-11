@@ -6,14 +6,17 @@
 // pillar, § 05 sub-elements, drilldowns, anywhere a collapsible needs
 // a smaller footprint without competing with the parent card chrome.
 //
-// Pre-Phase-0, both LensComparablesSection and LensPolicyClimateSection
-// had hand-rolled `▲/▼` button toggles. Inconsistent with the motion-
-// animated chevron used elsewhere. This component closes the gap:
-// every collapsible in the app routes through one of these two.
+// 2026-05-11 — REWRITTEN: motion.div with `height: 'auto'` animation
+// caused Chrome OOM crashes on the Lens results page when multiple
+// instances wrapped heavy children (CsMarketPanel, 22+ row policy event
+// list, ComparableDealsPanel) at the same time. The motion library has
+// to synchronously measure all children to compute the target height,
+// and stacking measures during the loading-screen → results-render swap
+// blew the per-tab memory budget. Reverted to plain conditional render
+// for the body — same end-state, no motion mount measurements.
 //
-// Same motion contract as CollapsibleCard (duration 0.32s, ease curve
-// [0.16, 1, 0.3, 1]). Same a11y contract (aria-expanded + aria-controls
-// + role="button"). Same reduced-motion honoring.
+// Chevron rotation animation stays (small SVG transform, cheap).
+// a11y contract (aria-expanded + aria-controls + role="region") stays.
 
 import { useId, useState } from 'react'
 import { motion } from 'motion/react'
@@ -72,19 +75,11 @@ export default function CollapsibleSubsection({
           <polyline points="6 9 12 15 18 9" />
         </motion.svg>
       </button>
-      <motion.div
-        id={contentId}
-        role="region"
-        aria-labelledby={headerId}
-        initial={false}
-        animate={open ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
-        transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
-        style={{ overflow: 'hidden' }}
-      >
-        <div className="border-t border-gray-100 px-5 py-4">
+      {open && (
+        <div id={contentId} role="region" aria-labelledby={headerId} className="border-t border-gray-100 px-5 py-4">
           {children}
         </div>
-      </motion.div>
+      )}
     </div>
   )
 }
