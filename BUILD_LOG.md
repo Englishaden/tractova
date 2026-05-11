@@ -4,7 +4,46 @@
 
 ---
 
-## 🟢 Pickup — Plan E COMPLETE: locs-allowlist EMPTY (Library + Admin + Search all under 1,500) + Axiom logging confirmed live → next: feature work (onboarding revamp queued)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 0 SHIPPED · resume Phase 1 (Cmd-K nav spine)
+
+**Read first after `/clear`:** `docs/TRACTOVA-UX-001-ROADMAP.md` (unified status + plan for the 6-phase Bloomberg-Terminal-class overhaul) + `docs/design-vocabulary.md` (aesthetic discipline). Plan mirror at `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
+
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 1. Read docs/TRACTOVA-UX-001-ROADMAP.md and docs/design-vocabulary.md, then implement Phase 1 per the plan.`
+
+**Session 2026-05-11 — PIE-001 completion + § 05 scaffolding + UI/UX overhaul plan + Phase 0 shipped.**
+
+Major milestones this session:
+
+1. **PIE-001 (Policy Impact Ecosystem) ships complete** — 7 phases across 10 commits. URL paste → AI classifier (tool-use, tier-aware) → multi-tier `policy_impact_events` rows; Scenario Studio base IRR adjusts for active high-conf policies; state feasibility composite includes 10% `policy_climate` sub-score; pillar card chips + § 04 shadow-pillar collapsible; 90 unit tests + scalability discipline locked.
+
+2. **§ 05 Comparable Deals & Benchmarks** scaffolded — single SectionMarker banner with three subsections (◆ Operating Projects · ◆ Comparable Deals · ◆ Market Benchmarks). Always renders when state is valid; empty-state messages name what's missing.
+
+3. **TRACTOVA-UX-001 plan locked + Phase 0 shipped** (commit `cfce269`):
+   - 6 phases, ~93–129 hr total estimate
+   - User direction (D-pad picks): Bloomberg Terminal spirit · Library cockpit first · push expressive motion · desktop-first
+   - Phase 0 delivered: `MotionPrimitives.jsx` (PageTransition, RevealOnScroll, HoverLift, CountUp, GaugeFill — all reduced-motion-aware), `Skeleton.jsx` (branded loading states), `CollapsibleSubsection.jsx` (standardized lightweight collapsible), App.jsx Routes wrapped in PageTransition, index.css gets skeleton-shimmer keyframe + responsive `.eyebrow-mono` utility
+   - LensComparablesSection + LensPolicyClimateSection migrated off hand-rolled toggles onto the shared CollapsibleSubsection
+   - 90/90 unit tests still green
+
+4. **Design vocabulary doc** (`docs/design-vocabulary.md`, commit `59a6b30`) — aesthetic taste calibration for Phases 1–6. Three voices (serif/mono/sans), 5 hue palette, 5 motion primitives, Cmd-K verb grammar, anti-patterns list, reference platforms ranked.
+
+5. **Roadmap doc** (`docs/TRACTOVA-UX-001-ROADMAP.md`) — unified resume doc consolidating plan + design + status + pickup instructions.
+
+**What's NEXT (Phase 1 — Cmd-K nav spine, ~10–14h):**
+- `src/lib/commandParser.js` — `:lens <STATE> [<MW>] [<TECH>]`, `:portfolio`, `:scenarios`, `:compare`, `:gloss <TERM>`, `:state <ID>`, `:new`, `:rerun <project>`, `:help`
+- `CmdKHint.jsx` — fixed bottom-right floating ⌘K cue on every page
+- `CommandPalette.jsx` extended with verb parser + recent-actions footer
+- `Nav.jsx` active-route gets §-style underline
+- Killer feature: typing `:lens ME 5 CS` lands you on Lens results in two keystrokes
+
+**Verification baseline at Phase 0 close:**
+- `npm run build` clean
+- `npm run test:unit` — 90/90 green
+- audit-ui regression suite — 17/17 green (unchanged from PIE-001 close)
+
+---
+
+## ARCHIVED Pickup — Plan E COMPLETE: locs-allowlist EMPTY (Library + Admin + Search all under 1,500) + Axiom logging confirmed live → next: feature work (onboarding revamp queued)
 
 **Sessions 2026-05-07 → 2026-05-08 (continuation through to early
 morning, 11 commits).** Closed three open items end-to-end:
