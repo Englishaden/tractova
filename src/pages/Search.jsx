@@ -938,21 +938,29 @@ function SearchContent() {
                 pre-revenue and curation cadence is light. Admin tab
                 stays available so curation infrastructure is ready
                 when we have paying users to justify the labor. */}
-            {/* § 05 — re-enabled 2026-05-11 with internal subsection gating.
-                Shadow pillar was confirmed safe. § 05 is the OOM trigger.
-                Bisect step 2: enable only Operating Projects subsection in
-                LensComparablesSection (via `bisectOnly` prop). Comparable
-                Deals + Market Benchmarks stay disabled inside the component.
-                If this crashes, Operating Projects (CsMarketPanel) is the
-                culprit. If clean, swap to bisectOnly="comparable" next. */}
-            <SectionDivider />
-            <LensComparablesSection
-              state={results.stateProgram?.id || results.form.state}
-              stateName={results.stateProgram?.name || results.form.state}
-              technology={results.form.technology}
-              mw={results.form.mw}
-              bisectOnly="operating"
-            />
+            {/* § 05 (Comparable Deals & Benchmarks) DISABLED 2026-05-11.
+                Bisect confirmed: § 05 with even just Operating Projects
+                (CsMarketPanel + getCsMarketSnapshot for state's cs_projects)
+                triggers Chrome OOM on heavy-rowcount states (MA 374, IL 261,
+                NY 1351). Root cause not yet isolated — likely cumulative
+                memory pressure from the Lens results tree + cs_projects
+                row volume, but specific trigger unclear.
+                Phase 2A (Library cockpit rebuild) re-architects this
+                surface with the Table view + paginated rows, which will
+                naturally bound the row count rendered. Will revive § 05
+                with a lighter version then — for now, shadow pillar (§ 04)
+                stays live, § 05 stays gated off. */}
+            {false && (
+              <>
+                <SectionDivider />
+                <LensComparablesSection
+                  state={results.stateProgram?.id || results.form.state}
+                  stateName={results.stateProgram?.name || results.form.state}
+                  technology={results.form.technology}
+                  mw={results.form.mw}
+                />
+              </>
+            )}
 
             {/* Regulatory Activity (PUC dockets) stays outside § 05 — it's
                 a different concept (regulatory filings, not deal/benchmark
