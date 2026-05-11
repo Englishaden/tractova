@@ -5,15 +5,22 @@
 // stat strip + score-change audit + stats banner all need the full set
 // — only the rendering of cards / table rows is windowed.
 //
-// Three page sizes (25 / 50 / 100). Default 25 is right for the typical
-// CS-developer pipeline (a few dozen deals); 100 is the "show everything
-// in a long scroll" option. Power users with very large pipelines can
-// also bypass via the hidden ?all=1 URL flag (handled by Library.jsx).
+// Four page sizes (10 / 25 / 50 / 100). Default 25 is right for the
+// typical CS-developer pipeline; 10 lets a smaller portfolio actually
+// exercise the pagination affordance; 100 is the "show everything in
+// a long scroll" option. Power users with very large pipelines can
+// also bypass entirely via the hidden ?all=1 URL flag.
+//
+// The strip is rendered whenever the portfolio is large enough that
+// pagination is a meaningful affordance (≥5 projects in the filtered
+// view). When there's only one page of results the prev/next chevrons
+// hide, so the strip reads as a position indicator + page-size selector
+// rather than a control surface — never noise.
 //
 // All numerics tabular-nums + JetBrains Mono so the strip reads as a
 // data row, Bloomberg-style.
 
-const PAGE_SIZES = [25, 50, 100]
+const PAGE_SIZES = [10, 25, 50, 100]
 
 export default function Pagination({
   total,
@@ -58,41 +65,52 @@ export default function Pagination({
         })}
       </div>
 
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => onPageChange(page - 1)}
-          disabled={atFirst}
-          aria-label="Previous page"
-          className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{ color: atFirst ? '#9CA3AF' : '#0F1A2E', border: '1px solid #E5E7EB' }}
-          onMouseEnter={(e) => { if (!atFirst) e.currentTarget.style.background = '#F9FAFB' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <span className="text-[11px] font-mono tabular-nums px-2 text-gray-500">
-          <span className="font-semibold text-ink">{page}</span>
-          <span className="mx-1 text-gray-400">/</span>
-          <span className="font-semibold text-ink">{totalPages}</span>
+      {/* Prev / next chevrons hide when there's only one page. The
+          page-size selector + position indicator above still tell the
+          user where they stand and offer the affordance to shrink the
+          page size; controls only appear when there's something to
+          control. */}
+      {totalPages > 1 ? (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => onPageChange(page - 1)}
+            disabled={atFirst}
+            aria-label="Previous page"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ color: atFirst ? '#9CA3AF' : '#0F1A2E', border: '1px solid #E5E7EB' }}
+            onMouseEnter={(e) => { if (!atFirst) e.currentTarget.style.background = '#F9FAFB' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <span className="text-[11px] font-mono tabular-nums px-2 text-gray-500">
+            <span className="font-semibold text-ink">{page}</span>
+            <span className="mx-1 text-gray-400">/</span>
+            <span className="font-semibold text-ink">{totalPages}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => onPageChange(page + 1)}
+            disabled={atLast}
+            aria-label="Next page"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            style={{ color: atLast ? '#9CA3AF' : '#0F1A2E', border: '1px solid #E5E7EB' }}
+            onMouseEnter={(e) => { if (!atLast) e.currentTarget.style.background = '#F9FAFB' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <span className="text-[10px] font-mono uppercase tracking-[0.14em] text-gray-400">
+          1 page
         </span>
-        <button
-          type="button"
-          onClick={() => onPageChange(page + 1)}
-          disabled={atLast}
-          aria-label="Next page"
-          className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          style={{ color: atLast ? '#9CA3AF' : '#0F1A2E', border: '1px solid #E5E7EB' }}
-          onMouseEnter={(e) => { if (!atLast) e.currentTarget.style.background = '#F9FAFB' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-        </button>
-      </div>
+      )}
     </div>
   )
 }

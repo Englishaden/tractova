@@ -43,7 +43,7 @@ function saveLayout(layout) {
 // 100. Hidden ?all=1 URL flag bypasses pagination entirely (power-user
 // escape hatch).
 const PAGE_SIZE_KEY = 'tractova_library_page_size'
-const VALID_PAGE_SIZES = [25, 50, 100]
+const VALID_PAGE_SIZES = [10, 25, 50, 100]
 function loadPageSize() {
   try {
     const v = typeof window !== 'undefined' ? parseInt(localStorage.getItem(PAGE_SIZE_KEY), 10) : NaN
@@ -1237,11 +1237,14 @@ function LibraryContent() {
                 ))}
               </div>
               )}
-              {/* Pagination strip — only shows when there's more than
-                  one page of results AND the ?all=1 override isn't set.
-                  Below the list so the user finishes scanning the page
-                  before deciding to advance. */}
-              {!showAllOverride && displayProjects.length > pageSize && (
+              {/* Pagination strip — visible when the portfolio is large
+                  enough that pagination is a meaningful affordance (≥5
+                  projects). Prev/next chevrons inside Pagination
+                  self-hide when there's only one page, so on small
+                  portfolios this reads as a position indicator + page-
+                  size selector rather than a control surface. Skipped
+                  entirely when the ?all=1 power-user override is set. */}
+              {!showAllOverride && displayProjects.length >= 5 && (
                 <Pagination
                   total={displayProjects.length}
                   page={page}
