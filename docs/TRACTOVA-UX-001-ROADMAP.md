@@ -15,6 +15,16 @@
 3. Phase 1 = Cmd-K becomes the nav spine (`:lens ME 5 CS` is the unforgettable moment).
 4. Plan file (mirror): `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
 
+## 0.1 · 🛑 DO-NOT-REPEAT LESSONS (from the Phase 0 OOM debug saga)
+
+Three OOM crashes happened during Phase 0. Read these BEFORE writing motion code on the Lens page:
+
+- **NEVER wrap all Routes in `<PageTransition>`** (AnimatePresence + motion.div keyed by pathname). The Lens results tree is too dense — IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette all under one motion parent blows Chrome's per-tab memory budget. Per-page scoped use OR CSS-only fade is fine. Incident: revert `238169a`.
+- **NEVER use `motion.div animate={{ height: 'auto' }}` to wrap heavy content.** motion has to synchronously measure all children. Inside `CollapsibleSubsection` that wrapped 22+ policy events + CsMarketPanel + ComparableDealsPanel, the cascade cost OOM. Use plain `{open && <div>}` conditional render instead. Chevron rotation animation is fine (small SVG transform, cheap). Incident: revert `ddc9173`.
+- **§ 05 (LensComparablesSection) is currently gated off** in `Search.jsx` behind `{false &&}`. CsMarketPanel + `getCsMarketSnapshot` triggers OOM on heavy-rowcount states (MA 374, IL 261, NY 1351 cs_projects rows). Not from any single component — cumulative memory pressure with the rest of the Lens tree. **Re-enable in Phase 2A** with the paginated Table view + Library cockpit migration (Operating Projects moves to Library where it belongs). Incident: disable `4b183d0`.
+- **The 3 main pillar cards (Offtake/IX/Site) still use `CollapsibleCard` with `height: auto` motion.** They haven't OOM'd because the cards are heavy-but-bounded. Phase 4 should evaluate migrating them — with caution, since changing the main pillars is broader blast radius.
+- **Bisect strategy that worked:** disable both new sections → confirm Lens loads → re-enable one at a time → narrow to the offender. Use `bisectOnly` prop pattern in `LensComparablesSection.jsx` for sub-component isolation. Don't try to fix OOMs by reading code alone; bisect with deploys.
+
 ---
 
 ## 1 · The Big Idea
@@ -96,7 +106,7 @@ Complete end-to-end:
 
 ### ⚠ Phase 0 incident chain — THREE OOM fixes (commits `238169a` + `ddc9173` + `4b183d0`)
 
-The OOM crash on the Lens results page took TWO fixes:
+The OOM crash on the Lens results page took THREE fixes:
 
 1. **Fix 1 — PageTransition revert (`238169a`).** Wrapping all Routes in `<PageTransition>` (AnimatePresence + motion.div keyed by pathname) was the first offender. The Lens tree is too heavy (IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette) for a global AnimatePresence parent.
 

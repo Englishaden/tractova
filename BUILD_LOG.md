@@ -4,11 +4,22 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 0 SHIPPED · resume Phase 1 (Cmd-K nav spine)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 0 PARTIALLY SHIPPED (3 OOM reverts) · resume Phase 1 (Cmd-K nav spine)
 
-**Read first after `/clear`:** `docs/TRACTOVA-UX-001-ROADMAP.md` (unified status + plan for the 6-phase Bloomberg-Terminal-class overhaul) + `docs/design-vocabulary.md` (aesthetic discipline). Plan mirror at `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
+**Read first after `/clear`:** `docs/TRACTOVA-UX-001-ROADMAP.md` § 0.1 DO-NOT-REPEAT LESSONS (critical motion-pattern gotchas from the OOM saga) + `docs/design-vocabulary.md` § Motion (height-auto hard rule). Plan mirror at `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 1. Read docs/TRACTOVA-UX-001-ROADMAP.md and docs/design-vocabulary.md, then implement Phase 1 per the plan.`
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 1. Read docs/TRACTOVA-UX-001-ROADMAP.md including § 0.1 DO-NOT-REPEAT LESSONS, then implement Phase 1 per the plan.`
+
+**Phase 0 actual state (after revert chain):**
+- ✅ `MotionPrimitives.jsx` — 5 primitives exported, NOT used anywhere (chassis only)
+- ✅ `Skeleton.jsx` — branded loading states, NOT wired anywhere yet
+- ✅ `CollapsibleSubsection.jsx` — standardized lightweight collapsible WITHOUT motion height animation (reverted to plain conditional render after OOM). Used by § 04 shadow pillar (the one visible adoption).
+- ❌ PageTransition wrap on Routes — REVERTED (commit `238169a`). Caused OOM with the heavy Lens tree.
+- ❌ § 05 Comparable Deals & Benchmarks — DISABLED (commit `4b183d0`). CsMarketPanel + heavy cs_projects rows triggered OOM.
+- ✅ `.eyebrow-mono` CSS utility + `skeleton-shimmer` keyframe in `index.css` (CSS only, no consumers yet)
+- ✅ `docs/design-vocabulary.md` + `docs/TRACTOVA-UX-001-ROADMAP.md` shipped
+
+**Net user-visible from Phase 0:** subtle chevron animation on § 04 shadow pillar. Everything else is invisible chassis waiting for Phases 1-6.
 
 **Session 2026-05-11 — PIE-001 completion + § 05 scaffolding + UI/UX overhaul plan + Phase 0 shipped.**
 
