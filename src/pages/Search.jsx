@@ -913,18 +913,23 @@ function SearchContent() {
               />
             </div>
 
-            {/* Shadow pillar — full-width sub-element of § 04 Pillar Diagnostics.
-                Surfaces cross-cutting policy events (those that don't fit a
-                single pillar card) plus the unified per-pillar view. Lives
-                INSIDE § 04 so the section count stays at 4 and the policy
-                events read as a 4th dimension of pillar analysis, not as
-                their own scope. */}
-            <LensPolicyClimateSection
-              policyEvents={results.policyEvents || []}
-              stateName={results.stateProgram?.name || results.form.state}
-              mw={results.form.mw}
-              technology={results.form.technology}
-            />
+            {/* Shadow pillar TEMPORARILY DISABLED 2026-05-11 — OOM debug.
+                Aden reported Lens crashing with Chrome "Aw snap" / Out of
+                Memory after Phase 0 changes. PageTransition revert (238169a)
+                + CollapsibleSubsection height-animation drop (ddc9173) did
+                NOT fix it. Suspecting the data fetch volume in policyEvents
+                or §05 datasets, OR the simultaneous mount of all the new
+                sections. Disabling visible mount to restore working Lens
+                while we diagnose. PIE-001 data still flows into Scenario
+                Studio + composite via results.policyEvents. */}
+            {false && (
+              <LensPolicyClimateSection
+                policyEvents={results.policyEvents || []}
+                stateName={results.stateProgram?.name || results.form.state}
+                mw={results.form.mw}
+                technology={results.form.technology}
+              />
+            )}
             </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
@@ -939,21 +944,22 @@ function SearchContent() {
                 pre-revenue and curation cadence is light. Admin tab
                 stays available so curation infrastructure is ready
                 when we have paying users to justify the labor. */}
-            {/* Quiet visual break between § 04 (Pillar Diagnostics + shadow
-                pillar) and § 05 (Comparable Deals & Benchmarks). Matches
-                the SectionDivider rhythm used elsewhere in the codebase. */}
-            <SectionDivider />
-
-            {/* § 05 · Comparable Deals & Benchmarks — three collapsibles
-                (Operating Projects, Comparable Deals, Market Benchmarks)
-                under one SectionMarker. Section hides when none of the
-                three datasets has rows for this state. */}
-            <LensComparablesSection
-              state={results.stateProgram?.id || results.form.state}
-              stateName={results.stateProgram?.name || results.form.state}
-              technology={results.form.technology}
-              mw={results.form.mw}
-            />
+            {/* § 05 TEMPORARILY DISABLED 2026-05-11 — same OOM debug.
+                Brings back: getCsMarketSnapshot (state cs_projects), three
+                parallel data fetches, CsMarketPanel + ComparableDealsPanel
+                + SpecificYieldPanel render. One of these is the OOM trigger.
+                Re-enable in pieces after isolating root cause. */}
+            {false && (
+              <>
+                <SectionDivider />
+                <LensComparablesSection
+                  state={results.stateProgram?.id || results.form.state}
+                  stateName={results.stateProgram?.name || results.form.state}
+                  technology={results.form.technology}
+                  mw={results.form.mw}
+                />
+              </>
+            )}
 
             {/* Regulatory Activity (PUC dockets) stays outside § 05 — it's
                 a different concept (regulatory filings, not deal/benchmark
