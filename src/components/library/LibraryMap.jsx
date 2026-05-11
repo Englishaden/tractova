@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps'
+import { motion } from 'motion/react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import countyCentroids from '../../data/county_centroids.json'
 
@@ -9,23 +10,23 @@ import countyCentroids from '../../data/county_centroids.json'
 // vocabulary deliberately distinct from Dashboard's USMap so users can
 // tell the two surfaces apart:
 //   - Dashboard USMap colors states by the *market* feasibility score.
-//   - LibraryMap colors states by the *portfolio* — MW-weighted average
-//     of saved-project live scores per state. States without saved
-//     projects show muted slate (read as "no portfolio here", not
-//     "weak market").
+//   - LibraryMap colors states by the *portfolio* — MW-weighted avg of
+//     saved-project live scores per state.
 //
-// Layered depth treatment:
-//   1. Light radial-gradient backdrop (off-canvas top-left highlight)
-//   2. SVG dot-grid pattern overlay for Bloomberg-paper texture
-//   3. Faint graticule (every 5° lat / 10° lon) inside the map for
-//      research-terminal reference grid
-//   4. Drop-shadow filter on filled state polygons for subtle 3D
-//   5. Per-pin "radar blip" structure (outer halo + inner solid dot)
-//   6. Pulse ring on hover (CSS keyframe, scales to 3× then fades)
+// Interaction model (revised after user feedback):
+//   - Single click on state → set filterState only (stays on map).
+//   - Double click on state → filterState + switch to Table layout
+//     (explicit transition, no misclick risk).
+//   - Click pin → ProjectDrawer slide-in with full ProjectCard.
+//   - "View as table →" CTA in the header when filtered, for
+//     keyboard / accessibility users who can't dbl-click.
 //
-// State click sets `filterState` only — never auto-switches layout
-// (misclick risk on map regions; users opt into Table via explicit
-// CTA in the header).
+// Visual layers, top-to-bottom:
+//   1. Header bar (eyebrow + title + ticker-style stats + filter chip)
+//   2. Legend strip (state buckets + pin score buckets + √MW note)
+//   3. Map canvas (pale ocean-tint base, dot-grid, graticule,
+//      state polygons w/ drop-shadow, radar-blip pins)
+//   4. Footer coordinate marker (very subtle mono caps)
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
@@ -65,6 +66,7 @@ export default function LibraryMap({
   stateProgramMap,
   countyDataMap,
   onStateClick,
+  onStateDoubleClick,
   onPinClick,
   onSwitchToTable,
   filterState,
@@ -73,9 +75,7 @@ export default function LibraryMap({
   const [hoveredPinId,   setHoveredPinId]   = useState(null)
   const [tooltip,        setTooltip]        = useState(null)
 
-  // Portfolio-level rollup for the stats header. count / MW / MW-weighted
-  // avg score across ALL projects passed in (the parent already applies
-  // any active filter to projects before passing).
+  // Portfolio-level rollup for the stats ticker.
   const portfolio = useMemo(() => {
     let mwSum = 0
     let weighted = 0
@@ -104,7 +104,6 @@ export default function LibraryMap({
     }
   }, [projects, stateProgramMap, countyDataMap])
 
-  // Per-state aggregates for choropleth coloring + state-hover tooltip.
   const stateAggregates = useMemo(() => {
     const agg = {}
     for (const p of projects) {
@@ -163,22 +162,23 @@ export default function LibraryMap({
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        // Layered depth: neutral cream base, soft top-left highlight,
-        // bottom-right shadow gradient. Reads as a "lit" surface with
-        // weight beneath it — research-terminal panel vibe, not flat web.
+        // Layered depth — pale teal-mint atmosphere reads as "ocean
+        // surface" without being literally blue. Top-left highlight +
+        // bottom-right depth, then the base wash beneath.
         background: [
-          'radial-gradient(ellipse at 18% 12%, rgba(255,255,255,0.65) 0%, transparent 55%)',
-          'radial-gradient(ellipse at 88% 92%, rgba(15,26,46,0.06) 0%, transparent 55%)',
-          'linear-gradient(160deg, #FBFEFD 0%, #ECF7F4 100%)',
+          'radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.85) 0%, transparent 50%)',
+          'radial-gradient(ellipse at 85% 90%, rgba(15,26,46,0.10) 0%, transparent 55%)',
+          'linear-gradient(170deg, #F4FAFA 0%, #E0F0EE 100%)',
         ].join(', '),
-        border: '1px solid rgba(15,118,110,0.18)',
-        boxShadow: '0 0 0 1px rgba(20,184,166,0.06), 0 12px 36px rgba(10,24,40,0.08), 0 2px 8px rgba(10,24,40,0.05)',
+        border: '1px solid rgba(15,118,110,0.22)',
+        boxShadow: '0 0 0 1px rgba(20,184,166,0.08), 0 16px 44px rgba(10,24,40,0.10), 0 2px 8px rgba(10,24,40,0.06)',
       }}
     >
-      {/* ── Header bar — stats + view-as-table CTA ────────────────── */}
+      {/* ── Header bar — eyebrow + title + ticker stats (under title)
+            + filter chip when active ───────────────────────────────── */}
       <div
         className="relative z-10 px-5 pt-3 pb-3"
-        style={{ borderBottom: '1px solid rgba(15,118,110,0.12)', background: 'rgba(20,184,166,0.04)' }}
+        style={{ borderBottom: '1px solid rgba(15,118,110,0.12)', background: 'rgba(20,184,166,0.05)' }}
       >
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -188,20 +188,31 @@ export default function LibraryMap({
                 ? 'Your pipeline on the map'
                 : `${portfolio.count} project${portfolio.count === 1 ? '' : 's'} across ${portfolio.stateCount} state${portfolio.stateCount === 1 ? '' : 's'}`}
             </h2>
+
+            {/* Bloomberg-style stats ticker. Single line, mono numerics,
+                all tabular-nums + middle-dot separators so the row reads
+                as one ledger column rather than four misaligned blocks. */}
+            {portfolio.count > 0 && (
+              <div className="mt-1.5 flex items-center gap-2 font-mono text-[11px] tabular-nums flex-wrap" style={{ color: '#475569' }}>
+                <span><span className="font-bold text-ink">{portfolio.mwSum.toFixed(1)}</span> MW</span>
+                <span className="text-gray-300">·</span>
+                <span>
+                  weighted avg <span className="font-bold" style={{ color: portfolio.weightedAvg != null && portfolio.weightedAvg >= 70 ? '#0F766E' : '#0F1A2E' }}>
+                    {portfolio.weightedAvg ?? '—'}
+                  </span>
+                </span>
+                <span className="text-gray-300">·</span>
+                <span>{portfolio.stateCount} state{portfolio.stateCount === 1 ? '' : 's'}</span>
+              </div>
+            )}
           </div>
-          {portfolio.count > 0 && (
-            <div className="flex items-center gap-5">
-              <Stat label="MW total"      value={portfolio.mwSum.toFixed(1)} />
-              <Stat label="MW-weighted avg" value={portfolio.weightedAvg ?? '—'} highlight />
-              <Stat label="States"        value={portfolio.stateCount} />
-            </div>
-          )}
+
+          {/* Right side — quick-help affordance about the click model. */}
+          <p className="text-[11px] text-gray-400 mt-1 max-w-[180px] text-right hidden sm:block">
+            Click pin for detail · double-click state to filter as table
+          </p>
         </div>
 
-        {/* Active-filter row — appears only when a state filter is on.
-            Surfaces the explicit "View as table →" affordance so the
-            user opts into the layout switch (was previously auto on
-            state click — felt like a misclick trap). */}
         {filterState && (
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span
@@ -231,7 +242,12 @@ export default function LibraryMap({
         )}
       </div>
 
-      {/* ── Map ───────────────────────────────────────────────────── */}
+      {/* ── Legend at top, right below header (was at bottom in prior
+            iteration; surfaced upward per feedback so the user can
+            decode colors before scanning the map) ──────────────────── */}
+      <Legend />
+
+      {/* ── Map ──────────────────────────────────────────────────── */}
       <div className="relative z-10">
         <ComposableMap
           projection="geoAlbersUsa"
@@ -239,30 +255,22 @@ export default function LibraryMap({
           style={{ width: '100%', height: 'auto' }}
         >
           <defs>
-            {/* Dot-grid background pattern — Bloomberg-paper texture,
-                very low contrast so it disappears under content. */}
-            <pattern id="lib-map-dotgrid" x="0" y="0" width="18" height="18" patternUnits="userSpaceOnUse">
-              <circle cx="9" cy="9" r="0.5" fill="#0F1A2E" fillOpacity="0.08" />
+            {/* Dot-grid pattern — slightly stronger contrast than the
+                first cut (10% vs 8%) but still beneath state polygons,
+                so it reads as analyst-paper texture, not as content. */}
+            <pattern id="lib-map-dotgrid" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
+              <circle cx="8" cy="8" r="0.55" fill="#0F1A2E" fillOpacity="0.10" />
             </pattern>
-            {/* Drop-shadow filter for filled state polygons. Subtle —
-                +1px down, low spread, low opacity — reads as lift, not
-                as bevel. Disable for state-no-projects so they stay
-                flat (no projects = no need to draw attention). */}
+            {/* Soft state drop-shadow. dy 0.7 / stdDev 0.7 / 12% black
+                — subtle lift, no bevel. Only applied to states with
+                saved projects so blank states stay flat. */}
             <filter id="lib-map-state-shadow" x="-5%" y="-5%" width="110%" height="115%">
-              <feDropShadow dx="0" dy="0.6" stdDeviation="0.6" floodColor="#0F1A2E" floodOpacity="0.10" />
+              <feDropShadow dx="0" dy="0.7" stdDeviation="0.7" floodColor="#0F1A2E" floodOpacity="0.12" />
             </filter>
           </defs>
 
-          {/* Dot-grid backdrop sized to the AlbersUsa viewBox. The
-              projection paints the US into roughly 800×500; we just
-              wrap a large enough rect that the pattern fills the
-              visible map area. */}
           <rect x="-100" y="-100" width="1200" height="700" fill="url(#lib-map-dotgrid)" />
 
-          {/* Faint graticule — 10° lon / 5° lat reference lines.
-              Rendered as plain SVG via the projection's matrix so they
-              respect AlbersUsa's curved spacing. Stays very low
-              contrast so it reads as analyst-graph paper, not chart. */}
           <Graticule />
 
           <Geographies geography={GEO_URL}>
@@ -277,7 +285,7 @@ export default function LibraryMap({
               const baseFill = stateFillForAggregate(agg)
               const fill = isFiltered ? '#7C3AED' : isHovered && hasProjects ? '#0F766E' : baseFill
               const aria = hasProjects
-                ? `${stateId}: ${agg.count} project${agg.count === 1 ? '' : 's'}, ${agg.mwSum.toFixed(1)} MW, weighted-avg score ${agg.weightedAvg}. Press Enter to filter Library to this state.`
+                ? `${stateId}: ${agg.count} project${agg.count === 1 ? '' : 's'}, ${agg.mwSum.toFixed(1)} MW, weighted-avg score ${agg.weightedAvg}. Enter to filter; double-click to filter as table.`
                 : `${stateId}: no saved projects.`
               return (
                 <Geography
@@ -297,6 +305,7 @@ export default function LibraryMap({
                   }}
                   onMouseLeave={() => { setHoveredStateId(null); setTooltip(null) }}
                   onClick={() => onStateClick?.(stateId, hasProjects)}
+                  onDoubleClick={() => onStateDoubleClick?.(stateId, hasProjects)}
                   onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); onStateClick?.(stateId, hasProjects) } }}
                   className={`transition-all duration-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 ${hasProjects ? 'cursor-pointer' : 'cursor-default'}`}
                   role="button"
@@ -308,36 +317,49 @@ export default function LibraryMap({
             })}
           </Geographies>
 
-          {/* Pins layer — "radar blip" structure: outer halo + inner
-              dot. Hovered pin gets a CSS-pulse ring (3× scale fade). */}
+          {/* Pins — radar-blip structure (outer halo + inner dot).
+              Hovered pin gets a motion-driven scale-and-fade pulse
+              (using motion.circle so the animation reliably runs
+              across browsers and isn't trampled by Tailwind v4's
+              transform reset). Pin radii bumped down per feedback
+              — range 2.5–5.5 px so dense states don't look crowded. */}
           {!shouldCluster && pins.map((pin) => {
             const color = colorForScore(pin.score)
             const isHovered = hoveredPinId === pin.id
-            const r = Math.max(3.5, Math.min(7.5, 3.5 + Math.sqrt(Math.max(0, pin.mw)) * 0.6))
+            const r = Math.max(2.5, Math.min(5.5, 2.5 + Math.sqrt(Math.max(0, pin.mw)) * 0.45))
             return (
               <Marker key={pin.id} coordinates={pin.centroid}>
                 {isHovered && (
-                  <circle
+                  <motion.circle
+                    cx={0}
+                    cy={0}
                     r={r}
                     fill="none"
                     stroke={color}
                     strokeWidth={1.2}
-                    className="map-pin-pulse pointer-events-none"
+                    initial={{ scale: 1, opacity: 0.55 }}
+                    animate={{ scale: 3, opacity: 0 }}
+                    transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], repeat: Infinity }}
+                    style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
+                    pointerEvents="none"
                   />
                 )}
                 <circle
                   r={r * 1.7}
                   fill={color}
                   fillOpacity={0.18}
-                  className="pointer-events-none"
+                  pointerEvents="none"
                 />
-                <circle
-                  r={r}
+                <motion.circle
+                  cx={0}
+                  cy={0}
                   fill={color}
                   fillOpacity={0.92}
                   stroke="#FFFFFF"
-                  strokeWidth={1.1}
-                  style={{ cursor: 'pointer', transition: 'r 140ms ease-out' }}
+                  strokeWidth={1}
+                  animate={{ r: isHovered ? r + 1.2 : r }}
+                  transition={{ duration: 0.14, ease: 'easeOut' }}
+                  style={{ cursor: 'pointer' }}
                   onMouseEnter={(evt) => {
                     setHoveredPinId(pin.id)
                     setTooltip({ x: evt.clientX, y: evt.clientY, kind: 'pin', pin })
@@ -356,7 +378,7 @@ export default function LibraryMap({
             const r = Math.max(8, Math.min(28, 8 + Math.sqrt(c.count) * 3))
             return (
               <Marker key={c.state} coordinates={c.centroid}>
-                <circle r={r * 1.4} fill="#0F766E" fillOpacity={0.10} className="pointer-events-none" />
+                <circle r={r * 1.4} fill="#0F766E" fillOpacity={0.10} pointerEvents="none" />
                 <circle
                   r={r}
                   fill="#0F766E"
@@ -365,7 +387,8 @@ export default function LibraryMap({
                   strokeWidth={1.5}
                   style={{ cursor: 'pointer' }}
                   onClick={() => onStateClick?.(c.state, true)}
-                  aria-label={`${c.state} — ${c.count} projects, ${c.mwSum.toFixed(1)} MW. Click to filter to this state.`}
+                  onDoubleClick={() => onStateDoubleClick?.(c.state, true)}
+                  aria-label={`${c.state} — ${c.count} projects, ${c.mwSum.toFixed(1)} MW. Click to filter; double-click to filter as table.`}
                 />
                 <text
                   textAnchor="middle"
@@ -379,10 +402,22 @@ export default function LibraryMap({
         </ComposableMap>
       </div>
 
-      {/* ── Legend ────────────────────────────────────────────────── */}
-      <Legend />
+      {/* ── Footer coordinate marker — quiet research-terminal stamp
+            in the lower-right. Mono caps, very low contrast so it
+            reads as chrome, not content. */}
+      <div
+        className="relative z-10 px-5 pb-2 pt-1 flex items-center justify-end"
+        style={{ borderTop: '1px solid rgba(15,118,110,0.08)' }}
+      >
+        <span
+          className="font-mono uppercase tracking-[0.18em]"
+          style={{ fontSize: '9px', color: '#94A3B8' }}
+        >
+          Tractova · Albers USA · Lat 39.5°N Lon 98.5°W
+        </span>
+      </div>
 
-      {/* ── Hover tooltips ────────────────────────────────────────── */}
+      {/* ── Hover tooltips ───────────────────────────────────────── */}
       {tooltip && tooltip.kind === 'state' && (
         <div className="fixed z-50 pointer-events-none" style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
           <div
@@ -399,7 +434,9 @@ export default function LibraryMap({
                 <span className="font-mono tabular-nums">
                   Weighted-avg score: <span className="text-white font-semibold">{tooltip.agg.weightedAvg}</span>
                 </span>
-                <span className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>Click to filter Library →</span>
+                <span className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  Click to filter · double-click to filter as table →
+                </span>
               </div>
             ) : (
               <div className="mt-0.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>No saved projects</div>
@@ -428,78 +465,47 @@ export default function LibraryMap({
   )
 }
 
-// Stat — mono numeric in the header row. tabular-nums so a column of
-// totals reads as one ledger column, Bloomberg-style.
-function Stat({ label, value, highlight = false }) {
-  return (
-    <div className="flex flex-col items-end">
-      <span className="eyebrow-mono leading-none" style={{ color: '#5A6B7A' }}>{label}</span>
-      <span
-        className="font-mono font-bold tabular-nums text-base leading-none mt-1"
-        style={{ color: highlight ? '#0F766E' : '#0F1A2E' }}
-      >
-        {value}
-      </span>
-    </div>
-  )
-}
-
-// Graticule — faint 10° lon / 5° lat grid drawn through the AlbersUsa
-// projection's path generator. The grid is informational, not
-// decorative: a research-terminal cue that this is a real map, not a
-// stylized illustration. Very low contrast so it disappears beneath
-// state polygons.
+// Faint graticule — research-terminal reference lines. Lon every 10°,
+// lat every 5° approximated by SVG-coord placement (the AlbersUsa
+// projection bounds we render into are roughly 20–920 × 20–500).
 function Graticule() {
-  // The AlbersUsa projection puts lat/lon→x/y math in the map context.
-  // react-simple-maps exposes the projection via the ProjectionContext,
-  // but the simplest stable approach is to use d3-geo's geoGraticule
-  // through a ComposableMap-aware SVG. We pre-generate the lines via
-  // hardcoded coordinate pairs and rely on react-simple-maps' nested
-  // <Geographies> to project them.
-  //
-  // Implementation note: we use the projection's `projection` function
-  // through useGeo. Since react-simple-maps doesn't expose it as a
-  // hook in the version installed, we fall back to a simple
-  // pre-projected approximation — a few neutral horizontal/vertical
-  // ticks drawn in SVG coords matching the AlbersUsa default scale.
   const horiz = [120, 200, 280, 360, 440]
   const vert  = [120, 240, 360, 480, 600, 720]
   return (
     <g aria-hidden="true" pointerEvents="none">
       {horiz.map(y => (
-        <line key={`h-${y}`} x1={20} x2={920} y1={y} y2={y} stroke="#0F1A2E" strokeOpacity={0.04} strokeWidth={0.5} strokeDasharray="2 4" />
+        <line key={`h-${y}`} x1={20} x2={920} y1={y} y2={y} stroke="#0F1A2E" strokeOpacity={0.05} strokeWidth={0.5} strokeDasharray="2 4" />
       ))}
       {vert.map(x => (
-        <line key={`v-${x}`} x1={x} x2={x} y1={20} y2={500} stroke="#0F1A2E" strokeOpacity={0.04} strokeWidth={0.5} strokeDasharray="2 4" />
+        <line key={`v-${x}`} x1={x} x2={x} y1={20} y2={500} stroke="#0F1A2E" strokeOpacity={0.05} strokeWidth={0.5} strokeDasharray="2 4" />
       ))}
     </g>
   )
 }
 
-// Legend — split into two rows (states + pins) so the user can decode
-// both visual layers. Pin-size note nods to "size = sqrt(MW)" since
-// that's the encoding the reader has to internalize.
+// Legend — two compact rows beneath the header. State buckets first
+// (most of the visual real estate), then pin score scale + √MW note.
 function Legend() {
   const stateBuckets = [
-    { color: '#0F766E', label: 'Strong (70+)' },
+    { color: '#0F766E', label: '70+' },
     { color: '#14B8A6', label: '60–69' },
     { color: '#5EEAD4', label: '50–59' },
     { color: '#FCD34D', label: '40–49' },
     { color: '#FCA5A5', label: '<40' },
-    { color: '#F1F5F9', label: 'No projects', border: '#CBD5E1' },
+    { color: '#F1F5F9', label: 'none', border: '#CBD5E1' },
   ]
   const pinBuckets = [
-    { color: '#0F766E', label: 'Score 70+' },
+    { color: '#0F766E', label: '70+' },
     { color: '#D97706', label: '50–69' },
     { color: '#DC2626', label: '<50' },
   ]
   return (
     <div
-      className="relative z-10 px-5 py-2.5 flex flex-col gap-1.5"
-      style={{ borderTop: '1px solid rgba(15,118,110,0.12)', background: 'rgba(15,26,46,0.025)' }}
+      className="relative z-10 px-5 py-2 flex flex-col gap-1.5"
+      style={{ borderBottom: '1px solid rgba(15,118,110,0.08)', background: 'rgba(15,26,46,0.025)' }}
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mr-1" style={{ color: '#5A6B7A' }}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mr-1" style={{ color: '#0F766E' }}>
           State · MW-weighted
         </span>
         {stateBuckets.map(b => (
@@ -512,20 +518,20 @@ function Legend() {
           </div>
         ))}
       </div>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mr-1" style={{ color: '#5A6B7A' }}>
-          Pin · score
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mr-1" style={{ color: '#0F766E' }}>
+          Pin · project score
         </span>
         {pinBuckets.map(b => (
           <div key={b.label} className="flex items-center gap-1.5">
             <svg width="14" height="14" className="shrink-0">
-              <circle cx="7" cy="7" r="3" fill={b.color} fillOpacity="0.92" stroke="#FFFFFF" strokeWidth="1" />
               <circle cx="7" cy="7" r="5.5" fill={b.color} fillOpacity="0.18" />
+              <circle cx="7" cy="7" r="3" fill={b.color} fillOpacity="0.92" stroke="#FFFFFF" strokeWidth="1" />
             </svg>
             <span className="text-[11px] text-gray-600">{b.label}</span>
           </div>
         ))}
-        <span className="text-[11px] text-gray-400 ml-2">· size = √MW</span>
+        <span className="text-[11px] text-gray-400 ml-1">· size = √MW</span>
       </div>
     </div>
   )

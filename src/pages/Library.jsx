@@ -1203,14 +1203,12 @@ function LibraryContent() {
             {displayProjects.length > 0 ? (
               <>
               {layout === 'map' ? (
-                /* Phase 2B — Map view. Renders the full filtered
-                   pipeline as pins on a US choropleth. State click →
-                   filter ONLY (stays on map; misclick on a map region
-                   shouldn't punt the user to a different layout).
-                   The map's own header surfaces an explicit "View as
-                   table →" CTA when a state filter is active so the
-                   user opts into the layout switch. Pin click →
-                   ProjectDrawer with full detail. */
+                /* Phase 2B — Map view. Single click on state =
+                   toggle the filter (stays on map; misclick safety).
+                   Double click on state = force-set the filter AND
+                   switch to Table (explicit transition, no race with
+                   the two intermediate onClick events that browsers
+                   fire before onDoubleClick). Pin click → drawer. */
                 <LibraryMap
                   projects={displayProjects}
                   stateProgramMap={stateProgramMap}
@@ -1219,6 +1217,17 @@ function LibraryContent() {
                   onStateClick={(stateId, hasProjects) => {
                     if (!hasProjects) return
                     setFilterState(prev => prev === stateId ? '' : stateId)
+                  }}
+                  onStateDoubleClick={(stateId, hasProjects) => {
+                    // Browsers fire two onClick events before onDoubleClick.
+                    // The two onClicks will have toggled filterState an
+                    // even number of times — i.e. left it where it was.
+                    // We force-set here (not toggle) so the end state is
+                    // always "filter on this state + Table layout"
+                    // regardless of where it started.
+                    if (!hasProjects) return
+                    setFilterState(stateId)
+                    handleLayoutChange('table')
                   }}
                   onSwitchToTable={() => handleLayoutChange('table')}
                   onPinClick={(project) => setDrawerProject(project)}
