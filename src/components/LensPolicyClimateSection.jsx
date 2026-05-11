@@ -1,9 +1,13 @@
-// Policy Impact Ecosystem (PIE-001) Phase F — collapsible Lens section
-// listing all active policy_impact_events for the state, grouped by pillar.
+// Policy Impact Ecosystem (PIE-001) Phase F — the "4th shadow pillar"
+// of Pillar Diagnostics (§ 04). Sits BELOW the 3-card grid (Offtake / IX /
+// Site) as a full-width collapsible, surfacing cross-cutting policy events
+// that don't have a single pillar card to live on, plus every policy for
+// the state grouped by pillar with full provenance.
 //
-// Sits at the bottom of Lens (§ 05 · Policy Climate) so the developer sees
-// every active high/medium/low-confidence policy for the state — even cross-
-// cutting events that don't have a single card to live on.
+// NOT a top-level § section — it lives inside § 04. That keeps the § order
+// stable (§ 04 = Pillar Diagnostics, § 05 = Comparable Deals next) and
+// communicates that policy events are a 4th DIMENSION of pillar analysis,
+// not a separate scope.
 //
 // Honest-data discipline (already enforced upstream by policyAdjustments +
 // PolicyChipStrip) is surfaced here too: "💵 Modeled in financials" tag
@@ -11,6 +15,7 @@
 // modeled" tag for medium/low.
 
 import { useState } from 'react'
+import GlossaryLabel from './ui/GlossaryLabel'
 
 const PILLAR_LABELS = {
   offtake:         '◆ Offtake',
@@ -118,31 +123,40 @@ export default function LensPolicyClimateSection({ policyEvents, stateName, mw, 
   const highConfCount = active.filter(e => e.impact_confidence === 'high').length
 
   return (
-    <div className="mb-6 bg-white rounded-lg overflow-hidden relative" style={{ border: '1px solid #E2E8F0' }}>
-      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, #F59E0B 30%, #F59E0B 70%, transparent 100%)' }} />
+    <div className="bg-white rounded-lg overflow-hidden relative" style={{ border: '1px solid #E2E8F0', borderLeft: '3px solid #F59E0B' }}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-6 py-3 border-b border-gray-100 text-left"
+        className="w-full flex items-center justify-between px-5 py-3 text-left"
       >
         <div className="flex items-baseline gap-3 flex-wrap">
-          <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold text-ink">
-            § 05 · Active Policy Climate
-          </span>
+          <GlossaryLabel
+            term="Active Policy"
+            displayAs="◆ Active Policy Climate"
+            className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink"
+          />
           <span className="text-[11px] text-gray-500">
-            {active.length} event{active.length !== 1 ? 's' : ''} for {stateName}
-            {highConfCount > 0 && ` · ${highConfCount} modeled in financials`}
+            shadow pillar · {active.length} event{active.length !== 1 ? 's' : ''} for {stateName}
+            {highConfCount > 0 && (
+              <>
+                {' · '}
+                <GlossaryLabel term="Modeled in financials" displayAs={`${highConfCount} modeled`} className="text-[11px] text-gray-500" />
+              </>
+            )}
           </span>
         </div>
         <span className="text-[10px] text-gray-500">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="px-6 py-4 space-y-4">
-          <p className="text-[11px] text-gray-500 leading-relaxed">
-            Active enacted policies for this state from <code className="text-[10px]">policy_impact_events</code>.
-            High-confidence rows feed into Scenario Studio + the state feasibility composite;
-            medium/low-confidence rows surface here for situational awareness but don't
-            adjust numbers. Click a row for methodology + source.
+        <div className="px-5 pb-4 pt-1 space-y-4 border-t border-gray-100">
+          <p className="text-[11px] text-gray-500 leading-relaxed pt-3">
+            Cross-cutting and per-pillar policy events for this state. The chips on each
+            pillar card above show only the events filed to that pillar; this section is
+            the complete view across all four pillars (including the cross-cutting events
+            that don't have a single home).
+            <GlossaryLabel term="Modeled in financials" displayAs=" High-confidence rows" className="text-[11px] text-gray-500" />
+            {' '}feed Scenario Studio + composite; medium/low rows are{' '}
+            <GlossaryLabel term="Qualitative — not modeled" displayAs="qualitative" className="text-[11px] text-gray-500" />.
           </p>
           {PILLAR_ORDER.map(pillar => {
             const rows = byPillar[pillar]

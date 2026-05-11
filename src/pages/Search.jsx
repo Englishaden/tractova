@@ -882,9 +882,9 @@ function SearchContent() {
                 § sections (Market Position / Analyst Brief / Scenario Studio)
                 so the four sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
-            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site" />
+            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site · policy climate" />
+            <div data-tour-id="pillars" className="space-y-5">
             <div
-              data-tour-id="pillars"
               className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start"
             >
               <OfftakeCard
@@ -922,12 +922,19 @@ function SearchContent() {
               />
             </div>
 
+            {/* Shadow pillar — full-width sub-element of § 04 Pillar Diagnostics.
+                Surfaces cross-cutting policy events (those that don't fit a
+                single pillar card) plus the unified per-pillar view. Lives
+                INSIDE § 04 so the section count stays at 4 and the policy
+                events read as a 4th dimension of pillar analysis, not as
+                their own scope. */}
             <LensPolicyClimateSection
               policyEvents={results.policyEvents || []}
               stateName={results.stateProgram?.name || results.form.state}
               mw={results.form.mw}
               technology={results.form.technology}
             />
+            </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
                 so all three geographic-designation incentives (Energy

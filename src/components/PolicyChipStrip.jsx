@@ -14,6 +14,7 @@
 // whatever rows exist for the state.
 
 import { useState } from 'react'
+import GlossaryLabel from './ui/GlossaryLabel'
 
 const PILLAR_LABEL = {
   offtake:        'Offtake',
@@ -23,9 +24,9 @@ const PILLAR_LABEL = {
 }
 
 const CONFIDENCE_STYLE = {
-  high:   { bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.40)', color: '#92400E', label: '💵 Modeled' },
-  medium: { bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.25)', color: '#92400E', label: '📋 Qualitative' },
-  low:    { bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.35)', color: '#475569', label: '📋 Qualitative' },
+  high:   { bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.40)', color: '#92400E', label: '💵 Modeled', glossary: 'Modeled in financials' },
+  medium: { bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.25)', color: '#92400E', label: '📋 Qualitative', glossary: 'Qualitative — not modeled' },
+  low:    { bg: 'rgba(148,163,184,0.10)', border: 'rgba(148,163,184,0.35)', color: '#475569', label: '📋 Qualitative', glossary: 'Qualitative — not modeled' },
 }
 
 /**
@@ -79,7 +80,11 @@ function PolicyChip({ event }) {
           <span className="text-[11px] font-semibold truncate" style={{ color: style.color }}>{shortLabel}{tierTag}</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="font-mono text-[8px] uppercase tracking-[0.14em]" style={{ color: style.color, opacity: 0.75 }}>{style.label}</span>
+          <GlossaryLabel
+            term={style.glossary}
+            displayAs={style.label}
+            className="font-mono text-[8px] uppercase tracking-[0.14em]"
+          />
           <span className="text-[9px]" style={{ color: style.color }}>{open ? '▲' : '▼'}</span>
         </div>
       </button>
@@ -112,7 +117,7 @@ export default function PolicyChipStrip({ pillar, policyEvents, mw, technology, 
   return (
     <div className={`space-y-1.5 ${className}`}>
       <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-500 flex items-center gap-1.5">
-        <span>◆ Active Policy</span>
+        <GlossaryLabel term="Active Policy" displayAs="◆ Active Policy" className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-500" />
         <span className="text-gray-400">·</span>
         <span className="text-gray-400">{applicable.length} event{applicable.length !== 1 ? 's' : ''}</span>
       </div>

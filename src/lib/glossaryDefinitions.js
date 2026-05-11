@@ -36,9 +36,33 @@ export const GLOSSARY_DEFINITIONS = {
   },
   'Feasibility Index': {
     title: 'Feasibility Index',
-    short: 'Composite 0-100 score blending Offtake (40%), Interconnection (35%), and Site Control (25%) sub-scores.',
-    long: 'Tractova\'s headline composite for "how attractive is this project?" Computed live from the three pillar sub-scores using a weighted blend that emphasizes revenue (offtake) most, IX second, and site third. Adjusted by stage modifiers (a Construction-stage project gets +25 site-control credit reflecting de-risked permitting). 80+ = strong; 60-79 = viable; 40-59 = challenging; <40 = adverse.',
-    inputs: 'computeSubScores(offtake, ix, site) → 0.40·offtake + 0.35·ix + 0.25·site',
+    short: 'Composite 0-100 score blending Offtake (36%), Interconnection (31.5%), Site Control (22.5%), and Policy Climate (10%) sub-scores.',
+    long: 'Tractova\'s headline composite for "how attractive is this project?" Computed live from four pillar sub-scores using a weighted blend that emphasizes revenue (offtake) most, IX second, site third, and active policy climate fourth (PIE-001). Adjusted by stage modifiers (a Construction-stage project gets +25 site-control credit reflecting de-risked permitting). 80+ = strong; 60-79 = viable; 40-59 = challenging; <40 = adverse.',
+    inputs: 'computeSubScores(offtake, ix, site, policyClimate) → 0.36·offtake + 0.315·ix + 0.225·site + 0.10·policyClimate',
+  },
+  'Active Policy': {
+    title: 'Active Policy Events',
+    short: 'Enacted state-level policies (bills, PUC orders, tariff changes) that materially shift project economics or applicability.',
+    long: 'When a state enacts a bill — Maine LD 1777 imposing per-kWAC fees, Minnesota PUC cutting CS bill credits, Virginia SB 254 expanding shared solar capacity — that policy event is captured as a row in policy_impact_events. Tractova classifies it by pillar (Offtake / IX / Site / Cross-cutting), MW band, applicability (new applications vs existing queue vs operating projects), and confidence. High-confidence rows feed Scenario Studio + the feasibility composite; medium/low rows surface qualitatively without adjusting numbers.',
+    inputs: 'policy_impact_events table (admin-curated via /admin → Policy Impact tab; AI-assisted classification from URL paste)',
+  },
+  'Policy Climate': {
+    title: 'Policy Climate (sub-score)',
+    short: 'Fourth dimension of the Feasibility Index — aggregates active high-confidence policy events for the state into a ±50 shift from neutral.',
+    long: 'For each state, Tractova sums the signed IRR-bps impact across active high-confidence policy_impact_events and maps it to a 0-100 sub-score (50 = neutral). A 500-bps headwind drops the score 10 points; a 1000-bps tailwind lifts it 20. The sub-score takes 10% weight in the composite. States with no high-confidence policies in scope land at exactly neutral so the policy slot only moves the composite when there\'s real signal to move it.',
+    inputs: 'sum(irr_impact_bps) across applicable high-confidence rows · 50 bps per score point · ±50 clamp',
+  },
+  'Modeled in financials': {
+    title: 'Modeled in financials',
+    short: 'High-confidence policy events that have moved this project\'s Scenario Studio base IRR and the state feasibility composite.',
+    long: 'Tractova\'s honest-data discipline: only high-confidence policy_impact_events rows are allowed to shift the numbers shown on the screen. The "Modeled in financials" badge marks rows that have actually adjusted Studio capex / opex / revenue and the policy_climate sub-score. Medium and low-confidence rows surface qualitatively (with full methodology + source) but never alter IRR or feasibility — they exist for situational awareness only.',
+    inputs: 'impact_confidence = "high" · all four impact fields populated · derivation against revenue_rates baseline',
+  },
+  'Qualitative — not modeled': {
+    title: 'Qualitative — not modeled',
+    short: 'Medium or low-confidence policy events that appear here for awareness but have NOT shifted any displayed numbers.',
+    long: 'When a source article describes a policy in prose but doesn\'t state the specific $/kW, %, or bps figures verbatim, the classifier marks it medium or low confidence. These rows are surfaced everywhere the high-confidence rows are — but with this badge to make clear that the IRR and feasibility numbers do NOT include any adjustment from them. To upgrade a row to "Modeled in financials", paste a source that quotes the numbers verbatim and re-scan.',
+    inputs: 'impact_confidence in (medium, low) · raw_provisions sparsely populated',
   },
   'LMI Carveout': {
     title: 'LMI Carveout (Low-to-Moderate Income)',
