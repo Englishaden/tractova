@@ -11,6 +11,7 @@ import SiteControlCard from '../components/SiteControlCard.jsx'
 import InterconnectionCard from '../components/InterconnectionCard.jsx'
 import OfftakeCard from '../components/OfftakeCard.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
+import LensPolicyClimateSection from '../components/LensPolicyClimateSection.jsx'
 import { useToast } from '../components/ui/Toast'
 
 // 2026-05-07 cleanup: dropped 16 leftover Search.jsx imports that
@@ -920,6 +921,13 @@ function SearchContent() {
                 policyEvents={results.policyEvents || []}
               />
             </div>
+
+            <LensPolicyClimateSection
+              policyEvents={results.policyEvents || []}
+              stateName={results.stateProgram?.name || results.form.state}
+              mw={results.form.mw}
+              technology={results.form.technology}
+            />
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
                 so all three geographic-designation incentives (Energy

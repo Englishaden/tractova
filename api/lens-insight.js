@@ -433,6 +433,11 @@ export default async function handler(req, res) {
   //   v=2: policy events injected
   //   v=3: untruncated methodology + analyst_note + verified provisions
   //   v=4: IRR-delta format rule in system prompt (% for ≥100 bps, else bps)
+  //   v=5: PIE-001 ships — Studio + composite policy adjustments, pillar-
+  //        routed card chips, Lens § 05 Policy Climate. Cached verdicts
+  //        from v=4 reference policy state that may now show different
+  //        adjusted Studio + composite numbers — re-fire to keep prose
+  //        and numbers in lockstep.
   const verdictKey = buildCacheKey('verdict', {
     state:               body.state,
     county:              body.county,
@@ -440,7 +445,7 @@ export default async function handler(req, res) {
     stage:               body.stage,
     technology:          body.technology,
     dataVersion:         dataVersionFor(body.stateProgram, policyEvents),
-    buildContextVersion: 4,
+    buildContextVersion: 5,
   })
   const cachedVerdict = await cacheGet(verdictKey)
   if (cachedVerdict) {
