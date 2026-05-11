@@ -1,8 +1,9 @@
 import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
+import PolicyChipStrip from './PolicyChipStrip'
 import { EaseArcGauge, QueueBadge, SectionLabel } from '../lib/searchShared.jsx'
 
-export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary }) {
+export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary, technology = null, policyEvents = [] }) {
   if (!interconnection) return null
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
 
@@ -34,6 +35,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
     >
       {/* Body */}
       <div className="px-5 py-4 space-y-4">
+        <PolicyChipStrip pillar="ix" policyEvents={policyEvents} mw={mw} technology={technology} />
         {/* Utility · Queue · Ease — single structured panel matching the
             ISO Queue Data block below for visual consistency. Replaces the
             two earlier `bg-surface` blocks (DataRow stack + centered gauge)
