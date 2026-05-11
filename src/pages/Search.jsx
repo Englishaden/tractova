@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getEnergyCommunity, getHudQctDda, getNmtcLic } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getEnergyCommunity, getHudQctDda, getNmtcLic, getPolicyImpactEvents } from '../lib/programData'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
@@ -397,7 +397,7 @@ function SearchContent() {
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token ?? ''
 
-      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic] = await Promise.all([
+      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents] = await Promise.all([
         programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
         getCountyData(form.state, form.county),
         getRevenueStack(form.state),
@@ -407,6 +407,7 @@ function SearchContent() {
         getEnergyCommunity(form.state, form.county),
         getHudQctDda(form.state, form.county),
         getNmtcLic(form.state, form.county),
+        getPolicyImpactEvents({ state: form.state }),
       ])
       const runway = stateProgram?.runway ?? null
 
@@ -424,7 +425,7 @@ function SearchContent() {
         // analysis is still useful without the AI verdict.
       }
 
-      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, aiInsight })
+      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents, aiInsight })
     } catch (err) {
       // Any uncaught error in data fetching used to leave analyzing=true forever
       // (the white-screen loading hang). Surface it to the user instead.
@@ -865,6 +866,8 @@ function SearchContent() {
                   technology: results.form.technology,
                   mw: results.form.mw,
                   rates: results.revenueRates,
+                  policies: results.policyEvents || [],
+                  stage: results.form.stage || null,
                 })}
                 user={user}
                 projectId={matchingProjectId}

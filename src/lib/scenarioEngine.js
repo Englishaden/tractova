@@ -26,6 +26,7 @@ import {
   computeCIRevenueProjection,
   computeBESSProjection,
 } from './revenueEngine'
+import { computePolicyAdjustments } from './policyAdjustments'
 
 // ── Industry baselines ──────────────────────────────────────────────────────
 // Values that aren't in revenueEngine's per-state data but are needed to
@@ -150,7 +151,7 @@ function round2(v) {
 //
 // `rates` is the optional Supabase revenue_rates row (snake_case). If
 // omitted, revenueEngine uses its hardcoded fallback dataset.
-export function computeBaseline({ stateId, technology, mw, rates }) {
+export function computeBaseline({ stateId, technology, mw, rates, policies = [], stage = null }) {
   if (!stateId || !mw || mw <= 0) return null
   const tech = normalizeTech(technology)
   const size = parseFloat(mw)
@@ -162,13 +163,39 @@ export function computeBaseline({ stateId, technology, mw, rates }) {
   const inputs = extractInputs(tech, raw)
   const outputs = computeOutputs(tech, raw, inputs)
 
+  // Policy Impact Ecosystem: apply active high-confidence policies for
+  // this state, size band, stage, and technology. Policies SUM at the
+  // input level then flow through computeOutputs naturally — the
+  // resulting IRR delta is computed, not hard-subtracted. Confidence
+  // gating (only 'high' moves numbers) + applicability filters live
+  // in computePolicyAdjustments.
+  const policyResult = computePolicyAdjustments({
+    policies,
+    inputs,
+    mw: size,
+    stage,
+    technology: denormalizeTech(tech),
+  })
+  const adjustedInputs = policyResult.adjustedInputs
+  const adjustedOutputs = policyResult.applicableCount > 0
+    ? computeOutputs(tech, raw, adjustedInputs)
+    : outputs
+
   return {
     stateId,
     stateLabel: raw.stateLabel,
     technology: tech,                              // engine slug — for internal dispatch (applyScenario, computeOutputs)
     technologyLabel: denormalizeTech(tech),        // display name — for UI, URL params, DB persistence
-    inputs,
-    outputs,
+    inputs,                                        // baseline inputs (no policy)
+    outputs,                                       // baseline outputs (no policy)
+    adjustedInputs,                                // post-policy inputs
+    adjustedOutputs,                               // post-policy outputs
+    policyAdjustments: {
+      breakdown:       policyResult.breakdown,
+      totals:          policyResult.totals,
+      applicableCount: policyResult.applicableCount,
+      totalCount:      policyResult.totalCount,
+    },
     raw,
   }
 }

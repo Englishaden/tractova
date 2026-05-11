@@ -56,7 +56,12 @@ function PresetTooltipBody({ methodology }) {
 // dragging a slider is microsecond-fast — no debouncing needed.
 export default function ScenarioStudio({ baseline, user, projectId = null, countyName = '' }) {
   const { showToast } = useToast()
-  const [sliders, setSliders] = useState(() => baseline ? { ...baseline.inputs } : {})
+  // Slider default = adjusted inputs so the user's "starting point" reflects
+  // active high-confidence policy events for this state. Pre-policy baseline
+  // remains accessible via `baseline.inputs` for the breakdown panel.
+  const effectiveBaseInputs = baseline?.adjustedInputs ?? baseline?.inputs ?? null
+  const [sliders, setSliders] = useState(() => effectiveBaseInputs ? { ...effectiveBaseInputs } : {})
+  const [policyPanelOpen, setPolicyPanelOpen] = useState(false)
   const [savedName, setSavedName] = useState('')
   const [naming, setNaming] = useState(false)
   const [savedList, setSavedList] = useState([])
@@ -77,9 +82,11 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
   const [justSavedId, setJustSavedId] = useState(null)
 
   // Reset sliders whenever baseline changes (new Lens result loaded).
+  // Resets to adjusted inputs so the active-policy baseline is what the
+  // slider varies around — matches the displayed default.
   useEffect(() => {
-    if (baseline) setSliders({ ...baseline.inputs })
-  }, [baseline?.stateId, baseline?.technology, baseline?.inputs?.systemSizeMW])
+    if (baseline) setSliders({ ...(baseline.adjustedInputs ?? baseline.inputs) })
+  }, [baseline?.stateId, baseline?.technology, baseline?.inputs?.systemSizeMW, baseline?.policyAdjustments?.applicableCount])
 
   // Live recompute. Pure function — no API calls.
   const scenario = useMemo(() => baseline ? applyScenario(baseline, sliders) : null, [baseline, sliders])
@@ -127,16 +134,21 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     )
   }
 
-  const out = scenario?.outputs || baseline.outputs
-  const isDirty = sliderConfig.some((s) => Math.abs((sliders[s.key] ?? 0) - (baseline.inputs[s.key] ?? 0)) > 1e-9)
+  // Default displayed outputs = policy-adjusted (the user's "Phase B" base
+  // case includes active high-confidence policies). scenario.outputs takes
+  // over once the user drags any slider.
+  const out = scenario?.outputs || baseline.adjustedOutputs || baseline.outputs
+  const isDirty = sliderConfig.some((s) => Math.abs((sliders[s.key] ?? 0) - ((baseline.adjustedInputs ?? baseline.inputs)[s.key] ?? 0)) > 1e-9)
   const summaryLine = scenario ? formatScenarioSummary(scenario, baseline) : ''
+  const policyAdj = baseline?.policyAdjustments
+  const hasPolicyAdjustments = (policyAdj?.applicableCount || 0) > 0
 
   function handleSliderChange(key, value) {
     setSliders((prev) => ({ ...prev, [key]: Number(value) }))
   }
 
   function handleReset() {
-    setSliders({ ...baseline.inputs })
+    setSliders({ ...(baseline.adjustedInputs ?? baseline.inputs) })
     setNaming(false)
     setSavedName('')
   }
@@ -272,6 +284,46 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         The gauge reflects market structure (program / IX / site); these sliders
         stress-test the project economics within that market.
       </p>
+
+      {hasPolicyAdjustments && (
+        <div className="mx-6 my-3 rounded-md border" style={{ borderColor: 'rgba(245,158,11,0.30)', background: 'rgba(245,158,11,0.05)' }}>
+          <button
+            type="button"
+            onClick={() => setPolicyPanelOpen(o => !o)}
+            className="w-full flex items-center justify-between px-4 py-2 text-left"
+          >
+            <span className="text-[11px] font-mono uppercase tracking-[0.18em] font-semibold" style={{ color: '#92400E' }}>
+              📊 Policy-adjusted baseline · {policyAdj.applicableCount} active event{policyAdj.applicableCount !== 1 ? 's' : ''}
+            </span>
+            <span className="text-[10px] text-gray-500">{policyPanelOpen ? '▲' : '▼'}</span>
+          </button>
+          {policyPanelOpen && (
+            <div className="px-4 pb-3 space-y-2">
+              <div className="text-[10px] text-gray-600 leading-relaxed border-b border-amber-200/60 pb-2">
+                Pre-policy base IRR <span className="font-mono">{baseline.outputs?.irr != null ? `${(baseline.outputs.irr * 100).toFixed(2)}%` : '—'}</span> → policy-adjusted base IRR <span className="font-mono font-semibold">{baseline.adjustedOutputs?.irr != null ? `${(baseline.adjustedOutputs.irr * 100).toFixed(2)}%` : '—'}</span>.
+                Only high-confidence policies adjust numbers; medium/low remain qualitative.
+              </div>
+              {policyAdj.breakdown.map((b) => (
+                <div key={b.id} className="text-[11px] leading-snug">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-[9px] uppercase tracking-[0.16em] px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.20)', color: '#92400E' }}>{b.pillar}</span>
+                    <span className="font-semibold text-gray-800">{b.event_name}</span>
+                    {b.min_mw_ac != null && b.max_mw_ac != null && (
+                      <span className="text-[10px] text-gray-500">[{b.min_mw_ac}-{b.max_mw_ac} MW tier]</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-gray-600 ml-1 mt-0.5">
+                    {b.capex_delta > 0 && <span className="mr-3">capex +${b.capex_delta.toFixed(2)}/W</span>}
+                    {b.opex_delta > 0 && <span className="mr-3">opex +${b.opex_delta.toFixed(2)}/kW/yr</span>}
+                    {b.revenue_haircut > 0 && <span className="mr-3">revenue −{b.revenue_haircut.toFixed(1)}%</span>}
+                    {b.source_url && <a href={b.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">source ↗</a>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="px-6 py-5 grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Left: presets + sliders (3 cols) */}
