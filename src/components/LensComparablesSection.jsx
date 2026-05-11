@@ -141,7 +141,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
         </CollapsibleSubsection>
 
         <CollapsibleSubsection
-          title="◇ Comparable Deals"
+          title="◆ Comparable Deals"
           glossaryTerm="Comparable Deals"
           description="point-estimate examples · sized ±50% to 2× of your project"
           count={comparablesTotal != null ? `${comparablesTotal} comp${comparablesTotal !== 1 ? 's' : ''}` : null}
@@ -154,7 +154,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
         </CollapsibleSubsection>
 
         <CollapsibleSubsection
-          title="▤ Market Benchmarks"
+          title="◆ Market Benchmarks"
           glossaryTerm="Market Benchmarks"
           description="observed kWh/kW yield from operating CS projects · ground truth for the modeled assumption"
           count={specificCount != null ? `n=${specificCount}` : null}
