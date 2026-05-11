@@ -47,6 +47,7 @@ export default function PolicyImpactTab() {
   const [classifying, setClassifying]       = useState(false)
   const [classifyError, setClassifyError]   = useState(null)
   const [classifyHint, setClassifyHint]     = useState(null) // 'cached' | 'fresh' after success
+  const [classifyFetchedUrl, setClassifyFetchedUrl] = useState(null) // populated when URL fetch was used
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -295,6 +296,7 @@ export default function PolicyImpactTab() {
       setClassifyStateHint('')
       setClassifyEventHint('')
       setClassifyHint(json.cached ? 'cached' : 'fresh')
+      setClassifyFetchedUrl(json.fetchedUrl || null)
     } catch (e) {
       setClassifyError(`Network error: ${e.message}`)
     }
@@ -344,14 +346,22 @@ export default function PolicyImpactTab() {
             </p>
           </div>
           {classifyHint && (
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}>
-              {classifyHint === 'cached' ? '✓ cached · free' : '✓ drafted'}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {classifyFetchedUrl && (
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(20,184,166,0.10)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.22)' }}>
+                  ◆ url fetched
+                </span>
+              )}
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}>
+                {classifyHint === 'cached' ? '✓ cached · free' : '✓ drafted'}
+              </span>
+            </div>
           )}
         </div>
         <p id="policy-classify-helper" className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
-          Paste bill text. Haiku extracts the raw provisions (rate cuts, $/kW fees, retroactive fees) from the source, then Tractova derives the per-MW dollar impact using state baselines from revenue_rates. <strong style={{ color: '#5EEAD4' }}>Derivation chain shows in impact_methodology</strong> so you can verify against the source. Qualitative articles (no specific numbers in source) won't produce derived $ — paste the actual bill text for those.
+          Paste a URL <strong style={{ color: '#5EEAD4' }}>or</strong> the bill text directly. URL input is auto-fetched server-side (most news sites + state legislatures work; JS-rendered sites or paywalls fall back to manual paste). Haiku extracts raw provisions (rate cuts, $/kW fees), Tractova derives per-MW dollar impact using state baselines. Derivation chain visible in impact_methodology — verifiable against source.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
           <input

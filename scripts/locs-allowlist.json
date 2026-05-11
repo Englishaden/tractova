@@ -1,5 +1,11 @@
 {
   "_comment": "Per-file LOC ceilings for files currently exceeding the global budgets in lint-locs.mjs. Each entry is a documented exception with a target for future decomposition. CI fails if a file in this list grows BEYOND its ceiling. New files must stay under the global budget (1500 LOC for src/pages, 500 LOC for top-level api/*.js).",
   "_review_cadence": "every Phase 2 follow-up sprint",
-  "exceptions": []
+  "exceptions": [
+    {
+      "path": "api/lens-insight.js",
+      "ceiling": 600,
+      "reason": "buildContext now injects policy_impact_events with methodology/analyst_note/raw_provisions sections. Decomposition target: extract buildContext to api/lib/_lensContext.js — would drop main orchestrator back under 350 LOC. Tracked for next refactor sprint."
+    }
+  ]
 }

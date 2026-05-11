@@ -16,6 +16,97 @@ import { POLICY_CLASSIFY_PROMPT } from '../prompts/policy-classify.js'
 import { buildCacheKey, cacheGet, cacheSet, supabaseAdmin } from '../lib/_aiCacheLayer.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
+// URL fetcher — if the admin pastes a URL (alone or as the first token of
+// the input), fetch the page server-side and use its text content. Avoids
+// the admin copy-pasting article body manually.
+//
+// Cautious by design: 15s timeout, 200KB raw cap, basic HTML strip, no
+// JS-rendered content (most state legislatures + trade press serve static
+// HTML so this works for ~90% of sources). Returns null on fetch failure;
+// caller falls back to using the input as literal text.
+// ─────────────────────────────────────────────────────────────────────────────
+async function fetchAndExtractUrl(url) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 15000)
+  try {
+    const resp = await fetch(url, {
+      signal:  controller.signal,
+      headers: {
+        'User-Agent': 'Tractova/1.0 (policy-classifier; +https://tractova.com)',
+        'Accept':     'text/html,application/xhtml+xml,*/*;q=0.8',
+      },
+      redirect: 'follow',
+    })
+    clearTimeout(timer)
+    if (!resp.ok) return { ok: false, status: resp.status, text: null }
+    // Read up to 200KB raw — most articles are 30-60KB, bill text PDFs are
+    // larger but we can't usefully parse those anyway without a PDF lib.
+    const reader = resp.body?.getReader?.()
+    let html = ''
+    if (reader) {
+      let total = 0
+      while (total < 200_000) {
+        const { done, value } = await reader.read()
+        if (done) break
+        html += new TextDecoder().decode(value)
+        total += value.length
+      }
+      reader.cancel().catch(() => {})
+    } else {
+      html = await resp.text()
+    }
+    return { ok: true, status: resp.status, text: stripHtml(html).slice(0, 24000) }
+  } catch (err) {
+    clearTimeout(timer)
+    return { ok: false, status: null, text: null, error: err?.message || String(err) }
+  }
+}
+
+// Strip script/style/nav/header/footer, then all remaining tags, decode
+// entities, collapse whitespace. Conservative — keeps article body content
+// without trying to be smart about <article> vs <div>.
+function stripHtml(html) {
+  let text = html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, ' ')
+    .replace(/<header[\s\S]*?<\/header>/gi, ' ')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, ' ')
+    .replace(/<aside[\s\S]*?<\/aside>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+  text = text.replace(/<[^>]+>/g, ' ')
+  text = text
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ').replace(/&mdash;/g, '—').replace(/&ndash;/g, '–')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+// If the input starts with a URL (with or without other text after), fetch
+// the URL and use the extracted page text + any trailing text from the user.
+// If fetch fails, fall through to treating the original input as literal text.
+async function expandIfUrl(text) {
+  const trimmed = text.trim()
+  const urlMatch = trimmed.match(/^(https?:\/\/[^\s]+)(?:\s|$)/i)
+  if (!urlMatch) return { text: trimmed, fetched: false }
+  const url = urlMatch[1]
+  const remainder = trimmed.slice(urlMatch[0].length).trim()
+  const fetched = await fetchAndExtractUrl(url)
+  if (!fetched.ok || !fetched.text || fetched.text.length < 100) {
+    return { text: trimmed, fetched: false, fetchError: fetched.error || `HTTP ${fetched.status}` }
+  }
+  // Compose: source URL header + fetched body + any admin notes appended after.
+  const composed = [
+    `Source URL: ${url}`,
+    fetched.text,
+    remainder && `\nAdmin notes appended:\n${remainder}`,
+  ].filter(Boolean).join('\n\n')
+  return { text: composed, fetched: true, fetchedFrom: url, fetchedBytes: fetched.text.length }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Derive per-MW impact from raw provisions + state baseline data.
 //
 // Reads revenue_rates for the state (bill_credit_cents_kwh, rec_per_mwh,
@@ -126,10 +217,30 @@ async function deriveImpact(rawProvisions, state) {
 
 export default async function handlePolicyClassify(body, res) {
   const { rawText, stateHint, eventNameHint } = body
-  if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 60) {
+  if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 5) {
     return res.status(400).json({
-      error:  'rawText required (paste at least 60 characters of bill / article content)',
+      error:  'rawText required (paste a URL OR at least 60 characters of bill / article content)',
       reason: 'missing_text',
+    })
+  }
+
+  // Auto-expand URLs to page text. Admin can paste either a URL alone or
+  // raw article text — both flow through the same path. URL fetch fallback
+  // lands the admin back at "fetch failed; paste the text instead" so they
+  // know to copy-paste manually.
+  const expanded = await expandIfUrl(rawText)
+  let usableText = expanded.text
+  if (!expanded.fetched && /^https?:\/\//i.test(rawText.trim()) && usableText.length < 60) {
+    return res.status(200).json({
+      draft:    null,
+      fallback: true,
+      reason:   `url_fetch_failed: ${expanded.fetchError || 'page returned too little content'} — paste the article text manually instead`,
+    })
+  }
+  if (usableText.trim().length < 60) {
+    return res.status(400).json({
+      error:  'After URL expansion, content is too short (min 60 chars)',
+      reason: 'expanded_too_short',
     })
   }
 
@@ -143,9 +254,12 @@ export default async function handlePolicyClassify(body, res) {
   //        conversion + flat raw_provisions schema (citations removed).
   //        Earlier runs returned numbers in prose; this anchors structured
   //        extraction.
+  //   v=4: URL fetcher in place — cache key now keyed on EXPANDED text so
+  //        the same URL hits the same cache slot regardless of fetch
+  //        timestamp.
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     3,
-    text:  rawText.trim(),
+    v:     4,
+    text:  usableText.trim(),
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',
   })
@@ -156,8 +270,9 @@ export default async function handlePolicyClassify(body, res) {
 
   // Cap input at 12K chars — bill text excerpts run longer than docket pages
   // but anything past 12K is noise (table of contents, fiscal notes, etc.).
-  // Admin should paste the substantive sections, not the whole PDF.
-  const trimmed = rawText.trim().slice(0, 12000)
+  // For URL-expanded text we still cap here — URL fetcher already limited to
+  // 24K post-strip, this is the second guard.
+  const trimmed = usableText.trim().slice(0, 12000)
 
   // Optional priming line — if the admin pre-filled a state or event name
   // in the form, we prepend it as a hint so the model doesn't have to
@@ -245,7 +360,11 @@ export default async function handlePolicyClassify(body, res) {
     parsed.discovered_via = parsed.discovered_via || 'manual'
 
     cacheSet(classifyKey, 'policy-classify', parsed, 24 * 60 * 60)
-    return res.status(200).json({ draft: parsed })
+    return res.status(200).json({
+      draft:        parsed,
+      fetchedUrl:   expanded.fetched ? expanded.fetchedFrom : null,
+      fetchedBytes: expanded.fetched ? expanded.fetchedBytes : null,
+    })
 
   } catch (err) {
     clearTimeout(timeoutId)

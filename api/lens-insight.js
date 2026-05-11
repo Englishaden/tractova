@@ -167,8 +167,27 @@ export function buildContext({ state, county, mw, stage, technology, stateProgra
         if (ev.feoc_compliance_required) {
           lines.push(`    FEOC: required${ev.feoc_notes ? ` — ${ev.feoc_notes.slice(0, 160)}` : ''}`)
         }
+        // Methodology + analyst note: pass through with generous limits.
+        // Prior bug: 220-char slice truncated the second fee tier on
+        // tiered-fee policies (LD 1777), causing Sonnet to claim "the
+        // exact rate is not quantified" even though the row had it.
         if (ev.impact_methodology) {
-          lines.push(`    Methodology: ${ev.impact_methodology.slice(0, 220)}`)
+          lines.push(`    Methodology: ${ev.impact_methodology.slice(0, 1500)}`)
+        }
+        if (ev.analyst_note) {
+          lines.push(`    Analyst note: ${ev.analyst_note.slice(0, 1000)}`)
+        }
+        // Raw provisions (the structured numbers AI extracted from the
+        // bill text). Surfacing these explicitly so Sonnet quotes them
+        // with confidence instead of re-extracting from prose.
+        const rawProv = ev.discovery_metadata?.raw_provisions
+        if (rawProv && typeof rawProv === 'object') {
+          const provBits = []
+          if (rawProv.rate_cut_pct != null)                    provBits.push(`rate cut ${rawProv.rate_cut_pct}%`)
+          if (rawProv.one_time_fee_per_kw != null)             provBits.push(`one-time $${rawProv.one_time_fee_per_kw}/kW`)
+          if (rawProv.annual_fee_per_kw_yr != null)            provBits.push(`annual $${rawProv.annual_fee_per_kw_yr}/kW/yr`)
+          if (rawProv.retroactive_one_time_fee_per_kw != null) provBits.push(`retroactive $${rawProv.retroactive_one_time_fee_per_kw}/kW`)
+          if (provBits.length > 0) lines.push(`    Verified provisions (extracted from source): ${provBits.join(' · ')}`)
         }
         lines.push(`    Source: ${ev.source_url}`)
         lines.push(`    Summary: ${ev.summary}`)
@@ -408,13 +427,19 @@ export default async function handler(req, res) {
   // Round MW to 1 decimal so 4.99 vs 5.00 share a hit. Data-version baked in
   // so admin program edits AND policy_impact_events publishes invalidate
   // stale entries automatically.
+  // buildContextVersion: bump whenever buildContext output changes materially
+  // so cached verdicts re-fire against the new context format.
+  //   v=1: initial
+  //   v=2: policy events injected
+  //   v=3: untruncated methodology + analyst_note + verified provisions
   const verdictKey = buildCacheKey('verdict', {
-    state:       body.state,
-    county:      body.county,
-    mw:          Math.round((parseFloat(body.mw) || 0) * 10) / 10,
-    stage:       body.stage,
-    technology:  body.technology,
-    dataVersion: dataVersionFor(body.stateProgram, policyEvents),
+    state:               body.state,
+    county:              body.county,
+    mw:                  Math.round((parseFloat(body.mw) || 0) * 10) / 10,
+    stage:               body.stage,
+    technology:          body.technology,
+    dataVersion:         dataVersionFor(body.stateProgram, policyEvents),
+    buildContextVersion: 3,
   })
   const cachedVerdict = await cacheGet(verdictKey)
   if (cachedVerdict) {
