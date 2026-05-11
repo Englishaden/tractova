@@ -22,7 +22,10 @@ export default function PucDocketsTab() {
   const [classifyText, setClassifyText] = useState('')
   const [classifying, setClassifying]   = useState(false)
   const [classifyError, setClassifyError] = useState(null)
-  const [classifyHint, setClassifyHint]   = useState(null)  // 'cached' | null after success
+  const [classifyHint, setClassifyHint]   = useState(null)  // 'cached' | 'fresh' after success
+  const [classifyFetchedUrl, setClassifyFetchedUrl] = useState(null)
+  const [autoPublish, setAutoPublish]   = useState(true)
+  const [rescanningId, setRescanningId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -118,40 +121,73 @@ export default function PucDocketsTab() {
     } catch (e) { setError(e.message) }
   }
 
-  // AI Classify — paste docket URL + page contents, Sonnet extracts the
-  // structured fields and pre-fills the edit form for review.
+  // Shared classifier call — used by Quick-Add AND Re-scan.
+  const callClassifyDocket = async (rawText) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('Sign-in required')
+    const res = await fetch('/api/lens-insight', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ action: 'classify-docket', rawText }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+    if (!json?.classification) throw new Error(json?.reason || 'Classification failed.')
+    return json
+  }
+
+  const buildPayloadFromClassification = (c, opts = {}) => ({
+    state:            (c.state || opts.fallbackState || '').toUpperCase(),
+    puc_name:         c.puc_name || '',
+    docket_number:    c.docket_number || opts.fallbackDocket || '',
+    title:            c.title || '',
+    status:           c.status || 'filed',
+    pillar:           c.pillar || 'offtake',
+    impact_tier:      c.impact_tier || 'medium',
+    filed_date:       c.filed_date       || null,
+    comment_deadline: c.comment_deadline || null,
+    decision_target:  c.decision_target  || null,
+    summary:          c.summary || '',
+    source_url:       c.source_url || opts.fallbackSourceUrl || null,
+    is_active:        true,
+  })
+
+  // AI Classify — paste docket URL or page contents. URL-first auto-
+  // publish flow: when autoPublish is on, classify + upsert published row
+  // in one click. Off → pre-fills the form for review.
   const handleClassify = async () => {
-    if (!classifyText || classifyText.trim().length < 40) {
-      setClassifyError('Paste at least 40 characters of docket page content.')
+    if (!classifyText || classifyText.trim().length < 5) {
+      setClassifyError('Paste a URL or at least 40 characters of docket page content.')
       return
     }
     setClassifying(true)
     setClassifyError(null)
     setClassifyHint(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) { setClassifyError('Sign-in required'); setClassifying(false); return }
-      const res = await fetch('/api/lens-insight', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: 'classify-docket', rawText: classifyText }),
-      })
-      const rawBody = await res.text()
-      let json = null
-      try { json = JSON.parse(rawBody) } catch {}
-      if (!res.ok) {
-        setClassifyError(json?.error || `Server error (${res.status})`)
-        setClassifying(false)
-        return
-      }
-      if (!json?.classification) {
-        setClassifyError(json?.reason || 'Classification failed -- try again or fall back to manual add.')
-        setClassifying(false)
-        return
-      }
+      const json = await callClassifyDocket(classifyText)
       const c = json.classification
-      // Pre-fill the edit form with AI extraction. User reviews + saves.
+
+      if (autoPublish) {
+        const fallbackSourceUrl = /^https?:\/\//i.test(classifyText.trim())
+          ? classifyText.trim().split(/\s/)[0]
+          : ''
+        const payload = buildPayloadFromClassification(c, { fallbackSourceUrl })
+        if (!payload.state || !payload.docket_number) {
+          setClassifyError('Draft missing state or docket number — switch off auto-publish and review manually.')
+          setClassifying(false)
+          return
+        }
+        await upsertPucDocket(payload)
+        setClassifyText('')
+        setClassifyHint(json.cached ? 'cached' : 'fresh')
+        setClassifyFetchedUrl(json.fetchedUrl || null)
+        await load()
+        setClassifying(false)
+        return
+      }
+
+      // Manual-review path: pre-fill the form.
       setEditData({
         state:            (c.state || '').toUpperCase(),
         puc_name:         c.puc_name || '',
@@ -170,10 +206,37 @@ export default function PucDocketsTab() {
       setEditId(null)
       setClassifyText('')
       setClassifyHint(json.cached ? 'cached' : 'fresh')
+      setClassifyFetchedUrl(json.fetchedUrl || null)
     } catch (e) {
-      setClassifyError(`Network error: ${e.message}`)
+      setClassifyError(e.message || 'Classification failed')
     }
     setClassifying(false)
+  }
+
+  // Re-scan an existing docket's source URL — detects status updates
+  // (comment closed, decision issued) by re-running classify against the
+  // original URL. Overwrites the row in place.
+  const handleRescan = async (item) => {
+    if (!item.sourceUrl || !/^https?:\/\//i.test(item.sourceUrl)) {
+      window.alert(`Re-scan requires a valid source URL. This row has: ${item.sourceUrl || '(none)'}`)
+      return
+    }
+    if (!window.confirm(`Re-scan ${item.docketNumber}?\n\nFetches ${item.sourceUrl} and re-classifies. Existing row will be overwritten.`)) return
+    setRescanningId(item.id)
+    try {
+      const json = await callClassifyDocket(item.sourceUrl)
+      const payload = buildPayloadFromClassification(json.classification, {
+        fallbackState:      item.state,
+        fallbackDocket:     item.docketNumber,
+        fallbackSourceUrl:  item.sourceUrl,
+      })
+      payload.id = item.id
+      await upsertPucDocket(payload)
+      await load()
+    } catch (e) {
+      window.alert(`Re-scan failed: ${e.message}`)
+    }
+    setRescanningId(null)
   }
 
   if (loading) return <p className="text-sm text-gray-400 py-8 text-center">Loading PUC dockets...</p>
@@ -232,14 +295,22 @@ export default function PucDocketsTab() {
             </p>
           </div>
           {classifyHint && (
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
-              style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}>
-              {classifyHint === 'cached' ? '✓ cached · free' : '✓ classified'}
-            </span>
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              {classifyFetchedUrl && (
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
+                  style={{ background: 'rgba(20,184,166,0.10)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.22)' }}>
+                  ◆ url fetched
+                </span>
+              )}
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}>
+                {classifyHint === 'cached' ? '✓ cached · free' : '✓ classified'}
+              </span>
+            </div>
           )}
         </div>
         <p id="classify-helper" className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
-          Paste the docket URL on the first line, then copy-paste the page contents from your state's PUC e-filing portal. AI extracts state, docket number, status, pillar, impact tier, dates, and a Tractova analyst summary — you review and save.
+          Paste a URL <strong style={{ color: '#5EEAD4' }}>or</strong> the docket page contents directly. URL input is auto-fetched server-side. AI extracts state, docket number, status, pillar, impact tier, dates, and a Tractova analyst summary.
         </p>
         <textarea
           value={classifyText}
@@ -257,13 +328,19 @@ export default function PucDocketsTab() {
           }}
         />
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-            ~$0.011/docket · cached 24h
-          </p>
+          <label className="flex items-center gap-2 cursor-pointer select-none text-[11px]" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            <input
+              type="checkbox"
+              checked={autoPublish}
+              onChange={(e) => setAutoPublish(e.target.checked)}
+              className="h-3.5 w-3.5 accent-teal-500"
+            />
+            Publish immediately (skip review)
+          </label>
           <div className="flex items-center gap-2">
             {classifyText && (
               <button
-                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null) }}
+                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null); setClassifyFetchedUrl(null) }}
                 disabled={classifying}
                 className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md transition-colors"
                 style={{ color: 'rgba(255,255,255,0.55)' }}
@@ -280,14 +357,14 @@ export default function PucDocketsTab() {
               {classifying ? (
                 <>
                   <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Classifying…
+                  {autoPublish ? 'Classifying + Publishing…' : 'Classifying…'}
                 </>
               ) : (
                 <>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/>
                   </svg>
-                  Classify with AI
+                  {autoPublish ? 'Fetch + Publish' : 'Classify for review'}
                 </>
               )}
             </button>
@@ -335,24 +412,55 @@ export default function PucDocketsTab() {
             No dockets match. Add one to begin populating the feed.
           </p>
         )}
-        {visible.map(item => (
-          <div key={item.id} className="flex items-start justify-between gap-3 py-2.5 border-b border-gray-100">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-gray-900 font-medium truncate">{item.title}</p>
-              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                <Badge>{item.state}</Badge>
-                <Badge color={item.status === 'comment_open' ? 'green' : item.status === 'pending_decision' ? 'yellow' : 'blue'}>{item.status}</Badge>
-                <Badge color={item.impactTier === 'high' ? 'red' : item.impactTier === 'medium' ? 'yellow' : 'gray'}>{item.impactTier}</Badge>
-                <Badge>{item.pillar}</Badge>
-                <span className="text-[10px] text-gray-400 truncate">{item.pucName} · {item.docketNumber}</span>
+        {visible.map(item => {
+          // Staleness based on last_updated. PUC dockets DO go stale fast —
+          // comment deadlines pass, decisions issue, etc. Tighter thresholds
+          // than policy events (30/90/180 vs 90/180/never-quiet).
+          const updatedTs  = item.lastUpdated ? new Date(item.lastUpdated).getTime() : null
+          const filedTs    = item.filedDate ? new Date(item.filedDate).getTime() : null
+          const latestTs   = Math.max(updatedTs || 0, filedTs || 0) || null
+          const daysSince  = latestTs ? Math.floor((Date.now() - latestTs) / 86_400_000) : null
+          let staleChip = null
+          if (item.status === 'closed') { /* closed dockets aren't "stale", they're done */ }
+          else if (daysSince == null)   staleChip = { color: 'gray',   label: 'unverified' }
+          else if (daysSince >= 180)    staleChip = { color: 'red',    label: `stale (${daysSince}d)` }
+          else if (daysSince >= 90)     staleChip = { color: 'yellow', label: `aging (${daysSince}d)` }
+          const isRescanning = rescanningId === item.id
+          return (
+            <div key={item.id} className="flex items-start justify-between gap-3 py-2.5 border-b border-gray-100">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-gray-900 font-medium truncate">{item.title}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <Badge>{item.state}</Badge>
+                  <Badge color={item.status === 'comment_open' ? 'green' : item.status === 'pending_decision' ? 'yellow' : 'blue'}>{item.status}</Badge>
+                  <Badge color={item.impactTier === 'high' ? 'red' : item.impactTier === 'medium' ? 'yellow' : 'gray'}>{item.impactTier}</Badge>
+                  <Badge>{item.pillar}</Badge>
+                  {staleChip && <Badge color={staleChip.color}>◆ {staleChip.label}</Badge>}
+                  <span className="text-[10px] text-gray-400 truncate">{item.pucName} · {item.docketNumber}</span>
+                </div>
+                {item.sourceUrl && (
+                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-teal-700 hover:underline truncate block mt-0.5">
+                    {item.sourceUrl.length > 80 ? item.sourceUrl.slice(0, 80) + '…' : item.sourceUrl}
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-2 shrink-0 items-center">
+                {item.sourceUrl && /^https?:\/\//i.test(item.sourceUrl) && (
+                  <button
+                    onClick={() => handleRescan(item)}
+                    disabled={isRescanning}
+                    className="text-xs text-teal-700 hover:text-teal-900 transition-colors disabled:opacity-50"
+                    title="Re-fetch source URL + reclassify. Use when a docket status changes (comment closed, decision issued)."
+                  >
+                    {isRescanning ? 'Re-scanning…' : '↻ Re-scan'}
+                  </button>
+                )}
+                <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
+                <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
               </div>
             </div>
-            <div className="flex gap-2 shrink-0">
-              <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
-              <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
