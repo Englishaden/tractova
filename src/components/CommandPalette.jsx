@@ -6,7 +6,10 @@ import { getStateProgramMap } from '../lib/programData'
 import allCounties from '../data/allCounties.json'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { GLOSSARY_TERMS, toSlug } from '../pages/Glossary'
+// Import from the data module, NOT from pages/Glossary — keeping a
+// static dep on the page module would force its lazy chunk into the
+// main bundle (the build used to warn INEFFECTIVE_DYNAMIC_IMPORT).
+import { GLOSSARY_TERMS, toSlug } from '../data/glossaryTerms'
 import { parseCommand } from '../lib/commandParser'
 
 // Cmd-K global palette. Power-user spine of the app — every repeated

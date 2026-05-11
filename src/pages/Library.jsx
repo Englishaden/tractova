@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+﻿import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -12,8 +12,12 @@ import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { logProjectEvent } from '../lib/projectEvents'
-import IntelligenceBackground from '../components/IntelligenceBackground'
-import WalkingTractovaMark from '../components/WalkingTractovaMark'
+// Decorative-only — lazy so they don't block the Library hero's LCP.
+// IntelligenceBackground is an animated SVG/CSS layer; WalkingTractovaMark
+// is a probabilistic easter egg (triggerProbability=0.25). Both render
+// behind / over the page chrome and contribute nothing to first paint.
+const IntelligenceBackground = lazy(() => import('../components/IntelligenceBackground'))
+const WalkingTractovaMark   = lazy(() => import('../components/WalkingTractovaMark'))
 import { getAlerts } from '../lib/alertHelpers'
 import { buildExportRows, buildMethodologySheet, buildGlossarySheet } from '../lib/exportHelpers'
 import ProjectCard from '../components/ProjectCard.jsx'
@@ -22,9 +26,13 @@ import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
 import ProjectTable from '../components/library/ProjectTable.jsx'
-import LibraryMap from '../components/library/LibraryMap.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
+
+// LibraryMap lazily split — default layout is 'cards', so Map's heavy
+// payload (react-simple-maps + topojson-client + ~100 KB centroids
+// JSON) only loads when the user actually clicks the Map button.
+const LibraryMap = lazy(() => import('../components/library/LibraryMap.jsx'))
 import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
 
 // Phase 2A · TRACTOVA-UX-001 — Library layout (cards | table | map) is
@@ -698,8 +706,13 @@ function LibraryContent() {
           is high-traffic so we use a lower trigger probability and sessionGate
           so users don't get fatigued by the cameo. The existing animated
           "Data refreshed" pulsing dot in the hero stays as-is. */}
-      <IntelligenceBackground />
-      <WalkingTractovaMark triggerProbability={0.25} sessionGate={true} />
+      {/* Decorative layers — render after the hero paints, never
+          block LCP. fallback={null} means the page mounts immediately
+          and the dot field / mark fade in once their chunks arrive. */}
+      <Suspense fallback={null}>
+        <IntelligenceBackground />
+        <WalkingTractovaMark triggerProbability={0.25} sessionGate={true} />
+      </Suspense>
 
       <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
@@ -1220,35 +1233,32 @@ function LibraryContent() {
             {displayProjects.length > 0 ? (
               <>
               {layout === 'map' ? (
-                /* Phase 2B — Map view. Single click on state =
-                   toggle the filter (stays on map; misclick safety).
-                   Double click on state = force-set the filter AND
-                   switch to Table (explicit transition, no race with
-                   the two intermediate onClick events that browsers
-                   fire before onDoubleClick). Pin click → drawer. */
-                <LibraryMap
-                  projects={displayProjects}
-                  stateProgramMap={stateProgramMap}
-                  countyDataMap={countyDataMap}
-                  filterState={filterState}
-                  onStateClick={(stateId, hasProjects) => {
-                    if (!hasProjects) return
-                    setFilterState(prev => prev === stateId ? '' : stateId)
-                  }}
-                  onStateDoubleClick={(stateId, hasProjects) => {
-                    // Browsers fire two onClick events before onDoubleClick.
-                    // The two onClicks will have toggled filterState an
-                    // even number of times — i.e. left it where it was.
-                    // We force-set here (not toggle) so the end state is
-                    // always "filter on this state + Table layout"
-                    // regardless of where it started.
-                    if (!hasProjects) return
-                    setFilterState(stateId)
-                    handleLayoutChange('table')
-                  }}
-                  onSwitchToTable={() => handleLayoutChange('table')}
-                  onPinClick={(project) => setDrawerProject(project)}
-                />
+                /* Phase 2B — Map view. Lazy-loaded; Suspense fallback
+                   renders a neutral panel skeleton so the layout
+                   doesn't collapse on first switch. Single click on
+                   state = toggle the filter (stays on map; misclick
+                   safety). Double click on state = force-set the
+                   filter AND switch to Table (explicit transition).
+                   Pin click → drawer. */
+                <Suspense fallback={<div className="rounded-xl border border-gray-200 bg-paper h-[480px] animate-pulse" aria-label="Map view loading" />}>
+                  <LibraryMap
+                    projects={displayProjects}
+                    stateProgramMap={stateProgramMap}
+                    countyDataMap={countyDataMap}
+                    filterState={filterState}
+                    onStateClick={(stateId, hasProjects) => {
+                      if (!hasProjects) return
+                      setFilterState(prev => prev === stateId ? '' : stateId)
+                    }}
+                    onStateDoubleClick={(stateId, hasProjects) => {
+                      if (!hasProjects) return
+                      setFilterState(stateId)
+                      handleLayoutChange('table')
+                    }}
+                    onSwitchToTable={() => handleLayoutChange('table')}
+                    onPinClick={(project) => setDrawerProject(project)}
+                  />
+                </Suspense>
               ) : layout === 'table' ? (
                 <ProjectTable
                   projects={pagedProjects}
