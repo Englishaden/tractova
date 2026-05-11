@@ -39,7 +39,7 @@ const CLASSIFY_TOOL = {
       // ── REQUIRED structured raw provisions — extract verbatim numbers ────
       raw_provisions: {
         type: 'object',
-        description: 'Numeric provisions extracted verbatim from source. Use null only when the value is not stated in the source. ALWAYS convert monthly fees to annual: $X/kW/month → $(X*12)/kW/yr.',
+        description: 'Numeric provisions extracted verbatim from source. Use null only when the value is not stated in the source. ALWAYS convert monthly fees to annual: $X/kW/month → $(X*12)/kW/yr. For tiered policies, this object holds the FIRST tier; the full set goes in mw_band_tiers.',
         properties: {
           rate_cut_pct: {
             type: ['number', 'null'],
@@ -59,6 +59,27 @@ const CLASSIFY_TOOL = {
           },
         },
         required: ['rate_cut_pct', 'one_time_fee_per_kw', 'annual_fee_per_kw_yr', 'retroactive_one_time_fee_per_kw'],
+      },
+
+      // ── MW-band tiers (optional) — emit one entry per size tier when
+      // source defines different rates for different MW bands. Empty array
+      // when the policy applies uniformly across all MW sizes.
+      mw_band_tiers: {
+        type: 'array',
+        description: 'When source has SIZE-TIERED rates (e.g., 1-3 MW gets one fee, 3-5 MW gets another), emit one entry per tier. Each entry becomes its own policy_impact_events row with min_mw_ac/max_mw_ac set. Use [] (empty array) when policy is uniform across all MW sizes.',
+        items: {
+          type: 'object',
+          properties: {
+            min_mw_ac: { type: ['number', 'null'], description: 'Lower bound of MW band (inclusive). Null = no lower bound.' },
+            max_mw_ac: { type: ['number', 'null'], description: 'Upper bound of MW band (exclusive). Null = no upper bound.' },
+            tier_label: { type: 'string', description: 'Short human label, e.g. "1-3 MW AC" or ">5 MW AC"' },
+            rate_cut_pct: { type: ['number', 'null'] },
+            one_time_fee_per_kw: { type: ['number', 'null'] },
+            annual_fee_per_kw_yr: { type: ['number', 'null'], description: 'CONVERT MONTHLY TO ANNUAL.' },
+            retroactive_one_time_fee_per_kw: { type: ['number', 'null'] },
+          },
+          required: ['tier_label', 'rate_cut_pct', 'one_time_fee_per_kw', 'annual_fee_per_kw_yr', 'retroactive_one_time_fee_per_kw'],
+        },
       },
 
       // Applicability
@@ -252,15 +273,21 @@ export default async function handlePolicyClassify(body, res) {
   //        extraction was unreliable; Haiku read the numbers in source but
   //        wouldn't populate raw_provisions JSON. Tool's required schema
   //        forces the model to emit structured fields.
+  //   v=6: mw_band_tiers support. Tool schema gained an optional tiers array;
+  //        when source has size-tiered rates the handler emits one draft per
+  //        tier with min_mw_ac/max_mw_ac set. Single-tier policies unchanged.
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     5,
+    v:     6,
     text:  usableText.trim(),
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',
   })
   const cached = await cacheGet(classifyKey)
   if (cached) {
-    return res.status(200).json({ draft: cached, cached: true })
+    // Cache may hold either a legacy single-draft object or an array of
+    // drafts (post v=6). Normalize to both shapes for the response.
+    const drafts = Array.isArray(cached) ? cached : [cached]
+    return res.status(200).json({ draft: drafts[0], drafts, cached: true })
   }
 
   // Cap input at 12K chars — bill text excerpts run longer than docket pages
@@ -323,32 +350,82 @@ export default async function handlePolicyClassify(body, res) {
       if (parsed[f] === '') parsed[f] = null
     }
 
-    // ── Derive impact from extracted raw_provisions + state baselines ────
-    const rawProvisions = parsed.raw_provisions || {}
+    // ── Tier expansion: build one draft per MW band ──────────────────────
+    // If the classifier emitted mw_band_tiers, generate N drafts (one per
+    // tier) — each with its own raw_provisions, min_mw_ac/max_mw_ac, and
+    // derived $/MW impacts against the same state baseline. Otherwise
+    // generate a single draft as before.
     const stateForDerive = (parsed.state || stateHint || '').toUpperCase()
-    if (stateForDerive) {
-      const derived = await deriveImpact(rawProvisions, stateForDerive)
-      Object.assign(parsed, derived.impacts)
-      const aiNote = parsed.impact_methodology ? `${parsed.impact_methodology}\n\n— Derived: ` : '— Derived: '
-      parsed.impact_methodology = aiNote + derived.methodology
-      parsed.discovery_metadata = {
-        ...(parsed.discovery_metadata || {}),
-        raw_provisions: rawProvisions,
-        baselines_used: derived.baselines,
+    const tiers = Array.isArray(parsed.mw_band_tiers) ? parsed.mw_band_tiers : []
+    const tierSpecs = tiers.length > 0
+      ? tiers.map(t => ({
+          min_mw_ac: t.min_mw_ac ?? null,
+          max_mw_ac: t.max_mw_ac ?? null,
+          tier_label: t.tier_label || null,
+          raw_provisions: {
+            rate_cut_pct:                    t.rate_cut_pct ?? null,
+            one_time_fee_per_kw:             t.one_time_fee_per_kw ?? null,
+            annual_fee_per_kw_yr:            t.annual_fee_per_kw_yr ?? null,
+            retroactive_one_time_fee_per_kw: t.retroactive_one_time_fee_per_kw ?? null,
+          },
+        }))
+      : [{
+          min_mw_ac: null,
+          max_mw_ac: null,
+          tier_label: null,
+          raw_provisions: parsed.raw_provisions || {},
+        }]
+
+    const drafts = []
+    for (const spec of tierSpecs) {
+      const tierDraft = { ...parsed }
+      // Strip the per-call tier scaffolding from the row payload.
+      delete tierDraft.mw_band_tiers
+      tierDraft.min_mw_ac = spec.min_mw_ac
+      tierDraft.max_mw_ac = spec.max_mw_ac
+      tierDraft.raw_provisions = spec.raw_provisions
+
+      if (stateForDerive) {
+        const derived = await deriveImpact(spec.raw_provisions, stateForDerive)
+        Object.assign(tierDraft, derived.impacts)
+        const tierTag = spec.tier_label ? ` [${spec.tier_label}]` : ''
+        const aiNote = parsed.impact_methodology ? `${parsed.impact_methodology}\n\n— Derived${tierTag}: ` : `— Derived${tierTag}: `
+        tierDraft.impact_methodology = aiNote + derived.methodology
+        tierDraft.discovery_metadata = {
+          ...(parsed.discovery_metadata || {}),
+          raw_provisions: spec.raw_provisions,
+          baselines_used: derived.baselines,
+          tier_label: spec.tier_label,
+          tier_index: drafts.length,
+          tier_count: tierSpecs.length,
+        }
+      } else {
+        tierDraft.discovery_metadata = {
+          ...(parsed.discovery_metadata || {}),
+          raw_provisions: spec.raw_provisions,
+          tier_label: spec.tier_label,
+          tier_index: drafts.length,
+          tier_count: tierSpecs.length,
+        }
       }
+
+      tierDraft.impact_confidence = computeImpactConfidence(spec.raw_provisions)
+      tierDraft.review_status = 'pending_admin_review'
+      tierDraft.discovered_via = tierDraft.discovered_via || 'manual'
+
+      // Per-tier event_name: append tier label so multi-tier policies have
+      // distinguishable row titles in the admin list.
+      if (spec.tier_label && tierSpecs.length > 1) {
+        tierDraft.event_name = `${parsed.event_name} (${spec.tier_label})`
+      }
+
+      drafts.push(tierDraft)
     }
 
-    // Derive confidence from extraction completeness (not from the model's
-    // self-assessment). 2+ provisions = high, 1 = medium, 0 = low.
-    parsed.impact_confidence = computeImpactConfidence(rawProvisions)
-
-    // Drafts from this path always land in the admin review queue.
-    parsed.review_status  = 'pending_admin_review'
-    parsed.discovered_via = parsed.discovered_via || 'manual'
-
-    cacheSet(classifyKey, 'policy-classify', parsed, 24 * 60 * 60)
+    cacheSet(classifyKey, 'policy-classify', drafts, 24 * 60 * 60)
     return res.status(200).json({
-      draft:        parsed,
+      draft:        drafts[0],     // backwards-compat: single-draft consumers
+      drafts,                       // tier-aware consumers iterate this
       fetchedUrl:   expanded.fetched ? expanded.fetchedFrom : null,
       fetchedBytes: expanded.fetched ? expanded.fetchedBytes : null,
     })

@@ -44,11 +44,43 @@ CRITICAL RULES — read carefully before responding.
    reference them in analyst_note for context, but the structured field
    is mandatory if the source has the number.
 
-2. If the source has TIERED fees (different rates for different MW bands),
-   extract the MIDDLE / most representative tier into annual_fee_per_kw_yr
-   and note the tier structure in analyst_note. The handler's derivation
-   is per-MW; the Lens prompt will then surface the tier nuance from the
-   analyst_note for sensitivity reasoning.
+2. TIERED FEES — when source defines DIFFERENT rates for DIFFERENT MW
+   bands, emit ONE entry in mw_band_tiers PER tier. The handler will
+   create one policy_impact_events ROW per tier, each with its own
+   min_mw_ac / max_mw_ac and derived $/MW impact. This is critical for
+   accuracy: a 5 MW project should see the 3-5 MW tier's $72/kW/yr, not
+   the 1-3 MW tier's $33.60/kW/yr.
+
+   WORKED EXAMPLE — Maine LD 1777 with two tiers:
+     Input text: "Projects 1-3 MW AC charged $2.80/kW AC monthly;
+                  projects 3-5 MW AC charged $6/kW AC monthly."
+
+     CORRECT mw_band_tiers OUTPUT:
+       [
+         {
+           "min_mw_ac": 1, "max_mw_ac": 3,
+           "tier_label": "1-3 MW AC",
+           "rate_cut_pct": null,
+           "one_time_fee_per_kw": null,
+           "annual_fee_per_kw_yr": 33.60,
+           "retroactive_one_time_fee_per_kw": null
+         },
+         {
+           "min_mw_ac": 3, "max_mw_ac": 5,
+           "tier_label": "3-5 MW AC",
+           "rate_cut_pct": null,
+           "one_time_fee_per_kw": null,
+           "annual_fee_per_kw_yr": 72.00,
+           "retroactive_one_time_fee_per_kw": null
+         }
+       ]
+     // ALSO populate the top-level raw_provisions with the FIRST tier's
+     // numbers (for backwards compatibility and as the "primary" tier
+     // shown if a downstream consumer can't handle multi-row).
+
+   When source has NO tiered structure (single uniform fee), set
+   mw_band_tiers to [] (empty array) and just populate raw_provisions
+   as usual.
 
 3. NEVER populate the four DERIVED impact fields directly:
    - capex_impact_per_mw_usd

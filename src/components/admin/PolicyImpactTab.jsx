@@ -274,8 +274,8 @@ export default function PolicyImpactTab() {
       safe_harbor_notes:              d.safe_harbor_notes || null,
       feoc_compliance_required:       !!d.feoc_compliance_required,
       feoc_notes:                     d.feoc_notes || null,
-      min_mw_ac:                      null,
-      max_mw_ac:                      null,
+      min_mw_ac:                      d.min_mw_ac ?? null,
+      max_mw_ac:                      d.max_mw_ac ?? null,
       applicable_technologies:        parseList(opts.applicable_technologies_text),
       applicable_stages:              parseList(opts.applicable_stages_text),
       summary:                        d.summary || '',
@@ -305,26 +305,43 @@ export default function PolicyImpactTab() {
         stateHint:     classifyStateHint.trim(),
         eventNameHint: classifyEventHint.trim(),
       })
-      const d = json.draft
+      // Tiered policies return drafts[] (one per MW band). Single-tier
+      // policies still return drafts=[draft]. Iterate uniformly.
+      const drafts = Array.isArray(json.drafts) && json.drafts.length > 0
+        ? json.drafts
+        : (json.draft ? [json.draft] : [])
+      const d = drafts[0]
 
-      // Auto-publish path: skip the form entirely, upsert published row.
+      // Auto-publish path: skip the form entirely, upsert each tier as its
+      // own published row. Multi-tier policies (e.g. ME LD 1777 with 1-3 MW
+      // and 3-5 MW bands) produce N rows so a 2 MW vs 5 MW project gets
+      // the right fee.
       if (autoPublish) {
-        const payload = buildPayloadFromDraft(d, {
-          stateHint:        classifyStateHint.trim(),
-          eventHint:        classifyEventHint.trim(),
-          publish:          true,
-          fallbackSourceUrl: /^https?:\/\//i.test(classifyText.trim()) ? classifyText.trim().split(/\s/)[0] : '',
-        })
-        if (!payload.state || !payload.event_name) {
-          setClassifyError('Draft missing state or event name — switch off auto-publish and review manually.')
+        if (!d) {
+          setClassifyError('Classifier returned no drafts — paste the article text manually instead.')
           setClassifying(false)
           return
         }
-        await upsertPolicyImpactEvent(payload)
+        let publishedCount = 0
+        for (const tierDraft of drafts) {
+          const payload = buildPayloadFromDraft(tierDraft, {
+            stateHint:        classifyStateHint.trim(),
+            eventHint:        classifyEventHint.trim(),
+            publish:          true,
+            fallbackSourceUrl: /^https?:\/\//i.test(classifyText.trim()) ? classifyText.trim().split(/\s/)[0] : '',
+          })
+          if (!payload.state || !payload.event_name) {
+            setClassifyError('Draft missing state or event name — switch off auto-publish and review manually.')
+            setClassifying(false)
+            return
+          }
+          await upsertPolicyImpactEvent(payload)
+          publishedCount++
+        }
         setClassifyText('')
         setClassifyStateHint('')
         setClassifyEventHint('')
-        setClassifyHint(json.cached ? 'cached' : 'fresh')
+        setClassifyHint(`${json.cached ? 'cached' : 'fresh'}${publishedCount > 1 ? ` · ${publishedCount} tiers` : ''}`)
         setClassifyFetchedUrl(json.fetchedUrl || null)
         await load()
         setClassifying(false)
