@@ -29,23 +29,35 @@ function colorForScore(score) {
   return '#DC2626'                      // red
 }
 
-// Animated arc — CSS transition on stroke-dasharray. Cheap enough to
-// scale to 50+ rows (no motion springs); satisfies "Cards-view animation
-// vibes in the Table view too" without the per-row spring tax. On mount
-// the arc paints at 0 then transitions to the target value, mirroring
-// the GaugeFill primitive's vocabulary but lighter weight.
+// Animated arc + count-up number, driven by a single requestAnimationFrame
+// loop per row. Number and arc derive from the SAME `display` value so
+// they stay in lockstep — never a frame where the arc is at 60% but the
+// number reads 0. Cubic ease-out (1 − (1 − t)^3) matches the same curve
+// the Phase 0 GaugeFill primitive + the Cards-view MiniArcGauge animate
+// with (`[0.16, 1, 0.3, 1]` cubic-bezier). Lighter than motion springs
+// — one setState per frame per row × 48 frames = ~2400 updates over the
+// 800ms reveal, well within React 18's frame budget at 50 rows.
 function TableScoreArc({ score, size = 28 }) {
   const color = colorForScore(score)
   const target = score == null ? 0 : Math.max(0, Math.min(100, score))
-  // mounted=false → arc draws at 0. The next paint flips to true,
-  // triggering the CSS transition to `target`. requestAnimationFrame
-  // (not setTimeout) so the browser commits the initial paint first.
-  const [mounted, setMounted] = useState(false)
+  const [display, setDisplay] = useState(0)
+
   useEffect(() => {
-    const id = requestAnimationFrame(() => setMounted(true))
-    return () => cancelAnimationFrame(id)
-  }, [])
-  const dash = `${mounted ? target : 0}, 100`
+    let raf
+    let startTime = null
+    const duration = 800
+    const step = (now) => {
+      if (startTime === null) startTime = now
+      const t = Math.min((now - startTime) / duration, 1)
+      const eased = 1 - Math.pow(1 - t, 3)
+      setDisplay(target * eased)
+      if (t < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target])
+
+  const dash = `${display}, 100`
   return (
     <div className="shrink-0 relative mx-auto" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox="0 0 36 36" className="-rotate-90">
@@ -62,14 +74,13 @@ function TableScoreArc({ score, size = 28 }) {
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={dash}
-          style={{ transition: 'stroke-dasharray 800ms cubic-bezier(0.16, 1, 0.3, 1)' }}
         />
       </svg>
       <span
         className="absolute inset-0 flex items-center justify-center text-[10px] font-bold tabular-nums leading-none"
         style={{ color }}
       >
-        {score == null ? '—' : score}
+        {score == null ? '—' : Math.round(display)}
       </span>
     </div>
   )
@@ -154,14 +165,11 @@ export default function ProjectTable({
         <HeaderCell align="center">Score</HeaderCell>
         <HeaderCell>Project</HeaderCell>
         <HeaderCell>Location</HeaderCell>
-        {/* MW header gets a matching pr-3 to align with the right-padded
-            cell values below — keeps the header label vertically aligned
-            with each row's MW number. */}
-        <span className="pr-3"><HeaderCell align="right">MW</HeaderCell></span>
+        <HeaderCell align="center">MW</HeaderCell>
         <HeaderCell>Tech</HeaderCell>
         <HeaderCell>Stage</HeaderCell>
         <HeaderCell align="center">Alerts</HeaderCell>
-        <HeaderCell align="right">Saved</HeaderCell>
+        <HeaderCell align="center">Saved</HeaderCell>
       </div>
 
       {/* Rows wrapper. overflow-hidden is safe here — sticky is its
@@ -225,7 +233,7 @@ export default function ProjectTable({
                   {p.county ? `${p.county}, ${p.state}` : p.state || '—'}
                 </span>
 
-                <span className="text-[12px] font-mono tabular-nums font-semibold text-ink text-right pr-3">
+                <span className="text-[12px] font-mono tabular-nums font-semibold text-ink text-center">
                   {p.mw ?? '—'}
                 </span>
 
@@ -235,7 +243,7 @@ export default function ProjectTable({
 
                 <AlertDot alerts={alerts} />
 
-                <span className="text-[11px] font-mono tabular-nums text-gray-500 text-right">
+                <span className="text-[11px] font-mono tabular-nums text-gray-500 text-center">
                   {relativeDate(p.savedAt)}
                 </span>
               </button>
