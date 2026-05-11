@@ -18,10 +18,14 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
   // soft amber wash — NOT green. The user-visible orange-on-amber
   // consistency lines up with the "Utility · Queue · Study Window"
   // panel directly above.
+  // Severity color scale aligns to the eyebrow header tone above ("Utility ·
+  // Queue · Study Window" uses text-amber-800 = #92400E). Low sits at the
+  // muted/healthy end of the amber family; Moderate brightens; High deepens
+  // to red-amber. Monotonic and consistent with the header tone.
   const CONGESTION = {
     high:     { label: 'High Congestion',     color: '#B45309', bg: 'rgba(180,83,9,0.10)' },
     moderate: { label: 'Moderate Congestion',  color: '#D97706', bg: 'rgba(217,119,6,0.08)' },
-    low:      { label: 'Low Congestion',       color: '#D97706', bg: 'rgba(217,119,6,0.04)' },
+    low:      { label: 'Low Congestion',       color: '#92400E', bg: 'rgba(217,119,6,0.04)' },
   }
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 

@@ -939,6 +939,11 @@ function SearchContent() {
                 pre-revenue and curation cadence is light. Admin tab
                 stays available so curation infrastructure is ready
                 when we have paying users to justify the labor. */}
+            {/* Quiet visual break between § 04 (Pillar Diagnostics + shadow
+                pillar) and § 05 (Comparable Deals & Benchmarks). Matches
+                the SectionDivider rhythm used elsewhere in the codebase. */}
+            <SectionDivider />
+
             {/* § 05 · Comparable Deals & Benchmarks — three collapsibles
                 (Operating Projects, Comparable Deals, Market Benchmarks)
                 under one SectionMarker. Section hides when none of the
