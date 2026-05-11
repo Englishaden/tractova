@@ -913,23 +913,17 @@ function SearchContent() {
               />
             </div>
 
-            {/* Shadow pillar TEMPORARILY DISABLED 2026-05-11 — OOM debug.
-                Aden reported Lens crashing with Chrome "Aw snap" / Out of
-                Memory after Phase 0 changes. PageTransition revert (238169a)
-                + CollapsibleSubsection height-animation drop (ddc9173) did
-                NOT fix it. Suspecting the data fetch volume in policyEvents
-                or §05 datasets, OR the simultaneous mount of all the new
-                sections. Disabling visible mount to restore working Lens
-                while we diagnose. PIE-001 data still flows into Scenario
-                Studio + composite via results.policyEvents. */}
-            {false && (
-              <LensPolicyClimateSection
-                policyEvents={results.policyEvents || []}
-                stateName={results.stateProgram?.name || results.form.state}
-                mw={results.form.mw}
-                technology={results.form.technology}
-              />
-            )}
+            {/* Shadow pillar — re-enabled 2026-05-11 in OOM bisect step.
+                Step 1: re-enable this (lighter — uses existing
+                results.policyEvents, no new fetch). If Lens still crashes,
+                this is the culprit. § 05 (LensComparablesSection) stays
+                disabled below until bisect confirms shadow pillar is fine. */}
+            <LensPolicyClimateSection
+              policyEvents={results.policyEvents || []}
+              stateName={results.stateProgram?.name || results.form.state}
+              mw={results.form.mw}
+              technology={results.form.technology}
+            />
             </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
