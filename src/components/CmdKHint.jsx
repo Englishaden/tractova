@@ -11,13 +11,21 @@ import { useAuth } from '../context/AuthContext'
 // reachable. Label adapts: ⌘K on Mac, Ctrl K on PC, TAP on touch.
 
 function detectPlatform() {
-  if (typeof navigator === 'undefined') return { isMac: false, isTouch: false }
+  if (typeof navigator === 'undefined') return { isMac: false, showTap: false }
   const ua = navigator.userAgent || ''
   const isMac = /Mac|iPhone|iPod|iPad/.test(ua)
-  // iPad on iPadOS 13+ reports as Mac in UA but is touch-only; treat as touch.
-  const isTouch = (typeof window !== 'undefined' && 'ontouchstart' in window) ||
-                  (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0)
-  return { isMac, isTouch }
+  // Mobile detection via UA only. We deliberately don't use
+  // navigator.maxTouchPoints / 'ontouchstart' here — many Windows laptops
+  // (Precision Touchpad, touch-screen Surface, etc.) report touch
+  // capability but still want the keyboard shortcut affordance. Only
+  // phones + tablets running mobile browsers should get "TAP".
+  const showTap = /Mobi|Android|iPhone|iPod/i.test(ua) ||
+                  // iPad on iPadOS 13+ reports as Mac in UA but is touch-only;
+                  // distinguish via the explicit iPad string or the
+                  // Mac+touch-only combination.
+                  (/iPad/i.test(ua)) ||
+                  (isMac && navigator.maxTouchPoints > 1)
+  return { isMac, showTap }
 }
 
 const IDLE_MS = 5000
@@ -54,7 +62,7 @@ export default function CmdKHint() {
     } catch { /* SSR-safe */ }
   }
 
-  const keyLabel = platform.isTouch
+  const keyLabel = platform.showTap
     ? 'TAP'
     : platform.isMac ? '⌘K' : 'Ctrl K'
 

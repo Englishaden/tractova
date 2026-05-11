@@ -321,13 +321,23 @@ function runLens(rawArgs, stateIds, hasTrailingSpace) {
   if (mw)   params.set('mw', mw)
   if (tech) params.set('technology', tech)
   const labelBits = [stateRaw, mw ? `${mw} MW` : null, tech].filter(Boolean).join(' · ')
+
+  // Spell out what the Lens form gets pre-filled with + what's still
+  // required, so the user knows exactly what they're landing on. The
+  // Lens form requires state + county + MW + stage + technology to run.
+  const missing = ['county']
+  if (!mw)   missing.push('MW')
+  missing.push('stage')
+  if (!tech) missing.push('technology')
+  const hint = `Pre-fills Lens with ${labelBits}. Add ${missing.join(' + ')} to run.`
+
   return {
     kind: 'verb',
     verb: 'lens',
     items: [{
       kind: 'verb-go',
-      label: `Run Lens — ${labelBits}`,
-      hint:  'Press Enter to open Lens',
+      label: `Open Lens — ${labelBits}`,
+      hint,
       path:  `/search?${params.toString()}`,
     }],
   }

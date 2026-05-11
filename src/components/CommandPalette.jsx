@@ -263,18 +263,23 @@ export default function CommandPalette() {
             </RadixDialog.Overlay>
             <RadixDialog.Content asChild>
               <motion.div
-                className="fixed left-1/2 top-[20%] z-50 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-2xl outline-hidden overflow-hidden"
-                style={{ border: '1px solid #E2E8F0' }}
+                // Position: top-[10vh] gives headroom on shorter / zoomed-in
+                // viewports. The whole palette is a vertical flex column with
+                // a hard max-height of viewport minus 4rem so it never
+                // overflows. The results body is the only flex-shrinking
+                // section — everything else stays at its natural size.
+                className="fixed left-1/2 top-[10vh] z-50 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-2xl outline-hidden overflow-hidden flex flex-col"
+                style={{ border: '1px solid #E2E8F0', maxHeight: 'calc(100vh - 4rem)' }}
                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
                 transition={{ duration: 0.16, ease: 'easeOut' }}
               >
-                <div className="h-[3px] w-full" style={{ background: isVerbMode ? '#0F1A2E' : '#14B8A6' }} />
+                <div className="h-[3px] w-full shrink-0" style={{ background: isVerbMode ? '#0F1A2E' : '#14B8A6' }} />
                 <RadixDialog.Title className="sr-only">Command Palette</RadixDialog.Title>
                 <RadixDialog.Description className="sr-only">Quick search or run a Cmd-K verb</RadixDialog.Description>
 
-                <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: '#E2E8F0' }}>
+                <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0" style={{ borderColor: '#E2E8F0' }}>
                   {isVerbMode ? (
                     // Terminal-style mono prompt — reads as `:>` in a research
                     // terminal, signaling we're in the keyboard-grammar mode.
@@ -304,7 +309,7 @@ export default function CommandPalette() {
                     eyebrow-mono label carries the meaning. */}
                 {(verbHint || verbError) && (
                   <div
-                    className="flex items-center gap-2 px-4 py-1.5 border-b eyebrow-mono"
+                    className="flex items-center gap-2 px-4 py-1.5 border-b eyebrow-mono shrink-0"
                     style={{
                       background: verbError ? 'rgba(220,38,38,0.05)' : '#F9FAFB',
                       borderColor: '#E2E8F0',
@@ -317,7 +322,10 @@ export default function CommandPalette() {
                   </div>
                 )}
 
-                <div className="max-h-[60vh] overflow-y-auto">
+                {/* Results — the only flex-shrinking section. flex-1 +
+                    min-h-0 lets it absorb whatever space remains after the
+                    fixed-size rows (header, banner, recents, footer). */}
+                <div className="flex-1 min-h-0 overflow-y-auto">
                   {items.length === 0 ? (
                     <p className="text-xs text-ink-muted text-center py-6">
                       {verbError ? 'No matches' : 'No matches'}
@@ -375,7 +383,7 @@ export default function CommandPalette() {
 
                 {/* Recent actions — scoped to user, top 5, hidden when verb mode or empty */}
                 {!isVerbMode && !q.trim() && recents.length > 0 && (
-                  <div className="border-t" style={{ borderColor: '#E2E8F0', background: '#FAFBFC' }}>
+                  <div className="border-t shrink-0 max-h-[28vh] overflow-y-auto" style={{ borderColor: '#E2E8F0', background: '#FAFBFC' }}>
                     <div className="px-4 pt-2 pb-1 eyebrow-mono" style={{ color: '#5A6B7A' }}>RECENT</div>
                     <ul>
                       {recents.slice(0, RECENTS_SHOW).map((r, i) => (
@@ -400,7 +408,7 @@ export default function CommandPalette() {
                   </div>
                 )}
 
-                <div className="px-4 py-2 border-t flex items-center justify-between text-[10px] font-mono text-ink-muted" style={{ borderColor: '#E2E8F0', background: '#F9FAFB' }}>
+                <div className="px-4 py-2 border-t flex items-center justify-between text-[10px] font-mono text-ink-muted shrink-0" style={{ borderColor: '#E2E8F0', background: '#F9FAFB' }}>
                   <div className="flex items-center gap-3 flex-wrap">
                     <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↑↓</span> navigate</span>
                     <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↵</span> open</span>
