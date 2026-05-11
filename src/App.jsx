@@ -14,6 +14,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import ScrollToTop from './components/ScrollToTop'
 import ErrorBoundary from './components/ErrorBoundary'
 import MobileGate from './components/MobileGate'
+import { PageTransition } from './components/motion/MotionPrimitives'
 
 // Eagerly loaded -- on the critical path for new visitors and most
 // signed-in returns (Dashboard is the home for authed users; Landing
@@ -66,57 +67,63 @@ export default function App() {
         <TooltipProvider delayDuration={200}>
         <ToastProvider>
         <Nav />
+        {/* Suspense OUTSIDE PageTransition so lazy chunks don't double-mount
+            on route change. PageTransition is keyed on pathname inside — it
+            wraps the per-route render in a motion.div without unmounting the
+            Suspense boundary. */}
         <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            {/* Public routes */}
-            <Route path="/"       element={<HomeRoute />} />
-            <Route path="/signin"          element={<SignIn />} />
-            <Route path="/signup"          element={<SignUp />} />
-            <Route path="/upgrade-success" element={<UpgradeSuccess />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
-            <Route path="/preview"         element={<Dashboard previewMode />} />
+          <PageTransition>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/"       element={<HomeRoute />} />
+              <Route path="/signin"          element={<SignIn />} />
+              <Route path="/signup"          element={<SignUp />} />
+              <Route path="/upgrade-success" element={<UpgradeSuccess />} />
+              <Route path="/update-password" element={<UpdatePassword />} />
+              <Route path="/preview"         element={<Dashboard previewMode />} />
 
-            {/* Gated routes — require sign-in */}
-            <Route
-              path="/search"
-              element={
-                <ProtectedRoute message="Sign in to access Tractova Lens intelligence reports.">
-                  <Search />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/library"
-              element={
-                <ProtectedRoute message="Sign in to view and manage your saved projects.">
-                  <Library />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/glossary" element={<Glossary />} />
-            <Route path="/admin" element={<Admin />} />
-            {/* DEV-ONLY: dedicated crash route so the audit suite can verify
-                the ErrorBoundary catches render errors without polluting any
-                real component. import.meta.env.DEV is true under `vite dev`
-                (which is what Playwright runs against) and false in `vite
-                build`, so this is invisible in production bundles. */}
-            {import.meta.env.DEV && (
-              <Route path="/_e2e/crash" element={<DevCrashTest />} />
-            )}
-            {/* Public legal pages — no auth */}
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms"   element={<Terms />} />
-            {/* Public read-only Deal Memo by share token (no auth) */}
-            <Route path="/memo/:token" element={<MemoView />} />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute message="Sign in to view your profile.">
-                  <Profile />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
+              {/* Gated routes — require sign-in */}
+              <Route
+                path="/search"
+                element={
+                  <ProtectedRoute message="Sign in to access Tractova Lens intelligence reports.">
+                    <Search />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/library"
+                element={
+                  <ProtectedRoute message="Sign in to view and manage your saved projects.">
+                    <Library />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/glossary" element={<Glossary />} />
+              <Route path="/admin" element={<Admin />} />
+              {/* DEV-ONLY: dedicated crash route so the audit suite can verify
+                  the ErrorBoundary catches render errors without polluting any
+                  real component. import.meta.env.DEV is true under `vite dev`
+                  (which is what Playwright runs against) and false in `vite
+                  build`, so this is invisible in production bundles. */}
+              {import.meta.env.DEV && (
+                <Route path="/_e2e/crash" element={<DevCrashTest />} />
+              )}
+              {/* Public legal pages — no auth */}
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/terms"   element={<Terms />} />
+              {/* Public read-only Deal Memo by share token (no auth) */}
+              <Route path="/memo/:token" element={<MemoView />} />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute message="Sign in to view your profile.">
+                    <Profile />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </PageTransition>
         </Suspense>
         <Footer />
         <CompareTray />

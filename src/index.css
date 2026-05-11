@@ -180,6 +180,37 @@
 .health-ring-2 { animation-delay: 0.8s; }
 .health-ring-3 { animation-delay: 1.6s; }
 
+/* Phase 0 — Skeleton shimmer for branded loading states. Slower + lower
+   contrast than Tailwind's default animate-pulse so it reads as
+   research-grade loading rather than generic web app. */
+@keyframes skeleton-shimmer {
+  0%   { background-color: #F1F5F9; }
+  50%  { background-color: #E2E8F0; }
+  100% { background-color: #F1F5F9; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[skeleton-shimmer_1\.6s_ease-in-out_infinite\] { animation: none !important; }
+}
+
+/* Phase 0 — Responsive mono-eyebrow utility. Used app-wide for §
+   markers, card headers, panel labels. Drops slightly tighter on
+   mobile so very-wide tracking doesn't break readability at small
+   widths. Canonical desktop pattern: text-[9px] tracking-[0.24em]. */
+.eyebrow-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+@media (min-width: 768px) {
+  .eyebrow-mono {
+    font-size: 9px;
+    letter-spacing: 0.24em;
+  }
+}
+
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;

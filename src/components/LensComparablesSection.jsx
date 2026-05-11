@@ -10,6 +10,7 @@ import ComparableDealsPanel from './ComparableDealsPanel'
 import CsMarketPanel from './CsMarketPanel'
 import SpecificYieldPanel from './SpecificYieldPanel'
 import GlossaryLabel from './ui/GlossaryLabel'
+import CollapsibleSubsection from './CollapsibleSubsection'
 
 // § 05 · Comparable Deals & Benchmarks
 //
@@ -33,35 +34,32 @@ import GlossaryLabel from './ui/GlossaryLabel'
 //
 // Section hides entirely if all three datasets are empty for the state.
 
-function CollapsibleSubsection({ title, glossaryTerm, description, defaultOpen = false, count, empty = false, children }) {
-  const [open, setOpen] = useState(defaultOpen)
+// Wrapper around the shared CollapsibleSubsection so the existing call
+// sites here can keep their `glossaryTerm` / `count` / `empty` props
+// without changing shape. Glossary tooltip + count badge + (no data
+// yet) hint are local concerns; the shared component handles motion +
+// a11y.
+function LensComparableSubsection({ title, glossaryTerm, description, defaultOpen = false, count, empty = false, children }) {
   const header = glossaryTerm
-    ? <GlossaryLabel term={glossaryTerm} displayAs={title} className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink" />
-    : <span className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink">{title}</span>
+    ? <GlossaryLabel term={glossaryTerm} displayAs={title} className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink shrink-0" />
+    : <span className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink shrink-0">{title}</span>
+
+  const descNode = (
+    <>
+      {description}
+      {count != null && <> · <span className="font-mono">{count}</span></>}
+      {empty && <span className="font-mono text-[10px] ml-1.5" style={{ color: '#94A3B8' }}>(no data yet)</span>}
+    </>
+  )
 
   return (
-    <div className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-3 text-left"
-      >
-        <div className="flex items-baseline gap-3 flex-wrap">
-          {header}
-          <span className="text-[11px] text-gray-500">
-            {description}
-            {count != null && <span> · <span className="font-mono">{count}</span></span>}
-            {empty && <span className="font-mono text-[10px] ml-1.5" style={{ color: '#94A3B8' }}>(no data yet)</span>}
-          </span>
-        </div>
-        <span className="text-[10px] text-gray-500">{open ? '▲' : '▼'}</span>
-      </button>
-      {open && (
-        <div className="border-t border-gray-100 px-5 py-4">
-          {children}
-        </div>
-      )}
-    </div>
+    <LensComparableSubsection
+      title={header}
+      description={descNode}
+      defaultOpen={defaultOpen}
+    >
+      {children}
+    </LensComparableSubsection>
   )
 }
 
@@ -126,7 +124,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
     <>
       <SectionMarker index={5} label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates" />
       <div className="space-y-3">
-        <CollapsibleSubsection
+        <LensComparableSubsection
           title="◆ Operating Projects"
           glossaryTerm="Operating Projects"
           description={`NREL Sharing the Sun · ground-truth ${stateName} operating CS`}
@@ -138,9 +136,9 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
             ? <CsMarketPanel state={state} stateName={stateName} mw={mw} />
             : <EmptyState message={`No operating community-solar projects seeded for ${stateName} yet. NREL Sharing the Sun is loaded for the highest-volume CS markets; states with light operational deployment may not have rows here yet.`} />
           }
-        </CollapsibleSubsection>
+        </LensComparableSubsection>
 
-        <CollapsibleSubsection
+        <LensComparableSubsection
           title="◆ Comparable Deals"
           glossaryTerm="Comparable Deals"
           description="point-estimate examples · sized ±50% to 2× of your project"
@@ -151,9 +149,9 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
             ? <ComparableDealsPanel state={state} stateName={stateName} technology={technology} mw={mw} />
             : <EmptyState message={`No comparable deals curated for ${stateName} yet. Paste news article URLs into the Comparable Deals admin tab to seed rows (admin curation flow — coming soon).`} />
           }
-        </CollapsibleSubsection>
+        </LensComparableSubsection>
 
-        <CollapsibleSubsection
+        <LensComparableSubsection
           title="◆ Market Benchmarks"
           glossaryTerm="Market Benchmarks"
           description="observed kWh/kW yield from operating CS projects · ground truth for the modeled assumption"
@@ -164,7 +162,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
             ? <SpecificYieldPanel state={state} stateName={stateName} mw={mw} />
             : <EmptyState message={`No specific-yield observations for ${stateName} yet. Need at least 3 operating projects with reported kWh/kW for a meaningful state benchmark.`} />
           }
-        </CollapsibleSubsection>
+        </LensComparableSubsection>
       </div>
     </>
   )

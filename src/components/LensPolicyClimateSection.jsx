@@ -16,6 +16,7 @@
 
 import { useState } from 'react'
 import GlossaryLabel from './ui/GlossaryLabel'
+import CollapsibleSubsection from './CollapsibleSubsection'
 
 const PILLAR_LABELS = {
   offtake:         '◆ Offtake',
@@ -103,7 +104,6 @@ function PolicyEventRow({ event }) {
 }
 
 export default function LensPolicyClimateSection({ policyEvents, stateName, mw, technology }) {
-  const [open, setOpen] = useState(true)
   if (!Array.isArray(policyEvents) || policyEvents.length === 0) return null
 
   // Filter: published + active rows only. Don't MW-band-filter here — the
@@ -122,58 +122,58 @@ export default function LensPolicyClimateSection({ policyEvents, stateName, mw, 
 
   const highConfCount = active.filter(e => e.impact_confidence === 'high').length
 
-  return (
-    <div className="bg-white rounded-lg overflow-hidden relative" style={{ border: '1px solid #E2E8F0', borderLeft: '3px solid #0A1828' }}>
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-5 py-3 text-left"
-      >
-        <div className="flex items-baseline gap-3 flex-wrap">
-          <GlossaryLabel
-            term="Active Policy"
-            displayAs="◆ Active Policy Climate"
-            className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink"
-          />
-          <span className="text-[11px] text-gray-500">
-            shadow pillar · {active.length} event{active.length !== 1 ? 's' : ''} for {stateName}
-            {highConfCount > 0 && (
-              <>
-                {' · '}
-                <GlossaryLabel term="Modeled in financials" displayAs={`${highConfCount} modeled`} className="text-[11px] text-gray-500" />
-              </>
-            )}
-          </span>
-        </div>
-        <span className="text-[10px] text-gray-500">{open ? '▲' : '▼'}</span>
-      </button>
-      {open && (
-        <div className="px-5 pb-4 pt-1 space-y-4 border-t border-gray-100">
-          <p className="text-[11px] text-gray-500 leading-relaxed pt-3">
-            Cross-cutting and per-pillar policy events for this state. The chips on each
-            pillar card above show only the events filed to that pillar; this section is
-            the complete view across all four pillars (including the cross-cutting events
-            that don't have a single home).
-            <GlossaryLabel term="Modeled in financials" displayAs=" High-confidence rows" className="text-[11px] text-gray-500" />
-            {' '}feed Scenario Studio + composite; medium/low rows are{' '}
-            <GlossaryLabel term="Qualitative — not modeled" displayAs="qualitative" className="text-[11px] text-gray-500" />.
-          </p>
-          {PILLAR_ORDER.map(pillar => {
-            const rows = byPillar[pillar]
-            if (rows.length === 0) return null
-            return (
-              <div key={pillar} className="space-y-1.5">
-                <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-500">
-                  {PILLAR_LABELS[pillar]}
-                </div>
-                <div className="space-y-1.5">
-                  {rows.map(e => <PolicyEventRow key={e.id} event={e} />)}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+  const title = (
+    <GlossaryLabel
+      term="Active Policy"
+      displayAs="◆ Active Policy Climate"
+      className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink shrink-0"
+    />
+  )
+
+  const description = (
+    <>
+      shadow pillar · {active.length} event{active.length !== 1 ? 's' : ''} for {stateName}
+      {highConfCount > 0 && (
+        <>
+          {' · '}
+          <GlossaryLabel term="Modeled in financials" displayAs={`${highConfCount} modeled`} className="text-[11px] text-gray-500" />
+        </>
       )}
-    </div>
+    </>
+  )
+
+  return (
+    <CollapsibleSubsection
+      title={title}
+      description={description}
+      defaultOpen
+      borderLeft="#0A1828"
+    >
+      <p className="text-[11px] text-gray-500 leading-relaxed">
+        Cross-cutting and per-pillar policy events for this state. The chips on each
+        pillar card above show only the events filed to that pillar; this section is
+        the complete view across all four pillars (including the cross-cutting events
+        that don't have a single home).
+        <GlossaryLabel term="Modeled in financials" displayAs=" High-confidence rows" className="text-[11px] text-gray-500" />
+        {' '}feed Scenario Studio + composite; medium/low rows are{' '}
+        <GlossaryLabel term="Qualitative — not modeled" displayAs="qualitative" className="text-[11px] text-gray-500" />.
+      </p>
+      <div className="mt-4 space-y-4">
+        {PILLAR_ORDER.map(pillar => {
+          const rows = byPillar[pillar]
+          if (rows.length === 0) return null
+          return (
+            <div key={pillar} className="space-y-1.5">
+              <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-500">
+                {PILLAR_LABELS[pillar]}
+              </div>
+              <div className="space-y-1.5">
+                {rows.map(e => <PolicyEventRow key={e.id} event={e} />)}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </CollapsibleSubsection>
   )
 }
