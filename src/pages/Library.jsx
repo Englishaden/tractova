@@ -867,55 +867,11 @@ function LibraryContent() {
                 )
               })()}
 
-              {/* Filter + sort bar — uses FilterSelect (custom popup) for
-                  visual parity with the Lens form's FieldSelect. Native
-                  <select> elements were inconsistent with the rest of the
-                  app's polish and impossible to style cross-browser. */}
-              <div className="mt-4 flex items-center gap-2 flex-wrap">
-                <FilterSelect
-                  value={filterState}
-                  onChange={setFilterState}
-                  placeholder="All States"
-                  ariaLabel="Filter by state"
-                  options={[...new Set(projects.map(p => p.state))].sort()}
-                />
-                <FilterSelect
-                  value={filterTech}
-                  onChange={setFilterTech}
-                  placeholder="All Tech"
-                  ariaLabel="Filter by technology"
-                  options={[...new Set(projects.map(p => p.technology).filter(Boolean))].sort()}
-                  optionTooltips={TECH_FILTER_TOOLTIPS}
-                />
-                <FilterSelect
-                  value={filterStage}
-                  onChange={setFilterStage}
-                  placeholder="All Stages"
-                  ariaLabel="Filter by stage"
-                  options={PIPELINE_STAGES}
-                />
-
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium text-gray-400">Sort:</span>
-                  {[
-                    { key: 'saved', label: 'Recent' },
-                    { key: 'score', label: 'Score' },
-                    { key: 'mw',    label: 'MW' },
-                    { key: 'alerts', label: 'Alerts' },
-                  ].map(s => (
-                    <button
-                      key={s.key}
-                      onClick={() => setSortBy(s.key)}
-                      className="text-[10px] font-semibold px-2 py-1 rounded-sm transition-colors"
-                      style={sortBy === s.key
-                        ? { background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }
-                        : { background: 'transparent', color: '#6B7280', border: '1px solid transparent' }}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Filter + sort bar relocated to sit directly above the
+                  LibraryToolbar (below WeeklySummaryCard + SectionDivider)
+                  so the control strip is adjacent to the project list it
+                  drives. Previously bifurcated by the portfolio-intelligence
+                  block — user feedback 2026-05-11 Phase 2A polish. */}
             </>
           )}
         </div>
@@ -1104,6 +1060,60 @@ function LibraryContent() {
                   >
                     Delete
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* Phase 2A · unified control strip — filter + sort + layout
+                toggle sit together immediately above the project list so
+                the user's eye doesn't have to jump back up to the top of
+                the page to filter or re-sort. Previously the filter row
+                was rendered above WeeklySummaryCard + SectionDivider,
+                visually bifurcating it from the data it drives. */}
+            {projects.length > 0 && (
+              <div className="mt-2 mb-1 flex items-center gap-2 flex-wrap">
+                <FilterSelect
+                  value={filterState}
+                  onChange={setFilterState}
+                  placeholder="All States"
+                  ariaLabel="Filter by state"
+                  options={[...new Set(projects.map(p => p.state))].sort()}
+                />
+                <FilterSelect
+                  value={filterTech}
+                  onChange={setFilterTech}
+                  placeholder="All Tech"
+                  ariaLabel="Filter by technology"
+                  options={[...new Set(projects.map(p => p.technology).filter(Boolean))].sort()}
+                  optionTooltips={TECH_FILTER_TOOLTIPS}
+                />
+                <FilterSelect
+                  value={filterStage}
+                  onChange={setFilterStage}
+                  placeholder="All Stages"
+                  ariaLabel="Filter by stage"
+                  options={PIPELINE_STAGES}
+                />
+
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className="text-[10px] font-medium text-gray-400">Sort:</span>
+                  {[
+                    { key: 'saved', label: 'Recent' },
+                    { key: 'score', label: 'Score' },
+                    { key: 'mw',    label: 'MW' },
+                    { key: 'alerts', label: 'Alerts' },
+                  ].map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => setSortBy(s.key)}
+                      className="text-[10px] font-semibold px-2 py-1 rounded-sm transition-colors"
+                      style={sortBy === s.key
+                        ? { background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }
+                        : { background: 'transparent', color: '#6B7280', border: '1px solid transparent' }}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

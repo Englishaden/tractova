@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import { getAlerts } from '../../lib/alertHelpers'
 import ProjectCard from '../ProjectCard.jsx'
@@ -29,14 +29,25 @@ function colorForScore(score) {
   return '#DC2626'                      // red
 }
 
-// Static (non-animated) score arc. 28px footprint — no motion springs
-// per row, because a 50-row table mounting 50 simultaneous motion
-// components is a frame-budget trap.
+// Animated arc — CSS transition on stroke-dasharray. Cheap enough to
+// scale to 50+ rows (no motion springs); satisfies "Cards-view animation
+// vibes in the Table view too" without the per-row spring tax. On mount
+// the arc paints at 0 then transitions to the target value, mirroring
+// the GaugeFill primitive's vocabulary but lighter weight.
 function TableScoreArc({ score, size = 28 }) {
   const color = colorForScore(score)
-  const dash = `${Math.max(0, Math.min(100, score ?? 0))}, 100`
+  const target = score == null ? 0 : Math.max(0, Math.min(100, score))
+  // mounted=false → arc draws at 0. The next paint flips to true,
+  // triggering the CSS transition to `target`. requestAnimationFrame
+  // (not setTimeout) so the browser commits the initial paint first.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  const dash = `${mounted ? target : 0}, 100`
   return (
-    <div className="shrink-0 relative" style={{ width: size, height: size }}>
+    <div className="shrink-0 relative mx-auto" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox="0 0 36 36" className="-rotate-90">
         <path
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -51,6 +62,7 @@ function TableScoreArc({ score, size = 28 }) {
           strokeWidth="3"
           strokeLinecap="round"
           strokeDasharray={dash}
+          style={{ transition: 'stroke-dasharray 800ms cubic-bezier(0.16, 1, 0.3, 1)' }}
         />
       </svg>
       <span
@@ -65,13 +77,13 @@ function TableScoreArc({ score, size = 28 }) {
 
 function AlertDot({ alerts }) {
   if (!alerts || alerts.length === 0) {
-    return <span className="text-[11px] text-gray-300 font-mono tabular-nums">—</span>
+    return <span className="block text-[11px] text-gray-300 font-mono tabular-nums text-center">—</span>
   }
   const warningCount = alerts.filter(a => a.level === 'warning').length
   const color = warningCount > 0 ? '#D97706' : '#94A3B8'
   return (
     <span
-      className="inline-flex items-center gap-1 font-mono tabular-nums text-[11px] font-semibold"
+      className="flex items-center justify-center gap-1 font-mono tabular-nums text-[11px] font-semibold"
       style={{ color }}
       title={alerts.map(a => a.label).join(' · ')}
     >
@@ -93,15 +105,17 @@ function relativeDate(iso) {
 }
 
 // Column template — kept in one place so header + rows stay in lockstep.
-// Slight bump on Tech (130→140), Stage (130→150) so common values
-// ("Community Solar", "NTP (Notice to Proceed)") don't truncate mid-word.
-const COLS = '32px 40px minmax(0, 1fr) 130px 70px 140px 150px 56px 70px'
+// Wider Score (48) gives the arc breathing room. Wider MW (90) with the
+// number padded inward so it doesn't crowd Tech. Tech (150) + Stage (160)
+// fit the longest common values ("Community Solar", "NTP (Notice to
+// Proceed)") without mid-word truncation.
+const COLS = '32px 48px minmax(0, 1fr) 140px 90px 150px 160px 64px 72px'
 
 // Reusable header cell — consistent typography for column titles.
 function HeaderCell({ children, align = 'left' }) {
   return (
     <span
-      className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] leading-none truncate"
+      className="block font-mono text-[11px] font-bold uppercase tracking-[0.14em] leading-none truncate"
       style={{ color: '#5EEAD4', textAlign: align }}
     >{children}</span>
   )
@@ -137,13 +151,16 @@ export default function ProjectTable({
         }}
       >
         <span aria-hidden="true" />
-        <HeaderCell>Score</HeaderCell>
+        <HeaderCell align="center">Score</HeaderCell>
         <HeaderCell>Project</HeaderCell>
-        <HeaderCell>Locale</HeaderCell>
-        <HeaderCell align="right">MW</HeaderCell>
+        <HeaderCell>Location</HeaderCell>
+        {/* MW header gets a matching pr-3 to align with the right-padded
+            cell values below — keeps the header label vertically aligned
+            with each row's MW number. */}
+        <span className="pr-3"><HeaderCell align="right">MW</HeaderCell></span>
         <HeaderCell>Tech</HeaderCell>
         <HeaderCell>Stage</HeaderCell>
-        <HeaderCell>Alerts</HeaderCell>
+        <HeaderCell align="center">Alerts</HeaderCell>
         <HeaderCell align="right">Saved</HeaderCell>
       </div>
 
@@ -208,7 +225,7 @@ export default function ProjectTable({
                   {p.county ? `${p.county}, ${p.state}` : p.state || '—'}
                 </span>
 
-                <span className="text-[12px] font-mono tabular-nums font-semibold text-ink text-right">
+                <span className="text-[12px] font-mono tabular-nums font-semibold text-ink text-right pr-3">
                   {p.mw ?? '—'}
                 </span>
 
