@@ -237,6 +237,23 @@ function LibraryContent() {
   // pin in LibraryMap to open; close via Esc / outside-click / X button.
   const [drawerProject, setDrawerProject] = useState(null)
 
+  // Phase 2B — Esc clears the state filter when the user is in Map
+  // view. Only fires when filterState is set, the drawer isn't open
+  // (Radix Dialog's Esc handler takes precedence and stops propagation
+  // there), and the user is in the Map layout (so Esc doesn't
+  // unexpectedly clear filters when reading the Cards / Table list).
+  useEffect(() => {
+    if (!filterState || layout !== 'map' || drawerProject) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setFilterState('')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [filterState, layout, drawerProject])
+
   // Client-side pagination state — windows the rendered project list.
   // Data fetch stays unbounded because the Pipeline Distribution +
   // stat strip + score-change audit all need the full set. Hidden

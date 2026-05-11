@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps'
-import { motion } from 'motion/react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import countyCentroids from '../../data/county_centroids.json'
 
@@ -208,8 +207,8 @@ export default function LibraryMap({
           </div>
 
           {/* Right side — quick-help affordance about the click model. */}
-          <p className="text-[11px] text-gray-400 mt-1 max-w-[180px] text-right hidden sm:block">
-            Click pin for detail · double-click state to filter as table
+          <p className="text-[11px] text-gray-400 mt-1 max-w-[200px] text-right hidden sm:block">
+            Click pin for detail · double-click state to filter as table · esc to clear
           </p>
         </div>
 
@@ -235,9 +234,13 @@ export default function LibraryMap({
               type="button"
               onClick={() => onStateClick?.(filterState, true)}
               className="text-[10px] font-mono font-semibold uppercase tracking-[0.14em] text-gray-400 hover:text-gray-600 transition-colors"
+              title="Press Esc to clear"
             >
               Clear ✕
             </button>
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: '#94A3B8' }}>
+              or press <kbd className="px-1 py-0.5 rounded-sm border border-gray-300 bg-white text-[9px]" style={{ color: '#5A6B7A' }}>Esc</kbd>
+            </span>
           </div>
         )}
       </div>
@@ -317,48 +320,38 @@ export default function LibraryMap({
             })}
           </Geographies>
 
-          {/* Pins — radar-blip structure (outer halo + inner dot).
-              Hovered pin gets a motion-driven scale-and-fade pulse
-              (using motion.circle so the animation reliably runs
-              across browsers and isn't trampled by Tailwind v4's
-              transform reset). Pin radii bumped down per feedback
-              — range 2.5–5.5 px so dense states don't look crowded. */}
+          {/* Pins — radar-blip structure. Stacking order matters:
+              halo (back) → inner dot (middle) → pulse ring (front,
+              only when hovered). Pulse uses SVG SMIL <animate>
+              elements — declarative, no JS overhead, bulletproof
+              across Chrome / Firefox / Safari. The previous motion-
+              library `scale` approach was being shadowed by Tailwind
+              v4's transform reset on SVG elements; SMIL bypasses CSS
+              transform entirely by animating the SVG `r` attribute
+              directly. Pin radii: 2.5–5.5 px so dense states don't
+              look crowded. */}
           {!shouldCluster && pins.map((pin) => {
             const color = colorForScore(pin.score)
             const isHovered = hoveredPinId === pin.id
             const r = Math.max(2.5, Math.min(5.5, 2.5 + Math.sqrt(Math.max(0, pin.mw)) * 0.45))
             return (
               <Marker key={pin.id} coordinates={pin.centroid}>
-                {isHovered && (
-                  <motion.circle
-                    cx={0}
-                    cy={0}
-                    r={r}
-                    fill="none"
-                    stroke={color}
-                    strokeWidth={1.2}
-                    initial={{ scale: 1, opacity: 0.55 }}
-                    animate={{ scale: 3, opacity: 0 }}
-                    transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1], repeat: Infinity }}
-                    style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
-                    pointerEvents="none"
-                  />
-                )}
+                {/* Outer halo */}
                 <circle
                   r={r * 1.7}
                   fill={color}
                   fillOpacity={0.18}
                   pointerEvents="none"
                 />
-                <motion.circle
+                {/* Inner dot */}
+                <circle
                   cx={0}
                   cy={0}
+                  r={isHovered ? r + 1.2 : r}
                   fill={color}
                   fillOpacity={0.92}
                   stroke="#FFFFFF"
                   strokeWidth={1}
-                  animate={{ r: isHovered ? r + 1.2 : r }}
-                  transition={{ duration: 0.14, ease: 'easeOut' }}
                   style={{ cursor: 'pointer' }}
                   onMouseEnter={(evt) => {
                     setHoveredPinId(pin.id)
@@ -370,6 +363,40 @@ export default function LibraryMap({
                   role="button"
                   aria-label={`${pin.name} — ${pin.mw} MW, score ${pin.score ?? 'unknown'}. Click to view details.`}
                 />
+                {/* Pulse ring — only when hovered. Rendered LAST so it
+                    paints on top of halo + dot. SMIL <animate> on r
+                    and opacity, 1.4s loop, ease-out via keySplines so
+                    the expand decelerates like a radar wave. */}
+                {isHovered && (
+                  <circle
+                    cx={0}
+                    cy={0}
+                    r={r}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  >
+                    <animate
+                      attributeName="r"
+                      values={`${r};${r * 3.2}`}
+                      keyTimes="0;1"
+                      keySplines="0.16 1 0.3 1"
+                      calcMode="spline"
+                      dur="1.4s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.75;0"
+                      keyTimes="0;1"
+                      keySplines="0.16 1 0.3 1"
+                      calcMode="spline"
+                      dur="1.4s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                )}
               </Marker>
             )
           })}
