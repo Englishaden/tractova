@@ -270,6 +270,21 @@ export default function LibraryMap({
             <filter id="lib-map-state-shadow" x="-5%" y="-5%" width="110%" height="115%">
               <feDropShadow dx="0" dy="0.7" stdDeviation="0.7" floodColor="#0F1A2E" floodOpacity="0.12" />
             </filter>
+            {/* Pin-pulse outline filter — solves the "colored pulse
+                disappears on same-color state" problem (e.g. teal pin
+                on teal-aggregate IL). Applies a soft navy glow around
+                the pulse stroke so the ring stays visible against
+                states of any fill, while the colored stroke itself
+                still carries score identity. Two stacked drop-shadows
+                give a subtle double-edge that reads as research-
+                terminal definition, not gaming glow. Filter region is
+                generous (-100% to 200%) because the pulse scales to
+                3.2× and the shadow needs room to render past the
+                element's natural bounding box. */}
+            <filter id="lib-pin-pulse-glow" x="-100%" y="-100%" width="300%" height="300%">
+              <feDropShadow dx="0" dy="0" stdDeviation="0.6" floodColor="#0F1A2E" floodOpacity="0.65" />
+              <feDropShadow dx="0" dy="0" stdDeviation="1.4" floodColor="#0F1A2E" floodOpacity="0.30" />
+            </filter>
           </defs>
 
           <rect x="-100" y="-100" width="1200" height="700" fill="url(#lib-map-dotgrid)" />
@@ -365,8 +380,12 @@ export default function LibraryMap({
                 />
                 {/* Pulse ring — only when hovered. Rendered LAST so it
                     paints on top of halo + dot. SMIL <animate> on r
-                    and opacity, 1.4s loop, ease-out via keySplines so
-                    the expand decelerates like a radar wave. */}
+                    and opacity, 1.4s loop, ease-out via keySplines.
+                    The lib-pin-pulse-glow filter wraps the colored
+                    stroke in a soft navy glow so the ring stays
+                    legible even when the pin color matches the state
+                    fill (teal pin on teal state, amber on amber, etc).
+                    Identity = stroke color · contrast = glow. */}
                 {isHovered && (
                   <circle
                     cx={0}
@@ -376,6 +395,7 @@ export default function LibraryMap({
                     stroke={color}
                     strokeWidth={1.4}
                     pointerEvents="none"
+                    filter="url(#lib-pin-pulse-glow)"
                   >
                     <animate
                       attributeName="r"
@@ -388,7 +408,7 @@ export default function LibraryMap({
                     />
                     <animate
                       attributeName="opacity"
-                      values="0.75;0"
+                      values="0.85;0"
                       keyTimes="0;1"
                       keySplines="0.16 1 0.3 1"
                       calcMode="spline"
