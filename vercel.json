@@ -73,6 +73,10 @@
     {
       "path": "/api/refresh-data?source=solar_costs",
       "schedule": "0 8 1 11 *"
+    },
+    {
+      "path": "/api/scan-policy-candidates",
+      "schedule": "0 8 * * 1"
     }
   ]
 }
