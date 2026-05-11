@@ -139,8 +139,12 @@ export default async function handlePolicyClassify(body, res) {
   //   v=2: AI now extracts raw_provisions; handler derives $/MW from state
   //        baselines. Same response shape but the four impact fields are
   //        now COMPUTED, not null.
+  //   v=3: stricter prompt — explicit worked example showing monthly→annual
+  //        conversion + flat raw_provisions schema (citations removed).
+  //        Earlier runs returned numbers in prose; this anchors structured
+  //        extraction.
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     2,
+    v:     3,
     text:  rawText.trim(),
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',

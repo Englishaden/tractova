@@ -137,6 +137,7 @@ export default function PolicyImpactTab() {
       analyst_note:                    item.analystNote || '',
       source_url:                      item.sourceUrl,
       review_status:                   item.reviewStatus,
+      discovery_metadata:              item.discoveryMetadata || null,
     })
     setAdding(false)
     setError(null)
@@ -154,6 +155,11 @@ export default function PolicyImpactTab() {
         const arr = String(s).split(',').map(x => x.trim()).filter(Boolean)
         return arr.length > 0 ? arr : null
       }
+      // Preserve discovery_metadata across the form lifecycle. AI Quick-Add
+      // stashes raw_provisions + baselines_used here so the derivation
+      // chain is auditable. Earlier bug: this field wasn't in the payload,
+      // so AI-extracted provisions got silently dropped on save.
+      const discoveryMetadata = editData.discovery_metadata || null
       const payload = {
         state:                          (editData.state || '').toUpperCase(),
         event_name:                     editData.event_name,
@@ -183,6 +189,7 @@ export default function PolicyImpactTab() {
         analyst_note:                   editData.analyst_note           || null,
         source_url:                     editData.source_url,
         review_status:                  editData.review_status,
+        discovery_metadata:             discoveryMetadata,
         is_active:                      true,
       }
       if (editId) payload.id = editId
@@ -276,6 +283,9 @@ export default function PolicyImpactTab() {
         summary:                        d.summary || '',
         analyst_note:                   d.analyst_note || '',
         source_url:                     d.source_url || '',
+        // Preserve the raw_provisions + baselines_used blob so save can persist
+        // it. Earlier bug: dropped silently between draft and save.
+        discovery_metadata:             d.discovery_metadata || null,
         // AI drafts land in the review queue, not published.
         review_status:                  'pending_admin_review',
       })

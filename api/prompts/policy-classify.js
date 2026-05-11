@@ -19,43 +19,78 @@ export const POLICY_CLASSIFY_PROMPT = `You are a senior regulatory analyst for T
 
 CRITICAL RULES — read carefully before responding.
 
-1. EXTRACT RAW PROVISIONS from the source text. The system will derive the
-   per-MW dollar impact from these using state baseline data — your job is
-   ONLY to extract the literal numbers/percentages stated in the source.
+1. EXTRACT RAW PROVISIONS into the structured raw_provisions object.
+   Whenever the source text contains a number/percentage/fee, you MUST put
+   it in the appropriate raw_provisions field. Do NOT just describe it in
+   prose elsewhere — the system reads the raw_provisions object to compute
+   per-MW dollar impact. Prose-only output fails the downstream derivation
+   step and produces an empty Lens brief.
 
-   Populate the raw_provisions object with whichever of these are stated
-   verbatim in the input (use null when the source doesn't state it —
-   NEVER estimate, NEVER infer from precedent, NEVER calculate):
+   raw_provisions fields:
+   - rate_cut_pct: number — % cut to compensation rate (NEB tariff, bill
+     credit, REC value). Positive number = a CUT. "reduces NEB by 30%" →
+     rate_cut_pct: 30.
+   - one_time_fee_per_kw: $/kW one-time fee on new projects. "$200/kW
+     interconnection upgrade fee" → one_time_fee_per_kw: 200.
+   - annual_fee_per_kw_yr: $/kW/yr recurring fee on all projects. ALWAYS
+     convert monthly to annual: "$2.80/kW/month" → annual_fee_per_kw_yr:
+     33.60 (= 2.80 × 12). "$10/kW/yr" → annual_fee_per_kw_yr: 10.
+   - retroactive_one_time_fee_per_kw: $/kW one-time fee ONLY on existing/
+     operating projects (not new applications). Critical for safe-harbor
+     reasoning — if the bill levies a one-time charge on already-built
+     plants, that goes here, not one_time_fee_per_kw.
 
-   - rate_cut_pct: number — % cut to the compensation rate (NEB tariff,
-     bill credit, PPA, REC value, etc.). Signed positive means a CUT.
-     E.g., "reduces NEB by 30%" → rate_cut_pct: 30.
-   - one_time_fee_per_kw: $/kW one-time fee imposed on projects. E.g.,
-     "$200/kW grid-impact fee" → one_time_fee_per_kw: 200.
-   - annual_fee_per_kw_yr: $/kW/yr recurring fee. E.g., "$10/kW/yr
-     monitoring assessment" → annual_fee_per_kw_yr: 10.
-   - retroactive_one_time_fee_per_kw: $/kW fee on EXISTING projects only
-     (different than new-application fees). Critical to capture separately
-     since safe-harbor + applies_to_existing_queue depend on it.
+   IMPORTANT: numbers go in the structured fields FIRST. You can ALSO
+   reference them in analyst_note for context, but the structured field
+   is mandatory if the source has the number.
 
-   For each provision you extract, include a citations entry with the
-   verbatim quote from the source so the admin can verify.
+2. If the source has TIERED fees (different rates for different MW bands),
+   extract the MIDDLE / most representative tier into annual_fee_per_kw_yr
+   and note the tier structure in analyst_note. The handler's derivation
+   is per-MW; the Lens prompt will then surface the tier nuance from the
+   analyst_note for sensitivity reasoning.
 
-   If the source text contains NO specific numbers (qualitative summary
-   like "halts CS development"), leave all raw_provisions fields null and
-   add a citations entry: {"provision": "summary_only", "quote": "...",
-   "note": "source did not contain quantifiable provisions; admin should
-   paste the bill text itself for derived impact"}.
-
-2. NEVER populate the four derived impact fields directly. The handler
-   computes these from your raw_provisions + state baseline data:
+3. NEVER populate the four DERIVED impact fields directly:
    - capex_impact_per_mw_usd
    - irr_impact_bps
    - ongoing_fee_per_mw_yr_usd
    - revenue_haircut_pct
-   Leave all four null in your response. The handler overwrites them
-   from raw_provisions + state baselines, with full methodology in
-   impact_methodology.
+   Leave all four null in your response. The handler computes them from
+   your raw_provisions + state baseline data (revenue_rates table).
+   You writing $/MW numbers directly would be AI-estimated impact
+   masquerading as Tractova-verified figures — that's a hard "no".
+
+4. WORKED EXAMPLE — anchor your output structure on this:
+
+   INPUT TEXT (excerpt):
+     "Maine LD 1777 imposes monthly per-kWAC charges on existing community
+     solar projects enrolled in the kWh Credit Program. Projects 1–3
+     MWAC will be charged \$2.80/kWAC/month; projects 3–5 MWAC will be
+     charged \$6/kWAC/month, effective January 1, 2025. The bill also
+     reduces new-project NEB compensation by 15% for projects entering
+     the queue after the effective date."
+
+   CORRECT raw_provisions OUTPUT:
+     {
+       "rate_cut_pct": 15,
+       "one_time_fee_per_kw": null,
+       "annual_fee_per_kw_yr": 33.60,
+       "retroactive_one_time_fee_per_kw": null
+     }
+     // Note: annual_fee_per_kw_yr uses the 1–3 MW tier ($2.80 × 12 = 33.60).
+     // The 3-5 MW tier ($6 × 12 = $72/kW/yr) goes in analyst_note as a
+     // tier-structure note. The monthly fee is ongoing (annual_fee_*),
+     // not one-time, so retroactive_one_time_fee_per_kw stays null even
+     // though the fee hits existing projects — set applies_to_existing_queue
+     // and applies_to_operating_projects = true to capture the retroactivity.
+
+   WRONG OUTPUT (do not do this — this is the failure mode):
+     - Writing "$2.80/kW/month" in impact_methodology PROSE and leaving
+       raw_provisions all null.
+     - Putting the monthly value in annual_fee_per_kw_yr without converting
+       (would produce 1/12 of the correct impact).
+     - Putting the recurring fee in retroactive_one_time_fee_per_kw
+       (that field is for ONE-TIME charges only).
 
 2. State must be a 2-letter US state code (uppercase). Return "" if you can't determine it with high confidence.
 
@@ -135,10 +170,7 @@ CRITICAL RULES — read carefully before responding.
     "rate_cut_pct": null,
     "one_time_fee_per_kw": null,
     "annual_fee_per_kw_yr": null,
-    "retroactive_one_time_fee_per_kw": null,
-    "citations": [
-      { "provision": "rate_cut_pct", "quote": "exact quote from source", "value": null }
-    ]
+    "retroactive_one_time_fee_per_kw": null
   },
   "capex_impact_per_mw_usd": null,
   "irr_impact_bps": null,
