@@ -938,22 +938,21 @@ function SearchContent() {
                 pre-revenue and curation cadence is light. Admin tab
                 stays available so curation infrastructure is ready
                 when we have paying users to justify the labor. */}
-            {/* § 05 TEMPORARILY DISABLED 2026-05-11 — same OOM debug.
-                Brings back: getCsMarketSnapshot (state cs_projects), three
-                parallel data fetches, CsMarketPanel + ComparableDealsPanel
-                + SpecificYieldPanel render. One of these is the OOM trigger.
-                Re-enable in pieces after isolating root cause. */}
-            {false && (
-              <>
-                <SectionDivider />
-                <LensComparablesSection
-                  state={results.stateProgram?.id || results.form.state}
-                  stateName={results.stateProgram?.name || results.form.state}
-                  technology={results.form.technology}
-                  mw={results.form.mw}
-                />
-              </>
-            )}
+            {/* § 05 — re-enabled 2026-05-11 with internal subsection gating.
+                Shadow pillar was confirmed safe. § 05 is the OOM trigger.
+                Bisect step 2: enable only Operating Projects subsection in
+                LensComparablesSection (via `bisectOnly` prop). Comparable
+                Deals + Market Benchmarks stay disabled inside the component.
+                If this crashes, Operating Projects (CsMarketPanel) is the
+                culprit. If clean, swap to bisectOnly="comparable" next. */}
+            <SectionDivider />
+            <LensComparablesSection
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
+              technology={results.form.technology}
+              mw={results.form.mw}
+              bisectOnly="operating"
+            />
 
             {/* Regulatory Activity (PUC dockets) stays outside § 05 — it's
                 a different concept (regulatory filings, not deal/benchmark

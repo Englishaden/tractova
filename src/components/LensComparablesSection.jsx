@@ -69,7 +69,7 @@ function EmptyState({ message }) {
   )
 }
 
-export default function LensComparablesSection({ state, stateName, mw, technology }) {
+export default function LensComparablesSection({ state, stateName, mw, technology, bisectOnly = null }) {
   // Per-subsection visibility flags. Each subsection probes its data
   // source; collapsible only renders when count > 0.
   const [csMarket, setCsMarket]               = useState(null)   // null = loading, {} = data, false = empty
@@ -85,30 +85,40 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
     const targetMW = parseFloat(mw)
     const mwRange = targetMW > 0 ? [Math.max(0.1, targetMW * 0.5), targetMW * 2.0] : undefined
 
-    // Operating Projects (cs_projects)
-    getCsMarketSnapshot(state).then(snap => {
-      if (cancelled) return
-      setCsMarket(snap && snap.projectCount > 0 ? snap : false)
-    }).catch(() => { if (!cancelled) setCsMarket(false) })
+    // OOM-bisect gating: skip fetches for subsections we're not rendering.
+    if (!bisectOnly || bisectOnly === 'operating') {
+      getCsMarketSnapshot(state).then(snap => {
+        if (cancelled) return
+        setCsMarket(snap && snap.projectCount > 0 ? snap : false)
+      }).catch(() => { if (!cancelled) setCsMarket(false) })
+    } else {
+      setCsMarket(false)
+    }
 
-    // Comparable Deals (curated + cs_projects merged)
-    Promise.all([
-      getCsProjectsAsComparables({ state, technology, mwRange }).catch(() => []),
-      getComparableDeals({ state, technology, mwRange }).catch(() => []),
-    ]).then(([cs, curated]) => {
-      if (cancelled) return
-      const total = (cs?.length || 0) + (curated?.length || 0)
-      setComparables(total > 0 ? { total, cs, curated } : false)
-    }).catch(() => { if (!cancelled) setComparables(false) })
+    if (!bisectOnly || bisectOnly === 'comparable') {
+      Promise.all([
+        getCsProjectsAsComparables({ state, technology, mwRange }).catch(() => []),
+        getComparableDeals({ state, technology, mwRange }).catch(() => []),
+      ]).then(([cs, curated]) => {
+        if (cancelled) return
+        const total = (cs?.length || 0) + (curated?.length || 0)
+        setComparables(total > 0 ? { total, cs, curated } : false)
+      }).catch(() => { if (!cancelled) setComparables(false) })
+    } else {
+      setComparables(false)
+    }
 
-    // Market Benchmarks (cs_specific_yield)
-    getSpecificYieldLineage(state).then(snap => {
-      if (cancelled) return
-      setSpecificYield(snap && snap.total_count >= 3 ? snap : false)
-    }).catch(() => { if (!cancelled) setSpecificYield(false) })
+    if (!bisectOnly || bisectOnly === 'benchmarks') {
+      getSpecificYieldLineage(state).then(snap => {
+        if (cancelled) return
+        setSpecificYield(snap && snap.total_count >= 3 ? snap : false)
+      }).catch(() => { if (!cancelled) setSpecificYield(false) })
+    } else {
+      setSpecificYield(false)
+    }
 
     return () => { cancelled = true }
-  }, [state, technology, mw])
+  }, [state, technology, mw, bisectOnly])
 
   // Section is always visible when the user has a valid state in scope.
   // Each subsection shows an empty state if its dataset is sparse — keeps
@@ -124,45 +134,51 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
     <>
       <SectionMarker index={5} label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates" />
       <div className="space-y-3">
-        <LensComparableSubsection
-          title="◆ Operating Projects"
-          glossaryTerm="Operating Projects"
-          description={`NREL Sharing the Sun · ground-truth ${stateName} operating CS`}
-          count={csMarketCount != null ? `${csMarketCount} project${csMarketCount !== 1 ? 's' : ''}` : null}
-          empty={csMarket === false}
-          defaultOpen={!!csMarket}
-        >
-          {csMarket
-            ? <CsMarketPanel state={state} stateName={stateName} mw={mw} />
-            : <EmptyState message={`No operating community-solar projects seeded for ${stateName} yet. NREL Sharing the Sun is loaded for the highest-volume CS markets; states with light operational deployment may not have rows here yet.`} />
-          }
-        </LensComparableSubsection>
+        {(!bisectOnly || bisectOnly === 'operating') && (
+          <LensComparableSubsection
+            title="◆ Operating Projects"
+            glossaryTerm="Operating Projects"
+            description={`NREL Sharing the Sun · ground-truth ${stateName} operating CS`}
+            count={csMarketCount != null ? `${csMarketCount} project${csMarketCount !== 1 ? 's' : ''}` : null}
+            empty={csMarket === false}
+            defaultOpen={!!csMarket}
+          >
+            {csMarket
+              ? <CsMarketPanel state={state} stateName={stateName} mw={mw} />
+              : <EmptyState message={`No operating community-solar projects seeded for ${stateName} yet. NREL Sharing the Sun is loaded for the highest-volume CS markets; states with light operational deployment may not have rows here yet.`} />
+            }
+          </LensComparableSubsection>
+        )}
 
-        <LensComparableSubsection
-          title="◆ Comparable Deals"
-          glossaryTerm="Comparable Deals"
-          description="point-estimate examples · sized ±50% to 2× of your project"
-          count={comparablesTotal != null ? `${comparablesTotal} comp${comparablesTotal !== 1 ? 's' : ''}` : null}
-          empty={comparables === false}
-        >
-          {comparables
-            ? <ComparableDealsPanel state={state} stateName={stateName} technology={technology} mw={mw} />
-            : <EmptyState message={`No comparable deals curated for ${stateName} yet. Paste news article URLs into the Comparable Deals admin tab to seed rows (admin curation flow — coming soon).`} />
-          }
-        </LensComparableSubsection>
+        {(!bisectOnly || bisectOnly === 'comparable') && (
+          <LensComparableSubsection
+            title="◆ Comparable Deals"
+            glossaryTerm="Comparable Deals"
+            description="point-estimate examples · sized ±50% to 2× of your project"
+            count={comparablesTotal != null ? `${comparablesTotal} comp${comparablesTotal !== 1 ? 's' : ''}` : null}
+            empty={comparables === false}
+          >
+            {comparables
+              ? <ComparableDealsPanel state={state} stateName={stateName} technology={technology} mw={mw} />
+              : <EmptyState message={`No comparable deals curated for ${stateName} yet. Paste news article URLs into the Comparable Deals admin tab to seed rows (admin curation flow — coming soon).`} />
+            }
+          </LensComparableSubsection>
+        )}
 
-        <LensComparableSubsection
-          title="◆ Market Benchmarks"
-          glossaryTerm="Market Benchmarks"
-          description="observed kWh/kW yield from operating CS projects · ground truth for the modeled assumption"
-          count={specificCount != null ? `n=${specificCount}` : null}
-          empty={specificYield === false}
-        >
-          {specificYield
-            ? <SpecificYieldPanel state={state} stateName={stateName} mw={mw} />
-            : <EmptyState message={`No specific-yield observations for ${stateName} yet. Need at least 3 operating projects with reported kWh/kW for a meaningful state benchmark.`} />
-          }
-        </LensComparableSubsection>
+        {(!bisectOnly || bisectOnly === 'benchmarks') && (
+          <LensComparableSubsection
+            title="◆ Market Benchmarks"
+            glossaryTerm="Market Benchmarks"
+            description="observed kWh/kW yield from operating CS projects · ground truth for the modeled assumption"
+            count={specificCount != null ? `n=${specificCount}` : null}
+            empty={specificYield === false}
+          >
+            {specificYield
+              ? <SpecificYieldPanel state={state} stateName={stateName} mw={mw} />
+              : <EmptyState message={`No specific-yield observations for ${stateName} yet. Need at least 3 operating projects with reported kWh/kW for a meaningful state benchmark.`} />
+            }
+          </LensComparableSubsection>
+        )}
       </div>
     </>
   )
