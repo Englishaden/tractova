@@ -263,13 +263,19 @@ export default function CommandPalette() {
             </RadixDialog.Overlay>
             <RadixDialog.Content asChild>
               <motion.div
-                // Position: top-[10vh] gives headroom on shorter / zoomed-in
-                // viewports. The whole palette is a vertical flex column with
-                // a hard max-height of viewport minus 4rem so it never
-                // overflows. The results body is the only flex-shrinking
-                // section — everything else stays at its natural size.
-                className="fixed left-1/2 top-[10vh] z-50 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-2xl outline-hidden overflow-hidden flex flex-col"
-                style={{ border: '1px solid #E2E8F0', maxHeight: 'calc(100vh - 4rem)' }}
+                // Position: top offset + max-height must sum to ≤ 100vh so the
+                // bottom edge always stays on-screen. The previous version
+                // had `top-[10vh]` + `maxHeight: calc(100vh - 4rem)` whose
+                // sum could exceed 110vh − clip on lower zooms / shorter
+                // viewports. New math: top = 8vh (proportional headroom that
+                // scales with the viewport), max-height = 92vh − 1rem so the
+                // bottom edge lands at most (8vh + 92vh − 1rem) = (100vh −
+                // 1rem) from the top. Result: always at least 16px of
+                // breathing room at the bottom, at any zoom or screen size.
+                // Results body is the only flex-shrinking section; everything
+                // else stays at its natural size.
+                className="fixed left-1/2 top-[8vh] z-50 w-[92vw] max-w-xl -translate-x-1/2 rounded-xl bg-white shadow-2xl outline-hidden overflow-hidden flex flex-col"
+                style={{ border: '1px solid #E2E8F0', maxHeight: 'calc(92vh - 1rem)' }}
                 initial={{ opacity: 0, y: -8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
