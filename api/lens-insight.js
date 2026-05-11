@@ -12,6 +12,7 @@ import handleNewsSummary from './handlers/_lens-news-summary.js'
 import handleDealMemo from './handlers/_lens-deal-memo.js'
 import handleUtilityOutreach from './handlers/_lens-utility-outreach.js'
 import handleClassifyDocket from './handlers/_lens-classify-docket.js'
+import handlePolicyClassify from './handlers/_lens-policy-classify.js'
 import handleMemoCreate from './handlers/_lens-memo-create.js'
 import handleMemoView from './handlers/_lens-memo-view.js'
 
@@ -375,6 +376,7 @@ export default async function handler(req, res) {
   if (action === 'deal-memo')    return handleDealMemo(body, res)
   if (action === 'utility-outreach') return handleUtilityOutreach(body, res, user)
   if (action === 'classify-docket') return handleClassifyDocket(body, res)
+  if (action === 'policy-classify') return handlePolicyClassify(body, res)
   if (action === 'memo-create')  return handleMemoCreate(body, res, user)
 
   // ── Fetch policy_impact_events for this state ────────────────────────────

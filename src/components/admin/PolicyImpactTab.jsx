@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../../lib/supabase'
 import {
   getPolicyImpactEvents,
   upsertPolicyImpactEvent,
@@ -39,6 +40,13 @@ export default function PolicyImpactTab() {
   const [adding, setAdding]             = useState(false)
   const [filterState, setFilterState]   = useState('')
   const [showPendingOnly, setShowPendingOnly] = useState(false)
+  // AI Classify Quick-Add state
+  const [classifyText, setClassifyText]     = useState('')
+  const [classifyStateHint, setClassifyStateHint] = useState('')
+  const [classifyEventHint, setClassifyEventHint] = useState('')
+  const [classifying, setClassifying]       = useState(false)
+  const [classifyError, setClassifyError]   = useState(null)
+  const [classifyHint, setClassifyHint]     = useState(null) // 'cached' | 'fresh' after success
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -198,6 +206,88 @@ export default function PolicyImpactTab() {
     }
   }
 
+  // AI Classify — paste bill / article text, Haiku 4.5 extracts the
+  // qualitative structured fields and pre-fills the edit form. Dollar/IRR
+  // fields are deliberately left null — admin curates from primary sources.
+  const handleClassify = async () => {
+    if (!classifyText || classifyText.trim().length < 60) {
+      setClassifyError('Paste at least 60 characters of bill text / article content.')
+      return
+    }
+    setClassifying(true)
+    setClassifyError(null)
+    setClassifyHint(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+      if (!token) { setClassifyError('Sign-in required'); setClassifying(false); return }
+      const res = await fetch('/api/lens-insight', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body:    JSON.stringify({
+          action:        'policy-classify',
+          rawText:       classifyText,
+          stateHint:     classifyStateHint.trim() || null,
+          eventNameHint: classifyEventHint.trim() || null,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setClassifyError(json?.error || `HTTP ${res.status}`)
+        setClassifying(false)
+        return
+      }
+      if (!json?.draft) {
+        setClassifyError(json?.reason || 'Classification failed — try again or fall back to manual add.')
+        setClassifying(false)
+        return
+      }
+      const d = json.draft
+      // Pre-fill the edit form. Admin reviews + edits + publishes. The four
+      // impact-number fields are intentionally null — admin fills those.
+      setEditData({
+        state:                          (d.state || classifyStateHint || '').toUpperCase(),
+        event_name:                     d.event_name || classifyEventHint || '',
+        event_type:                     d.event_type || 'enacted_bill',
+        effective_date:                 d.effective_date || '',
+        status:                         d.status || 'enacted',
+        pillar:                         d.pillar || 'cross-cutting',
+        capex_impact_per_mw_usd:        null,
+        irr_impact_bps:                 null,
+        ongoing_fee_per_mw_yr_usd:      null,
+        revenue_haircut_pct:            null,
+        impact_confidence:              d.impact_confidence || 'medium',
+        impact_methodology:             d.impact_methodology || '',
+        applies_to_new_applications:    !!d.applies_to_new_applications,
+        applies_to_existing_queue:      !!d.applies_to_existing_queue,
+        applies_to_operating_projects:  !!d.applies_to_operating_projects,
+        safe_harbor_eligible:           !!d.safe_harbor_eligible,
+        safe_harbor_cutoff_date:        d.safe_harbor_cutoff_date || '',
+        safe_harbor_notes:              d.safe_harbor_notes || '',
+        feoc_compliance_required:       !!d.feoc_compliance_required,
+        feoc_notes:                     d.feoc_notes || '',
+        min_mw_ac:                      null,
+        max_mw_ac:                      null,
+        applicable_technologies_text:   '',
+        applicable_stages_text:         '',
+        summary:                        d.summary || '',
+        analyst_note:                   d.analyst_note || '',
+        source_url:                     d.source_url || '',
+        // AI drafts land in the review queue, not published.
+        review_status:                  'pending_admin_review',
+      })
+      setAdding(true)
+      setEditId(null)
+      setClassifyText('')
+      setClassifyStateHint('')
+      setClassifyEventHint('')
+      setClassifyHint(json.cached ? 'cached' : 'fresh')
+    } catch (e) {
+      setClassifyError(`Network error: ${e.message}`)
+    }
+    setClassifying(false)
+  }
+
   if (loading) return <p className="text-sm text-gray-400 py-8 text-center">Loading policy events...</p>
 
   const isFormOpen = editId || adding
@@ -219,6 +309,111 @@ export default function PolicyImpactTab() {
         <p className="text-[12px] text-ink leading-relaxed">
           Track only ENACTED policies with material project impact — $/MW capex, IRR basis points, ongoing fees, revenue haircut. Cite the bill text or PUC order URL; quantified dollar/IRR numbers come from your own analyst research (never AI). Aim for 1-3 events per active state per year. Lens automatically threads these into the analyst brief for the relevant state.
         </p>
+      </div>
+
+      {/* AI Classify — Quick Add. Paste bill / article text, Haiku 4.5
+          extracts the qualitative fields (type, pillar, applicability,
+          safe-harbor, FEOC) and pre-fills the form. Dollar / IRR fields
+          stay null — admin curates those from primary sources. */}
+      <div
+        className="rounded-xl mb-5 px-5 py-4 relative overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
+      >
+        <div className="absolute top-0 left-0 right-0 h-px"
+          style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 30%, rgba(20,184,166,0.95) 50%, rgba(20,184,166,0.55) 70%, transparent 100%)' }} />
+        <div className="flex items-start justify-between gap-3 mb-2.5">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold mb-1" style={{ color: '#5EEAD4' }}>
+              ◆ AI Classify · Quick Add
+            </p>
+            <p className="font-serif text-[15px] font-semibold text-white tracking-tight" style={{ letterSpacing: '-0.01em' }}>
+              Paste bill text — Tractova drafts the qualitative fields
+            </p>
+          </div>
+          {classifyHint && (
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-full"
+              style={{ background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}>
+              {classifyHint === 'cached' ? '✓ cached · free' : '✓ drafted'}
+            </span>
+          )}
+        </div>
+        <p id="policy-classify-helper" className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
+          Paste bill text or a trade-press article. Haiku extracts state, event type, pillar, applicability flags, safe-harbor + FEOC signals, and writes a draft analyst note. <strong style={{ color: '#FCA5A5' }}>Dollar / IRR fields are left null on purpose</strong> — you research and fill those in from primary sources before publishing.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
+          <input
+            type="text"
+            value={classifyStateHint}
+            onChange={(e) => setClassifyStateHint(e.target.value.toUpperCase().slice(0, 2))}
+            placeholder="State hint (e.g. ME) — optional"
+            className="text-[11px] font-mono px-3 py-2 rounded-lg outline-hidden focus:ring-2 focus:ring-teal-500/40 uppercase tracking-wider"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', color: '#FFFFFF' }}
+          />
+          <input
+            type="text"
+            value={classifyEventHint}
+            onChange={(e) => setClassifyEventHint(e.target.value)}
+            placeholder="Event name hint (e.g. LD 1777) — optional"
+            className="text-[11px] font-mono px-3 py-2 rounded-lg outline-hidden focus:ring-2 focus:ring-teal-500/40"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', color: '#FFFFFF' }}
+          />
+        </div>
+        <textarea
+          value={classifyText}
+          onChange={(e) => setClassifyText(e.target.value)}
+          placeholder="Paste bill text, signed-bill summary, PUC order, or trade-press article describing the enacted policy. Min 60 characters."
+          rows={6}
+          aria-label="Paste bill / article text for AI classification"
+          aria-describedby="policy-classify-helper"
+          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-hidden resize-y mb-3 focus:ring-2 focus:ring-teal-500/40"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border:     '1px solid rgba(255,255,255,0.10)',
+            color:      '#FFFFFF',
+          }}
+        />
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+            ~$0.01/draft · cached 24h · drafts land in pending-review queue
+          </p>
+          <div className="flex items-center gap-2">
+            {classifyText && (
+              <button
+                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null) }}
+                disabled={classifying}
+                className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md transition-colors"
+                style={{ color: 'rgba(255,255,255,0.55)' }}
+              >
+                Clear
+              </button>
+            )}
+            <button
+              onClick={handleClassify}
+              disabled={classifying || !classifyText.trim()}
+              className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2 rounded-lg text-white transition-transform hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: '#14B8A6' }}
+            >
+              {classifying ? (
+                <>
+                  <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Drafting…
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/>
+                  </svg>
+                  Draft with AI
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+        {classifyError && (
+          <p className="text-[11px] mt-3 leading-relaxed" style={{ color: '#FCA5A5' }}>
+            {classifyError}
+          </p>
+        )}
       </div>
 
       {/* Filter row */}
