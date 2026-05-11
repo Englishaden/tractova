@@ -20,7 +20,23 @@ import ProjectCard from '../components/ProjectCard.jsx'
 import ScenariosView from '../components/ScenariosView.jsx'
 import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
+import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
+import ProjectTable from '../components/library/ProjectTable.jsx'
 import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
+
+// Phase 2A · TRACTOVA-UX-001 — Library layout (cards | table | map) is
+// persisted per user across sessions in localStorage. Map is gated until
+// Phase 2B ships; only 'cards' and 'table' are valid runtime values.
+const LAYOUT_STORAGE_KEY = 'tractova_library_view'
+function loadLayout() {
+  try {
+    const v = typeof window !== 'undefined' ? localStorage.getItem(LAYOUT_STORAGE_KEY) : null
+    return v === 'table' ? 'table' : 'cards'
+  } catch { return 'cards' }
+}
+function saveLayout(layout) {
+  try { localStorage.setItem(LAYOUT_STORAGE_KEY, layout) } catch { /* quota / SSR — silent */ }
+}
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Tech badge styles ────────────────────────────────────────────────────────
@@ -194,6 +210,8 @@ function LibraryContent() {
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
   const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' — top-level toggle
+  const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' — Phase 2A
+  const handleLayoutChange = useCallback((next) => { setLayoutState(next); saveLayout(next) }, [])
 
   // ?tab=scenarios URL handling so external links (e.g. the "view in Library →"
   // confirmation card in ScenarioStudio) can land directly on the Scenarios
@@ -1090,7 +1108,31 @@ function LibraryContent() {
               </div>
             )}
 
+            {/* Phase 2A · view-mode toolbar — Cards | Table | Map (Map disabled until 2B). */}
+            {displayProjects.length > 0 && (
+              <LibraryToolbar layout={layout} onLayoutChange={handleLayoutChange} count={displayProjects.length} />
+            )}
+
             {displayProjects.length > 0 ? (
+              layout === 'table' ? (
+                <ProjectTable
+                  projects={displayProjects}
+                  stateProgramMap={stateProgramMap}
+                  countyDataMap={countyDataMap}
+                  stateDeltaMap={stateDeltaMap}
+                  scenariosMap={scenariosMap}
+                  shareCountMap={shareCountMap}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
+                  onStageChange={handleStageChange}
+                  onRequestRemove={handleRequestRemove}
+                  onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
+                  onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
+                    ...prev,
+                    [projectId]: (prev[projectId] || []).filter(s => s.id !== snapId),
+                  }))}
+                />
+              ) : (
               <div className="grid gap-3">
                 {displayProjects.map((p) => (
                   <ProjectCard
@@ -1105,7 +1147,7 @@ function LibraryContent() {
                     onShareSuccess={() => setShareCountMap(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }))}
                     selected={selectedIds.has(p.id)}
                     onToggleSelect={() => toggleSelect(p.id)}
-                    selectionActive={selectedIds.size > 0}
+                    selectionActive={displayProjects.length > 1}
                     scenarios={scenariosMap[p.id] || []}
                     onScenarioDelete={(snapId) => setScenariosMap(prev => ({
                       ...prev,
@@ -1114,6 +1156,7 @@ function LibraryContent() {
                   />
                 ))}
               </div>
+              )
             ) : (
               <div className="text-center py-12">
                 <p className="text-sm font-medium text-gray-500">No projects match current filters.</p>

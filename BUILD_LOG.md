@@ -4,7 +4,32 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 1 SHIPPED (Cmd-K nav spine) · resume Phase 2A (Library cockpit)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 2A IN PROGRESS · Slice 1 shipped (view-mode toggle + Table) · Slice 2 next (pagination + filter rail + StagePicker Radix)
+
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 2A Slice 2. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2A, then implement Slice 2 (pagination + sticky LibraryFilterRail + StagePicker Radix Popover migration + lifted "Updated" / "State ±X pt" chips).`
+
+**Phase 2A Slice 1 — shipped this session:**
+- `src/components/library/LibraryToolbar.jsx` — view-mode toggle (Cards | Table | Map). Map button visible but disabled with "2B" eyebrow + tooltip. Persistent count badge ("N projects").
+- `src/components/library/ProjectTable.jsx` — Bloomberg-grid table. CSS-grid (not <table>) so row expansion preserves column widths. Sticky `top-14` navy header with mono caps. 28px static (non-motion) score arc per row. Single-dot amber alerts. Row click expands inline → renders existing ProjectCard (no Cards refactor). Bulk-select checkbox per row, stop-propagation on click. Tabular-nums on MW + Saved-relative date.
+- `src/pages/Library.jsx` — `layout` state (`'cards' | 'table'`) persisted to localStorage as `tractova_library_view`. LibraryToolbar above the project list. Routes between Cards path (existing) and new ProjectTable based on `layout`. Bulk-select discoverability: per-card checkboxes now visible whenever `displayProjects.length > 1` (was: only after one already selected).
+
+**Verification baseline at Slice 1 close:**
+- `npm run test:unit` — 127/127 green
+- `npm run build` — clean (~1.9s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs` — Library.jsx still under 1,500 LOC budget
+- `npm run lint:api / lint:secrets` — all clean
+
+**What's NEXT (Phase 2A Slice 2):**
+- Cursor pagination on `saved_at`, 25 / 50 / 100 page-size selector, hidden "Load all" (current Library fetches all projects at once — at 100+ rows this chokes)
+- Sticky LibraryFilterRail (filters move from the current inline strip to a left rail that stays visible on scroll)
+- StagePicker — replace hand-rolled absolute dropdown with `@radix-ui/react-popover` (currently can escape card bounds, design-vocab anti-pattern)
+- Lift "Updated" + "State ±X pt" chips to a persistent header (visible expanded + collapsed across Cards + Table)
+- Re-enable § 05 in Lens with bounded `CsMarketPanel` row sample (or move Operating Projects to Library cockpit)
+
+---
+
+## ARCHIVED Pickup — TRACTOVA-UX-001 Phase 1 SHIPPED (Cmd-K nav spine) · resume Phase 2A (Library cockpit)
 
 **Read first after `/clear`:** `docs/TRACTOVA-UX-001-ROADMAP.md` § 0.1 DO-NOT-REPEAT LESSONS (critical motion-pattern gotchas from the OOM saga) + `docs/design-vocabulary.md` § Motion (height-auto hard rule). Plan mirror at `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md`.
 
