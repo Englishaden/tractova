@@ -33,14 +33,14 @@ import GlossaryLabel from './ui/GlossaryLabel'
 //
 // Section hides entirely if all three datasets are empty for the state.
 
-function CollapsibleSubsection({ title, glossaryTerm, description, defaultOpen = false, count, children }) {
+function CollapsibleSubsection({ title, glossaryTerm, description, defaultOpen = false, count, empty = false, children }) {
   const [open, setOpen] = useState(defaultOpen)
   const header = glossaryTerm
     ? <GlossaryLabel term={glossaryTerm} displayAs={title} className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink" />
     : <span className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink">{title}</span>
 
   return (
-    <div className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #E2E8F0', borderLeft: '3px solid #14B8A6' }}>
+    <div className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -51,6 +51,7 @@ function CollapsibleSubsection({ title, glossaryTerm, description, defaultOpen =
           <span className="text-[11px] text-gray-500">
             {description}
             {count != null && <span> · <span className="font-mono">{count}</span></span>}
+            {empty && <span className="font-mono text-[10px] ml-1.5" style={{ color: '#94A3B8' }}>(no data yet)</span>}
           </span>
         </div>
         <span className="text-[10px] text-gray-500">{open ? '▲' : '▼'}</span>
@@ -61,6 +62,12 @@ function CollapsibleSubsection({ title, glossaryTerm, description, defaultOpen =
         </div>
       )}
     </div>
+  )
+}
+
+function EmptyState({ message }) {
+  return (
+    <p className="text-[11px] text-gray-500 leading-relaxed">{message}</p>
   )
 }
 
@@ -105,50 +112,59 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
     return () => { cancelled = true }
   }, [state, technology, mw])
 
-  // Hide section entirely until at least one dataset has rows for the state.
-  // Avoids an "§ 05 · loading…" placeholder during the probe window since
-  // all three queries resolve from the same withCache layer in ~1 tick.
-  const stillLoading = csMarket === null && comparables === null && specificYield === null
-  const anyData = (csMarket && csMarket !== false) || (comparables && comparables !== false) || (specificYield && specificYield !== false)
-  if (stillLoading || !anyData) return null
+  // Section is always visible when the user has a valid state in scope.
+  // Each subsection shows an empty state if its dataset is sparse — keeps
+  // the § 05 structure discoverable even before all three layers are
+  // fully seeded.
+  if (!state) return null
+
+  const csMarketCount   = csMarket && csMarket !== false ? csMarket.projectCount : null
+  const comparablesTotal = comparables && comparables !== false ? comparables.total : null
+  const specificCount   = specificYield && specificYield !== false ? specificYield.total_count : null
 
   return (
     <>
       <SectionMarker index={5} label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates" />
       <div className="space-y-3">
-        {csMarket && (
-          <CollapsibleSubsection
-            title="◆ Operating Projects"
-            glossaryTerm="Operating Projects"
-            description={`NREL Sharing the Sun · ground-truth ${stateName} operating CS`}
-            count={`${csMarket.projectCount} project${csMarket.projectCount !== 1 ? 's' : ''}`}
-            defaultOpen
-          >
-            <CsMarketPanel state={state} stateName={stateName} mw={mw} />
-          </CollapsibleSubsection>
-        )}
+        <CollapsibleSubsection
+          title="◆ Operating Projects"
+          glossaryTerm="Operating Projects"
+          description={`NREL Sharing the Sun · ground-truth ${stateName} operating CS`}
+          count={csMarketCount != null ? `${csMarketCount} project${csMarketCount !== 1 ? 's' : ''}` : null}
+          empty={csMarket === false}
+          defaultOpen={!!csMarket}
+        >
+          {csMarket
+            ? <CsMarketPanel state={state} stateName={stateName} mw={mw} />
+            : <EmptyState message={`No operating community-solar projects seeded for ${stateName} yet. NREL Sharing the Sun is loaded for the highest-volume CS markets; states with light operational deployment may not have rows here yet.`} />
+          }
+        </CollapsibleSubsection>
 
-        {comparables && (
-          <CollapsibleSubsection
-            title="◆ Comparable Deals"
-            glossaryTerm="Comparable Deals"
-            description="point-estimate examples · sized ±50% to 2× of your project"
-            count={`${comparables.total} comp${comparables.total !== 1 ? 's' : ''}`}
-          >
-            <ComparableDealsPanel state={state} stateName={stateName} technology={technology} mw={mw} />
-          </CollapsibleSubsection>
-        )}
+        <CollapsibleSubsection
+          title="◆ Comparable Deals"
+          glossaryTerm="Comparable Deals"
+          description="point-estimate examples · sized ±50% to 2× of your project"
+          count={comparablesTotal != null ? `${comparablesTotal} comp${comparablesTotal !== 1 ? 's' : ''}` : null}
+          empty={comparables === false}
+        >
+          {comparables
+            ? <ComparableDealsPanel state={state} stateName={stateName} technology={technology} mw={mw} />
+            : <EmptyState message={`No comparable deals curated for ${stateName} yet. Paste news article URLs into the Comparable Deals admin tab to seed rows (admin curation flow — coming soon).`} />
+          }
+        </CollapsibleSubsection>
 
-        {specificYield && (
-          <CollapsibleSubsection
-            title="◆ Market Benchmarks"
-            glossaryTerm="Market Benchmarks"
-            description="observed kWh/kW yield from operating CS projects · ground truth for the modeled assumption"
-            count={`n=${specificYield.total_count}`}
-          >
-            <SpecificYieldPanel state={state} stateName={stateName} mw={mw} />
-          </CollapsibleSubsection>
-        )}
+        <CollapsibleSubsection
+          title="◆ Market Benchmarks"
+          glossaryTerm="Market Benchmarks"
+          description="observed kWh/kW yield from operating CS projects · ground truth for the modeled assumption"
+          count={specificCount != null ? `n=${specificCount}` : null}
+          empty={specificYield === false}
+        >
+          {specificYield
+            ? <SpecificYieldPanel state={state} stateName={stateName} mw={mw} />
+            : <EmptyState message={`No specific-yield observations for ${stateName} yet. Need at least 3 operating projects with reported kWh/kW for a meaningful state benchmark.`} />
+          }
+        </CollapsibleSubsection>
       </div>
     </>
   )

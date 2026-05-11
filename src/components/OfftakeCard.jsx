@@ -7,7 +7,6 @@ import RevenueStackBar from './RevenueStackBar'
 import RevenueProjectionSection from './RevenueProjectionSection'
 import SolarCostLineagePanel from './SolarCostLineagePanel'
 import LeveragedReturnsRow from './LeveragedReturnsRow'
-import PolicyChipStrip from './PolicyChipStrip'
 import {
   SectionLabel,
   DataRow,
@@ -15,7 +14,7 @@ import {
   RunwayBadge,
 } from '../lib/searchShared.jsx'
 
-export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county, policyEvents = [] }) {
+export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
@@ -38,7 +37,6 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
     >
       {/* Body */}
       <div className="px-5 py-4 space-y-4">
-        <PolicyChipStrip pillar="offtake" policyEvents={policyEvents} mw={mw} technology={technology} />
 
         {/* Per-state $/W data lineage panel — promoted out of the methodology
             dropdown 2026-05-05 so the Tier A/B confidence is visible at first

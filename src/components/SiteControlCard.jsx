@@ -1,9 +1,8 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
-import PolicyChipStrip from './PolicyChipStrip'
 
-export default function SiteControlCard({ siteControl, interconnection, geospatial, stateName, county, stateId, mw, substations, technology = null, policyEvents = [] }) {
+export default function SiteControlCard({ siteControl, interconnection, geospatial, stateName, county, stateId, mw, substations }) {
   if (!siteControl) return null
   const { availableLand, landNotes, wetlandWarning, wetlandNotes, landUseNotes } = siteControl
   // Path B authoritative percentages (USFWS NWI + USDA SSURGO). When
@@ -133,9 +132,6 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
     >
       {/* Body */}
       <div className="px-5 py-4">
-        <div className="mb-3">
-          <PolicyChipStrip pillar="site" policyEvents={policyEvents} mw={mw} technology={technology} />
-        </div>
         {/* Population density context */}
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">Area Profile</span>

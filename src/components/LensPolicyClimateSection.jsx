@@ -123,7 +123,7 @@ export default function LensPolicyClimateSection({ policyEvents, stateName, mw, 
   const highConfCount = active.filter(e => e.impact_confidence === 'high').length
 
   return (
-    <div className="bg-white rounded-lg overflow-hidden relative" style={{ border: '1px solid #E2E8F0', borderLeft: '3px solid #F59E0B' }}>
+    <div className="bg-white rounded-lg overflow-hidden relative" style={{ border: '1px solid #E2E8F0' }}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}

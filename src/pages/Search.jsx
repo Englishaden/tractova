@@ -893,7 +893,6 @@ function SearchContent() {
                 nmtcLic={results.nmtcLic}
                 hudQctDda={results.hudQctDda}
                 county={results.form.county}
-                policyEvents={results.policyEvents || []}
               />
               <InterconnectionCard
                 interconnection={results.countyData?.interconnection}
@@ -901,8 +900,6 @@ function SearchContent() {
                 stateId={results.stateProgram?.id}
                 mw={results.form.mw}
                 queueSummary={results.ixQueueSummary}
-                technology={results.form.technology}
-                policyEvents={results.policyEvents || []}
               />
               <SiteControlCard
                 siteControl={results.countyData?.siteControl}
@@ -913,8 +910,6 @@ function SearchContent() {
                 stateId={results.stateProgram?.id}
                 mw={results.form.mw}
                 substations={results.substations}
-                technology={results.form.technology}
-                policyEvents={results.policyEvents || []}
               />
             </div>
 
