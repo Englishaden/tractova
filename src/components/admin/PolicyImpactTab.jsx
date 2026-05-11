@@ -48,6 +48,12 @@ export default function PolicyImpactTab() {
   const [classifyError, setClassifyError]   = useState(null)
   const [classifyHint, setClassifyHint]     = useState(null) // 'cached' | 'fresh' after success
   const [classifyFetchedUrl, setClassifyFetchedUrl] = useState(null) // populated when URL fetch was used
+  // URL-first auto-publish: when on, draft + derive + publish in one flow.
+  // Admin gets a single click instead of "Draft, review, publish". Off by
+  // default for the first session in case the admin wants to validate
+  // Quick-Add quality before trusting it — flip on after a few clean runs.
+  const [autoPublish, setAutoPublish] = useState(true)
+  const [rescanningId, setRescanningId] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -214,43 +220,117 @@ export default function PolicyImpactTab() {
     }
   }
 
-  // AI Classify — paste bill / article text, Haiku 4.5 extracts the
-  // qualitative structured fields and pre-fills the edit form. Dollar/IRR
-  // fields are deliberately left null — admin curates from primary sources.
+  // Shared classifier call — used by Quick-Add (manual paste) AND Re-scan
+  // (re-runs an existing row's source URL to detect amendments). Returns
+  // the parsed draft + fetched URL metadata, or throws on failure.
+  const callPolicyClassify = async ({ rawText, stateHint, eventNameHint }) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) throw new Error('Sign-in required')
+    const res = await fetch('/api/lens-insight', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({
+        action:        'policy-classify',
+        rawText,
+        stateHint:     stateHint || null,
+        eventNameHint: eventNameHint || null,
+      }),
+    })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+    if (!json?.draft) throw new Error(json?.reason || 'Classification failed — paste failed or source had no extractable provisions.')
+    return json
+  }
+
+  // Build the upsert payload from a draft + admin form values. Used by
+  // both auto-publish (skips the form) and the manual save path.
+  const buildPayloadFromDraft = (d, opts = {}) => {
+    const stateHint = opts.stateHint || ''
+    const eventHint = opts.eventHint || ''
+    const parseList = (s) => {
+      if (!s) return null
+      const arr = String(s).split(',').map(x => x.trim()).filter(Boolean)
+      return arr.length > 0 ? arr : null
+    }
+    return {
+      state:                          (d.state || stateHint || '').toUpperCase(),
+      event_name:                     d.event_name || eventHint || '',
+      event_type:                     d.event_type || 'enacted_bill',
+      effective_date:                 d.effective_date || null,
+      status:                         d.status || 'enacted',
+      pillar:                         d.pillar || 'cross-cutting',
+      capex_impact_per_mw_usd:        d.capex_impact_per_mw_usd ?? null,
+      irr_impact_bps:                 d.irr_impact_bps ?? null,
+      ongoing_fee_per_mw_yr_usd:      d.ongoing_fee_per_mw_yr_usd ?? null,
+      revenue_haircut_pct:            d.revenue_haircut_pct ?? null,
+      impact_confidence:              d.impact_confidence || 'medium',
+      impact_methodology:             d.impact_methodology || null,
+      applies_to_new_applications:    !!d.applies_to_new_applications,
+      applies_to_existing_queue:      !!d.applies_to_existing_queue,
+      applies_to_operating_projects:  !!d.applies_to_operating_projects,
+      safe_harbor_eligible:           !!d.safe_harbor_eligible,
+      safe_harbor_cutoff_date:        d.safe_harbor_cutoff_date || null,
+      safe_harbor_notes:              d.safe_harbor_notes || null,
+      feoc_compliance_required:       !!d.feoc_compliance_required,
+      feoc_notes:                     d.feoc_notes || null,
+      min_mw_ac:                      null,
+      max_mw_ac:                      null,
+      applicable_technologies:        parseList(opts.applicable_technologies_text),
+      applicable_stages:              parseList(opts.applicable_stages_text),
+      summary:                        d.summary || '',
+      analyst_note:                   d.analyst_note || null,
+      source_url:                     d.source_url || opts.fallbackSourceUrl || '',
+      discovery_metadata:             d.discovery_metadata || null,
+      discovered_via:                 d.discovered_via || 'manual',
+      review_status:                  opts.publish ? 'published' : 'pending_admin_review',
+      is_active:                      true,
+    }
+  }
+
+  // AI Classify — paste URL or bill text, Haiku 4.5 extracts raw provisions
+  // from source. URL-first flow: if autoPublish is on, the draft + derive
+  // result is upserted directly to the published list — no review step.
   const handleClassify = async () => {
-    if (!classifyText || classifyText.trim().length < 60) {
-      setClassifyError('Paste at least 60 characters of bill text / article content.')
+    if (!classifyText || classifyText.trim().length < 5) {
+      setClassifyError('Paste a URL or at least 60 characters of article / bill text.')
       return
     }
     setClassifying(true)
     setClassifyError(null)
     setClassifyHint(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
-      if (!token) { setClassifyError('Sign-in required'); setClassifying(false); return }
-      const res = await fetch('/api/lens-insight', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body:    JSON.stringify({
-          action:        'policy-classify',
-          rawText:       classifyText,
-          stateHint:     classifyStateHint.trim() || null,
-          eventNameHint: classifyEventHint.trim() || null,
-        }),
+      const json = await callPolicyClassify({
+        rawText:       classifyText,
+        stateHint:     classifyStateHint.trim(),
+        eventNameHint: classifyEventHint.trim(),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        setClassifyError(json?.error || `HTTP ${res.status}`)
-        setClassifying(false)
-        return
-      }
-      if (!json?.draft) {
-        setClassifyError(json?.reason || 'Classification failed — try again or fall back to manual add.')
-        setClassifying(false)
-        return
-      }
       const d = json.draft
+
+      // Auto-publish path: skip the form entirely, upsert published row.
+      if (autoPublish) {
+        const payload = buildPayloadFromDraft(d, {
+          stateHint:        classifyStateHint.trim(),
+          eventHint:        classifyEventHint.trim(),
+          publish:          true,
+          fallbackSourceUrl: /^https?:\/\//i.test(classifyText.trim()) ? classifyText.trim().split(/\s/)[0] : '',
+        })
+        if (!payload.state || !payload.event_name) {
+          setClassifyError('Draft missing state or event name — switch off auto-publish and review manually.')
+          setClassifying(false)
+          return
+        }
+        await upsertPolicyImpactEvent(payload)
+        setClassifyText('')
+        setClassifyStateHint('')
+        setClassifyEventHint('')
+        setClassifyHint(json.cached ? 'cached' : 'fresh')
+        setClassifyFetchedUrl(json.fetchedUrl || null)
+        await load()
+        setClassifying(false)
+        return
+      }
+      // Manual-review path: pre-fill the form. Existing flow.
       // Pre-fill the edit form. AI extracted raw_provisions from source text
       // and the handler derived the four $/MW impact fields using state
       // baselines from revenue_rates. Admin reviews, optionally overrides,
@@ -298,9 +378,40 @@ export default function PolicyImpactTab() {
       setClassifyHint(json.cached ? 'cached' : 'fresh')
       setClassifyFetchedUrl(json.fetchedUrl || null)
     } catch (e) {
-      setClassifyError(`Network error: ${e.message}`)
+      setClassifyError(e.message || 'Classification failed')
     }
     setClassifying(false)
+  }
+
+  // Re-scan an existing row's source URL — detects amendments / updates
+  // by re-running classify against the original URL. Overwrites the row
+  // in place (preserves id, bumps verified_at via upsert with published).
+  const handleRescan = async (item) => {
+    if (!item.sourceUrl || !/^https?:\/\//i.test(item.sourceUrl)) {
+      window.alert(`Re-scan requires a valid source URL. This row has: ${item.sourceUrl || '(none)'}`)
+      return
+    }
+    if (!window.confirm(`Re-scan ${item.eventName}?\n\nFetches ${item.sourceUrl} and re-runs classification. Existing row will be overwritten with the new draft.`)) return
+    setRescanningId(item.id)
+    try {
+      const json = await callPolicyClassify({
+        rawText:       item.sourceUrl,
+        stateHint:     item.state,
+        eventNameHint: item.eventName,
+      })
+      const payload = buildPayloadFromDraft(json.draft, {
+        stateHint:        item.state,
+        eventHint:        item.eventName,
+        publish:          true,
+        fallbackSourceUrl: item.sourceUrl,
+      })
+      payload.id = item.id
+      await upsertPolicyImpactEvent(payload)
+      await load()
+    } catch (e) {
+      window.alert(`Re-scan failed: ${e.message}`)
+    }
+    setRescanningId(null)
   }
 
   if (loading) return <p className="text-sm text-gray-400 py-8 text-center">Loading policy events...</p>
@@ -396,13 +507,19 @@ export default function PolicyImpactTab() {
           }}
         />
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
-            ~$0.01/draft · cached 24h · drafts land in pending-review queue
-          </p>
+          <label className="flex items-center gap-2 cursor-pointer select-none text-[11px]" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            <input
+              type="checkbox"
+              checked={autoPublish}
+              onChange={(e) => setAutoPublish(e.target.checked)}
+              className="h-3.5 w-3.5 accent-teal-500"
+            />
+            Publish immediately (skip review)
+          </label>
           <div className="flex items-center gap-2">
             {classifyText && (
               <button
-                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null) }}
+                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null); setClassifyFetchedUrl(null) }}
                 disabled={classifying}
                 className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md transition-colors"
                 style={{ color: 'rgba(255,255,255,0.55)' }}
@@ -419,14 +536,14 @@ export default function PolicyImpactTab() {
               {classifying ? (
                 <>
                   <span className="w-3 h-3 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                  Drafting…
+                  {autoPublish ? 'Drafting + Publishing…' : 'Drafting…'}
                 </>
               ) : (
                 <>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polygon points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"/>
                   </svg>
-                  Draft with AI
+                  {autoPublish ? 'Fetch + Publish' : 'Draft for review'}
                 </>
               )}
             </button>
@@ -553,6 +670,19 @@ export default function PolicyImpactTab() {
             item.ongoingFeePerMwYrUsd != null  && `$${item.ongoingFeePerMwYrUsd.toLocaleString()}/MW/yr`,
             item.revenueHaircutPct != null     && `rev ${item.revenueHaircutPct > 0 ? '−' : '+'}${Math.abs(item.revenueHaircutPct)}%`,
           ].filter(Boolean).join(' · ')
+          // Staleness: days since last verified. Policy doesn't go stale
+          // the way market data does, but the rate cut % might be amended,
+          // the safe-harbor cutoff might be extended, the suit might
+          // overturn the rule. Re-scan once per quarter is a reasonable
+          // default; we badge accordingly.
+          const verifiedTs = item.verifiedAt ? new Date(item.verifiedAt).getTime() : null
+          const daysSince  = verifiedTs ? Math.floor((Date.now() - verifiedTs) / 86_400_000) : null
+          let staleChip = null
+          if (daysSince == null) staleChip = { color: 'gray', label: 'unverified' }
+          else if (daysSince >= 180) staleChip = { color: 'red', label: `stale (${daysSince}d)` }
+          else if (daysSince >= 90)  staleChip = { color: 'yellow', label: `aging (${daysSince}d)` }
+          // < 90d: no chip (fresh, no badge needed — clean list)
+          const isRescanning = rescanningId === item.id
           return (
             <div key={item.id} className="flex items-start justify-between gap-3 py-2.5 border-b border-gray-100">
               <div className="min-w-0 flex-1">
@@ -565,12 +695,28 @@ export default function PolicyImpactTab() {
                   <Badge color={item.impactConfidence === 'high' ? 'green' : item.impactConfidence === 'medium' ? 'yellow' : 'gray'}>conf: {item.impactConfidence || '—'}</Badge>
                   {item.safeHarborEligible && <Badge color="blue">safe harbor</Badge>}
                   {item.feocComplianceRequired && <Badge color="red">FEOC</Badge>}
+                  {staleChip && <Badge color={staleChip.color}>◆ {staleChip.label}</Badge>}
                 </div>
                 <p className="text-[11px] text-gray-500 mt-1 font-mono tabular-nums truncate">
                   {item.eventType} · {item.effectiveDate || 'no date'} · {impactBits || 'no quantified impact'}
                 </p>
+                {item.sourceUrl && (
+                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-teal-700 hover:underline truncate block mt-0.5">
+                    {item.sourceUrl.length > 80 ? item.sourceUrl.slice(0, 80) + '…' : item.sourceUrl}
+                  </a>
+                )}
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 items-center">
+                {item.sourceUrl && /^https?:\/\//i.test(item.sourceUrl) && (
+                  <button
+                    onClick={() => handleRescan(item)}
+                    disabled={isRescanning}
+                    className="text-xs text-teal-700 hover:text-teal-900 transition-colors disabled:opacity-50"
+                    title="Re-fetch source URL + reclassify. Use when an amendment or correction is announced."
+                  >
+                    {isRescanning ? 'Re-scanning…' : '↻ Re-scan'}
+                  </button>
+                )}
                 <button onClick={() => startEdit(item)} className="text-xs text-gray-400 hover:text-teal-700 transition-colors">Edit</button>
                 <button onClick={() => handleDeactivate(item.id)} className="text-xs text-gray-400 hover:text-red-500 transition-colors">Remove</button>
               </div>
