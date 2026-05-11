@@ -10,7 +10,7 @@ import { Button } from '../ui'
 import { Field, Badge } from '../../pages/Admin.jsx'
 
 // ── Policy Impact Events admin tab ──────────────────────────────────────────
-// Curates the `policy_impact_events` table (migration 059). Each row is an
+// Curates the `policy_impact_events` table (migration 061). Each row is an
 // enacted state bill / PUC order / tariff change with admin-curated
 // quantified financial impact ($/MW capex, IRR bps, ongoing fees, revenue
 // haircut) plus applicability filters (safe-harbor cutoffs, FEOC, MW range).

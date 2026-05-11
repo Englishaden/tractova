@@ -1,5 +1,5 @@
 /**
- * Diagnostic probe for policy_impact_events (migration 059).
+ * Diagnostic probe for policy_impact_events (migration 061).
  *
  * Reports:
  *   1. Table existence + total row count
@@ -54,7 +54,7 @@ const { count: total, error: countErr } = await admin
 if (countErr) {
   if (countErr.code === 'PGRST116' || /relation .* does not exist/i.test(countErr.message)) {
     console.error('❌ Table policy_impact_events does not exist.')
-    console.error('   Apply migration 059_policy_impact_events.sql via Supabase SQL editor.')
+    console.error('   Apply migration 061_policy_impact_events.sql via Supabase SQL editor.')
     process.exit(1)
   }
   console.error('query failed:', countErr.message)

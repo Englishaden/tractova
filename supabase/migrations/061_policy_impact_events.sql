@@ -1,4 +1,5 @@
--- Migration 059: policy_impact_events
+-- Migration 061: policy_impact_events
+-- (Renumbered from 059 to avoid clash with 059_drop_legacy_email_rls.sql)
 --
 -- Stores enacted state-level policies with admin-curated quantified financial
 -- impact ($/MW capex, IRR basis points, ongoing fees, revenue haircut) plus

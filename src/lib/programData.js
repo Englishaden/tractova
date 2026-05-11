@@ -1213,7 +1213,7 @@ export async function deletePucDocket(id) {
   invalidateCache('puc_dockets:*')
 }
 
-// ── Policy Impact Events (migration 059) ─────────────────────────────────────
+// ── Policy Impact Events (migration 061) ─────────────────────────────────────
 // Quantified enacted-bill effects ($/MW capex, IRR bps, ongoing fees, safe-
 // harbor + FEOC flags). Read here for the admin curation UI; the Lens API
 // reads the same table server-side via service-role (api/lens-insight.js).

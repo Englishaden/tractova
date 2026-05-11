@@ -383,7 +383,7 @@ export default async function handler(req, res) {
   // Admin-curated enacted-bill effects (capex/IRR/ongoing fee/safe harbor
   // /FEOC). buildContext folds these into the prompt; the Sonnet verdict
   // then naturally addresses policy implications in primaryRisk +
-  // immediateAction. Empty array if migration 059 isn't applied yet OR the
+  // immediateAction. Empty array if migration 061 isn't applied yet OR the
   // state has no published events — caller treats that as "no policy
   // context" and prompts read identically to pre-policy behavior.
   // MUST fetch before the cache-key build below — dataVersionFor folds
