@@ -117,7 +117,7 @@ Every motion in the app composes from these. No ad-hoc animations after Phase 0.
 
 | Primitive | Vocabulary | Where |
 |---|---|---|
-| `<PageTransition>` | Fade + 8px slide, 220ms | Route changes |
+| `<PageTransition>` | Fade + 8px slide, 220ms | **Per-page scoped only** — DO NOT wrap all routes globally; that caused OOM on the Lens tree (incident 2026-05-11, reverted `238169a`). Use on lighter pages (Profile / Glossary) or replace with CSS-only fade on Suspense fallback in Phase 4. |
 | `<RevealOnScroll>` | Fade + 12px lift, 380ms | Section reveals on first viewport entry |
 | `<HoverLift>` | translateY -2px + shadow deepen, 180ms | Cards, chips, buttons |
 | `<CountUp>` | RAF + cubic-easing | Score numerals, MW totals |

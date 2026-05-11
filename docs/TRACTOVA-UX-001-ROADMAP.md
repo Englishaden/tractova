@@ -95,7 +95,13 @@ Complete end-to-end:
 - SectionDivider between § 04 and § 05
 - Glossary tooltips on `Active Policy`, `Policy Climate`, `Modeled in financials`, `Qualitative — not modeled`
 
-### Phase 0 — Foundations + Motion Primitives — commit `cfce269`
+### ⚠ Phase 0 incident — PageTransition reverted (commit `238169a`)
+
+Initial Phase 0 wrap of all Routes in `<PageTransition>` (AnimatePresence + motion.div keyed by pathname) caused a Chrome OOM crash on the Lens results page. The Lens tree is too heavy (IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette) for a global AnimatePresence parent — the loading screen → results swap blew per-tab memory budget.
+
+**Lesson:** page-level motion must be **per-page scoped or CSS-only**. Global AnimatePresence wraps are not safe on dense pages. Phase 4 (motion rollout) revisits with CSS fade on Suspense fallback or scoped wraps for lighter pages (Profile / Glossary).
+
+### Phase 0 — Foundations + Motion Primitives — commit `cfce269` (with revert `238169a`)
 **This is the chassis for everything in Phases 1–6.**
 
 New files:
@@ -111,7 +117,7 @@ New files:
 Modifications:
 - `src/components/LensComparablesSection.jsx` — migrated off hand-rolled toggle
 - `src/components/LensPolicyClimateSection.jsx` — migrated off hand-rolled toggle
-- `src/App.jsx` — Routes wrapped in `<PageTransition>`. Suspense stays OUTSIDE for no lazy double-mount.
+- `src/App.jsx` — PageTransition wrap REVERTED 2026-05-11 after OOM (see incident note above). Routes back to plain Suspense.
 - `src/index.css` — `@keyframes skeleton-shimmer` + `.eyebrow-mono` responsive utility class
 
 All primitives honor `prefers-reduced-motion: reduce`.
