@@ -1,7 +1,10 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-/* Geist font import removed -- we use Inter as the brand font (see @theme below). */
+/* Tractova ships no third-party UI font. Body text inherits the OS
+   system sans (`system-ui`) per design-vocabulary.md. Editorial display
+   uses `font-serif` (Source Serif 4). Mono chrome uses JetBrains Mono.
+   Three voices, no more. */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -56,7 +59,10 @@
   --color-surface: #f8f7f4;
   --color-chrome: #f1f0ed;
 
-  --font-sans: Inter, system-ui, sans-serif;
+  /* Brand vocab: design-vocabulary.md lists Inter as an anti-pattern.
+     Tractova commits to "system sans" — let the OS choose its native
+     UI font, no third-party Inter download. */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: 'Source Serif 4', Georgia, serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
@@ -213,7 +219,7 @@
 
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -229,7 +235,7 @@
 
 /*
   shadcn-specific token surface. INTENTIONALLY EXCLUDES:
-  - --font-sans (would override our Inter brand font)
+  - --font-sans (would override our system-sans inheritance)
   - --color-primary (would override our teal at #0f6e56)
   - --color-accent  (would override our amber at #ba7517)
   shadcn's button etc. will inherit our primary/accent/font, which is

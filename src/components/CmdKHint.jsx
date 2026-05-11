@@ -79,8 +79,9 @@ export default function CmdKHint() {
       // mobile and the chip would crowd the footer. md+ only.
       className="hidden md:flex fixed bottom-4 right-4 z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-all duration-300 ease-out group"
       style={{
-        background: 'rgba(255,255,255,0.92)',
-        backdropFilter: 'blur(6px)',
+        // Solid white background — no glassmorphism (design-vocab
+        // anti-pattern). The chip is chrome, not a translucent layer.
+        background: '#FFFFFF',
         border: '1px solid #14B8A6',
         boxShadow: '0 1px 0 rgba(15,118,110,0.08), 0 4px 12px rgba(10,24,40,0.06)',
         opacity: idle ? 0.32 : 1,

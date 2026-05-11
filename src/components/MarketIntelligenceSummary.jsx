@@ -185,7 +185,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
                   </span>
                 </div>
                 <span className={`text-[10px] font-bold tabular-nums px-2 py-0.5 rounded ${
-                  positive ? 'bg-green-100 text-green-700' : delta < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                  positive ? 'bg-teal-50 text-teal-800 border border-teal-200' : delta < 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
                 }`}>
                   Score impact: {positive ? '+' : ''}{delta} pts
                 </span>
@@ -212,7 +212,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
                     {activeScenario.revenueImpact && (
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-sm border ${
                         activeScenario.tone === 'positive'
-                          ? 'bg-green-50 text-green-700 border-green-200'
+                          ? 'bg-teal-50 text-teal-800 border-teal-200'
                           : activeScenario.tone === 'negative'
                             ? 'bg-red-50 text-red-700 border-red-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'

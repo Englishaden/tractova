@@ -58,31 +58,21 @@ export default function LibraryToolbar({ layout, onLayoutChange, count }) {
       >
         {VIEWS.map(v => {
           const active = layout === v.id
-          const disabled = !!v.disabled
           return (
             <button
               key={v.id}
               type="button"
               role="tab"
               aria-selected={active}
-              aria-disabled={disabled}
-              disabled={disabled}
-              onClick={() => !disabled && onLayoutChange(v.id)}
-              title={disabled ? `${v.hint} (coming soon)` : v.hint}
+              onClick={() => onLayoutChange(v.id)}
+              title={v.hint}
               className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded transition-all"
-              style={
-                disabled
-                  ? { color: '#9CA3AF', cursor: 'not-allowed' }
-                  : active
-                  ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
-                  : { background: 'transparent', color: '#6B7280' }
-              }
+              style={active
+                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
+                : { background: 'transparent', color: '#6B7280' }}
             >
               {v.icon}
               <span>{v.label}</span>
-              {disabled && (
-                <span className="eyebrow-mono ml-0.5" style={{ color: '#9CA3AF' }}>2B</span>
-              )}
             </button>
           )
         })}

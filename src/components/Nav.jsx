@@ -67,13 +67,18 @@ export default function Nav() {
           <span className="hidden sm:inline text-xl font-serif font-semibold tracking-tight text-ink leading-none" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
         </Link>
 
-        {/* Nav links — only shown to signed-in users; tighter gap on phone */}
-        <div className="flex items-center gap-3 sm:gap-5 md:gap-7 overflow-x-auto">
-          {user && navLink('/', 'Dashboard')}
-          {user && navLink('/search', 'Lens')}
-          {user && navLink('/glossary', 'Glossary')}
-          {user && navLink('/library', 'Library')}
-        </div>
+        {/* Nav links — only shown to signed-in users. The wrapper is
+            also gated on `user` so signed-out visitors don't see an
+            empty 28-44 px flex gap between the logo and the Sign-In
+            buttons. */}
+        {user && (
+          <div className="flex items-center gap-3 sm:gap-5 md:gap-7 overflow-x-auto">
+            {navLink('/', 'Dashboard')}
+            {navLink('/search', 'Lens')}
+            {navLink('/glossary', 'Glossary')}
+            {navLink('/library', 'Library')}
+          </div>
+        )}
 
         {/* Auth */}
         <div className="flex items-center gap-3">

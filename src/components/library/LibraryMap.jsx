@@ -216,9 +216,9 @@ export default function LibraryMap({
           <div className="mt-2 flex items-center gap-2 flex-wrap">
             <span
               className="inline-flex items-center gap-1.5 text-[10px] font-mono font-semibold uppercase tracking-[0.14em] px-2 py-1 rounded-sm"
-              style={{ background: 'rgba(124,58,237,0.08)', color: '#7C3AED', border: '1px solid rgba(124,58,237,0.25)' }}
+              style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E', border: '1px solid rgba(15,118,110,0.30)' }}
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#7C3AED' }} />
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: '#0F766E' }} />
               Filtered: {filterState}
             </span>
             {onSwitchToTable && (
@@ -301,7 +301,11 @@ export default function LibraryMap({
               const isHovered  = hoveredStateId === stateId
               const isFiltered = filterState === stateId
               const baseFill = stateFillForAggregate(agg)
-              const fill = isFiltered ? '#7C3AED' : isHovered && hasProjects ? '#0F766E' : baseFill
+              // Filtered state uses a deeper teal (#134E48) than the hover
+              // teal (#0F766E) so users can distinguish "I'm filtered to
+              // this one" from "I'm hovering". Both stay inside the 5-hue
+              // palette commitment in design-vocabulary.md.
+              const fill = isFiltered ? '#134E48' : isHovered && hasProjects ? '#0F766E' : baseFill
               const aria = hasProjects
                 ? `${stateId}: ${agg.count} project${agg.count === 1 ? '' : 's'}, ${agg.mwSum.toFixed(1)} MW, weighted-avg score ${agg.weightedAvg}. Enter to filter; double-click to filter as table.`
                 : `${stateId}: no saved projects.`
@@ -351,13 +355,18 @@ export default function LibraryMap({
             const r = Math.max(2.5, Math.min(5.5, 2.5 + Math.sqrt(Math.max(0, pin.mw)) * 0.45))
             return (
               <Marker key={pin.id} coordinates={pin.centroid}>
-                {/* Outer halo */}
-                <circle
-                  r={r * 1.7}
-                  fill={color}
-                  fillOpacity={0.18}
-                  pointerEvents="none"
-                />
+                {/* Halo — only when hovered. The previous always-visible
+                    halo read as a "stagnant pulse" against same-tone
+                    state fills (e.g. amber pin on yellow MA aggregate).
+                    Idle pin = plain dot; hover brings up halo + pulse. */}
+                {isHovered && (
+                  <circle
+                    r={r * 1.8}
+                    fill={color}
+                    fillOpacity={0.22}
+                    pointerEvents="none"
+                  />
+                )}
                 {/* Inner dot */}
                 <circle
                   cx={0}

@@ -438,7 +438,7 @@ function kindColor(kind) {
     case 'state':     return '#0F766E'
     case 'county':    return '#14B8A6'
     case 'project':   return '#0F1A2E'
-    case 'glossary':  return '#7C3AED'
+    case 'glossary':  return '#B45309'    // amber-700 — reference / explainer category
     case 'verb-help': return '#0F1A2E'
     case 'verb-go':   return '#0F766E'
     case 'recent':    return '#5A6B7A'
