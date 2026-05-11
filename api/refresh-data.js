@@ -3,15 +3,18 @@ import { applyCors } from './_cors.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { supabaseAdmin, applyStaleTolerance, logCronRun } from './scrapers/_scraperBase.js'
 import refreshLmi from './scrapers/_refresh-lmi.js'
-import refreshStateProgramsViaDsire from './scrapers/_refresh-state-programs.js'
 import refreshCountyAcs from './scrapers/_refresh-county-acs.js'
 import refreshNews from './scrapers/_refresh-news.js'
-import refreshRevenueStacksViaDsire from './scrapers/_refresh-revenue-stacks.js'
 import refreshEnergyCommunity from './scrapers/_refresh-energy-community.js'
 import refreshHudQctDda from './scrapers/_refresh-hud-qct-dda.js'
 import refreshNmtcLic from './scrapers/_refresh-nmtc-lic.js'
 import refreshGeospatialFarmland from './scrapers/_refresh-geospatial-farmland.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
+// DSIRE scrapers (state_programs + revenue_stacks) removed 2026-05-11:
+// DSIRE's free API was deprecated to a $4,950/yr licensed model, and the
+// integration had never produced a successful row across the entire
+// cron_runs history. Manual state-program curation via /admin remains the
+// canonical source for state_programs + revenue_stacks data.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Multiplexed data refresh — verified live pulls from regulated / .gov sources
@@ -39,7 +42,7 @@ import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'state_programs', 'county_acs', 'news', 'revenue_stacks', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -187,10 +190,8 @@ export default async function handler(req, res) {
     try {
       let result
       if (source === 'lmi')                  result = await refreshLmi()
-      else if (source === 'state_programs')  result = await refreshStateProgramsViaDsire()
       else if (source === 'county_acs')      result = await refreshCountyAcs()
       else if (source === 'news')              result = await refreshNews()
-      else if (source === 'revenue_stacks')    result = await refreshRevenueStacksViaDsire()
       else if (source === 'energy_community')  result = await refreshEnergyCommunity()
       else if (source === 'hud_qct_dda')       result = await refreshHudQctDda()
       else if (source === 'nmtc_lic')          result = await refreshNmtcLic()

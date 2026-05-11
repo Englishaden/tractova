@@ -67,8 +67,8 @@ export const GLOSSARY_DEFINITIONS = {
   'REC': {
     title: 'REC (Renewable Energy Certificate)',
     short: 'Tradeable certificate representing the environmental attributes of 1 MWh of renewable generation.',
-    long: 'In most state CS programs, the developer earns one REC per MWh produced, sold either to the utility (e.g. Illinois Shines via the Adjustable Block Program) or onto a state-specific market (e.g. NJ SRECs). REC price is often the largest single revenue component for CS projects in REC-market states. Tractova surfaces state REC prices from curated DSIRE data + program-specific filings.',
-    inputs: 'DSIRE · state regulatory program filings (Illinois Shines, NJ SREC, MA SMART, MD CS)',
+    long: 'In most state CS programs, the developer earns one REC per MWh produced, sold either to the utility (e.g. Illinois Shines via the Adjustable Block Program) or onto a state-specific market (e.g. NJ SRECs). REC price is often the largest single revenue component for CS projects in REC-market states. Tractova surfaces state REC prices from Tractova-curated state regulatory program filings.',
+    inputs: 'State regulatory program filings (Illinois Shines, NJ SREC, MA SMART, MD CS)',
   },
   'ITC': {
     title: 'ITC (Investment Tax Credit)',
@@ -146,7 +146,7 @@ export const GLOSSARY_DEFINITIONS = {
     title: 'REC Price',
     short: 'Per-MWh price for the project\'s renewable-attribute certificates — varies wildly by state and program tranche.',
     long: 'Spans from near-$0 (no REC market) to $85+/MWh (NJ SREC-II, MA SMART). For states with ABP/REC programs (IL, MD), the contracted price is typically locked at award; this slider models alternative outcomes (next-block pricing, REC market shifts). For states with no REC market, leave at baseline (0). Major revenue lever in REC-market states.',
-    inputs: 'revenue_rates.rec_per_mwh · DSIRE · state regulatory filings',
+    inputs: 'revenue_rates.rec_per_mwh · state regulatory filings (Tractova-curated)',
   },
   'IRR': {
     title: 'IRR (Internal Rate of Return)',

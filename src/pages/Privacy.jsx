@@ -173,7 +173,7 @@ export default function Privacy() {
             <Li><Source>HUD Qualified Census Tracts + Difficult Development Areas (QCT/DDA)</Source> — LIHTC and federal LMI overlay (US Department of Housing and Urban Development; huduser.gov).</Li>
             <Li><Source>CDFI Fund New Markets Tax Credit (NMTC) Low-Income Communities</Source> — IRA §48(e) Cat 1 +10% ITC eligibility (US Treasury CDFI Fund; cdfifund.gov).</Li>
             <Li><Source>DOE NETL Energy Community Tax Credit Bonus layer</Source> — IRA §45/§48 +10% ITC eligibility (US Department of Energy National Energy Technology Lab Energy Data eXchange; edx.netl.doe.gov).</Li>
-            <Li><Source>DSIRE — Database of State Incentives for Renewables &amp; Efficiency</Source> — state incentive program documentation (NC Clean Energy Technology Center; dsireusa.org).</Li>
+            <Li><Source>State PUC program-administrator portals + state regulatory filings</Source> — Illinois Shines (ABP), NJ SuSI / SREC, MA SMART, MD CS, NY VDER, ME NEB and equivalents. Tractova's state_programs + revenue_rates data is curated manually from these primary sources. We previously referenced DSIRE for cross-verification; that integration was removed in May 2026 after the DSIRE API was moved behind a paid licensing model.</Li>
             <Li><Source>ISO/RTO interconnection queue downloads</Source> — public queue snapshots from PJM Interconnection, MISO, NYISO, ISO-NE, and other RTOs where published. Coverage and freshness vary; the Service flags stale snapshots honestly when a scraper has not refreshed within seven days.</Li>
             <Li><Source>Public RSS feeds + state PUC docket portals</Source> — for the News Pulse and Regulatory Activity panels.</Li>
           </List>

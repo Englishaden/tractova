@@ -80,8 +80,8 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
 // synced because nothing else in the codebase needs to know about it.
 const METHODOLOGY_ROWS = [
   ['Composite (Feasibility Index)', 'Tractova scoreEngine', 'https://www.tractova.com/glossary#feasibility-index', 'Weighted blend: Offtake 40% + IX 35% + Site 25%; per-pillar stage modifiers'],
-  ['Offtake — CS programs (50 states)', 'DSIRE — Database of State Incentives', 'https://www.dsireusa.org', 'Program status, capacity remaining, LMI carveout, REC pricing'],
-  ['Offtake — REC pricing', 'State regulatory program filings', 'https://www.dsireusa.org', 'Illinois Shines, NJ SREC, MA SMART, MD CS, NY VDER'],
+  ['Offtake — CS programs (50 states)', 'State PUC program-administrator portals (Tractova-curated)', '', 'Program status, capacity remaining, LMI carveout, REC pricing — curated manually from each state\'s primary source'],
+  ['Offtake — REC pricing', 'State regulatory program filings', '', 'Illinois Shines, NJ SREC, MA SMART, MD CS, NY VDER, ME NEB'],
   ['Offtake — C&I (32 states)', 'EIA Form 861 — Commercial Retail Rates', 'https://www.eia.gov/electricity/sales_revenue_price/', 'Calibrated against 2024 commercial retail rates plus market-depth qualitative weights'],
   ['Offtake — BESS (25 states)', 'ISO/RTO capacity-market clearing prices', 'https://www.iso-ne.com/markets-operations/markets/forward-capacity-market', '2024-2025 cycle; CAISO/ERCOT/PJM/NYISO/MISO/ISO-NE'],
   ['IX — NYISO live', 'NYISO Interconnection Queue', 'https://www.nyiso.com/interconnections', 'Live xlsx feed parsed weekly'],

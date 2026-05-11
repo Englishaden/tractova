@@ -294,7 +294,7 @@ export default function Landing() {
               { label: 'NREL PVWatts',  sub: 'solar resource' },
               { label: 'USFWS NWI',     sub: 'wetlands' },
               { label: 'USDA SSURGO',   sub: 'prime farmland' },
-              { label: 'DSIRE',         sub: 'state programs' },
+              { label: 'State portals',  sub: 'CS programs' },
               { label: 'HUD QCT/DDA',   sub: 'IRA bonus' },
               { label: 'ISO/RTO queues', sub: 'live IX' },
             ].map((s, i, arr) => (
@@ -338,7 +338,7 @@ export default function Landing() {
               </div>
               <div className="text-3xl font-bold font-mono tabular-nums text-ink mb-1">~4 hrs</div>
               <ul className="text-[11px] text-gray-500 space-y-1.5 mt-3 flex-1">
-                <li>• DSIRE state program lookup (15 min)</li>
+                <li>• State CS program portal navigation (15 min)</li>
                 <li>• ISO/RTO queue check + utility filings (90 min)</li>
                 <li>• Census ACS pull for LMI, parcel research (45 min)</li>
                 <li>• NWI wetland mapping (30 min)</li>

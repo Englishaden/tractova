@@ -253,22 +253,6 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                   )}
                 </div>
                 <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
-                {revenueStack.dsireProgramUrl && (
-                  <p className="text-[10px] text-gray-400 mt-1.5 px-1 leading-relaxed">
-                    Verified against{' '}
-                    <a
-                      href={revenueStack.dsireProgramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-mono uppercase tracking-[0.14em] text-teal-700 hover:text-teal-900 underline"
-                    >
-                      DSIRE
-                    </a>
-                    {revenueStack.dsireLastVerified && (
-                      <span> · last checked {new Date(revenueStack.dsireLastVerified).toISOString().slice(0, 10)}</span>
-                    )}
-                  </p>
-                )}
               </div>
             ) : (
               <div>
@@ -278,7 +262,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                     <span className="text-gray-500">ITC base (federal)</span>
                     <span className="font-semibold text-gray-700">30%</span>
                   </div>
-                  <p className="text-[10px] text-gray-400 leading-relaxed">State-specific incentive details available at <a href="https://dsireusa.org" target="_blank" rel="noopener noreferrer" className="text-teal-600 underline hover:text-teal-700">dsireusa.org</a></p>
+                  <p className="text-[10px] text-gray-400 leading-relaxed">State-specific incentive details are sourced from the state's CS program administrator portal.</p>
                 </div>
               </div>
             )}
@@ -572,7 +556,6 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
         <div className="pt-2 border-t border-gray-100">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
-            <a href="https://programs.dsireusa.org/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DSIRE ↗</a>
             <a href="https://energycommunities.gov/energy-community-tax-credit-bonus/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
             <a href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">§48(e) Bonus ↗</a>
             <a href="https://www.huduser.gov/portal/qct/index.html" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">HUD QCT/DDA ↗</a>
@@ -592,7 +575,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
             <li>
               <span className="font-semibold text-ink">Independent benchmarks (cross-check)</span> · <span className="text-gray-700">NREL ATB 2024 Solar - PV Distributed Commercial CAPEX $2,058/kW = $2.06/W (Advanced scenario, Class 1, 2022 base; falls to $1,845/kW next year per NREL forward modeling). NREL ATB 2024 Solar - Utility PV CAPEX $1,483/kW = $1.48/W (Class 1, 2022 base). LBNL TTS observed national median $1.91/W (n=839) for 2022-2024 install years. Tractova's $2.45/W national 2026 anchor sits ~$0.40-$0.50 above ATB's modeled forward — that delta is the FEOC + tariff + reshoring shock layer that ATB's moderate-scenario projection doesn't include.</span> ATB refreshes annually each Q1.
             </li>
-            <li><span className="font-semibold text-ink">Bill credits + REC pricing</span> · State-specific from DSIRE + state PUC tariff filings + NEPOOL GIS / PJM-EIS GATS / WREGIS / M-RETS depending on REC market.</li>
+            <li><span className="font-semibold text-ink">Bill credits + REC pricing</span> · State-specific from state PUC tariff filings + program-administrator portals + NEPOOL GIS / PJM-EIS GATS / WREGIS / M-RETS depending on REC market. Tractova-curated.</li>
             <li><span className="font-semibold text-ink">Capacity factors</span> · NREL PVWatts API v8 state averages (more granular than Lazard's 15–20% national range). Where a Nexamp / SR Energy / Catalyze operating-fleet sample exists for the state, the observed AC capacity factor is shown alongside PVWatts modeled in the lens for cross-check. Single-developer / three-source bias disclosed in the Privacy Policy; not engine input.</li>
             <li><span className="font-semibold text-ink">C&amp;I PPA + retail</span> · {CI_RATES_AS_OF} · Lazard LCOE+ v18 commercial range + EIA Form 861 commercial retail tariffs 2024.</li>
             <li><span className="font-semibold text-ink">BESS capacity + arbitrage</span> · {BESS_RATES_AS_OF} · ISO/RTO clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA) + NREL ATB 2024 Commercial Battery Storage CAPEX $1,450/kWh + Utility-Scale Battery Storage CAPEX $1,290/kWh (2022 base, Advanced scenario).</li>
@@ -605,7 +588,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>How freshness flows</p>
           <p className="text-[10px] text-gray-700 leading-relaxed">
             The Feasibility Index is computed <span className="font-semibold text-ink">live on every render</span> from the most recent
-            state_program / county / IX data — never a cached snapshot. When underlying data refreshes (DSIRE weekly, IX scrapers
+            state_program / county / IX data — never a cached snapshot. When underlying data refreshes (admin curation updates, IX scrapers
             weekly, NWI/SSURGO seeded), your scores update automatically on the next render — no manual re-run needed.
             Saved Library projects record both the original feasibility score (at save time) and the current live score so we can flag
             material drift. Dashboard "Markets on the Move" deltas come from `state_programs_snapshots` (append-only weekly captures).

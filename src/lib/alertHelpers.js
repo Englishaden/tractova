@@ -40,8 +40,8 @@ export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
           before: project.csStatus, after: current.csStatus,
           beforeLabel: 'when you saved this project',
           afterLabel: current.lastVerified ? `verified ${formatVerifiedDate(current.lastVerified)}` : 'most recent verification',
-          sourceUrl: current.dsireProgramUrl || 'https://programs.dsireusa.org/',
-          sourceLabel: 'DSIRE program detail',
+          sourceUrl: null,
+          sourceLabel: 'State program administrator (Tractova-curated)',
         },
       })
     } else if (current.csStatus === 'none' || current.csStatus === 'pending') {
@@ -54,8 +54,8 @@ export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
           before: project.csStatus, after: current.csStatus,
           beforeLabel: 'when you saved this project',
           afterLabel: current.lastVerified ? `verified ${formatVerifiedDate(current.lastVerified)}` : 'most recent verification',
-          sourceUrl: current.dsireProgramUrl || 'https://programs.dsireusa.org/',
-          sourceLabel: 'DSIRE program detail',
+          sourceUrl: null,
+          sourceLabel: 'State program administrator (Tractova-curated)',
         },
       })
     }
@@ -121,7 +121,7 @@ export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
           beforeLabel: 'when you saved',
           afterLabel: 'most recent refresh',
           sourceUrl: null,
-          sourceLabel: 'Weekly DSIRE verification cron + manual admin curation',
+          sourceLabel: 'Manual admin curation from state PUC program-administrator portals',
         },
       })
     }

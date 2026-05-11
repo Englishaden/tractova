@@ -89,12 +89,9 @@ function normalize(row) {
     lastVerified:              row.last_verified,
     updatedAt:                 row.updated_at,
     coverageTier:              row.coverage_tier ?? 'light',
-    // DSIRE verification (migration 026 + refresh-data.js?source=state_programs)
-    dsireProgramId:            row.dsire_program_id ?? null,
-    dsireProgramUrl:           row.dsire_program_url ?? null,
-    dsireSummary:              row.dsire_summary ?? null,
-    dsireLastVerified:         row.dsire_last_verified ?? null,
-    dsireMatchQuality:         row.dsire_match_quality ?? null,
+    // DSIRE verification fields removed 2026-05-11. Columns still exist
+    // in state_programs (migration 026) but are all NULL and the scraper
+    // was removed. Schema cleanup deferred to a follow-up migration.
     // Computed — never stored
     feasibilityScore:          computeFeasibilityScore(row),
     runway:                    computeRunway(row),
@@ -251,12 +248,9 @@ export async function getRevenueStack(stateId) {
       itcBase:           data.itc_base,
       itcAdder:          data.itc_adder,
       netMeteringStatus: data.net_metering_status,
-      // DSIRE verification (migration 029) — null until cron has run for this state
-      dsireProgramId:    data.dsire_program_id,
-      dsireProgramUrl:   data.dsire_program_url,
-      dsireSummary:      data.dsire_summary,
-      dsireLastVerified: data.dsire_last_verified,
-      dsireMatchQuality: data.dsire_match_quality,
+      // DSIRE verification fields removed 2026-05-11; columns still exist
+      // in revenue_stacks (migration 029) but all NULL. Schema cleanup
+      // deferred to a follow-up migration.
     }
   })
 }

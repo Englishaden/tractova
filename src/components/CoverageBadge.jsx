@@ -12,8 +12,8 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 //   mid   — state-level program data + ISO/RTO IX summaries + PUC
 //           docket monitoring + state retail rates. Lens still works.
 //           Amber pill.
-//   light — DSIRE-derived state-program data only. Lens shows guidance
-//           with reasonable hedges. Gray pill.
+//   light — Curated state-program data only (no county / IX queue depth).
+//           Lens shows guidance with reasonable hedges. Gray pill.
 
 const TIER_CONFIG = {
   full: {
@@ -41,7 +41,7 @@ const TIER_CONFIG = {
     color:      '#5A6B7A',
     border:     'rgba(90, 107, 122, 0.22)',
     description:
-      'DSIRE-derived state-program data only. Lens provides reasonable guidance but lacks county / IX queue / docket depth. Useful for sanity-checking adjacent markets.',
+      'Curated state-program data only (status, capacity, LMI carveout). Lens provides reasonable guidance but lacks county / IX queue / docket depth. Useful for sanity-checking adjacent markets.',
   },
 }
 

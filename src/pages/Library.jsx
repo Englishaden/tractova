@@ -220,7 +220,7 @@ function LibraryContent() {
   // /api/data-health?action=last-refresh endpoint (max(cron_runs.finished_at)
   // where status='success'). Previously this was a local useMemo over
   // state_programs.last_verified|updated_at, which drifted from the other
-  // surfaces whenever the weekly cron ran successfully but DSIRE returned
+  // surfaces whenever the weekly cron ran successfully but the source
   // identical content (no row changes → local signal stays stale even
   // though the platform refreshed). Single source of truth across surfaces.
   const [lastRefresh, setLastRefresh] = useState(null)

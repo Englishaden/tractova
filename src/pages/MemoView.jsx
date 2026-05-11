@@ -274,7 +274,7 @@ export default function MemoView() {
                 Tractova is a community-solar intelligence platform.
               </h2>
               <p className="text-sm text-ink-muted leading-relaxed mb-4 max-w-2xl">
-                We score every U.S. county for community solar, C&amp;I solar, hybrid, and BESS feasibility — pulling live data from Census ACS, DSIRE, ISO/RTO queues, EIA Form 860, IRA Treasury layers, and HUD QCT/DDA. Build a portfolio, get alerts when state programs shift, run the same Lens analysis you're seeing here on any market.
+                We score every U.S. county for community solar, C&amp;I solar, hybrid, and BESS feasibility — pulling live data from Census ACS, state regulatory filings, ISO/RTO queues, EIA Form 860, IRA Treasury layers, and HUD QCT/DDA. Build a portfolio, get alerts when state programs shift, run the same Lens analysis you're seeing here on any market.
               </p>
 
               {/* Three value props */}

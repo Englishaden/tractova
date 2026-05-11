@@ -192,7 +192,7 @@ export const GLOSSARY_TERMS = [
     term: 'Tier A · Observed',
     pillar: 'all',
     definition:
-      'A data point anchored on an observed, primary-source dataset (e.g., LBNL Tracking the Sun observed installed-PV-cost percentiles, NREL PVWatts modeled capacity factors, EIA Form 860 grid filings, USFWS NWI wetlands, USDA SSURGO soils, DSIRE-verified state programs). Tier A entries surface a sample size, vintage stamp, and source URL on every Lens render. Sub-tiers reflect confidence within Tier A: Strong (n ≥ 40), Modest (n = 10–39), Thin (n = 3–9). At Thin tier, p10/p90 percentiles are suppressed to avoid false precision — the median is shown alone with a caveat.',
+      'A data point anchored on an observed, primary-source dataset (e.g., LBNL Tracking the Sun observed installed-PV-cost percentiles, NREL PVWatts modeled capacity factors, EIA Form 860 grid filings, USFWS NWI wetlands, USDA SSURGO soils, state PUC program-administrator portals). Tier A entries surface a sample size, vintage stamp, and source URL on every Lens render. Sub-tiers reflect confidence within Tier A: Strong (n ≥ 40), Modest (n = 10–39), Thin (n = 3–9). At Thin tier, p10/p90 percentiles are suppressed to avoid false precision — the median is shown alone with a caveat.',
     related: ['Tier B · Regional Analog', 'Tier C · Editorial', 'Feasibility Index'],
   },
   {

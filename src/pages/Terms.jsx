@@ -131,7 +131,7 @@ export default function Terms() {
           </P>
           <P>
             Public-data sources we synthesize (EIA, US Census, USFWS NWI, USDA
-            SSURGO, HUD, CDFI, DOE NETL EDX, DSIRE, ISO/RTO queue data) remain
+            SSURGO, HUD, CDFI, DOE NETL EDX, state PUC portals, ISO/RTO queue data) remain
             the property of their respective publishers and are subject to
             their terms. The Service includes attribution to each source on
             the underlying panels and within the Privacy Policy.

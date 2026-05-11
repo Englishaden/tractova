@@ -24,10 +24,8 @@ import CronLatencyPanel from './CronLatencyPanel.jsx'
 // forget which data gets scraped and which doesn't":
 //   live    — auto-refreshed via a cron handler (Census/EIA/NREL/ISO/RSS).
 //             Stale = upstream source was unreachable on the last run.
-//   curated — hand-maintained by the operator with a periodic verify cron
-//             that just checks DSIRE / source URLs are still live. Stale
-//             = the row is overdue for a manual review, not that an API
-//             returned bad data.
+//   curated — hand-maintained by the operator. Stale = the row is overdue
+//             for a manual review, not that an API returned bad data.
 //   seeded  — one-time data load (NWI / SSURGO geospatial). No cron.
 //             Refresh requires a manual seed-script run.
 const FRESHNESS_CONFIG = {
@@ -41,7 +39,7 @@ const FRESHNESS_CONFIG = {
   hud_qct_dda_data:    { label: 'HUD QCT / DDA',         mode: 'live',    icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
   nmtc_lic_data:       { label: 'NMTC LIC §48(e)',       mode: 'live',    icon: '🎯', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
   revenue_rates:       { label: 'Revenue Rates',       mode: 'live',    icon: '💰', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [120, 200] },
-  revenue_stacks:      { label: 'Revenue Stacks',      mode: 'curated', icon: '🏛', field: 'last_cron_success', fallbackField: 'newest_dsire_check', staleField: null,       thresholds: [14, 30] },
+  revenue_stacks:      { label: 'Revenue Stacks',      mode: 'curated', icon: '🏛', field: 'last_cron_success', fallbackField: 'last_updated',     staleField: null,       thresholds: [14, 30] },
   news_feed:           { label: 'News Feed',           mode: 'live',    icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },
   county_geospatial_data: { label: 'County Geospatial (NWI + SSURGO)', mode: 'seeded', icon: '🌿', field: 'last_seeded', fallbackField: null, staleField: null, thresholds: [180, 365] },
   solar_cost_index:    { label: 'Solar Cost Index (LBNL TTS)', mode: 'live',    icon: '☀', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [400, 540] },
@@ -318,8 +316,8 @@ export default function DataHealthTab() {
 
       {/* Source attribution help */}
       <p className="text-[11px] text-ink-muted leading-relaxed">
-        Clicking Refresh fans out to every cron in parallel: Census ACS (LMI + counties), DSIRE (state programs + revenue stacks), RSS+AI (news feed),
-        ISO queues (IX queue), EIA Form 860 (substations), and NREL + EIA (capacity factors + retail rates). Each handler logs to{' '}
+        Clicking Refresh fans out to every cron in parallel: Census ACS (LMI + counties), RSS+AI (news feed),
+        ISO queues (IX queue), EIA Form 860 (substations), and NREL + EIA (capacity factors + retail rates). State programs + revenue stacks are admin-curated via /admin tabs. Each handler logs to{' '}
         <span className="font-mono">cron_runs</span> on success, which drives the freshness cards above.
       </p>
 
