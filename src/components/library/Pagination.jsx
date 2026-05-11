@@ -80,7 +80,7 @@ export default function Pagination({
             onClick={() => onPageChange(page - 1)}
             disabled={atFirst}
             aria-label="Previous page"
-            className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2"
             style={{ color: atFirst ? '#9CA3AF' : '#0F1A2E', border: '1px solid #E5E7EB' }}
             onMouseEnter={(e) => { if (!atFirst) e.currentTarget.style.background = '#F9FAFB' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
@@ -99,7 +99,7 @@ export default function Pagination({
             onClick={() => onPageChange(page + 1)}
             disabled={atLast}
             aria-label="Next page"
-            className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-sm transition-colors disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2"
             style={{ color: atLast ? '#9CA3AF' : '#0F1A2E', border: '1px solid #E5E7EB' }}
             onMouseEnter={(e) => { if (!atLast) e.currentTarget.style.background = '#F9FAFB' }}
             onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}

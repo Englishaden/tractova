@@ -1114,8 +1114,15 @@ function LibraryContent() {
                 add to Compare tray. Reuses existing single-project utilities
                 (handleRequestRemove pattern, exportXLSX, useCompare.add). */}
             {selectedIds.size > 0 && (
+              // Phase 4 — sticky offset depends on layout. The Table
+              // view's column header sticks at top-14; if this bulk
+              // toolbar ALSO stuck at top-14, they would collide on
+              // top of each other. In Table mode the toolbar offsets
+              // ~52px below the header so both remain readable.
+              // Cards / Map layouts have no competing sticky element,
+              // so top-14 stays correct.
               <div
-                className="sticky top-14 z-20 mb-3 rounded-lg flex items-center justify-between gap-3 px-4 py-2.5"
+                className={`sticky z-20 mb-3 rounded-lg flex items-center justify-between gap-3 px-4 py-2.5 ${layout === 'table' ? 'top-[7rem]' : 'top-14'}`}
                 style={{ background: '#0F1A2E', border: '1px solid rgba(20,184,166,0.30)', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
               >
                 <div className="flex items-center gap-3">

@@ -202,10 +202,23 @@ export default function ProjectTable({
           const isSelected = selectedIds?.has(p.id)
           return (
             <li key={p.id} className="border-b last:border-b-0" style={{ borderColor: '#F1F5F9' }}>
-              <button
-                type="button"
+              {/* Phase 4 — row is a <div role="button"> rather than a
+                  <button> so the nested role="checkbox" cell is valid
+                  HTML (a real <button> can't contain another
+                  interactive widget; screen readers would only
+                  announce the outer button). Keyboard parity restored
+                  via explicit onKeyDown for Space + Enter. */}
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setExpandedId(isOpen ? null : p.id)}
-                className="w-full grid items-center gap-3 px-3 py-2.5 text-left transition-colors"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setExpandedId(isOpen ? null : p.id)
+                  }
+                }}
+                className="w-full grid items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-[-2px]"
                 style={{
                   gridTemplateColumns: COLS,
                   background: isOpen ? 'rgba(20,184,166,0.06)' : isSelected ? 'rgba(15,118,110,0.05)' : 'transparent',
@@ -262,7 +275,7 @@ export default function ProjectTable({
                 <span className="text-[11px] font-mono tabular-nums text-gray-500 text-center">
                   {relativeDate(p.savedAt)}
                 </span>
-              </button>
+              </div>
 
               {isOpen && (
                 <div className="px-3 pb-3 pt-1" style={{ background: 'rgba(20,184,166,0.03)' }}>
