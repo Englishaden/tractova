@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext'
 // main bundle (the build used to warn INEFFECTIVE_DYNAMIC_IMPORT).
 import { GLOSSARY_TERMS, toSlug } from '../data/glossaryTerms'
 import { parseCommand } from '../lib/commandParser'
+import { listSavedComparisons } from '../lib/savedComparisons'
 
 // Cmd-K global palette. Power-user spine of the app — every repeated
 // action gets a verb (see commandParser.js). Two modes:
@@ -70,6 +71,7 @@ export default function CommandPalette() {
   const [q, setQ] = useState('')
   const [stateMap, setStateMap] = useState({})
   const [savedProjects, setSavedProjects] = useState([])
+  const [savedComparisons, setSavedComparisons] = useState([])
   const [recents, setRecents] = useState([])
   const [activeIndex, setActiveIndex] = useState(0)
   const navigate = useNavigate()
@@ -83,7 +85,7 @@ export default function CommandPalette() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setSavedProjects([]); setRecents([]); return }
+    if (!user) { setSavedProjects([]); setSavedComparisons([]); setRecents([]); return }
     setRecents(loadRecents(user.id))
     supabase
       .from('projects')
@@ -94,6 +96,10 @@ export default function CommandPalette() {
       .then(({ data, error }) => {
         if (!error && data) setSavedProjects(data)
       })
+    // Saved comparisons feed the `:compare` verb's expanded item list.
+    // Lightweight read (≤ 50 rows) so prefetching at sign-in beats deferring
+    // until the palette opens.
+    listSavedComparisons().then(setSavedComparisons)
   }, [user])
 
   // County items — flattened on demand. Cheap (~3000 rows mapped once).
@@ -152,7 +158,8 @@ export default function CommandPalette() {
     stateIds: Object.keys(stateMap || {}),
     glossaryTerms: GLOSSARY_TERMS,
     savedProjects,
-  }), [stateMap, savedProjects])
+    savedComparisons,
+  }), [stateMap, savedProjects, savedComparisons])
 
   const verbResult = useMemo(() => {
     if (!isVerbMode) return null
@@ -215,6 +222,17 @@ export default function CommandPalette() {
       if (user) pushRecent(user.id, it)
       // CompareTray listens for this — opens its modal if items > 0.
       try { window.dispatchEvent(new CustomEvent('tractova:open-compare')) } catch { /* SSR-safe */ }
+      return
+    }
+    if (it.action === 'load-compare' && it.savedId) {
+      setOpen(false)
+      if (user) pushRecent(user.id, it)
+      // CompareTray listens for this — fetches the snapshot, hydrates
+      // CompareContext, opens the modal. Detached from the parser so the
+      // parser stays pure / synchronous.
+      try {
+        window.dispatchEvent(new CustomEvent('tractova:load-compare', { detail: { savedId: it.savedId } }))
+      } catch { /* SSR-safe */ }
       return
     }
     if (it.path) {

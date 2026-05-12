@@ -65,13 +65,15 @@ export function resolveTechShortcut(raw) {
 
 // Top-level entry. Returns null when the query isn't a verb path.
 // `ctx` carries app-side data the parser needs to validate args:
-//   { stateIds: string[], glossaryTerms: {term, pillar}[], savedProjects: {id,name,state,county,mw,stage}[] }
+//   { stateIds: string[], glossaryTerms: {term, pillar}[], savedProjects: {id,name,state,county,mw,stage}[],
+//     savedComparisons: {id, name, item_ids}[] }
 export function parseCommand(query, ctx = {}) {
   if (typeof query !== 'string' || !query.startsWith(':')) return null
 
-  const stateIds       = new Set((ctx.stateIds || []).map(s => String(s).toUpperCase()))
-  const glossaryTerms  = ctx.glossaryTerms  || []
-  const savedProjects  = ctx.savedProjects  || []
+  const stateIds         = new Set((ctx.stateIds || []).map(s => String(s).toUpperCase()))
+  const glossaryTerms    = ctx.glossaryTerms    || []
+  const savedProjects    = ctx.savedProjects    || []
+  const savedComparisons = ctx.savedComparisons || []
 
   // Trim verb body. Multiple spaces collapse to single.
   const body = query.slice(1).replace(/\s+/g, ' ').replace(/^\s+/, '')
@@ -123,7 +125,7 @@ export function parseCommand(query, ctx = {}) {
     case 'portfolio': return runStaticVerb('portfolio', 'Open Library',                  'Saved projects portfolio', '/library')
     case 'scenarios': return runStaticVerb('scenarios', 'Open Library — Scenarios',      'Scenario snapshots tab',    '/library?tab=scenarios')
     case 'new':       return runStaticVerb('new',       'Start a new Lens analysis',     'Clear form',                '/search?new=1')
-    case 'compare':   return runCompare()
+    case 'compare':   return runCompare(rawArgs, savedComparisons)
     case 'state':     return runState(rawArgs, stateIds)
     case 'gloss':     return runGloss(rawArgs, glossaryTerms)
     case 'rerun':     return runRerun(rawArgs, savedProjects)
@@ -161,11 +163,31 @@ function runStaticVerb(verb, label, hint, path) {
   }
 }
 
-function runCompare() {
+function runCompare(rawArgs = [], savedComparisons = []) {
+  const needle = rawArgs.join(' ').trim().toLowerCase()
+  // Always start with the "Open current draft" item; users land here to
+  // open the tray they're actively building. Saved comparisons follow.
+  const items = [
+    { kind: 'verb-go', label: 'Open Compare tray', hint: 'Current draft (Lens / Library picks)', action: 'open-compare' },
+  ]
+  const matchFn = needle
+    ? (c) => c?.name && c.name.toLowerCase().includes(needle)
+    : () => true
+  const matches = savedComparisons.filter(matchFn).slice(0, 8)
+  for (const c of matches) {
+    const count = Array.isArray(c.item_ids) ? c.item_ids.length : 0
+    items.push({
+      kind: 'verb-go',
+      label: c.name,
+      hint:  `Saved comparison · ${count} project${count === 1 ? '' : 's'}`,
+      action: 'load-compare',
+      savedId: c.id,
+    })
+  }
   return {
     kind: 'verb',
     verb: 'compare',
-    items: [{ kind: 'verb-go', label: 'Open Compare tray', hint: 'Side-by-side projects', action: 'open-compare' }],
+    items,
   }
 }
 

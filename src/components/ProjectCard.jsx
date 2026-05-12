@@ -646,16 +646,34 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
           )}
 
           {/* ── Action footer ── */}
-          <div className="mt-5 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #E5E7EB' }}>
-            <Link
-              to={`/search?state=${project.state}&county=${encodeURIComponent(project.county || '')}&mw=${project.mw || ''}&stage=${encodeURIComponent(project.stage || '')}&technology=${encodeURIComponent(project.technology || '')}`}
-              className="flex items-center gap-1.5 text-xs font-medium text-teal-700 hover:text-teal-800 transition-colors"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-              </svg>
-              Re-Analyze in Lens →
-            </Link>
+          <div className="mt-5 pt-4 flex items-center justify-between gap-2 flex-wrap" style={{ borderTop: '1px solid #E5E7EB' }}>
+            <div className="flex items-center gap-3 flex-wrap">
+              <Link
+                to={`/search?state=${project.state}&county=${encodeURIComponent(project.county || '')}&mw=${project.mw || ''}&stage=${encodeURIComponent(project.stage || '')}&technology=${encodeURIComponent(project.technology || '')}`}
+                className="flex items-center gap-1.5 text-xs font-medium text-teal-700 hover:text-teal-800 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                Re-Analyze in Lens →
+              </Link>
+              {/* Phase 2C — Re-run with latest data. Anchors the next Lens
+                  run to THIS project (via ?fromProject=) so the drift
+                  banner + "Save updates back" CTA in Search.jsx light up. */}
+              <Link
+                to={`/search?fromProject=${encodeURIComponent(project.id)}`}
+                className="flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md transition-colors"
+                style={{ color: '#0F1A2E', background: 'rgba(20,184,166,0.10)', border: '1px solid rgba(20,184,166,0.25)' }}
+                title="Re-run with the freshest state + county data. Composite drift will surface inline; you can save the new scores back to this project in one click."
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <polyline points="1 20 1 14 7 14"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                Re-run with latest data
+              </Link>
+            </div>
             <div className="flex items-center gap-2">
               {/* V3 §4.7: shareable read-only memo URL. Generates a token-protected
                   link the user can send to investors / capital partners. The

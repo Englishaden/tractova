@@ -4,9 +4,54 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phases 2A + 2B SHIPPED + UI/UX + perf audits closed (5 passes) · resume Phase 2C
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 2C SHIPPED · resume Phase 3 (Lens polish + a11y)
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 2C. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2C and the "Audit punch list (closed)" section of BUILD_LOG.md, then implement Phase 2C: Saved Comparisons (migration 062_saved_comparisons.sql FILE — Aden applies in Supabase) + PDF export from CompareTray + Re-run with latest data (auto-kickoff + drift comparison; baseline ?fromProject= handler is already in place from Pass 5) + Orphan-scenarios-to-project conversion.`
+**Phase 2C delivered the four headline pieces — Saved Comparisons (migration 062 FILE, Aden applies in Supabase), PDF export from the Compare tray, Re-run with latest data with auto-kickoff + drift + Save-back, and Orphan-scenarios-to-project conversion. Library now has three top-level tabs (Projects | Scenarios | Comparisons), Cmd-K `:compare` enumerates saved comparisons, and every saved project gets a "Re-run with latest data" CTA that promotes drift into a one-click write-back.**
+
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 3. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 3 (Lens polish + a11y), then implement: hand-rolled save/confirm dialogs → Radix; CompareTray modal → Radix Dialog; "✓ Saved" persistence in ScenarioStudio; aria-controls sweep across collapsibles + Cmd-K; responsive typography sweep (eyebrow-mono utility on 60+ inline text-[9px]/[10px] callouts). axe-core run targets 0 critical violations on Lens/Library/Profile/Glossary.`
+
+---
+
+### Session 2026-05-12 (continued) — TRACTOVA-UX-001 Phase 2C shipped
+
+Phase 2C closes the Library cockpit rebuild. Save the comparison, share the PDF, re-run with one click and write the new scores back, convert exploration scenarios into projects without a Lens detour.
+
+**Migration (FILE only — Aden applies):**
+- `supabase/migrations/062_saved_comparisons.sql` — `saved_comparisons (id, user_id, name, item_ids text[], snapshot jsonb, created_at, updated_at)` + `touch_updated_at()` trigger + four own-rows RLS policies (matches scenario_snapshots pattern from migration 041). Snapshot column freezes the compare items so the report renders identically months later even if state/county data drifts — the Modal's existing drift-refresh reconciles at open-time.
+
+**New files:**
+- `src/lib/savedComparisons.js` — save/list/load/rename/delete helpers around the new table. Fail-soft (returns null/[] when migration not applied yet or RLS denies) so saved-comp failures never break the draft (localStorage) layer of CompareContext.
+- `src/lib/orphanConversion.js` — Supabase-side of orphan→project promotion. Computes the live composite the same way Library cards do, inserts the projects row, attaches every scenario in the group via `scenario_snapshots.project_id`, logs a `created` audit event.
+- `src/components/CompareReportPDF.jsx` — `@react-pdf/renderer` doc, A4 landscape for 3+ projects (portrait for ≤ 2 to avoid whitespace). Mirrors the in-app Compare modal row groups (§ 01 Composite / § 02 Project) and best-for / AI-summary pull-blocks. Lazy-loaded by CompareTray on Export PDF click — bundle weight only paid by users who actually export.
+- `src/components/library/SavedComparisonsList.jsx` — new Library tab. Lists saved comparisons newest-first, each with Open / Rename / Delete. Open hydrates CompareContext from the snapshot via `tractova:load-compare` and opens the modal.
+- `scripts/probe-saved-comparisons.mjs` — diagnostic probe (mirror of `probe-policy-impact.mjs`). Confirms table existence, RLS policy presence, per-user distribution, and most-recent 5 rows. Aden runs this after applying migration 062 to verify live state.
+
+**Modifications:**
+- `src/context/CompareContext.jsx` — added `load(snapshotItems)` to hydrate the tray from a saved comparison snapshot wholesale (replaces the current draft instead of appending — a saved comparison is a research artifact, not a continuation).
+- `src/components/CompareTray.jsx` — Modal header gets "Save as…" (Radix Dialog → POST to `saved_comparisons`) and "Export PDF" (lazy import of CompareReportPDF, blob download). Also listens for the new `tractova:load-compare` event so Cmd-K and Library can both hydrate the tray from a saved row.
+- `src/lib/commandParser.js` — `:compare` verb now takes `savedComparisons` from ctx and emits a `load-compare` action per saved row (filterable by name fragment: `:compare bess` narrows to comparisons whose name contains "bess"). Tests cover the new shape (+2 cases, 129 total).
+- `src/components/CommandPalette.jsx` — fetches saved comparisons on sign-in, threads them through parserCtx, and handles the new `load-compare` action by dispatching `tractova:load-compare` with the saved id.
+- `src/pages/Search.jsx` — three Phase 2C layers on top of the Pass 5 `?fromProject=` baseline:
+  - **Auto-kickoff**: once the project is fetched + form hydrated, the form auto-submits (shared `autoSubmitFired` ref with the URL-param path so we never double-fire).
+  - **Drift banner**: above the results header, shows composite delta + CS/IX status changes vs the project's stored baseline (last_observed_score or opportunity_score). Color-codes by direction (teal up / amber down / navy steady).
+  - **Save updates back**: button on the banner writes `opportunity_score`, `last_observed_score`, `cs_status`, `cs_program`, `ix_difficulty`, `serving_utility` to the projects row, logs a `score_change` audit event when |delta| ≥ 5, and flips the button to "✓ Saved back".
+- `src/components/ProjectCard.jsx` — adds "Re-run with latest data" CTA next to "Re-Analyze in Lens" in the expanded card's action footer (Cards + Table view inherit). Routes to `/search?fromProject=<id>` which lights up the auto-kickoff + drift flow.
+- `src/components/ScenariosView.jsx` — adds "Convert to project →" CTA on every orphan group. Calls back to Library which runs `convertOrphanGroupToProject()` + optimistic state migration (group moves from orphan list into the new project's scenarios map).
+- `src/pages/Library.jsx` — third top-level tab (Projects | Scenarios | Comparisons), URL handler for `?tab=comparisons`, wires SavedComparisonsList + onConvertOrphan. Conversion handler kept tight (~10 lines) by delegating Supabase work to `lib/orphanConversion.js`.
+
+**Verification (close of session):**
+- `npm run test:unit` — 129/129 green (127 prior + 2 new for `:compare` saved-list shape)
+- `npm run build` — clean (2.61s, no warnings; INEFFECTIVE_DYNAMIC_IMPORT resolved by moving `loadSavedComparison` to a static import in CompareTray)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs / lint:api / lint:secrets` — clean (Library.jsx stayed under the 1500 LOC budget because `orphanConversion.js` carries the heavy supabase logic)
+- CompareReportPDF chunk: **10.7 KB gzipped** (lazy-loaded; only fetched on Export PDF click)
+
+**Aden's manual follow-up (CLAUDE.md §1.1 — migrations are FILE-only for Claude):**
+1. Open the Supabase SQL editor, paste `supabase/migrations/062_saved_comparisons.sql`, run.
+2. `node scripts/probe-saved-comparisons.mjs` — verify the four RLS policies + zero rows.
+3. Open the app, add 2–3 projects to Compare, click Save as… → enter a name → expect a Library tab "Comparisons" entry.
+4. Try `⌘K → :compare`, then `⌘K → :compare <fragment>` for the filter narrowing.
+5. From a saved Library project, click "Re-run with latest data" → expect the drift banner with the correct baseline (or "no material drift" if the state hasn't moved).
 
 ---
 

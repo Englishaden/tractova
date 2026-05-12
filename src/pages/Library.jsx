@@ -9,6 +9,7 @@ import FilterSelect from '../components/ui/FilterSelect'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { convertOrphanGroupToProject } from '../lib/orphanConversion'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { logProjectEvent } from '../lib/projectEvents'
@@ -22,6 +23,7 @@ import { getAlerts } from '../lib/alertHelpers'
 import { buildExportRows, buildMethodologySheet, buildGlossarySheet } from '../lib/exportHelpers'
 import ProjectCard from '../components/ProjectCard.jsx'
 import ScenariosView from '../components/ScenariosView.jsx'
+import SavedComparisonsList from '../components/library/SavedComparisonsList.jsx'
 import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
@@ -236,7 +238,7 @@ function LibraryContent() {
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
-  const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' — top-level toggle
+  const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' | 'comparisons' — top-level toggle
   const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' | 'map' — Phase 2A + 2B
   const handleLayoutChange = useCallback((next) => { setLayoutState(next); saveLayout(next) }, [])
 
@@ -282,7 +284,8 @@ function LibraryContent() {
   const [searchParams] = useSearchParams()
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab === 'scenarios') setViewMode('scenarios')
+    if (tab === 'scenarios')   setViewMode('scenarios')
+    if (tab === 'comparisons') setViewMode('comparisons')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load live state program map for alert detection
@@ -998,7 +1001,24 @@ function LibraryContent() {
                 return total > 0 ? <span className="font-mono opacity-60">· {total}</span> : null
               })()}
             </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('comparisons')}
+              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
+              style={viewMode === 'comparisons'
+                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
+                : { background: 'transparent', color: '#6B7280' }}
+            >
+              Comparisons
+            </button>
           </div>
+        )}
+
+        {/* Saved comparisons — Phase 2C tab. Component owns its own fetch
+            so Library doesn't pay a second Supabase round-trip on every
+            load when most users land on Projects. */}
+        {viewMode === 'comparisons' && !loading && (
+          <SavedComparisonsList />
         )}
 
         {/* Scenarios view — grouped by Lens context. */}
@@ -1018,6 +1038,22 @@ function LibraryContent() {
               } else {
                 setOrphanScenarios(prev => prev.filter(s => s.id !== snap.id))
               }
+            }}
+            onConvertOrphan={async (group) => {
+              // Phase 2C — orphan → project. Supabase logic lives in
+              // `lib/orphanConversion.js`; Library handles optimistic UI.
+              if (!user || !group?.scenarios?.length) return
+              const sp = stateProgramMap[group.state] || null
+              const cd = countyDataMap[`${group.state}::${group.county}`] || null
+              const inserted = await convertOrphanGroupToProject({ group, userId: user.id, stateProgram: sp, countyData: cd })
+              if (!inserted) return
+              const ids = group.scenarios.map(s => s.id)
+              setProjects(prev => [normalize(inserted), ...prev])
+              setScenariosMap(prev => ({
+                ...prev,
+                [inserted.id]: group.scenarios.map(s => ({ ...s, project_id: inserted.id })),
+              }))
+              setOrphanScenarios(prev => prev.filter(s => !ids.includes(s.id)))
             }}
           />
         )}

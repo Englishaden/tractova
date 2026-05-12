@@ -224,6 +224,28 @@ describe('parseCommand — static verbs', () => {
     const r = parseCommand(':compare', ctx)
     expect(r.items[0].action).toBe('open-compare')
   })
+  it(':compare surfaces saved comparisons after the draft tray item', () => {
+    const savedComparisons = [
+      { id: 'sc-1', name: 'NE shortlist Q2', item_ids: ['lib-1', 'lib-2', 'lib-3'] },
+      { id: 'sc-2', name: 'BESS finalists', item_ids: ['lib-9'] },
+    ]
+    const r = parseCommand(':compare', { ...ctx, savedComparisons })
+    expect(r.items[0].action).toBe('open-compare')
+    expect(r.items[1]).toMatchObject({ action: 'load-compare', savedId: 'sc-1', label: 'NE shortlist Q2' })
+    expect(r.items[2]).toMatchObject({ action: 'load-compare', savedId: 'sc-2' })
+    expect(r.items[1].hint).toMatch(/3 projects/)
+    expect(r.items[2].hint).toMatch(/1 project\b/)
+  })
+  it(':compare filters saved comparisons by name fragment', () => {
+    const savedComparisons = [
+      { id: 'sc-1', name: 'NE shortlist Q2', item_ids: ['lib-1'] },
+      { id: 'sc-2', name: 'BESS finalists', item_ids: ['lib-2'] },
+    ]
+    const r = parseCommand(':compare bess', { ...ctx, savedComparisons })
+    const loaders = r.items.filter(i => i.action === 'load-compare')
+    expect(loaders).toHaveLength(1)
+    expect(loaders[0].savedId).toBe('sc-2')
+  })
   it(':help shows the verb reference', () => {
     const r = parseCommand(':help', ctx)
     expect(r.items.length).toBe(Object.keys(VERBS).length)

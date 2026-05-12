@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import ScenarioHistoryList from './ScenarioHistoryList'
 import { denormalizeTech } from '../lib/scenarioEngine'
@@ -14,7 +14,7 @@ import { denormalizeTech } from '../lib/scenarioEngine'
 // Library load they migrate from this Scenarios view to the Projects view.
 // (Internally we still call them "orphan" — UI-facing word is "exploration"
 // because "orphan" reads cold/clinical for a developer-product workflow.)
-export default function ScenariosView({ scenariosMap, orphanScenarios, projects, onScenarioDelete }) {
+export default function ScenariosView({ scenariosMap, orphanScenarios, projects, onScenarioDelete, onConvertOrphan }) {
   // Build groups by composite key state||county||tech. Project-linked
   // groups carry the project name + id; orphan groups carry just the
   // context. We iterate orphans separately so they're visually distinct.
@@ -89,14 +89,16 @@ export default function ScenariosView({ scenariosMap, orphanScenarios, projects,
           key={g.key}
           group={g}
           onScenarioDelete={onScenarioDelete}
+          onConvertOrphan={onConvertOrphan}
         />
       ))}
     </div>
   )
 }
 
-function ScenarioGroupCard({ group, onScenarioDelete }) {
+function ScenarioGroupCard({ group, onScenarioDelete, onConvertOrphan }) {
   const isOrphan = group.kind === 'orphan'
+  const [converting, setConverting] = useState(false)
   const baselineRev = group.scenarios[0]?.baseline_inputs ? null : null  // baseline rev unknown without recompute; skip delta for now in Library view
   // Deep-link to Lens with the context pre-filled. The first scenario's
   // systemSizeMW becomes the mw param so re-running gives a comparable
@@ -143,13 +145,39 @@ function ScenarioGroupCard({ group, onScenarioDelete }) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isOrphan && (
-            <Link
-              to={lensHref}
-              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors"
-              style={{ background: '#0F1A2E', color: 'white' }}
-            >
-              Open in Lens to save →
-            </Link>
+            <>
+              {/* Phase 2C — Convert to project. Promotes the orphan group
+                  into a Library project in one click (no Lens detour),
+                  with stage=Prospecting and the scenarios attached. The
+                  user can refine stage / MW later from the project card. */}
+              {onConvertOrphan && (
+                <button
+                  type="button"
+                  disabled={converting}
+                  onClick={async () => {
+                    if (converting) return
+                    setConverting(true)
+                    try {
+                      await onConvertOrphan(group)
+                    } finally {
+                      setConverting(false)
+                    }
+                  }}
+                  className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: '#0F766E', color: 'white' }}
+                  title="Create a Library project for this exploration context and attach all scenarios"
+                >
+                  {converting ? 'Converting…' : 'Convert to project →'}
+                </button>
+              )}
+              <Link
+                to={lensHref}
+                className="cursor-pointer text-[11px] font-medium text-ink-muted hover:text-ink px-2 py-1.5 rounded-md transition-colors"
+                style={{ border: '1px solid #E2E8F0' }}
+              >
+                Open in Lens
+              </Link>
+            </>
           )}
           {!isOrphan && (
             <Link

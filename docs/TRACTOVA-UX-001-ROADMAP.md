@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-05-12
 **Project owner:** Aden (englishaden / aden.walker67@gmail.com)
-**Status:** Phases 0, 1, 2A, 2B + UI/UX-audit five-pass cleanup all shipped. Resume at Phase 2C (Saved Comparisons + PDF + Re-run + Scenarios→Projects).
+**Status:** Phases 0, 1, 2A, 2B, 2C + UI/UX-audit five-pass cleanup all shipped. Resume at Phase 3 (Lens polish + a11y).
 
 ---
 
@@ -426,15 +426,20 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 ### Where we are
 - **✅ Phase 0 shipped** (commit `cfce269`) — foundations + motion primitives + standardized collapsible
 - **✅ Design vocabulary shipped** (commit `59a6b30`) — taste calibration doc
-- **✅ Phase 1 shipped** — Cmd-K verb grammar (`commandParser.js` + 37 unit tests), verb-mode CommandPalette, `CmdKHint.jsx` floating cue, recents footer (per-user localStorage, last 5), `:compare` event-wired to CompareTray, `Cmd+Enter` opens new tab, `Tab` autocompletes. Nav.jsx active-route underline already satisfied the spec — audit confirmed, no refactor needed.
-- **🟢 NEXT: Phase 2A** — Library Table view + cursor pagination + view-mode toggle; re-enable § 05 with bounded cs_projects row sample. See § 4 Phase 2A.
+- **✅ Phase 1 shipped** — Cmd-K verb grammar (`commandParser.js` + 37 unit tests), verb-mode CommandPalette, `CmdKHint.jsx`, recents footer, `:compare` event-wired to CompareTray.
+- **✅ Phase 2A + 2B shipped** — Library Table + Map (incl. ProjectDrawer, county-centroid pins, state-cluster > 200, pulse + halo gating). Five-pass audit cleanup landed alongside.
+- **✅ Phase 2C shipped** — Saved Comparisons (migration 062 FILE — Aden applies), CompareReportPDF lazy-loaded, SavedComparisonsList Library tab, Cmd-K `:compare` enumerates saved + filters by name fragment, Re-run with latest data on every saved project (auto-kickoff + drift banner + Save-back), orphan-scenarios → projects conversion (Library handler + `lib/orphanConversion.js` helper).
+- **🟢 NEXT: Phase 3** — Lens polish + accessibility. See § 4 Phase 3.
 
 ### Resume command
 After `/clear`, tell Claude:
 
 ```
-Resume TRACTOVA-UX-001 Phase 2A. Read docs/TRACTOVA-UX-001-ROADMAP.md
-including § 0.1 DO-NOT-REPEAT LESSONS, then implement Phase 2A per the plan.
+Resume TRACTOVA-UX-001 Phase 3. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 3,
+then implement: hand-rolled save/confirm dialogs → Radix, CompareTray modal → Radix
+Dialog, "✓ Saved" persistence in ScenarioStudio, aria-controls sweep, responsive
+typography sweep (eyebrow-mono utility on inline mono-cap callouts). axe-core
+target: 0 critical violations on Lens/Library/Profile/Glossary.
 ```
 
 Claude will pick up exactly where this session ended.
@@ -466,7 +471,7 @@ Claude will pick up exactly where this session ended.
 | 2A — Library Table view | ✅ Shipped | (prior commits) | Slice 1: view-mode toggle + Bloomberg Table + bulk-select earlier. Slice 2: StagePicker → Radix Popover + client-side pagination (10/25/50/100, `?all=1` escape) + persistent chips banner. |
 | 2B — Library Map view | ✅ Shipped | `0e5cdfa` + map QA passes through 2026-05-12 | LibraryMap (MW-weighted choropleth + county-centroid pins + state-cluster >200, with SMIL pulse + navy-glow contrast). ProjectDrawer right slide-in (480px, Radix Dialog). Single-click filters, double-click filters + Table. Esc clears. Flicker on zoom/scroll fixed 2026-05-12 (SVG filter removed, gradient backdrop simplified, transition-colors only, GPU layer promotion). |
 | Audit cleanup — 5 passes | ✅ Shipped | `277cee4` + `b309e8e` + `f186f2a` + `fa02fbe` + `f397340` (2026-05-12) | UI/UX + perf audits closed: brand vocab (Inter, green-for-good, glassmorphism, violet), perf wins (lazy LibraryMap −27 KB gzip on Library, glossary split), animation discipline (useSpring → cubic), structural (Radix dropdown, sticky-stack, valid HTML), Phase 2C `?fromProject=` prereq + focus rings. |
-| 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ⏳ Queued | — | ~15–20h, has migration |
+| 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ✅ Shipped | (this commit) | Migration 062 FILE + savedComparisons lib + CompareReportPDF + SavedComparisonsList tab + Cmd-K saved-comp surface + drift banner + Save-back + orphan→project |
 | 3 — Lens polish + a11y | ⏳ Queued | — | ~10–14h |
 | 4 — Motion layer rollout | ⏳ Queued | — | ~8–12h |
 | 5 — Cross-surface coherence | ⏳ Queued | — | ~10–14h |

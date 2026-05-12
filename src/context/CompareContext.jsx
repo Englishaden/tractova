@@ -118,8 +118,19 @@ export function CompareProvider({ children }) {
 
   const clear = () => setItems([])
 
+  // Hydrate the tray from a saved comparison snapshot. Replaces the
+  // current draft items wholesale — the user is opening a research
+  // artifact, not appending to their current draft. The Modal's
+  // existing drift-refresh on open then reconciles each snapshot row
+  // against live state/county data.
+  const load = (snapshotItems) => {
+    if (!Array.isArray(snapshotItems)) return false
+    setItems(snapshotItems.slice(0, MAX_ITEMS))
+    return true
+  }
+
   return (
-    <CompareContext.Provider value={{ items, add, remove, clear, isInCompare, MAX_ITEMS }}>
+    <CompareContext.Provider value={{ items, add, remove, clear, load, isInCompare, MAX_ITEMS }}>
       {children}
     </CompareContext.Provider>
   )

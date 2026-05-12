@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabase'
 import { getStateProgram, getCountyData } from '../lib/programData'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { IX_LABEL } from '../lib/statusMaps.js'
+import { saveComparison, loadSavedComparison } from '../lib/savedComparisons'
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/Dialog'
+import { useToast } from './ui/Toast'
 import TractovaLoader from './ui/TractovaLoader'
 
 // CS_LABEL is local — uses 'None' for compare-tray brevity; the canonical
@@ -61,12 +64,18 @@ function MetricRow({ label, values }) {
 
 function CompareModal({ onClose }) {
   const { items, remove, clear } = useCompare()
+  const toast = useToast()
   const [aiCompare, setAiCompare] = useState(null)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiError,   setAiError]   = useState(null)
   // AI panel collapses by default so the comparison row table gets the
   // primary screen real estate. User opens via the eyebrow button.
   const [aiOpen,    setAiOpen]    = useState(false)
+  // Phase 2C: save / export state
+  const [saveOpen,     setSaveOpen]     = useState(false)
+  const [saveName,     setSaveName]     = useState('')
+  const [saving,       setSaving]       = useState(false)
+  const [pdfExporting, setPdfExporting] = useState(false)
 
   // 2026-05-05 (C5): re-fetch fresh state/county data + recompute sub-scores
   // on modal open. Compare items capture data at add-time; if a state's
@@ -383,7 +392,48 @@ function CompareModal({ onClose }) {
               )}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Phase 2C — "Save as…" promotes the draft into a persistent
+                saved_comparisons row. Available with 2+ items only (a
+                single-project compare is meaningless to save). */}
+            <button
+              type="button"
+              onClick={() => {
+                if (items.length < 2) return
+                const defaultName = items.map(it => it.state).join(' / ') + ` · ${items.length} projects`
+                setSaveName(defaultName)
+                setSaveOpen(true)
+              }}
+              disabled={items.length < 2}
+              className="text-[10px] font-mono px-2 py-1 rounded-sm uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ color: '#5EEAD4' }}
+              title={items.length < 2 ? 'Need 2+ projects to save' : 'Save this comparison to revisit later'}
+            >
+              Save as…
+            </button>
+            {/* Phase 2C — Export PDF. Lazy-loads CompareReportPDF on click
+                so @react-pdf/renderer stays out of the main bundle. */}
+            <button
+              type="button"
+              onClick={async () => {
+                if (items.length < 2 || pdfExporting) return
+                setPdfExporting(true)
+                try {
+                  const { exportCompareReportPDF } = await import('./CompareReportPDF')
+                  await exportCompareReportPDF(items, { refreshed, recommendedId: aiCompare?.recommendedId, aiSummary: aiCompare?.comparison || null })
+                } catch (err) {
+                  toast.error('PDF export failed', { description: err?.message?.slice(0, 200) || 'Try again — refresh the modal if it persists.' })
+                } finally {
+                  setPdfExporting(false)
+                }
+              }}
+              disabled={items.length < 2 || pdfExporting}
+              className="text-[10px] font-mono px-2 py-1 rounded-sm uppercase tracking-widest transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              style={{ color: '#5EEAD4' }}
+              title={items.length < 2 ? 'Need 2+ projects to export' : 'Export comparison as PDF'}
+            >
+              {pdfExporting ? 'Exporting…' : 'Export PDF'}
+            </button>
             <button
               onClick={clear}
               className="text-[10px] font-mono text-white/25 hover:text-red-400 transition-colors px-2 py-1 rounded-sm uppercase tracking-widest"
@@ -401,6 +451,69 @@ function CompareModal({ onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Save-as dialog — Radix Dialog so Esc + outside-click + focus-trap
+            come for free. The default name suggests state IDs joined with
+            ' / ' so a 3-project comp lands as "NY / ME / MA · 3 projects",
+            which a developer can rename or accept in one keystroke. */}
+        <Dialog open={saveOpen} onOpenChange={(open) => { if (!saving) setSaveOpen(open) }}>
+          <DialogContent>
+            <DialogTitle>Save comparison</DialogTitle>
+            <DialogDescription>
+              Save this {items.length}-project comparison to your Library. Re-open it later from <span className="font-medium text-ink">Library → Comparisons</span> or via <span className="font-mono text-[12px]">⌘K → :compare</span>.
+            </DialogDescription>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault()
+                if (saving || !saveName.trim()) return
+                setSaving(true)
+                const row = await saveComparison(saveName, items)
+                setSaving(false)
+                if (row) {
+                  setSaveOpen(false)
+                  toast.success('Comparison saved', {
+                    eyebrow: '◆ Saved',
+                    description: `${row.name} · ${row.item_ids.length} projects · open from Library → Comparisons`,
+                  })
+                } else {
+                  toast.error('Save failed', { description: 'Check your sign-in status, then try again.' })
+                }
+              }}
+              className="mt-4"
+            >
+              <label className="block">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-ink-muted">Comparison name</span>
+                <input
+                  type="text"
+                  value={saveName}
+                  onChange={(e) => setSaveName(e.target.value)}
+                  autoFocus
+                  maxLength={120}
+                  placeholder="e.g. NE shortlist Q2 2026"
+                  className="mt-1.5 w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-ink outline-hidden focus-visible:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-500/30"
+                />
+              </label>
+              <div className="flex items-center justify-end gap-2 mt-5">
+                <button
+                  type="button"
+                  onClick={() => setSaveOpen(false)}
+                  disabled={saving}
+                  className="cursor-pointer text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !saveName.trim()}
+                  className="cursor-pointer text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{ background: '#0F766E' }}
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {/* Table */}
         {/* Drop top padding from the scroll container so the sticky header
@@ -586,7 +699,7 @@ function CompareModal({ onClose }) {
 }
 
 export default function CompareTray() {
-  const { items, remove, clear } = useCompare()
+  const { items, remove, clear, load } = useCompare()
   const [modalOpen, setModalOpen] = useState(false)
 
   // Cmd-K verb `:compare` dispatches this event. Open the modal if we have
@@ -598,6 +711,34 @@ export default function CompareTray() {
     return () => window.removeEventListener('tractova:open-compare', onOpen)
   }, [items.length])
 
+  // Phase 2C — Cmd-K `:compare <saved-name>` and Library "Open" both fire
+  // this event with either `{ savedId }` (fetch + hydrate) or `{ snapshot }`
+  // (hydrate directly). Either path ends with the modal open. The tray
+  // mounts unconditionally here so the listener stays alive even when
+  // items is empty — important for the "load saved without an existing
+  // draft" path.
+  useEffect(() => {
+    const onLoad = async (e) => {
+      const detail = e?.detail || {}
+      let snapshot = detail.snapshot
+      if (!snapshot && detail.savedId) {
+        try {
+          const row = await loadSavedComparison(detail.savedId)
+          snapshot = row?.snapshot
+        } catch { /* fall through to no-op */ }
+      }
+      if (Array.isArray(snapshot) && snapshot.length > 0) {
+        load(snapshot)
+        setModalOpen(true)
+      }
+    }
+    window.addEventListener('tractova:load-compare', onLoad)
+    return () => window.removeEventListener('tractova:load-compare', onLoad)
+  }, [load])
+
+  // CompareTray is always mounted in App.jsx, so the `tractova:load-compare`
+  // listener stays alive even with an empty draft — saved-comparison hydrate
+  // updates items first, which triggers a re-render that renders the tray.
   if (items.length === 0) return null
 
   return (
