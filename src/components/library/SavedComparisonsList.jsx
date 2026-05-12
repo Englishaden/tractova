@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useCompare } from '../../context/CompareContext'
 import { listSavedComparisons, deleteSavedComparison, renameSavedComparison } from '../../lib/savedComparisons'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../ui/Dialog'
 import { useToast } from '../ui/Toast'
@@ -18,7 +17,6 @@ export default function SavedComparisonsList() {
   const [renameTarget, setRenameTarget] = useState(null)
   const [renameName, setRenameName] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
-  const { load: loadIntoCompare } = useCompare()
   const toast = useToast()
 
   useEffect(() => {
@@ -39,9 +37,15 @@ export default function SavedComparisonsList() {
       toast.error('Could not open comparison', { description: 'The saved snapshot is empty or malformed.' })
       return
     }
-    loadIntoCompare(row.snapshot)
-    // CompareTray listens for this event and opens its modal if items > 0.
-    try { window.dispatchEvent(new CustomEvent('tractova:open-compare')) } catch { /* SSR-safe */ }
+    // Single-click flow: dispatch `tractova:load-compare` with the
+    // snapshot directly. CompareTray's listener hydrates items AND
+    // opens the modal atomically. The older two-step (load + dispatch
+    // tractova:open-compare) required two clicks because the
+    // tractova:open-compare listener closed over a stale items.length=0
+    // until the load() setItems propagated through a re-render.
+    try {
+      window.dispatchEvent(new CustomEvent('tractova:load-compare', { detail: { snapshot: row.snapshot } }))
+    } catch { /* SSR-safe */ }
   }
 
   if (rows === null) {
