@@ -10,6 +10,7 @@ import TechLabel from './ui/TechLabel'
 import { getAlerts } from '../lib/alertHelpers'
 import { formatLargeUSD } from '../lib/formatters'
 import AlertChip from './AlertChip.jsx'
+import GlossaryLabel from './ui/GlossaryLabel.jsx'
 import ProjectAuditTimeline from './ProjectAuditTimeline.jsx'
 import YourDealSection from './YourDealSection.jsx'
 import StagePicker from './library/StagePicker.jsx'
@@ -465,7 +466,9 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                         </span>
                       </div>
                       <div>
-                        <p className="eyebrow-mono mb-1 text-ink-muted">IX Difficulty</p>
+                        <p className="eyebrow-mono mb-1 text-ink-muted">
+                          <GlossaryLabel term="IX" displayAs="IX Difficulty" />
+                        </p>
                         <span className={`text-xs px-2 py-0.5 rounded-sm border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
                         </span>
@@ -508,7 +511,9 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                       <p className="font-medium text-ink">{current.csProgram ?? '—'}</p>
                     </div>
                     <div>
-                      <p className="eyebrow-mono mb-0.5 text-ink-muted">LMI Required</p>
+                      <p className="eyebrow-mono mb-0.5 text-ink-muted">
+                        <GlossaryLabel term="LMI Carveout" displayAs="LMI Required" />
+                      </p>
                       <p className="font-medium">
                         {current.lmiRequired
                           ? <span className="text-teal-700">{current.lmiPercent}% minimum</span>

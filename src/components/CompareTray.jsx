@@ -8,6 +8,7 @@ import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { IX_LABEL } from '../lib/statusMaps.js'
 import { saveComparison, loadSavedComparison } from '../lib/savedComparisons'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/Dialog'
+import GlossaryLabel from './ui/GlossaryLabel'
 import { useToast } from './ui/Toast'
 import TractovaLoader from './ui/TractovaLoader'
 
@@ -50,11 +51,13 @@ function ScoreBar({ score }) {
   )
 }
 
-function MetricRow({ label, values }) {
+function MetricRow({ label, term, values }) {
   return (
     <div className="grid gap-4 border-b" style={{ gridTemplateColumns: `148px repeat(${values.length}, 1fr)`, borderColor: 'rgba(255,255,255,0.05)' }}>
       <span className="text-[9px] font-mono uppercase tracking-widest text-white/30 py-3 pr-2 border-r" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-        {label}
+        {term
+          ? <GlossaryLabel term={term} displayAs={label} />
+          : label}
       </span>
       {values.map((val, i) => (
         <div key={i} className="py-3 px-1">{val}</div>
@@ -192,9 +195,14 @@ function CompareModal({ onClose }) {
     const display = capped < 1 ? capped.toFixed(1) : Math.round(capped)
     return <span className="text-xs font-mono text-white/65 tabular-nums">{display}%{overflow ? '+' : ''}</span>
   }
+  // Phase 5 — `term` references a key in src/lib/glossaryDefinitions.js. When
+  // present, MetricRow wraps the label in GlossaryLabel so hovering shows
+  // the canonical definition + Tractova data inputs. Rows without a glossary
+  // entry stay as plain labels.
   const rows = [
     {
       label: 'Feasibility Index',
+      term: 'Feasibility Index',
       section: 'COMPOSITE',
       render: (item) => {
         const delta = scoreDelta(item)
@@ -221,16 +229,19 @@ function CompareModal({ onClose }) {
     },
     {
       label: 'Offtake sub-score',
+      term:  'Offtake',
       section: 'COMPOSITE',
       render: (item) => fmtSubScore(item.subOfftake),
     },
     {
       label: 'Interconnection sub-score',
+      term:  'IX',
       section: 'COMPOSITE',
       render: (item) => fmtSubScore(item.subIx),
     },
     {
       label: 'Site Control sub-score',
+      term:  'Site Control',
       section: 'COMPOSITE',
       render: (item) => fmtSubScore(item.subSite),
     },
@@ -274,6 +285,7 @@ function CompareModal({ onClose }) {
     },
     {
       label: 'LMI Carveout',
+      term:  'LMI Carveout',
       section: 'COMPOSITE',
       render: (item) => {
         if (item.lmiRequired === false || item.lmiPercent === 0) {
@@ -292,11 +304,13 @@ function CompareModal({ onClose }) {
     },
     {
       label: 'Wetland-richness index',
+      term:  'Wetland Warning',
       section: 'COMPOSITE',
       render: (item) => fmtWetlandPct(item.wetlandPct),
     },
     {
       label: 'Prime farmland',
+      term:  'Prime Farmland',
       section: 'COMPOSITE',
       render: (item) => fmtPct(item.farmlandPct),
     },
@@ -588,6 +602,7 @@ function CompareModal({ onClose }) {
                   <MetricRow
                     key={row.label}
                     label={row.label}
+                    term={row.term}
                     values={items.map((item) => row.render(item))}
                   />
                 ))}

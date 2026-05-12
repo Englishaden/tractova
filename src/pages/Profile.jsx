@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../compon
 import { STAGE_COLORS, TECH_COLORS } from '../lib/v3Tokens'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
+import StagePicker from '../components/library/StagePicker.jsx'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(name) {
@@ -31,6 +32,122 @@ function timeAgo(dateStr) {
 }
 
 // V3: STAGE_COLORS + TECH_COLORS now imported from src/lib/v3Tokens.js
+
+// ── Billing History (Pro) ────────────────────────────────────────────────────
+// Inline read-only list of Stripe invoices. Pulls from the dual-purpose
+// /api/create-portal-session endpoint (GET ?action=invoices) so users can
+// see + download past invoices without leaving the app. Empty state when
+// the user has no billing account yet (free user or never subscribed).
+function BillingHistory() {
+  const [invoices, setInvoices] = useState(null) // null = loading, [] = empty, [...] = loaded
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) {
+          if (!cancelled) setError('Please sign in again')
+          return
+        }
+        const res = await fetch('/api/create-portal-session?action=invoices', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        })
+        const json = await res.json()
+        if (cancelled) return
+        if (!res.ok) {
+          setError(json.error || 'Could not load invoices')
+          return
+        }
+        setInvoices(json.invoices || [])
+      } catch (err) {
+        if (!cancelled) setError(err.message || 'Network error')
+      }
+    })()
+    return () => { cancelled = true }
+  }, [])
+
+  if (error) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Billing History</p>
+        <p className="text-[11px] text-gray-400">Couldn't load invoices. <span className="text-red-500">{error}</span></p>
+      </div>
+    )
+  }
+
+  if (invoices === null) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Billing History</p>
+        <div className="space-y-1.5">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="h-6 rounded-sm animate-pulse" style={{ background: '#F3F4F6' }} />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Billing History</p>
+        <p className="text-[11px] text-gray-400 italic">No invoices yet. Once your subscription generates an invoice, it'll appear here with a download link.</p>
+      </div>
+    )
+  }
+
+  const fmtAmount = (cents, currency) => {
+    if (cents == null) return '—'
+    const dollars = cents / 100
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: (currency || 'usd').toUpperCase() }).format(dollars)
+  }
+  const fmtDate = (unix) => unix ? new Date(unix * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+  const statusClass = (s) => {
+    if (s === 'paid')          return 'text-emerald-700 bg-emerald-50 border-emerald-200'
+    if (s === 'open')          return 'text-amber-700 bg-amber-50 border-amber-200'
+    if (s === 'void')          return 'text-gray-400 bg-gray-50 border-gray-200'
+    if (s === 'uncollectible') return 'text-red-700 bg-red-50 border-red-200'
+    return 'text-gray-500 bg-gray-50 border-gray-200'
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Billing History</p>
+      <div className="space-y-2">
+        {invoices.map(inv => (
+          <div key={inv.id} className="flex items-center justify-between gap-3 group">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm border ${statusClass(inv.status)}`}>
+                {inv.status}
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm text-gray-800 font-medium font-mono tabular-nums truncate">
+                  {fmtAmount(inv.amount_paid || inv.amount_due, inv.currency)}
+                </p>
+                <p className="text-[10px] text-gray-400 truncate">
+                  {fmtDate(inv.created)}{inv.number ? ` · ${inv.number}` : ''}
+                </p>
+              </div>
+            </div>
+            {inv.hosted_invoice_url && (
+              <a
+                href={inv.hosted_invoice_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] font-mono font-semibold uppercase tracking-wider text-teal-700 hover:text-teal-900 transition-colors shrink-0"
+              >
+                View →
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // ── Manage Billing ───────────────────────────────────────────────────────────
 // Single path: "Manage subscription" routes to Stripe portal for payment
@@ -671,6 +788,11 @@ export default function Profile() {
 
               {/* Alert preferences (Pro only) */}
               {isPro && <AlertPreferences userId={user.id} />}
+
+              {/* Billing history (Pro only) — inline invoice list with
+                  hosted Stripe URLs. Phase 5. Reuses the same Stripe
+                  customer plumbing as the Manage subscription button. */}
+              {isPro && <BillingHistory />}
             </div>
 
             {/* RIGHT COLUMN */}
@@ -680,23 +802,38 @@ export default function Profile() {
                 <PortfolioStats projects={allProjects} stateProgramMap={stateProgramMap} />
               )}
 
-              {/* Recent activity */}
+              {/* Recent activity — Phase 5 inline stage editing. The
+                  stage no longer renders as static text; the StagePicker
+                  popover lets the user advance a project's stage right
+                  here without bouncing back to Library. StagePicker
+                  itself writes to Supabase + logs the stage_change audit
+                  event; the onChange callback updates local state so the
+                  row reflects the new stage immediately. */}
               {recentProjects.length > 0 && (
                 <div className="bg-white border border-gray-200 rounded-lg px-6 py-4">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Recent Activity</p>
                   <div className="space-y-2.5">
                     {recentProjects.map(p => (
-                      <div key={p.id} className="flex items-center justify-between group">
-                        <div className="flex items-center gap-2.5 min-w-0">
+                      <div key={p.id} className="flex items-center justify-between gap-3 group">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
                           <span className="w-7 h-7 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 font-mono" style={{ background: 'rgba(15,118,110,0.08)', color: '#0F766E' }}>
                             {p.state || '—'}
                           </span>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="text-sm text-gray-800 font-medium truncate">{p.name || `${p.state} ${p.county || ''}`}</p>
-                            <p className="text-[10px] text-gray-400">{[p.county && `${p.county} Co.`, p.stage].filter(Boolean).join(' · ')}</p>
+                            <p className="text-[10px] text-gray-400 truncate">{p.county ? `${p.county} Co.` : '—'}</p>
                           </div>
                         </div>
-                        <span className="text-[10px] text-gray-400 shrink-0 tabular-nums font-mono">{timeAgo(p.saved_at)}</span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <StagePicker
+                            stage={p.stage}
+                            projectId={p.id}
+                            onChange={(newStage) => {
+                              setAllProjects(prev => prev.map(row => row.id === p.id ? { ...row, stage: newStage } : row))
+                            }}
+                          />
+                          <span className="text-[10px] text-gray-400 tabular-nums font-mono">{timeAgo(p.saved_at)}</span>
+                        </div>
                       </div>
                     ))}
                   </div>

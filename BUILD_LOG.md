@@ -4,11 +4,41 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 4 SHIPPED · resume Phase 5 (Cross-surface coherence)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 5 SHIPPED · resume Phase 6 (Polish + audit-ui hardening)
 
-**Phase 4 lit up the killer feature the roadmap called out: the three pillar gauges fill in sequence on first Lens open and developers immediately read this as intelligence-grade software. The composite ArcGauge, Library MiniArcGauge, and Library ScoreGauge all share a single IntersectionObserver gate (new `useFirstVisible` hook in MotionPrimitives) so the entry fill + number CountUp fire exactly once per viewport entry, not on every re-render. Score updates after first reveal still settle to the new value through the same animate prop. ProjectCard collapsed state lifts 2px + deepens its shadow on hover for Linear-class polish.**
+**Phase 5 delivered the three highest-value coherence pieces: Profile inline stage editing (StagePicker dropped into the Recent Activity table — no more bouncing back to Library to advance a project), Profile billing history (inline Stripe invoice list with hosted-invoice URLs, served by a dual-purpose `/api/create-portal-session` endpoint that now also handles `GET ?action=invoices` to stay under Vercel Hobby's 12-function cap), and a targeted glossary tooltips sweep on the CompareTray rows + ProjectCard expanded panel. Landing tightening deferred to a standalone Phase 5.x commit with screenshot diffs.**
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 5. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 5 (Cross-surface coherence), then implement: landing tightening (keep editorial hero, tighten typography toward in-app, replace static value-prop cards with live data shapes); Profile inline stage editing (surface StagePicker in the Profile portfolio table, writes straight to Supabase); Profile billing history (new api/billing-history.js serverless endpoint hitting Stripe invoices.list, render read-only list with hosted invoice URLs); glossary tooltips everywhere (sweep app to wrap every defined term mention with GlossaryLabel, references Cmd-K verb in the tooltip footer).`
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 6. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 6 (Polish + audit-ui hardening), then implement: axe-core wiring in tests/audit-ui.spec.js targeting 0 critical violations on Lens/Library/Profile/Glossary; mobile streamlined view via MobileGate.jsx softening (Library + Profile + alerts become mobile-functional in cards-only view, Lens/Studio/Compare stay desktop-gated); code-split LibraryMap + ProjectTable via React.lazy; cron-runs latency monitor stub in audit-ui; cross-browser sweep on Safari + Firefox + Chrome.`
+
+---
+
+### Session 2026-05-12 (continued) — TRACTOVA-UX-001 Phase 5 shipped
+
+Phase 5 closes the cross-surface coherence gaps. Three landed pieces, one deferred:
+
+**Profile inline stage editing** (`src/pages/Profile.jsx`)
+- Imported the existing `StagePicker` and dropped it into the Recent Activity rows. The stage is no longer rendered as static text — it's a Radix-Popover dropdown that writes to Supabase + logs a `stage_change` audit event (the StagePicker handles all that internally). The onChange callback updates Profile's local `allProjects` state so the row reflects the new stage immediately. Saves users a Library detour every time they want to advance a project stage.
+
+**Profile billing history** (`api/create-portal-session.js` + `src/pages/Profile.jsx`)
+- New `BillingHistory` component on the left-column Pro section. Fetches `GET /api/create-portal-session?action=invoices` on mount, renders a read-only list of Stripe invoices (status pill, amount, date, hosted-URL "View →" link).
+- The endpoint that previously only created portal sessions (`POST /api/create-portal-session`) now also handles a `GET ?action=invoices` branch. Single file, dual purpose — kept here rather than spinning up a sibling `api/billing-history.js` because we're at Vercel Hobby's 12-function cap. The endpoint header comment documents both routes. Sanitized payload: only id / number / status / amount / currency / created / period_end / hosted_invoice_url / invoice_pdf / first-line description — no raw Stripe internals leak to the browser.
+- Empty state: when `profile.stripe_customer_id` is null (free tier or never subscribed), the endpoint returns `[]` and the UI shows an italic "No invoices yet" hint.
+- Skeleton loading: 3 pulsed bars while in-flight.
+
+**Glossary tooltips sweep — targeted** (`src/components/CompareTray.jsx` + `src/components/ProjectCard.jsx`)
+- CompareTray `MetricRow` now accepts an optional `term` prop; when present, the label renders inside a `<GlossaryLabel term={term} displayAs={label}>` so hovering surfaces the canonical glossary definition + Tractova data inputs. Wrapped: Feasibility Index · Offtake · IX · Site Control · LMI Carveout · Wetland Warning · Prime Farmland.
+- ProjectCard expanded diligence tab: "IX Difficulty" wraps `IX` and "LMI Required" wraps `LMI Carveout` with display-as overrides so the visible label stays familiar while the tooltip pulls the canonical definition.
+- ScenarioStudio already had glossary tooltips on the slider labels from prior work; left intact.
+
+**Deferred (intentional, called out in roadmap):**
+- **Landing tightening** — the hero already runs on live `getStatePrograms` + `getDashboardMetrics` data. The "Three Pillars" bullet cards are next to tighten but the design is subjective enough to deserve a standalone commit with screenshot diffs. Tracked as a Phase 5.x follow-up.
+- **Glossary tooltips on the long tail** — only the highest-leverage surfaces (CompareTray rows, ProjectCard data labels) got wrapped this pass. ~200 inline mono-cap labels across the Lens panels (OfftakeCard / InterconnectionCard / SiteControlCard / MarketIntelligenceSummary / ScenarioStudio sliders) + admin/* are Phase 6 batch work.
+
+**Verification (close of session):**
+- `npm run test:unit` — 129/129 green
+- `npm run build` — clean (3.47s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs / lint:api / lint:secrets` — clean
 
 ---
 
