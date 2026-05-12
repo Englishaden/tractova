@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import countyCentroids from '../../data/county_centroids.json'
@@ -485,49 +486,61 @@ export default function LibraryMap({
         </span>
       </div>
 
-      {/* ── Hover tooltips ───────────────────────────────────────── */}
-      {tooltip && tooltip.kind === 'state' && (
-        <div className="fixed z-50 pointer-events-none" style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
-          <div
-            className="text-xs rounded-lg px-3 py-2 shadow-2xl max-w-[240px]"
-            style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(20,184,166,0.30)' }}
-          >
-            <div className="font-semibold" style={{ color: 'rgba(255,255,255,0.92)' }}>{tooltip.stateId}</div>
-            {tooltip.agg ? (
-              <div className="mt-1 flex flex-col gap-0.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                <span className="font-mono tabular-nums">
-                  <span className="text-white font-semibold">{tooltip.agg.count}</span> project{tooltip.agg.count === 1 ? '' : 's'} ·
-                  <span className="text-white font-semibold ml-1">{tooltip.agg.mwSum.toFixed(1)} MW</span>
-                </span>
-                <span className="font-mono tabular-nums">
-                  Weighted-avg score: <span className="text-white font-semibold">{tooltip.agg.weightedAvg}</span>
-                </span>
-                <span className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                  Click to filter · double-click to filter as table →
-                </span>
+      {/* ── Hover tooltips ─────────────────────────────────────────
+          Rendered through a portal to document.body. The map container
+          above has `transform: translateZ(0)` (GPU layer promotion to
+          stop flicker on scroll/zoom), and a transformed ancestor
+          becomes the containing block for `position: fixed` descendants
+          per CSS spec — so without the portal, the tooltip's
+          viewport-relative clientX/clientY get re-anchored to the map
+          container's top-left and appear offset by however far the map
+          is from the viewport edge. Portal sidesteps it entirely:
+          tooltip lives at the <body> level, transform has no effect on
+          it, fixed positioning means viewport-relative again. */}
+      {tooltip && typeof document !== 'undefined' && createPortal(
+        tooltip.kind === 'state' ? (
+          <div className="fixed z-50 pointer-events-none" style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
+            <div
+              className="text-xs rounded-lg px-3 py-2 shadow-2xl max-w-[240px]"
+              style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(20,184,166,0.30)' }}
+            >
+              <div className="font-semibold" style={{ color: 'rgba(255,255,255,0.92)' }}>{tooltip.stateId}</div>
+              {tooltip.agg ? (
+                <div className="mt-1 flex flex-col gap-0.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                  <span className="font-mono tabular-nums">
+                    <span className="text-white font-semibold">{tooltip.agg.count}</span> project{tooltip.agg.count === 1 ? '' : 's'} ·
+                    <span className="text-white font-semibold ml-1">{tooltip.agg.mwSum.toFixed(1)} MW</span>
+                  </span>
+                  <span className="font-mono tabular-nums">
+                    Weighted-avg score: <span className="text-white font-semibold">{tooltip.agg.weightedAvg}</span>
+                  </span>
+                  <span className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    Click to filter · double-click to filter as table →
+                  </span>
+                </div>
+              ) : (
+                <div className="mt-0.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>No saved projects</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="fixed z-50 pointer-events-none" style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
+            <div
+              className="text-xs rounded-lg px-3 py-2 shadow-2xl max-w-[260px]"
+              style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(20,184,166,0.30)' }}
+            >
+              <div className="font-semibold" style={{ color: 'rgba(255,255,255,0.92)' }}>{tooltip.pin.name}</div>
+              <div className="mt-0.5 text-[11px] font-mono tabular-nums" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                {tooltip.pin.county}, {tooltip.pin.state} · {tooltip.pin.mw} MW
               </div>
-            ) : (
-              <div className="mt-0.5 text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>No saved projects</div>
-            )}
-          </div>
-        </div>
-      )}
-      {tooltip && tooltip.kind === 'pin' && (
-        <div className="fixed z-50 pointer-events-none" style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
-          <div
-            className="text-xs rounded-lg px-3 py-2 shadow-2xl max-w-[260px]"
-            style={{ background: 'rgba(7,17,12,0.95)', border: '1px solid rgba(20,184,166,0.30)' }}
-          >
-            <div className="font-semibold" style={{ color: 'rgba(255,255,255,0.92)' }}>{tooltip.pin.name}</div>
-            <div className="mt-0.5 text-[11px] font-mono tabular-nums" style={{ color: 'rgba(255,255,255,0.55)' }}>
-              {tooltip.pin.county}, {tooltip.pin.state} · {tooltip.pin.mw} MW
+              <div className="mt-1 text-[11px] font-mono tabular-nums" style={{ color: '#2DD4BF' }}>
+                Score: <span className="font-bold">{tooltip.pin.score ?? '—'}</span>
+              </div>
+              <div className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Click for details →</div>
             </div>
-            <div className="mt-1 text-[11px] font-mono tabular-nums" style={{ color: '#2DD4BF' }}>
-              Score: <span className="font-bold">{tooltip.pin.score ?? '—'}</span>
-            </div>
-            <div className="mt-0.5 text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>Click for details →</div>
           </div>
-        </div>
+        ),
+        document.body
       )}
     </div>
   )
