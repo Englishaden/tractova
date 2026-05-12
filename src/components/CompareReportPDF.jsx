@@ -53,53 +53,55 @@ const s = StyleSheet.create({
   page: {
     fontFamily: FONT_SANS,
     backgroundColor: '#FFFFFF',
-    paddingTop: 36,
+    // Tighter top padding so more rows fit on page 1. Bottom stays at 30
+    // so the footer (rendered with marginTop: 'auto') has breathing room.
+    paddingTop: 28,
     paddingBottom: 30,
     paddingHorizontal: 36,
   },
-  topRail: { height: 1.5, backgroundColor: TEAL, marginBottom: 16, marginTop: -20 },
+  topRail: { height: 1.5, backgroundColor: TEAL, marginBottom: 10, marginTop: -16 },
 
   // Header
-  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
+  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 },
   headerLeft:   { flexDirection: 'column' },
-  logo:         { fontSize: 22, fontFamily: FONT_SERIF_BOLD, color: INK, letterSpacing: -0.4 },
-  logoSub:      { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, marginTop: 4, textTransform: 'uppercase' },
+  logo:         { fontSize: 20, fontFamily: FONT_SERIF_BOLD, color: INK, letterSpacing: -0.4 },
+  logoSub:      { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, marginTop: 3, textTransform: 'uppercase' },
   headerRight:  { flexDirection: 'column', alignItems: 'flex-end' },
   headerKind:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK, letterSpacing: 0.8, textTransform: 'uppercase' },
   headerDate:   { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.6, marginTop: 3 },
 
-  divider: { borderBottomWidth: 1, borderBottomColor: BORDER, marginBottom: 14 },
+  divider: { borderBottomWidth: 1, borderBottomColor: BORDER, marginBottom: 10 },
 
-  // Title block
-  eyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK_MUTED, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
-  title:     { fontSize: 20, fontFamily: FONT_SERIF_BOLD, color: INK, marginBottom: 6, letterSpacing: -0.4, lineHeight: 1.15 },
-  titleMeta: { fontSize: 8.5, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4, marginBottom: 14, lineHeight: 1.4 },
+  // Title block — sized to leave maximum room for data rows on page 1
+  eyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK_MUTED, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 4 },
+  title:     { fontSize: 17, fontFamily: FONT_SERIF_BOLD, color: INK, marginBottom: 4, letterSpacing: -0.4, lineHeight: 1.15 },
+  titleMeta: { fontSize: 8, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4, marginBottom: 8, lineHeight: 1.4 },
 
   // Pull-blocks — Best-for + AI summary. Two distinct visual identities
   // by border-color so a reader can tell them apart without reading the
   // eyebrow text first.
-  pullBlock:     { borderLeftWidth: 2, padding: 10, marginBottom: 8 },
-  pullEyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, letterSpacing: 0.8, marginBottom: 3, textTransform: 'uppercase' },
-  pullText:      { fontSize: 9.5, fontFamily: FONT_SANS, color: INK, lineHeight: 1.5 },
+  pullBlock:     { borderLeftWidth: 2, padding: 8, marginBottom: 6 },
+  pullEyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, letterSpacing: 0.8, marginBottom: 2, textTransform: 'uppercase' },
+  pullText:      { fontSize: 9, fontFamily: FONT_SANS, color: INK, lineHeight: 1.45 },
 
   // Column header strip
-  colHeaderStrip: { flexDirection: 'row', marginTop: 10, borderBottomWidth: 1, borderBottomColor: NAVY, paddingBottom: 4 },
-  colHeaderCell:  { paddingHorizontal: 6, paddingTop: 3, paddingBottom: 6 },
+  colHeaderStrip: { flexDirection: 'row', marginTop: 6, borderBottomWidth: 1, borderBottomColor: NAVY, paddingBottom: 3 },
+  colHeaderCell:  { paddingHorizontal: 6, paddingTop: 2, paddingBottom: 4 },
   colHeaderName:  { fontSize: 10, fontFamily: FONT_SERIF_BOLD, color: INK, letterSpacing: -0.1, lineHeight: 1.2 },
-  colHeaderState: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, marginTop: 3, textTransform: 'uppercase' },
+  colHeaderState: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' },
   colHeaderMeta:  { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4, marginTop: 2 },
   recommendBadge: { fontSize: 6.5, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 2 },
 
   // Group label
-  rowGroupRow:   { flexDirection: 'row', paddingTop: 10, paddingBottom: 4 },
+  rowGroupRow:   { flexDirection: 'row', paddingTop: 8, paddingBottom: 3 },
   rowGroupLabel: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 1.0, textTransform: 'uppercase' },
 
   // Data rows
   row:           { flexDirection: 'row', alignItems: 'stretch', borderBottomWidth: 0.5, borderBottomColor: GRAY_100 },
   rowAlt:        { backgroundColor: GRAY_50 },
-  rowLabelCell:  { width: LABEL_COL_WIDTH, paddingHorizontal: 6, paddingVertical: 6, justifyContent: 'center' },
+  rowLabelCell:  { width: LABEL_COL_WIDTH, paddingHorizontal: 6, paddingVertical: 5, justifyContent: 'center' },
   rowLabel:      { fontSize: 7.5, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4 },
-  rowCell:       { paddingHorizontal: 6, paddingVertical: 6, justifyContent: 'center' },
+  rowCell:       { paddingHorizontal: 6, paddingVertical: 5, justifyContent: 'center' },
   rowValue:      { fontSize: 9, fontFamily: FONT_SANS_BOLD, color: INK, lineHeight: 1.3 },
   rowValueMono:  { fontSize: 9, fontFamily: FONT_MONO_BOLD, color: INK, lineHeight: 1.3 },
   // Muted color does the work; italic would require a registered font variant.
@@ -107,15 +109,20 @@ const s = StyleSheet.create({
 
   // Score cell — bigger, severity-colored
   scoreRow:    { flexDirection: 'row', alignItems: 'flex-end' },
-  scoreNum:    { fontSize: 20, fontFamily: FONT_MONO_BOLD, letterSpacing: -0.5, lineHeight: 1.0 },
+  scoreNum:    { fontSize: 18, fontFamily: FONT_MONO_BOLD, letterSpacing: -0.5, lineHeight: 1.0 },
   scoreUnits:  { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, marginLeft: 2, marginBottom: 1 },
   scoreLabel:  { fontSize: 6.5, fontFamily: FONT_MONO_BOLD, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' },
   scoreDelta:  { fontSize: 6.5, fontFamily: FONT_MONO, marginTop: 2, letterSpacing: 0.4 },
 
-  // Footer
-  footer:           { marginTop: 'auto', paddingTop: 12, borderTopWidth: 1, borderTopColor: BORDER, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  // Footer — appears on the last page only
+  footer:           { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: BORDER, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   footerBrand:      { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK, letterSpacing: 0.8, textTransform: 'uppercase' },
   footerDisclaimer: { fontSize: 7, fontFamily: FONT_SANS, color: INK_MUTED, maxWidth: 380, textAlign: 'right', lineHeight: 1.5 },
+  // Running page number at the bottom-right of every page (react-pdf
+  // renders <Text fixed render={({pageNumber, totalPages})...}/> on every
+  // page automatically). Positioned at the bottom margin so it doesn't
+  // collide with the natural footer on the last page.
+  pageNumber: { position: 'absolute', bottom: 14, right: 36, fontSize: 6.5, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.6 },
 })
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -350,14 +357,36 @@ function CompareDoc({ items, refreshed = {}, recommendedId = null, aiSummary = n
           ))}
         </View>
 
-        {/* Row groups */}
+        {/* Row groups — flow naturally across pages. Each row is
+            wrap={false} so individual rows don't split mid-text; the
+            group label + first row are wrapped together so labels never
+            orphan at the bottom of a page with their first row floating
+            on the next. Removing the group-level wrap={false} fixes the
+            page-1-mostly-empty bug from the first cut. */}
         {rowsByGroup.map(({ group, groupNum, rows }) => (
-          <View key={group} wrap={false}>
-            <View style={s.rowGroupRow}>
-              <Text style={s.rowGroupLabel}>§ {groupNum} · {group}</Text>
+          <View key={group}>
+            {/* Keep the group label glued to the first data row so the
+                section header always introduces at least one row of
+                content on the same page. */}
+            <View wrap={false}>
+              <View style={s.rowGroupRow}>
+                <Text style={s.rowGroupLabel}>§ {groupNum} · {group}</Text>
+              </View>
+              <View style={[s.row, 0 % 2 === 1 ? s.rowAlt : null]}>
+                <View style={s.rowLabelCell}>
+                  <Text style={s.rowLabel}>{rows[0].label}</Text>
+                </View>
+                {items.map((it) => (
+                  <View key={`${it.id}::${rows[0].label}`} style={dataColStyle}>
+                    {rows[0].render(it)}
+                  </View>
+                ))}
+              </View>
             </View>
-            {rows.map((row, ri) => (
-              <View key={row.label} style={[s.row, ri % 2 === 1 ? s.rowAlt : null]}>
+            {/* Remaining rows flow individually. wrap={false} per row keeps
+                each row intact across page breaks. */}
+            {rows.slice(1).map((row, ri) => (
+              <View key={row.label} style={[s.row, (ri + 1) % 2 === 1 ? s.rowAlt : null]} wrap={false}>
                 <View style={s.rowLabelCell}>
                   <Text style={s.rowLabel}>{row.label}</Text>
                 </View>
@@ -371,13 +400,26 @@ function CompareDoc({ items, refreshed = {}, recommendedId = null, aiSummary = n
           </View>
         ))}
 
-        {/* Footer */}
-        <View style={s.footer}>
+        {/* Footer — last page only. wrap={false} ensures it stays intact
+            and doesn't get split between pages. marginTop is fixed (not
+            'auto') so the footer follows immediately after the last row
+            instead of pushing to the bottom of the page and creating
+            another whitespace gap. */}
+        <View style={s.footer} wrap={false}>
           <Text style={s.footerBrand}>Tractova · Tractova.com</Text>
           <Text style={s.footerDisclaimer}>
             Tractova's composite index is a research accelerator. Verify interconnection terms with the serving utility and confirm program capacity with the state PUC before committing capital.
           </Text>
         </View>
+
+        {/* Page numbers — react-pdf renders this on every page via the
+            `render` callback. Fixed-positioned at the bottom margin so it
+            doesn't compete with the footer or row content. */}
+        <Text
+          fixed
+          style={s.pageNumber}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+        />
 
       </Page>
     </Document>
