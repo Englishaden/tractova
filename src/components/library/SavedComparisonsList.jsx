@@ -217,6 +217,9 @@ export default function SavedComparisonsList() {
                   setConfirmDelete(null)
                   setRows((r) => r.filter(x => x.id !== target.id))
                   toast.success('Comparison deleted')
+                  // Library listens for this event to refresh the
+                  // Comparisons tab badge count.
+                  try { window.dispatchEvent(new CustomEvent('tractova:saved-comparisons-changed')) } catch { /* SSR-safe */ }
                 } else {
                   toast.error('Delete failed')
                 }

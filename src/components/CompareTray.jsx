@@ -475,6 +475,9 @@ function CompareModal({ onClose }) {
                     eyebrow: '◆ Saved',
                     description: `${row.name} · ${row.item_ids.length} projects · open from Library → Comparisons`,
                   })
+                  // Library listens for this event to refresh the
+                  // Comparisons tab badge count.
+                  try { window.dispatchEvent(new CustomEvent('tractova:saved-comparisons-changed')) } catch { /* SSR-safe */ }
                 } else {
                   toast.error('Save failed', { description: 'Check your sign-in status, then try again.' })
                 }

@@ -69,7 +69,9 @@ const s = StyleSheet.create({
   rowCell:       { paddingVertical: 5, paddingHorizontal: 6 },
   rowValue:      { fontSize: 9, fontFamily: FONT_SANS_BOLD, color: INK },
   rowValueMono:  { fontSize: 9, fontFamily: FONT_MONO_BOLD, color: INK },
-  rowValueMuted: { fontSize: 9, fontFamily: FONT_SANS, color: INK_MUTED, fontStyle: 'italic' },
+  // `fontStyle: italic` would require Helvetica-Oblique to be registered;
+  // we lean on the muted color alone to convey the "—" empty-cell state.
+  rowValueMuted: { fontSize: 9, fontFamily: FONT_SANS, color: INK_MUTED },
 
   // Score cell — bigger, severity-colored
   scoreNum:    { fontSize: 18, fontFamily: FONT_MONO_BOLD, letterSpacing: -0.5 },
@@ -135,7 +137,10 @@ function ScoreCell({ score, delta }) {
   const tone = scoreTone(score)
   return (
     <View style={s.rowCell}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+      {/* `alignItems: baseline` is unsupported by react-pdf's Yoga layout
+          (causes a WASM abort). flex-end keeps the units glued to the
+          score number's baseline visually without invoking that path. */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
         <Text style={[s.scoreNum, { color: tone.color }]}>{score == null ? '—' : Math.round(score)}</Text>
         {score != null && <Text style={s.scoreUnits}>/100</Text>}
       </View>

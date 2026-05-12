@@ -238,6 +238,7 @@ function LibraryContent() {
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
+  const [savedComparisonsCount, setSavedComparisonsCount] = useState(0) // count for the Comparisons tab's "· N" badge
   const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' | 'comparisons' — top-level toggle
   const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' | 'map' — Phase 2A + 2B
   const handleLayoutChange = useCallback((next) => { setLayoutState(next); saveLayout(next) }, [])
@@ -393,6 +394,28 @@ function LibraryContent() {
     })()
     return () => { cancelled = true }
   }, [user, projects.length])
+
+  // Saved-comparisons count powers the Comparisons tab's "· N" badge.
+  // One head-only count query (cheap). Refetched on a window event so
+  // Save (CompareTray) / Delete (SavedComparisonsList) keep it accurate
+  // without prop-drilling a setter through two components.
+  useEffect(() => {
+    if (!user) { setSavedComparisonsCount(0); return }
+    let cancelled = false
+    const fetchCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from('saved_comparisons')
+          .select('*', { count: 'exact', head: true })
+        if (cancelled) return
+        if (!error && count != null) setSavedComparisonsCount(count)
+      } catch { /* table missing or RLS denial — silent */ }
+    }
+    fetchCount()
+    const onChange = () => fetchCount()
+    window.addEventListener('tractova:saved-comparisons-changed', onChange)
+    return () => { cancelled = true; window.removeEventListener('tractova:saved-comparisons-changed', onChange) }
+  }, [user])
 
   // All scenarios for the user — one batched query, then split into
   // per-project map (for the Library card chip) + orphan list (for the
@@ -1009,7 +1032,7 @@ function LibraryContent() {
                 ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
                 : { background: 'transparent', color: '#6B7280' }}
             >
-              Comparisons
+              Comparisons {savedComparisonsCount > 0 && <span className="font-mono opacity-60">· {savedComparisonsCount}</span>}
             </button>
           </div>
         )}
