@@ -5,8 +5,18 @@ import { IX_LABEL } from '../lib/statusMaps.js'
 // Side-by-side comparison brief — Phase 2C of TRACTOVA-UX-001. Mirrors the
 // in-app Compare modal's row groups (composite / project) and visual cues
 // (severity-tinted score gauge, mono numerics, V3 paper aesthetic). A4
-// landscape so 5 columns stay legible; falls back to portrait when ≤ 2
-// projects to avoid white-space waste.
+// landscape for 3+ columns; portrait for ≤ 2 to avoid empty whitespace.
+//
+// ── WinAnsi-safe character discipline ────────────────────────────────────────
+// react-pdf's built-in fonts (Times-Roman, Helvetica, Courier) only support
+// the WinAnsi / Latin-1 character set. Anything outside that — geometric
+// shapes (◆ ▸ ◇), arrows (↑ ↓ →), em-dashes that aren't 0x97, fancy quotes,
+// most box-drawing — gets substituted by the renderer, and the substitution
+// can cascade into ADJACENT characters (we observed "Community Solar" →
+// "Community So" with the diamond at front mangling the rest of the line).
+// So: this file uses ONLY WinAnsi-safe characters. The supported decorative
+// glyphs are middle dot (·, 0xB7), section sign (§, 0xA7), em-dash (—, 0x97).
+// No ◆ ▸ ↑ ↓ → · NO decorative shapes. Hierarchy comes from typography alone.
 //
 // Lazy-loaded by CompareTray on Export PDF click — keeps @react-pdf/renderer
 // (1.4 MB raw / ~483 KB gzip) out of the main bundle.
@@ -21,6 +31,7 @@ const INK        = '#0A1828'
 const INK_MUTED  = '#5A6B7A'
 const PAPER      = '#FAFAF7'
 const BORDER     = '#E2E8F0'
+const GRAY_50    = '#F8FAFC'
 const GRAY_100   = '#F3F4F6'
 const RED        = '#DC2626'
 
@@ -33,60 +44,78 @@ const FONT_SANS_BOLD  = 'Helvetica-Bold'
 
 const CS_STATUS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'No Program' }
 
+// Fixed label-column width. 130pt leaves ~640pt for data columns in landscape
+// A4 (842 - 72 padding - 130 label = 640pt) ÷ 5 = 128pt min per project,
+// which fits the column-header name + state + meta strip comfortably.
+const LABEL_COL_WIDTH = 130
+
 const s = StyleSheet.create({
   page: {
     fontFamily: FONT_SANS,
     backgroundColor: '#FFFFFF',
-    paddingTop: 32,
-    paddingBottom: 28,
+    paddingTop: 36,
+    paddingBottom: 30,
     paddingHorizontal: 36,
   },
-  topRail: { height: 1.5, backgroundColor: TEAL, marginBottom: 14, marginTop: -16 },
+  topRail: { height: 1.5, backgroundColor: TEAL, marginBottom: 16, marginTop: -20 },
 
-  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 },
-  logo:       { fontSize: 20, fontFamily: FONT_SERIF_BOLD, color: INK, letterSpacing: -0.4 },
-  logoSub:    { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 1.6, marginTop: 4, textTransform: 'uppercase' },
-  headerDate: { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 1.0, textTransform: 'uppercase' },
+  // Header
+  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 14 },
+  headerLeft:   { flexDirection: 'column' },
+  logo:         { fontSize: 22, fontFamily: FONT_SERIF_BOLD, color: INK, letterSpacing: -0.4 },
+  logoSub:      { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, marginTop: 4, textTransform: 'uppercase' },
+  headerRight:  { flexDirection: 'column', alignItems: 'flex-end' },
+  headerKind:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK, letterSpacing: 0.8, textTransform: 'uppercase' },
+  headerDate:   { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.6, marginTop: 3 },
 
-  divider: { borderBottomWidth: 1, borderBottomColor: BORDER, marginBottom: 12 },
+  divider: { borderBottomWidth: 1, borderBottomColor: BORDER, marginBottom: 14 },
 
-  // Title
-  title:     { fontSize: 18, fontFamily: FONT_SERIF_BOLD, color: INK, marginBottom: 4, letterSpacing: -0.4 },
-  titleMeta: { fontSize: 8, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.8, marginBottom: 12, textTransform: 'uppercase' },
+  // Title block
+  eyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK_MUTED, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
+  title:     { fontSize: 20, fontFamily: FONT_SERIF_BOLD, color: INK, marginBottom: 6, letterSpacing: -0.4, lineHeight: 1.15 },
+  titleMeta: { fontSize: 8.5, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4, marginBottom: 14, lineHeight: 1.4 },
 
-  sectionLabel: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK_MUTED, letterSpacing: 2.0, textTransform: 'uppercase', marginBottom: 6 },
+  // Pull-blocks — Best-for + AI summary. Two distinct visual identities
+  // by border-color so a reader can tell them apart without reading the
+  // eyebrow text first.
+  pullBlock:     { borderLeftWidth: 2, padding: 10, marginBottom: 8 },
+  pullEyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, letterSpacing: 0.8, marginBottom: 3, textTransform: 'uppercase' },
+  pullText:      { fontSize: 9.5, fontFamily: FONT_SANS, color: INK, lineHeight: 1.5 },
 
-  // Column header cells (per-project identity strip at top of the table)
-  colHeaderCell:  { paddingHorizontal: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: BORDER },
+  // Column header strip
+  colHeaderStrip: { flexDirection: 'row', marginTop: 10, borderBottomWidth: 1, borderBottomColor: NAVY, paddingBottom: 4 },
+  colHeaderCell:  { paddingHorizontal: 6, paddingTop: 3, paddingBottom: 6 },
   colHeaderName:  { fontSize: 10, fontFamily: FONT_SERIF_BOLD, color: INK, letterSpacing: -0.1, lineHeight: 1.2 },
-  colHeaderState: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 1.2, marginTop: 3, textTransform: 'uppercase' },
+  colHeaderState: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, marginTop: 3, textTransform: 'uppercase' },
   colHeaderMeta:  { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4, marginTop: 2 },
+  recommendBadge: { fontSize: 6.5, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 0.8, textTransform: 'uppercase', marginTop: 2 },
+
+  // Group label
+  rowGroupRow:   { flexDirection: 'row', paddingTop: 10, paddingBottom: 4 },
+  rowGroupLabel: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 1.0, textTransform: 'uppercase' },
 
   // Data rows
-  rowGroupLabel: { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 1.8, textTransform: 'uppercase', paddingTop: 9, paddingBottom: 4, paddingHorizontal: 6 },
-  row:           { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 0.5, borderBottomColor: GRAY_100 },
-  rowLabel:      { fontSize: 7.5, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.6, paddingVertical: 5, paddingHorizontal: 6, textTransform: 'uppercase' },
-  rowCell:       { paddingVertical: 5, paddingHorizontal: 6 },
-  rowValue:      { fontSize: 9, fontFamily: FONT_SANS_BOLD, color: INK },
-  rowValueMono:  { fontSize: 9, fontFamily: FONT_MONO_BOLD, color: INK },
-  // `fontStyle: italic` would require Helvetica-Oblique to be registered;
-  // we lean on the muted color alone to convey the "—" empty-cell state.
-  rowValueMuted: { fontSize: 9, fontFamily: FONT_SANS, color: INK_MUTED },
+  row:           { flexDirection: 'row', alignItems: 'stretch', borderBottomWidth: 0.5, borderBottomColor: GRAY_100 },
+  rowAlt:        { backgroundColor: GRAY_50 },
+  rowLabelCell:  { width: LABEL_COL_WIDTH, paddingHorizontal: 6, paddingVertical: 6, justifyContent: 'center' },
+  rowLabel:      { fontSize: 7.5, fontFamily: FONT_MONO, color: INK_MUTED, letterSpacing: 0.4 },
+  rowCell:       { paddingHorizontal: 6, paddingVertical: 6, justifyContent: 'center' },
+  rowValue:      { fontSize: 9, fontFamily: FONT_SANS_BOLD, color: INK, lineHeight: 1.3 },
+  rowValueMono:  { fontSize: 9, fontFamily: FONT_MONO_BOLD, color: INK, lineHeight: 1.3 },
+  // Muted color does the work; italic would require a registered font variant.
+  rowValueMuted: { fontSize: 9, fontFamily: FONT_SANS, color: INK_MUTED, lineHeight: 1.3 },
 
   // Score cell — bigger, severity-colored
-  scoreNum:    { fontSize: 18, fontFamily: FONT_MONO_BOLD, letterSpacing: -0.5 },
-  scoreUnits:  { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, marginLeft: 2 },
-  scoreLabel:  { fontSize: 6.5, fontFamily: FONT_MONO_BOLD, letterSpacing: 1.2, marginTop: 2, textTransform: 'uppercase' },
-
-  // Best-for + AI summary
-  pullBlock:     { backgroundColor: TEAL_LIGHT, borderLeftWidth: 2, borderLeftColor: TEAL, padding: 9, marginBottom: 8 },
-  pullEyebrow:   { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: TEAL, letterSpacing: 1.4, marginBottom: 2, textTransform: 'uppercase' },
-  pullText:      { fontSize: 9, fontFamily: FONT_SANS, color: INK, lineHeight: 1.5 },
+  scoreRow:    { flexDirection: 'row', alignItems: 'flex-end' },
+  scoreNum:    { fontSize: 20, fontFamily: FONT_MONO_BOLD, letterSpacing: -0.5, lineHeight: 1.0 },
+  scoreUnits:  { fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED, marginLeft: 2, marginBottom: 1 },
+  scoreLabel:  { fontSize: 6.5, fontFamily: FONT_MONO_BOLD, letterSpacing: 0.8, marginTop: 2, textTransform: 'uppercase' },
+  scoreDelta:  { fontSize: 6.5, fontFamily: FONT_MONO, marginTop: 2, letterSpacing: 0.4 },
 
   // Footer
-  footer:           { marginTop: 'auto', paddingTop: 10, borderTopWidth: 1, borderTopColor: BORDER, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  footerBrand:      { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK, letterSpacing: 1.6, textTransform: 'uppercase' },
-  footerDisclaimer: { fontSize: 7, fontFamily: FONT_SANS, color: INK_MUTED, maxWidth: 360, textAlign: 'right', lineHeight: 1.5 },
+  footer:           { marginTop: 'auto', paddingTop: 12, borderTopWidth: 1, borderTopColor: BORDER, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  footerBrand:      { fontSize: 7, fontFamily: FONT_MONO_BOLD, color: INK, letterSpacing: 0.8, textTransform: 'uppercase' },
+  footerDisclaimer: { fontSize: 7, fontFamily: FONT_SANS, color: INK_MUTED, maxWidth: 380, textAlign: 'right', lineHeight: 1.5 },
 })
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -120,15 +149,18 @@ function fmtWetlandPct(v) {
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function ColumnHeader({ item, isRecommended }) {
-  const meta = [item.mw ? `${item.mw} MW` : null, item.technology, item.stage]
-    .filter(Boolean).join(' · ')
+  // Meta line: MW · technology · stage. Use middle dot (WinAnsi 0xB7), safe.
+  const metaBits = [item.mw ? `${item.mw} MW` : null, item.technology, item.stage].filter(Boolean)
+  const meta = metaBits.join(' · ')
+  // State + county strip, then optional Recommended badge on its own line.
   return (
     <View style={s.colHeaderCell}>
       <Text style={s.colHeaderName}>{item.name}</Text>
       <Text style={s.colHeaderState}>
-        {item.state}{isRecommended ? '  ·  RECOMMENDED' : ''}
+        {item.county ? `${item.county} Co., ${item.state}` : item.state}
       </Text>
       {meta && <Text style={s.colHeaderMeta}>{meta}</Text>}
+      {isRecommended && <Text style={s.recommendBadge}>Recommended</Text>}
     </View>
   )
 }
@@ -137,17 +169,14 @@ function ScoreCell({ score, delta }) {
   const tone = scoreTone(score)
   return (
     <View style={s.rowCell}>
-      {/* `alignItems: baseline` is unsupported by react-pdf's Yoga layout
-          (causes a WASM abort). flex-end keeps the units glued to the
-          score number's baseline visually without invoking that path. */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
-        <Text style={[s.scoreNum, { color: tone.color }]}>{score == null ? '—' : Math.round(score)}</Text>
+      <View style={s.scoreRow}>
+        <Text style={[s.scoreNum, { color: tone.color }]}>{score == null ? '-' : Math.round(score)}</Text>
         {score != null && <Text style={s.scoreUnits}>/100</Text>}
       </View>
       <Text style={[s.scoreLabel, { color: tone.color }]}>{tone.label}</Text>
       {delta != null && Math.abs(delta) > 2 && (
-        <Text style={{ fontSize: 6.5, fontFamily: FONT_MONO, color: delta > 0 ? TEAL : AMBER_DEEP, marginTop: 2, letterSpacing: 0.6 }}>
-          {delta > 0 ? '↑ +' : '↓ '}{delta} pt vs at-add
+        <Text style={[s.scoreDelta, { color: delta > 0 ? TEAL : AMBER_DEEP }]}>
+          {delta > 0 ? '+' : ''}{delta} pt vs saved
         </Text>
       )}
     </View>
@@ -155,17 +184,20 @@ function ScoreCell({ score, delta }) {
 }
 
 function SubScoreCell({ value }) {
-  if (value == null) return <View style={s.rowCell}><Text style={s.rowValueMuted}>—</Text></View>
+  if (value == null) return <View style={s.rowCell}><Text style={s.rowValueMuted}>-</Text></View>
   const tone = scoreTone(value)
   return (
     <View style={s.rowCell}>
-      <Text style={[s.rowValueMono, { color: tone.color }]}>{Math.round(value)}<Text style={{ fontSize: 6.5, color: INK_MUTED }}> /100</Text></Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+        <Text style={[s.rowValueMono, { color: tone.color, fontSize: 11 }]}>{Math.round(value)}</Text>
+        <Text style={{ fontSize: 6.5, fontFamily: FONT_MONO, color: INK_MUTED, marginLeft: 2, marginBottom: 1 }}>/100</Text>
+      </View>
     </View>
   )
 }
 
 function ValueCell({ value, mono = false }) {
-  if (value == null || value === '') return <View style={s.rowCell}><Text style={s.rowValueMuted}>—</Text></View>
+  if (value == null || value === '') return <View style={s.rowCell}><Text style={s.rowValueMuted}>-</Text></View>
   return (
     <View style={s.rowCell}>
       <Text style={mono ? s.rowValueMono : s.rowValue}>{String(value)}</Text>
@@ -174,7 +206,7 @@ function ValueCell({ value, mono = false }) {
 }
 
 function CSStatusCell({ status }) {
-  if (!status) return <View style={s.rowCell}><Text style={s.rowValueMuted}>—</Text></View>
+  if (!status) return <View style={s.rowCell}><Text style={s.rowValueMuted}>-</Text></View>
   const color = status === 'active' ? TEAL : status === 'limited' ? AMBER : status === 'pending' ? NAVY : INK_MUTED
   return (
     <View style={s.rowCell}>
@@ -184,7 +216,7 @@ function CSStatusCell({ status }) {
 }
 
 function IXCell({ difficulty }) {
-  if (!difficulty) return <View style={s.rowCell}><Text style={s.rowValueMuted}>—</Text></View>
+  if (!difficulty) return <View style={s.rowCell}><Text style={s.rowValueMuted}>-</Text></View>
   const color = difficulty === 'easy' ? TEAL : difficulty === 'moderate' ? AMBER : difficulty === 'hard' ? AMBER_DEEP : RED
   return (
     <View style={s.rowCell}>
@@ -205,7 +237,7 @@ function LMICell({ item }) {
       </View>
     )
   }
-  return <View style={s.rowCell}><Text style={s.rowValueMuted}>—</Text></View>
+  return <View style={s.rowCell}><Text style={s.rowValueMuted}>-</Text></View>
 }
 
 // ── PDF Document ─────────────────────────────────────────────────────────────
@@ -215,17 +247,13 @@ function CompareDoc({ items, refreshed = {}, recommendedId = null, aiSummary = n
   const orientation = items.length > 2 ? 'landscape' : 'portrait'
   const generatedDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  // Column-grid: first cell is the row label (140pt), remaining cells are
-  // equal width. Using flex children inside a row View achieves the same
-  // effect without a real <Table> component.
-  const labelColStyle = { width: 140, paddingHorizontal: 6, paddingVertical: 5 }
-  const dataColStyle  = { flex: 1 }
+  const dataColStyle = { flex: 1 }
 
-  // Build a per-item "live score" that prefers the refreshed snapshot
-  // (Modal's compare-open recompute) over the at-add stored score.
+  // Row group definitions — same column shape as the in-app Compare modal.
   const rowsByGroup = [
     {
       group: 'Composite',
+      groupNum: '01',
       rows: [
         {
           label: 'Feasibility Index',
@@ -252,66 +280,69 @@ function CompareDoc({ items, refreshed = {}, recommendedId = null, aiSummary = n
     },
     {
       group: 'Project',
+      groupNum: '02',
       rows: [
         { label: 'Project size',  render: (it) => <ValueCell value={it.mw ? `${it.mw} MW AC` : null} mono /> },
         { label: 'Technology',    render: (it) => <ValueCell value={it.technology} /> },
         { label: 'Stage',         render: (it) => <ValueCell value={it.stage} /> },
-        { label: 'County',        render: (it) => <ValueCell value={it.county ? `${it.county} Co., ${it.state}` : it.state} /> },
         { label: 'Source',        render: (it) => <ValueCell value={it.source === 'library' ? `Saved ${it.savedAt ? new Date(it.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: '2-digit' }) : ''}` : 'Live (Lens)'} /> },
       ],
     },
   ]
 
-  // Best-for: highest composite + best IX (Modal's bestFor logic, replicated
-  // server-side so the PDF carries the same takeaway).
+  // Best-for: highest composite + best IX (mirrors the in-app Modal logic).
   const IX_RANK = { easy: 3, moderate: 2, hard: 1, very_hard: 0 }
   const bestScore = items.reduce((b, it) => (!b || (it.feasibilityScore ?? 0) > (b.feasibilityScore ?? 0)) ? it : b, null)
   const bestIX    = items.reduce((b, it) => (!b || (IX_RANK[it.ixDifficulty] ?? -1) > (IX_RANK[b.ixDifficulty] ?? -1)) ? it : b, null)
-  const bestForParts = []
-  if (bestScore)                            bestForParts.push(`${bestScore.name} leads on Feasibility Index`)
-  if (bestIX && bestIX.id !== bestScore?.id) bestForParts.push(`${bestIX.name} offers easier interconnection`)
-  const bestFor = bestForParts.join(' · ') || null
+  const bestForLines = []
+  if (bestScore)                            bestForLines.push(`${bestScore.name} leads on Feasibility Index.`)
+  if (bestIX && bestIX.id !== bestScore?.id) bestForLines.push(`${bestIX.name} offers easier interconnection.`)
 
   return (
-    <Document title={`Tractova comparison · ${items.length} projects`} author="Tractova">
+    <Document title={`Tractova comparison ${items.length} projects`} author="Tractova">
       <Page size="A4" orientation={orientation} style={s.page}>
 
         <View style={s.topRail} />
 
         {/* Header */}
         <View style={s.header}>
-          <View>
+          <View style={s.headerLeft}>
             <Text style={s.logo}>Tractova</Text>
-            <Text style={s.logoSub}>Comparison Brief · {generatedDate.toUpperCase()}</Text>
+            <Text style={s.logoSub}>Comparison Brief</Text>
           </View>
-          <Text style={s.headerDate}>{items.length} Projects</Text>
+          <View style={s.headerRight}>
+            <Text style={s.headerKind}>{items.length} Projects</Text>
+            <Text style={s.headerDate}>{generatedDate.toUpperCase()}</Text>
+          </View>
         </View>
         <View style={s.divider} />
 
         {/* Title */}
-        <Text style={s.sectionLabel}>Compare Subject</Text>
+        <Text style={s.eyebrow}>Compare Subject</Text>
         <Text style={s.title}>Side-by-side feasibility</Text>
         <Text style={s.titleMeta}>
-          {items.map(it => it.state).join(' · ')}  ·  Tractova composite index + key signals
+          {items.map(it => it.state).join(' · ')}   Tractova composite index + key signals
         </Text>
 
-        {/* Best-for + AI summary */}
-        {bestFor && (
-          <View style={s.pullBlock}>
-            <Text style={s.pullEyebrow}>◆ Best for</Text>
-            <Text style={s.pullText}>{bestFor}</Text>
+        {/* Best-for + AI summary — pull-blocks set apart by border-color */}
+        {bestForLines.length > 0 && (
+          <View style={[s.pullBlock, { backgroundColor: TEAL_LIGHT, borderLeftColor: TEAL }]}>
+            <Text style={[s.pullEyebrow, { color: TEAL }]}>Best For</Text>
+            {bestForLines.map((line, i) => (
+              <Text key={i} style={[s.pullText, i > 0 ? { marginTop: 3 } : {}]}>{line}</Text>
+            ))}
           </View>
         )}
         {aiSummary && (
           <View style={[s.pullBlock, { backgroundColor: PAPER, borderLeftColor: NAVY }]}>
-            <Text style={[s.pullEyebrow, { color: NAVY }]}>◆ AI comparison · Claude</Text>
+            <Text style={[s.pullEyebrow, { color: NAVY }]}>AI Comparison · Claude</Text>
             <Text style={s.pullText}>{aiSummary}</Text>
           </View>
         )}
 
-        {/* Column headers (per-project identity strip) */}
-        <View style={{ flexDirection: 'row', marginTop: 4 }}>
-          <View style={labelColStyle} />
+        {/* Column header strip — per-project identity */}
+        <View style={s.colHeaderStrip}>
+          <View style={{ width: LABEL_COL_WIDTH }} />
           {items.map(it => (
             <View key={it.id} style={dataColStyle}>
               <ColumnHeader item={it} isRecommended={recommendedId === it.id} />
@@ -320,12 +351,16 @@ function CompareDoc({ items, refreshed = {}, recommendedId = null, aiSummary = n
         </View>
 
         {/* Row groups */}
-        {rowsByGroup.map(({ group, rows }) => (
+        {rowsByGroup.map(({ group, groupNum, rows }) => (
           <View key={group} wrap={false}>
-            <Text style={s.rowGroupLabel}>§ {group === 'Composite' ? '01 · Composite' : '02 · Project'}</Text>
-            {rows.map((row) => (
-              <View key={row.label} style={s.row}>
-                <Text style={[s.rowLabel, { width: 140 }]}>{row.label}</Text>
+            <View style={s.rowGroupRow}>
+              <Text style={s.rowGroupLabel}>§ {groupNum} · {group}</Text>
+            </View>
+            {rows.map((row, ri) => (
+              <View key={row.label} style={[s.row, ri % 2 === 1 ? s.rowAlt : null]}>
+                <View style={s.rowLabelCell}>
+                  <Text style={s.rowLabel}>{row.label}</Text>
+                </View>
                 {items.map((it) => (
                   <View key={`${it.id}::${row.label}`} style={dataColStyle}>
                     {row.render(it)}
