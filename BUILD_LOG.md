@@ -4,9 +4,92 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 2B SHIPPED (Library Map + ProjectDrawer) · resume Phase 2C (Saved comparisons + PDF + Re-run + Scenarios→Projects)
+## 🟢 Pickup — TRACTOVA-UX-001 Phases 2A + 2B SHIPPED + UI/UX + perf audits closed (5 passes) · resume Phase 2C
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 2C. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2C, then implement Saved Comparisons (migration 062) + PDF export from Compare + Re-run with latest data + Orphan-scenarios-to-project conversion.`
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 2C. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 2C and the "Audit punch list (closed)" section of BUILD_LOG.md, then implement Phase 2C: Saved Comparisons (migration 062_saved_comparisons.sql FILE — Aden applies in Supabase) + PDF export from CompareTray + Re-run with latest data (auto-kickoff + drift comparison; baseline ?fromProject= handler is already in place from Pass 5) + Orphan-scenarios-to-project conversion.`
+
+---
+
+### Session 2026-05-12 — Audit-pass cleanup (5 passes shipped, post-Phase-2B QA)
+
+After Phase 2A + 2B landed, ran two parallel agent audits (UI/UX consistency + Vercel perf) and shipped the punch-list as five thematic passes. Plus map polish based on real user feedback (pulse contrast, halo gating, flicker on zoom/scroll).
+
+**Commits in chronological order:**
+
+| Sha | What |
+|---|---|
+| `a9b8e7a` | Map pulse stays visible on same-color states (navy drop-shadow glow filter so teal pin on teal state still reads) |
+| `277cee4` | Pin halo only on hover (was always-visible "stagnant pulse") + Pass 1 brand-vocab hygiene |
+| `b309e8e` | Pass 2 perf wins: glossary data extracted, LibraryMap + IntelligenceBackground + WalkingTractovaMark lazy-loaded |
+| `f186f2a` | Pass 3 animation discipline: useSpring → cubic-bezier tween in ArcGauge/MiniArcGauge/SubScoreBar; ProjectTable RAF → CSS transition + motion.animate; per-row score+alerts hoisted to useMemo |
+| `fa02fbe` | Pass 4 structural: Nav dropdown → Radix DropdownMenu; sticky-stack collision (bulk toolbar offsets `top-[7rem]` in Table layout); ProjectTable row `<button>` → `<div role="button">` to fix nested-button HTML; pagination disabled-state cleanup; focus-visible rings |
+| `f397340` | Pass 5 Phase 2C prereq + a11y: `?fromProject=` handler in Search.jsx (form pre-fill + "Re-run of X" pill) + CommandPalette input focus-visible ring |
+| `(this commit)` | Map flicker fix: dropped `lib-map-state-shadow` SVG filter (SVG filters force CPU rasterization on every paint — primary flicker source on scroll/zoom); collapsed triple-stacked gradient backdrop → single linear gradient; Geography `transition-all` → `transition-colors` (transition-all was animating SVG transform on zoom); graticule `strokeDasharray="2 4"` → solid lines (dashed strokes at 0.5px shimmer on sub-pixel zoom); promoted map container to its own GPU compositor layer (`transform: translateZ(0)` + `willChange: transform`) |
+
+**Bundle deltas across the audit passes (gzip):**
+- Main `index`: 79.3 KB → 75.4 KB
+- Library chunk: 65 KB → 38 KB (lazy LibraryMap was the big win)
+- Glossary: inlined → 10 KB lazy chunk
+- Build warning `INEFFECTIVE_DYNAMIC_IMPORT` resolved
+
+**Verification baseline at audit-close:**
+- `npm run test:unit` — 127/127 green
+- `npm run build` — clean (~2.6s, no warnings)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs / lint:api / lint:secrets` — clean
+
+---
+
+### Audit punch list (closed)
+
+#### Pass 1 — brand-vocab hygiene (`277cee4`)
+- ✅ Inter font dropped from `--font-sans` and `html { font-family }`; replaced with system-sans stack (`system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`). The design-vocabulary.md anti-pattern banned Inter explicitly.
+- ✅ Green-for-good chips in `MarketIntelligenceSummary.jsx:188, 215` → teal. Doc says "Never use green for 'good.'"
+- ✅ Glassmorphism dropped on `CmdKHint.jsx` (was `backdropFilter: blur(6px)` + translucent white).
+- ✅ Violet `#7C3AED` swapped for teal/navy/amber in 2 sites: `LibraryMap.jsx` filtered-state polygon + pill → deeper teal `#134E48`; `CommandPalette.jsx kindColor('glossary')` → amber-700 `#B45309`.
+- ✅ Stale "2B" badge removed from LibraryToolbar Map button (Phase 2B shipped).
+- ✅ Empty signed-out nav container wrapped in `{user && …}` (was creating a 28-44px gap between logo and sign-in buttons for anon visitors).
+
+#### Pass 2 — perf wins (`b309e8e`)
+- ✅ Glossary data extracted to `src/data/glossaryTerms.js`. Resolves the long-standing `INEFFECTIVE_DYNAMIC_IMPORT` build warning (CommandPalette was static-importing from `pages/Glossary`, forcing the page chunk into main).
+- ✅ LibraryMap lazy-loaded via `React.lazy()` + Suspense fallback. Default layout is `'cards'` so the Map's heavy payload (react-simple-maps + topojson-client + 100KB centroids JSON) only loads when user picks Map. Library chunk **265 → 148 KB** (gzip **65 → 38 KB**).
+- ✅ IntelligenceBackground + WalkingTractovaMark lazy-loaded. Both decorative; neither blocks Library hero LCP.
+
+#### Pass 3 — animation discipline (`f186f2a`)
+- ✅ `useSpring` swapped for `animate()` with cubic-bezier `[0.22, 1, 0.36, 1]` in:
+  - `ArcGauge.jsx` (Lens composite gauge — number tween + fill curve, 900ms)
+  - `MiniArcGauge.jsx` (Library Cards score readout, 850ms)
+  - `SubScoreBar.jsx` (Lens panel sub-scores, 850ms)
+  Design-vocabulary.md: "Never use bounce easing... [0.22, 1, 0.36, 1] for fills."
+- ✅ `ProjectTable.jsx` TableScoreArc: hand-rolled RAF (~48 setStates × N rows = 2400+ React renders per mount) → CSS `transition: stroke-dasharray` (GPU compositor, zero React renders) for the arc + motion `animate()` for the number readout (one controller per row, motion batches across components).
+- ✅ Per-row `computeSubScores` + `getAlerts` hoisted into `useMemo` in ProjectTable (was firing inline inside `.map()` on every render — now N×data-change instead of N×re-render).
+
+#### Pass 4 — structural (`fa02fbe`)
+- ✅ Nav user dropdown migrated to `@radix-ui/react-dropdown-menu ^2.1.16` (added explicit `package.json` peer). Was a hand-rolled `<div className="absolute ...">` with a mousedown outside-click listener — design-vocab anti-pattern. Radix portals to `<body>`, ships Esc + outside-click + focus-trap + keyboard nav.
+- ✅ Sticky-stack collision: bulk-actions toolbar in Library.jsx and ProjectTable column header both targeted `top-14` → toolbar now offsets to `top-[7rem]` when `layout === 'table'`.
+- ✅ ProjectTable row was `<button>` containing nested `<span role="checkbox">` — invalid HTML, screen readers only announced the outer button. Replaced row with `<div role="button" tabIndex={0}>` + explicit `onKeyDown` for Space/Enter.
+- ✅ Pagination disabled state: removed generic `disabled:opacity-30`; the existing `color: atFirst ? '#9CA3AF' : '#0F1A2E'` branch already conveys disabled state in palette neutrals.
+- ✅ `focus-visible:outline-2 outline-teal-600 outline-offset-2` added to Nav, Pagination chevrons, ProjectTable rows.
+
+#### Pass 5 — Phase 2C prereq + a11y (`f397340`)
+- ✅ `?fromProject=<id>` handler in `Search.jsx` — fetches the project (RLS-scoped), pre-fills form fields, shows a "Re-run of <name> · last saved Nd ago" pill above the form. The Cmd-K `:rerun` verb (Phase 1) and future Library "Re-run with latest data" button (Phase 2C) both land here. **The full Phase 2C scope (auto-run kickoff, drift comparison, "Save updates back to project" CTA) builds on top of this.**
+- ✅ CommandPalette input got a focus-visible ring (was `outline-hidden` only).
+
+#### Map QA fixes (across multiple commits, summarized)
+- Pulse animation: SVG SMIL `<animate>` on `r` + `opacity` (motion-library scale shadowing was the original bug). Pulse renders on TOP of halo + dot. Cubic ease-out via `keySplines`.
+- Pulse contrast: navy `feDropShadow` glow filter (`lib-pin-pulse-glow`) so the colored pulse stays visible even on same-color state fills.
+- Halo gating: halo only renders when the pin is hovered (was always-visible, read as "stagnant pulse").
+- Esc clears state filter when in Map view (and drawer isn't open).
+- Double-click state = filter + switch to Table (force-set, not toggle — bypasses the two intermediate `onClick` events).
+- Map background flicker (`this commit`): SVG filters removed from state polygons, gradient backdrop collapsed, Geography transition narrowed to colors only, graticule solidified, GPU layer promotion.
+
+---
+
+### Deferred (intentional, not in audit)
+- **Eyebrow-mono utility sweep** — 60+ inline `text-[9px] uppercase tracking-[0.18em]` call sites flagged in audit P1 #8. The roadmap places this in Phase 3 (a11y + responsive sweep). Single-purpose diff worth its own session.
+- **Server-side cursor pagination** — Perf audit #3. Only matters past ~500 projects per user. Client-side windowing already addresses the actual rendering pain; revisit if scale demands.
+- **Sticky LibraryFilterRail** — Phase 2A leftover. Would collide with the sticky Table header at `top-14`. Filter strip is already adjacent to the list per earlier feedback so day-to-day value is low. Re-evaluate alongside Phase 3 a11y work.
+- **`@react-pdf/renderer` bundle (1.4 MB / 483 KB gzip)** — lazy-loaded already. Perf audit's "honorable mention" was to consider server-side XLSX generation; out of scope until Phase 2C touches PDF/XLSX path.
 
 **Phase 2B — shipped this session:**
 - `scripts/generate-county-centroids.mjs` — one-time generator. Reads `node_modules/us-atlas/counties-10m.json`, converts each county feature via `topojson-client.feature`, computes area-weighted centroid via `d3-geo.geoCentroid`, writes `src/data/county_centroids.json` keyed by `${STATE}::${COUNTY}` → `[lon, lat]`. Spot-checked: 3,142 counties kept (3,136 after de-dupe of independent-city / county name collisions, mostly VA), 89 territories dropped, ~101 KB.

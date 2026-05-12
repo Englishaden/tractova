@@ -2,9 +2,9 @@
 
 > **Unified resume doc** — read this file + `docs/design-vocabulary.md` after `/clear` and you can pick up Phase 1 instantly. Companion to `BUILD_LOG.md` (chronological log) and `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md` (mirror of this content).
 
-**Last updated:** 2026-05-11
+**Last updated:** 2026-05-12
 **Project owner:** Aden (englishaden / aden.walker67@gmail.com)
-**Status:** Phases 0 + 1 shipped. Phases 2–6 planned + approved. Resume at Phase 2A.
+**Status:** Phases 0, 1, 2A, 2B + UI/UX-audit five-pass cleanup all shipped. Resume at Phase 2C (Saved Comparisons + PDF + Re-run + Scenarios→Projects).
 
 ---
 
@@ -464,7 +464,8 @@ Claude will pick up exactly where this session ended.
 | 0 — Foundations + motion primitives | ✅ Shipped | `cfce269` | + design doc `59a6b30` |
 | 1 — Cmd-K nav spine | ✅ Shipped | (this commit) | parser + tests + CmdKHint + verb-mode palette |
 | 2A — Library Table view | ✅ Shipped | (prior commits) | Slice 1: view-mode toggle + Bloomberg Table + bulk-select earlier. Slice 2: StagePicker → Radix Popover + client-side pagination (10/25/50/100, `?all=1` escape) + persistent chips banner. |
-| 2B — Library Map view | ✅ Shipped | (this commit) | County centroids generator + LibraryMap (state-level MW-weighted choropleth + per-project pins + state-cluster bubble >200 pins) + ProjectDrawer slide-in (right, 480px, Radix Dialog). Click state → filters Library + switches to Table. Click pin → opens drawer with full ProjectCard. Sticky LibraryFilterRail deferred (would collide with sticky table header). |
+| 2B — Library Map view | ✅ Shipped | `0e5cdfa` + map QA passes through 2026-05-12 | LibraryMap (MW-weighted choropleth + county-centroid pins + state-cluster >200, with SMIL pulse + navy-glow contrast). ProjectDrawer right slide-in (480px, Radix Dialog). Single-click filters, double-click filters + Table. Esc clears. Flicker on zoom/scroll fixed 2026-05-12 (SVG filter removed, gradient backdrop simplified, transition-colors only, GPU layer promotion). |
+| Audit cleanup — 5 passes | ✅ Shipped | `277cee4` + `b309e8e` + `f186f2a` + `fa02fbe` + `f397340` (2026-05-12) | UI/UX + perf audits closed: brand vocab (Inter, green-for-good, glassmorphism, violet), perf wins (lazy LibraryMap −27 KB gzip on Library, glossary split), animation discipline (useSpring → cubic), structural (Radix dropdown, sticky-stack, valid HTML), Phase 2C `?fromProject=` prereq + focus rings. |
 | 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ⏳ Queued | — | ~15–20h, has migration |
 | 3 — Lens polish + a11y | ⏳ Queued | — | ~10–14h |
 | 4 — Motion layer rollout | ⏳ Queued | — | ~8–12h |

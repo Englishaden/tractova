@@ -161,16 +161,21 @@ export default function LibraryMap({
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        // Layered depth — pale teal-mint atmosphere reads as "ocean
-        // surface" without being literally blue. Top-left highlight +
-        // bottom-right depth, then the base wash beneath.
-        background: [
-          'radial-gradient(ellipse at 20% 10%, rgba(255,255,255,0.85) 0%, transparent 50%)',
-          'radial-gradient(ellipse at 85% 90%, rgba(15,26,46,0.10) 0%, transparent 55%)',
-          'linear-gradient(170deg, #F4FAFA 0%, #E0F0EE 100%)',
-        ].join(', '),
+        // Single-layer backdrop — one linear gradient instead of the
+        // prior three stacked radials. Triple-layer composites were
+        // a flicker source on scroll/zoom (each scroll event re-
+        // composited all three). One gradient is plenty for the
+        // pale ocean atmosphere; the box-shadow + border do the
+        // lift work that the radials previously hinted at.
+        background: 'linear-gradient(170deg, #F4FAFA 0%, #E0F0EE 100%)',
         border: '1px solid rgba(15,118,110,0.22)',
         boxShadow: '0 0 0 1px rgba(20,184,166,0.08), 0 16px 44px rgba(10,24,40,0.10), 0 2px 8px rgba(10,24,40,0.06)',
+        // Promote to its own GPU compositor layer. Stabilizes
+        // rasterization when the user scrolls / zooms — the SVG
+        // contents repaint inside this layer without forcing the
+        // page to recomposite the surrounding content.
+        transform: 'translateZ(0)',
+        willChange: 'transform',
       }}
     >
       {/* ── Header bar — eyebrow + title + ticker stats (under title)
@@ -264,12 +269,14 @@ export default function LibraryMap({
             <pattern id="lib-map-dotgrid" x="0" y="0" width="16" height="16" patternUnits="userSpaceOnUse">
               <circle cx="8" cy="8" r="0.55" fill="#0F1A2E" fillOpacity="0.10" />
             </pattern>
-            {/* Soft state drop-shadow. dy 0.7 / stdDev 0.7 / 12% black
-                — subtle lift, no bevel. Only applied to states with
-                saved projects so blank states stay flat. */}
-            <filter id="lib-map-state-shadow" x="-5%" y="-5%" width="110%" height="115%">
-              <feDropShadow dx="0" dy="0.7" stdDeviation="0.7" floodColor="#0F1A2E" floodOpacity="0.12" />
-            </filter>
+            {/* The prior `lib-map-state-shadow` SVG drop-shadow filter
+                was removed. SVG filters force CPU rasterization on
+                every paint, and applying one to each "has-projects"
+                state polygon meant scroll / zoom re-rasterized 5-15
+                filter regions every frame — visible flicker. The lift
+                effect it provided was subtle; the state's saturated
+                fill + the outer container's drop-shadow do enough
+                work to communicate depth without the filter. */}
             {/* Pin-pulse outline filter — solves the "colored pulse
                 disappears on same-color state" problem (e.g. teal pin
                 on teal-aggregate IL). Applies a soft navy glow around
@@ -317,9 +324,9 @@ export default function LibraryMap({
                   stroke="#FFFFFF"
                   strokeWidth={0.6}
                   style={{
-                    default: { outline: 'none', filter: hasProjects ? 'url(#lib-map-state-shadow)' : 'none' },
-                    hover:   { outline: 'none', filter: hasProjects ? 'url(#lib-map-state-shadow)' : 'none' },
-                    pressed: { outline: 'none', filter: hasProjects ? 'url(#lib-map-state-shadow)' : 'none' },
+                    default: { outline: 'none' },
+                    hover:   { outline: 'none' },
+                    pressed: { outline: 'none' },
                   }}
                   onMouseMove={(evt) => {
                     setHoveredStateId(stateId)
@@ -329,7 +336,12 @@ export default function LibraryMap({
                   onClick={() => onStateClick?.(stateId, hasProjects)}
                   onDoubleClick={() => onStateDoubleClick?.(stateId, hasProjects)}
                   onKeyDown={(evt) => { if (evt.key === 'Enter' || evt.key === ' ') { evt.preventDefault(); onStateClick?.(stateId, hasProjects) } }}
-                  className={`transition-all duration-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 ${hasProjects ? 'cursor-pointer' : 'cursor-default'}`}
+                  // transition-colors (not transition-all): only the
+                  // fill animates on hover. transition-all caught the
+                  // SVG's internal transform changes during scroll/
+                  // zoom and fired transitions on every state every
+                  // frame — another flicker source eliminated here.
+                  className={`transition-colors duration-100 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 ${hasProjects ? 'cursor-pointer' : 'cursor-default'}`}
                   role="button"
                   tabIndex={hasProjects ? 0 : -1}
                   aria-label={aria}
@@ -524,16 +536,22 @@ export default function LibraryMap({
 // Faint graticule — research-terminal reference lines. Lon every 10°,
 // lat every 5° approximated by SVG-coord placement (the AlbersUsa
 // projection bounds we render into are roughly 20–920 × 20–500).
+//
+// Solid lines, not dashed. Dashed strokes at 0.5px width have a known
+// sub-pixel rendering issue on browser zoom — the dash pattern doesn't
+// tile cleanly across fractional pixel widths, producing visible
+// shimmer. Solid lines render stably. Opacity bumped 0.05 → 0.06 so
+// they stay perceptible at the new solid weight.
 function Graticule() {
   const horiz = [120, 200, 280, 360, 440]
   const vert  = [120, 240, 360, 480, 600, 720]
   return (
     <g aria-hidden="true" pointerEvents="none">
       {horiz.map(y => (
-        <line key={`h-${y}`} x1={20} x2={920} y1={y} y2={y} stroke="#0F1A2E" strokeOpacity={0.05} strokeWidth={0.5} strokeDasharray="2 4" />
+        <line key={`h-${y}`} x1={20} x2={920} y1={y} y2={y} stroke="#0F1A2E" strokeOpacity={0.06} strokeWidth={0.5} />
       ))}
       {vert.map(x => (
-        <line key={`v-${x}`} x1={x} x2={x} y1={20} y2={500} stroke="#0F1A2E" strokeOpacity={0.05} strokeWidth={0.5} strokeDasharray="2 4" />
+        <line key={`v-${x}`} x1={x} x2={x} y1={20} y2={500} stroke="#0F1A2E" strokeOpacity={0.06} strokeWidth={0.5} />
       ))}
     </g>
   )
