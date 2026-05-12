@@ -1,29 +1,21 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, useMotionValue, animate, useReducedMotion } from 'motion/react'
-import { useFirstVisible } from './motion/MotionPrimitives'
 
 // V3: Precision tachometer — feasibility index as a measured instrument.
-// Phase 4 — animated number readout gates on first viewport entry. The
-// number tweens 0 → score the first time the gauge becomes visible, then
-// animates between values on subsequent score changes (e.g. when the
-// Lens re-runs against fresh state data). Reduced-motion users see the
-// final value immediately. Cubic-bezier ease per design-vocabulary §
-// Motion — "decelerating cubic curves — confident landing, no
-// oscillation, no bounce".
-function AnimatedScoreText({ value, visible, ...textProps }) {
+// Phase 4 — animated number readout tweens 0 → score on mount. Subsequent
+// score changes settle to the new value through the same motion value.
+// Reduced-motion users see the final value immediately. Cubic-bezier
+// ease per design-vocabulary § Motion — "decelerating cubic curves —
+// confident landing, no oscillation, no bounce".
+function AnimatedScoreText({ value, ...textProps }) {
   const reduced = useReducedMotion()
-  const mv = useMotionValue(0)
-  const [display, setDisplay] = useState(0)
-  const hasFiredRef = useRef(false)
+  const mv = useMotionValue(reduced ? value : 0)
+  const [display, setDisplay] = useState(reduced ? value : 0)
   useEffect(() => {
     if (reduced) { setDisplay(value); return }
-    // First visible: tween 0 → value. Subsequent value changes: tween
-    // current → new value (so updates feel like settling, not restarts).
-    if (!visible && !hasFiredRef.current) return
-    hasFiredRef.current = true
     const controls = animate(mv, value, { duration: 0.9, ease: [0.22, 1, 0.36, 1] })
     return () => controls.stop()
-  }, [value, visible, reduced, mv])
+  }, [value, reduced, mv])
   useEffect(() => mv.on('change', (v) => setDisplay(Math.round(v))), [mv])
   return <text {...textProps}>{display}</text>
 }
@@ -43,14 +35,10 @@ export default function ArcGauge({ score }) {
   const R = 64, cx = 90, cy = 85
   const fullPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
   const arcLength = Math.PI * R
-  // Phase 4 — IO-gated reveal. svgRef tracks the gauge SVG; useFirstVisible
-  // flips visible=true once when the element scrolls into view. The motion
-  // path uses visible to compute its strokeDashoffset target — empty when
-  // not yet visible, filled once visible. Subsequent score changes animate
-  // normally because the new target propagates through animate prop.
-  const svgRef = useRef(null)
-  const visible = useFirstVisible(svgRef)
-  const targetOffset = visible ? arcLength * (1 - pct) : arcLength
+  // Phase 4 — fill on mount via motion's initial → animate transition.
+  // Subsequent score changes (e.g. Lens re-run against fresh state data)
+  // animate normally through the same animate prop.
+  const targetOffset = arcLength * (1 - pct)
 
   // V3 single-hue teal ramp
   let color = '#CBD5E1'
@@ -72,7 +60,7 @@ export default function ArcGauge({ score }) {
   ]
 
   return (
-    <svg ref={svgRef} viewBox="0 0 180 110" className="w-full max-w-[240px]">
+    <svg viewBox="0 0 180 110" className="w-full max-w-[240px]">
       {/* Tick marks -- positioned OUTSIDE the arc (was crossing it before,
           which read as black lines flowing through the green fill). Inner
           tick start sits 5 units beyond the arc's outer edge; outer end
@@ -115,11 +103,9 @@ export default function ArcGauge({ score }) {
       })}
       {/* Arc track */}
       <path d={fullPath} fill="none" stroke="#E2E8F0" strokeWidth={7} strokeLinecap="round" />
-      {/* Animated fill — entry animation fires on first viewport visibility
-          (see svgRef / useFirstVisible above). initial puts the arc at
-          empty (strokeDashoffset = arcLength), animate transitions to the
-          score's target once visible. Subsequent score changes flow
-          through the same animate prop so the gauge settles to new value. */}
+      {/* Animated fill — initial = empty, animate transitions to the
+          score's target on mount. Subsequent score changes flow through
+          the same animate prop so the gauge settles to new value. */}
       <motion.path
         d={fullPath}
         fill="none"
@@ -153,7 +139,6 @@ export default function ArcGauge({ score }) {
           single block-like form. */}
       <AnimatedScoreText
         value={s}
-        visible={visible}
         x={cx} y={cy - 8}
         textAnchor="middle"
         fontSize="38" fontWeight="700"

@@ -1,42 +1,40 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, useMotionValue, animate, useReducedMotion } from 'motion/react'
-import { useFirstVisible } from '../motion/MotionPrimitives'
 
 // V3.1 / Phase 3 / Phase 4 — Mini animated arc gauge for the project-bar
-// score indicator. Arc fills 0 → score the first time the gauge enters
-// the viewport (IntersectionObserver via useFirstVisible). Subsequent
-// score changes animate normally so updates feel like the needle settling
-// to a new reading. Cubic-bezier tweens (`[0.16, 1, 0.3, 1]` entrance,
-// `[0.22, 1, 0.36, 1]` fill) per design-vocabulary.md § Motion. Honors
-// prefers-reduced-motion — reduced users see final state immediately.
+// score indicator. Arc + number tween 0 → score on mount.
+//
+// Phase 4 follow-up: the IntersectionObserver gate that previously
+// delayed the animation until the gauge scrolled into view was removed —
+// in a long Library Cards list, the scroll-triggered "fresh animation"
+// on cards the user hadn't seen yet read as disjointed. All gauges in
+// the layout mount at the same time, all start animating together, all
+// settle to their final state in under a second. By the time the user
+// scrolls past the fold, the off-screen gauges have already finished
+// animating in the background; no scroll-in re-animation.
+//
+// Cubic-bezier tweens (`[0.16, 1, 0.3, 1]` entrance for the arc,
+// `[0.22, 1, 0.36, 1]` for the number readout) per design-vocabulary.md
+// § Motion. prefers-reduced-motion shows the final state immediately.
 // 44×44 footprint.
 export default function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }) {
   const target = score ?? 0
   const stroke = score == null ? fallbackColor : color
-  const wrapRef = useRef(null)
-  const visible = useFirstVisible(wrapRef)
   const reduced = useReducedMotion()
 
-  // Number readout — tweens from 0 to target on first visible, then
-  // settles to new values on subsequent score changes.
+  // Number readout — tween via motion value. Reduced-motion users get
+  // the target immediately; everyone else sees the 0 → target settle.
   const mv = useMotionValue(reduced ? target : 0)
   const [display, setDisplay] = useState(reduced ? target : 0)
-  const hasFiredRef = useRef(false)
   useEffect(() => {
     if (reduced) { setDisplay(target); return }
-    if (!visible && !hasFiredRef.current) return
-    hasFiredRef.current = true
     const controls = animate(mv, target, { duration: 0.85, ease: [0.22, 1, 0.36, 1] })
     return () => controls.stop()
-  }, [target, visible, reduced, mv])
+  }, [target, reduced, mv])
   useEffect(() => mv.on('change', v => setDisplay(Math.round(v))), [mv])
 
-  // strokeDasharray target: '<score>, 100' fills <score>% of the path.
-  // Until visible, hold at empty ('0, 100'). The animate prop only
-  // changes when visible flips, so first reveal triggers the fill.
-  const dashTarget = visible ? `${target}, 100` : '0, 100'
   return (
-    <div ref={wrapRef} className="shrink-0 relative" style={{ width: 44, height: 44 }}>
+    <div className="shrink-0 relative" style={{ width: 44, height: 44 }}>
       <svg width="44" height="44" viewBox="0 0 36 36" className="-rotate-90">
         <path
           d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
@@ -51,7 +49,7 @@ export default function MiniArcGauge({ score, color, fallbackColor = '#9CA3AF' }
           strokeWidth="3"
           strokeLinecap="round"
           initial={{ strokeDasharray: '0, 100' }}
-          animate={{ strokeDasharray: dashTarget }}
+          animate={{ strokeDasharray: `${target}, 100` }}
           transition={{ duration: 0.85, ease: [0.16, 1, 0.3, 1] }}
         />
       </svg>
