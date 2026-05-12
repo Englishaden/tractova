@@ -308,7 +308,7 @@ export default function CommandPalette() {
                     onChange={(e) => { setQ(e.target.value); setActiveIndex(0) }}
                     onKeyDown={onKeyDown}
                     placeholder={isVerbMode ? 'Type a verb (try :help)' : 'Jump to a state, page, or analysis… (type : for verbs)'}
-                    className="flex-1 bg-transparent text-sm text-ink placeholder-gray-400 outline-hidden"
+                    className="flex-1 bg-transparent text-sm text-ink placeholder-gray-400 outline-hidden focus-visible:outline-1 focus-visible:outline-teal-500/30 focus-visible:outline-offset-2 rounded-sm"
                   />
                   <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">ESC</span>
                 </div>

@@ -263,6 +263,45 @@ function SearchContent() {
     stage: initialStage,
     technology: initialTechnology,
   })
+
+  // Phase 2C prereq — `?fromProject=<id>` deep-link. The Cmd-K `:rerun
+  // <project>` verb and the Library "Re-run with latest data" CTA both
+  // route to /search?fromProject=<id>. We fetch the saved project, pre-
+  // fill the form from its stored fields, and surface a small "Re-run
+  // of <name>" pill so the user knows this run is anchored to an
+  // existing project. The auto-run, drift-comparison, and "Save updates
+  // back to project" CTA are the rest of the Phase 2C work — this is
+  // the minimum viable handler so :rerun stops dead-ending.
+  const fromProjectId = searchParams.get('fromProject')
+  const [reRunOf, setReRunOf] = useState(null)
+  useEffect(() => {
+    if (!fromProjectId || !user) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('id, name, state, county, mw, stage, technology, saved_at')
+          .eq('id', fromProjectId)
+          .eq('user_id', user.id)
+          .single()
+        if (cancelled || error || !data) return
+        setReRunOf({
+          id: data.id,
+          name: data.name,
+          savedAt: data.saved_at,
+        })
+        setForm({
+          state: data.state || '',
+          county: data.county || '',
+          mw: String(data.mw || ''),
+          stage: data.stage || '',
+          technology: data.technology || '',
+        })
+      } catch { /* silent — user may not have access; fall back to empty form */ }
+    })()
+    return () => { cancelled = true }
+  }, [fromProjectId, user])
   const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
   const [analyzing, setAnalyzing]     = useState(false)
@@ -605,6 +644,32 @@ function SearchContent() {
             Enter a specific project to get targeted site control, interconnection, and offtake intelligence.
           </p>
         </div>
+
+        {/* Re-run pill — surfaced when ?fromProject= is in the URL.
+            The form is pre-filled from the project's saved values
+            (state/county/MW/stage/tech) so the user can immediately
+            generate a fresh report. Phase 2C will add the auto-run
+            kickoff + drift comparison + "Save updates back to project"
+            CTA on top of this baseline. */}
+        {reRunOf && (
+          <div className="mb-3 flex items-center gap-2 rounded-lg px-3 py-2"
+            style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.22)' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0F766E' }} />
+            <span className="eyebrow-mono" style={{ color: '#0F766E' }}>Re-run</span>
+            <span className="text-xs font-medium text-ink truncate">
+              Re-run of <span className="font-semibold">{reRunOf.name}</span>
+              {reRunOf.savedAt && (
+                <span className="text-gray-400 ml-1">
+                  · last saved {(() => {
+                    const days = Math.floor((Date.now() - new Date(reRunOf.savedAt).getTime()) / 86_400_000)
+                    return days < 1 ? 'today' : days < 30 ? `${days}d ago` : `${Math.floor(days / 30)}mo ago`
+                  })()}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
 
         {/* Search form */}
         <form
