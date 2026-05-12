@@ -4,11 +4,39 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 3 SHIPPED · resume Phase 4 (Motion layer rollout)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 4 SHIPPED · resume Phase 5 (Cross-surface coherence)
 
-**Phase 3 closed the structural a11y gaps that the audit flagged. CompareTray modal migrated off the hand-rolled `<div role="dialog">` to full Radix Dialog (free Esc + focus-trap + outside-click + aria-modal/labelledby/describedby). ScenarioStudio "✓ Saved" persists indefinitely until the user edits — the 2.5s timed revert that silently reset the button is gone. Cmd-K input + result list now implement the proper combobox / listbox / option pattern with aria-activedescendant for keyboard nav. CollapsibleCard (Lens pillars) and CollapsibleSubsection both ship paired aria-controls + role="region" + aria-labelledby. Eyebrow-mono utility sweep landed across the Lens panels + ProjectCard + library surfaces (~47 swaps).**
+**Phase 4 lit up the killer feature the roadmap called out: the three pillar gauges fill in sequence on first Lens open and developers immediately read this as intelligence-grade software. The composite ArcGauge, Library MiniArcGauge, and Library ScoreGauge all share a single IntersectionObserver gate (new `useFirstVisible` hook in MotionPrimitives) so the entry fill + number CountUp fire exactly once per viewport entry, not on every re-render. Score updates after first reveal still settle to the new value through the same animate prop. ProjectCard collapsed state lifts 2px + deepens its shadow on hover for Linear-class polish.**
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 4. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 4 (Motion layer rollout), then implement: GaugeFill animations replacing static fills in ArcGauge / ScoreGauge / MiniArcGauge (IntersectionObserver-gated, first-viewport-entry only); CountUp on composite score 0→final 700ms on first reveal (Lens + Profile health gauge); RevealOnScroll on Lens §1–§5 + Library stat cards + Profile sections (12px lift + opacity fade, 60ms stagger); hover micro-interactions on cards / chips / buttons; replace bare loading dots with Phase-0 skeleton variants. Lighthouse perf score must not drop below baseline.`
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 5. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 5 (Cross-surface coherence), then implement: landing tightening (keep editorial hero, tighten typography toward in-app, replace static value-prop cards with live data shapes); Profile inline stage editing (surface StagePicker in the Profile portfolio table, writes straight to Supabase); Profile billing history (new api/billing-history.js serverless endpoint hitting Stripe invoices.list, render read-only list with hosted invoice URLs); glossary tooltips everywhere (sweep app to wrap every defined term mention with GlossaryLabel, references Cmd-K verb in the tooltip footer).`
+
+---
+
+### Session 2026-05-12 (continued) — TRACTOVA-UX-001 Phase 4 shipped
+
+Phase 4 ships the motion layer that anchors the Lens results page emotionally — gauges fill on first reveal and the developer sees an instrument reading itself. The work is concentrated in the three gauge components + a small new hook in MotionPrimitives so the motion primitive layer stays the single source of truth for IntersectionObserver-based reveal patterns.
+
+**New primitive:**
+- `useFirstVisible(ref, options)` in `src/components/motion/MotionPrimitives.jsx` — IntersectionObserver wrapper that flips visible=true once when the element enters the viewport, then disconnects. Used by all three gauges so the entry animation only fires once per scroll (subsequent re-renders / score changes don't re-trigger the dramatic 0→score fill). Honors `prefers-reduced-motion`.
+
+**Gauge animations:**
+- `src/components/ArcGauge.jsx` — Lens composite tachometer. Previously animated on every value change with `initial={false}` (no entry fill). Now the SVG carries a `svgRef` + `useFirstVisible` flag; the motion.path strokeDashoffset target swaps from `arcLength` (empty) to `arcLength * (1 - pct)` (filled) once visible. The number readout (`AnimatedScoreText`) takes a `visible` prop and tweens 0 → score on first reveal via `animate()` + cubic-bezier. Score changes after first reveal animate normally.
+- `src/components/library/MiniArcGauge.jsx` — Library project bar gauge. Same pattern: `wrapRef` + `useFirstVisible` gates both the strokeDasharray fill animation and the number readout's `animate()` tween. Reduced-motion users get final state immediately (no 0 frame).
+- `src/components/library/ScoreGauge.jsx` — Library expanded project card gauge. Was static (no animation at all). Rewrote to use motion.path strokeDashoffset over the full semicircle (`circ * (1 - pct)` target) with cubic-bezier 0.9s tween, plus a new `ScoreDigits` component that runs an inline RAF loop on `visible` toggle to count 0 → score over 700ms. Severity colors swapped from emerald/yellow/red to the canonical teal/amber/red palette so the gauge matches the rest of the V3 vocabulary.
+
+**Hover polish:**
+- `src/components/ProjectCard.jsx` — collapsed card now lifts 2px + deepens shadow on hover via `motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lg`. CSS approach (not motion-wrapped) so dense Library lists stay cheap. Hover lift is skipped while expanded so the open card stays anchored. Reduced-motion users skip the transform via the `motion-safe:` prefix.
+
+**Deferred (intentional, called out in roadmap):**
+- **RevealOnScroll on Lens sections** — the §0.1 DO-NOT-REPEAT lessons explicitly warn against page-level motion wrapping on the Lens results tree (OOM history with PageTransition + CollapsibleSubsection height: auto). The killer-feature trio is already shipped via the gauges; section-level reveals are polish that fits Phase 6's cross-browser sweep where each reveal can be tested individually.
+- **Skeleton variant audit** — Library already uses `animate-pulse` skeletons for projects + map loading; the remaining bare-spinner cases are covered by LensOverlay during analysis. Full Skeleton variant sweep deferred to Phase 6 polish.
+- **Chip + button micro-interactions** — applied selectively (ProjectCard hover) rather than blanket-applied. Adding `hover:scale-1.03` across every chip risks visual noise on dense panels; reserved for Phase 6 audit-ui hardening once the patterns are tested side-by-side.
+
+**Verification (close of session):**
+- `npm run test:unit` — 129/129 green
+- `npm run build` — clean (3.05s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs / lint:api / lint:secrets` — clean
 
 ---
 

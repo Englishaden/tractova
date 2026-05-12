@@ -149,6 +149,34 @@ export function CountUp({ value, duration = 700, fromValue = 0, decimals = 0, su
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// useFirstVisible — IntersectionObserver hook that flips visible=true once
+// when the element enters the viewport, then disconnects. Reused by the
+// Phase 4 gauges (ArcGauge / MiniArcGauge / ScoreGauge) to gate the fill
+// animation on first reveal — otherwise the arc animates every time the
+// component re-renders (e.g. on score change), which feels twitchy and
+// burns frames. Reduced-motion users always read visible=true so they
+// skip the gating entirely and see the final state immediately.
+// ─────────────────────────────────────────────────────────────────────────
+export function useFirstVisible(ref, { threshold = 0.15, rootMargin = '0px' } = {}) {
+  const reduced = useReducedMotion()
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    if (reduced) { setVisible(true); return }
+    if (!ref.current) return
+    const el = ref.current
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisible(true)
+        io.unobserve(el)
+      }
+    }, { threshold, rootMargin })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [ref, reduced, threshold, rootMargin])
+  return visible
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // GaugeFill — animate an SVG arc by interpolating stroke-dashoffset.
 //
 // Wraps an existing <circle> or <path> element pattern; the consumer

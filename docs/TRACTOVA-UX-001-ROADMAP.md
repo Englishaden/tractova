@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-05-12
 **Project owner:** Aden (englishaden / aden.walker67@gmail.com)
-**Status:** Phases 0, 1, 2A, 2B, 2C, 3 + UI/UX-audit five-pass cleanup all shipped. Resume at Phase 4 (Motion layer rollout).
+**Status:** Phases 0, 1, 2A, 2B, 2C, 3, 4 + UI/UX-audit five-pass cleanup all shipped. Resume at Phase 5 (Cross-surface coherence).
 
 ---
 
@@ -430,19 +430,21 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 - **✅ Phase 2A + 2B shipped** — Library Table + Map (incl. ProjectDrawer, county-centroid pins, state-cluster > 200, pulse + halo gating). Five-pass audit cleanup landed alongside.
 - **✅ Phase 2C shipped** — Saved Comparisons (migration 062 FILE — Aden applies), CompareReportPDF lazy-loaded, SavedComparisonsList Library tab, Cmd-K `:compare` enumerates saved + filters by name fragment, Re-run with latest data on every saved project (auto-kickoff + drift banner + Save-back), orphan-scenarios → projects conversion (Library handler + `lib/orphanConversion.js` helper).
 - **✅ Phase 3 shipped** — CompareTray → Radix Dialog (Esc/focus-trap/outside-click for free), ScenarioStudio "✓ Saved" persists until edit, Cmd-K combobox/listbox/option ARIA pattern with aria-activedescendant, CollapsibleCard paired aria-controls + role="region", eyebrow-mono utility sweep on Lens panels + ProjectCard + library surfaces (47 swaps). LensTour `role="dialog"` (anchored tooltip, not a true modal) and axe-core test wiring deferred to Phase 6.
-- **🟢 NEXT: Phase 4** — Motion layer rollout. See § 4 Phase 4.
+- **✅ Phase 4 shipped** — `useFirstVisible` hook in MotionPrimitives; ArcGauge + MiniArcGauge + ScoreGauge all fill on first viewport entry only (no re-animate on every render), number readouts CountUp 0→score on the same gate; ProjectCard collapsed state lifts on hover. LibraryMap hover tooltips portaled out of the transformed map container so they appear next to the cursor again. RevealOnScroll on Lens / Library / Profile sections + chip-and-button micro-interactions + Skeleton variant audit deferred to Phase 6 polish.
+- **🟢 NEXT: Phase 5** — Cross-surface coherence. See § 4 Phase 5.
 
 ### Resume command
 After `/clear`, tell Claude:
 
 ```
-Resume TRACTOVA-UX-001 Phase 4. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 4
-including § 0.1 DO-NOT-REPEAT LESSONS, then implement: GaugeFill animations on
-ArcGauge / ScoreGauge / MiniArcGauge (IntersectionObserver-gated, first-viewport-
-entry only); CountUp on composite score 0→final 700ms on first reveal;
-RevealOnScroll on Lens §1–§5 + Library stat cards + Profile sections; hover
-micro-interactions on cards / chips / buttons; replace bare loading dots with
-Phase-0 skeleton variants. Lighthouse perf score must not drop below baseline.
+Resume TRACTOVA-UX-001 Phase 5. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 5,
+then implement: landing tightening (keep editorial hero, tighten typography
+toward in-app, replace static value-prop cards with live data shapes); Profile
+inline stage editing (StagePicker on the Profile portfolio table writes straight
+to Supabase); Profile billing history (new api/billing-history.js serverless
+endpoint hitting Stripe invoices.list); glossary tooltips everywhere (sweep app
+to wrap every defined term mention with GlossaryLabel, tooltip footer references
+the Cmd-K verb).
 ```
 
 Claude will pick up exactly where this session ended.
@@ -475,8 +477,8 @@ Claude will pick up exactly where this session ended.
 | 2B — Library Map view | ✅ Shipped | `0e5cdfa` + map QA passes through 2026-05-12 | LibraryMap (MW-weighted choropleth + county-centroid pins + state-cluster >200, with SMIL pulse + navy-glow contrast). ProjectDrawer right slide-in (480px, Radix Dialog). Single-click filters, double-click filters + Table. Esc clears. Flicker on zoom/scroll fixed 2026-05-12 (SVG filter removed, gradient backdrop simplified, transition-colors only, GPU layer promotion). |
 | Audit cleanup — 5 passes | ✅ Shipped | `277cee4` + `b309e8e` + `f186f2a` + `fa02fbe` + `f397340` (2026-05-12) | UI/UX + perf audits closed: brand vocab (Inter, green-for-good, glassmorphism, violet), perf wins (lazy LibraryMap −27 KB gzip on Library, glossary split), animation discipline (useSpring → cubic), structural (Radix dropdown, sticky-stack, valid HTML), Phase 2C `?fromProject=` prereq + focus rings. |
 | 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ✅ Shipped | `63bbffc` + `b695bd5` + `48f36f3` + `c462ecc` + `91791da` | Migration 062 FILE + savedComparisons lib + CompareReportPDF (incl. CSP wasm-unsafe-eval + WinAnsi character discipline + page-break tuning) + SavedComparisonsList tab + Cmd-K saved-comp surface + drift banner + Save-back + orphan→project |
-| 3 — Lens polish + a11y | ✅ Shipped | (this commit) | CompareTray → Radix Dialog · ScenarioStudio "Saved" persists · Cmd-K combobox/listbox/option pattern · CollapsibleCard aria-controls + ids · eyebrow-mono sweep (47 swaps across Lens + Library + ProjectCard) · LensTour + axe-core deferred to Phase 6 |
-| 4 — Motion layer rollout | ⏳ Queued | — | ~8–12h |
+| 3 — Lens polish + a11y | ✅ Shipped | `7497ec4` | CompareTray → Radix Dialog · ScenarioStudio "Saved" persists · Cmd-K combobox/listbox/option pattern · CollapsibleCard aria-controls + ids · eyebrow-mono sweep (47 swaps across Lens + Library + ProjectCard) · LensTour + axe-core deferred to Phase 6 |
+| 4 — Motion layer rollout | ✅ Shipped | (this commit) | useFirstVisible hook · ArcGauge / MiniArcGauge / ScoreGauge all fill on first viewport entry · number readouts CountUp 0→score · ProjectCard collapsed hover lift · LibraryMap tooltips portaled out of transformed ancestor · RevealOnScroll + chip micro-interactions + Skeleton sweep deferred to Phase 6 |
 | 5 — Cross-surface coherence | ⏳ Queued | — | ~10–14h |
 | 6 — Polish + audit-ui hardening | ⏳ Queued | — | ~6–10h |
 

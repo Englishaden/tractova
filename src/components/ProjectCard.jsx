@@ -198,7 +198,13 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
       // V3: overflow-hidden ONLY when expanded -- so the inner alert strip + bg fill
       // clip cleanly to the rounded corners. When collapsed, no clipping so the
       // StagePicker dropdown can escape the card boundary.
-      className={`group/card rounded-xl border transition-all duration-200 relative ${expanded ? 'overflow-hidden' : ''}`}
+      // Phase 4 — collapsed cards get a 2px hover lift + deepened shadow.
+      // motion-reduce class disables the transform for users who request it.
+      // Skip the hover lift while expanded (no transform change) so the
+      // card stays anchored when the user opens it.
+      className={`group/card rounded-xl border transition-all duration-200 relative ${expanded
+        ? 'overflow-hidden'
+        : 'motion-safe:hover:-translate-y-0.5 motion-safe:hover:shadow-lg'}`}
       style={{
         background: '#FFFFFF',
         borderColor: hasUrgent ? 'rgba(220,38,38,0.35)' : expanded ? 'rgba(20,184,166,0.40)' : '#E5E7EB',

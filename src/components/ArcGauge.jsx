@@ -1,19 +1,29 @@
-import { useState, useEffect } from 'react'
-import { motion, useMotionValue, animate } from 'motion/react'
+import { useState, useEffect, useRef } from 'react'
+import { motion, useMotionValue, animate, useReducedMotion } from 'motion/react'
+import { useFirstVisible } from './motion/MotionPrimitives'
 
 // V3: Precision tachometer — feasibility index as a measured instrument.
-// Animated number readout — counts up/down to target on score change.
-// Uses a cubic-bezier tween (`[0.22, 1, 0.36, 1]` per design-vocabulary
-// § Motion — "decelerating cubic curves — confident landing, no
-// oscillation, no bounce") instead of the prior useSpring. Same
-// settling-needle feel without the spring vocabulary the doc bans.
-function AnimatedScoreText({ value, ...textProps }) {
-  const mv = useMotionValue(value)
-  const [display, setDisplay] = useState(value)
+// Phase 4 — animated number readout gates on first viewport entry. The
+// number tweens 0 → score the first time the gauge becomes visible, then
+// animates between values on subsequent score changes (e.g. when the
+// Lens re-runs against fresh state data). Reduced-motion users see the
+// final value immediately. Cubic-bezier ease per design-vocabulary §
+// Motion — "decelerating cubic curves — confident landing, no
+// oscillation, no bounce".
+function AnimatedScoreText({ value, visible, ...textProps }) {
+  const reduced = useReducedMotion()
+  const mv = useMotionValue(0)
+  const [display, setDisplay] = useState(0)
+  const hasFiredRef = useRef(false)
   useEffect(() => {
+    if (reduced) { setDisplay(value); return }
+    // First visible: tween 0 → value. Subsequent value changes: tween
+    // current → new value (so updates feel like settling, not restarts).
+    if (!visible && !hasFiredRef.current) return
+    hasFiredRef.current = true
     const controls = animate(mv, value, { duration: 0.9, ease: [0.22, 1, 0.36, 1] })
     return () => controls.stop()
-  }, [value, mv])
+  }, [value, visible, reduced, mv])
   useEffect(() => mv.on('change', (v) => setDisplay(Math.round(v))), [mv])
   return <text {...textProps}>{display}</text>
 }
@@ -33,6 +43,14 @@ export default function ArcGauge({ score }) {
   const R = 64, cx = 90, cy = 85
   const fullPath = `M ${cx - R} ${cy} A ${R} ${R} 0 0 1 ${cx + R} ${cy}`
   const arcLength = Math.PI * R
+  // Phase 4 — IO-gated reveal. svgRef tracks the gauge SVG; useFirstVisible
+  // flips visible=true once when the element scrolls into view. The motion
+  // path uses visible to compute its strokeDashoffset target — empty when
+  // not yet visible, filled once visible. Subsequent score changes animate
+  // normally because the new target propagates through animate prop.
+  const svgRef = useRef(null)
+  const visible = useFirstVisible(svgRef)
+  const targetOffset = visible ? arcLength * (1 - pct) : arcLength
 
   // V3 single-hue teal ramp
   let color = '#CBD5E1'
@@ -54,7 +72,7 @@ export default function ArcGauge({ score }) {
   ]
 
   return (
-    <svg viewBox="0 0 180 110" className="w-full max-w-[240px]">
+    <svg ref={svgRef} viewBox="0 0 180 110" className="w-full max-w-[240px]">
       {/* Tick marks -- positioned OUTSIDE the arc (was crossing it before,
           which read as black lines flowing through the green fill). Inner
           tick start sits 5 units beyond the arc's outer edge; outer end
@@ -97,16 +115,20 @@ export default function ArcGauge({ score }) {
       })}
       {/* Arc track */}
       <path d={fullPath} fill="none" stroke="#E2E8F0" strokeWidth={7} strokeLinecap="round" />
-      {/* Animated fill */}
+      {/* Animated fill — entry animation fires on first viewport visibility
+          (see svgRef / useFirstVisible above). initial puts the arc at
+          empty (strokeDashoffset = arcLength), animate transitions to the
+          score's target once visible. Subsequent score changes flow
+          through the same animate prop so the gauge settles to new value. */}
       <motion.path
         d={fullPath}
         fill="none"
         strokeWidth={7}
         strokeLinecap="round"
         strokeDasharray={arcLength}
-        initial={false}
+        initial={{ strokeDashoffset: arcLength, stroke: color }}
         animate={{
-          strokeDashoffset: arcLength * (1 - pct),
+          strokeDashoffset: targetOffset,
           stroke: color,
         }}
         transition={{
@@ -131,6 +153,7 @@ export default function ArcGauge({ score }) {
           single block-like form. */}
       <AnimatedScoreText
         value={s}
+        visible={visible}
         x={cx} y={cy - 8}
         textAnchor="middle"
         fontSize="38" fontWeight="700"
