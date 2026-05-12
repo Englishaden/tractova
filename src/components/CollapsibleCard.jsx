@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { motion } from 'motion/react'
 
 // V3.1: Whole-card collapsible wrapper for the 3 main Lens cards
@@ -7,6 +7,12 @@ import { motion } from 'motion/react'
 // state is expanded so first impression is unchanged; users can
 // collapse to compress the layout. items-start on the parent grid
 // keeps heights independent so a collapsed card doesn't stretch.
+//
+// Phase 3 — a11y: paired aria-controls / aria-labelledby + id linkage
+// so screen readers + keyboard users can navigate header → panel
+// reliably. Eyebrow + heading are pulled into the labelled name so
+// the toggle button announces as e.g. "Site Control - feasibility
+// sub-score, button, expanded".
 export default function CollapsibleCard({
   accentColor,
   eyebrow,
@@ -16,12 +22,16 @@ export default function CollapsibleCard({
   children,
 }) {
   const [open, setOpen] = useState(defaultExpanded)
+  const uid = useId()
+  const panelId   = `cc-panel-${uid}`
+  const headingId = `cc-heading-${uid}`
   return (
-    <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <section className="bg-white border border-gray-200 rounded-lg overflow-hidden" aria-labelledby={headingId}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
+        aria-controls={panelId}
         className="w-full text-left px-5 pt-4 pb-3 transition-colors hover:bg-gray-50/50 focus:outline-hidden focus-visible:bg-gray-50/80"
         style={{ borderBottom: open ? '1px solid #F3F4F6' : '1px solid transparent' }}
       >
@@ -32,7 +42,7 @@ export default function CollapsibleCard({
                 {eyebrow}
               </p>
             )}
-            <h3 className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
+            <h3 id={headingId} className="font-serif text-xl font-semibold text-ink leading-tight" style={{ letterSpacing: '-0.015em' }}>
               {title}
             </h3>
             {caption && (
@@ -53,12 +63,16 @@ export default function CollapsibleCard({
             animate={{ rotate: open ? 180 : 0 }}
             transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="shrink-0 mt-1.5"
+            aria-hidden="true"
           >
             <polyline points="6 9 12 15 18 9" />
           </motion.svg>
         </div>
       </button>
       <motion.div
+        id={panelId}
+        role="region"
+        aria-labelledby={headingId}
         initial={false}
         animate={open ? { height: 'auto', opacity: 1 } : { height: 0, opacity: 0 }}
         transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}

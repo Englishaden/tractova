@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import * as RadixDialog from '@radix-ui/react-dialog'
 import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
 import { getStateProgram, getCountyData } from '../lib/programData'
@@ -343,40 +344,41 @@ function CompareModal({ onClose }) {
     return parts.join(' · ') || null
   })()
 
-  // Keyboard accessibility — hand-rolled modal needs explicit ESC handling
-  // (Radix Dialog provides this automatically; this is the lightweight
-  // equivalent without pulling in another primitive). On mount we also
-  // shift focus to the modal container so subsequent Tab keys cycle inside
-  // the modal's interactive elements rather than the page behind it.
-  const modalRef = useRef(null)
-  useEffect(() => {
-    const handleEsc = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', handleEsc)
-    // Focus the modal container so keyboard users start inside it.
-    modalRef.current?.focus()
-    return () => document.removeEventListener('keydown', handleEsc)
-  }, [onClose])
+  // Phase 3 — migrated to Radix Dialog (was hand-rolled <div role="dialog">
+  // with manual ESC + focus management). Radix provides Esc handling,
+  // focus-trap, outside-click, and aria-modal/labelledby/describedby for
+  // free. The visible UI (navy chrome, teal accent rail, sticky column
+  // headers) is unchanged; we wrap raw RadixDialog primitives directly
+  // (rather than the ui/Dialog.jsx wrapper) to keep full control over the
+  // wider max-w-5xl footprint + internal layout.
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Project comparison"
-    >
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-xs" onClick={onClose} />
-      <div
-        ref={modalRef}
-        tabIndex={-1}
-        className="relative w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl outline-none"
-        style={{
-          background: '#080E1A',
-          border: '1px solid rgba(52,211,153,0.18)',
-          boxShadow: '0 0 0 1px rgba(52,211,153,0.06), 0 24px 64px rgba(0,0,0,0.6)',
-        }}
-      >
-        {/* Teal accent bar */}
-        <div className="h-[3px] w-full rounded-t-xl" style={{ background: 'linear-gradient(90deg, #34D399 0%, #059669 60%, transparent 100%)' }} />
+    <RadixDialog.Root open onOpenChange={(o) => { if (!o) onClose() }}>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay
+          className="fixed inset-0 z-50"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+        />
+        <RadixDialog.Content
+          className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-5xl max-h-[90vh] flex flex-col overflow-hidden rounded-xl outline-hidden"
+          style={{
+            background: '#080E1A',
+            border: '1px solid rgba(52,211,153,0.18)',
+            boxShadow: '0 0 0 1px rgba(52,211,153,0.06), 0 24px 64px rgba(0,0,0,0.6)',
+          }}
+          aria-describedby="compare-modal-desc"
+        >
+          {/* Visible h2 below serves as the visual title; Radix needs an
+              actual Title element for screen readers. sr-only avoids a
+              duplicate visual heading while keeping the a11y semantics. */}
+          <RadixDialog.Title className="sr-only">Project Comparison</RadixDialog.Title>
+          <RadixDialog.Description id="compare-modal-desc" className="sr-only">
+            Side-by-side feasibility comparison of {items.length} project{items.length !== 1 ? 's' : ''}.
+            Press Escape to close.
+          </RadixDialog.Description>
+
+          {/* Teal accent bar */}
+          <div className="h-[3px] w-full rounded-t-xl" style={{ background: 'linear-gradient(90deg, #34D399 0%, #059669 60%, transparent 100%)' }} />
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -656,6 +658,7 @@ function CompareModal({ onClose }) {
                 className="w-full px-4 py-2.5 flex items-center gap-2 text-left transition-colors hover:brightness-125 cursor-pointer"
                 style={aiOpen ? { borderBottom: '1px solid rgba(52,211,153,0.06)' } : {}}
                 aria-expanded={aiOpen}
+                aria-controls="compare-ai-panel"
               >
                 <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(52,211,153,0.3), rgba(5,150,105,0.3))' }}>
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -678,7 +681,7 @@ function CompareModal({ onClose }) {
                 </svg>
               </button>
               {aiOpen && (
-                <>
+                <div id="compare-ai-panel" role="region" aria-label="AI comparison analysis">
                   <div className="px-4 py-3">
                     <p className="text-[11px] leading-relaxed text-white/65">{aiCompare.comparison}</p>
                   </div>
@@ -688,7 +691,7 @@ function CompareModal({ onClose }) {
                       <p className="text-[10px] text-white/50 leading-relaxed">{aiCompare.reason}</p>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           ) : null}
@@ -696,8 +699,9 @@ function CompareModal({ onClose }) {
             Scores reflect Tractova's composite feasibility index. Verify interconnection and capacity with the serving utility before committing capital.
           </p>
         </div>
-      </div>
-    </div>
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
   )
 }
 

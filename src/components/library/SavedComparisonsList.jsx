@@ -90,7 +90,7 @@ export default function SavedComparisonsList() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span
-                  className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
+                  className="eyebrow-mono font-bold px-2 py-0.5 rounded-sm"
                   style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E' }}
                 >
                   ◆ {count} project{count === 1 ? '' : 's'}

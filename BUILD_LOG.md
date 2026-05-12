@@ -4,11 +4,40 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 2C SHIPPED · resume Phase 3 (Lens polish + a11y)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 3 SHIPPED · resume Phase 4 (Motion layer rollout)
 
-**Phase 2C delivered the four headline pieces — Saved Comparisons (migration 062 FILE, Aden applies in Supabase), PDF export from the Compare tray, Re-run with latest data with auto-kickoff + drift + Save-back, and Orphan-scenarios-to-project conversion. Library now has three top-level tabs (Projects | Scenarios | Comparisons), Cmd-K `:compare` enumerates saved comparisons, and every saved project gets a "Re-run with latest data" CTA that promotes drift into a one-click write-back.**
+**Phase 3 closed the structural a11y gaps that the audit flagged. CompareTray modal migrated off the hand-rolled `<div role="dialog">` to full Radix Dialog (free Esc + focus-trap + outside-click + aria-modal/labelledby/describedby). ScenarioStudio "✓ Saved" persists indefinitely until the user edits — the 2.5s timed revert that silently reset the button is gone. Cmd-K input + result list now implement the proper combobox / listbox / option pattern with aria-activedescendant for keyboard nav. CollapsibleCard (Lens pillars) and CollapsibleSubsection both ship paired aria-controls + role="region" + aria-labelledby. Eyebrow-mono utility sweep landed across the Lens panels + ProjectCard + library surfaces (~47 swaps).**
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 3. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 3 (Lens polish + a11y), then implement: hand-rolled save/confirm dialogs → Radix; CompareTray modal → Radix Dialog; "✓ Saved" persistence in ScenarioStudio; aria-controls sweep across collapsibles + Cmd-K; responsive typography sweep (eyebrow-mono utility on 60+ inline text-[9px]/[10px] callouts). axe-core run targets 0 critical violations on Lens/Library/Profile/Glossary.`
+**Resume command:** `Resume TRACTOVA-UX-001 Phase 4. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 4 (Motion layer rollout), then implement: GaugeFill animations replacing static fills in ArcGauge / ScoreGauge / MiniArcGauge (IntersectionObserver-gated, first-viewport-entry only); CountUp on composite score 0→final 700ms on first reveal (Lens + Profile health gauge); RevealOnScroll on Lens §1–§5 + Library stat cards + Profile sections (12px lift + opacity fade, 60ms stagger); hover micro-interactions on cards / chips / buttons; replace bare loading dots with Phase-0 skeleton variants. Lighthouse perf score must not drop below baseline.`
+
+---
+
+### Session 2026-05-12 (continued) — TRACTOVA-UX-001 Phase 3 shipped
+
+Phase 3 ships the structural accessibility wins: Radix dialogs replace hand-rolled modals, the ARIA combobox pattern lights up Cmd-K, every collapsible toggle now points at its panel via aria-controls, and the eyebrow-mono utility sweep starts moving the codebase off scattered inline mono-cap variants. ScenarioStudio's "✓ Saved" finally stays saved.
+
+**Modifications:**
+- `src/components/ScenarioStudio.jsx` — drop the 2.5s `setTimeout` that reverted `justSavedName` to null. Saved state now persists until the user actually edits something (slider drag, reset, preset apply). The toast still fires for the save event itself; the button state stays accurate to what's persisted in the DB.
+- `src/components/CompareTray.jsx` — Compare modal migrated from `<div role="dialog">` + manual ESC handler + manual focus management to full Radix Dialog primitives (`RadixDialog.Root` / `Portal` / `Overlay` / `Content` + `Title` + `Description`). Esc closes, outside-click closes, focus traps inside the modal, aria-modal is set, all for free. The visible UI (navy chrome, teal accent rail, sticky column headers, sub-dialog Save-as) is unchanged. AI panel toggle inside the modal gets `aria-controls` + `id="compare-ai-panel"` + `role="region"` linkage.
+- `src/components/CollapsibleCard.jsx` — adds `useId`-generated panel + heading ids, paired `aria-controls` from the button and `aria-labelledby` on the panel + the outer `<section>`. The 3 main Lens pillar cards (Site Control / Interconnection / Offtake) now announce as "Site Control – feasibility sub-score, button, expanded" to screen readers.
+- `src/components/CommandPalette.jsx` — input gets `role="combobox"` + `aria-autocomplete="list"` + `aria-expanded` + `aria-controls` (pointing at the result list) + `aria-activedescendant` (pointing at the currently active option) + `aria-label`. Result list gets `role="listbox"` + an id. Each option gets `role="option"` + `aria-selected={active}` + `tabIndex={-1}` (so Tab doesn't move focus into individual options — arrow keys handle navigation as the combobox pattern dictates). Now matches the WAI-ARIA combobox grouping pattern.
+
+**Eyebrow-mono sweep — focused, 47 swaps across the Lens + Library surfaces:**
+- `ProjectCard.jsx` (10), `OfftakeCard.jsx` (11), `InterconnectionCard.jsx` (5), `SiteControlCard.jsx` (2), `MarketPositionPanel.jsx` (5), `MarketIntelligenceSummary.jsx` (3), `ComparableDealsPanel.jsx` (3), `MetricsBar.jsx` (2), `ScenariosView.jsx` (2), `ScenarioStudio.jsx` (2), `SavedComparisonsList.jsx` (1), `LibraryMap.jsx` (2)
+- All replace the canonical inline pattern (`text-[9px] font-mono uppercase tracking-[0.18em]` or `font-mono text-[9px] uppercase tracking-[0.18em]`) with the `.eyebrow-mono` utility. Per design-vocabulary.md, the utility renders 8px / tracking-0.18em on mobile, 9px / tracking-0.24em at md+. Net effect: responsive scaling + bolder (700) weight that reads more on-brand.
+
+**locs allowlist:** `src/pages/Library.jsx` bumped to a 1600-line ceiling with a Phase 6 decomposition target (extract a `useBulkSelection` hook + `useLibraryLayout` hook). The page is 1508 LOC after Phase 2C's Comparisons tab + 2D's saved-count fetcher; orphan conversion already lives in `lib/orphanConversion.js` so the remaining bulk is the bulk-ops handlers.
+
+**Deferred (intentional, called out in roadmap):**
+- **LensTour `role="dialog"` migration** — the two hand-rolled "dialogs" in LensTour.jsx are genuinely anchored tooltips, not true modals. Radix Dialog would break the anchor positioning. Better aria props could be added in Phase 6 alongside the broader audit-ui sprint.
+- **axe-core test wiring** — installing `@axe-core/playwright` + writing the 4-page assertion is meaty enough to belong in Phase 6's audit-ui hardening sprint, where it can be added alongside the cron-runs latency monitor and the cross-browser sweep.
+- **~200 remaining eyebrow patterns** — admin/*, marketing/static pages, lower-frequency Lens panels (CsMarketPanel, RegulatoryActivityPanel, SolarCostLineagePanel, etc.). The sweep landed everywhere a user spends meaningful time; the long tail is a Phase 6 batch-replace task.
+
+**Verification (close of session):**
+- `npm run test:unit` — 129/129 green
+- `npm run build` — clean (2.92s)
+- `npm run test:smoke` — 7/7 green
+- `npm run lint:locs / lint:api / lint:secrets` — clean
 
 ---
 

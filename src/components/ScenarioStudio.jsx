@@ -143,14 +143,21 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
   const policyAdj = baseline?.policyAdjustments
   const hasPolicyAdjustments = (policyAdj?.applicableCount || 0) > 0
 
+  // Phase 3 — "✓ Saved" persists until the user edits anything. The prior
+  // 2.5s setTimeout revert (commit pre-Phase-3) silently reset the button
+  // even when the saved state was still accurate. Now any slider /
+  // reset / preset clears justSavedName so the user sees their unsaved
+  // edits reflected immediately.
   function handleSliderChange(key, value) {
     setSliders((prev) => ({ ...prev, [key]: Number(value) }))
+    if (justSavedName) setJustSavedName(null)
   }
 
   function handleReset() {
     setSliders({ ...(baseline.adjustedInputs ?? baseline.inputs) })
     setNaming(false)
     setSavedName('')
+    if (justSavedName) setJustSavedName(null)
   }
 
   function handlePreset(key) {
@@ -165,6 +172,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     }
     setSliders(next)
     if (!savedName) setSavedName(preset.label)
+    if (justSavedName) setJustSavedName(null)
   }
 
   async function handleSave() {
@@ -208,8 +216,10 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
     showToast(`Scenario "${savedAs}" saved`, 'success')
     setSavedName('')
     setNaming(false)
+    // Phase 3 — "✓ Saved" stays until the user edits anything (slider,
+    // reset, preset). No timed revert; the persistent state matches what
+    // the user just persisted to the DB and stays accurate.
     setJustSavedName(savedAs)
-    setTimeout(() => setJustSavedName(null), 2500)
     setSavedToLibrary({ name: savedAs, stateLabel: baseline.stateLabel || baseline.stateId })
     setTimeout(() => setSavedToLibrary(null), 6000)
     if (inserted?.id) {
@@ -264,13 +274,13 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
           <GlossaryLabel
             term="Achievable Baseline"
             displayAs="◆ Industry Baseline"
-            className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+            className="eyebrow-mono px-2 py-0.5"
             as="span"
           />
         </div>
         {isDirty && (
           <span
-            className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+            className="eyebrow-mono px-2 py-0.5"
             style={{ background: 'rgba(245,158,11,0.10)', color: '#92400E', border: '1px solid rgba(245,158,11,0.30)' }}
           >
             Modified

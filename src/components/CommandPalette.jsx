@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useId, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { motion, AnimatePresence } from 'motion/react'
@@ -77,6 +77,11 @@ export default function CommandPalette() {
   const navigate = useNavigate()
   const inputRef = useRef(null)
   const { user } = useAuth()
+  // Phase 3 a11y — combobox/listbox/option pattern needs stable ids so
+  // aria-controls / aria-activedescendant can point at the right nodes.
+  const listboxUid = useId()
+  const listboxId  = `cmdk-listbox-${listboxUid}`
+  const optionId   = (i) => `cmdk-option-${listboxUid}-${i}`
 
   useEffect(() => {
     getStateProgramMap().then(setStateMap).catch(err => {
@@ -327,6 +332,12 @@ export default function CommandPalette() {
                     onKeyDown={onKeyDown}
                     placeholder={isVerbMode ? 'Type a verb (try :help)' : 'Jump to a state, page, or analysis… (type : for verbs)'}
                     className="flex-1 bg-transparent text-sm text-ink placeholder-gray-400 outline-hidden focus-visible:outline-1 focus-visible:outline-teal-500/30 focus-visible:outline-offset-2 rounded-sm"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={items.length > 0}
+                    aria-controls={listboxId}
+                    aria-activedescendant={items.length > 0 ? optionId(activeIndex) : undefined}
+                    aria-label={isVerbMode ? 'Command palette — verb mode' : 'Command palette — jump to a state, page, or analysis'}
                   />
                   <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">ESC</span>
                 </div>
@@ -358,18 +369,19 @@ export default function CommandPalette() {
                       {verbError ? 'No matches' : 'No matches'}
                     </p>
                   ) : (
-                    <ul>
+                    <ul id={listboxId} role="listbox" aria-label="Command palette results">
                       {items.map((it, i) => {
                         const active = i === activeIndex
                         const isAutocomplete = it.replaceQuery != null
                         return (
-                          <li key={`${it.kind}:${it.label}:${i}`}>
+                          <li key={`${it.kind}:${it.label}:${i}`} role="option" aria-selected={active} id={optionId(i)}>
                             <button
                               type="button"
                               onMouseEnter={() => setActiveIndex(i)}
                               onClick={(e) => select(it, { newTab: e.metaKey || e.ctrlKey })}
                               className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
                               style={{ background: active ? 'rgba(15,118,110,0.08)' : 'transparent' }}
+                              tabIndex={-1}
                             >
                               <span
                                 className="font-mono text-[9px] uppercase tracking-[0.20em] shrink-0 w-16"

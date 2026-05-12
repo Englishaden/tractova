@@ -65,7 +65,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                 wrapper that ate vertical space. */}
             <div className="col-span-5 flex flex-col items-center justify-center pr-2 border-r border-gray-100">
               <EaseArcGauge score={easeScore} />
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-500 mt-0.5">
+              <p className="eyebrow-mono font-bold text-gray-500 mt-0.5">
                 Ease Score
               </p>
             </div>
@@ -167,7 +167,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
             className="rounded-md px-3 py-2"
             style={{ background: 'rgba(217,119,6,0.05)', borderLeft: '3px solid rgba(217,119,6,0.45)' }}
           >
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-amber-800 mb-1">
+            <p className="eyebrow-mono font-bold text-amber-800 mb-1">
               County queue notes
             </p>
             <p className="text-[11px] text-gray-700 leading-relaxed">{queueNotes}</p>
@@ -186,7 +186,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
       {/* Methodology drilldown — click to expand */}
       <CardDrilldown accentColor="#D97706" label="Ease score methodology · ISO benchmarks">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>How the 1–10 ease score is computed</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#B45309' }}>How the 1–10 ease score is computed</p>
           <ul className="space-y-1 text-gray-700 list-none">
             <li><span className="font-semibold text-ink">Queue saturation</span> · projects-in-queue / available capacity by serving utility</li>
             <li><span className="font-semibold text-ink">Study timeline</span> · weighted avg system-impact study months across territory</li>
@@ -196,7 +196,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
           <p className="text-[10px] text-gray-500 italic mt-1.5">10 = fast-track-ready (e.g. MISO post-reform); 1 = severely constrained (e.g. PJM saturated zones).</p>
         </div>
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>ISO benchmarks (2024)</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#B45309' }}>ISO benchmarks (2024)</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px]">
             <div className="rounded-md border border-amber-200/60 bg-amber-50/40 px-2 py-1.5">
               <p className="font-mono uppercase tracking-wider text-amber-800 text-[9px] font-bold">PJM</p>
@@ -221,7 +221,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
           </div>
         </div>
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#B45309' }}>Source attribution</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#B45309' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
             <a href="https://planningcenter.pjm.com/planningcenter/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">PJM Queue ↗</a>
             <a href="https://www.misoenergy.org/planning/resource-utilization/GIQ/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-amber-200 text-amber-800 hover:bg-amber-50 transition-colors">MISO GIQ ↗</a>

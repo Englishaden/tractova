@@ -6,6 +6,11 @@
       "path": "api/lens-insight.js",
       "ceiling": 600,
       "reason": "buildContext now injects policy_impact_events with methodology/analyst_note/raw_provisions sections. Decomposition target: extract buildContext to api/lib/_lensContext.js — would drop main orchestrator back under 350 LOC. Tracked for next refactor sprint."
+    },
+    {
+      "path": "src/pages/Library.jsx",
+      "ceiling": 1600,
+      "reason": "Library cockpit went 1500 → 1508 after Phase 2C added the Comparisons tab + saved-count fetcher + onConvertOrphan handler. The orphan Supabase work already extracted to lib/orphanConversion.js. Decomposition target for Phase 6: lift the bulk-ops handlers (selectedIds + toggleSelect + handleBulk*) into a useBulkSelection hook, and pull the layout-toggle + pagination wiring into a useLibraryLayout hook — would drop main page back under 1300 LOC."
     }
   ]
 }

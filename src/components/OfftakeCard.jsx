@@ -120,7 +120,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                   {/* Energy Community row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
+                      <div className="eyebrow-mono font-semibold text-teal-800 mb-1">
                         Energy Community (+10% ITC)
                       </div>
                       {energyCommunity?.isEnergyCommunity ? (
@@ -160,7 +160,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                   {/* §48(e) Category 1 row */}
                   <div className="pt-2 border-t border-teal-100/60 flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
+                      <div className="eyebrow-mono font-semibold text-teal-800 mb-1">
                         §48(e) Cat 1 LIC (+10% ITC)
                       </div>
                       {nmtcLic?.isEligible ? (
@@ -203,7 +203,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                       different tax credit. */}
                   <div className="pt-2 border-t border-teal-100/60 flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-800 mb-1">
+                      <div className="eyebrow-mono font-semibold text-teal-800 mb-1">
                         HUD QCT / Non-Metro DDA (LIHTC)
                       </div>
                       {hudQctDda && (hudQctDda.qctCount > 0 || hudQctDda.isNonMetroDda) ? (
@@ -243,7 +243,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                       LIHTC is intentionally excluded since it's a separate instrument. */}
                   {(energyCommunity?.isEnergyCommunity || nmtcLic?.isEligible) && (
                     <div className="pt-2 border-t border-teal-200/60 flex items-baseline justify-between">
-                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-teal-900">
+                      <span className="eyebrow-mono font-semibold text-teal-900">
                         Combined ITC ceiling
                       </span>
                       <span className="font-serif text-base font-bold text-teal-900">
@@ -290,7 +290,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span
-                              className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0 cursor-help"
+                              className="eyebrow-mono px-1.5 py-0.5 font-bold shrink-0 cursor-help"
                               style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
                             >
                               ◆ Rates as of {CI_RATES_AS_OF.split('+')[0].trim()}
@@ -373,7 +373,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <span
-                                className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold shrink-0 cursor-help"
+                                className="eyebrow-mono px-1.5 py-0.5 font-bold shrink-0 cursor-help"
                                 style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
                               >
                                 ◆ Rates as of {proj.ratesAsOf.split('+')[0].trim()}
@@ -528,7 +528,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
       {/* Methodology drilldown — click to expand */}
       <CardDrilldown accentColor="#0F766E" label="How we built this revenue stack — sources, ITC math, assumptions">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Revenue stack composition</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>Revenue stack composition</p>
           <ul className="space-y-1 text-gray-700 list-none">
             <li><span className="font-semibold text-ink">ITC base</span> · 30% federal Investment Tax Credit (IRA §48) — requires prevailing-wage + apprenticeship compliance. Projects that don't meet PW&amp;A drop to a 6% base credit. Verify labor compliance with tax counsel before assuming the 30% figure.</li>
             <li><span className="font-semibold text-ink">ITC adders</span> · stack on the 30% base — Energy Community (+10%), §48(e) Cat 1 LIC (+10%, ≤5MW). Combined ceiling reaches 50% effective ITC for projects qualifying for both.</li>
@@ -537,7 +537,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
           </ul>
         </div>
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>IRA bonus eligibility (§48 ITC)</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>IRA bonus eligibility (§48 ITC)</p>
           <div className="grid grid-cols-1 gap-1.5 text-[10px]">
             <div className="rounded-md border border-teal-200/60 bg-teal-50/40 px-2.5 py-1.5">
               <p className="font-mono uppercase tracking-wider text-teal-800 text-[9px] font-bold">Energy Community (+10%)</p>
@@ -554,7 +554,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
           </div>
         </div>
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Source attribution</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
             <a href="https://energycommunities.gov/energy-community-tax-credit-bonus/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">DOE Energy Communities ↗</a>
             <a href="https://www.irs.gov/credits-deductions/low-income-communities-bonus-credit" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">§48(e) Bonus ↗</a>
@@ -567,7 +567,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
             expander click. The methodology dropdown keeps the broader citation
             paragraph below for context. */}
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage &amp; sources</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage &amp; sources</p>
           <ul className="space-y-1.5 text-[10px] text-gray-700 list-none">
             <li>
               <span className="font-semibold text-ink">Solar capex $/W national anchor</span> · {SOLAR_RATES_AS_OF} · <span className="text-gray-700">Anchored on NREL Q1 2023 CS-specific Modeled Market Price ($1.76/Wdc PV-only / $2.94/Wdc PV+storage). National TTS reference: $1.91/W median (n=839, 0.5-5 MW large non-res, install years 2022-2024). Forward-extrapolated 2023→2026 (+$0.40-$0.70/W cumulative) with explicit driver layers: NREL Spring 2025 observed +22% YoY 2023→2024 (+$0.20-$0.30), FEOC restrictions (+$0.05-$0.10), reshoring + IRA bonus credit threshold 40%→55% (+$0.03-$0.05), Iran-Israel oil/logistics pass-through (+$0.02-$0.05). National 2026 PV-only anchor $2.45/W; PV+storage hybrid $3.15/W.</span> Forward magnitudes + Tier B regional multipliers are Tractova editorial judgment, not LBNL/NREL-published. Refreshes when new annual TTS / NREL data lands.
@@ -585,7 +585,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
         {/* A.5 fix 2026-05-05: surface how feasibility freshness flows so users
             know the score they see is live, not a cached snapshot. */}
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#0F766E' }}>How freshness flows</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>How freshness flows</p>
           <p className="text-[10px] text-gray-700 leading-relaxed">
             The Feasibility Index is computed <span className="font-semibold text-ink">live on every render</span> from the most recent
             state_program / county / IX data — never a cached snapshot. When underlying data refreshes (admin curation updates, IX scrapers

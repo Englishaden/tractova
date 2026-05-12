@@ -156,7 +156,7 @@ function DealCard({ deal, targetMW }) {
             the visual baseline off. */}
         {deal.sourceUrl ? (
           <div className="ml-auto flex flex-col items-end">
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">Source</span>
+            <span className="eyebrow-mono text-ink-muted">Source</span>
             <a
               href={deal.sourceUrl}
               target="_blank"
@@ -173,7 +173,7 @@ function DealCard({ deal, targetMW }) {
           </div>
         ) : (
           <div className="ml-auto flex flex-col items-end">
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">Source</span>
+            <span className="eyebrow-mono text-ink-muted">Source</span>
             <span className="font-mono text-[11px] text-ink">{deal.source}</span>
           </div>
         )}
@@ -213,7 +213,7 @@ function ExploreDealSourcesButton() {
 function MetaItem({ label, value, mono }) {
   return (
     <div className="flex flex-col">
-      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">{label}</span>
+      <span className="eyebrow-mono text-ink-muted">{label}</span>
       <span className={`text-ink ${mono ? 'font-mono tabular-nums text-[11px]' : 'text-[12px]'}`}>
         {value}
       </span>

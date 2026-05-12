@@ -579,7 +579,7 @@ function Legend() {
       style={{ borderBottom: '1px solid rgba(15,118,110,0.08)', background: 'rgba(15,26,46,0.025)' }}
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mr-1" style={{ color: '#0F766E' }}>
+        <span className="eyebrow-mono font-bold mr-1" style={{ color: '#0F766E' }}>
           State · MW-weighted
         </span>
         {stateBuckets.map(b => (
@@ -593,7 +593,7 @@ function Legend() {
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mr-1" style={{ color: '#0F766E' }}>
+        <span className="eyebrow-mono font-bold mr-1" style={{ color: '#0F766E' }}>
           Pin · project score
         </span>
         {pinBuckets.map(b => (

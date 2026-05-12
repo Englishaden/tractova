@@ -114,7 +114,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
             Analyst Brief
           </span>
           {showAI && (
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+            <span className="eyebrow-mono px-2 py-0.5"
                   style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}>
               ◆ Claude · Sonnet 4.6
             </span>
@@ -125,7 +125,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
               initial={{ scale: 1, boxShadow: '0 0 0 0 rgba(245,158,11,0.55)' }}
               animate={{ scale: [1, 1.06, 1], boxShadow: ['0 0 0 0 rgba(245,158,11,0.55)', '0 0 0 6px rgba(245,158,11,0)', '0 0 0 0 rgba(245,158,11,0)'] }}
               transition={{ duration: 1.4, ease: 'easeOut' }}
-              className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5 rounded-sm"
+              className="eyebrow-mono px-2 py-0.5 rounded-sm"
               style={{ background: 'rgba(245,158,11,0.10)', color: '#92400E', border: '1px solid rgba(245,158,11,0.30)' }}
             >
               Scenario Mode · Brief Updated
@@ -133,7 +133,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
           )}
         </div>
         <span
-          className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+          className="eyebrow-mono px-2 py-0.5"
           style={{ background: verdictBg, color: verdictText }}
         >
           {verdict}

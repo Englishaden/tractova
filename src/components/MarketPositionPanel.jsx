@@ -129,7 +129,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span
-                      className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
+                      className="inline-flex items-center gap-1.5 eyebrow-mono px-1.5 py-0.5 font-bold cursor-help"
                       style={badgeStyle}
                     >
                       <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={dotStyle} />
@@ -171,7 +171,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span
-                    className="inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold cursor-help"
+                    className="inline-flex items-center gap-1.5 eyebrow-mono px-1.5 py-0.5 font-bold cursor-help"
                     style={{ background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }}
                   >
                     <span
@@ -195,7 +195,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
           {activeScenario && (
             <>
               <span className="text-gray-300 text-[9px]">/</span>
-              <span className="font-mono text-[9px] uppercase tracking-[0.18em] px-1.5 py-0.5 font-bold"
+              <span className="eyebrow-mono px-1.5 py-0.5 font-bold"
                 style={{ background: 'rgba(245,158,11,0.12)', color: '#92400E', border: '1px solid rgba(245,158,11,0.40)' }}>
                 ◆ Scenario · {activeScenario.label.replace('What if ', '').replace('?', '')}
               </span>
@@ -203,7 +203,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
           )}
         </div>
         <span
-          className="font-mono text-[9px] uppercase tracking-[0.18em] px-2 py-0.5"
+          className="eyebrow-mono px-2 py-0.5"
           style={{ background: status.bg, color: status.text, border: `1px solid ${status.border}` }}
         >
           {status.label}
@@ -253,7 +253,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
             </Tooltip>
           )}
           <div
-            className="mt-3 inline-flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.18em] font-bold"
+            className="mt-3 inline-flex items-center gap-1.5 eyebrow-mono font-bold"
             style={{ color: verdict.color }}
           >
             <span className="w-1.5 h-1.5 rounded-full" style={{ background: verdict.color }} />

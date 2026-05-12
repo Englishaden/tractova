@@ -123,14 +123,14 @@ function ScenarioGroupCard({ group, onScenarioDelete, onConvertOrphan }) {
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           {isOrphan ? (
             <span
-              className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
+              className="eyebrow-mono font-bold px-2 py-0.5 rounded-sm"
               style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E', border: '1px solid rgba(245,158,11,0.40)' }}
             >
               ◆ Exploration · not yet in Library
             </span>
           ) : (
             <span
-              className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold px-2 py-0.5 rounded-sm"
+              className="eyebrow-mono font-bold px-2 py-0.5 rounded-sm"
               style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E' }}
             >
               ◆ {group.project.name}

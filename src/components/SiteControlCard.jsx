@@ -283,7 +283,7 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
       {/* Methodology drilldown — click to expand */}
       <CardDrilldown accentColor="#2563EB" label="Methodology · sources · verification">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#1D4ED8' }}>How each tile is derived</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#1D4ED8' }}>How each tile is derived</p>
           <ul className="space-y-1 text-gray-700 list-none">
             <li><span className="font-semibold text-ink">Land</span> · curated from state PUC filings + USGS land-cover overlay; binary "available" assumes typical greenfield/brownfield siting profile</li>
             <li><span className="font-semibold text-ink">Wetland</span> · EPA NWI (National Wetlands Inventory) check at county centroid; site-level wetlands require per-parcel survey</li>
@@ -292,7 +292,7 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           </ul>
         </div>
         <div className="pt-2 border-t border-gray-100">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold mb-1.5" style={{ color: '#1D4ED8' }}>Source attribution</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#1D4ED8' }}>Source attribution</p>
           <div className="flex flex-wrap gap-1.5">
             <a href="https://www.fws.gov/program/national-wetlands-inventory" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">EPA NWI ↗</a>
             <a href="https://www.eia.gov/electricity/data/eia860/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">EIA Form 860 ↗</a>

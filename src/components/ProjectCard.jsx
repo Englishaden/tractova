@@ -453,13 +453,13 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                     <ScoreGauge score={liveScore} />
                     <div className="flex flex-col gap-2">
                       <div>
-                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">Program Status</p>
+                        <p className="eyebrow-mono mb-1 text-ink-muted">Program Status</p>
                         <span className={`text-xs px-2 py-0.5 rounded-sm border font-semibold ${CS_STATUS_STYLES[current.csStatus] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {CS_STATUS_LABEL[current.csStatus] ?? current.csStatus}
                         </span>
                       </div>
                       <div>
-                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">IX Difficulty</p>
+                        <p className="eyebrow-mono mb-1 text-ink-muted">IX Difficulty</p>
                         <span className={`text-xs px-2 py-0.5 rounded-sm border font-semibold ${IX_STYLES[current.ixDifficulty] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
                           {IX_LABEL[current.ixDifficulty] ?? current.ixDifficulty}
                         </span>
@@ -469,7 +469,7 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
 
                   {/* Sub-score breakdown */}
                   <div className="flex flex-col gap-2 rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
-                    <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1 text-ink-muted">Index Breakdown</p>
+                    <p className="eyebrow-mono mb-1 text-ink-muted">Index Breakdown</p>
                     {[
                       { label: 'Offtake', value: offtake, weight: '40%', color: '#0F766E' },
                       { label: 'IX Risk', value: ix,      weight: '35%', color: '#D97706' },
@@ -498,11 +498,11 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                   {/* Program details grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3 text-xs rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
                     <div>
-                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">CS Program</p>
+                      <p className="eyebrow-mono mb-0.5 text-ink-muted">CS Program</p>
                       <p className="font-medium text-ink">{current.csProgram ?? '—'}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">LMI Required</p>
+                      <p className="eyebrow-mono mb-0.5 text-ink-muted">LMI Required</p>
                       <p className="font-medium">
                         {current.lmiRequired
                           ? <span className="text-teal-700">{current.lmiPercent}% minimum</span>
@@ -511,13 +511,13 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                     </div>
                     {current.capacityMW && (
                       <div>
-                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">Program Capacity</p>
+                        <p className="eyebrow-mono mb-0.5 text-ink-muted">Program Capacity</p>
                         <p className="font-medium text-ink">{current.capacityMW} MW</p>
                       </div>
                     )}
                     {current.lastUpdated && (
                       <div>
-                        <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-0.5 text-ink-muted">Data As Of</p>
+                        <p className="eyebrow-mono mb-0.5 text-ink-muted">Data As Of</p>
                         <p className="text-gray-400">{current.lastUpdated}</p>
                       </div>
                     )}
@@ -525,14 +525,14 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
 
                   {current.ixNotes && (
                     <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.20)' }}>
-                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1" style={{ color: '#B45309' }}>IX Notes</p>
+                      <p className="eyebrow-mono mb-1" style={{ color: '#B45309' }}>IX Notes</p>
                       <p className="text-[12px] leading-relaxed text-ink">{current.ixNotes}</p>
                     </div>
                   )}
 
                   {current.programNotes && (
                     <div className="rounded-lg px-3 py-2.5" style={{ background: 'rgba(15,118,110,0.06)', border: '1px solid rgba(15,118,110,0.20)' }}>
-                      <p className="text-[9px] font-mono uppercase tracking-[0.18em] mb-1" style={{ color: '#0F766E' }}>Program Context</p>
+                      <p className="eyebrow-mono mb-1" style={{ color: '#0F766E' }}>Program Context</p>
                       <p className="text-[12px] leading-relaxed text-ink">{current.programNotes}</p>
                     </div>
                   )}
@@ -582,7 +582,7 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                     ◆ Saved Scenarios · {scenarios.length}
                   </span>
                   {selectedScenarioId && (
-                    <span className="text-[9px] font-mono uppercase tracking-[0.18em] px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E' }}>
+                    <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E' }}>
                       1 in next PDF
                     </span>
                   )}

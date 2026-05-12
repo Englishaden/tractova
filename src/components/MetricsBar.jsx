@@ -66,12 +66,12 @@ function IXCapacityDetail({ previewMode = false }) {
         Utilities estimated to have meaningful interconnection queue capacity based on FERC Form 1 data, ISO/RTO queue reports, and recent ISA withdrawal activity. Per-utility detail data available on request.
       </p>
       <div className="rounded-md px-3 py-2.5 mb-4" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
-        <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-amber-400/80">Methodology note</p>
+        <p className="eyebrow-mono text-amber-400/80">Methodology note</p>
         <p className="text-xs text-amber-300/70 mt-1">
           Count is derived from public FERC and ISO/RTO queue data. "Headroom" means the utility has capacity on at least one transmission line segment without requiring major network upgrades for projects ≤5MW AC.
         </p>
       </div>
-      <p className="text-[9px] font-mono uppercase tracking-[0.18em] text-white/40 mb-2">Representative utilities</p>
+      <p className="eyebrow-mono text-white/40 mb-2">Representative utilities</p>
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-white/6">
