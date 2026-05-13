@@ -1,8 +1,10 @@
-﻿import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+﻿import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
+import { useLibraryLayout } from '../hooks/useLibraryLayout'
+import { useBulkSelection } from '../hooks/useBulkSelection'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import FilterSelect from '../components/ui/FilterSelect'
@@ -40,35 +42,8 @@ const LibraryMap   = lazy(() => import('../components/library/LibraryMap.jsx'))
 const ProjectTable = lazy(() => import('../components/library/ProjectTable.jsx'))
 import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
 
-// Phase 2A · TRACTOVA-UX-001 — Library layout (cards | table | map) is
-// persisted per user across sessions in localStorage. Map is gated until
-// Phase 2B ships; only 'cards' and 'table' are valid runtime values.
-const LAYOUT_STORAGE_KEY = 'tractova_library_view'
-function loadLayout() {
-  try {
-    const v = typeof window !== 'undefined' ? localStorage.getItem(LAYOUT_STORAGE_KEY) : null
-    if (v === 'table' || v === 'map') return v
-    return 'cards'
-  } catch { return 'cards' }
-}
-function saveLayout(layout) {
-  try { localStorage.setItem(LAYOUT_STORAGE_KEY, layout) } catch { /* quota / SSR — silent */ }
-}
-
-// Page-size persistence for client-side pagination. Valid sizes: 25, 50,
-// 100. Hidden ?all=1 URL flag bypasses pagination entirely (power-user
-// escape hatch).
-const PAGE_SIZE_KEY = 'tractova_library_page_size'
-const VALID_PAGE_SIZES = [10, 25, 50, 100]
-function loadPageSize() {
-  try {
-    const v = typeof window !== 'undefined' ? parseInt(localStorage.getItem(PAGE_SIZE_KEY), 10) : NaN
-    return VALID_PAGE_SIZES.includes(v) ? v : 25
-  } catch { return 25 }
-}
-function savePageSize(n) {
-  try { localStorage.setItem(PAGE_SIZE_KEY, String(n)) } catch { /* silent */ }
-}
+// Library view-state (layout / filters / sort / pagination / map drawer /
+// URL flags) is owned by the useLibraryLayout hook in src/hooks/.
 // ProjectPDFExport is lazy-loaded on first click — keeps initial bundle lean
 
 // ── Tech badge styles ────────────────────────────────────────────────────────
@@ -217,85 +192,60 @@ export default function Library() {
 
 function LibraryContent() {
   const { user, loading: authLoading } = useAuth()
-  // ?preview=empty bypasses the loaded projects array and renders the
-  // empty-state onboarding card. Lets the admin/owner preview the new-user
-  // experience without deleting saved projects. URL-flag only -- doesn't
-  // touch the database.
-  const previewEmpty = typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('preview') === 'empty'
+  // Data state — fetched from Supabase. View-state (layout, filters,
+  // sort, pagination, map drawer, URL flags) lives in useLibraryLayout.
   const [projects,        setProjects]        = useState([])
   const [loading,         setLoading]         = useState(true)
   const [hasFetched,      setHasFetched]      = useState(false)
   const [error,           setError]           = useState(null)
   const [confirmRemove,   setConfirmRemove]   = useState(null)
-  // Bulk-operations state — Set of selected project IDs. When non-empty,
-  // the floating bulk toolbar appears above the project grid and each card
-  // shows a persistent checkbox in the corner. Cleared after any bulk op
-  // completes (delete / export / add-to-compare).
-  const [selectedIds,     setSelectedIds]     = useState(() => new Set())
-  const [bulkConfirm,     setBulkConfirm]     = useState(false)  // bulk-delete confirm modal
   const { add: addToCompare, items: compareItems, MAX_ITEMS: COMPARE_MAX } = useCompare()
   const [stateProgramMap, setStateProgramMap] = useState({})
   const [stateDeltaMap,   setStateDeltaMap]   = useState(new Map()) // state_id -> { delta, prevScore, latestAt, ... }
   const [countyDataMap,   setCountyDataMap]   = useState({}) // key `${state}::${county}` -> countyData
-  const [sortBy,          setSortBy]          = useState('saved')    // saved|score|mw|alerts
-  const [filterState,     setFilterState]     = useState('')
-  const [filterTech,      setFilterTech]      = useState('')
-  const [filterStage,     setFilterStage]     = useState('')
-  const [pipelineExpanded, setPipelineExpanded] = useState(false)
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
   const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
   const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
   const [savedComparisonsCount, setSavedComparisonsCount] = useState(0) // count for the Comparisons tab's "· N" badge
-  const [viewMode,        setViewMode]        = useState('projects') // 'projects' | 'scenarios' | 'comparisons' — top-level toggle
-  const [layout,          setLayoutState]     = useState(loadLayout)   // 'cards' | 'table' | 'map' — Phase 2A + 2B
-  const handleLayoutChange = useCallback((next) => { setLayoutState(next); saveLayout(next) }, [])
 
-  // Phase 2B — pin-click → ProjectDrawer. drawerProject is the project
-  // object to render in the slide-in panel; null when closed. Click a
-  // pin in LibraryMap to open; close via Esc / outside-click / X button.
-  const [drawerProject, setDrawerProject] = useState(null)
+  // View-state stack — owns filters, sort, viewMode (Projects/Scenarios/
+  // Comparisons), layout (cards/table/map), pageSize/page, drawerProject,
+  // and the URL escape hatches (?preview=empty, ?all=1, ?tab=). Also
+  // derives displayProjects (filtered + sorted) and pagedProjects
+  // (windowed) so the page just renders.
+  const {
+    sortBy, setSortBy,
+    filterState, setFilterState,
+    filterTech, setFilterTech,
+    filterStage, setFilterStage,
+    pipelineExpanded, setPipelineExpanded,
+    viewMode, setViewMode,
+    layout, setLayout: handleLayoutChange,
+    drawerProject, setDrawerProject,
+    pageSize, setPageSize: handlePageSizeChange,
+    page, setPage,
+    showAllOverride,
+    previewEmpty,
+    displayProjects,
+    pagedProjects,
+  } = useLibraryLayout(projects, stateProgramMap, countyDataMap)
 
-  // Phase 2B — Esc clears the state filter when the user is in Map
-  // view. Only fires when filterState is set, the drawer isn't open
-  // (Radix Dialog's Esc handler takes precedence and stops propagation
-  // there), and the user is in the Map layout (so Esc doesn't
-  // unexpectedly clear filters when reading the Cards / Table list).
-  useEffect(() => {
-    if (!filterState || layout !== 'map' || drawerProject) return
-    const onKey = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        setFilterState('')
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [filterState, layout, drawerProject])
-
-  // Client-side pagination state — windows the rendered project list.
-  // Data fetch stays unbounded because the Pipeline Distribution +
-  // stat strip + score-change audit all need the full set. Hidden
-  // ?all=1 URL flag bypasses windowing for power users.
-  const showAllOverride = typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('all') === '1'
-  const [pageSize, setPageSizeState] = useState(loadPageSize)
-  const [page, setPage] = useState(1)
-  const handlePageSizeChange = useCallback((n) => {
-    setPageSizeState(n)
-    savePageSize(n)
-    setPage(1)  // reset to first page so the user always sees the top of the list
-  }, [])
-
-  // ?tab=scenarios URL handling so external links (e.g. the "view in Library →"
-  // confirmation card in ScenarioStudio) can land directly on the Scenarios
-  // tab. Only applies on mount; in-page toggle still drives state afterwards.
-  const [searchParams] = useSearchParams()
-  useEffect(() => {
-    const tab = searchParams.get('tab')
-    if (tab === 'scenarios')   setViewMode('scenarios')
-    if (tab === 'comparisons') setViewMode('comparisons')
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // Bulk-operations state — selected project IDs (Set), toggle/clear/
+  // selectAll actions, allSelected derived flag, and the bulk-delete
+  // confirm modal pair. Cleared after any bulk op completes (delete /
+  // export / add-to-compare). The bulk *handlers* live below this hook
+  // — they need external context (supabase, exportXLSX, useCompare)
+  // that doesn't belong in a generic selection hook.
+  const {
+    selectedIds,
+    setSelectedIds,
+    toggleSelect,
+    clearSelection,
+    selectAll: handleSelectAll,
+    allSelected,
+    bulkConfirm,
+    setBulkConfirm,
+  } = useBulkSelection(displayProjects)
 
   // Load live state program map for alert detection
   useEffect(() => {
@@ -540,65 +490,6 @@ function LibraryContent() {
     return () => { cancelled = true }
   }, [user, projects.length, Object.keys(stateProgramMap).length, Object.keys(countyDataMap).length])
 
-  // V3 fix: sort by score now uses the SAME inputs as the card display
-  // (state map + countyData + stage + technology). Previously sort passed
-  // null for countyData while cards passed real data, so a card showing
-  // "84" could sort below a card showing "76" -- which is what the user
-  // saw and rightly flagged as broken.
-  const liveScoreFor = (p) => {
-    const sp = stateProgramMap[p.state]
-    if (!sp) return -1
-    const cd = countyDataMap[`${p.state}::${p.county}`] || null
-    const subs = computeSubScores(sp, cd, p.stage, p.technology)
-    return safeScore(subs.offtake, subs.ix, subs.site)
-  }
-
-  const displayProjects = useMemo(() => {
-    let filtered = projects
-    if (filterState) filtered = filtered.filter(p => p.state === filterState)
-    if (filterTech)  filtered = filtered.filter(p => p.technology === filterTech)
-    if (filterStage) filtered = filtered.filter(p => p.stage === filterStage)
-    return [...filtered].sort((a, b) => {
-      if (sortBy === 'score')  return liveScoreFor(b) - liveScoreFor(a)
-      if (sortBy === 'mw')     return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
-      if (sortBy === 'alerts') return getAlerts(b, stateProgramMap, countyDataMap).length - getAlerts(a, stateProgramMap, countyDataMap).length
-      return new Date(b.savedAt) - new Date(a.savedAt)
-    })
-  }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap, countyDataMap])
-
-  // Reset to page 1 when the filtered list changes shape — otherwise a
-  // user on page 3 of 100 who applies a filter that yields 8 results
-  // ends up looking at an empty page 3. Triggers on filter/sort changes.
-  useEffect(() => {
-    setPage(1)
-  }, [filterState, filterTech, filterStage, sortBy])
-
-  // Windowed projects for rendering. Stat strip + Pipeline Distribution
-  // still use the full `displayProjects` (and `projects`) so portfolio-
-  // level intelligence is never windowed. ?all=1 bypasses the window.
-  const pagedProjects = useMemo(() => {
-    if (showAllOverride) return displayProjects
-    const start = (page - 1) * pageSize
-    return displayProjects.slice(start, start + pageSize)
-  }, [displayProjects, page, pageSize, showAllOverride])
-
-  // Clamp page when displayProjects shrinks below the current window
-  // (e.g. user is on page 5, then a filter reduces total to 12 results —
-  // page 5 would render nothing; jump to the last valid page instead).
-  useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(displayProjects.length / pageSize))
-    if (page > maxPage) setPage(maxPage)
-  }, [displayProjects.length, pageSize, page])
-
-  // Mirror displayProjects into a ref so the bulk select-all callback can
-  // read the current list without re-binding on every filter change.
-  const selectAllRef = useRef([])
-  useEffect(() => { selectAllRef.current = displayProjects }, [displayProjects])
-  const handleSelectAll = useCallback(() => {
-    setSelectedIds(new Set(selectAllRef.current.map((p) => p.id)))
-  }, [])
-  const allSelected = displayProjects.length > 0 && selectedIds.size >= displayProjects.length
-
   // Stage change locally + immediate score-change check (don't wait for next
   // Library reload). User feedback: stage changes the visible score, so the
   // audit log should reflect that pairing in the same moment.
@@ -643,17 +534,8 @@ function LibraryContent() {
   }
 
   // ── Bulk-operation handlers ────────────────────────────────────────────────
-  // Toggle selection for one project. Used by the per-card checkbox.
-  const toggleSelect = useCallback((id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
-
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), [])
+  // Selection state + toggle/clear/selectAll live in useBulkSelection.
+  // The handlers below run on `selectedIds` from that hook.
 
   // Bulk delete. Single Supabase round-trip via .in() filter, then prune
   // local state. Existing single-card removal flow stays intact via the
