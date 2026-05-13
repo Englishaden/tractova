@@ -343,8 +343,17 @@ test.describe('Tractova UI audit', () => {
     // The Pro test user from auth.setup.js typically isn't admin, so when
     // we hit "Access denied" we skip rather than fail — the cron-latency
     // probe is here to verify the panel still works for admins, not to
-    // assert the test fixture's role.
-    if (await page.getByText('Access denied').count() > 0) {
+    // assert the test fixture's role. The role-check fetch can resolve
+    // AFTER networkidle (Supabase ping + profile read race), so wait up
+    // to 5s for either the gate copy or the Data Health tab before
+    // deciding which path we're on.
+    const denied = page.getByText('Access denied')
+    const dataHealthTab = page.getByRole('button', { name: 'Data Health' })
+    await Promise.race([
+      denied.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => null),
+      dataHealthTab.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => null),
+    ])
+    if (await denied.count() > 0) {
       test.skip(true, 'Test user is not admin; cron-latency probe requires admin access')
       return
     }

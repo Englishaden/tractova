@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion } from 'motion/react'
+import * as RadixDialog from '@radix-ui/react-dialog'
 
 // Post-confirmation tutorial trigger. First-time Pro users land on the
 // staged Will County, IL demo via UpgradeSuccess (or WelcomeCard). Both
@@ -16,6 +17,13 @@ import { motion } from 'motion/react'
 // Persistence is localStorage-only — re-doing a 30-second tour on a new
 // device is not worth a migration. Skip / ESC dismisses without firing
 // again. Anchors are `data-tour-id` attributes threaded into Search.jsx.
+//
+// Both the per-step anchored tooltip and the closing "Tour complete"
+// card render through Radix Dialog primitives so screen readers get the
+// full WAI-ARIA dialog contract (role + aria-modal + aria-labelledby +
+// aria-describedby), keyboard users get a real focus trap, and Esc
+// routes through Radix's onOpenChange instead of a hand-rolled window
+// listener that fought the arrow-key navigation handler.
 
 const STORAGE_KEY = 'tractova_lens_tour_completed_at'
 
@@ -94,12 +102,14 @@ export default function LensTour({ resultsReady }) {
     }
   }, [active, step, done])
 
-  // Keyboard nav.
+  // Arrow / Enter navigation. Esc closing is delegated to Radix Dialog's
+  // onOpenChange — pre-migration this handler also caught Escape, which
+  // double-fired against Radix and made focus restoration order
+  // unpredictable.
   useEffect(() => {
     if (!active || done) return
     const onKey = (e) => {
-      if (e.key === 'Escape') finish()
-      else if (e.key === 'ArrowRight' || e.key === 'Enter') next()
+      if (e.key === 'ArrowRight' || e.key === 'Enter') next()
       else if (e.key === 'ArrowLeft') prev()
     }
     window.addEventListener('keydown', onKey)
@@ -121,64 +131,79 @@ export default function LensTour({ resultsReady }) {
 
   if (!active) return null
 
-  // Closing card — no anchor, centered modal.
+  // ── Closing card — centered modal, no anchor.
   if (done) {
     return (
-      <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
-        <div className="absolute inset-0" style={{ background: 'rgba(15,26,46,0.55)' }} onClick={finish} />
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          role="dialog"
-          aria-label="Tour complete"
-          className="relative bg-white rounded-xl shadow-2xl max-w-md w-full p-6 overflow-hidden"
-        >
-          <div
-            className="absolute top-0 left-0 right-0 h-[2px]"
-            style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }}
+      <RadixDialog.Root open onOpenChange={(o) => { if (!o) finish() }}>
+        <RadixDialog.Portal>
+          <RadixDialog.Overlay
+            className="fixed inset-0 z-[200]"
+            style={{ background: 'rgba(15,26,46,0.55)' }}
           />
-          <p
-            className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold mb-2"
-            style={{ color: '#0F766E' }}
+          <RadixDialog.Content
+            className="fixed left-1/2 top-1/2 z-[201] w-[92vw] max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-xl shadow-2xl overflow-hidden outline-hidden"
+            aria-describedby="lens-tour-complete-body"
           >
-            ◆ You're set
-          </p>
-          <h3
-            className="font-serif text-xl font-semibold text-ink mb-2"
-            style={{ letterSpacing: '-0.02em' }}
-          >
-            Now run your own analysis.
-          </h3>
-          <p className="text-sm text-gray-600 leading-relaxed mb-5">
-            Pick a state, county, and MW from the Lens form above. Tractova
-            scores all 50 states with deepening live coverage every week.
-          </p>
-          <div className="flex items-center justify-end">
-            <button
-              onClick={finish}
-              autoFocus
-              className="text-[12px] font-mono uppercase tracking-[0.18em] font-semibold text-white px-4 py-2 rounded-lg transition-colors"
-              style={{ background: '#14B8A6' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = '#0F766E')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = '#14B8A6')}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="p-6 relative"
             >
-              Got it
-            </button>
-          </div>
-        </motion.div>
-      </div>
+              <div
+                className="absolute top-0 left-0 right-0 h-[2px]"
+                style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }}
+              />
+              <p
+                className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold mb-2"
+                style={{ color: '#0F766E' }}
+              >
+                ◆ You're set
+              </p>
+              <RadixDialog.Title
+                className="font-serif text-xl font-semibold text-ink mb-2"
+                style={{ letterSpacing: '-0.02em' }}
+              >
+                Now run your own analysis.
+              </RadixDialog.Title>
+              <RadixDialog.Description
+                id="lens-tour-complete-body"
+                className="text-sm text-gray-600 leading-relaxed mb-5"
+              >
+                Pick a state, county, and MW from the Lens form above. Tractova
+                scores all 50 states with deepening live coverage every week.
+              </RadixDialog.Description>
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={finish}
+                  autoFocus
+                  className="text-[12px] font-mono uppercase tracking-[0.18em] font-semibold text-white px-4 py-2 rounded-lg transition-colors"
+                  style={{ background: '#14B8A6' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#0F766E')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#14B8A6')}
+                >
+                  Got it
+                </button>
+              </div>
+            </motion.div>
+          </RadixDialog.Content>
+        </RadixDialog.Portal>
+      </RadixDialog.Root>
     )
   }
 
+  // ── Per-step anchored tooltip.
   const current = STEPS[step]
   const tip = computeTooltipPosition(rect, current.placement)
+  const titleId = `lens-tour-step-${step}-title`
+  const bodyId  = `lens-tour-step-${step}-body`
 
   return (
-    <div className="fixed inset-0 z-[200] pointer-events-none">
-      {/* Click-blocker so users can't fight with the underlying UI mid-tour. */}
-      <div className="absolute inset-0 pointer-events-auto" />
-      {/* Spotlight ring + outside dim via inverted box-shadow trick. */}
+    <>
+      {/* Spotlight ring + dim — rendered as a sibling of Dialog (not a
+          child of Content) so the cutout effect sits above the Overlay
+          but below the tooltip Content. pointer-events-none so it never
+          intercepts clicks; the Overlay handles modal pointer blocking. */}
       {rect && (
         <motion.div
           initial={false}
@@ -189,74 +214,98 @@ export default function LensTour({ resultsReady }) {
             height: rect.height + 16,
           }}
           transition={{ duration: 0.3, ease: 'easeOut' }}
-          className="absolute rounded-xl pointer-events-none"
+          className="fixed z-[201] rounded-xl pointer-events-none"
           style={{
             boxShadow: '0 0 0 9999px rgba(15, 26, 46, 0.55)',
             outline: '2px solid #14B8A6',
             outlineOffset: '4px',
           }}
+          aria-hidden="true"
         />
       )}
-      {/* Tooltip — keyed on step so it animates in cleanly each transition. */}
-      <motion.div
-        key={step}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-        role="dialog"
-        aria-label={current.title}
-        className="absolute pointer-events-auto bg-white rounded-xl shadow-2xl p-5 overflow-hidden"
-        style={tip}
-      >
-        <div
-          className="absolute top-0 left-0 right-0 h-[2px]"
-          style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }}
-        />
-        <div className="flex items-center justify-between mb-2">
-          <p
-            className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold"
-            style={{ color: '#0F766E' }}
+      <RadixDialog.Root open onOpenChange={(o) => { if (!o) finish() }}>
+        <RadixDialog.Portal>
+          {/* Transparent overlay — provides modal pointer-event blocking
+              (clicks under the spotlight cutout are absorbed here, not
+              the page) without obscuring the spotlight visual layer. */}
+          <RadixDialog.Overlay className="fixed inset-0 z-[200]" />
+          <RadixDialog.Content
+            className="fixed z-[202] bg-white rounded-xl shadow-2xl overflow-hidden outline-hidden"
+            style={tip}
+            aria-labelledby={titleId}
+            aria-describedby={bodyId}
+            onOpenAutoFocus={(e) => {
+              // Default Radix behavior moves focus to the first focusable
+              // child. The Skip button is first in DOM order but Next is
+              // the primary action, so override + focus Next instead.
+              e.preventDefault()
+              const next = e.currentTarget.querySelector('[data-tour-primary]')
+              next?.focus()
+            }}
           >
-            ◆ Step {step + 1} of {STEPS.length}
-          </p>
-          <button
-            onClick={finish}
-            className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-400 hover:text-gray-600 transition-colors"
-            aria-label="Skip tour"
-          >
-            Skip
-          </button>
-        </div>
-        <h3
-          className="font-serif text-base font-semibold text-ink mb-1.5"
-          style={{ letterSpacing: '-0.01em' }}
-        >
-          {current.title}
-        </h3>
-        <p className="text-[13px] text-gray-600 leading-relaxed mb-4">
-          {current.body}
-        </p>
-        <div className="flex items-center justify-between gap-2">
-          <button
-            onClick={prev}
-            disabled={step === 0}
-            className="text-[12px] font-mono uppercase tracking-[0.16em] text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          >
-            ← Back
-          </button>
-          <button
-            onClick={next}
-            autoFocus
-            className="inline-flex items-center gap-2 text-[12px] font-mono uppercase tracking-[0.18em] font-semibold text-white px-3.5 py-2 rounded-lg transition-colors"
-            style={{ background: '#14B8A6' }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = '#0F766E')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = '#14B8A6')}
-          >
-            {step === STEPS.length - 1 ? 'Finish →' : 'Next →'}
-          </button>
-        </div>
-      </motion.div>
-    </div>
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="p-5 relative"
+            >
+              <div
+                className="absolute top-0 left-0 right-0 h-[2px]"
+                style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }}
+              />
+              <div className="flex items-center justify-between mb-2">
+                <p
+                  className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold"
+                  style={{ color: '#0F766E' }}
+                >
+                  ◆ Step {step + 1} of {STEPS.length}
+                </p>
+                <button
+                  onClick={finish}
+                  className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label="Skip tour"
+                >
+                  Skip
+                </button>
+              </div>
+              <RadixDialog.Title
+                id={titleId}
+                className="font-serif text-base font-semibold text-ink mb-1.5"
+                style={{ letterSpacing: '-0.01em' }}
+              >
+                {current.title}
+              </RadixDialog.Title>
+              <RadixDialog.Description
+                id={bodyId}
+                className="text-[13px] text-gray-600 leading-relaxed mb-4"
+              >
+                {current.body}
+              </RadixDialog.Description>
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={prev}
+                  disabled={step === 0}
+                  className="text-[12px] font-mono uppercase tracking-[0.16em] text-gray-400 hover:text-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={next}
+                  data-tour-primary
+                  className="inline-flex items-center gap-2 text-[12px] font-mono uppercase tracking-[0.18em] font-semibold text-white px-3.5 py-2 rounded-lg transition-colors"
+                  style={{ background: '#14B8A6' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#0F766E')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = '#14B8A6')}
+                >
+                  {step === STEPS.length - 1 ? 'Finish →' : 'Next →'}
+                </button>
+              </div>
+            </motion.div>
+          </RadixDialog.Content>
+        </RadixDialog.Portal>
+      </RadixDialog.Root>
+    </>
   )
 }
 
