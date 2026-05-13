@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getPucDockets, getComparableDeals, getCsProjectsAsComparables, getCsMarketSnapshot, getSpecificYieldLineage } from '../lib/programData'
+import { getComparableDeals, getCsProjectsAsComparables, getCsMarketSnapshot, getSpecificYieldLineage } from '../lib/programData'
 import SectionDivider from './SectionDivider'
-import RegulatoryActivityPanel from './RegulatoryActivityPanel'
 import ComparableDealsPanel from './ComparableDealsPanel'
 import CsMarketPanel from './CsMarketPanel'
 import SpecificYieldPanel from './SpecificYieldPanel'
@@ -13,31 +12,11 @@ import SpecificYieldPanel from './SpecificYieldPanel'
 // curation infrastructure is preserved for when Pro user count justifies it.
 // Both wrappers piggyback on programData's withCache so the duplicate fetch
 // is free after the panel itself fetches.
+//
+// 2026-05-13 — MaybeRegulatoryPanel removed: PUC dockets now render as the
+// "Active Proceedings" subsection inside § 06 (LensRegulatoryWatchSection).
+// The puc_dockets curation gate moved into that component.
 // ─────────────────────────────────────────────────────────────────────────────
-export function MaybeRegulatoryPanel({ state, stateName }) {
-  const [show, setShow] = useState(false)
-  useEffect(() => {
-    if (!state) { setShow(false); return }
-    let cancelled = false
-    getPucDockets({ state }).then(rows => {
-      if (!cancelled) setShow((rows || []).length > 0)
-    }).catch(err => {
-      // Curation-gated panel: hide on error (matches "no rows" behavior so
-      // the user doesn't see an error chip for a panel that may legitimately
-      // be empty pre-revenue). Log for devtools visibility.
-      console.warn('[MaybeRegulatoryPanel] getPucDockets failed:', err)
-    })
-    return () => { cancelled = true }
-  }, [state])
-  if (!show) return null
-  return (
-    <>
-      <SectionDivider />
-      <RegulatoryActivityPanel state={state} stateName={stateName} mode="lens" />
-    </>
-  )
-}
-
 export function MaybeSpecificYieldPanel({ state, stateName, mw }) {
   const [show, setShow] = useState(false)
   useEffect(() => {

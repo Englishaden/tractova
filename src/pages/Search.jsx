@@ -36,7 +36,7 @@ import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
 import AddToCompareButton from '../components/AddToCompareButton'
-import { MaybeRegulatoryPanel } from '../components/MaybeLensPanels'
+import LensRegulatoryWatchSection from '../components/LensRegulatoryWatchSection.jsx'
 
 import { getNearestSubstations } from '../lib/substationEngine'
 
@@ -235,8 +235,10 @@ export default function Search() {
   return <SearchContent />
 }
 
-// MaybeRegulatoryPanel / MaybeSpecificYieldPanel / MaybeCsMarketPanel /
-// MaybeComparableDealsPanel moved to src/components/MaybeLensPanels.jsx (Sprint E.3).
+// MaybeSpecificYieldPanel / MaybeCsMarketPanel / MaybeComparableDealsPanel
+// moved to src/components/MaybeLensPanels.jsx (Sprint E.3). MaybeRegulatoryPanel
+// absorbed into § 06 (LensRegulatoryWatchSection) on 2026-05-13 — PUC dockets
+// now render as the "Active Proceedings" subsection under Regulatory Watch.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Search content (only mounts when user is confirmed Pro)
@@ -1181,12 +1183,15 @@ function SearchContent() {
               mw={results.form.mw}
             />
 
-            {/* Regulatory Activity (PUC dockets) stays outside § 05 — it's
-                a different concept (regulatory filings, not deal/benchmark
-                data). Curation-gated. */}
-            <MaybeRegulatoryPanel
+            {/* § 06 Regulatory Watch — chronological feed of policy_impact_events
+                + curation-gated Active Proceedings (puc_dockets). Reuses
+                results.policyEvents (already fetched, no new query) — same
+                source of truth as § 04 (Policy Climate), different cut. */}
+            <SectionDivider />
+            <LensRegulatoryWatchSection
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
+              policyEvents={results.policyEvents || []}
             />
 
             {/* First-time-Pro guided tour. Inert unless `?onboarding=1` is in

@@ -46,8 +46,9 @@ import CollapsibleSubsection from './CollapsibleSubsection'
 // bug was masked by Search.jsx's `{false &&}` gate (commit 4b183d0),
 // so it never fired in prod after the OOM debug — but it may have
 // confounded the OOM bisect that concluded "CsMarketPanel is the
-// cause." Re-enabling § 05 still requires a fresh prod bisect now
-// that the recursive wrapper isn't a confound.
+// cause." § 05 re-enabled later the same day (path A, commit 933237e);
+// prod-validated on NY (1351 rows), MA (374), and IL (261) without OOM,
+// confirming the wrapper recursion was the real culprit all along.
 function LensComparableSubsection({ title, glossaryTerm, description, defaultOpen = false, count, empty = false, children }) {
   const header = glossaryTerm
     ? <GlossaryLabel term={glossaryTerm} displayAs={title} className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink shrink-0" />

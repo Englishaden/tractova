@@ -82,6 +82,18 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'Where Operating Projects shows raw per-project rows and Comparable Deals shows individual examples, Market Benchmarks shows the summary statistics. Today: specific-yield (kWh/kW/yr) observed from operating projects — used to validate the modeled production assumption Scenario Studio runs against. Future: median $/W installed, median IRR, deal-flow rates from comparable_deals once enough articles are seeded.',
     inputs: 'cs_specific_yield table (currently) · future: comparable_deals statistical rollups',
   },
+  'Regulatory Watch': {
+    title: 'Regulatory Watch (§ 06)',
+    short: 'Chronological feed of state regulatory activity — pending bills, recent enacted events, and active PUC proceedings.',
+    long: 'Where § 04 (Policy Climate) aggregates policy_impact_events into a pillar sub-score, § 06 takes the same table and slices it by TIME. The developer reads "what\'s pending right now, what just changed in the last 90 days, what\'s been on the books longer." Same source of truth, different cut — § 04 answers "how does policy stack up against this pillar?" while § 06 answers "what regulatory developments do I need to watch this week?" Events surface from policy article URLs (AI-classified), curated admin entries, and pasted PDF text from PUC press releases and state legislative bulletins.',
+    inputs: 'policy_impact_events table (chronological by effective_date) · grouped into Pending → Recent → Earlier buckets',
+  },
+  'Active Proceedings': {
+    title: 'Active Proceedings (PUC dockets)',
+    short: 'Open state Public Utility Commission proceedings — comment-period dockets, pending decisions, recent filings.',
+    long: 'State PUCs run the rule-making that turns policy into operational reality (IX standards, capacity allocation, tariff schedules, interconnection cost-sharing). Active Proceedings surfaces the dockets currently in flight: comment-open windows where developer input still matters, pending decisions about to land, and recent filings worth tracking. Curation-gated — only renders when at least one puc_dockets row has been seeded for the state, since per-state PUC interfaces are archaic and manual transcription is high-friction. For most states the policy_impact_events feed above carries the regulatory signal; this subsection only appears when admin has curated dockets specifically.',
+    inputs: 'puc_dockets table (admin-curated via /admin → PUC Dockets tab)',
+  },
   'LMI Carveout': {
     title: 'LMI Carveout (Low-to-Moderate Income)',
     short: 'Required percentage of Community Solar subscribers who must be LMI households.',
