@@ -1161,29 +1161,25 @@ function SearchContent() {
                 pre-revenue and curation cadence is light. Admin tab
                 stays available so curation infrastructure is ready
                 when we have paying users to justify the labor. */}
-            {/* § 05 (Comparable Deals & Benchmarks) DISABLED 2026-05-11.
-                Bisect confirmed: § 05 with even just Operating Projects
-                (CsMarketPanel + getCsMarketSnapshot for state's cs_projects)
-                triggers Chrome OOM on heavy-rowcount states (MA 374, IL 261,
-                NY 1351). Root cause not yet isolated — likely cumulative
-                memory pressure from the Lens results tree + cs_projects
-                row volume, but specific trigger unclear.
-                Phase 2A (Library cockpit rebuild) re-architects this
-                surface with the Table view + paginated rows, which will
-                naturally bound the row count rendered. Will revive § 05
-                with a lighter version then — for now, shadow pillar (§ 04)
-                stays live, § 05 stays gated off. */}
-            {false && (
-              <>
-                <SectionDivider />
-                <LensComparablesSection
-                  state={results.stateProgram?.id || results.form.state}
-                  stateName={results.stateProgram?.name || results.form.state}
-                  technology={results.form.technology}
-                  mw={results.form.mw}
-                />
-              </>
-            )}
+            {/* § 05 (Comparable Deals & Benchmarks) re-enabled 2026-05-13
+                (path A). Original disable 2026-05-11 attributed OOM to
+                CsMarketPanel + getCsMarketSnapshot — but that bisect ran
+                with a recursive wrapper bug in LensComparableSubsection
+                (Phase 0 typo, fixed in commit e60882f). Any bisectOnly
+                value would have stack-overflowed regardless of the actual
+                memory pressure, so the CsMarketPanel attribution is on
+                shaky evidence. Flipping the gate to let prod tell us
+                whether the OOM is real now that the confound is removed.
+                If heavy-rowcount states (MA 374 / IL 261 / NY 1351 cs_projects)
+                still crash, revert this and pivot to path B (paginated Table
+                view + Operating Projects → Library cockpit). */}
+            <SectionDivider />
+            <LensComparablesSection
+              state={results.stateProgram?.id || results.form.state}
+              stateName={results.stateProgram?.name || results.form.state}
+              technology={results.form.technology}
+              mw={results.form.mw}
+            />
 
             {/* Regulatory Activity (PUC dockets) stays outside § 05 — it's
                 a different concept (regulatory filings, not deal/benchmark
