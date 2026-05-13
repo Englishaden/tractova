@@ -94,8 +94,8 @@ Complete end-to-end:
 ### § 05 — Comparable Deals & Benchmarks (DISABLED — see § 4 Phase 2A)
 - Component lives at `src/components/LensComparablesSection.jsx`
 - Currently gated off in `Search.jsx` behind `{false &&}` (commit `4b183d0`)
-- Bisect confirmed it triggers Chrome OOM on heavy-rowcount states (MA 374, IL 261, NY 1351 cs_projects rows)
-- Defer the live re-enable to **Phase 2A** which re-architects this surface with paginated Table view + moves Operating Projects to the Library cockpit
+- Bisect concluded Chrome OOM on heavy-rowcount states (MA 374, IL 261, NY 1351 cs_projects rows) — **but the bisect may have been confounded by a recursive-wrapper bug** introduced in Phase 0 (commit `cfce269`) and fixed 2026-05-13 (commit `e60882f`). Any `bisectOnly` value would have stack-overflowed from the recursion regardless of memory pressure. CsMarketPanel-as-OOM-source is unverified post-fix.
+- Re-enable strategy needs a fresh prod bisect now that the confound is removed. Three paths: (A) flip the gate and let prod tell us if OOM is really gone; (B) execute the original plan (paginated Table view + Operating Projects → Library); (C) defer entirely. See BUILD_LOG § 2026-05-13 § Findings.
 
 ### UX sweep (2026-05-11)
 - IX Low Congestion text color #92400E (was identical to Moderate)
@@ -434,18 +434,20 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 - **✅ Phase 5 shipped** — Profile inline stage editing via StagePicker in Recent Activity (no more Library detour to advance a stage); Profile billing history with sanitized Stripe invoice list, served by `/api/create-portal-session?action=invoices` (dual-purpose with the existing portal session POST to stay under Vercel Hobby's 12-function cap); targeted glossary tooltips sweep on CompareTray row labels + ProjectCard diligence labels. Landing tightening + long-tail glossary sweep deferred to Phase 5.x / Phase 6.
 - **✅ Phase 6 shipped** — axe-core wired (`@axe-core/playwright`) across Lens/Library/Profile/Glossary at WCAG 2.1 A+AA, 0 critical violations bar. Caught + fixed 2 real bugs (FieldSelect + CountyCombobox hidden `<input>`s with no accessible name). Route-aware MobileGate (`/search` + `/admin` gate, everything else passes through), new `useIsMobile` hook + `MobileLibrary` cards-only view, CompareTray hides on mobile. ProjectTable joins LibraryMap as a lazy chunk. Firefox + WebKit Playwright projects added. Cron-latency audit-ui probe (skips gracefully when test user isn't admin). Long-tail eyebrow-mono sweep + Library.jsx decomposition + Landing tightening explicitly deferred to post-arc work.
 - **🟢 ARC CLOSED.** Continued work picks from the per-phase "Deferred (intentional)" backlog + BUILD_LOG backlog.
+- **Post-arc 2026-05-13 — 3 backlog items shipped:** Library.jsx hook decomposition (`9a489d7` — useLibraryLayout + useBulkSelection, 1517 → 1399 LOC); LensTour Radix Dialog migration (`f1f3825` — real focus trap + aria-labelledby/describedby on both per-step tooltip and "complete" card; drive-by cron-latency skip-gate race fix); §05 recursive-wrapper bug fix (`e60882f` — Phase 0 typo, dead-code correctness, unblocks future §05 re-enable but the gate stays off pending a fresh prod bisect).
 
 ### Resume command
 The arc is closed. After `/clear`, the next session should orient from the BUILD_LOG pickup section + this status table rather than a single fixed phase. Outstanding incremental work:
 
 ```
-Continue from BUILD_LOG pickup. TRACTOVA-UX-001 arc closed.
-Open follow-ups in priority order:
-- Long-tail eyebrow-mono sweep (~200 sites on admin/* + Lens detail panels)
-- Library.jsx decomposition (extract useBulkSelection + useLibraryLayout hooks)
-- Landing tightening (Phase 5.x follow-up: Three Pillars cards)
-- LensTour role="dialog" migration (anchored-tooltip a11y)
-- §05 LensComparablesSection re-enable strategy
+Continue from BUILD_LOG pickup. Post-arc slices 1–3 shipped 2026-05-13:
+- Library.jsx decomposition → useLibraryLayout + useBulkSelection hooks ✅
+- LensTour role="dialog" migration → Radix Dialog primitives ✅
+- §05 LensComparablesSection recursive-wrapper bug fix (dead-code) ✅
+Remaining backlog needs your direction:
+- Long-tail eyebrow-mono sweep (181 sites — design-judgment-heavy, low ROI)
+- Landing tightening (Three Pillars cards — design-subjective)
+- §05 actual re-enable strategy (paths A/B/C — see BUILD_LOG § Findings 2026-05-13)
 See § 4 deferred-from-each-phase + BUILD_LOG § Backlog for full list.
 ```
 

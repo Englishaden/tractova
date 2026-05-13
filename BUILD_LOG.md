@@ -4,11 +4,56 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 6 SHIPPED · TRACTOVA-UX-001 arc CLOSED
+## 🟢 Pickup — Post-arc backlog slices 1–3 SHIPPED (2026-05-13)
 
-**Phase 6 closes the verification scaffolding loop that keeps the V3 surface durable as we keep moving. axe-core is wired into `tests/audit-ui.spec.js` and runs across Lens / Library / Profile / Glossary at the WCAG 2.1 A+AA tag set, with a 0-critical-violation hard floor. MobileGate is route-aware: only `/search` and `/admin` gate on mobile; Library / Profile / Glossary / Dashboard pass through, and Library swaps to a new `MobileLibrary` cards-only component via the new `useIsMobile` hook. CompareTray hides itself on mobile so the dangling-CTA case is handled. ProjectTable joins LibraryMap as a lazy-loaded chunk. The Phase 6 axe sweep caught + fixed two real critical violations (`FieldSelect` + `CountyCombobox` hidden `<input>`s shipped without an accessible name). Cross-browser audit-ui projects added for Firefox + WebKit. Cron-runs latency probe stub added — skips gracefully when the audit user isn't admin.**
+**Three post-arc backlog items shipped today on a single sweep: Library.jsx hook decomposition (`9a489d7`), LensTour Radix Dialog migration (`f1f3825`), and a latent §05 recursive-wrapper bug fix (`e60882f`). Library.jsx is down 1517 → 1399 LOC behind two new hooks: `useLibraryLayout` (filters/sort/layout/pagination/drawer/URL flags + `displayProjects` and `pagedProjects` memos) and `useBulkSelection` (selectedIds Set + toggle/clear/selectAll + bulk-confirm modal). LensTour now routes both surfaces through raw Radix Dialog primitives (Root + Portal + Overlay + Content + Title + Description) — real focus trap, aria-labelledby + aria-describedby, focus restoration on close; Esc routes through Radix `onOpenChange` so it can't double-fire against the arrow-key handler. The §05 wrapper bug (Phase 0 commit `cfce269` — `LensComparableSubsection` returned itself instead of the imported `CollapsibleSubsection`) was masked by the `{false &&}` gate in Search.jsx (commit `4b183d0`) and never fired in prod after the OOM debug — but it may have confounded the OOM bisect, since any `bisectOnly` value would have stack-overflowed from recursion regardless of whether CsMarketPanel was the memory-pressure source. Fix is dead-code correctness (gate still off); future §05 re-enable now needs a fresh prod bisect with the confound removed. Drive-by audit-ui flake fix: cron-latency skip-gate replaced its race-prone `count() > 0` check with a Promise.race between "Access denied" and the Data Health tab.**
 
-**Resume command:** `Continue from here. The TRACTOVA-UX-001 arc is closed. Open backlog: long-tail eyebrow-mono sweep (~200 remaining call sites on admin/* and Lens detail panels), Landing tightening (Phase 5.x), Library.jsx decomposition (extract useBulkSelection + useLibraryLayout hooks, currently 1500+ LOC). See BUILD_LOG § Backlog and docs/TRACTOVA-UX-001-ROADMAP.md § 4 deferred-from-each-phase notes.`
+**Resume command:** `Continue from BUILD_LOG pickup. Post-arc slices 1–3 shipped 2026-05-13 (Library decomp, LensTour migration, §05 wrapper-bug fix). Remaining backlog needs your direction: long-tail eyebrow-mono sweep (181 inline sites — design-judgment-heavy on admin/* + low-traffic Lens panels, low ROI per session sample), Landing tightening (Three Pillars cards, design-subjective), §05 actual re-enable strategy (paths A/B/C — see BUILD_LOG § Findings 2026-05-13). Pre-existing audit-ui parallel-pressure flakes (Dashboard click matrix + Profile gauge) pass in isolation; full suite is opt-in, not in verify chain.`
+
+---
+
+### Session 2026-05-13 — Post-arc backlog slices 1–3
+
+Three slices landed on a single trajectory: structural cleanup (Library hooks), a11y migration (LensTour), latent-bug correctness (§05 wrapper). Each shipped as its own commit with the full verify chain.
+
+**Library.jsx → useLibraryLayout + useBulkSelection** (commit `9a489d7` — `src/pages/Library.jsx`, `src/hooks/useLibraryLayout.js`, `src/hooks/useBulkSelection.js`)
+
+- `src/hooks/useLibraryLayout.js` (new, ~155 LOC) owns the page's view-state stack: `sortBy`, `filterState/Tech/Stage`, `pipelineExpanded`, `viewMode` (Projects/Scenarios/Comparisons), `layout` (cards/table/map) with localStorage persistence, `drawerProject` for the map slide-in, `pageSize`/`page` with persistence + filter-change reset + size-shrink clamp, `?preview=empty` + `?all=1` + `?tab=` URL flags, the Esc-clears-state-filter-in-map keyboard effect, and the `displayProjects` (filtered + sorted) + `pagedProjects` (windowed) memos. Takes `projects`, `stateProgramMap`, `countyDataMap` from the caller; returns state + setters + derived values.
+- `src/hooks/useBulkSelection.js` (new, ~50 LOC) owns selection state: `selectedIds` Set, `toggleSelect/clearSelection/selectAll` with the select-all-ref pattern internalized so `selectAll` stays referentially stable across filter changes, `allSelected` derived flag, and the `bulkConfirm` modal pair. Bulk *handlers* (delete/export/compare) stay in Library.jsx because they need too much external context (supabase, exportXLSX, useCompare) to belong in a generic selection hook.
+- `src/pages/Library.jsx` shrinks from 1517 → 1399 LOC. Concerns now clean-cut: data-state (projects, scenarios, share counts) in the page; view-state in `useLibraryLayout`; bulk-state in `useBulkSelection`. The page consumes the hooks at the top and uses their state/derived values directly.
+
+**LensTour → Radix Dialog primitives** (commit `f1f3825` — `src/components/LensTour.jsx`)
+
+- Pre-migration LensTour hand-rolled both the per-step anchored tooltip and the closing "Tour complete" card with `role="dialog"` + `aria-label` — but no focus trap, no aria-modal, no aria-labelledby/aria-describedby wiring, and a window keydown listener that double-fired Escape against the dialog state.
+- Both surfaces now use raw Radix Dialog primitives (`RadixDialog.Root` + `Portal` + `Overlay` + `Content` + `Title` + `Description`). Screen readers get the full WAI-ARIA dialog contract; keyboard users get a real focus trap + focus restoration on close; Esc routes through Radix's `onOpenChange` callback so it no longer fights the arrow-key navigation handler.
+- Per-step tooltip keeps its bespoke `computeTooltipPosition` (placement: top/bottom/right with viewport clamping) by applying the computed `tip` style directly to `Content`. The inverted-box-shadow spotlight ring renders as a sibling of `Dialog` (z-201) so it sits between Overlay (z-200) and Content (z-202). `onOpenAutoFocus` is overridden to focus the primary "Next →" button via a `data-tour-primary` attribute — Radix's default would focus the Skip button (first in DOM order) which isn't the primary action.
+- Closing "Tour complete" card uses centered modal positioning + `RadixDialog.Title` for the heading + `RadixDialog.Description` for the body. Gradient accent rail and ◆ "You're set" eyebrow preserved verbatim.
+
+**LensComparablesSection — fix recursive wrapper bug** (commit `e60882f` — `src/components/LensComparablesSection.jsx`)
+
+- Phase 0 (commit `cfce269`, 2026-05-11 15:53) migrated `LensComparableSubsection` off its hand-rolled toggle. The migration imported `CollapsibleSubsection` (line 13) but the return body recursed into `LensComparableSubsection` itself instead. Any actual render would have stack-overflowed.
+- The bug was masked by Search.jsx's `{false &&}` gate around §05 (commit `4b183d0`, 16:24), which followed Phase 0 by 31 minutes. After the gate landed, §05 has been dead code from then through today.
+- The OOM bisect that concluded "CsMarketPanel + getCsMarketSnapshot is the OOM source" (commit `a709d8b`, 16:21) ran with the recursive wrapper present. The bisect's step 2 used `bisectOnly='operating'` and still crashed — but any `bisectOnly` value would have stack-overflowed from the recursion regardless of which subsection was active. The CsMarketPanel conclusion is on shaky evidence in retrospect; the actual OOM source is unverified.
+- Fix is dead-code correctness: `<LensComparableSubsection>` → `<CollapsibleSubsection>` at the return inside the wrapper (lines 55-62). Gate stays `{false &&}`. Future §05 re-enable now isn't blocked on a hidden bug, and a fresh prod bisect (without the recursion confound) can give a clean read on whether the OOM is real or whether the bisect was misled.
+
+**Drive-by — audit-ui cron-latency skip-gate race** (`tests/audit-ui.spec.js`)
+
+- Phase 6 added a cron-latency probe that skips gracefully when the test user isn't admin (`/admin` renders "Access denied"). The skip-gate used `await page.getByText('Access denied').count() > 0` after `waitForLoadState('networkidle')` — but Admin.jsx's role-check fetch can resolve AFTER networkidle, so the count check returned 0 while the gate copy was about to render. Test would time out trying to click "Data Health".
+- Replaced with `Promise.race` between "Access denied" appearing and the Data Health tab appearing — whichever paints first decides the path. Verified stable across 3 repeats (3/3 consistent skips). Full audit-ui suite now passes the cron-latency test reliably.
+
+**Findings worth surfacing (not blocking) — 2026-05-13:**
+
+- **§05 re-enable strategy still needs your call.** Paths A / B / C: (A) ship the wrapper bug fix [done — commit `e60882f`] then a second commit that flips the gate and lets prod tell us if the OOM is really gone; (B) do the original plan (migrate Operating Projects to Library, multi-slice); (C) defer entirely. The wrapper fix has unblocked future work — choosing between A/B/C is now a strategic call.
+- **Long-tail eyebrow-mono sweep is lower-ROI than the BUILD_LOG estimate suggested.** 181 inline sites across 69 files match the `font-mono uppercase tracking-[0.18em or 0.24em]` pattern — but most sampled sites in admin/* aren't clean `.eyebrow-mono` candidates (different sizes, weights, pill/button contexts). A bulk find-replace would risk visual regressions across low-frequency surfaces. Worth a tight admin-only commit on a deliberate slice rather than a 69-file sweep.
+- **Pre-existing audit-ui parallel-pressure flakes.** Dashboard click matrix + Profile gauge tests time out on full-suite parallel runs (Vite single-server + 4 workers + heavy audit pages overload networkidle). Pass cleanly in isolation. Phase 6 verification only ran `-g "axe|Cron Latency"` which skipped these. Not in verify chain; surfaces only on opt-in full audit runs.
+
+**Verification (close of session):**
+- `npm run build` — clean (4.32s on the §05 fix commit; 3.55s on the Library decomp commit; 3.44s on the LensTour commit)
+- `npm run test:unit` — 129/129 green across all three commits
+- `npm run test:smoke` — 7/7 green
+- `npm run test:smoke:pro` — 7/7 green (Library + Lens both exercised the new hooks/dialogs)
+- `npx playwright test --project=setup --project=audit-ui -g "axe|Cron Latency"` — 5/5 + 1 skip (cron-latency skip-gate now race-safe)
+- `npm run lint:api / lint:locs / lint:secrets / lint:audit` — clean across all three commits
 
 ---
 
