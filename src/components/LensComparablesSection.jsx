@@ -39,6 +39,15 @@ import CollapsibleSubsection from './CollapsibleSubsection'
 // without changing shape. Glossary tooltip + count badge + (no data
 // yet) hint are local concerns; the shared component handles motion +
 // a11y.
+//
+// 2026-05-13 — fixed: the original Phase 0 migration (commit cfce269)
+// had the return body recursing into LensComparableSubsection instead
+// of CollapsibleSubsection, which would stack-overflow on render. The
+// bug was masked by Search.jsx's `{false &&}` gate (commit 4b183d0),
+// so it never fired in prod after the OOM debug — but it may have
+// confounded the OOM bisect that concluded "CsMarketPanel is the
+// cause." Re-enabling § 05 still requires a fresh prod bisect now
+// that the recursive wrapper isn't a confound.
 function LensComparableSubsection({ title, glossaryTerm, description, defaultOpen = false, count, empty = false, children }) {
   const header = glossaryTerm
     ? <GlossaryLabel term={glossaryTerm} displayAs={title} className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold text-ink shrink-0" />
@@ -53,13 +62,13 @@ function LensComparableSubsection({ title, glossaryTerm, description, defaultOpe
   )
 
   return (
-    <LensComparableSubsection
+    <CollapsibleSubsection
       title={header}
       description={descNode}
       defaultOpen={defaultOpen}
     >
       {children}
-    </LensComparableSubsection>
+    </CollapsibleSubsection>
   )
 }
 
