@@ -11,10 +11,16 @@
  * orchestrator already verifies the JWT + subscription tier before
  * dispatching here, so no separate auth check needed.
  */
+import crypto from 'node:crypto'
 import Anthropic from '@anthropic-ai/sdk'
 import { POLICY_CLASSIFY_PROMPT } from '../prompts/policy-classify.js'
 import { buildCacheKey, cacheGet, cacheSet, supabaseAdmin } from '../lib/_aiCacheLayer.js'
 import { expandIfUrl } from '../lib/_urlFetch.js'
+
+// PDF upload guard — Anthropic's PDF support handles up to ~32MB but we
+// cap lower to keep base64 payloads under Vercel's request body limit
+// and avoid pinning a function on a single oversized doc.
+const MAX_PDF_BYTES_BASE64 = 6 * 1024 * 1024  // ~6MB base64 ≈ ~4.5MB raw PDF
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool schema — forces Haiku to emit structured output. Prompt-only
@@ -230,32 +236,49 @@ async function deriveImpact(rawProvisions, state) {
 }
 
 export default async function handlePolicyClassify(body, res) {
-  const { rawText, stateHint, eventNameHint } = body
-  if (!rawText || typeof rawText !== 'string' || rawText.trim().length < 5) {
+  const { rawText, stateHint, eventNameHint, pdfBase64, pdfFilename } = body
+
+  // Two input modes — PDF upload OR URL/text paste. Branch early so the
+  // rest of the handler stays linear.
+  const isPdfMode = typeof pdfBase64 === 'string' && pdfBase64.length > 0
+
+  if (!isPdfMode && (!rawText || typeof rawText !== 'string' || rawText.trim().length < 5)) {
     return res.status(400).json({
-      error:  'rawText required (paste a URL OR at least 60 characters of bill / article content)',
-      reason: 'missing_text',
+      error:  'Provide either pdfBase64 (PDF upload) or rawText (URL OR ≥60 chars of bill/article content)',
+      reason: 'missing_input',
     })
   }
 
-  // Auto-expand URLs to page text. Admin can paste either a URL alone or
-  // raw article text — both flow through the same path. URL fetch fallback
-  // lands the admin back at "fetch failed; paste the text instead" so they
-  // know to copy-paste manually.
-  const expanded = await expandIfUrl(rawText)
-  let usableText = expanded.text
-  if (!expanded.fetched && /^https?:\/\//i.test(rawText.trim()) && usableText.length < 60) {
-    return res.status(200).json({
-      draft:    null,
-      fallback: true,
-      reason:   `url_fetch_failed: ${expanded.fetchError || 'page returned too little content'} — paste the article text manually instead`,
+  if (isPdfMode && pdfBase64.length > MAX_PDF_BYTES_BASE64) {
+    return res.status(413).json({
+      error:  `PDF too large (${(pdfBase64.length / 1024 / 1024).toFixed(1)} MB base64). Cap is ${(MAX_PDF_BYTES_BASE64 / 1024 / 1024).toFixed(0)} MB. Split the document or upload a relevant excerpt.`,
+      reason: 'pdf_too_large',
     })
   }
-  if (usableText.trim().length < 60) {
-    return res.status(400).json({
-      error:  'After URL expansion, content is too short (min 60 chars)',
-      reason: 'expanded_too_short',
-    })
+
+  let usableText = ''
+  let expanded = { fetched: false, text: '', fetchError: null, fetchedFrom: null, fetchedBytes: null }
+
+  if (!isPdfMode) {
+    // Auto-expand URLs to page text. Admin can paste either a URL alone or
+    // raw article text — both flow through the same path. URL fetch fallback
+    // lands the admin back at "fetch failed; paste the text instead" so they
+    // know to copy-paste manually.
+    expanded = await expandIfUrl(rawText)
+    usableText = expanded.text
+    if (!expanded.fetched && /^https?:\/\//i.test(rawText.trim()) && usableText.length < 60) {
+      return res.status(200).json({
+        draft:    null,
+        fallback: true,
+        reason:   `url_fetch_failed: ${expanded.fetchError || 'page returned too little content'} — paste the article text manually instead`,
+      })
+    }
+    if (usableText.trim().length < 60) {
+      return res.status(400).json({
+        error:  'After URL expansion, content is too short (min 60 chars)',
+        reason: 'expanded_too_short',
+      })
+    }
   }
 
   // Cache 24h. Bump `v` whenever the system prompt changes materially so
@@ -276,9 +299,14 @@ export default async function handlePolicyClassify(body, res) {
   //   v=6: mw_band_tiers support. Tool schema gained an optional tiers array;
   //        when source has size-tiered rates the handler emits one draft per
   //        tier with min_mw_ac/max_mw_ac set. Single-tier policies unchanged.
+  //   v=7: PDF document input path. PDF mode keys cache on SHA256 of base64.
+  //        Pre-v7 text-mode caches stay valid (same key shape).
+  const cacheInputKey = isPdfMode
+    ? `pdf:${crypto.createHash('sha256').update(pdfBase64).digest('hex').slice(0, 32)}`
+    : `text:${usableText.trim()}`
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     6,
-    text:  usableText.trim(),
+    v:     7,
+    input: cacheInputKey,
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',
   })
@@ -293,17 +321,35 @@ export default async function handlePolicyClassify(body, res) {
   // Cap input at 12K chars — bill text excerpts run longer than docket pages
   // but anything past 12K is noise (table of contents, fiscal notes, etc.).
   // For URL-expanded text we still cap here — URL fetcher already limited to
-  // 24K post-strip, this is the second guard.
-  const trimmed = usableText.trim().slice(0, 12000)
+  // 24K post-strip, this is the second guard. (PDF mode skips trimming —
+  // Anthropic handles the document directly.)
+  const trimmed = isPdfMode ? '' : usableText.trim().slice(0, 12000)
 
   // Optional priming line — if the admin pre-filled a state or event name
   // in the form, we prepend it as a hint so the model doesn't have to
-  // re-derive what's already known.
-  const userContent = [
+  // re-derive what's already known. PDF mode adds a filename anchor + an
+  // explicit "extract from the attached document" instruction.
+  const hintLines = [
     stateHint     && `Hint: state = ${stateHint.toUpperCase()}`,
     eventNameHint && `Hint: event_name = ${eventNameHint}`,
-    trimmed,
-  ].filter(Boolean).join('\n\n')
+  ].filter(Boolean)
+
+  const userContent = isPdfMode
+    ? [
+        {
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 },
+        },
+        {
+          type: 'text',
+          text: [
+            ...hintLines,
+            pdfFilename && `Source: PDF upload — ${pdfFilename}`,
+            'Extract the enacted policy details from the attached PDF using the submit_policy_classification tool. Apply the same rules as for pasted bill text: pull raw_provisions verbatim from the document, use null when a value is not stated, and never invent numbers.',
+          ].filter(Boolean).join('\n'),
+        },
+      ]
+    : [hintLines.join('\n\n'), trimmed].filter(Boolean).join('\n\n')
 
   // Timeout: 30s. Haiku typically returns in 3-6s for this prompt; tail
   // latency rarely exceeds 12s but we leave headroom inside the 60s
@@ -320,6 +366,8 @@ export default async function handlePolicyClassify(body, res) {
         system:      POLICY_CLASSIFY_PROMPT,
         tools:       [CLASSIFY_TOOL],
         tool_choice: { type: 'tool', name: 'submit_policy_classification' },
+        // PDF mode passes an array of content blocks (document + text);
+        // text mode passes a string. Anthropic's SDK accepts both shapes.
         messages:    [{ role: 'user', content: userContent }],
       },
       { signal: controller.signal }
@@ -413,6 +461,19 @@ export default async function handlePolicyClassify(body, res) {
       tierDraft.review_status = 'pending_admin_review'
       tierDraft.discovered_via = tierDraft.discovered_via || 'manual'
 
+      // Lineage stamp — preserved through admin review + publish flow. The
+      // discovered_via enum is constrained at the table level; pdf_upload
+      // isn't a valid enum value, so we record it inside discovery_metadata
+      // instead. Future migration could extend the enum if PDF intake
+      // becomes a recurring lineage of its own.
+      if (isPdfMode) {
+        tierDraft.discovery_metadata = {
+          ...(tierDraft.discovery_metadata || {}),
+          source_type:  'pdf_upload',
+          pdf_filename: pdfFilename || null,
+        }
+      }
+
       // Per-tier event_name: append tier label so multi-tier policies have
       // distinguishable row titles in the admin list.
       if (spec.tier_label && tierSpecs.length > 1) {
@@ -428,6 +489,7 @@ export default async function handlePolicyClassify(body, res) {
       drafts,                       // tier-aware consumers iterate this
       fetchedUrl:   expanded.fetched ? expanded.fetchedFrom : null,
       fetchedBytes: expanded.fetched ? expanded.fetchedBytes : null,
+      pdfFilename:  isPdfMode ? (pdfFilename || null) : null,
     })
 
   } catch (err) {

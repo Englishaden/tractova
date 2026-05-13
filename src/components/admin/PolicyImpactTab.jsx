@@ -48,6 +48,14 @@ export default function PolicyImpactTab() {
   const [classifyError, setClassifyError]   = useState(null)
   const [classifyHint, setClassifyHint]     = useState(null) // 'cached' | 'fresh' after success
   const [classifyFetchedUrl, setClassifyFetchedUrl] = useState(null) // populated when URL fetch was used
+  // PDF upload state — base64 + filename + size. When pdfBase64 is set, the
+  // classifier sends the document directly to Anthropic (Haiku 4.5 native
+  // PDF support); textarea/URL path becomes inactive for that submission.
+  const [pdfBase64, setPdfBase64]   = useState(null)
+  const [pdfFilename, setPdfFilename] = useState(null)
+  const [pdfSize, setPdfSize]         = useState(null)
+  const [pdfDragOver, setPdfDragOver] = useState(false)
+  const [pdfError, setPdfError]       = useState(null)
   // URL-first auto-publish: when on, draft + derive + publish in one flow.
   // Admin gets a single click instead of "Draft, review, publish". Off by
   // default for the first session in case the admin wants to validate
@@ -220,10 +228,12 @@ export default function PolicyImpactTab() {
     }
   }
 
-  // Shared classifier call — used by Quick-Add (manual paste) AND Re-scan
-  // (re-runs an existing row's source URL to detect amendments). Returns
-  // the parsed draft + fetched URL metadata, or throws on failure.
-  const callPolicyClassify = async ({ rawText, stateHint, eventNameHint }) => {
+  // Shared classifier call — used by Quick-Add (manual paste + PDF upload)
+  // AND Re-scan (re-runs an existing row's source URL to detect amendments).
+  // Returns the parsed draft + fetched URL metadata, or throws on failure.
+  // PDF mode: pass pdfBase64 + pdfFilename; the server ignores rawText
+  // and sends the PDF directly to Haiku as a document content block.
+  const callPolicyClassify = async ({ rawText, stateHint, eventNameHint, pdfBase64, pdfFilename }) => {
     const { data: { session } } = await supabase.auth.getSession()
     const token = session?.access_token
     if (!token) throw new Error('Sign-in required')
@@ -232,9 +242,11 @@ export default function PolicyImpactTab() {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body:    JSON.stringify({
         action:        'policy-classify',
-        rawText,
+        rawText:       pdfBase64 ? null : rawText,
         stateHint:     stateHint || null,
         eventNameHint: eventNameHint || null,
+        pdfBase64:     pdfBase64 || null,
+        pdfFilename:   pdfFilename || null,
       }),
     })
     const json = await res.json().catch(() => ({}))
@@ -288,12 +300,48 @@ export default function PolicyImpactTab() {
     }
   }
 
+  // PDF intake helpers — load File → base64 (strip data-URL prefix). 6 MB
+  // base64 cap matches server's MAX_PDF_BYTES_BASE64. PDF state is mutually
+  // exclusive with text mode at submit time: if both are populated, PDF
+  // wins (matches the server's branch logic).
+  const MAX_PDF_BASE64 = 6 * 1024 * 1024
+  const handlePdfFile = async (file) => {
+    setPdfError(null)
+    if (!file) return
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+      setPdfError(`File must be a PDF (got ${file.type || 'unknown type'})`)
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result
+      const commaIdx = typeof dataUrl === 'string' ? dataUrl.indexOf(',') : -1
+      if (commaIdx < 0) {
+        setPdfError('Could not read PDF (no base64 payload)')
+        return
+      }
+      const base64 = dataUrl.slice(commaIdx + 1)
+      if (base64.length > MAX_PDF_BASE64) {
+        setPdfError(`PDF too large (${(base64.length / 1024 / 1024).toFixed(1)} MB base64; cap ${(MAX_PDF_BASE64 / 1024 / 1024).toFixed(0)} MB). Split or excerpt the document.`)
+        return
+      }
+      setPdfBase64(base64)
+      setPdfFilename(file.name)
+      setPdfSize(file.size)
+    }
+    reader.onerror = () => setPdfError('Failed to read PDF file')
+    reader.readAsDataURL(file)
+  }
+  const clearPdf = () => { setPdfBase64(null); setPdfFilename(null); setPdfSize(null); setPdfError(null) }
+
   // AI Classify — paste URL or bill text, Haiku 4.5 extracts raw provisions
   // from source. URL-first flow: if autoPublish is on, the draft + derive
   // result is upserted directly to the published list — no review step.
+  // PDF mode: when pdfBase64 is set, that's the input — text/URL ignored.
   const handleClassify = async () => {
-    if (!classifyText || classifyText.trim().length < 5) {
-      setClassifyError('Paste a URL or at least 60 characters of article / bill text.')
+    const hasPdf = !!pdfBase64
+    if (!hasPdf && (!classifyText || classifyText.trim().length < 5)) {
+      setClassifyError('Paste a URL, 60+ chars of bill / article text, or drop a PDF.')
       return
     }
     setClassifying(true)
@@ -304,6 +352,8 @@ export default function PolicyImpactTab() {
         rawText:       classifyText,
         stateHint:     classifyStateHint.trim(),
         eventNameHint: classifyEventHint.trim(),
+        pdfBase64:     hasPdf ? pdfBase64 : null,
+        pdfFilename:   hasPdf ? pdfFilename : null,
       })
       // Tiered policies return drafts[] (one per MW band). Single-tier
       // policies still return drafts=[draft]. Iterate uniformly.
@@ -328,7 +378,12 @@ export default function PolicyImpactTab() {
             stateHint:        classifyStateHint.trim(),
             eventHint:        classifyEventHint.trim(),
             publish:          true,
-            fallbackSourceUrl: /^https?:\/\//i.test(classifyText.trim()) ? classifyText.trim().split(/\s/)[0] : '',
+            // PDF mode has no URL source — admin fills source_url during
+            // review or the row publishes with empty source_url (visible in
+            // the list so admin can backfill).
+            fallbackSourceUrl: hasPdf
+              ? ''
+              : (/^https?:\/\//i.test(classifyText.trim()) ? classifyText.trim().split(/\s/)[0] : ''),
           })
           if (!payload.state || !payload.event_name) {
             setClassifyError('Draft missing state or event name — switch off auto-publish and review manually.')
@@ -341,7 +396,8 @@ export default function PolicyImpactTab() {
         setClassifyText('')
         setClassifyStateHint('')
         setClassifyEventHint('')
-        setClassifyHint(`${json.cached ? 'cached' : 'fresh'}${publishedCount > 1 ? ` · ${publishedCount} tiers` : ''}`)
+        clearPdf()
+        setClassifyHint(`${json.cached ? 'cached' : 'fresh'}${publishedCount > 1 ? ` · ${publishedCount} tiers` : ''}${hasPdf ? ' · pdf' : ''}`)
         setClassifyFetchedUrl(json.fetchedUrl || null)
         await load()
         setClassifying(false)
@@ -489,7 +545,7 @@ export default function PolicyImpactTab() {
           )}
         </div>
         <p id="policy-classify-helper" className="text-[12px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.65)' }}>
-          Paste a URL <strong style={{ color: '#5EEAD4' }}>or</strong> the bill text directly. URL input is auto-fetched server-side (most news sites + state legislatures work; JS-rendered sites or paywalls fall back to manual paste). Haiku extracts raw provisions (rate cuts, $/kW fees), Tractova derives per-MW dollar impact using state baselines. Derivation chain visible in impact_methodology — verifiable against source.
+          Drop a <strong style={{ color: '#5EEAD4' }}>PDF</strong> (PUC order, state legislative document, utility commission press release), paste a <strong style={{ color: '#5EEAD4' }}>URL</strong>, or paste the bill text directly. PDF mode sends the document straight to Haiku — no manual extraction. URL input auto-fetches server-side. Tractova derives per-MW dollar impact from extracted raw provisions using state baselines; derivation chain visible in impact_methodology.
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-3">
           <input
@@ -509,14 +565,109 @@ export default function PolicyImpactTab() {
             style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.10)', color: '#FFFFFF' }}
           />
         </div>
+
+        {/* PDF drop zone — drag a PDF here or click to pick. When a PDF
+            is staged, the textarea below becomes a fallback (PDF wins at
+            submit time). 6 MB base64 cap (~4.5 MB raw) matches the server. */}
+        <div
+          onDragOver={(e) => { e.preventDefault(); setPdfDragOver(true) }}
+          onDragLeave={() => setPdfDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setPdfDragOver(false)
+            const file = e.dataTransfer.files?.[0]
+            if (file) handlePdfFile(file)
+          }}
+          className="rounded-lg mb-3 px-4 py-3 transition-colors cursor-pointer"
+          style={{
+            background: pdfBase64
+              ? 'rgba(20,184,166,0.08)'
+              : pdfDragOver
+                ? 'rgba(20,184,166,0.14)'
+                : 'rgba(255,255,255,0.03)',
+            border: pdfBase64
+              ? '1px solid rgba(20,184,166,0.40)'
+              : pdfDragOver
+                ? '1px dashed rgba(20,184,166,0.55)'
+                : '1px dashed rgba(255,255,255,0.18)',
+          }}
+        >
+          {pdfBase64 ? (
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-[9px] uppercase tracking-[0.18em] mb-0.5" style={{ color: '#5EEAD4' }}>
+                  ◆ PDF Ready · {(pdfSize / 1024).toFixed(0)} KB
+                </div>
+                <div className="text-[12px] font-medium truncate text-white">{pdfFilename}</div>
+                <div className="font-mono text-[9px] mt-0.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  Submit below to extract policy via Haiku
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={clearPdf}
+                disabled={classifying}
+                className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md transition-colors"
+                style={{ color: 'rgba(255,255,255,0.55)', border: '1px solid rgba(255,255,255,0.12)' }}
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div className="min-w-0 flex-1">
+                <div className="font-mono text-[9px] uppercase tracking-[0.18em] mb-0.5" style={{ color: 'rgba(94,234,212,0.85)' }}>
+                  ◆ PDF Upload · drop or click
+                </div>
+                <div className="text-[12px]" style={{ color: 'rgba(255,255,255,0.65)' }}>
+                  Drag a PDF here, or click to pick · max ~4.5 MB
+                </div>
+              </div>
+              <span
+                className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md whitespace-nowrap"
+                style={{ background: 'rgba(20,184,166,0.16)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.32)' }}
+              >
+                Choose PDF
+              </span>
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                className="sr-only"
+                aria-label="Upload policy PDF"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handlePdfFile(file)
+                  e.target.value = ''
+                }}
+              />
+            </label>
+          )}
+        </div>
+        {pdfError && (
+          <div className="text-[11px] font-mono px-3 py-2 rounded-md mb-3" style={{ background: 'rgba(220,38,38,0.10)', color: '#FCA5A5', border: '1px solid rgba(220,38,38,0.30)' }}>
+            {pdfError}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 mb-2">
+          <span className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+          <span className="font-mono text-[8.5px] uppercase tracking-[0.22em]" style={{ color: 'rgba(255,255,255,0.42)' }}>
+            or paste URL / text
+          </span>
+          <span className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.08)' }} />
+        </div>
+
         <textarea
           value={classifyText}
           onChange={(e) => setClassifyText(e.target.value)}
-          placeholder="Paste bill text, signed-bill summary, PUC order, or trade-press article describing the enacted policy. Min 60 characters."
+          placeholder={pdfBase64
+            ? 'PDF staged above — text input ignored at submit. Clear the PDF to paste text instead.'
+            : 'Paste bill text, signed-bill summary, PUC order, or trade-press article describing the enacted policy. Min 60 characters.'}
           rows={6}
+          disabled={!!pdfBase64}
           aria-label="Paste bill / article text for AI classification"
           aria-describedby="policy-classify-helper"
-          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-hidden resize-y mb-3 focus:ring-2 focus:ring-teal-500/40"
+          className="w-full text-[12px] font-mono px-3 py-2.5 rounded-lg outline-hidden resize-y mb-3 focus:ring-2 focus:ring-teal-500/40 disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             background: 'rgba(255,255,255,0.04)',
             border:     '1px solid rgba(255,255,255,0.10)',
@@ -534,9 +685,9 @@ export default function PolicyImpactTab() {
             Publish immediately (skip review)
           </label>
           <div className="flex items-center gap-2">
-            {classifyText && (
+            {(classifyText || pdfBase64) && (
               <button
-                onClick={() => { setClassifyText(''); setClassifyError(null); setClassifyHint(null); setClassifyFetchedUrl(null) }}
+                onClick={() => { setClassifyText(''); clearPdf(); setClassifyError(null); setClassifyHint(null); setClassifyFetchedUrl(null) }}
                 disabled={classifying}
                 className="text-[11px] font-mono uppercase tracking-[0.18em] px-3 py-1.5 rounded-md transition-colors"
                 style={{ color: 'rgba(255,255,255,0.55)' }}
@@ -546,7 +697,7 @@ export default function PolicyImpactTab() {
             )}
             <button
               onClick={handleClassify}
-              disabled={classifying || !classifyText.trim()}
+              disabled={classifying || (!classifyText.trim() && !pdfBase64)}
               className="inline-flex items-center gap-2 text-[11px] font-mono uppercase tracking-[0.18em] font-semibold px-4 py-2 rounded-lg text-white transition-transform hover:-translate-y-px disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: '#14B8A6' }}
             >
