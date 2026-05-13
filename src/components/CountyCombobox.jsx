@@ -77,7 +77,7 @@ export default function CountyCombobox({ stateId, value, onValueChange }) {
             className={inputCls + ' flex-1'}
           />
         ) : (
-          <span className={`text-sm pointer-events-none select-none ${query ? 'text-gray-900' : 'text-gray-400'}`}>
+          <span className={`text-sm pointer-events-none select-none ${query ? 'text-gray-900' : 'text-gray-400'}`} aria-hidden="true">
             {query || placeholder}
           </span>
         )}
@@ -91,8 +91,11 @@ export default function CountyCombobox({ stateId, value, onValueChange }) {
         </svg>
       </div>
 
-      {/* Hidden input for form validation when open=false and no value yet */}
-      <input type="text" value={value} onChange={() => {}} required className="sr-only" tabIndex={-1} />
+      {/* Hidden input for HTML5 form validation when the combobox is closed
+          and no county is selected yet. aria-label keeps axe-core happy —
+          the visible "County" header above already serves this role for
+          sighted users, but axe scans the input in isolation. */}
+      <input type="text" value={value} onChange={() => {}} required aria-label="County" className="sr-only" tabIndex={-1} />
 
       {open && stateId && (
         <ul className="absolute z-50 left-0 top-full mt-2 w-full bg-white border border-gray-200 rounded-lg overflow-hidden max-h-60 overflow-y-auto"

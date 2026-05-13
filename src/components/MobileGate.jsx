@@ -1,22 +1,37 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 
-// Mobile-not-yet gate.
+// Mobile gate — Phase 6 (TRACTOVA-UX-001) refactor.
 //
-// Tractova is a desktop-first product right now — the Lens analysis,
-// scenario studio, library cards, and dashboard map were all designed
-// for ≥768px viewports and degrade poorly on phones. Rather than ship
-// a half-rendered experience to mobile users, surface the truth: the
-// native iOS/Android app is the long-term plan; for now, please use
-// desktop. A small dismiss link lets power users (and Aden) continue
-// to the web anyway when they need to.
+// Pre-Phase-6 the gate fired on every route under 768px. That made the
+// entire signed-in surface a dead-end on phones: a user couldn't even
+// glance at their saved-project library while away from a laptop, let
+// alone read a glossary entry or check their Profile.
 //
-// Threshold: <768px (Tailwind's `md` breakpoint). The gate listens to
-// resize so a window-shrunk desktop doesn't trip it persistently —
-// but on real phones the dismiss flag also persists per session so
-// the user only sees the message once if they choose to continue.
+// New posture: gate is ROUTE-AWARE. Library/Profile/Glossary/Dashboard
+// and the marketing pages stay accessible on mobile (the Library route
+// internally swaps to MobileLibrary cards-only via useIsMobile). Search
+// (the Lens form) and Admin stay gated — both are dense desktop tools
+// where a half-rendered mobile path would mislead the underwriting flow.
+//
+// "Send myself a desktop link" affordance: a mailto: link with the
+// current URL so a power user reading on a phone can drop the report
+// into their email and pick it back up on a laptop.
+
 const SESSION_DISMISS_KEY = 'tractova_mobile_gate_dismissed'
 
+// Paths that still gate on mobile. Use startsWith semantics so /admin and
+// nested admin routes both gate. Keep this list short — every entry is
+// a feature we've decided is non-functional on a phone.
+const GATED_PATHS = ['/search', '/admin']
+
+function pathIsGated(pathname) {
+  if (!pathname) return false
+  return GATED_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+}
+
 export default function MobileGate({ children }) {
+  const location = useLocation()
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false
     return window.matchMedia('(max-width: 767px)').matches
@@ -38,7 +53,24 @@ export default function MobileGate({ children }) {
     setDismissed(true)
   }
 
-  if (!isMobile || dismissed) return children
+  const gated = pathIsGated(location.pathname)
+  // Pass through unless: (a) we're on mobile, (b) the user hasn't already
+  // dismissed for the session, and (c) the current route is desktop-only.
+  if (!isMobile || dismissed || !gated) return children
+
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : 'https://tractova.com'
+  const mailtoBody = encodeURIComponent(
+    `I want to open this on desktop:\n\n${currentUrl}\n\n— sent from my phone via Tractova`
+  )
+  const mailtoSubject = encodeURIComponent('Open this on desktop — Tractova')
+  const mailtoHref = `mailto:?subject=${mailtoSubject}&body=${mailtoBody}`
+
+  // What the user was trying to reach. Keeps the gate honest about which
+  // feature actually requires desktop (so it's not the same message on
+  // every page — Lens vs Admin tell different stories).
+  const featureLabel = location.pathname.startsWith('/admin')
+    ? 'Admin · Data Health'
+    : 'Lens · Intelligence Report'
 
   return (
     <div className="min-h-screen flex items-center justify-center px-5 py-10" style={{ background: '#F8F7F4' }}>
@@ -52,37 +84,44 @@ export default function MobileGate({ children }) {
               <rect x="11.75" y="9.5" width="2.5" height="10" rx="1.25" fill="#14B8A6" />
             </svg>
             <p className="font-mono text-[9px] uppercase tracking-[0.24em]" style={{ color: '#5EEAD4' }}>
-              Tractova · Desktop-First
+              {featureLabel} · Desktop only
             </p>
           </div>
 
           <h1 className="font-serif text-[24px] leading-tight font-semibold text-white mb-3">
-            Mobile is on the roadmap, not in production.
+            This view needs a laptop.
           </h1>
 
           <p className="text-[14px] leading-relaxed mb-3" style={{ color: 'rgba(255,255,255,0.78)' }}>
-            Tractova was built for ≥1024px screens — the Lens analysis,
-            scenario studio, dashboard map, and library all assume desktop
-            real estate. Phone layouts work but render at ~30% of
-            intended fidelity right now.
+            Tractova’s Library, Profile, and Glossary work on a phone — but
+            this surface (the Lens intelligence form, scenario studio,
+            compare tray, or admin) is built for ≥1024px screens. Rendering
+            it half-resolution on mobile would mislead an underwriting call.
           </p>
 
           <p className="text-[14px] leading-relaxed mb-5" style={{ color: 'rgba(255,255,255,0.78)' }}>
-            The iOS + Android app is in the queue. Until it ships, please
-            use a desktop or tablet for any decision-grade work — don't
-            rely on mobile output for underwriting or stage gates.
+            Send yourself the link and open it on desktop, or continue to a
+            limited mobile view of the rest of the site.
           </p>
 
           <div className="rounded-md px-4 py-3 mb-5" style={{ background: 'rgba(20,184,166,0.08)', border: '1px solid rgba(20,184,166,0.25)' }}>
             <p className="font-mono text-[9px] uppercase tracking-[0.20em] mb-1.5" style={{ color: '#5EEAD4' }}>
-              ◆ What works on desktop
+              · What works on phones today
             </p>
             <ul className="text-[12px] leading-relaxed space-y-0.5" style={{ color: 'rgba(255,255,255,0.72)' }}>
-              <li>Full Lens analysis (CS · C&I · BESS · Hybrid)</li>
-              <li>50-state map · scenario studio · scenario library</li>
-              <li>Saved projects · alerts · weekly digest</li>
+              <li>Library (cards view, stage edits, alerts)</li>
+              <li>Profile · Glossary · Privacy &amp; Terms</li>
+              <li>Dashboard 50-state map (small but functional)</li>
             </ul>
           </div>
+
+          <a
+            href={mailtoHref}
+            className="block w-full font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-4 py-3 rounded-sm text-center transition-all mb-2"
+            style={{ background: '#14B8A6', color: '#0F1A2E', minHeight: 44, lineHeight: '20px' }}
+          >
+            Email myself this link
+          </a>
 
           <button
             onClick={handleDismiss}

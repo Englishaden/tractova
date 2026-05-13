@@ -27,14 +27,17 @@ import SavedComparisonsList from '../components/library/SavedComparisonsList.jsx
 import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
-import ProjectTable from '../components/library/ProjectTable.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
+import MobileLibrary from '../components/library/MobileLibrary.jsx'
+import { useIsMobile } from '../hooks/useIsMobile'
 
-// LibraryMap lazily split — default layout is 'cards', so Map's heavy
-// payload (react-simple-maps + topojson-client + ~100 KB centroids
-// JSON) only loads when the user actually clicks the Map button.
-const LibraryMap = lazy(() => import('../components/library/LibraryMap.jsx'))
+// LibraryMap + ProjectTable lazily split — default layout is 'cards', so
+// Map's heavy payload (react-simple-maps + topojson-client + ~100 KB
+// centroids JSON) and Table's per-row chrome (StagePicker, ShareButton,
+// scenario chips) only load when the user actually picks the layout.
+const LibraryMap   = lazy(() => import('../components/library/LibraryMap.jsx'))
+const ProjectTable = lazy(() => import('../components/library/ProjectTable.jsx'))
 import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
 
 // Phase 2A · TRACTOVA-UX-001 — Library layout (cards | table | map) is
@@ -202,8 +205,13 @@ async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
 // ── Paywall gate ─────────────────────────────────────────────────────────────
 export default function Library() {
   const { isPro, loading: subLoading } = useSubscription()
+  // Mobile gets a cards-only view that drops the desktop toolbar, view
+  // toggle, map, table, bulk-actions, and Comparisons/Scenarios tabs.
+  // Paywall still applies — MobileLibrary is rendered after the Pro gate.
+  const isMobile = useIsMobile()
   if (subLoading) return <div className="min-h-screen bg-surface" />
   if (!isPro)     return <UpgradePrompt feature="Library" />
+  if (isMobile)   return <MobileLibrary />
   return <LibraryContent />
 }
 
@@ -1326,23 +1334,25 @@ function LibraryContent() {
                   />
                 </Suspense>
               ) : layout === 'table' ? (
-                <ProjectTable
-                  projects={pagedProjects}
-                  stateProgramMap={stateProgramMap}
-                  countyDataMap={countyDataMap}
-                  stateDeltaMap={stateDeltaMap}
-                  scenariosMap={scenariosMap}
-                  shareCountMap={shareCountMap}
-                  selectedIds={selectedIds}
-                  onToggleSelect={toggleSelect}
-                  onStageChange={handleStageChange}
-                  onRequestRemove={handleRequestRemove}
-                  onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
-                  onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
-                    ...prev,
-                    [projectId]: (prev[projectId] || []).filter(s => s.id !== snapId),
-                  }))}
-                />
+                <Suspense fallback={<div className="rounded-xl border border-gray-200 bg-paper h-[480px] animate-pulse" aria-label="Table view loading" />}>
+                  <ProjectTable
+                    projects={pagedProjects}
+                    stateProgramMap={stateProgramMap}
+                    countyDataMap={countyDataMap}
+                    stateDeltaMap={stateDeltaMap}
+                    scenariosMap={scenariosMap}
+                    shareCountMap={shareCountMap}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onStageChange={handleStageChange}
+                    onRequestRemove={handleRequestRemove}
+                    onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
+                    onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
+                      ...prev,
+                      [projectId]: (prev[projectId] || []).filter(s => s.id !== snapId),
+                    }))}
+                  />
+                </Suspense>
               ) : (
               <div className="grid gap-3">
                 {pagedProjects.map((p) => (

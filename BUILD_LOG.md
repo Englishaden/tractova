@@ -4,11 +4,53 @@
 
 ---
 
-## 🟢 Pickup — TRACTOVA-UX-001 Phase 5 SHIPPED · resume Phase 6 (Polish + audit-ui hardening)
+## 🟢 Pickup — TRACTOVA-UX-001 Phase 6 SHIPPED · TRACTOVA-UX-001 arc CLOSED
 
-**Phase 5 delivered the three highest-value coherence pieces: Profile inline stage editing (StagePicker dropped into the Recent Activity table — no more bouncing back to Library to advance a project), Profile billing history (inline Stripe invoice list with hosted-invoice URLs, served by a dual-purpose `/api/create-portal-session` endpoint that now also handles `GET ?action=invoices` to stay under Vercel Hobby's 12-function cap), and a targeted glossary tooltips sweep on the CompareTray rows + ProjectCard expanded panel. Landing tightening deferred to a standalone Phase 5.x commit with screenshot diffs.**
+**Phase 6 closes the verification scaffolding loop that keeps the V3 surface durable as we keep moving. axe-core is wired into `tests/audit-ui.spec.js` and runs across Lens / Library / Profile / Glossary at the WCAG 2.1 A+AA tag set, with a 0-critical-violation hard floor. MobileGate is route-aware: only `/search` and `/admin` gate on mobile; Library / Profile / Glossary / Dashboard pass through, and Library swaps to a new `MobileLibrary` cards-only component via the new `useIsMobile` hook. CompareTray hides itself on mobile so the dangling-CTA case is handled. ProjectTable joins LibraryMap as a lazy-loaded chunk. The Phase 6 axe sweep caught + fixed two real critical violations (`FieldSelect` + `CountyCombobox` hidden `<input>`s shipped without an accessible name). Cross-browser audit-ui projects added for Firefox + WebKit. Cron-runs latency probe stub added — skips gracefully when the audit user isn't admin.**
 
-**Resume command:** `Resume TRACTOVA-UX-001 Phase 6. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 6 (Polish + audit-ui hardening), then implement: axe-core wiring in tests/audit-ui.spec.js targeting 0 critical violations on Lens/Library/Profile/Glossary; mobile streamlined view via MobileGate.jsx softening (Library + Profile + alerts become mobile-functional in cards-only view, Lens/Studio/Compare stay desktop-gated); code-split LibraryMap + ProjectTable via React.lazy; cron-runs latency monitor stub in audit-ui; cross-browser sweep on Safari + Firefox + Chrome.`
+**Resume command:** `Continue from here. The TRACTOVA-UX-001 arc is closed. Open backlog: long-tail eyebrow-mono sweep (~200 remaining call sites on admin/* and Lens detail panels), Landing tightening (Phase 5.x), Library.jsx decomposition (extract useBulkSelection + useLibraryLayout hooks, currently 1500+ LOC). See BUILD_LOG § Backlog and docs/TRACTOVA-UX-001-ROADMAP.md § 4 deferred-from-each-phase notes.`
+
+---
+
+### Session 2026-05-12 (continued) — TRACTOVA-UX-001 Phase 6 shipped
+
+Phase 6 ships the verification scaffolding that closes the V3 arc. New tests + the structural a11y/perf fixes they uncovered. Five pieces landed; two real bugs found by the axe sweep got fixed in-line.
+
+**axe-core wiring** (`tests/audit-ui.spec.js` + `package.json`)
+- Installed `@axe-core/playwright@^4.11.3` as a devDep.
+- Added four `axe — <surface> has 0 critical violations` tests covering Lens (`/search`), Library (`/library`), Profile (`/profile`), Glossary (`/glossary`). Each test runs `AxeBuilder` with the WCAG 2.1 A+AA tag set and asserts on `impact === 'critical'` rows. `serious` and below are not gated yet — Phase 7 tightening can elevate them once the design is locked.
+- Added a `summarizeViolations()` helper that formats axe results as a one-line-per-rule summary including impact, rule id, selector, and node count — so failures land readable in CI logs.
+- **Real bugs caught + fixed:** `src/components/FieldSelect.jsx` and `src/components/CountyCombobox.jsx` both ship hidden `<input type="text" required className="sr-only" tabIndex={-1}>` for HTML5 form validation. Axe flagged them as critical (no implicit/explicit label, no `aria-label`, no `aria-labelledby`, no `placeholder`, no `title`). Fix: added `aria-label={label}` to FieldSelect's input + `aria-label="County"` to CountyCombobox's input. The hidden input is still non-interactive (`tabIndex={-1}`); the new aria-label gives it an accessible name when AT walks the form and the visible parent label sits above it for sighted users. Without the axe sweep these would have stayed silent — every Lens form session was rendering 4-5 unlabeled inputs.
+
+**MobileGate softening — route-aware** (`src/components/MobileGate.jsx` + `src/hooks/useIsMobile.js` + `src/components/library/MobileLibrary.jsx`)
+- `MobileGate.jsx` now uses `useLocation()` and consults a `GATED_PATHS = ['/search', '/admin']` allowlist via `pathname === p || pathname.startsWith(p + '/')`. Every other route passes through on mobile. Pre-Phase-6 the gate fired on every authed route — a phone user couldn't even read their saved Library or check Profile away from a laptop. After: Library/Profile/Glossary/Dashboard/Privacy/Terms all work; only the Lens form (dense desktop tool) and Admin (data-health admin) gate.
+- Gate copy updated: heading is now "This view needs a laptop" and points at the specific surface (`Lens · Intelligence Report` vs `Admin · Data Health`) rather than a generic "use desktop." New "Email myself this link" primary CTA generates a `mailto:?subject=…&body=…` with the current URL pre-filled — the "send myself a desktop link" affordance called out in the roadmap. The fallback "Continue to mobile site (limited)" button stays but moves down to secondary.
+- `src/hooks/useIsMobile.js` — small new hook that mirrors MobileGate's `(max-width: 767px)` matchMedia threshold so multiple call sites (MobileGate, Library, CompareTray) share one definition.
+- `src/components/library/MobileLibrary.jsx` — new cards-only Library view. Fetches projects + state_programs + state_deltas + per-(state,county) county data using the same Supabase queries the desktop Library runs. Renders a stack of `ProjectCard` components with a search input + sort dropdown (Recent / Score / MW). Stage edits and project removal still work; bulk-actions, view-mode toggle, map, table, comparisons tab, and scenarios tab are intentionally absent. Footer copy points the user back to desktop. Mounted from `Library.jsx`'s outer paywall gate: `if (isMobile) return <MobileLibrary />` runs immediately after the Pro check so the heavy `LibraryContent` desktop body never mounts on a phone.
+- `src/components/CompareTray.jsx` — `useIsMobile()` guard added to short-circuit `return null` on mobile. The compare modal is a wide table grid that won't collapse cleanly under 768px; rather than ship a half-rendered tray, hide it.
+
+**Code-split ProjectTable** (`src/pages/Library.jsx`)
+- ProjectTable join LibraryMap as a `React.lazy(() => import(...))` chunk. The default `'cards'` layout means a fresh-arrived user no longer pays for ProjectTable's per-row chrome (StagePicker + ShareButton + scenario chips) on first paint. Build now emits a separate `ProjectTable-DImpCM5K.js` chunk; previously it was bundled into the Library entry. The existing Suspense fallback pattern (skeleton with `animate-pulse`) is reused for symmetry with the Map layout.
+
+**Cross-browser sweep — Playwright** (`playwright.config.js`)
+- Added `audit-ui-firefox` and `audit-ui-webkit` projects that point at the same `tests/audit-ui.spec.js`, depend on `setup` (for the saved Pro session), and use `devices['Desktop Firefox']` / `devices['Desktop Safari']` respectively. Opt-in via `npx playwright test --project=audit-ui-firefox` so default CI runs stay cheap. First run requires `npx playwright install firefox webkit`.
+
+**Cron-runs latency monitor — audit-ui probe** (`tests/audit-ui.spec.js`)
+- New test that navigates to `/admin → Data Health` and asserts the existing CronLatencyPanel (`src/components/admin/CronLatencyPanel.jsx`, shipped earlier with the analyzer at `src/lib/cronLatencyMonitor.js`) renders without error. Soft-skips when the audit user isn't admin (Admin.jsx role gate). Logs any `warn`-severity rows (p95 ≥ 70% of the function's `maxDuration`) as CI output without failing — engineering responds to those structurally, gates aren't the right enforcement layer.
+
+**Deferred (intentional, called out in roadmap):**
+- **Long-tail eyebrow-mono sweep** — ~200 inline `text-[9px] font-mono uppercase tracking-[0.18em]` call sites still remain in `admin/*` + Lens detail panels (CsMarketPanel, RegulatoryActivityPanel, SolarCostLineagePanel). The Phase 3 sweep landed everywhere a Pro user spends meaningful time; the remainder is mostly admin/internal and lower-frequency Lens panels. Future incremental work.
+- **`Library.jsx` decomposition** — page is 1500+ LOC after Phase 2C's Comparisons tab + 2D's saved-count fetcher. Extract `useBulkSelection` + `useLibraryLayout` hooks. Out of scope for Phase 6 (verification-focused phase, not a refactor).
+- **Landing tightening** — Phase 5.x follow-up; deferred again.
+
+**Verification (close of session):**
+- `npm run test:unit` — 129/129 green
+- `npm run build` — clean (3.33s)
+- `npm run test:smoke` — 7/7 green
+- `npm run test:mobile` — 10/10 green
+- `npm run test:mobile:pro` — 6/6 green (exercises MobileLibrary + the route-aware gate)
+- `npx playwright test --project=setup --project=audit-ui -g "axe|Cron Latency"` — 5/5 passed, 1 skipped (cron-latency skips when test user isn't admin)
+- `npm run lint:locs / lint:api / lint:secrets` — clean
 
 ---
 

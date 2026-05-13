@@ -27,8 +27,19 @@ export default function FieldSelect({ label, labelIcon, value, onChange, options
         {labelIcon}{label}
       </p>
 
-      {/* Hidden native input for form validation */}
-      <input type="text" value={value} onChange={() => {}} required={required} className="sr-only" tabIndex={-1} />
+      {/* Hidden native input for HTML5 form validation. aria-label mirrors
+          the visible label so axe-core doesn't flag it as unlabeled — the
+          input is non-interactive (tabIndex={-1}) but screen readers may
+          still surface it when validation fires. */}
+      <input
+        type="text"
+        value={value}
+        onChange={() => {}}
+        required={required}
+        aria-label={label}
+        className="sr-only"
+        tabIndex={-1}
+      />
 
       {/* Display row */}
       <div className="flex items-center justify-between gap-1 text-sm py-0.5 pointer-events-none select-none">

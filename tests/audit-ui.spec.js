@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 
 /**
  * Tractova UI audit suite — pre-onboarding full-site audit.
@@ -268,6 +269,123 @@ test.describe('Tractova UI audit', () => {
     await page.waitForLoadState('networkidle', { timeout: 10_000 })
     const bad = await findBadText(page)
     expect(bad, `Glossary has visible bad text: ${bad.map(b => b.snippet).join(' | ')}`).toHaveLength(0)
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+
+  // ── Axe-core a11y sweep — Phase 6 (TRACTOVA-UX-001) ───────────────────────
+  // Hard floor: 0 CRITICAL violations on the four surfaces a power user
+  // spends real time inside. Critical is the WCAG bucket that includes
+  // missing form labels, empty buttons, frames without titles, links
+  // without text, and major contrast failures — the class of bug that
+  // makes a screen reader unusable. We don't gate on `serious` yet
+  // (color-contrast borderlines, region rules) — those are a Phase 7
+  // tightening pass when the design is fully locked. WCAG 2.1 A+AA tags
+  // mirror what most enterprise procurement teams audit for.
+  async function axeCriticalCount(page, { excludeSelectors = [] } = {}) {
+    let builder = new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    for (const sel of excludeSelectors) builder = builder.exclude(sel)
+    const results = await builder.analyze()
+    const critical = results.violations.filter(v => v.impact === 'critical')
+    return { critical, all: results.violations }
+  }
+  function summarizeViolations(violations) {
+    return violations.map(v =>
+      `[${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} node${v.nodes.length > 1 ? 's' : ''}) — ${v.nodes[0]?.target?.join(' > ') || '?'}`
+    ).join('\n')
+  }
+
+  test('axe — Lens (/search) has 0 critical violations', async ({ page }) => {
+    await page.goto('/search')
+    await expect(page.getByText('Run a targeted intelligence report')).toBeVisible({ timeout: 10_000 })
+    await page.waitForLoadState('networkidle', { timeout: 10_000 })
+    const { critical, all } = await axeCriticalCount(page)
+    expect(critical, `Lens critical a11y violations:\n${summarizeViolations(critical)}\n\n(All violations: ${all.length})`).toHaveLength(0)
+  })
+
+  test('axe — Library (/library) has 0 critical violations', async ({ page }) => {
+    await page.goto('/library')
+    await expect(page.getByRole('heading', { name: 'Library', level: 1 })).toBeVisible({ timeout: 20_000 })
+    await page.waitForLoadState('networkidle', { timeout: 10_000 })
+    const { critical, all } = await axeCriticalCount(page)
+    expect(critical, `Library critical a11y violations:\n${summarizeViolations(critical)}\n\n(All violations: ${all.length})`).toHaveLength(0)
+  })
+
+  test('axe — Profile (/profile) has 0 critical violations', async ({ page }) => {
+    await page.goto('/profile')
+    await expect(page.getByText('Pro', { exact: true }).first()).toBeVisible({ timeout: 20_000 })
+    await page.waitForLoadState('networkidle', { timeout: 10_000 })
+    const { critical, all } = await axeCriticalCount(page)
+    expect(critical, `Profile critical a11y violations:\n${summarizeViolations(critical)}\n\n(All violations: ${all.length})`).toHaveLength(0)
+  })
+
+  test('axe — Glossary (/glossary) has 0 critical violations', async ({ page }) => {
+    await page.goto('/glossary')
+    await page.waitForLoadState('networkidle', { timeout: 10_000 })
+    const { critical, all } = await axeCriticalCount(page)
+    expect(critical, `Glossary critical a11y violations:\n${summarizeViolations(critical)}\n\n(All violations: ${all.length})`).toHaveLength(0)
+  })
+
+  // ── Cron-runs latency monitor probe — Phase 6 (TRACTOVA-UX-001) ───────────
+  // Exercises the Cron Latency panel in /admin → Data Health. The panel
+  // itself was shipped in Sprint E.2 (CronLatencyPanel.jsx + cronLatencyMonitor.js);
+  // this stub probes it from the audit suite so we (a) catch regressions in
+  // the analyzer surface, and (b) log any 'warn' severity rows (p95 ≥ 70%
+  // of the function ceiling) for engineering follow-up. Warns don't FAIL
+  // the test — the structural class of bug they catch (sequential fanout
+  // creeping toward maxDuration) may legitimately exist for hours before
+  // it's responded to. The hard fail is panel-error or panel-not-found.
+  test('Cron Latency panel — renders without error in admin Data Health', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    await page.goto('/admin')
+    await page.waitForLoadState('networkidle', { timeout: 10_000 })
+    // Admin.jsx:553 gates the page on profiles.role='admin' or ADMIN_EMAIL.
+    // The Pro test user from auth.setup.js typically isn't admin, so when
+    // we hit "Access denied" we skip rather than fail — the cron-latency
+    // probe is here to verify the panel still works for admins, not to
+    // assert the test fixture's role.
+    if (await page.getByText('Access denied').count() > 0) {
+      test.skip(true, 'Test user is not admin; cron-latency probe requires admin access')
+      return
+    }
+    // Tab 9 = Data Health (Admin.jsx:41). Click by exact label so we don't
+    // pick up the dot or color treatment.
+    await page.getByRole('button', { name: 'Data Health' }).click()
+    // Panel heading proves the component mounted + the analyzeCronLatency
+    // promise resolved (loading spinner has cleared and EITHER the table
+    // OR the "no successful cron runs" italic is rendered).
+    await expect(page.getByRole('heading', { name: 'Cron Latency', level: 3 })).toBeVisible({ timeout: 15_000 })
+    // Wait for either the data table or the empty-state copy. The
+    // loading-state spinner has the text "Loading latency rollup…" so the
+    // body settles to one of three end states.
+    await expect(
+      page.getByText(/Loading latency rollup/i).or(
+        page.locator('text=No successful cron runs').or(
+          page.locator('table')
+        )
+      )
+    ).toBeVisible({ timeout: 15_000 })
+    // Hard fail: did the analyzer throw an error into the panel?
+    const errBlock = page.locator('text=/Failed to load cron latency:/i')
+    if (await errBlock.count() > 0) {
+      const msg = await errBlock.textContent()
+      throw new Error(`Cron Latency panel rendered an error state: ${msg}`)
+    }
+    // Soft report: log any 'warn' severity rows so the audit run surfaces
+    // them in CI output. Selector finds the bg-red-tinted WARN pills
+    // (SEVERITY_STYLE.warn uses rgba(220,38,38,...) — that's the only
+    // place in the panel using red).
+    const warnRows = await page.locator('table tbody tr', {
+      has: page.locator('text=WARN')
+    }).all()
+    if (warnRows.length > 0) {
+      const summaries = []
+      for (const row of warnRows) {
+        const text = (await row.textContent())?.replace(/\s+/g, ' ').trim()
+        summaries.push(text?.slice(0, 240))
+      }
+      console.log(`\n  Cron Latency WARN rows (${warnRows.length}):\n  ` + summaries.join('\n  '))
+    }
     expect(errors, errors.join('\n\n')).toHaveLength(0)
   })
 })

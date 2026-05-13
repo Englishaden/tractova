@@ -4,7 +4,7 @@
 
 **Last updated:** 2026-05-12
 **Project owner:** Aden (englishaden / aden.walker67@gmail.com)
-**Status:** Phases 0, 1, 2A, 2B, 2C, 3, 4, 5 + UI/UX-audit five-pass cleanup all shipped. Resume at Phase 6 (Polish + audit-ui hardening).
+**Status:** All phases (0, 1, 2A, 2B, 2C, 3, 4, 5, 6) + UI/UX-audit five-pass cleanup shipped. **TRACTOVA-UX-001 arc CLOSED.** Backlog of explicitly-deferred follow-ups noted in § 4 per-phase "Deferred (intentional)" lines + BUILD_LOG backlog.
 
 ---
 
@@ -432,19 +432,21 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 - **✅ Phase 3 shipped** — CompareTray → Radix Dialog (Esc/focus-trap/outside-click for free), ScenarioStudio "✓ Saved" persists until edit, Cmd-K combobox/listbox/option ARIA pattern with aria-activedescendant, CollapsibleCard paired aria-controls + role="region", eyebrow-mono utility sweep on Lens panels + ProjectCard + library surfaces (47 swaps). LensTour `role="dialog"` (anchored tooltip, not a true modal) and axe-core test wiring deferred to Phase 6.
 - **✅ Phase 4 shipped** — `useFirstVisible` hook in MotionPrimitives; ArcGauge + MiniArcGauge + ScoreGauge all fill on first viewport entry only (no re-animate on every render), number readouts CountUp 0→score on the same gate; ProjectCard collapsed state lifts on hover. LibraryMap hover tooltips portaled out of the transformed map container so they appear next to the cursor again. RevealOnScroll on Lens / Library / Profile sections + chip-and-button micro-interactions + Skeleton variant audit deferred to Phase 6 polish.
 - **✅ Phase 5 shipped** — Profile inline stage editing via StagePicker in Recent Activity (no more Library detour to advance a stage); Profile billing history with sanitized Stripe invoice list, served by `/api/create-portal-session?action=invoices` (dual-purpose with the existing portal session POST to stay under Vercel Hobby's 12-function cap); targeted glossary tooltips sweep on CompareTray row labels + ProjectCard diligence labels. Landing tightening + long-tail glossary sweep deferred to Phase 5.x / Phase 6.
-- **🟢 NEXT: Phase 6** — Polish + audit-ui hardening. See § 4 Phase 6.
+- **✅ Phase 6 shipped** — axe-core wired (`@axe-core/playwright`) across Lens/Library/Profile/Glossary at WCAG 2.1 A+AA, 0 critical violations bar. Caught + fixed 2 real bugs (FieldSelect + CountyCombobox hidden `<input>`s with no accessible name). Route-aware MobileGate (`/search` + `/admin` gate, everything else passes through), new `useIsMobile` hook + `MobileLibrary` cards-only view, CompareTray hides on mobile. ProjectTable joins LibraryMap as a lazy chunk. Firefox + WebKit Playwright projects added. Cron-latency audit-ui probe (skips gracefully when test user isn't admin). Long-tail eyebrow-mono sweep + Library.jsx decomposition + Landing tightening explicitly deferred to post-arc work.
+- **🟢 ARC CLOSED.** Continued work picks from the per-phase "Deferred (intentional)" backlog + BUILD_LOG backlog.
 
 ### Resume command
-After `/clear`, tell Claude:
+The arc is closed. After `/clear`, the next session should orient from the BUILD_LOG pickup section + this status table rather than a single fixed phase. Outstanding incremental work:
 
 ```
-Resume TRACTOVA-UX-001 Phase 6. Read docs/TRACTOVA-UX-001-ROADMAP.md § 4 Phase 6,
-then implement: axe-core wiring in tests/audit-ui.spec.js targeting 0 critical
-violations on Lens/Library/Profile/Glossary; mobile streamlined view via
-MobileGate.jsx softening (Library + Profile + alerts mobile-functional in
-cards-only view, Lens/Studio/Compare stay desktop-gated); code-split LibraryMap
-+ ProjectTable via React.lazy; cron-runs latency monitor stub in audit-ui;
-cross-browser sweep on Safari + Firefox + Chrome.
+Continue from BUILD_LOG pickup. TRACTOVA-UX-001 arc closed.
+Open follow-ups in priority order:
+- Long-tail eyebrow-mono sweep (~200 sites on admin/* + Lens detail panels)
+- Library.jsx decomposition (extract useBulkSelection + useLibraryLayout hooks)
+- Landing tightening (Phase 5.x follow-up: Three Pillars cards)
+- LensTour role="dialog" migration (anchored-tooltip a11y)
+- §05 LensComparablesSection re-enable strategy
+See § 4 deferred-from-each-phase + BUILD_LOG § Backlog for full list.
 ```
 
 Claude will pick up exactly where this session ended.
@@ -479,8 +481,8 @@ Claude will pick up exactly where this session ended.
 | 2C — Saved compare + PDF + Re-run + Scenarios→Projects | ✅ Shipped | `63bbffc` + `b695bd5` + `48f36f3` + `c462ecc` + `91791da` | Migration 062 FILE + savedComparisons lib + CompareReportPDF (incl. CSP wasm-unsafe-eval + WinAnsi character discipline + page-break tuning) + SavedComparisonsList tab + Cmd-K saved-comp surface + drift banner + Save-back + orphan→project |
 | 3 — Lens polish + a11y | ✅ Shipped | `7497ec4` | CompareTray → Radix Dialog · ScenarioStudio "Saved" persists · Cmd-K combobox/listbox/option pattern · CollapsibleCard aria-controls + ids · eyebrow-mono sweep (47 swaps across Lens + Library + ProjectCard) · LensTour + axe-core deferred to Phase 6 |
 | 4 — Motion layer rollout | ✅ Shipped | `03521c4` + `103c72e` | useFirstVisible hook · ArcGauge / MiniArcGauge / ScoreGauge all fill on first viewport entry · number readouts CountUp 0→score · ProjectCard collapsed hover lift · LibraryMap tooltips portaled out of transformed ancestor. Follow-up `103c72e`: dropped IO gate per Aden's feedback that scroll-revealed cards re-animated as they came into view — gauges now animate on mount, no scroll-in re-animation. |
-| 5 — Cross-surface coherence | ✅ Shipped | (this commit) | Profile inline stage editing (StagePicker in Recent Activity) · Profile billing history (Stripe invoices list, dual-purpose `/api/create-portal-session?action=invoices` to stay within 12-function cap) · targeted glossary tooltips sweep on CompareTray rows + ProjectCard diligence labels. Landing tightening + long-tail glossary deferred to Phase 5.x / Phase 6. |
-| 6 — Polish + audit-ui hardening | ⏳ Queued | — | ~6–10h |
+| 5 — Cross-surface coherence | ✅ Shipped | `bd69629` | Profile inline stage editing (StagePicker in Recent Activity) · Profile billing history (Stripe invoices list, dual-purpose `/api/create-portal-session?action=invoices` to stay within 12-function cap) · targeted glossary tooltips sweep on CompareTray rows + ProjectCard diligence labels. Landing tightening + long-tail glossary deferred to Phase 5.x / Phase 6. |
+| 6 — Polish + audit-ui hardening | ✅ Shipped | (this commit) | axe-core wiring (`@axe-core/playwright`) with 4 surfaces (Lens/Library/Profile/Glossary) at 0 critical violations · caught + fixed 2 real bugs (FieldSelect + CountyCombobox hidden inputs missing aria-label) · route-aware MobileGate (`/search` + `/admin` gate, everything else passes through) · new `useIsMobile` hook + `MobileLibrary` cards-only view · CompareTray hides on mobile · ProjectTable joins LibraryMap as a lazy chunk · Firefox + WebKit Playwright projects · cron-latency audit-ui probe (skips when test user isn't admin). Long-tail eyebrow-mono sweep + Library.jsx decomposition + Landing tightening explicitly deferred. |
 
 **As phases ship, update this table with commit refs.** This is the canonical "where are we" view.
 

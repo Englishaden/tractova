@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/Dial
 import GlossaryLabel from './ui/GlossaryLabel'
 import { useToast } from './ui/Toast'
 import TractovaLoader from './ui/TractovaLoader'
+import { useIsMobile } from '../hooks/useIsMobile'
 
 // CS_LABEL is local — uses 'None' for compare-tray brevity; the canonical
 // CS_STATUS_LABEL in statusMaps.js uses 'Closed' for chip labels.
@@ -723,6 +724,12 @@ function CompareModal({ onClose }) {
 export default function CompareTray() {
   const { items, remove, clear, load } = useCompare()
   const [modalOpen, setModalOpen] = useState(false)
+  // Phase 6 — the Compare modal is desktop-only (dense table grid that
+  // doesn't collapse cleanly under 768px). Hide the floating tray pill
+  // on mobile entirely; the gate at /search already routes power-user
+  // flows off phones, and the tray adding itself to MobileLibrary would
+  // dangle a CTA users can't fulfill.
+  const isMobile = useIsMobile()
 
   // Cmd-K verb `:compare` dispatches this event. Open the modal if we have
   // anything to compare; otherwise the tray isn't even mounted (items===0
@@ -762,6 +769,7 @@ export default function CompareTray() {
   // listener stays alive even with an empty draft — saved-comparison hydrate
   // updates items first, which triggers a re-render that renders the tray.
   if (items.length === 0) return null
+  if (isMobile) return null
 
   return (
     <>

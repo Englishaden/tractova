@@ -131,6 +131,32 @@ export default defineConfig({
       timeout: 120_000,
       dependencies: ['setup'],
     },
+    // 8 + 9. Cross-browser sweep — same audit-ui suite on Firefox + WebKit
+    // so the motion layer (Phase 4 gauges) and LibraryMap rendering get
+    // exercised under all three engines. Opt-in to keep default CI cheap;
+    // run via `npx playwright test --project=audit-ui-firefox` or
+    // `audit-ui-webkit`. Requires `npx playwright install firefox webkit`
+    // once per machine.
+    {
+      name: 'audit-ui-firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: 'tests/.auth/pro-user.json',
+      },
+      testMatch: '**/audit-ui.spec.js',
+      timeout: 120_000,
+      dependencies: ['setup'],
+    },
+    {
+      name: 'audit-ui-webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        storageState: 'tests/.auth/pro-user.json',
+      },
+      testMatch: '**/audit-ui.spec.js',
+      timeout: 120_000,
+      dependencies: ['setup'],
+    },
   ],
 
   // Auto-boot the Vite dev server before running tests; tear it down after.
