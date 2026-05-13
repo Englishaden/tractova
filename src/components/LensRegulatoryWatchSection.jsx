@@ -20,6 +20,7 @@
 // PDF-text paste intake (planned next slice) widens the funnel further.
 
 import { useState, useEffect } from 'react'
+import { motion } from 'motion/react'
 import { getPucDockets } from '../lib/programData'
 import SectionMarker from './SectionMarker'
 import RegulatoryActivityPanel from './RegulatoryActivityPanel'
@@ -94,7 +95,10 @@ function EventRow({ event }) {
   const hasDetail      = event.impactMethodology || event.analystNote || event.sourceUrl
 
   return (
-    <div className="rounded-md border border-gray-200 bg-white">
+    <div
+      className="rounded-md border bg-white transition-colors"
+      style={{ borderColor: open && hasDetail ? '#CBD5E1' : '#E2E8F0' }}
+    >
       <button
         type="button"
         onClick={() => hasDetail && setOpen(o => !o)}
@@ -125,6 +129,11 @@ function EventRow({ event }) {
               {event.summary}
             </div>
           )}
+          {hasDetail && (
+            <div className="font-mono text-[8.5px] uppercase tracking-[0.18em] text-gray-400 mt-1.5">
+              {open ? 'Hide details ▴' : 'View methodology & source ▾'}
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0 text-right">
           {event.effectiveDate && (
@@ -136,6 +145,24 @@ function EventRow({ event }) {
             <span className="font-mono text-[8.5px] text-gray-400 whitespace-nowrap">
               {event.effectiveDate}
             </span>
+          )}
+          {hasDetail && (
+            <motion.svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#94A3B8"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              animate={{ rotate: open ? 180 : 0 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="mt-1"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </motion.svg>
           )}
         </div>
       </button>
