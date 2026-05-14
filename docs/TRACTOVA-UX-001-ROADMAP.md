@@ -2,9 +2,9 @@
 
 > **Unified resume doc** — read this file + `docs/design-vocabulary.md` after `/clear` and you can pick up Phase 1 instantly. Companion to `BUILD_LOG.md` (chronological log) and `~/.claude/plans/if-the-dsire-api-dreamy-anchor.md` (mirror of this content).
 
-**Last updated:** 2026-05-12
+**Last updated:** 2026-05-13 (evening)
 **Project owner:** Aden (englishaden / aden.walker67@gmail.com)
-**Status:** All phases (0, 1, 2A, 2B, 2C, 3, 4, 5, 6) + UI/UX-audit five-pass cleanup shipped. **TRACTOVA-UX-001 arc CLOSED.** Backlog of explicitly-deferred follow-ups noted in § 4 per-phase "Deferred (intentional)" lines + BUILD_LOG backlog.
+**Status:** All phases (0, 1, 2A, 2B, 2C, 3, 4, 5, 6) + UI/UX-audit five-pass cleanup shipped. **TRACTOVA-UX-001 arc CLOSED.** Post-arc work continues opportunistically — see "Where we are" in § 8 for tonight's four commits (§05 path-A validated, §06 Regulatory Watch promoted, expand-affordance fix, PDF intake). Backlog of explicitly-deferred follow-ups noted in § 4 per-phase "Deferred (intentional)" lines + BUILD_LOG backlog.
 
 ---
 
@@ -21,7 +21,7 @@ Three OOM crashes happened during Phase 0. Read these BEFORE writing motion code
 
 - **NEVER wrap all Routes in `<PageTransition>`** (AnimatePresence + motion.div keyed by pathname). The Lens results tree is too dense — IntelligenceBackground + 5 sections + ScenarioStudio + CompareTray + CommandPalette all under one motion parent blows Chrome's per-tab memory budget. Per-page scoped use OR CSS-only fade is fine. Incident: revert `238169a`.
 - **NEVER use `motion.div animate={{ height: 'auto' }}` to wrap heavy content.** motion has to synchronously measure all children. Inside `CollapsibleSubsection` that wrapped 22+ policy events + CsMarketPanel + ComparableDealsPanel, the cascade cost OOM. Use plain `{open && <div>}` conditional render instead. Chevron rotation animation is fine (small SVG transform, cheap). Incident: revert `ddc9173`.
-- **§ 05 (LensComparablesSection) is currently gated off** in `Search.jsx` behind `{false &&}`. CsMarketPanel + `getCsMarketSnapshot` triggers OOM on heavy-rowcount states (MA 374, IL 261, NY 1351 cs_projects rows). Not from any single component — cumulative memory pressure with the rest of the Lens tree. **Re-enable in Phase 2A** with the paginated Table view + Library cockpit migration (Operating Projects moves to Library where it belongs). Incident: disable `4b183d0`.
+- **§ 05 (LensComparablesSection) is RE-ENABLED 2026-05-13 evening** (commit `933237e`, path A). The original 2026-05-11 attribution ("CsMarketPanel + getCsMarketSnapshot triggers OOM on heavy-rowcount states") was a misread caused by the recursive-wrapper bug in `LensComparableSubsection` (Phase 0 typo, commit `cfce269`). The bisect ran with the recursion present, so any `bisectOnly` value would have stack-overflowed regardless of memory pressure. Wrapper bug fixed `e60882f`; gate flipped `933237e`; prod-validated by Aden on NY (1351 rows), MA (374), IL (261) — all clean. §05 stays on. ORIGINAL OOM LESSON STILL APPLIES — don't introduce new height-auto motion wrappers around dense subtrees.
 - **The 3 main pillar cards (Offtake/IX/Site) still use `CollapsibleCard` with `height: auto` motion.** They haven't OOM'd because the cards are heavy-but-bounded. Phase 4 should evaluate migrating them — with caution, since changing the main pillars is broader blast radius.
 - **Bisect strategy that worked:** disable both new sections → confirm Lens loads → re-enable one at a time → narrow to the offender. Use `bisectOnly` prop pattern in `LensComparablesSection.jsx` for sub-component isolation. Don't try to fix OOMs by reading code alone; bisect with deploys.
 
@@ -434,20 +434,23 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 - **✅ Phase 5 shipped** — Profile inline stage editing via StagePicker in Recent Activity (no more Library detour to advance a stage); Profile billing history with sanitized Stripe invoice list, served by `/api/create-portal-session?action=invoices` (dual-purpose with the existing portal session POST to stay under Vercel Hobby's 12-function cap); targeted glossary tooltips sweep on CompareTray row labels + ProjectCard diligence labels. Landing tightening + long-tail glossary sweep deferred to Phase 5.x / Phase 6.
 - **✅ Phase 6 shipped** — axe-core wired (`@axe-core/playwright`) across Lens/Library/Profile/Glossary at WCAG 2.1 A+AA, 0 critical violations bar. Caught + fixed 2 real bugs (FieldSelect + CountyCombobox hidden `<input>`s with no accessible name). Route-aware MobileGate (`/search` + `/admin` gate, everything else passes through), new `useIsMobile` hook + `MobileLibrary` cards-only view, CompareTray hides on mobile. ProjectTable joins LibraryMap as a lazy chunk. Firefox + WebKit Playwright projects added. Cron-latency audit-ui probe (skips gracefully when test user isn't admin). Long-tail eyebrow-mono sweep + Library.jsx decomposition + Landing tightening explicitly deferred to post-arc work.
 - **🟢 ARC CLOSED.** Continued work picks from the per-phase "Deferred (intentional)" backlog + BUILD_LOG backlog.
-- **Post-arc 2026-05-13 — 3 backlog items shipped:** Library.jsx hook decomposition (`9a489d7` — useLibraryLayout + useBulkSelection, 1517 → 1399 LOC); LensTour Radix Dialog migration (`f1f3825` — real focus trap + aria-labelledby/describedby on both per-step tooltip and "complete" card; drive-by cron-latency skip-gate race fix); §05 recursive-wrapper bug fix (`e60882f` — Phase 0 typo, dead-code correctness, unblocks future §05 re-enable but the gate stays off pending a fresh prod bisect).
+- **Post-arc 2026-05-13 (morning) — 3 backlog items shipped:** Library.jsx hook decomposition (`9a489d7` — useLibraryLayout + useBulkSelection, 1517 → 1399 LOC); LensTour Radix Dialog migration (`f1f3825` — real focus trap + aria-labelledby/describedby on both per-step tooltip and "complete" card; drive-by cron-latency skip-gate race fix); §05 recursive-wrapper bug fix (`e60882f` — Phase 0 typo, dead-code correctness).
+- **Post-arc 2026-05-13 (evening) — 4 commits:** §05 path-A re-enable (`933237e` — gate flipped, prod-validated on NY/MA/IL all clean); §06 Regulatory Watch promoted (`de13907` — new `LensRegulatoryWatchSection.jsx` reframes the un-numbered PUC panel as a chronological `policy_impact_events` feed; PUC dockets fold in as the ◆ Active Proceedings subsection, curation-gated; same source of truth as §04 sliced by time instead of pillar); §06 EventRow expand affordance (`5f2c229` — explicit "View methodology & source ▾" caption + rotating chevron + border-color shift in response to live feedback); PDF intake for `policy_impact_events` (`09fe5c2` — admin drops a PDF on PolicyImpactTab, Anthropic SDK 0.95.1 + Haiku 4.5 native PDF document blocks extract the policy directly; no pdfjs-dist; 6 MB base64 cap; `discovery_metadata.source_type='pdf_upload'` lineage stamp).
 
 ### Resume command
 The arc is closed. After `/clear`, the next session should orient from the BUILD_LOG pickup section + this status table rather than a single fixed phase. Outstanding incremental work:
 
 ```
-Continue from BUILD_LOG pickup. Post-arc slices 1–3 shipped 2026-05-13:
-- Library.jsx decomposition → useLibraryLayout + useBulkSelection hooks ✅
-- LensTour role="dialog" migration → Radix Dialog primitives ✅
-- §05 LensComparablesSection recursive-wrapper bug fix (dead-code) ✅
+Continue from BUILD_LOG pickup. 2026-05-13 evening shipped four commits:
+- §05 path-A re-enable (prod-validated NY/MA/IL) ✅
+- §06 Regulatory Watch promotion (chronological policy_impact_events feed) ✅
+- §06 EventRow expand-affordance fix ✅
+- PDF intake on PolicyImpactTab (Anthropic native PDF document blocks) ✅
 Remaining backlog needs your direction:
 - Long-tail eyebrow-mono sweep (181 sites — design-judgment-heavy, low ROI)
 - Landing tightening (Three Pillars cards — design-subjective)
-- §05 actual re-enable strategy (paths A/B/C — see BUILD_LOG § Findings 2026-05-13)
+- §04 / §06 visual-redundancy review once curated events make both surfaces live in prod
+- discovered_via enum extension to include 'pdf_upload' (migration FILE — deferred)
 See § 4 deferred-from-each-phase + BUILD_LOG § Backlog for full list.
 ```
 
@@ -485,6 +488,7 @@ Claude will pick up exactly where this session ended.
 | 4 — Motion layer rollout | ✅ Shipped | `03521c4` + `103c72e` | useFirstVisible hook · ArcGauge / MiniArcGauge / ScoreGauge all fill on first viewport entry · number readouts CountUp 0→score · ProjectCard collapsed hover lift · LibraryMap tooltips portaled out of transformed ancestor. Follow-up `103c72e`: dropped IO gate per Aden's feedback that scroll-revealed cards re-animated as they came into view — gauges now animate on mount, no scroll-in re-animation. |
 | 5 — Cross-surface coherence | ✅ Shipped | `bd69629` | Profile inline stage editing (StagePicker in Recent Activity) · Profile billing history (Stripe invoices list, dual-purpose `/api/create-portal-session?action=invoices` to stay within 12-function cap) · targeted glossary tooltips sweep on CompareTray rows + ProjectCard diligence labels. Landing tightening + long-tail glossary deferred to Phase 5.x / Phase 6. |
 | 6 — Polish + audit-ui hardening | ✅ Shipped | (this commit) | axe-core wiring (`@axe-core/playwright`) with 4 surfaces (Lens/Library/Profile/Glossary) at 0 critical violations · caught + fixed 2 real bugs (FieldSelect + CountyCombobox hidden inputs missing aria-label) · route-aware MobileGate (`/search` + `/admin` gate, everything else passes through) · new `useIsMobile` hook + `MobileLibrary` cards-only view · CompareTray hides on mobile · ProjectTable joins LibraryMap as a lazy chunk · Firefox + WebKit Playwright projects · cron-latency audit-ui probe (skips when test user isn't admin). Long-tail eyebrow-mono sweep + Library.jsx decomposition + Landing tightening explicitly deferred. |
+| Post-arc 2026-05-13 evening | ✅ Shipped | `933237e` + `de13907` + `5f2c229` + `09fe5c2` | §05 path-A re-enable + prod-validated · §06 Regulatory Watch promotion (`LensRegulatoryWatchSection.jsx` — chronological `policy_impact_events` feed; PUC dockets fold in as ◆ Active Proceedings; glossary entries for "Regulatory Watch" + "Active Proceedings") · §06 EventRow expand-affordance (caption + rotating chevron + border shift) · PDF intake on PolicyImpactTab (Anthropic native PDF document blocks, 6 MB cap, `discovery_metadata.source_type='pdf_upload'` lineage). |
 
 **As phases ship, update this table with commit refs.** This is the canonical "where are we" view.
 
