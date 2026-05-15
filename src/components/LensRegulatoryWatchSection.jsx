@@ -274,7 +274,7 @@ export default function LensRegulatoryWatchSection({ state, stateName, policyEve
               {earlier.length > 0 && (
                 <details className="text-[10.5px]">
                   <summary className="cursor-pointer font-mono text-[8.5px] uppercase tracking-[0.18em] text-gray-500 hover:text-gray-700 select-none">
-                    Earlier on the books · {earlier.length} ▾
+                    Earlier events · {earlier.length} ▾
                   </summary>
                   <div className="space-y-1.5 mt-2">
                     {earlier.map(e => <EventRow key={e.id} event={e} />)}
