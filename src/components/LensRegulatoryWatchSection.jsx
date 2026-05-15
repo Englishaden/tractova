@@ -107,13 +107,13 @@ function EventRow({ event }) {
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap mb-1">
-            <span className="font-mono text-[8px] uppercase tracking-[0.18em] px-1.5 py-0.5 rounded" style={{ background: '#F1F5F9', color: '#475569' }}>
+            <span className="eyebrow-mono px-1.5 py-0.5 rounded" style={{ background: '#F1F5F9', color: '#475569' }}>
               {eventTypeLabel}
             </span>
-            <span className="font-mono text-[8px] uppercase tracking-[0.18em] px-1.5 py-0.5 rounded border" style={{ background: status.bg, color: status.color, borderColor: status.border }}>
+            <span className="eyebrow-mono px-1.5 py-0.5 rounded border" style={{ background: status.bg, color: status.color, borderColor: status.border }}>
               {status.label}
             </span>
-            <span className="font-mono text-[8px] uppercase tracking-[0.18em] px-1.5 py-0.5 rounded" style={{ background: 'transparent', color: pillarColor, border: `1px solid ${pillarColor}33` }}>
+            <span className="eyebrow-mono px-1.5 py-0.5 rounded" style={{ background: 'transparent', color: pillarColor, border: `1px solid ${pillarColor}33` }}>
               {pillarLabel}
             </span>
             {event.feocComplianceRequired && (
