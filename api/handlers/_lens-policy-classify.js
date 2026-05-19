@@ -301,11 +301,14 @@ export default async function handlePolicyClassify(body, res) {
   //        tier with min_mw_ac/max_mw_ac set. Single-tier policies unchanged.
   //   v=7: PDF document input path. PDF mode keys cache on SHA256 of base64.
   //        Pre-v7 text-mode caches stay valid (same key shape).
+  //   v=8: Migration 063 — pdf_upload promoted from discovery_metadata jsonb
+  //        to the discovered_via column. Old v=7 cached responses still carry
+  //        the legacy lineage shape, so bump to invalidate.
   const cacheInputKey = isPdfMode
     ? `pdf:${crypto.createHash('sha256').update(pdfBase64).digest('hex').slice(0, 32)}`
     : `text:${usableText.trim()}`
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     7,
+    v:     8,
     input: cacheInputKey,
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',
@@ -459,17 +462,17 @@ export default async function handlePolicyClassify(body, res) {
 
       tierDraft.impact_confidence = computeImpactConfidence(spec.raw_provisions)
       tierDraft.review_status = 'pending_admin_review'
-      tierDraft.discovered_via = tierDraft.discovered_via || 'manual'
+      // Migration 063 (applied 2026-05) extended discovered_via CHECK to
+      // accept 'pdf_upload'. PDF lineage is now a first-class column value
+      // — admin filters and freshness queries can WHERE on it directly
+      // instead of pulling discovery_metadata jsonb apart.
+      tierDraft.discovered_via = tierDraft.discovered_via || (isPdfMode ? 'pdf_upload' : 'manual')
 
-      // Lineage stamp — preserved through admin review + publish flow. The
-      // discovered_via enum is constrained at the table level; pdf_upload
-      // isn't a valid enum value, so we record it inside discovery_metadata
-      // instead. Future migration could extend the enum if PDF intake
-      // becomes a recurring lineage of its own.
+      // PDF filename stays in discovery_metadata — it's per-upload metadata,
+      // not lineage. Lineage moved to the discovered_via column above.
       if (isPdfMode) {
         tierDraft.discovery_metadata = {
           ...(tierDraft.discovery_metadata || {}),
-          source_type:  'pdf_upload',
           pdf_filename: pdfFilename || null,
         }
       }
