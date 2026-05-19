@@ -12,6 +12,8 @@ import { useAuth } from '../context/AuthContext'
 import { GLOSSARY_TERMS, toSlug } from '../data/glossaryTerms'
 import { parseCommand } from '../lib/commandParser'
 import { listSavedComparisons } from '../lib/savedComparisons'
+import PaletteLensForm from './lens/PaletteLensForm'
+import { findState } from '../lib/lensFormConstants'
 
 // Cmd-K global palette. Power-user spine of the app — every repeated
 // action gets a verb (see commandParser.js). Two modes:
@@ -66,6 +68,27 @@ function pushRecent(userId, item) {
   } catch { /* localStorage quota — drop silently */ }
 }
 
+// Last-lens shortcut storage. Separate key from `recents` so the "↻
+// Re-run" chip always reflects the most recent Lens (which may not be
+// the most recent palette action — user might have run a Lens, then
+// hopped to Library, then come back to the palette).
+const LAST_LENS_KEY_PREFIX = 'tractova_cmdk_last_lens__'
+
+function loadLastLens(userId) {
+  if (!userId) return null
+  try {
+    const raw = localStorage.getItem(LAST_LENS_KEY_PREFIX + userId)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function saveLastLens(userId, payload) {
+  if (!userId || !payload) return
+  try {
+    localStorage.setItem(LAST_LENS_KEY_PREFIX + userId, JSON.stringify({ ...payload, ts: Date.now() }))
+  } catch { /* quota — drop silently */ }
+}
+
 export default function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -73,7 +96,14 @@ export default function CommandPalette() {
   const [savedProjects, setSavedProjects] = useState([])
   const [savedComparisons, setSavedComparisons] = useState([])
   const [recents, setRecents] = useState([])
+  const [lastLens, setLastLens] = useState(null)
   const [activeIndex, setActiveIndex] = useState(0)
+  // Palette mode: 'normal' = chip strip + search input + results list.
+  // 'lens' = chip strip + structured Lens form (state/county/mw/tech/stage).
+  // Entered via the Lens chip, the Cmd-Shift-L hotkey (Slice β), or the
+  // colon shorthand `:lens ...` which parses args + pre-fills the form.
+  const [mode, setMode] = useState('normal')
+  const [lensInitial, setLensInitial] = useState({})
   const navigate = useNavigate()
   const inputRef = useRef(null)
   const { user } = useAuth()
@@ -90,8 +120,9 @@ export default function CommandPalette() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setSavedProjects([]); setSavedComparisons([]); setRecents([]); return }
+    if (!user) { setSavedProjects([]); setSavedComparisons([]); setRecents([]); setLastLens(null); return }
     setRecents(loadRecents(user.id))
+    setLastLens(loadLastLens(user.id))
     supabase
       .from('projects')
       .select('id, name, state, county, mw, stage')
@@ -151,9 +182,54 @@ export default function CommandPalette() {
     if (open) {
       setQ('')
       setActiveIndex(0)
+      setMode('normal')
+      setLensInitial({})
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [open])
+
+  // Cmd-Shift-L → open palette directly into Lens form mode. Avoids
+  // Cmd-L which is the browser address-bar shortcut on Mac/Windows.
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault()
+        setOpen(true)
+        setMode('lens')
+        setLensInitial({})
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Detect `:lens` shorthand and route into the structured form with
+  // any parsed args pre-filled. This preserves the keyboard-grammar
+  // power-user path (`:lens MA 5 CS`) while delivering the same
+  // structured form for everyone — the form pre-fills + focuses the
+  // next empty field (typically County, since shorthand doesn't carry
+  // it). Per Aden: no auto-submit; let the user pick the county.
+  useEffect(() => {
+    if (mode !== 'normal') return
+    if (!q.startsWith(':lens')) return
+    const after = q.slice(5).trim()
+    // Only switch into form mode after the user clearly meant `:lens`
+    // (with a space or no further chars). Avoids hijacking partial
+    // typing like `:lensf` or future verbs starting with `:lens`.
+    if (after.length === 0 || q[5] === ' ' || q.length === 5) {
+      const parts = after.split(/\s+/).filter(Boolean)
+      const stateGuess = parts[0] ? findState(parts[0]) : null
+      const mwGuess    = parts[1] && /^\d+(\.\d+)?$/.test(parts[1]) ? parts[1] : ''
+      const techGuess  = resolveTechFromShorthand(parts.slice(2).join(' '))
+      setLensInitial({
+        stateId: stateGuess?.id || '',
+        mw:      mwGuess,
+        tech:    techGuess,
+      })
+      setMode('lens')
+      setQ('')
+    }
+  }, [q, mode])
 
   // ── Item list assembly ──────────────────────────────────────────────
   // Two paths: verb mode (q.startsWith(':')) vs fuzzy mode (default).
@@ -212,6 +288,74 @@ export default function CommandPalette() {
   useEffect(() => {
     if (activeIndex >= items.length) setActiveIndex(Math.max(0, items.length - 1))
   }, [items.length, activeIndex])
+
+  // Chip strip dispatch — one-click verb entry. Mirrors what users
+  // would type with the colon shorthand but without the memorization
+  // tax.
+  const handleChipSelect = useCallback((verb) => {
+    if (verb === 'lens') {
+      setMode('lens')
+      setLensInitial({})
+      setQ('')
+      return
+    }
+    if (verb === 'library') {
+      if (user) pushRecent(user.id, { label: 'Library', hint: 'Saved portfolio', path: '/library', kind: 'nav' })
+      setOpen(false)
+      navigate('/library')
+      return
+    }
+    if (verb === 'compare') {
+      setOpen(false)
+      try { window.dispatchEvent(new CustomEvent('tractova:open-compare')) } catch { /* SSR-safe */ }
+      return
+    }
+    if (verb === 'glossary') {
+      if (user) pushRecent(user.id, { label: 'Glossary', hint: 'Term reference', path: '/glossary', kind: 'nav' })
+      setOpen(false)
+      navigate('/glossary')
+      return
+    }
+  }, [user, navigate])
+
+  // Re-run chip — navigates directly to the most recent palette-dispatched
+  // Lens URL. Bypasses the form because the URL signature already encodes
+  // all required params; Search.jsx will auto-submit on signature change.
+  const handleReRunLens = useCallback(() => {
+    if (!lastLens?.path) return
+    if (user) pushRecent(user.id, lastLens)
+    setOpen(false)
+    navigate(lastLens.path)
+  }, [lastLens, user, navigate])
+
+  // Structured Lens form submission. Builds the same /search?... URL
+  // the colon shorthand would have built, but with the County (the bit
+  // the shorthand never carried). Persists to localStorage so the
+  // Re-run chip can pick it up on the next palette open.
+  const handleLensSubmit = useCallback(({ stateId, stateName, county, mw, tech, stage }) => {
+    const params = new URLSearchParams()
+    params.set('state', stateId)
+    params.set('county', county)
+    params.set('mw', String(mw))
+    params.set('technology', tech)
+    params.set('stage', stage)
+    const path = `/search?${params.toString()}`
+    const label = `${stateName || stateId} · ${county} · ${mw} MW`
+    const hint = `${tech} · ${stage.split(' (')[0]}`
+    if (user) {
+      pushRecent(user.id, { label: `Lens — ${label}`, hint, path, kind: 'verb-go' })
+      saveLastLens(user.id, { label, hint, path })
+      setLastLens({ label, hint, path })
+    }
+    setOpen(false)
+    navigate(path)
+  }, [user, navigate])
+
+  const handleLensCancel = useCallback(() => {
+    setMode('normal')
+    setLensInitial({})
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }, [])
 
   const select = useCallback((it, { newTab = false } = {}) => {
     if (!it) return
@@ -307,11 +451,22 @@ export default function CommandPalette() {
                 exit={{ opacity: 0, y: -8, scale: 0.98 }}
                 transition={{ duration: 0.16, ease: 'easeOut' }}
               >
-                <div className="h-[3px] w-full shrink-0" style={{ background: isVerbMode ? '#0F1A2E' : '#14B8A6' }} />
+                <div className="h-[3px] w-full shrink-0" style={{ background: mode === 'lens' ? '#0F766E' : isVerbMode ? '#0F1A2E' : '#14B8A6' }} />
                 <RadixDialog.Title className="sr-only">Command Palette</RadixDialog.Title>
                 <RadixDialog.Description className="sr-only">Quick search or run a Cmd-K verb</RadixDialog.Description>
 
-                <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0" style={{ borderColor: '#E2E8F0' }}>
+                {/* Verb chip strip — persistent one-click entry into Lens /
+                    Library / Compare / Glossary. Re-run last chip surfaces
+                    the most recent palette-dispatched Lens. Replaces the
+                    colon-shorthand memorization tax. */}
+                <VerbChipStrip
+                  mode={mode}
+                  lastLens={lastLens}
+                  onSelect={handleChipSelect}
+                  onReRunLens={handleReRunLens}
+                />
+
+                <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0" style={{ borderColor: '#E2E8F0', display: mode === 'lens' ? 'none' : 'flex' }}>
                   {isVerbMode ? (
                     // Terminal-style mono prompt — reads as `:>` in a research
                     // terminal, signaling we're in the keyboard-grammar mode.
@@ -342,10 +497,20 @@ export default function CommandPalette() {
                   <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">ESC</span>
                 </div>
 
+                {mode === 'lens' && (
+                  <div className="flex-1 min-h-0 overflow-y-auto">
+                    <PaletteLensForm
+                      initial={lensInitial}
+                      onSubmit={handleLensSubmit}
+                      onCancel={handleLensCancel}
+                    />
+                  </div>
+                )}
+
                 {/* Verb-mode hint / error banner. Left-bar accent like a
                     Bloomberg status line — color carries the severity, the
                     eyebrow-mono label carries the meaning. */}
-                {(verbHint || verbError) && (
+                {mode === 'normal' && (verbHint || verbError) && (
                   <div
                     className="flex items-center gap-2 px-4 py-1.5 border-b eyebrow-mono shrink-0"
                     style={{
@@ -362,8 +527,9 @@ export default function CommandPalette() {
 
                 {/* Results — the only flex-shrinking section. flex-1 +
                     min-h-0 lets it absorb whatever space remains after the
-                    fixed-size rows (header, banner, recents, footer). */}
-                <div className="flex-1 min-h-0 overflow-y-auto">
+                    fixed-size rows (header, banner, recents, footer).
+                    Hidden in lens-form mode (the form takes over the body). */}
+                <div className="flex-1 min-h-0 overflow-y-auto" style={{ display: mode === 'lens' ? 'none' : 'block' }}>
                   {items.length === 0 ? (
                     <p className="text-xs text-ink-muted text-center py-6">
                       {verbError ? 'No matches' : 'No matches'}
@@ -421,7 +587,7 @@ export default function CommandPalette() {
                 </div>
 
                 {/* Recent actions — scoped to user, top 5, hidden when verb mode or empty */}
-                {!isVerbMode && !q.trim() && recents.length > 0 && (
+                {mode === 'normal' && !isVerbMode && !q.trim() && recents.length > 0 && (
                   <div className="border-t shrink-0 max-h-[28vh] overflow-y-auto" style={{ borderColor: '#E2E8F0', background: '#FAFBFC' }}>
                     <div className="px-4 pt-2 pb-1 eyebrow-mono" style={{ color: '#5A6B7A' }}>RECENT</div>
                     <ul>
@@ -448,14 +614,27 @@ export default function CommandPalette() {
                 )}
 
                 <div className="px-4 py-2 border-t flex items-center justify-between text-[10px] font-mono text-ink-muted shrink-0" style={{ borderColor: '#E2E8F0', background: '#F9FAFB' }}>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↑↓</span> navigate</span>
-                    <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↵</span> open</span>
-                    <span className="hidden sm:inline"><span className="px-1 py-0.5 rounded-sm border border-gray-300">⌘↵</span> new tab</span>
-                    <span className="hidden sm:inline"><span className="px-1 py-0.5 rounded-sm border border-gray-300">TAB</span> complete</span>
-                    <span className="hidden sm:inline"><span className="px-1 py-0.5 rounded-sm border border-gray-300">:</span> verbs</span>
-                  </div>
-                  <span>{items.length} result{items.length === 1 ? '' : 's'}</span>
+                  {mode === 'lens' ? (
+                    <>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">TAB</span> next field</span>
+                        <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↵</span> run Lens</span>
+                        <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">ESC</span> cancel</span>
+                      </div>
+                      <span>Lens — Quick Run</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↑↓</span> navigate</span>
+                        <span><span className="px-1 py-0.5 rounded-sm border border-gray-300">↵</span> open</span>
+                        <span className="hidden sm:inline"><span className="px-1 py-0.5 rounded-sm border border-gray-300">⌘↵</span> new tab</span>
+                        <span className="hidden sm:inline"><span className="px-1 py-0.5 rounded-sm border border-gray-300">TAB</span> complete</span>
+                        <span className="hidden sm:inline"><span className="px-1 py-0.5 rounded-sm border border-gray-300">:</span> verbs</span>
+                      </div>
+                      <span>{items.length} result{items.length === 1 ? '' : 's'}</span>
+                    </>
+                  )}
                 </div>
               </motion.div>
             </RadixDialog.Content>
@@ -490,4 +669,71 @@ function kindLabel(kind) {
     case 'recent':    return 'Recent'
     default:          return 'Page'
   }
+}
+
+// Resolve the tech token from the colon-shorthand (CS / CI / BESS / HYB
+// codes OR a partial name match) into the canonical TECHNOLOGIES_FLAT
+// value used by the form chip group. Returns '' when no match.
+function resolveTechFromShorthand(raw) {
+  if (!raw) return ''
+  const norm = raw.trim().toUpperCase()
+  if (!norm) return ''
+  // Aliases match the parser's table in commandParser.js (lines 40-53).
+  if (norm === 'CS' || norm.startsWith('COMMUNITY')) return 'Community Solar'
+  if (norm === 'CI' || norm.startsWith('C&I') || norm.startsWith('COMMERCIAL')) return 'C&I Solar'
+  if (norm === 'BESS' || norm === 'BATTERY' || norm === 'STORAGE') return 'BESS'
+  if (norm === 'HYB' || norm.startsWith('HYBRID')) return 'Hybrid'
+  return ''
+}
+
+// Verb chip strip — persistent affordance at the top of the palette.
+// Bloomberg-style tab-bar; one-click verb entry replaces the colon
+// memorization. Active chip is highlighted via a teal accent rail; the
+// rest stay slate. Re-run last chip only renders when localStorage has
+// a previous Lens dispatch under the user's key.
+function VerbChipStrip({ mode, lastLens, onSelect, onReRunLens }) {
+  const chips = [
+    { key: 'lens',     label: 'Lens',     hint: 'Run a new analysis' },
+    { key: 'library',  label: 'Library',  hint: 'Saved portfolio' },
+    { key: 'compare',  label: 'Compare',  hint: 'Side-by-side' },
+    { key: 'glossary', label: 'Glossary', hint: 'Term reference' },
+  ]
+  return (
+    <div
+      className="flex items-center gap-1 px-3 py-2 border-b shrink-0 overflow-x-auto"
+      style={{ borderColor: '#E2E8F0', background: '#FAFBFC' }}
+    >
+      {chips.map((c) => {
+        const active = c.key === 'lens' && mode === 'lens'
+        return (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => onSelect(c.key)}
+            title={c.hint}
+            className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-sm transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
+            style={
+              active
+                ? { background: '#0F766E', color: 'white', border: '1px solid #0F766E' }
+                : { background: 'white', color: '#475569', border: '1px solid #E2E8F0' }
+            }
+          >
+            {c.label}
+          </button>
+        )
+      })}
+      {lastLens && lastLens.path && (
+        <button
+          type="button"
+          onClick={onReRunLens}
+          title={`Re-run last Lens — ${lastLens.label || 'most recent'}`}
+          className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-sm transition-colors shrink-0 ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 flex items-center gap-1.5"
+          style={{ background: 'white', color: '#0F766E', border: '1px solid rgba(20,184,166,0.45)' }}
+        >
+          <span aria-hidden="true">↻</span>
+          <span className="truncate max-w-[180px]">Re-run {lastLens.label || 'last'}</span>
+        </button>
+      )}
+    </div>
+  )
 }
