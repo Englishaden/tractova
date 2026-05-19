@@ -14,6 +14,7 @@
 
 import { useMemo, useState, useEffect } from 'react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
+import { applyLeverAdjustments } from '../../lib/leverAdjustments'
 import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
 import FieldSelect from '../FieldSelect'
@@ -94,17 +95,34 @@ export default function DevFeasibilityView({
     }
   }, [lmiFloor, levers.subscriptionPct])
 
-  // Recompute the pillar sub-scores live as MW changes. Other levers
-  // shape the timeline narrative only — they don't move scoreEngine.
-  const subScores = useMemo(
+  // Structural sub-scores from computeSubScores — driven by state program,
+  // county data, IX queue, MW. These also drive the Lens header gauge.
+  const structuralSubScores = useMemo(
     () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, effectiveMw),
     [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, effectiveMw]
   )
+
+  // Lever-adjusted sub-scores — layer Subscription / COD / IX assumption
+  // deltas on top of the structural baseline. Capped ±10 per pillar so
+  // user levers can shape but not dominate. Returns rationale rows for
+  // the verdict tile to enumerate which lever fired.
+  const leverResult = useMemo(
+    () => applyLeverAdjustments(structuralSubScores, levers, { technology, ixQueueSummary }),
+    [structuralSubScores, levers, technology, ixQueueSummary]
+  )
+  const subScores = leverResult.adjusted
 
   const composite = useMemo(
     () => safeScore(subScores.offtake, subScores.ix, subScores.site, undefined, subScores.policyClimate),
     [subScores]
   )
+
+  const structuralComposite = useMemo(
+    () => safeScore(structuralSubScores.offtake, structuralSubScores.ix, structuralSubScores.site, undefined, structuralSubScores.policyClimate),
+    [structuralSubScores]
+  )
+
+  const compositeDelta = (composite != null && structuralComposite != null) ? composite - structuralComposite : 0
 
   const verdict = classifyVerdict(composite)
   const verdictPalette = verdict ? VERDICT_PALETTE[verdict] : null
@@ -138,12 +156,16 @@ export default function DevFeasibilityView({
         stateName={stateName}
         countyName={countyName}
         technology={technology}
+        compositeDelta={compositeDelta}
+        leverRationale={leverResult.rationale}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <OfftakePillarCard
           stateProgram={stateProgram}
           subScore={subScores.offtake}
+          structuralSubScore={structuralSubScores.offtake}
+          delta={leverResult.deltas.offtake}
           coverage={subScores.coverage.offtake}
           technology={technology}
         />
@@ -151,11 +173,15 @@ export default function DevFeasibilityView({
           ixQueueSummary={ixQueueSummary}
           stateProgram={stateProgram}
           subScore={subScores.ix}
+          structuralSubScore={structuralSubScores.ix}
+          delta={leverResult.deltas.ix}
           coverage={subScores.coverage.ix}
         />
         <SitePillarCard
           countyData={countyData}
           subScore={subScores.site}
+          structuralSubScore={structuralSubScores.site}
+          delta={leverResult.deltas.site}
           coverage={subScores.coverage.site}
         />
         <PolicyPillarCard
@@ -199,7 +225,7 @@ export default function DevFeasibilityView({
 
 // ── Verdict tile ───────────────────────────────────────────────────────────
 
-function VerdictTile({ verdict, palette, composite, subScores, stateName, countyName, technology }) {
+function VerdictTile({ verdict, palette, composite, subScores, stateName, countyName, technology, compositeDelta = 0, leverRationale = [] }) {
   if (!verdict || !palette) {
     return (
       <div className="rounded-lg px-4 py-3 text-[12px] text-gray-500"
@@ -208,6 +234,8 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
       </div>
     )
   }
+  const showLeverImpact = Math.abs(compositeDelta) >= 1 && leverRationale.length > 0
+  const deltaSign = compositeDelta >= 0 ? '+' : ''
   return (
     <div className="rounded-lg px-4 py-4 flex items-center justify-between gap-4 flex-wrap"
       style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
@@ -230,7 +258,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
               <TooltipContent side="top" className="!max-w-[340px]">
                 <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Composite + verdict thresholds</p>
                 <p className="leading-relaxed mb-2">
-                  Composite = weighted blend of the four pillar sub-scores (Offtake 36% · IX 31.5% · Site 22.5% · Policy 10%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). Same math as the Feasibility Index gauge in the Lens header — single source of truth.
+                  Composite = weighted blend of the four pillar sub-scores (Offtake 36% · IX 31.5% · Site 22.5% · Policy 10%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). The Dev Feasibility verdict reflects your levers (Subscription / COD / IX Assumption); the structural baseline shown in the Lens header gauge does NOT — it's the pre-lever search snapshot.
                 </p>
                 <p className="leading-relaxed">
                   Verdict bands are <span className="font-semibold" style={{ color: '#5EEAD4' }}>Tractova editorial</span>, not empirically anchored: <b>Go ≥ 70</b>, <b>Caution 50–69</b>, <b>No-Go &lt; 50</b>. They're a screening shortcut for "is this market worth more diligence?" — calibrate to your own deal-flow benchmark over time.
@@ -244,6 +272,31 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
           <div className="text-[11px] text-gray-600 mt-1 leading-snug">
             {verdictRationale(verdict, subScores)}
           </div>
+          {showLeverImpact && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-gray-500 mt-1.5 cursor-help underline decoration-dotted underline-offset-2 leading-snug">
+                  Lever impact: {deltaSign}{Math.round(compositeDelta)} pts on composite — {leverRationale.map(r => r.label.split(' — ')[0]).join(' · ')}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="!max-w-[420px]">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Lever adjustments</p>
+                <p className="leading-relaxed mb-2">
+                  Subscription / COD year / IX assumption shift pillar sub-scores by editorial deltas (capped ±10 per pillar). Disclosed math:
+                </p>
+                <ul className="space-y-1 leading-snug" style={{ color: '#E2E8F0' }}>
+                  {leverRationale.map((r, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="font-mono tabular-nums font-bold shrink-0" style={{ color: r.delta > 0 ? '#5EEAD4' : '#FCA5A5' }}>
+                        {r.delta > 0 ? '+' : ''}{r.delta} {r.pillar.toUpperCase()}
+                      </span>
+                      <span>{r.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
       </div>
       <div className="hidden md:flex items-center gap-3 text-[10px] font-mono tabular-nums shrink-0">
@@ -280,15 +333,42 @@ function verdictRationale(verdict, subScores) {
 
 // ── Pillar cards (compact) ─────────────────────────────────────────────────
 
-function PillarCardShell({ pillarLabel, subScore, coverage, children }) {
+function PillarCardShell({ pillarLabel, subScore, structuralSubScore, delta, coverage, children }) {
   const tone = subScore == null ? '#475569' : subScore >= 70 ? '#0F766E' : subScore >= 50 ? '#92400E' : '#991B1B'
+  // Delta chip surfaces when levers have moved this pillar away from the
+  // structural baseline. Hover → tooltip naming the structural anchor so
+  // devs can see "before / after."
+  const showDelta = Number.isFinite(delta) && Math.abs(delta) >= 1 && Number.isFinite(structuralSubScore)
   return (
     <div className="rounded-md px-3 py-3 bg-white" style={{ border: '1px solid #E2E8F0' }}>
       <div className="flex items-center justify-between mb-2">
         <span className="eyebrow-mono text-gray-500">{pillarLabel}</span>
-        <span className="font-bold text-[14px] tabular-nums" style={{ color: tone }}>
-          {subScore == null ? '—' : Math.round(subScore)}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {showDelta && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="eyebrow-mono px-1 py-0.5 rounded-sm tabular-nums cursor-help"
+                  style={{
+                    background: delta > 0 ? 'rgba(20,184,166,0.15)' : 'rgba(220,38,38,0.12)',
+                    color: delta > 0 ? '#0F766E' : '#991B1B',
+                  }}
+                >
+                  {delta > 0 ? '+' : ''}{delta}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Lever adjustment</p>
+                <p className="leading-relaxed">
+                  Structural baseline: <span className="font-mono tabular-nums">{Math.round(structuralSubScore)}</span>. Lever delta: <span className="font-mono tabular-nums font-bold" style={{ color: delta > 0 ? '#5EEAD4' : '#FCA5A5' }}>{delta > 0 ? '+' : ''}{delta}</span>. See verdict tile for which lever drove this.
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+          <span className="font-bold text-[14px] tabular-nums" style={{ color: tone }}>
+            {subScore == null ? '—' : Math.round(subScore)}
+          </span>
+        </div>
       </div>
       {children}
       <CoverageChip coverage={coverage} />
@@ -356,10 +436,10 @@ function CoverageChip({ coverage }) {
   )
 }
 
-function OfftakePillarCard({ stateProgram, subScore, coverage, technology }) {
+function OfftakePillarCard({ stateProgram, subScore, structuralSubScore, delta, coverage, technology }) {
   const isCS = technology === 'Community Solar' || technology === 'Hybrid'
   return (
-    <PillarCardShell pillarLabel="Offtake" subScore={subScore} coverage={coverage}>
+    <PillarCardShell pillarLabel="Offtake" subScore={subScore} structuralSubScore={structuralSubScore} delta={delta} coverage={coverage}>
       {isCS && stateProgram ? (
         <div className="space-y-1 text-[11px]">
           <div className="font-semibold text-ink leading-tight">{stateProgram.csProgram || 'No CS program'}</div>
@@ -388,10 +468,10 @@ function OfftakePillarCard({ stateProgram, subScore, coverage, technology }) {
   )
 }
 
-function InterconnectionPillarCard({ ixQueueSummary, stateProgram, subScore, coverage }) {
+function InterconnectionPillarCard({ ixQueueSummary, stateProgram, subScore, structuralSubScore, delta, coverage }) {
   const hasLive = ixQueueSummary && ixQueueSummary.totalProjects > 0
   return (
-    <PillarCardShell pillarLabel="Interconnection" subScore={subScore} coverage={coverage}>
+    <PillarCardShell pillarLabel="Interconnection" subScore={subScore} structuralSubScore={structuralSubScore} delta={delta} coverage={coverage}>
       {hasLive ? (
         <div className="space-y-1 text-[11px]">
           <div className="font-mono tabular-nums text-ink">
@@ -411,12 +491,12 @@ function InterconnectionPillarCard({ ixQueueSummary, stateProgram, subScore, cov
   )
 }
 
-function SitePillarCard({ countyData, subScore, coverage }) {
+function SitePillarCard({ countyData, subScore, structuralSubScore, delta, coverage }) {
   const wet = countyData?.geospatial?.wetlandCoveragePct
   const farm = countyData?.geospatial?.primeFarmlandPct
   const siteControl = countyData?.siteControl
   return (
-    <PillarCardShell pillarLabel="Site" subScore={subScore} coverage={coverage}>
+    <PillarCardShell pillarLabel="Site" subScore={subScore} structuralSubScore={structuralSubScore} delta={delta} coverage={coverage}>
       <div className="space-y-1 text-[11px]">
         {wet != null && (
           <div className="text-gray-700">
