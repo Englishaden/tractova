@@ -27,7 +27,7 @@ const VERDICT_PALETTE = {
   nogo:    { label: 'No-Go',   tone: '#991B1B', bg: 'rgba(220,38,38,0.10)',  border: 'rgba(220,38,38,0.35)',  icon: '×' },
 }
 
-function classifyVerdict(composite) {
+export function classifyVerdict(composite) {
   if (composite == null) return null
   if (composite >= 70) return 'go'
   if (composite >= 50) return 'caution'
@@ -159,6 +159,10 @@ export default function DevFeasibilityView({
         technology={technology}
         compositeDelta={compositeDelta}
         leverRationale={leverResult.rationale}
+        stateProgram={stateProgram}
+        countyData={countyData}
+        ixQueueSummary={ixQueueSummary}
+        headwindPolicies={headwindPolicies}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -226,7 +230,7 @@ export default function DevFeasibilityView({
 
 // ── Verdict tile ───────────────────────────────────────────────────────────
 
-function VerdictTile({ verdict, palette, composite, subScores, stateName, countyName, technology, compositeDelta = 0, leverRationale = [] }) {
+function VerdictTile({ verdict, palette, composite, subScores, stateName, countyName, technology, compositeDelta = 0, leverRationale = [], stateProgram = null, countyData = null, ixQueueSummary = null, headwindPolicies = [] }) {
   if (!verdict || !palette) {
     return (
       <div className="rounded-lg px-4 py-3 text-[12px] text-gray-500"
@@ -271,7 +275,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
             {palette.label} — {countyName ? `${countyName} County, ` : ''}{stateName || 'site'} · {technology}
           </div>
           <div className="text-[11px] text-gray-600 mt-1 leading-snug">
-            {verdictRationale(verdict, subScores)}
+            {verdictRationale(verdict, subScores, { stateProgram, countyData, ixQueueSummary, headwindPolicies, technology, stateName, countyName })}
           </div>
           {showLeverImpact && (
             <Tooltip>
@@ -320,16 +324,110 @@ function PillarReadout({ label, value }) {
   )
 }
 
-function verdictRationale(verdict, subScores) {
+// Verdict rationale — surfaces the single highest-leverage diligence
+// step instead of just naming the weakest pillar by score. Pillar-
+// specific friction descriptions read pillar metadata to produce
+// concrete next-step copy ("Norfolk wetland 38% — screen adjacent
+// counties or commit to Section 404 review") rather than generic
+// score-reading copy ("Site is weakest at 41/100").
+//
+// Falls back to a generic friction line when pillar metadata isn't
+// loaded yet — never blanks the rationale.
+export function verdictRationale(verdict, subScores, ctx = {}) {
   const weakest = [
-    { name: 'Offtake', val: subScores.offtake },
-    { name: 'Interconnection', val: subScores.ix },
-    { name: 'Site', val: subScores.site },
+    { key: 'offtake',           name: 'Offtake',          val: subScores.offtake },
+    { key: 'ix',                name: 'Interconnection',  val: subScores.ix },
+    { key: 'site',              name: 'Site',             val: subScores.site },
   ].sort((a, b) => a.val - b.val)[0]
 
-  if (verdict === 'go') return `All pillars clear the build-it threshold. Watch ${weakest.name} (${Math.round(weakest.val)}/100) as the weakest link.`
-  if (verdict === 'caution') return `Mixed signals — ${weakest.name} is the dominant friction at ${Math.round(weakest.val)}/100. Diligence the bottom-ranked pillar before committing capex.`
-  return `${weakest.name} scores ${Math.round(weakest.val)}/100. Either the market structure or the site fundamentally doesn't support this project shape.`
+  const action = describePillarFriction(weakest.key, ctx, subScores)
+
+  if (verdict === 'go') {
+    return `All pillars clear the build-it threshold. Watch ${weakest.name} (${Math.round(weakest.val)}/100) — ${action}`
+  }
+  if (verdict === 'caution') {
+    return `Mixed signals — ${weakest.name} ${Math.round(weakest.val)}/100. ${action}`
+  }
+  return `${weakest.name} ${Math.round(weakest.val)}/100. ${action}`
+}
+
+function describePillarFriction(pillar, ctx, subScores) {
+  // When the policy pillar is the actual weakest (lower than offtake/
+  // ix/site), prefer surfacing the policy headwind over the structural
+  // pillar — same logic as the loop in verdictRationale but for the
+  // policy edge case the rotation doesn't catch directly.
+  if (subScores?.policyClimate != null && subScores.policyClimate < Math.min(subScores.offtake, subScores.ix, subScores.site)) {
+    const headwinds = ctx.headwindPolicies || []
+    if (headwinds.length > 0) {
+      const top = headwinds[0]
+      const eventName = top.event_name || 'active headwind policy'
+      const stateLabel = ctx.stateName ? ` in ${ctx.stateName}` : ''
+      return `${headwinds.length} active headwind polic${headwinds.length === 1 ? 'y' : 'ies'}${stateLabel} — top: "${eventName}." Review §06 Regulatory Watch.`
+    }
+  }
+  if (pillar === 'offtake') return offtakeFriction(ctx)
+  if (pillar === 'ix')      return ixFriction(ctx)
+  if (pillar === 'site')    return siteFriction(ctx)
+  return 'Diligence this pillar before committing capex.'
+}
+
+function offtakeFriction(ctx) {
+  const { stateProgram, technology, stateName } = ctx
+  if (!stateProgram) return 'Verify state program structure before underwriting.'
+  const isCS = technology === 'Community Solar' || technology === 'Hybrid'
+  if (isCS) {
+    const status = stateProgram.csStatus
+    if (!status || status === 'none' || status === 'closed') {
+      return `${stateName || 'This state'} has no active CS program — pivot to a CS-active state or wait for program reopening.`
+    }
+    if (status === 'pending') {
+      return `${stateName || 'State'} CS program pending — confirm launch + tariff finalization before committing capex.`
+    }
+    if (stateProgram.capacityMW > 0 && stateProgram.capacityMW < 200) {
+      return `Only ${stateProgram.capacityMW} MW capacity remaining — file early or check waitlist status.`
+    }
+    if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 40) {
+      return `${stateProgram.lmiPercent}% LMI carve-out required — verify your subscriber pipeline can fill that floor.`
+    }
+    return 'Verify program capacity remaining + subscription pipeline.'
+  }
+  if (technology === 'BESS')      return 'ISO capacity-market clearing is thin in this state — verify recent auction prices and resource-adequacy position.'
+  if (technology === 'C&I Solar') return 'Retail-rate displacement is thin — verify EIA Form 861 rates vs. your PPA quote.'
+  return 'Diligence offtake structure before underwriting.'
+}
+
+function ixFriction(ctx) {
+  const { ixQueueSummary, stateProgram, stateName } = ctx
+  if (ixQueueSummary && ixQueueSummary.avgStudyMonths >= 18) {
+    return `${stateName || 'State'} IX queue: ${ixQueueSummary.avgStudyMonths}-mo avg study window — verify queue position or acquire a mid-queue slot.`
+  }
+  if (stateProgram?.ixDifficulty === 'very_hard') {
+    return `${stateName || 'State'} interconnection flagged very hard — cluster-study upgrade costs may dominate project economics.`
+  }
+  if (stateProgram?.ixDifficulty === 'hard') {
+    return `${stateName || 'State'} interconnection flagged hard — confirm utility cluster-study schedule before committing site control.`
+  }
+  return 'Confirm interconnection feasibility with a system-impact study.'
+}
+
+function siteFriction(ctx) {
+  const { countyData, countyName } = ctx
+  const wet  = countyData?.geospatial?.wetlandCoveragePct
+  const farm = countyData?.geospatial?.primeFarmlandPct
+  const countyLabel = countyName ? `${countyName} County` : 'This county'
+  if (wet != null && wet >= 25) {
+    return `${countyLabel} wetland coverage ${wet.toFixed(0)}% — screen adjacent counties or commit to Section 404 review (+6–12 mo).`
+  }
+  if (farm != null && farm >= 40) {
+    return `${countyLabel} prime farmland ${farm.toFixed(0)}% — verify state ag-land protections and dual-use eligibility.`
+  }
+  if (countyData?.siteControl === false) {
+    return `${countyLabel} flagged limited developable land — verify parcel availability before committing.`
+  }
+  if (countyData?.siteControl == null && wet == null && farm == null) {
+    return `Site signal not yet curated for ${countyLabel.toLowerCase()} — verify directly via parcel survey.`
+  }
+  return 'Verify parcel-level land control + permitting path.'
 }
 
 // ── Pillar cards (compact) ─────────────────────────────────────────────────
@@ -683,38 +781,94 @@ function SubscriptionSlider({ pct, onChange, minPct = 0, floorLabel = null }) {
 
 // ── Timeline estimate (informational, narrative) ───────────────────────────
 
+// Phase estimates for the horizontal timeline bar. Numbers are
+// utility-scale CS industry conventions (NREL ATB + observed dev
+// timelines) — disclosed as editorial in the tooltip on each
+// segment so devs can calibrate against their own pipeline data.
+const PHASE_DEFAULTS = {
+  permitMonths:       6,   // baseline state permit + AHJ
+  permitWetlandBump: 9,    // additive when wetland ≥25%, midpoint of 6-12 mo Section 404 range
+  constructMonths:   12,   // utility-scale solar typical
+  energizationMonths: 3,   // commissioning + utility energization buffer
+}
+
+function ixAssumptionMultiplier(ixAssumption) {
+  // Maps the IX assumption lever to a fraction of the curated/live
+  // study-window months. Mirrors the leverAdjustments.js IX delta
+  // logic but on the time axis instead of the score axis.
+  if (ixAssumption === 'acquire') return 0.50      // skips ~half the wait
+  if (ixAssumption === 'distribution') return 0.25 // fast-track ~25% of standard
+  return 1.0                                       // queue: full standard wait
+}
+
+function computePhases({ ixQueueSummary, countyData, ixAssumption }) {
+  const ixBase = (ixQueueSummary && ixQueueSummary.avgStudyMonths > 0)
+    ? ixQueueSummary.avgStudyMonths
+    : 18 // curated fallback when no live queue
+  const ixMonths = Math.max(1, Math.round(ixBase * ixAssumptionMultiplier(ixAssumption)))
+  const wet = countyData?.geospatial?.wetlandCoveragePct
+  const wetlandPermitAdd = (wet != null && wet >= 25) ? PHASE_DEFAULTS.permitWetlandBump : 0
+  const permitMonths = PHASE_DEFAULTS.permitMonths + wetlandPermitAdd
+  return [
+    { key: 'ix',           label: 'IX Study',     months: ixMonths,                              color: '#D97706' },
+    { key: 'permit',       label: 'Permitting',   months: permitMonths,                          color: '#2563EB' },
+    { key: 'construct',    label: 'Construction', months: PHASE_DEFAULTS.constructMonths,        color: '#475569' },
+    { key: 'energization', label: 'Energization', months: PHASE_DEFAULTS.energizationMonths,     color: '#0F766E' },
+  ]
+}
+
 function TimelineEstimate({ ixQueueSummary, siteCoverage, countyData, headwindCount, ixAssumption, codYear }) {
+  // Lines as { text, tooltip? } objects so any bullet can disclose a
+  // proxy / editorial framing in a hover tooltip without bloating the
+  // main copy. Bullets that have a tooltip render with a dotted-
+  // underline cursor-help affordance matching the rest of the app.
   const lines = []
 
   // IX timeline contribution
   if (ixQueueSummary && ixQueueSummary.avgStudyMonths > 0) {
     const months = ixQueueSummary.avgStudyMonths
     if (ixAssumption === 'fast_lane' && months > 12) {
-      lines.push(`Fast-lane IX skips most of the ${months}-month standard queue, but eligibility caps at ~2 MW in most utilities.`)
+      lines.push({ text: `Fast-lane IX skips most of the ${months}-month standard queue, but eligibility caps at ~2 MW in most utilities.` })
     } else if (ixAssumption === 'acquire') {
-      lines.push(`Acquired queue position avoids the ${months}-month study window — add acquisition cost to capex.`)
+      lines.push({ text: `Acquired queue position avoids the ${months}-month study window — add acquisition cost to capex.` })
     } else {
-      lines.push(`Live IX queue: ${months}-month avg study window · ${ixQueueSummary.totalProjects} projects ahead.`)
+      lines.push({ text: `Live IX queue: ${months}-month avg study window · ${ixQueueSummary.totalProjects} projects ahead.` })
     }
   } else {
-    lines.push('No live IX queue data — fall back to curated difficulty tier.')
+    lines.push({ text: 'No live IX queue data — fall back to curated difficulty tier.' })
   }
 
-  // Site contribution
+  // Site contribution — wetland >25% triggers a permit-risk flag. The
+  // bullet now hovers a tooltip that discloses the proxy framing:
+  // Section 404 actually applies to filling ANY wetland regardless of
+  // county-wide coverage; 25% is a Tractova proxy for "you'll likely
+  // hit wetland during site selection." Disclosed honestly.
   const wet = countyData?.geospatial?.wetlandCoveragePct
   if (wet != null && wet >= 25) {
-    lines.push(`Wetland coverage ${wet.toFixed(0)}% likely triggers state DEC / Army Corps Section 404 review — add 6–12 mo.`)
+    lines.push({
+      text: `Wetland coverage ${wet.toFixed(0)}% likely triggers state DEC / Army Corps Section 404 review — add 6–12 mo.`,
+      tooltip: {
+        title: 'Wetland flag — proxy framing',
+        body: 'Section 404 of the Clean Water Act applies if your project fills ANY wetland, not when a county has ≥25% coverage. The 25% threshold is a Tractova proxy: at high county-wide coverage, site selection is likely to encounter wetland-adjacent parcels and require Section 404 / state DEC review. Confirm with a parcel-level NWI delineation before treating this as a regulatory threshold.',
+      },
+    })
   }
 
   // Policy contribution
   if (headwindCount > 0) {
-    lines.push(`${headwindCount} active headwind polic${headwindCount === 1 ? 'y' : 'ies'} may shift project economics mid-development — diligence the §06 Regulatory Watch feed.`)
+    lines.push({ text: `${headwindCount} active headwind polic${headwindCount === 1 ? 'y' : 'ies'} may shift project economics mid-development — diligence the §06 Regulatory Watch feed.` })
   }
 
   // Target vs current year
   const now = 2026
   const yearsToTarget = codYear - now
   const minMonths = yearsToTarget * 12
+
+  // Phase bar — visual companion to the narrative bullets below.
+  const phases = computePhases({ ixQueueSummary, countyData, ixAssumption })
+  const totalMonths = phases.reduce((s, p) => s + p.months, 0)
+  const overRunway = minMonths > 0 && totalMonths > minMonths
+  const slack = minMonths - totalMonths
 
   return (
     <div className="rounded-md px-4 py-3" style={{ background: 'rgba(15,26,46,0.04)', border: '1px solid #E2E8F0' }}>
@@ -726,9 +880,119 @@ function TimelineEstimate({ ixQueueSummary, siteCoverage, countyData, headwindCo
         />
         <span className="text-[10px] font-mono tabular-nums text-gray-500">target {codYear} · {minMonths} mo runway</span>
       </div>
-      <ul className="space-y-1 text-[11px] text-gray-700 leading-snug">
-        {lines.map((l, i) => <li key={i}>· {l}</li>)}
+
+      <PhaseBar phases={phases} totalMonths={totalMonths} minMonths={minMonths} overRunway={overRunway} slack={slack} />
+
+      <ul className="space-y-1 text-[11px] text-gray-700 leading-snug mt-3">
+        {lines.map((l, i) => (
+          <li key={i}>
+            ·{' '}
+            {l.tooltip ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">{l.text}</span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="!max-w-[380px]">
+                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{l.tooltip.title}</p>
+                  <p className="leading-relaxed">{l.tooltip.body}</p>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              l.text
+            )}
+          </li>
+        ))}
       </ul>
     </div>
   )
+}
+
+// Horizontal phase bar — visual companion to the narrative bullets.
+// Each segment's width is proportional to its month duration. When
+// total phase months exceed the COD runway, the bar shows the spill
+// in amber + a "tight by N mo" warning. When there's slack, the
+// trailing slack zone renders as a faint slate stripe so the user
+// can see the buffer.
+function PhaseBar({ phases, totalMonths, minMonths, overRunway, slack }) {
+  // Bar width domain: max of (totalMonths, minMonths) so both bars
+  // (phase stack + runway marker) fit. Add 5% headroom for the
+  // runway label tick on the right edge.
+  const domain = Math.max(totalMonths, minMonths) * 1.05
+  const phaseSegments = phases.map(p => ({ ...p, widthPct: (p.months / domain) * 100 }))
+  const runwayMarkerPct = minMonths > 0 ? (minMonths / domain) * 100 : null
+
+  return (
+    <div>
+      {/* Bar */}
+      <div className="relative h-5 rounded-sm overflow-hidden" style={{ background: 'rgba(15,26,46,0.06)' }}>
+        <div className="flex h-full">
+          {phaseSegments.map((p) => (
+            <Tooltip key={p.key}>
+              <TooltipTrigger asChild>
+                <div
+                  className="h-full cursor-help transition-opacity hover:opacity-85"
+                  style={{ width: `${p.widthPct}%`, background: p.color }}
+                />
+              </TooltipTrigger>
+              <TooltipContent side="top" className="!max-w-[300px]">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{p.label} · {p.months} mo</p>
+                <p className="leading-relaxed">{PHASE_BLURBS[p.key]}</p>
+              </TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
+        {/* COD runway marker */}
+        {runwayMarkerPct != null && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div
+                className="absolute top-0 bottom-0 cursor-help"
+                style={{
+                  left: `${runwayMarkerPct}%`,
+                  width: '2px',
+                  background: overRunway ? '#DC2626' : '#0F1A2E',
+                  transform: 'translateX(-50%)',
+                }}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="top">
+              <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Target COD · {minMonths} mo from now</p>
+              <p className="leading-relaxed">
+                {overRunway
+                  ? `Phases total ${totalMonths} mo — ${Math.abs(slack)} mo over the target window. Tighten via Distribution fast-track, Acquire mid-queue position, or push COD later.`
+                  : `Phases total ${totalMonths} mo — ${slack} mo of slack against the target window.`}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+
+      {/* Legend + total */}
+      <div className="flex items-center justify-between gap-3 mt-1.5 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {phases.map(p => (
+            <div key={p.key} className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: p.color }} />
+              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-gray-500">
+                {p.label} {p.months}
+              </span>
+            </div>
+          ))}
+        </div>
+        <span
+          className="font-mono text-[10px] tabular-nums shrink-0"
+          style={{ color: overRunway ? '#B91C1C' : '#0F766E' }}
+        >
+          {totalMonths} mo total{overRunway ? ` · tight by ${Math.abs(slack)}` : slack > 0 ? ` · ${slack} mo slack` : ''}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+const PHASE_BLURBS = {
+  ix:           'Interconnection study window. Live data from the state IX queue (avgStudyMonths) when wired; falls back to a curated 18-mo baseline. Multiplier applied per IX Assumption lever: queue=100%, acquire=50%, distribution fast-track=25%.',
+  permit:       'State + AHJ permitting baseline (~6 mo). Bumped by 9 mo when county wetland coverage ≥25% as a proxy for Section 404 review likelihood — disclosed in the wetland tooltip below.',
+  construct:    'Utility-scale community-solar construction window (~12 mo). Includes mobilization, racking + module install, electrical, and pre-energization testing.',
+  energization: 'Final commissioning + utility energization buffer (~3 mo). Captures interconnection studies that surface late + utility scheduling.',
 }
