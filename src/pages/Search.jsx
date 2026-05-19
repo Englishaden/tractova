@@ -463,28 +463,70 @@ function SearchContent() {
   // them (stage defaults to "no modifier", technology defaults to CS).
   // Removing those from the gate eliminates a class of "I clicked the
   // link but it didn't run" footguns when context is incomplete.
-  const autoSubmitFired = useRef(false)
+  // Signature-tracked auto-submit. Previous boolean ref blocked all
+  // re-runs after the first auto-submit — meaning :lens MA 5 from the
+  // command palette did nothing if the user already had a Lens result
+  // open. Signature tracking lets a NEW set of URL params unlock the
+  // auto-submit again while still preventing double-fire on the SAME
+  // params.
+  const lastAutoSubmitKey = useRef('')
+  const formRef = useRef(null)
+
+  // URL-param-driven sync: when the command palette navigates to a new
+  // /search?state=...&mw=... URL, the form's useState init values are
+  // stale (init runs once at mount). This effect syncs form state +
+  // clears the previous result when a NEW URL signature appears, so a
+  // palette-dispatched lens command actually overrides the visible page.
+  // Auto-submit fires when the new URL is complete enough (state +
+  // county + mw); otherwise the form populates and waits for the user
+  // to fill the missing fields.
   useEffect(() => {
-    if (autoSubmitFired.current || !programMap) return
+    if (!programMap) return
+    const urlKey = `${initialState}|${initialCounty}|${initialMW}|${initialStage}|${initialTechnology}`
+    // First mount or repeat — don't redo work
+    if (lastAutoSubmitKey.current === urlKey) return
+    // Ignore the empty-URL case (user landed on /search with no params).
+    // The initial-render guard distinguishes "no URL" from "new URL".
+    if (!initialState && !initialCounty && !initialMW) return
+
+    // Mark this signature processed BEFORE setForm + submit so re-renders
+    // triggered by setForm don't loop back here.
+    lastAutoSubmitKey.current = urlKey
+
+    // Sync visible form to the new URL. Without this, requestSubmit
+    // would re-fire with the OLD form values from the first render.
+    setForm({
+      state:      initialState      || '',
+      county:     initialCounty     || '',
+      mw:         initialMW         || '',
+      stage:      initialStage      || '',
+      technology: initialTechnology || '',
+    })
+    // Clear stale result so the user isn't reading old data while the
+    // new search dispatches (or while they fill in missing fields).
+    setResults(null)
+
+    // Auto-submit only when the new URL is fully complete. Defer one
+    // tick so setForm flushes into form state before handleSubmit
+    // reads from it.
     if (initialState && initialCounty && initialMW) {
-      autoSubmitFired.current = true
-      formRef.current?.requestSubmit()
+      setTimeout(() => formRef.current?.requestSubmit(), 0)
     }
-  }, [programMap]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [programMap, initialState, initialCounty, initialMW, initialStage, initialTechnology])
 
   // Phase 2C auto-kickoff: ?fromProject= hydrates the form async (the
-  // useEffect above fetches the projects row + calls setForm). Once both
-  // the project + form + program map are loaded, fire the run. Same
-  // autoSubmitFired ref so this and the URL-param path never double-fire.
+  // useEffect above fetches the projects row + calls setForm). Once
+  // both the project + form + program map are loaded, fire the run.
+  // Uses the same lastAutoSubmitKey signature ref to coordinate with
+  // the URL-param path — same key never double-fires.
   useEffect(() => {
-    if (autoSubmitFired.current || !programMap || !reRunOf) return
-    if (form.state && form.county && form.mw && form.stage && form.technology) {
-      autoSubmitFired.current = true
-      formRef.current?.requestSubmit()
-    }
+    if (!programMap || !reRunOf) return
+    if (!form.state || !form.county || !form.mw || !form.stage || !form.technology) return
+    const formKey = `${form.state}|${form.county}|${form.mw}|${form.stage}|${form.technology}`
+    if (lastAutoSubmitKey.current === formKey) return
+    lastAutoSubmitKey.current = formKey
+    formRef.current?.requestSubmit()
   }, [programMap, reRunOf, form.state, form.county, form.mw, form.stage, form.technology])
-
-  const formRef = useRef(null)
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
