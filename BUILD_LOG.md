@@ -4,11 +4,81 @@
 
 ---
 
-## 🟢 Pickup — Scenario Studio dev-pivot arc shipped (2026-05-19)
+## 🟢 Pickup — 2026-05-19 marathon close-out (27 commits, full Lens rebuild + Cmd-K UX + Glossary expansion)
 
-**Four-slice arc — Aden back from 5-day camping trip and motivated to tighten Scenario Studio after flagging that the IRR/payback readouts feel "fake" because they sit on top of synthesized capex baselines (forward-extrapolated 2023 NREL TTS to 2026 via editorial bumps), industry-avg IX cost ($0.10/W flat) and opex ($20/kW/yr flat). The arc reframes Scenario Studio so dev-feasibility ("realistic to build in X county with X utility") is the primary read, not pro-forma IRR. Financial engine math untouched — just demoted to a tab.**
+**One-day session. 27 commits. Twelve thematic arcs. Aden returned from a 5-day camping trip and pushed the Lens / Library / Scenario Studio surfaces through a comprehensive UX rebuild. End-of-day state: every backlog item from the formal plan file is now shipped, the Glossary is canonical for every domain term that appears in UI copy, and the platform is in a strong state to sit + prod-test before the next iteration.**
 
-**Slice 1 — Tenor cap 30→40 yr (solar) + financial-input lineage honest-up** (`a575c8b`)
+**Quick state for next session:**
+- Lens result page is the matured surface — §03 Scenario Studio (collapsible, Dev Feasibility default tab, lever-driven composite scores, structured Cmd-K form) → §04 Pillar Diagnostics (4-card summary grid + Bloomberg-style detail modal with 4 tabs) → §05 / §06 unchanged.
+- Cmd-K palette has the verb chip strip (Lens / Library / Glossary + ? help button), Cmd-Shift-L hotkey, full command reference dialog.
+- Compare lives in Lens (Add to Compare) + Library (chip + bulk + Comparisons tab) — removed from the palette entirely per Aden's call.
+- Library map: cool slate canvas, max-width 1100px, warm-paper empty states (cool/warm contrast).
+- Glossary: 55 entries, all UI-surfaced industry terms covered.
+- Test suite: 158/158 unit (was 129 at session start), 7/7 smoke.
+
+**Resume command:** `Continue from BUILD_LOG 2026-05-19 close-out. All formal-plan backlog items shipped. Standing rule: every new term introduced in UI copy must get a Glossary entry. Next session priorities open — likely About Us page (Aden flagged for "eventually") or prod-test feedback from the major UX changes.`
+
+---
+
+### Twelve arcs shipped today — high-level
+
+**Arc 1 — Scenario Studio dev-pivot** (`a575c8b → 2a90287 → 3b062f6 → 59fb613`, morning):
+
+Tenor cap 30→40 yr (solar; BESS untouched at 20). Lineage chips next to every slider input (Synth · 2026 extrap / Industry avg / Observed · NREL / User input) so devs see which baselines are observed vs synthesized. Directional-sensitivity banner relocated to panel header. Dev Feasibility becomes the default Studio tab; Financial Sensitivity demoted to its own tab. Migration 063 handler swap (PDF lineage → first-class `discovered_via='pdf_upload'` column). Eyebrow-mono sweep closed as no-action.
+
+**Arc 2 — Polish + UI/UX audit follow-up** (`3abf64b → ff2d423 → 82899b6 → a03d785 → 6e3f6e6`):
+
+Radix tooltips on coverage / lineage chips replacing native `title` strings. FieldSelect dropdowns replacing native `<select>` for Target COD and IX Assumption — matching the /search form vocabulary. Subscription dropdown replaced with a 0–100% slider. Verdict-threshold tooltip discloses Go ≥70 / Caution 50-69 / No-Go <50 as Tractova editorial (not empirically anchored). Slider track fill alignment fixed (locked-zone band for LMI floor). Shared CoverageChip extracted between §03 + §04. mw.toFixed crash fixed (Search.jsx form state holds mw as string; coerced via parseFloat in DevFeasibilityView). ErrorBoundary "Copy diagnostics" button now has visible Copied/Failed feedback.
+
+**Arc 3 — MW lever lifted + same-utility comparables** (`623f8db → 743ff5b`):
+
+`liveMw` state lifted to Search.jsx so dragging MW in the Studio updates §04 pillar scores reactively. "Searched at X.X MW · Reset" caption when liveMw diverges from search MW. NaN-safe guards across the chain. ComparableProjectsPanel now splits results into "Same utility · N" + "Statewide · N" buckets when `countyData.interconnection.servingUtility` is known; tolerant utility-name matching handles "ComEd" ↔ "Commonwealth Edison Company" naming drift.
+
+**Arc 4 — LMI floor + levers move composite** (`7024916 → 137b5df`):
+
+Subscription slider refuses to drag below the state's `lmiPercent` (NY 20%, IL 50%, NJ 51%, MD 40%, CO 25%); locked zone visualized as a dimmed slate band on the left of the track + navy tick marker at the floor. New `src/lib/leverAdjustments.js` + 17 new unit tests make the Subscription / COD / IX Assumption levers actually shift composite scores (bounded ±5 / ±10 per pillar, capped per-pillar at ±10 total). Disclosed via "Lever impact" caption on the verdict tile + dotted-underline tooltip listing each lever's delta.
+
+**Arc 5 — §04 Pillar Detail Modal + summary cards** (`03c9a5d`):
+
+§04 row goes from 3 tall vertical cards to 3 compact summary cards (gauge + status + 1-line caption + "Open detail →"). Click any → Bloomberg-style fullscreen modal with tab strip across the three pillars, accent rail flips color per active pillar, lazy-mounted tab bodies (no OOM landmine — opacity+scale entrance only, no `layoutId`, no `height: auto`). Refactored OfftakeCard / InterconnectionCard / SiteControlCard to drop their CollapsibleCard wrappers (eliminated the 2026-05-11 OOM landmine in this surface).
+
+**Arc 6 — Cmd-K palette rebuild** (`4546426 → a46d58e → 0673e05 → 9d6f21b → b3e0d84`):
+
+Bug fix: `:lens MA 5` from the palette now correctly overrides an open Lens result (was a silent no-op due to a stale `autoSubmitFired` ref + a `useState` init that ran once). Signature-tracked auto-submit + URL→form sync + stale-result clear.
+
+New UX: Verb chip strip at the top of the palette ([Lens] [Library] [Glossary] + ? help). Clicking Lens (or typing `:lens`) opens a **structured form** inside the palette — State, County, MW, Tech, Stage with FieldSelect dropdowns matching the /search vocabulary. Cmd-Shift-L hotkey opens the palette pre-focused on the Lens form (Cmd-L would conflict with the browser address bar). All commands documented in a new "Cmd-K commands" tab of the KeyboardShortcuts dialog, openable via ? button in the palette header.
+
+Removed: Re-run last lens chip (deprecated per Aden), then the entire Compare chip + `:compare` verb (Compare lives in Lens + Library exclusively now).
+
+**Arc 7 — Compare bug fix + removal from palette** (`fb15419 → 6e5b5d2`):
+
+Compare tray was a silent dead button when items=0 — listener guarded on `items.length > 0`. Plus `CompareContext.add()` had a closure bug where bulk-adding from Library could leak past the 5-item MAX cap. Both fixed. Then per Aden's call ("just don't see the value in pulling it up via the command center"), removed Compare from the Cmd-K palette entirely. Compare invocation now lives only in Lens (Add to Compare button) + Library (chip + bulk + Comparisons tab).
+
+**Arc 8 — Branded loaders + caption polish** (`ad40429`):
+
+Lever Impact caption shortened from "Lever impact: +5 pts on composite — Subscription · Distribution fast-track" to "Lever impact: +5" (tooltip already discloses the breakdown). Branded TractovaLoader / LoadingDot replace plain "Loading…" text across OfftakeCard federal-bonus tiles, §03 comparables panel, Admin auth gate, MissionControl initial-load.
+
+**Arc 9 — §04 grew to 4 pillars + Scenario Studio collapses** (`572a381`):
+
+LensPolicyClimateSection no longer renders standalone below the pillars (Aden flagged as "thrown behind"). Folded into the §04 grid as the 4th pillar card (Offtake / IX / Site / Policy, violet accent #5B21B6), opens into the PillarDetailModal at the new Policy tab. ScenarioStudio gains a chevron toggle in its header — click to collapse the entire body, sessionStorage-persists across Lens re-runs. Pure conditional render (no `height: auto` motion).
+
+**Arc 10 — LibraryMap color scheme refresh + size cap** (`2b6e233 → 74a3226`):
+
+Map canvas swapped from pale teal gradient (`#F4FAFA → #E0F0EE`) to cool slate (`#ECF1F6 → #C8D3DF → #9FB0C2`) — pale-teal canvas had been blending into the light-teal state polygons. Warm-paper empty-state fills (`#F5F2EA`) create deliberate cool/warm category contrast — saved-portfolio states (teal/amber/red) read as one cluster, no-data states as a distinct neutral cluster. Map container capped at `maxWidth: 1100px mx-auto` (was filling `max-w-dashboard` 1440px); projection scale reduced 1000 → 920 for more atmospheric breathing room. Header band swapped from teal-tint to navy-tint.
+
+**Arc 11 — Backlog close-out: wetland tooltip + actionable verdict + phase bar + tests** (`8e6704c`):
+
+Four formal-plan backlog items shipped in one commit. (1) Wetland Section-404 caption tooltip discloses the "≥25% county coverage" proxy framing — Section 404 actually applies to parcel-level fill, not county coverage. (2) `verdictRationale` upgraded from generic score-reading ("Site is weakest at 41/100") to pillar-specific actionable diligence steps ("Norfolk County wetland 38% — screen adjacent counties or commit to Section 404 review"). Per-pillar friction descriptions read CS-status / capacity / LMI / IX queue months / cluster-study tier / wetland % / farmland % / curated availability / top headwind event. (3) `PhaseBar` component renders horizontal timeline (IX Study / Permitting / Construction / Energization) with widths proportional to month duration + COD-target marker; segment + marker tooltips disclose data sources. (4) New `tests/unit/devFeasibilityVerdict.spec.js` with 14 tests covering classifyVerdict bands + per-pillar friction cases + go-verdict framing + graceful fallback when metadata missing.
+
+**Arc 12 — Glossary expansion + standing "always add" rule** (`1e268ca`):
+
+Section 404 added to Glossary at Aden's prompt ("Yes always add to Glossary"). Subsequent thorough scan surfaced 15+ industry-specific terms appearing in UI copy but missing from the Glossary — exactly the gap the Glossary exists to close. Added: Section 404, COD, PPA, Bill Credit, Offtaker, CCA, IX Queue, Study Window, NWI, SSURGO, ISO/RTO, Confidence Tier (Tier A/B), Safe Harbor, NTP, p50/p90. Glossary now: 55 entries (was 40). Pattern: every definition added to `src/lib/glossaryDefinitions.js` (canonical tooltip source) + `GLOSSARY_PILLAR_MAP` in `src/data/glossaryTerms.js` (Glossary-page promotion). Standing rule saved to feedback memory: every new domain term introduced in UI copy must follow this two-file process.
+
+---
+
+### Earlier in the day (already-documented arcs above, full detail in commits)
+
+**Earlier `Slice 1 — Tenor cap 30→40 yr (solar) + financial-input lineage honest-up` detail** (`a575c8b`)
 - `scenarioEngine.js:271` — solar tenor cap raised 30→40 yr. IL community-solar programs underwrite to 40-yr terms; banks finance against them. BESS stays capped at 20 yr (battery-degradation envelope unchanged). Tests updated in `tests/unit/scenarioEngine.spec.js`.
 - `ScenarioStudio.jsx` — new `SLIDER_LINEAGE` map + `LINEAGE_PALETTE` renders a small `.eyebrow-mono` chip next to each slider label: Capex "Synth · 2026 extrap" (amber), IX "Industry avg" (amber), Opex "Industry avg" (amber), REC "Observed" (teal), CF "Observed · NREL" (teal), Discount / Tenor / Size "User input" (slate). Each chip carries a hover tooltip explaining the tone.
 - Directional-sensitivity banner relocated to the panel header (was buried at bottom of the panel). "Directional" eyebrow chip + tight punch line. Bottom block deleted. Long-form `SCENARIO_DISCLAIMER` constant retained in scenarioEngine.js for ProjectPDFExport.

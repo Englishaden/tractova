@@ -437,24 +437,49 @@ Plus the original plan file mirror at `~/.claude/plans/if-the-dsire-api-dreamy-a
 - **Post-arc 2026-05-13 (morning) — 3 backlog items shipped:** Library.jsx hook decomposition (`9a489d7` — useLibraryLayout + useBulkSelection, 1517 → 1399 LOC); LensTour Radix Dialog migration (`f1f3825` — real focus trap + aria-labelledby/describedby on both per-step tooltip and "complete" card; drive-by cron-latency skip-gate race fix); §05 recursive-wrapper bug fix (`e60882f` — Phase 0 typo, dead-code correctness).
 - **Post-arc 2026-05-13 (evening) — 4 commits:** §05 path-A re-enable (`933237e` — gate flipped, prod-validated on NY/MA/IL all clean); §06 Regulatory Watch promoted (`de13907` — new `LensRegulatoryWatchSection.jsx` reframes the un-numbered PUC panel as a chronological `policy_impact_events` feed; PUC dockets fold in as the ◆ Active Proceedings subsection, curation-gated; same source of truth as §04 sliced by time instead of pillar); §06 EventRow expand affordance (`5f2c229` — explicit "View methodology & source ▾" caption + rotating chevron + border-color shift in response to live feedback); PDF intake for `policy_impact_events` (`09fe5c2` — admin drops a PDF on PolicyImpactTab, Anthropic SDK 0.95.1 + Haiku 4.5 native PDF document blocks extract the policy directly; no pdfjs-dist; 6 MB base64 cap; `discovery_metadata.source_type='pdf_upload'` lineage stamp).
 
+- **Post-arc 2026-05-19 — 27 commits across twelve thematic arcs.** Major one-day rebuild touching Lens / Scenario Studio / Library / Cmd-K. End-of-day state captured in BUILD_LOG.md 2026-05-19 pickup section. Headline outcomes:
+  - **Scenario Studio rewritten** around Dev Feasibility (default tab) instead of pro-forma IRR. Lever realism: LMI floor on subscription slider, levers actually move composite scores (±5/±10 bounded per pillar), `Lever impact: +X` caption + dotted-underline tooltip discloses the editorial math.
+  - **§04 Pillar Diagnostics** swapped from 3 tall vertical cards to a 4-card summary grid (Offtake / IX / Site / Policy) opening into a Bloomberg-style modal with tab strip. PolicyClimateSection no longer sits "thrown behind" the pillars.
+  - **Cmd-K palette rebuilt**: verb chip strip ([Lens] [Library] [Glossary] + ?), Cmd-Shift-L hotkey, structured Lens form replacing position-arg shorthand, command reference dialog. Compare removed from the palette per Aden's call (lives in Lens + Library only).
+  - **Verdict rationale** upgraded from generic score-reading ("Site weakest at 41/100") to pillar-specific actionable diligence steps ("Norfolk County wetland 38% — screen adjacent counties or commit to Section 404 review").
+  - **TimelineEstimate phase bar** renders horizontal IX Study / Permitting / Construction / Energization segments with COD target marker; tooltips disclose data sources.
+  - **LibraryMap** color scheme refresh (cool slate + warm-paper empties) + max-width cap (1100px) + projection scale reduced for better proportion at typical zoom.
+  - **Glossary expanded 40 → 55 entries**, covering all UI-surfaced industry terms. Standing rule saved to memory: every new term introduced in UI copy must follow the two-file Glossary pattern.
+  - **Test suite**: 158/158 unit (was 129 at session start), 7/7 smoke. New leverAdjustments.spec.js + devFeasibilityVerdict.spec.js.
+
 ### Resume command
-The arc is closed. After `/clear`, the next session should orient from the BUILD_LOG pickup section + this status table rather than a single fixed phase. Outstanding incremental work:
+The arc is closed. After `/clear`, the next session should orient from the BUILD_LOG 2026-05-19 close-out section + this status table rather than a single fixed phase. Every backlog item from the formal plan file is now shipped.
 
 ```
-Continue from BUILD_LOG pickup. 2026-05-13 evening shipped four commits:
-- §05 path-A re-enable (prod-validated NY/MA/IL) ✅
-- §06 Regulatory Watch promotion (chronological policy_impact_events feed) ✅
-- §06 EventRow expand-affordance fix ✅
-- PDF intake on PolicyImpactTab (Anthropic native PDF document blocks) ✅
-Remaining backlog needs your direction:
-- Landing tightening (Three Pillars cards — design-subjective)
-- §04 / §06 visual-redundancy review once curated events make both surfaces live in prod
-- audit-ui parallel-pressure flakes (Dashboard click matrix + Profile gauge — not in verify chain)
-See § 4 deferred-from-each-phase + BUILD_LOG § Backlog for full list.
+Continue from BUILD_LOG 2026-05-19 close-out. 27 commits today across twelve
+arcs — Scenario Studio dev-pivot, Cmd-K rebuild, §04 modal, lever realism,
+LibraryMap refresh, Glossary expansion, etc.
 
-Closed:
-- discovered_via enum extension to include 'pdf_upload' (migration 063 applied + handler swap shipped 2026-05-19, commit `3b062f6`)
-- Long-tail eyebrow-mono sweep (closed 2026-05-19 — §06 pilot retained; candidate sites vary too much in size/tracking/weight for a safe sweep)
+Standing rules saved to memory:
+- Every new domain term in UI copy must get a Glossary entry (two-file:
+  glossaryDefinitions.js + GLOSSARY_PILLAR_MAP in glossaryTerms.js).
+- All earlier feedback memories still apply (no-guessing, take-more-time,
+  unify-and-standardize, observed-vs-synthesis layers, etc.).
+
+Open / future work (not in any formal plan, but flagged):
+- About Us page (Aden noted for "eventually" — single /about route with
+  goals + data sources + observed-vs-synthesis discipline + honest framing
+  of what we're NOT). Editorial like a research-firm masthead.
+- Landing tightening (Three Pillars cards — design-subjective)
+- §04 / §06 visual-redundancy review once curated events make both
+  surfaces live across more states
+- audit-ui parallel-pressure flakes (Dashboard click matrix + Profile gauge)
+
+Closed today:
+- ✅ Wetland Section-404 caption tooltip
+- ✅ Verdict tile "most actionable friction" rationale
+- ✅ Unit tests for classifyVerdict + verdictRationale (14 new)
+- ✅ Timeline-to-COD horizontal phase bar
+- ✅ Glossary expansion (15 new terms)
+- ✅ Compare bug + closure bug + removal from palette
+- ✅ §04 grew to 4 pillars
+- ✅ Scenario Studio collapsible
+- ✅ LibraryMap color + size refresh
 ```
 
 Claude will pick up exactly where this session ended.
