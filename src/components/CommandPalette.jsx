@@ -464,6 +464,15 @@ export default function CommandPalette() {
                   lastLens={lastLens}
                   onSelect={handleChipSelect}
                   onReRunLens={handleReRunLens}
+                  onHelp={() => {
+                    // Close palette + open the command reference dialog.
+                    // KeyboardShortcuts.jsx listens for this custom event
+                    // and switches to the Commands tab by default.
+                    setOpen(false)
+                    try {
+                      window.dispatchEvent(new CustomEvent('tractova:open-shortcuts', { detail: { tab: 'commands' } }))
+                    } catch { /* SSR-safe */ }
+                  }}
                 />
 
                 <div className="flex items-center gap-3 px-4 py-3 border-b shrink-0" style={{ borderColor: '#E2E8F0', display: mode === 'lens' ? 'none' : 'flex' }}>
@@ -691,7 +700,7 @@ function resolveTechFromShorthand(raw) {
 // memorization. Active chip is highlighted via a teal accent rail; the
 // rest stay slate. Re-run last chip only renders when localStorage has
 // a previous Lens dispatch under the user's key.
-function VerbChipStrip({ mode, lastLens, onSelect, onReRunLens }) {
+function VerbChipStrip({ mode, lastLens, onSelect, onReRunLens, onHelp }) {
   const chips = [
     { key: 'lens',     label: 'Lens',     hint: 'Run a new analysis' },
     { key: 'library',  label: 'Library',  hint: 'Saved portfolio' },
@@ -734,6 +743,19 @@ function VerbChipStrip({ mode, lastLens, onSelect, onReRunLens }) {
           <span className="truncate max-w-[180px]">Re-run {lastLens.label || 'last'}</span>
         </button>
       )}
+      {/* Help button — dispatches a custom event the KeyboardShortcuts
+          dialog listens for. Anchored to the right edge so the chip
+          strip reads "verbs on the left · ↻ re-run · ? help on the right". */}
+      <button
+        type="button"
+        onClick={onHelp}
+        title="Command reference (Cmd-K commands + keyboard shortcuts)"
+        aria-label="Open command reference"
+        className={`cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] font-semibold w-7 h-7 rounded-sm transition-colors shrink-0 ${lastLens && lastLens.path ? '' : 'ml-auto'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 flex items-center justify-center`}
+        style={{ background: 'white', color: '#475569', border: '1px solid #E2E8F0' }}
+      >
+        ?
+      </button>
     </div>
   )
 }
