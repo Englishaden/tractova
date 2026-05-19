@@ -107,11 +107,19 @@ export function CompareProvider({ children }) {
 
   const isInCompare = (id) => items.some((i) => i.id === id)
 
+  // Functional updater for the guard checks too — fixes the closure bug
+  // where a tight loop of add() calls (e.g. Library's bulk "Add to
+  // Compare" button) would see stale items.length on every call. Without
+  // this, the MAX_ITEMS cap leaks past 5 when users bulk-add fast.
   const add = (item) => {
-    if (items.length >= MAX_ITEMS) return false
-    if (isInCompare(item.id)) return false
-    setItems((prev) => [...prev, item])
-    return true
+    let added = false
+    setItems((prev) => {
+      if (prev.length >= MAX_ITEMS) return prev
+      if (prev.some((i) => i.id === item.id)) return prev
+      added = true
+      return [...prev, item]
+    })
+    return added
   }
 
   const remove = (id) => setItems((prev) => prev.filter((i) => i.id !== id))

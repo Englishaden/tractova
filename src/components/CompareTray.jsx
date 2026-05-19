@@ -721,6 +721,92 @@ function CompareModal({ onClose }) {
   )
 }
 
+// Empty-state modal shown when the user invokes Compare with nothing in
+// the tray. Previously the chip was a silent no-op which felt broken.
+// Now we render a clear "here's how to populate Compare" view with two
+// direct affordances: jump to Library to pick saved projects, or jump
+// to Lens to add the current result.
+function CompareEmptyStateModal({ onClose }) {
+  return (
+    <RadixDialog.Root open onOpenChange={(o) => { if (!o) onClose() }}>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay
+          className="fixed inset-0 z-50"
+          style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
+        />
+        <RadixDialog.Content
+          className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md rounded-xl outline-hidden overflow-hidden"
+          style={{
+            background: '#080E1A',
+            border: '1px solid rgba(52,211,153,0.18)',
+            boxShadow: '0 0 0 1px rgba(52,211,153,0.06), 0 24px 64px rgba(0,0,0,0.6)',
+          }}
+        >
+          <div className="h-[3px] w-full" style={{ background: 'linear-gradient(90deg, transparent 0%, #34D399 50%, transparent 100%)' }} />
+          <div className="px-6 py-6">
+            <RadixDialog.Title className="font-serif text-xl font-semibold text-white leading-tight">
+              Compare tray is empty
+            </RadixDialog.Title>
+            <RadixDialog.Description className="text-[13px] mt-2 leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
+              Compare puts up to five projects side-by-side — Feasibility Index, sub-scores, IX difficulty, LMI carveout, wetland/farmland %. Add projects two ways:
+            </RadixDialog.Description>
+
+            <ul className="mt-4 space-y-2.5">
+              <li className="flex items-start gap-2.5">
+                <span className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center mt-0.5" style={{ background: 'rgba(52,211,153,0.15)', color: '#34D399' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+                <div className="text-[12px] leading-snug" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  <span className="font-semibold text-white">From your Library:</span> click the bar-chart icon on any saved project card, or check several and use the "Add to Compare" bulk button.
+                </div>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="shrink-0 w-5 h-5 rounded-md flex items-center justify-center mt-0.5" style={{ background: 'rgba(52,211,153,0.15)', color: '#34D399' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+                <div className="text-[12px] leading-snug" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  <span className="font-semibold text-white">From a Lens result:</span> click "Add to Compare" in the result header.
+                </div>
+              </li>
+            </ul>
+
+            <div className="mt-5 flex items-center gap-2">
+              <Link
+                to="/library"
+                onClick={onClose}
+                className="text-[11px] font-semibold px-3 py-2 rounded-md transition-colors"
+                style={{ background: 'rgba(52,211,153,0.18)', color: '#34D399', border: '1px solid rgba(52,211,153,0.40)' }}
+              >
+                Open Library →
+              </Link>
+              <Link
+                to="/search"
+                onClick={onClose}
+                className="text-[11px] font-semibold px-3 py-2 rounded-md transition-colors"
+                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.18)' }}
+              >
+                Run a new Lens
+              </Link>
+              <button
+                type="button"
+                onClick={onClose}
+                className="ml-auto text-[11px] font-medium px-3 py-2 transition-colors"
+                style={{ color: 'rgba(255,255,255,0.4)' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
+  )
+}
+
 export default function CompareTray() {
   const { items, remove, clear, load } = useCompare()
   const [modalOpen, setModalOpen] = useState(false)
@@ -731,21 +817,19 @@ export default function CompareTray() {
   // dangle a CTA users can't fulfill.
   const isMobile = useIsMobile()
 
-  // Cmd-K verb `:compare` dispatches this event. Open the modal if we have
-  // anything to compare; otherwise the tray isn't even mounted (items===0
-  // short-circuits below) and the event is a silent no-op.
+  // Cmd-K verb `:compare` dispatches this event. Always open the modal —
+  // even when items=0 — so the user gets visible feedback (empty state
+  // with clear next-step affordances) instead of a silent no-op. The
+  // previous "items>0 only" guard made the chip feel broken.
   useEffect(() => {
-    const onOpen = () => { if (items.length > 0) setModalOpen(true) }
+    const onOpen = () => setModalOpen(true)
     window.addEventListener('tractova:open-compare', onOpen)
     return () => window.removeEventListener('tractova:open-compare', onOpen)
-  }, [items.length])
+  }, [])
 
   // Phase 2C — Cmd-K `:compare <saved-name>` and Library "Open" both fire
   // this event with either `{ savedId }` (fetch + hydrate) or `{ snapshot }`
-  // (hydrate directly). Either path ends with the modal open. The tray
-  // mounts unconditionally here so the listener stays alive even when
-  // items is empty — important for the "load saved without an existing
-  // draft" path.
+  // (hydrate directly). Either path ends with the modal open.
   useEffect(() => {
     const onLoad = async (e) => {
       const detail = e?.detail || {}
@@ -765,11 +849,14 @@ export default function CompareTray() {
     return () => window.removeEventListener('tractova:load-compare', onLoad)
   }, [load])
 
-  // CompareTray is always mounted in App.jsx, so the `tractova:load-compare`
-  // listener stays alive even with an empty draft — saved-comparison hydrate
-  // updates items first, which triggers a re-render that renders the tray.
-  if (items.length === 0) return null
+  // Render strategy: when items=0 + modal closed, render nothing (tray
+  // pill needs items to exist). When items=0 + modal open, render an
+  // empty-state modal so the user sees actionable feedback. When items>0,
+  // render both the pill and the modal-on-demand.
   if (isMobile) return null
+  if (items.length === 0) {
+    return modalOpen ? <CompareEmptyStateModal onClose={() => setModalOpen(false)} /> : null
+  }
 
   return (
     <>
