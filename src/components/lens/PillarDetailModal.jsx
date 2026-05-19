@@ -30,11 +30,13 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import OfftakeCard from '../OfftakeCard.jsx'
 import InterconnectionCard from '../InterconnectionCard.jsx'
 import SiteControlCard from '../SiteControlCard.jsx'
+import LensPolicyClimateSection from '../LensPolicyClimateSection.jsx'
 
 const PILLAR_TABS = [
   { key: 'offtake', label: '01 / Offtake',         accent: '#0F766E' },
   { key: 'ix',      label: '02 / Interconnection', accent: '#D97706' },
   { key: 'site',    label: '03 / Site Control',    accent: '#2563EB' },
+  { key: 'policy',  label: '04 / Policy',          accent: '#5B21B6' },
 ]
 
 export default function PillarDetailModal({ activePillar, onClose, onPillarChange, pillarProps = {} }) {
@@ -46,13 +48,13 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
   // remount (preserves computeBaseline + revenue-stack work). Set is
   // reset when the modal closes (Dialog portal unmounts → all bodies
   // unmount → next open re-lazies).
-  const [mounted, setMounted] = useState({ offtake: false, ix: false, site: false })
+  const [mounted, setMounted] = useState({ offtake: false, ix: false, site: false, policy: false })
   useEffect(() => {
     if (open && activePillar) {
       setMounted((prev) => prev[activePillar] ? prev : { ...prev, [activePillar]: true })
     }
     if (!open) {
-      setMounted({ offtake: false, ix: false, site: false })
+      setMounted({ offtake: false, ix: false, site: false, policy: false })
     }
   }, [open, activePillar])
 
@@ -214,6 +216,16 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                           stateId={pillarProps.stateId}
                           mw={pillarProps.mw}
                           substations={pillarProps.substations}
+                        />
+                      </div>
+                    )}
+                    {mounted.policy && (
+                      <div role="tabpanel" hidden={activePillar !== 'policy'} className="px-2 py-2">
+                        <LensPolicyClimateSection
+                          policyEvents={pillarProps.policyEvents || []}
+                          stateName={pillarProps.stateName}
+                          mw={pillarProps.mw}
+                          technology={pillarProps.technology}
                         />
                       </div>
                     )}

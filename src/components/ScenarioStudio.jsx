@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
+import { motion } from 'motion/react'
 import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_PRESETS, SCENARIO_PRESET_METHODOLOGY } from '../lib/scenarioEngine'
 import { supabase } from '../lib/supabase'
 import { useToast } from './ui/Toast'
@@ -88,6 +89,22 @@ export default function ScenarioStudio({
       window.sessionStorage?.setItem(TAB_STORAGE_KEY, activeTab)
     }
   }, [activeTab])
+
+  // Collapsible body — default expanded so first-render impression is
+  // unchanged, user can collapse to reclaim vertical space. Uses
+  // conditional render (not motion height-auto) to dodge the OOM
+  // landmine flagged in BUILD_LOG 2026-05-11. Session-persisted so the
+  // collapsed state survives re-renders.
+  const COLLAPSE_KEY = 'scenarioStudio.collapsed'
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.sessionStorage?.getItem(COLLAPSE_KEY) === '1'
+  })
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage?.setItem(COLLAPSE_KEY, collapsed ? '1' : '0')
+    }
+  }, [collapsed])
   // Slider default = adjusted inputs so the user's "starting point" reflects
   // active high-confidence policy events for this state. Pre-policy baseline
   // remains accessible via `baseline.inputs` for the breakdown panel.
@@ -311,15 +328,45 @@ export default function ScenarioStudio({
             as="span"
           />
         </div>
-        {isDirty && activeTab === 'fin' && (
-          <span
-            className="eyebrow-mono px-2 py-0.5"
-            style={{ background: 'rgba(245,158,11,0.10)', color: '#92400E', border: '1px solid rgba(245,158,11,0.30)' }}
+        <div className="flex items-center gap-2">
+          {isDirty && activeTab === 'fin' && !collapsed && (
+            <span
+              className="eyebrow-mono px-2 py-0.5"
+              style={{ background: 'rgba(245,158,11,0.10)', color: '#92400E', border: '1px solid rgba(245,158,11,0.30)' }}
+            >
+              Modified
+            </span>
+          )}
+          {/* Collapse toggle — matches CollapsibleCard chevron pattern.
+              Conditional render below (not height-auto motion) keeps
+              the OOM landmine away. */}
+          <button
+            type="button"
+            onClick={() => setCollapsed(c => !c)}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expand Scenario Studio' : 'Collapse Scenario Studio'}
+            className="inline-flex items-center justify-center w-7 h-7 rounded-md transition-colors hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
+            style={{ color: '#5A6B7A', border: '1px solid #E2E8F0' }}
           >
-            Modified
-          </span>
-        )}
+            <motion.svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"
+              animate={{ rotate: collapsed ? 0 : 180 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </motion.svg>
+          </button>
+        </div>
       </div>
+
+      {collapsed && (
+        <div className="px-6 py-3 text-[11px] text-gray-500 leading-relaxed border-t border-gray-100">
+          Studio collapsed. Click the chevron above to expand and run scenarios across the four pillars or stress-test the financial baseline.
+        </div>
+      )}
 
       {/* Tab nav — Dev Feasibility (default) | Financial Sensitivity.
           Bloomberg-y rectangular tabs with a navy underline on active.
@@ -329,6 +376,7 @@ export default function ScenarioStudio({
           structurally workable" than from an IRR readout. The financial
           tab stays live for users who want the directional sensitivity
           view, just demoted from default. */}
+      {!collapsed && (
       <div className="flex items-center gap-0 px-6 pt-3 border-b border-gray-100">
         <TabButton active={activeTab === 'dev'} onClick={() => setActiveTab('dev')}>
           Dev Feasibility
@@ -337,8 +385,9 @@ export default function ScenarioStudio({
           Financial Sensitivity
         </TabButton>
       </div>
+      )}
 
-      {activeTab === 'dev' && (
+      {!collapsed && activeTab === 'dev' && (
         <DevFeasibilityView
           stateProgram={stateProgram}
           countyData={countyData}
@@ -354,7 +403,7 @@ export default function ScenarioStudio({
         />
       )}
 
-      {activeTab === 'fin' && <>
+      {!collapsed && activeTab === 'fin' && <>
 
       {/* Directional-sensitivity banner — prominent in the header so the
           IRR/payback readouts below are framed correctly. Amber to match
@@ -658,7 +707,7 @@ export default function ScenarioStudio({
           into the sliders; trash icon deletes. Reused from
           ScenarioHistoryList so the Library Scenarios tab shows the
           same shape. */}
-      {savedList.length > 0 && (
+      {!collapsed && savedList.length > 0 && (
         <div className="px-6 pb-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="font-mono text-[9px] uppercase tracking-[0.20em] text-gray-500 font-bold">

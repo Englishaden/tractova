@@ -10,9 +10,11 @@ import MarketPositionPanel from '../components/MarketPositionPanel.jsx'
 import OfftakeCardSummary from '../components/lens/OfftakeCardSummary.jsx'
 import InterconnectionCardSummary from '../components/lens/InterconnectionCardSummary.jsx'
 import SiteControlCardSummary from '../components/lens/SiteControlCardSummary.jsx'
+import PolicyPillarCardSummary from '../components/lens/PolicyPillarCardSummary.jsx'
 import PillarDetailModal from '../components/lens/PillarDetailModal.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
-import LensPolicyClimateSection from '../components/LensPolicyClimateSection.jsx'
+// LensPolicyClimateSection now mounted inside PillarDetailModal as the
+// 4th Policy tab (2026-05-19 refactor); no longer imported here.
 import LensComparablesSection from '../components/LensComparablesSection.jsx'
 import { useToast } from '../components/ui/Toast'
 
@@ -1184,7 +1186,7 @@ function SearchContent() {
                 effectiveMw,
               )
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
                   <OfftakeCardSummary
                     stateProgram={results.stateProgram}
                     score={sub.offtake}
@@ -1209,21 +1211,24 @@ function SearchContent() {
                     coverage={sub.coverage?.site}
                     onOpen={() => setActivePillar('site')}
                   />
+                  <PolicyPillarCardSummary
+                    policyEvents={results.policyEvents || []}
+                    stateName={results.stateProgram?.name || results.form.state}
+                    score={sub.policyClimate}
+                    coverage={sub.coverage?.policy}
+                    onOpen={() => setActivePillar('policy')}
+                  />
                 </div>
               )
             })()}
 
-            {/* Shadow pillar — re-enabled 2026-05-11 in OOM bisect step.
-                Step 1: re-enable this (lighter — uses existing
-                results.policyEvents, no new fetch). If Lens still crashes,
-                this is the culprit. § 05 (LensComparablesSection) stays
-                disabled below until bisect confirms shadow pillar is fine. */}
-            <LensPolicyClimateSection
-              policyEvents={results.policyEvents || []}
-              stateName={results.stateProgram?.name || results.form.state}
-              mw={effectiveMw}
-              technology={results.form.technology}
-            />
+            {/* LensPolicyClimateSection no longer renders standalone — it
+                now lives inside the §04 PillarDetailModal as the 4th tab.
+                Removed 2026-05-19 per user feedback that the standalone
+                section read as "thrown behind" the pillar row. The 4-card
+                §04 grid surfaces the policy summary at peer status with
+                Offtake / IX / Site; clicking opens the same modal at
+                the Policy tab. */}
             </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
@@ -1333,6 +1338,7 @@ function SearchContent() {
             stateName:       results.stateProgram?.name || results.form.state,
             substations:     results.substations,
             queueSummary:    results.ixQueueSummary,
+            policyEvents:    results.policyEvents || [],
           }}
         />
       )}
