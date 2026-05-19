@@ -68,27 +68,6 @@ function pushRecent(userId, item) {
   } catch { /* localStorage quota — drop silently */ }
 }
 
-// Last-lens shortcut storage. Separate key from `recents` so the "↻
-// Re-run" chip always reflects the most recent Lens (which may not be
-// the most recent palette action — user might have run a Lens, then
-// hopped to Library, then come back to the palette).
-const LAST_LENS_KEY_PREFIX = 'tractova_cmdk_last_lens__'
-
-function loadLastLens(userId) {
-  if (!userId) return null
-  try {
-    const raw = localStorage.getItem(LAST_LENS_KEY_PREFIX + userId)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
-}
-
-function saveLastLens(userId, payload) {
-  if (!userId || !payload) return
-  try {
-    localStorage.setItem(LAST_LENS_KEY_PREFIX + userId, JSON.stringify({ ...payload, ts: Date.now() }))
-  } catch { /* quota — drop silently */ }
-}
-
 export default function CommandPalette() {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -96,7 +75,6 @@ export default function CommandPalette() {
   const [savedProjects, setSavedProjects] = useState([])
   const [savedComparisons, setSavedComparisons] = useState([])
   const [recents, setRecents] = useState([])
-  const [lastLens, setLastLens] = useState(null)
   const [activeIndex, setActiveIndex] = useState(0)
   // Palette mode: 'normal' = chip strip + search input + results list.
   // 'lens' = chip strip + structured Lens form (state/county/mw/tech/stage).
@@ -120,9 +98,8 @@ export default function CommandPalette() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setSavedProjects([]); setSavedComparisons([]); setRecents([]); setLastLens(null); return }
+    if (!user) { setSavedProjects([]); setSavedComparisons([]); setRecents([]); return }
     setRecents(loadRecents(user.id))
-    setLastLens(loadLastLens(user.id))
     supabase
       .from('projects')
       .select('id, name, state, county, mw, stage')
@@ -327,20 +304,9 @@ export default function CommandPalette() {
     }
   }, [user, navigate])
 
-  // Re-run chip — navigates directly to the most recent palette-dispatched
-  // Lens URL. Bypasses the form because the URL signature already encodes
-  // all required params; Search.jsx will auto-submit on signature change.
-  const handleReRunLens = useCallback(() => {
-    if (!lastLens?.path) return
-    if (user) pushRecent(user.id, lastLens)
-    setOpen(false)
-    navigate(lastLens.path)
-  }, [lastLens, user, navigate])
-
   // Structured Lens form submission. Builds the same /search?... URL
   // the colon shorthand would have built, but with the County (the bit
-  // the shorthand never carried). Persists to localStorage so the
-  // Re-run chip can pick it up on the next palette open.
+  // the shorthand never carried).
   const handleLensSubmit = useCallback(({ stateId, stateName, county, mw, tech, stage }) => {
     const params = new URLSearchParams()
     params.set('state', stateId)
@@ -353,8 +319,6 @@ export default function CommandPalette() {
     const hint = `${tech} · ${stage.split(' (')[0]}`
     if (user) {
       pushRecent(user.id, { label: `Lens — ${label}`, hint, path, kind: 'verb-go' })
-      saveLastLens(user.id, { label, hint, path })
-      setLastLens({ label, hint, path })
     }
     setOpen(false)
     navigate(path)
@@ -465,14 +429,11 @@ export default function CommandPalette() {
                 <RadixDialog.Description className="sr-only">Quick search or run a Cmd-K verb</RadixDialog.Description>
 
                 {/* Verb chip strip — persistent one-click entry into Lens /
-                    Library / Compare / Glossary. Re-run last chip surfaces
-                    the most recent palette-dispatched Lens. Replaces the
-                    colon-shorthand memorization tax. */}
+                    Library / Compare / Glossary. Replaces the colon-
+                    shorthand memorization tax. */}
                 <VerbChipStrip
                   mode={mode}
-                  lastLens={lastLens}
                   onSelect={handleChipSelect}
-                  onReRunLens={handleReRunLens}
                   onHelp={() => {
                     // Close palette + open the command reference dialog.
                     // KeyboardShortcuts.jsx listens for this custom event
@@ -709,7 +670,7 @@ function resolveTechFromShorthand(raw) {
 // memorization. Active chip is highlighted via a teal accent rail; the
 // rest stay slate. Re-run last chip only renders when localStorage has
 // a previous Lens dispatch under the user's key.
-function VerbChipStrip({ mode, lastLens, onSelect, onReRunLens, onHelp }) {
+function VerbChipStrip({ mode, onSelect, onHelp }) {
   const chips = [
     { key: 'lens',     label: 'Lens',     hint: 'Run a new analysis' },
     { key: 'library',  label: 'Library',  hint: 'Saved portfolio' },
@@ -740,27 +701,14 @@ function VerbChipStrip({ mode, lastLens, onSelect, onReRunLens, onHelp }) {
           </button>
         )
       })}
-      {lastLens && lastLens.path && (
-        <button
-          type="button"
-          onClick={onReRunLens}
-          title={`Re-run last Lens — ${lastLens.label || 'most recent'}`}
-          className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-2.5 py-1 rounded-sm transition-colors shrink-0 ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 flex items-center gap-1.5"
-          style={{ background: 'white', color: '#0F766E', border: '1px solid rgba(20,184,166,0.45)' }}
-        >
-          <span aria-hidden="true">↻</span>
-          <span className="truncate max-w-[180px]">Re-run {lastLens.label || 'last'}</span>
-        </button>
-      )}
-      {/* Help button — dispatches a custom event the KeyboardShortcuts
-          dialog listens for. Anchored to the right edge so the chip
-          strip reads "verbs on the left · ↻ re-run · ? help on the right". */}
+      {/* Help button — anchored to the right edge of the strip via ml-auto.
+          Dispatches a custom event the KeyboardShortcuts dialog listens for. */}
       <button
         type="button"
         onClick={onHelp}
         title="Command reference (Cmd-K commands + keyboard shortcuts)"
         aria-label="Open command reference"
-        className={`cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] font-semibold w-7 h-7 rounded-sm transition-colors shrink-0 ${lastLens && lastLens.path ? '' : 'ml-auto'} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 flex items-center justify-center`}
+        className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.18em] font-semibold w-7 h-7 rounded-sm transition-colors shrink-0 ml-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40 flex items-center justify-center"
         style={{ background: 'white', color: '#475569', border: '1px solid #E2E8F0' }}
       >
         ?

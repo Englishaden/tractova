@@ -106,14 +106,6 @@ const COMMANDS = [
     invoke: 'type :new',
     body: 'Clears the current Lens form and returns to a fresh search state.',
   },
-  {
-    verb: '↻ Re-run',
-    label: 'Re-run the last Lens',
-    syntax: 'palette chip',
-    example: '↻ Re-run MA · Norfolk · 5 MW',
-    invoke: 'Re-run chip in palette (shows your last Lens)',
-    body: 'One-click replay of the most recent palette-dispatched Lens. Stored in localStorage per user.',
-  },
 ]
 
 // Heuristic: skip shortcuts when the user is typing into a form field.
