@@ -32,16 +32,18 @@ function classifyVerdict(composite) {
   return 'nogo'
 }
 
-// Subscription presets — Tractova editorial brackets (not anchored to a
-// specific empirical source). Real CS subscription rates land anywhere
-// in [50%, 100%] depending on program age, marketing, LMI mandate,
-// utility partnership. The presets are a "pick the regime" shortcut;
-// see audit note in BUILD_LOG for the slider-replacement question.
-const SUBSCRIPTION_PRESETS = [
-  { key: 'pessimistic', label: 'Pessimistic · 60%', pct: 60, hint: 'Slow subscriber acquisition. Typical for first-year CS launches without anchor offtaker, or for sub-scale projects in markets with weak retail-rate displacement.' },
-  { key: 'realistic',   label: 'Realistic · 80%',   pct: 80, hint: 'Mid-range fill rate for active CS programs after 12–18 months of marketing. Editorial estimate — actual rates vary widely by state, utility, and LMI mandate.' },
-  { key: 'full',        label: 'Full · 100%',       pct: 100, hint: 'Best-case subscription — assumes anchor offtaker, established CCA partnership, or fully-LMI-allocated project with state subscription guarantee.' },
-]
+// Subscription % is continuous, not bucketed — operating CS projects
+// land anywhere from ~50% (LMI-mandated first-year launches) up through
+// 100% (CCA-anchored or fully-LMI-subscribed deals). The slider treats
+// it as a free 0–100% input. This is currently informational only — it
+// doesn't drive the pillar sub-scores or the financial outputs. Future
+// integration: feed into the Financial Sensitivity tab as a Year 1
+// revenue scaler.
+const SUBSCRIPTION_DEFAULT_PCT = 80
+const SUBSCRIPTION_TOOLTIP = {
+  title: 'Subscription target',
+  body: 'Target fill rate for your project. Operating CS projects in the NREL Sharing the Sun dataset cluster roughly 50–100%, varying by program age, marketing reach, LMI mandate, and anchor-offtaker presence. Informational at the moment — used as conversation framing, not as an input to scoring. Will feed Year 1 revenue when subscription is wired into the financial engine.',
+}
 
 const IX_ASSUMPTIONS = [
   { key: 'queue',         label: 'Stand in queue',     hint: 'Greenfield project — file fresh IX study, accept current queue position. Average study window for the state shown on the IX pillar card.' },
@@ -72,7 +74,7 @@ export default function DevFeasibilityView({
   const [levers, setLevers] = useState({
     mw: initialMw,
     codYear: 2027,
-    subscription: 'realistic',
+    subscriptionPct: SUBSCRIPTION_DEFAULT_PCT,
     ixAssumption: 'queue',
   })
 
@@ -421,11 +423,8 @@ function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
 // ── Feasibility levers ─────────────────────────────────────────────────────
 
 function FeasibilityLevers({ levers, onChange, isCS }) {
-  const subscriptionLabels = SUBSCRIPTION_PRESETS.map(p => p.label)
-  const subscriptionTooltips = Object.fromEntries(SUBSCRIPTION_PRESETS.map(p => [p.label, p.hint]))
   const ixLabels = IX_ASSUMPTIONS.map(p => p.label)
   const ixTooltips = Object.fromEntries(IX_ASSUMPTIONS.map(p => [p.label, p.hint]))
-  const currentSubscriptionLabel = SUBSCRIPTION_PRESETS.find(p => p.key === levers.subscription)?.label || ''
   const currentIxLabel = IX_ASSUMPTIONS.find(p => p.key === levers.ixAssumption)?.label || ''
 
   return (
@@ -440,22 +439,7 @@ function FeasibilityLevers({ levers, onChange, isCS }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-        <div>
-          <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1.5">
-            Project Size
-          </label>
-          <input
-            type="range"
-            min={0.5}
-            max={20}
-            step={0.5}
-            value={levers.mw}
-            onChange={(e) => onChange({ ...levers, mw: parseFloat(e.target.value) })}
-            className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider"
-            style={{ background: `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${(levers.mw / 20) * 100}%, #E2E8F0 ${(levers.mw / 20) * 100}%, #E2E8F0 100%)` }}
-          />
-          <div className="text-[11px] font-mono tabular-nums text-ink mt-1">{levers.mw.toFixed(1)} MW</div>
-        </div>
+        <ProjectSizeSlider mw={levers.mw} onChange={(v) => onChange({ ...levers, mw: v })} />
 
         <FieldSelect
           label="Target COD"
@@ -466,17 +450,7 @@ function FeasibilityLevers({ levers, onChange, isCS }) {
         />
 
         {isCS && (
-          <FieldSelect
-            label="Subscription"
-            value={currentSubscriptionLabel}
-            onChange={(val) => {
-              const next = SUBSCRIPTION_PRESETS.find(p => p.label === val)
-              if (next) onChange({ ...levers, subscription: next.key })
-            }}
-            options={subscriptionLabels}
-            optionTooltips={subscriptionTooltips}
-            placeholder="Select…"
-          />
+          <SubscriptionSlider pct={levers.subscriptionPct} onChange={(v) => onChange({ ...levers, subscriptionPct: v })} />
         )}
 
         <FieldSelect
@@ -492,6 +466,70 @@ function FeasibilityLevers({ levers, onChange, isCS }) {
         />
       </div>
     </div>
+  )
+}
+
+// Shared slider chrome used by Project Size + Subscription. Matches the
+// teal/slate vocab used by the financial-side SliderRow but lighter (no
+// glossary label, no direction palette — these are pure scalar levers).
+function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip }) {
+  const labelEl = (
+    <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1.5 cursor-help">
+      {label}
+    </label>
+  )
+  return (
+    <div>
+      {tooltip ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{labelEl}</TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{tooltip.title}</p>
+            <p className="leading-relaxed">{tooltip.body}</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : labelEl}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => format.onChange(parseFloat(e.target.value))}
+        className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider"
+        style={{ background: `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${fillPct}%, #E2E8F0 ${fillPct}%, #E2E8F0 100%)` }}
+      />
+      <div className="text-[11px] font-mono tabular-nums text-ink mt-1">{format.display(value)}</div>
+    </div>
+  )
+}
+
+function ProjectSizeSlider({ mw, onChange }) {
+  return (
+    <LeverSlider
+      label="Project Size"
+      value={mw}
+      min={0.5}
+      max={20}
+      step={0.5}
+      fillPct={(mw / 20) * 100}
+      format={{ onChange, display: (v) => `${v.toFixed(1)} MW` }}
+    />
+  )
+}
+
+function SubscriptionSlider({ pct, onChange }) {
+  return (
+    <LeverSlider
+      label="Subscription"
+      value={pct}
+      min={0}
+      max={100}
+      step={5}
+      fillPct={pct}
+      format={{ onChange, display: (v) => `${Math.round(v)}%` }}
+      tooltip={SUBSCRIPTION_TOOLTIP}
+    />
   )
 }
 
