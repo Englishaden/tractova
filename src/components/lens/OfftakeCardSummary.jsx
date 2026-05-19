@@ -8,6 +8,7 @@
 
 import MiniArcGauge from '../library/MiniArcGauge'
 import { CSStatusBadge } from '../../lib/searchShared.jsx'
+import CoverageChip from './CoverageChip'
 
 const PILLAR_ACCENT = '#0F766E'
 
@@ -76,11 +77,9 @@ export function SummaryShell({ pillarLabel, pillarAccent, title, score, coverage
         <MiniArcGauge score={score} color={pillarAccent} />
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap min-h-[20px]">
+      <div className="flex items-center gap-2 flex-wrap min-h-[24px]">
         {statusChip}
-        {coverage && coverage !== 'none' && (
-          <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-gray-400">{COVERAGE_LABEL[coverage] || coverage}</span>
-        )}
+        <CoverageChip coverage={coverage} variant="inline" />
       </div>
 
       {caption && (
@@ -99,9 +98,3 @@ export function SummaryShell({ pillarLabel, pillarAccent, title, score, coverage
   )
 }
 
-const COVERAGE_LABEL = {
-  live:       'Live data',
-  researched: 'Researched',
-  curated:    'Curated baseline',
-  fallback:   'Fallback',
-}

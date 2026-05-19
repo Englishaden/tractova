@@ -19,6 +19,7 @@ import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
 import FieldSelect from '../FieldSelect'
 import ComparableProjectsPanel from './ComparableProjectsPanel'
+import CoverageChip from '../lens/CoverageChip'
 
 const VERDICT_PALETTE = {
   go:      { label: 'Go',      tone: '#0F766E', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.35)', icon: '◆' },
@@ -376,65 +377,9 @@ function PillarCardShell({ pillarLabel, subScore, structuralSubScore, delta, cov
   )
 }
 
-// Coverage chip lineage taxonomy — matches scoreEngine.js coverage tiers.
-// Source of truth for the body copy is the comments in computeSubScores.
-// Label = the human-readable text shown in the chip; the internal tier
-// strings ('live' / 'researched' / etc.) stay in the data path for
-// filtering/aggregation consistency with scoreEngine outputs.
-const COVERAGE_TOOLTIPS = {
-  live: {
-    label: 'Live data',
-    title: 'Live data',
-    body: 'Score is driven by real-time data — IX queue scrapes (8 CS states), county geospatial (NWI wetlands + SSURGO farmland, all 3,142 counties), or live news/PUC ingest. Refreshed on cron; data-age stamps surface staleness when scrapers lag.',
-  },
-  researched: {
-    label: 'Researched',
-    title: 'Researched · curated',
-    body: 'Score uses Tractova-curated baseline values — county_intelligence boolean (~18 states seeded), CS program status from state_programs (all 50 states). Stable but not live; updated when manual research lands.',
-  },
-  curated: {
-    label: 'Curated baseline',
-    title: 'Curated baseline',
-    body: 'Score uses the state-level curated baseline (e.g. ixDifficulty tier from state_programs). All 50 states have a curated value; the live-blend overlay applies only where ix_queue_data is wired.',
-  },
-  fallback: {
-    label: 'Fallback estimate',
-    title: 'Fallback estimate',
-    body: 'Curated data not yet seeded for this state/county — score uses a neutral placeholder (50–60 depending on pillar). Treat as low-confidence; verify directly before using to make a decision.',
-  },
-  none: null,
-}
-
-function CoverageChip({ coverage }) {
-  if (!coverage || coverage === 'none') return null
-  const palette =
-    coverage === 'live' ? { bg: 'rgba(20,184,166,0.10)', fg: '#0F766E' } :
-    coverage === 'researched' ? { bg: 'rgba(15,26,46,0.06)', fg: '#475569' } :
-    coverage === 'curated' ? { bg: 'rgba(15,26,46,0.06)', fg: '#475569' } :
-    { bg: 'rgba(217,119,6,0.10)', fg: '#92400E' }
-  const tip = COVERAGE_TOOLTIPS[coverage]
-  return (
-    <div className="mt-2 pt-2 border-t border-gray-100">
-      {tip ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm cursor-help" style={{ background: palette.bg, color: palette.fg }}>
-              {tip.label}
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{tip.title}</p>
-            <p className="leading-relaxed">{tip.body}</p>
-          </TooltipContent>
-        </Tooltip>
-      ) : (
-        <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm" style={{ background: palette.bg, color: palette.fg }}>
-          {coverage}
-        </span>
-      )}
-    </div>
-  )
-}
+// Coverage chip moved to shared src/components/lens/CoverageChip.jsx so
+// §03 (Dev Feasibility pillar cards) and §04 (summary cards) render the
+// same vocabulary. Import handled at the top of this file.
 
 function OfftakePillarCard({ stateProgram, subScore, structuralSubScore, delta, coverage, technology }) {
   const isCS = technology === 'Community Solar' || technology === 'Hybrid'
@@ -621,17 +566,31 @@ function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS, lmiFloor = 
 // teal/slate vocab used by the financial-side SliderRow but lighter (no
 // glossary label, no direction palette — these are pure scalar levers).
 //
-// `floorTickPct` (0–100) draws a faint navy tick on the track to mark a
-// regulatory floor (e.g. LMI carve-out on the subscription slider). The
-// slider's native `min` enforces the constraint; the tick discloses it.
-// `footerCaption` renders a slate mono caption below the slider when set
-// (e.g. "Min 50% — Illinois LMI carve-out").
-function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip, floorTickPct = null, footerCaption = null }) {
+// Floor handling: when `lockedBelowPct` is set (0–100, e.g. LMI carve-out
+// on subscription), the slider's full 0→100 track stays visible — but
+// the segment from 0 to lockedBelowPct renders as a dimmed slate "locked"
+// zone, the active value clamps via onChange to never fall below the
+// floor, and a navy tick marks the exact floor position. Devs see the
+// full regulatory landscape, can't violate it.
+function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip, lockedBelowPct = 0, footerCaption = null }) {
   const labelEl = (
     <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1.5 cursor-help">
       {label}
     </label>
   )
+  // Three-stop gradient: locked zone (slate) → active fill (teal) →
+  // unfilled remainder (light grey). `fillPct` is clamped above
+  // lockedBelowPct so the teal segment never starts before the floor.
+  const safeFill = Math.max(lockedBelowPct, fillPct)
+  const trackBackground = lockedBelowPct > 0
+    ? `linear-gradient(to right,
+        rgba(148,163,184,0.30) 0%,
+        rgba(148,163,184,0.30) ${lockedBelowPct}%,
+        #14B8A6 ${lockedBelowPct}%,
+        #14B8A6 ${safeFill}%,
+        #E2E8F0 ${safeFill}%,
+        #E2E8F0 100%)`
+    : `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${fillPct}%, #E2E8F0 ${fillPct}%, #E2E8F0 100%)`
   return (
     <div>
       {tooltip ? (
@@ -650,21 +609,28 @@ function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip, f
           max={max}
           step={step}
           value={value}
-          onChange={(e) => format.onChange(parseFloat(e.target.value))}
-          className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider"
-          style={{ background: `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${fillPct}%, #E2E8F0 ${fillPct}%, #E2E8F0 100%)` }}
+          onChange={(e) => {
+            // Floor clamp lives at the input layer — drag below floor
+            // snaps the value back to the floor, but the native slider
+            // track keeps showing the full 0→max range for context.
+            const raw = parseFloat(e.target.value)
+            const clamped = lockedBelowPct > 0 ? Math.max(lockedBelowPct, raw) : raw
+            format.onChange(clamped)
+          }}
+          className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
+          style={{ background: trackBackground }}
         />
-        {floorTickPct != null && floorTickPct > 0 && floorTickPct < 100 && (
+        {lockedBelowPct > 0 && lockedBelowPct < 100 && (
           <span
             aria-hidden="true"
             className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
             style={{
-              left: `${floorTickPct}%`,
+              left: `${lockedBelowPct}%`,
               transform: `translate(-50%, -50%)`,
               width: '2px',
               height: '10px',
               background: '#0F1A2E',
-              opacity: 0.4,
+              opacity: 0.5,
             }}
           />
         )}
@@ -694,20 +660,22 @@ function ProjectSizeSlider({ mw, onChange }) {
 }
 
 function SubscriptionSlider({ pct, onChange, minPct = 0, floorLabel = null }) {
-  // Clamp to floor so the displayed value can't fall below the regulatory
-  // minimum even when the upstream snap-up effect hasn't run yet.
+  // Clamp the displayed value to the floor so it can't sit below the LMI
+  // regulatory minimum even if upstream snap-up hasn't flushed yet. The
+  // slider track itself remains 0–100 — the locked zone is the dimmed
+  // band on the left, not a track truncation.
   const safePct = Math.max(minPct, pct)
   return (
     <LeverSlider
       label="Subscription"
       value={safePct}
-      min={minPct}
+      min={0}
       max={100}
       step={5}
       fillPct={safePct}
       format={{ onChange, display: (v) => `${Math.round(v)}%` }}
       tooltip={SUBSCRIPTION_TOOLTIP}
-      floorTickPct={minPct > 0 ? minPct : null}
+      lockedBelowPct={minPct > 0 ? minPct : 0}
       footerCaption={floorLabel}
     />
   )
