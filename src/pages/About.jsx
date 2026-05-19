@@ -4,10 +4,9 @@ import { Link } from 'react-router-dom'
 //
 // Founder-led narrative page. Matches the Landing visual language (navy hero,
 // teal accent rails, serif headings, mono eyebrows) so the marketing surfaces
-// read as one family. Copy is grounded in verifiable positioning — the page
-// names no current employer; background is described by function. The
-// "professional relationship with Nexamp" disclosure lives only in the
-// Privacy Policy, where it does a narrow data-citation job.
+// read as one family. Copy is grounded in verifiable positioning — background
+// is described by function only; no current or prior employer is named here.
+// Any narrow data-citation disclosure stays in the Privacy Policy.
 
 const TEAL = '#14B8A6'
 const TEAL_DEEP = '#0F766E'
