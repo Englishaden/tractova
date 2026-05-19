@@ -186,15 +186,15 @@ describe('getSliderConfig — Hybrid (G.2: dual capex sliders)', () => {
   it('Hybrid uses 25-year contract (solar dominant), not 20 (BESS)', () => {
     const cfg = getSliderConfig(baseHybrid())
     const tenor = findSlider(cfg, 'contractYears')
-    expect(tenor.max).toBe(30)  // solar tier
+    expect(tenor.max).toBe(40)  // solar tier — matches long-tenor program states (IL)
   })
 })
 
 describe('getSliderConfig — BESS contract tenor cap (battery-degradation envelope)', () => {
-  it('community-solar tenor maxes at 30 years', () => {
+  it('community-solar tenor maxes at 40 years', () => {
     const cfg = getSliderConfig(baseSolar())
     const tenor = findSlider(cfg, 'contractYears')
-    expect(tenor.max).toBe(30)
+    expect(tenor.max).toBe(40)
   })
 
   it('BESS tenor maxes at 20 years', () => {

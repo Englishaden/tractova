@@ -268,7 +268,7 @@ export function getSliderConfig(baseline) {
       unit: 'yr',
       baseline: i.contractYears,
       min: 10,
-      max: tech === 'bess' ? 20 : 30,  // BESS capped to battery degradation envelope
+      max: tech === 'bess' ? 20 : 40,  // BESS capped to battery degradation envelope; solar widened to match IL CS programs (banks underwrite 40-yr tenor on long-tenor program states)
       step: 1,
       format: (v) => v == null ? '—' : `${Math.round(v)} yr`,
       direction: 'higher-better',

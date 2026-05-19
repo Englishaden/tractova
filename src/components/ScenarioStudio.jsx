@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_DISCLAIMER, SCENARIO_PRESETS, SCENARIO_PRESET_METHODOLOGY } from '../lib/scenarioEngine'
+import { applyScenario, getSliderConfig, formatScenarioSummary, SCENARIO_PRESETS, SCENARIO_PRESET_METHODOLOGY } from '../lib/scenarioEngine'
 import { supabase } from '../lib/supabase'
 import { useToast } from './ui/Toast'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/Tooltip'
@@ -288,7 +288,27 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         )}
       </div>
 
-      <p className="px-6 pt-3 pb-1 text-[11px] text-gray-500 leading-relaxed">
+      {/* Directional-sensitivity banner — prominent in the header so the
+          IRR/payback readouts below are framed correctly. Amber to match
+          the header rail gradient. The full disclaimer string still goes
+          into the PDF export (ProjectPDFExport.jsx) via SCENARIO_DISCLAIMER. */}
+      <div className="mx-6 mt-3 mb-1 rounded-md px-3 py-2 flex items-start gap-2"
+        style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.35)' }}
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p className="text-[11px] leading-snug font-medium" style={{ color: '#78350F' }}>
+          <span className="eyebrow-mono mr-2 px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(217,119,6,0.18)', color: '#92400E', border: '1px solid rgba(217,119,6,0.35)' }}>
+            Directional
+          </span>
+          Sensitivity analysis — not IC-grade pro-forma. Capex / IX / opex baselines are industry averages or 2026-extrapolated synthesis; tune each lineage-flagged slider toward your site's actual quote.
+        </p>
+      </div>
+
+      <p className="px-6 pt-2 pb-1 text-[11px] text-gray-500 leading-relaxed">
         Sliders move the <span className="font-semibold text-gray-700">financial outputs</span> below
         (Y1 revenue, payback, IRR, NPV, DSCR) — not the Feasibility Index gauge above.
         The gauge reflects market structure (program / IX / site); these sliders
@@ -592,23 +612,34 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         </div>
       )}
 
-      <div className="px-6 pb-4 pt-1">
-        <div
-          className="rounded-md px-3 py-2 flex items-start gap-2"
-          style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.20)' }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-0.5">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <p className="text-[10px] leading-snug" style={{ color: '#78350F' }}>
-            {SCENARIO_DISCLAIMER}
-          </p>
-        </div>
-      </div>
     </article>
   )
+}
+
+// Lineage chips per slider key. Each baseline value the user can drag
+// against has a different data pedigree — observed (real published or
+// scraped number), industry-avg (Tractova default, not site-specific),
+// synth (Tractova forward-extrapolation on observed values), or user
+// input (defaults that exist only because we needed a starting point).
+// Surfacing this on the slider row stops the IRR readout from looking
+// more authoritative than the inputs that drive it.
+const SLIDER_LINEAGE = {
+  capexPerWatt:      { label: 'Synth · 2026 extrap', tone: 'synth' },
+  ixCostPerWatt:     { label: 'Industry avg',         tone: 'industry' },
+  opexPerKwYear:     { label: 'Industry avg',         tone: 'industry' },
+  capacityFactor:    { label: 'Observed · NREL',      tone: 'observed' },
+  recPricePerMwh:    { label: 'Observed',             tone: 'observed' },
+  programAllocation: { label: 'Industry default',     tone: 'industry' },
+  discountRate:      { label: 'User input',           tone: 'user' },
+  contractYears:     { label: 'User input',           tone: 'user' },
+  systemSizeMW:      { label: 'User input',           tone: 'user' },
+}
+
+const LINEAGE_PALETTE = {
+  observed: { bg: 'rgba(20,184,166,0.12)', fg: '#0F766E', border: 'rgba(20,184,166,0.35)' },
+  industry: { bg: 'rgba(217,119,6,0.10)',  fg: '#92400E', border: 'rgba(217,119,6,0.30)' },
+  synth:    { bg: 'rgba(217,119,6,0.10)',  fg: '#92400E', border: 'rgba(217,119,6,0.30)' },
+  user:     { bg: 'rgba(15,26,46,0.06)',   fg: '#475569', border: 'rgba(15,26,46,0.18)' },
 }
 
 // Color tokens for the three directional slider states. Equal-to-baseline is
@@ -639,6 +670,8 @@ function SliderRow({ cfg, value, onChange }) {
   const state = getSliderState(value, baseline, cfg.direction)
   const palette = SLIDER_STATES[state]
   const fillPct = ((value - cfg.min) / (cfg.max - cfg.min)) * 100
+  const lineage = SLIDER_LINEAGE[cfg.key]
+  const lineagePalette = lineage ? LINEAGE_PALETTE[lineage.tone] : null
   return (
     <div className={cfg.disabled ? 'opacity-50 pointer-events-none' : ''}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 mb-1">
@@ -648,6 +681,24 @@ function SliderRow({ cfg, value, onChange }) {
             className="text-[11px] font-semibold text-ink"
           />
           {cfg.unit && <span className="text-[10px] text-gray-500 font-mono">{cfg.unit}</span>}
+          {lineage && (
+            <span
+              className="eyebrow-mono px-1.5 py-0.5 rounded-sm"
+              style={{
+                background: lineagePalette.bg,
+                color: lineagePalette.fg,
+                border: `1px solid ${lineagePalette.border}`,
+              }}
+              title={
+                lineage.tone === 'observed' ? 'Pulled from a published, observable source — REC market, NREL PVWatts, EIA, etc.' :
+                lineage.tone === 'synth' ? 'Tractova synthesis — capex baselines are forward-extrapolated from 2023 NREL TTS to 2026 via editorial bumps. Tune to your site.' :
+                lineage.tone === 'industry' ? 'Industry default — applied across all states/sites. Tune toward your actual quote.' :
+                'User-controlled default — drag to model alternatives.'
+              }
+            >
+              {lineage.label}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {isModified && (
