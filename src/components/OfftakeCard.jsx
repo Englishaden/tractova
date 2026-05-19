@@ -1,6 +1,7 @@
 import { computeCIRevenueProjection, computeBESSProjection, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
 import { computeBaseline } from '../lib/scenarioEngine'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
+import LoadingDot from './ui/LoadingDot'
 import CardDrilldown from './CardDrilldown'
 import RevenueStackBar from './RevenueStackBar'
 import RevenueProjectionSection from './RevenueProjectionSection'
@@ -141,7 +142,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           </div>
                         </>
                       ) : (
-                        <div className="text-xs text-gray-400">Loading…</div>
+                        <LoadingDot message="Checking" size="sm" />
                       )}
                     </div>
                     <a
@@ -181,7 +182,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           </div>
                         </>
                       ) : (
-                        <div className="text-xs text-gray-400">Loading…</div>
+                        <LoadingDot message="Checking" size="sm" />
                       )}
                     </div>
                     <a
@@ -224,7 +225,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                           </div>
                         </>
                       ) : (
-                        <div className="text-xs text-gray-400">Loading…</div>
+                        <LoadingDot message="Checking" size="sm" />
                       )}
                     </div>
                     <a

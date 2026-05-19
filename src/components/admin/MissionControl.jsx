@@ -3,6 +3,7 @@ import IxFreshnessCard from './IxFreshnessCard.jsx'
 import MonthlyCronCard from './MonthlyCronCard.jsx'
 import CurationDriftRow from './CurationDriftRow.jsx'
 import CsStatusAuditRow from './CsStatusAuditRow.jsx'
+import LoadingDot from '../ui/LoadingDot.jsx'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mission Control — single-screen system-health executive snapshot
@@ -21,7 +22,7 @@ export default function MissionControl({ missionControl, cronRuns }) {
     // Skeleton during initial load — keeps layout stable
     return (
       <div className="rounded-xl border border-gray-200 bg-white px-5 py-5">
-        <p className="text-[11px] text-gray-400 italic">Loading mission control…</p>
+        <LoadingDot message="Loading mission control" />
       </div>
     )
   }

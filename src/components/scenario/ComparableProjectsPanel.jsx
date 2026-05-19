@@ -12,6 +12,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { getCsProjectsAsComparables } from '../../lib/programData'
+import LoadingDot from '../ui/LoadingDot'
 
 // Utility name matching tolerates the naming drift between
 // county_intelligence (interconnection.servingUtility, short form like
@@ -113,7 +114,7 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
       </div>
 
       {rows == null ? (
-        <div className="text-[11px] text-gray-500 italic">Loading comparables…</div>
+        <LoadingDot message="Loading comparables" />
       ) : rows.length === 0 ? (
         <div className="text-[11px] text-gray-600">
           No operating comparable CS projects in {stateName || state} match this size band (±50% MW). Try widening the project size lever.

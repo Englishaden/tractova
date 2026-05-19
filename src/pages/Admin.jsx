@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { Input, Select, Button } from '../components/ui'
+import TractovaLoader from '../components/ui/TractovaLoader'
 import { endpointStatus, buildReportText } from '../lib/adminHelpers'
 import StateProgramsTab from '../components/admin/StateProgramsTab.jsx'
 import CountiesTab from '../components/admin/CountiesTab.jsx'
@@ -544,7 +545,11 @@ export default function Admin() {
   }, [tab])
 
   if (authLoading || !roleLoaded) {
-    return <div className="min-h-screen bg-paper flex items-center justify-center"><p className="text-sm text-gray-400">Loading...</p></div>
+    return (
+      <div className="min-h-screen bg-paper flex items-center justify-center">
+        <TractovaLoader size={48} label="Authorizing admin" />
+      </div>
+    )
   }
 
   // C1 fix 2026-05-05: role-based admin gate. Allows profiles.role='admin'

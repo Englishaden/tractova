@@ -277,7 +277,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="text-[10px] font-mono uppercase tracking-[0.16em] text-gray-500 mt-1.5 cursor-help underline decoration-dotted underline-offset-2 leading-snug">
-                  Lever impact: {deltaSign}{Math.round(compositeDelta)} pts on composite — {leverRationale.map(r => r.label.split(' — ')[0]).join(' · ')}
+                  Lever impact: {deltaSign}{Math.round(compositeDelta)}
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="!max-w-[420px]">
