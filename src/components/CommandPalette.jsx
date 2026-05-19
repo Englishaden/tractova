@@ -11,7 +11,6 @@ import { useAuth } from '../context/AuthContext'
 // main bundle (the build used to warn INEFFECTIVE_DYNAMIC_IMPORT).
 import { GLOSSARY_TERMS, toSlug } from '../data/glossaryTerms'
 import { parseCommand } from '../lib/commandParser'
-import { listSavedComparisons } from '../lib/savedComparisons'
 import PaletteLensForm from './lens/PaletteLensForm'
 import { findState } from '../lib/lensFormConstants'
 
@@ -73,7 +72,6 @@ export default function CommandPalette() {
   const [q, setQ] = useState('')
   const [stateMap, setStateMap] = useState({})
   const [savedProjects, setSavedProjects] = useState([])
-  const [savedComparisons, setSavedComparisons] = useState([])
   const [recents, setRecents] = useState([])
   const [activeIndex, setActiveIndex] = useState(0)
   // Palette mode: 'normal' = chip strip + search input + results list.
@@ -98,7 +96,7 @@ export default function CommandPalette() {
   }, [])
 
   useEffect(() => {
-    if (!user) { setSavedProjects([]); setSavedComparisons([]); setRecents([]); return }
+    if (!user) { setSavedProjects([]); setRecents([]); return }
     setRecents(loadRecents(user.id))
     supabase
       .from('projects')
@@ -109,10 +107,6 @@ export default function CommandPalette() {
       .then(({ data, error }) => {
         if (!error && data) setSavedProjects(data)
       })
-    // Saved comparisons feed the `:compare` verb's expanded item list.
-    // Lightweight read (≤ 50 rows) so prefetching at sign-in beats deferring
-    // until the palette opens.
-    listSavedComparisons().then(setSavedComparisons)
   }, [user])
 
   // County items — flattened on demand. Cheap (~3000 rows mapped once).
@@ -225,8 +219,7 @@ export default function CommandPalette() {
     stateIds: Object.keys(stateMap || {}),
     glossaryTerms: GLOSSARY_TERMS,
     savedProjects,
-    savedComparisons,
-  }), [stateMap, savedProjects, savedComparisons])
+  }), [stateMap, savedProjects])
 
   const verbResult = useMemo(() => {
     if (!isVerbMode) return null
@@ -291,11 +284,6 @@ export default function CommandPalette() {
       navigate('/library')
       return
     }
-    if (verb === 'compare') {
-      setOpen(false)
-      try { window.dispatchEvent(new CustomEvent('tractova:open-compare')) } catch { /* SSR-safe */ }
-      return
-    }
     if (verb === 'glossary') {
       if (user) pushRecent(user.id, { label: 'Glossary', hint: 'Term reference', path: '/glossary', kind: 'nav' })
       setOpen(false)
@@ -337,24 +325,6 @@ export default function CommandPalette() {
       setQ(it.replaceQuery)
       setActiveIndex(0)
       setTimeout(() => inputRef.current?.focus(), 0)
-      return
-    }
-    if (it.action === 'open-compare') {
-      setOpen(false)
-      if (user) pushRecent(user.id, it)
-      // CompareTray listens for this — opens its modal if items > 0.
-      try { window.dispatchEvent(new CustomEvent('tractova:open-compare')) } catch { /* SSR-safe */ }
-      return
-    }
-    if (it.action === 'load-compare' && it.savedId) {
-      setOpen(false)
-      if (user) pushRecent(user.id, it)
-      // CompareTray listens for this — fetches the snapshot, hydrates
-      // CompareContext, opens the modal. Detached from the parser so the
-      // parser stays pure / synchronous.
-      try {
-        window.dispatchEvent(new CustomEvent('tractova:load-compare', { detail: { savedId: it.savedId } }))
-      } catch { /* SSR-safe */ }
       return
     }
     if (it.path) {
@@ -671,10 +641,12 @@ function resolveTechFromShorthand(raw) {
 // rest stay slate. Re-run last chip only renders when localStorage has
 // a previous Lens dispatch under the user's key.
 function VerbChipStrip({ mode, onSelect, onHelp }) {
+  // Compare chip removed 2026-05-19 — Compare is invoked from Lens
+  // (Add to Compare button) and Library (chip + bulk action +
+  // Comparisons tab). Pulling it up via the palette didn't add value.
   const chips = [
     { key: 'lens',     label: 'Lens',     hint: 'Run a new analysis' },
     { key: 'library',  label: 'Library',  hint: 'Saved portfolio' },
-    { key: 'compare',  label: 'Compare',  hint: 'Side-by-side' },
     { key: 'glossary', label: 'Glossary', hint: 'Term reference' },
   ]
   return (

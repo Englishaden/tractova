@@ -26,13 +26,16 @@ export const VERBS = {
   lens:      { syntax: ':lens <STATE> [<MW>] [<TECH>]', summary: 'Run a new Lens analysis' },
   portfolio: { syntax: ':portfolio',                    summary: 'Open Library' },
   scenarios: { syntax: ':scenarios',                    summary: 'Library — Scenarios tab' },
-  compare:   { syntax: ':compare',                      summary: 'Open Compare tray' },
   rerun:     { syntax: ':rerun <project>',              summary: 'Re-run Lens for a saved project' },
   gloss:     { syntax: ':gloss <TERM>',                 summary: 'Jump to a glossary term' },
   state:     { syntax: ':state <ID>',                   summary: 'State snapshot on Dashboard' },
   new:       { syntax: ':new',                          summary: 'New Lens analysis (clear form)' },
   help:      { syntax: ':help',                         summary: 'Verb reference' },
 }
+// Compare lives in Lens (Add to Compare) and Library (chip + bulk action +
+// Comparisons tab) — there's no value in another invocation path via the
+// palette (Aden 2026-05-19). The :compare verb + its runner are removed;
+// saved comparisons are managed from Library → Comparisons tab.
 
 // Tech shortcuts → canonical Search.jsx values (TECHNOLOGIES in Search.jsx).
 // Case-insensitive lookup — input is uppercased + spaces stripped before
@@ -125,7 +128,6 @@ export function parseCommand(query, ctx = {}) {
     case 'portfolio': return runStaticVerb('portfolio', 'Open Library',                  'Saved projects portfolio', '/library')
     case 'scenarios': return runStaticVerb('scenarios', 'Open Library — Scenarios',      'Scenario snapshots tab',    '/library?tab=scenarios')
     case 'new':       return runStaticVerb('new',       'Start a new Lens analysis',     'Clear form',                '/search?new=1')
-    case 'compare':   return runCompare(rawArgs, savedComparisons)
     case 'state':     return runState(rawArgs, stateIds)
     case 'gloss':     return runGloss(rawArgs, glossaryTerms)
     case 'rerun':     return runRerun(rawArgs, savedProjects)
@@ -139,7 +141,7 @@ export function parseCommand(query, ctx = {}) {
 
 // Argless verbs land directly on a route; arg-verbs need a trailing
 // space so the user can keep typing their args after autocomplete.
-const ARGLESS_VERBS = new Set(['portfolio', 'scenarios', 'compare', 'new', 'help'])
+const ARGLESS_VERBS = new Set(['portfolio', 'scenarios', 'new', 'help'])
 function verbTakesArgs(v) { return !ARGLESS_VERBS.has(v) }
 
 function verbReferenceItems() {
@@ -160,34 +162,6 @@ function runStaticVerb(verb, label, hint, path) {
     kind: 'verb',
     verb,
     items: [{ kind: 'verb-go', label, hint, path }],
-  }
-}
-
-function runCompare(rawArgs = [], savedComparisons = []) {
-  const needle = rawArgs.join(' ').trim().toLowerCase()
-  // Always start with the "Open current draft" item; users land here to
-  // open the tray they're actively building. Saved comparisons follow.
-  const items = [
-    { kind: 'verb-go', label: 'Open Compare tray', hint: 'Current draft (Lens / Library picks)', action: 'open-compare' },
-  ]
-  const matchFn = needle
-    ? (c) => c?.name && c.name.toLowerCase().includes(needle)
-    : () => true
-  const matches = savedComparisons.filter(matchFn).slice(0, 8)
-  for (const c of matches) {
-    const count = Array.isArray(c.item_ids) ? c.item_ids.length : 0
-    items.push({
-      kind: 'verb-go',
-      label: c.name,
-      hint:  `Saved comparison · ${count} project${count === 1 ? '' : 's'}`,
-      action: 'load-compare',
-      savedId: c.id,
-    })
-  }
-  return {
-    kind: 'verb',
-    verb: 'compare',
-    items,
   }
 }
 

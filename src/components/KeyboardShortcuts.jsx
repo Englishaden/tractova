@@ -51,14 +51,6 @@ const COMMANDS = [
     body: 'Opens a structured State / County / MW / Tech / Stage form inside the palette. Pre-fills any args you typed in shorthand. Tech codes: CS = Community Solar, CI = C&I Solar, BESS = Battery Storage, HYB = Hybrid.',
   },
   {
-    verb: ':compare',
-    label: 'Open the Compare tray',
-    syntax: ':compare [<NAME>]',
-    example: ':compare anchor 5MW',
-    invoke: 'Compare chip · or type :compare',
-    body: 'Opens the side-by-side compare modal. With a name fragment, narrows to saved comparisons matching the text.',
-  },
-  {
     verb: ':portfolio',
     label: 'Go to Library',
     syntax: ':portfolio',
