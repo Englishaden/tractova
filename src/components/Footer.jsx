@@ -88,6 +88,9 @@ export default function Footer() {
           >
             The Adder Newsletter ↗
           </a>
+          <Link to="/about" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
+            About
+          </Link>
           <Link to="/privacy" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
             Privacy
           </Link>

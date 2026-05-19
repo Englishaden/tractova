@@ -37,6 +37,7 @@ const UpgradeSuccess  = lazy(() => import('./pages/UpgradeSuccess'))
 const UpdatePassword  = lazy(() => import('./pages/UpdatePassword'))
 const Privacy         = lazy(() => import('./pages/Privacy'))
 const Terms           = lazy(() => import('./pages/Terms'))
+const About           = lazy(() => import('./pages/About'))
 
 // Branded route-level Suspense fallback. Matches ProtectedRoute's
 // loading state visually so transitions feel coherent.
@@ -108,6 +109,7 @@ export default function App() {
             {import.meta.env.DEV && (
               <Route path="/_e2e/crash" element={<DevCrashTest />} />
             )}
+            <Route path="/about"   element={<About />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms"   element={<Terms />} />
             <Route path="/memo/:token" element={<MemoView />} />
