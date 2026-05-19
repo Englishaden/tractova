@@ -1,243 +1,195 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 
-// About Tractova
+// About Tractova — "Surveyor's Field Notes" walkthrough.
 //
-// Founder-led narrative page. Matches the Landing visual language (navy hero,
-// teal accent rails, serif headings, mono eyebrows) so the marketing surfaces
-// read as one family. Copy is grounded in verifiable positioning — background
-// is described by function only; no current or prior employer is named here.
-// Any narrow data-citation disclosure stays in the Privacy Policy.
+// The page is structured as a survey baseline with five numbered stations.
+// Click (or auto-advance) walks the visitor between stations; each station
+// reveals a dark navy card with a hand-drawn technical-drawing illustration
+// on the right — groma, triangulation, coverage map, field notebook.
+//
+// Brand tokens: canonical teal #0F766E + accent #14B8A6 only — no
+// bg-primary/text-primary utilities (the --color-primary CSS token is the
+// legacy #0f6e56 ramp; see docs/audit-findings-2026-05-19.md). Honors
+// useReducedMotion: auto-advance and path-draw animations disable in that
+// mode but the content remains fully usable.
+//
+// Background described by function only — no current or prior employer is
+// named here. Any narrow data-citation disclosure stays in the Privacy Policy.
 
-const TEAL = '#14B8A6'
-const TEAL_DEEP = '#0F766E'
+const TEAL = '#0F766E'
+const TEAL_BRIGHT = '#14B8A6'
+const TEAL_GLOW = '#2DD4BF'
+const TEAL_LIGHT = '#5EEAD4'
+const NAVY = '#0F1A2E'
 const NAVY_GRADIENT = 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)'
 const TEAL_RAIL =
   'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.6) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.6) 70%, transparent 100%)'
 
+const AUTO_ADVANCE_MS = 9000
+
+// ─── Station data ────────────────────────────────────────────────────────────
+// Single source of truth for both the desktop walkthrough and the mobile
+// stacked layout. Each station owns: its position on the baseline (01..05),
+// short label, headline, body paragraphs, and the SVG component to render.
+
+const STATIONS = [
+  {
+    n: '01',
+    label: 'The gap',
+    headline: 'Small developers get the short end of the stick.',
+    body: [
+      'Two and a half years in renewable-energy project finance — underwriting utility-scale solar and storage portfolios, sale-leasebacks, construction debt, and tax-equity structures — makes one pattern impossible to miss: almost nothing in this industry gets done without a stack of expensive opinions.',
+      'Legal fees. Independent-engineer costs to underwrite the design so a bank can underwrite its own opinion of that design. Financing costs layered on top. Each one shaves the return — and that\'s after you\'ve spent years building relationships in banking and tax equity that make the deal possible at all.',
+      'Large, vertically integrated developers absorb that. Small developers don\'t. They\'re asked to spend tens to hundreds of thousands of dollars on early development — site control, leases, interconnection applications, permitting — just to find out whether a project was ever viable.',
+    ],
+    illustration: 'gap',
+  },
+  {
+    n: '02',
+    label: 'The name',
+    headline: 'From tractus — a stretch of land.',
+    body: [
+      'Tractova comes from the Latin tractus — a tract, a stretch of land — and the Roman practice of staking out land parcels for survey. It\'s also a quiet play on words: a place to track your projects.',
+      'The brand mark carries it through. A surveyor\'s baseline with tick marks, a nod to the Roman tractus who measured ground before anything was built on it. That\'s the job: measure the ground first.',
+    ],
+    illustration: 'groma',
+  },
+  {
+    n: '03',
+    label: 'The method',
+    headline: 'One decision. Three pillars.',
+    body: [
+      'Every early-stage call comes down to the same question — is this a go or a no-go? — and in community solar, the answer rests on three things.',
+      'Offtake — the revenue structure, usually a function of state policy. Interconnection — whether the grid can take the project. Site control — whether the land is buildable. Get those three wrong and no amount of later diligence saves the project.',
+      'Tractova triangulates the three first, before the expensive part begins.',
+    ],
+    illustration: 'triangulation',
+  },
+  {
+    n: '04',
+    label: 'The limits',
+    headline: 'Eighty percent. Never the last twenty.',
+    body: [
+      'No screening tool can tell you a project is financeable, and Tractova doesn\'t pretend to. What it does is cover roughly the eighty percent of early-stage diligence that\'s knowable from public data — the federal, state, and ISO/RTO record.',
+      'The last twenty percent — title work, environmental studies, a real interconnection application, legal review — still belongs to the specialists. Tractova\'s job is to tell you whether it\'s worth paying them.',
+      'And it\'s honest about its own data. Where a state\'s sample is thin, or its incentive design leaves no paper trail, Tractova labels the estimate as an estimate. Screening decisions deserve numbers you can audit.',
+    ],
+    illustration: 'coverage',
+  },
+  {
+    n: '05',
+    label: 'The operator',
+    headline: 'One person. Building something worth owning.',
+    body: [
+      'Tractova is built and run by Aden Walker — a renewable-energy project finance analyst, based in Boston. The years spent underwriting utility-scale solar and storage deals are where the gap that Tractova fills first became obvious.',
+      'It\'s deliberately independent. Tractova isn\'t venture-backed and isn\'t chasing an exit. It\'s built by one person who wants to own something — and who will put in the hours, because the ethics of smaller-scale renewable development are worth the work.',
+      'Tractova starts with U.S. community solar. The ambition, over time, is wider: emerging markets, energy access, and the early-stage decisions that decide whether projects there ever break ground.',
+    ],
+    illustration: 'notebook',
+  },
+]
+
+// ─── Main page ───────────────────────────────────────────────────────────────
+
 export default function About() {
+  const [active, setActive] = useState(0)
+  const [paused, setPaused] = useState(false)
+  const reduce = useReducedMotion()
+
+  // Auto-advance the walkthrough every AUTO_ADVANCE_MS unless the user has
+  // hovered onto the card, or unless reduced-motion is set. The pause-on-
+  // hover behavior matches Palantir's homepage carousel and avoids ripping
+  // content out from under someone reading it.
+  useEffect(() => {
+    if (reduce || paused) return
+    const id = setInterval(() => {
+      setActive((i) => (i + 1) % STATIONS.length)
+    }, AUTO_ADVANCE_MS)
+    return () => clearInterval(id)
+  }, [reduce, paused])
+
   return (
     <div className="pt-14">
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      {/* ── Hero — compact survey title page ────────────────────────────── */}
       <section className="text-white relative" style={{ background: NAVY_GRADIENT }}>
         <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: TEAL_RAIL }} />
-        <div className="max-w-dashboard mx-auto px-6 py-20 lg:py-28">
-          <div className="max-w-2xl">
-            <p className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold mb-5" style={{ color: '#5EEAD4' }}>
-              ◆ About Tractova
+        <div className="max-w-dashboard mx-auto px-6 py-16 lg:py-20">
+          <div className="max-w-3xl">
+            <p
+              className="font-mono text-[10px] uppercase tracking-[0.32em] font-bold mb-5"
+              style={{ color: TEAL_LIGHT }}
+            >
+              ◆ About Tractova · Field notes
             </p>
-            <h1 className="text-4xl lg:text-5xl font-serif font-semibold leading-tight tracking-tight mb-6" style={{ letterSpacing: '-0.02em' }}>
+            <h1
+              className="text-4xl lg:text-5xl font-serif font-semibold leading-[1.1] tracking-tight mb-6"
+              style={{ letterSpacing: '-0.02em' }}
+            >
               The intelligence big developers take for granted.{' '}
-              <span style={{ color: '#2DD4BF' }}>Built for the shops that can't afford it.</span>
+              <span style={{ color: TEAL_GLOW }}>Built for the shops that can&apos;t afford it.</span>
             </h1>
-            <p className="text-lg text-white/70 leading-relaxed">
-              Tractova answers the one question every developer has to answer before
-              spending real money on a project — <em>is this a go or a no-go?</em> —
-              in minutes, from public data, at a price an independent shop can actually pay.
+            <p className="text-base lg:text-lg text-white/70 leading-relaxed max-w-2xl">
+              Five stations along a survey baseline. Walk them in order — or jump.
+              Each one is the part of building Tractova that mattered enough to mark on
+              the ground.
             </p>
           </div>
         </div>
       </section>
 
-      {/* ── Why Tractova exists ──────────────────────────────────────────── */}
-      <section className="bg-paper border-b border-gray-200 py-20">
-        <div className="max-w-3xl mx-auto px-6">
-          <Eyebrow>Why Tractova exists</Eyebrow>
-          <h2 className="text-2xl lg:text-3xl font-serif font-semibold text-ink mb-6" style={{ letterSpacing: '-0.02em' }}>
-            Small developers get the short end of the stick.
-          </h2>
-          <div className="space-y-5 text-[15px] text-gray-600 leading-relaxed">
-            <p>
-              Tractova was built by someone who watched it happen from the finance side.
-              Two and a half years in renewable-energy project finance — underwriting
-              utility-scale solar and storage portfolios, sale-leasebacks, construction
-              debt, and tax-equity structures — makes one pattern impossible to miss:
-              <strong className="text-ink"> almost nothing in this industry gets done without
-              a stack of expensive opinions.</strong>
-            </p>
-            <p>
-              Legal fees. Independent-engineer costs to underwrite the design so a bank can
-              underwrite its own opinion of that design. Financing costs layered on top.
-              Each one shaves the return — and that's <em>after</em> you've spent years
-              building relationships in banking and tax equity that make the deal possible
-              at all.
-            </p>
-            <p>
-              Large, vertically integrated developers absorb that. They have in-house
-              finance, legal, design, and operations. Small developers don't. They're lean
-              shops — often raising local capital at high rates, often just trying to
-              originate, flip, or run turnkey work. And they're asked to spend tens to
-              hundreds of thousands of dollars on early development — site control, leases,
-              interconnection applications, permitting — <strong className="text-ink">just to
-              find out whether a project was ever viable.</strong>
-            </p>
-            <p>
-              They don't have the team to build investment-bank-grade models, or to pay a
-              consultant to opine on FEOC exposure, domestic content, or prevailing wage.
-              They run on spreadsheets, word of mouth, and relationships built before the
-              IRA reshaped the math. And too often the only way to get a project financed
-              is to partner with a large firm — and watch ownership of the thing they
-              originated slip away.
-            </p>
-            <p className="text-ink font-medium">
-              Tractova exists to move the go/no-go decision earlier, and make it cost a
-              fraction of what it costs today.
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* ── Walkthrough — desktop (baseline + station card) ─────────────── */}
+      <section className="bg-paper border-b border-gray-200">
+        <div className="max-w-dashboard mx-auto px-6 pt-16 pb-20">
 
-      {/* ── The name ─────────────────────────────────────────────────────── */}
-      <section className="bg-white border-b border-gray-200 py-16">
-        <div className="max-w-3xl mx-auto px-6">
-          <Eyebrow>The name</Eyebrow>
-          <h2 className="text-2xl font-serif font-semibold text-ink mb-5" style={{ letterSpacing: '-0.02em' }}>
-            From <span className="italic">tractus</span> — a stretch of land.
-          </h2>
-          <div className="space-y-4 text-[15px] text-gray-600 leading-relaxed">
-            <p>
-              <strong className="text-ink">Tractova</strong> comes from the Latin{' '}
-              <span className="italic">tractus</span> — a tract, a stretch of land — and the
-              Roman practice of staking out land parcels for survey. It's also a quiet play
-              on words: a place to <strong className="text-ink">track</strong> your projects.
-            </p>
-            <p>
-              The brand mark carries it through — a surveyor's baseline with tick marks, a
-              nod to the Roman <span className="italic">tractus</span> who measured ground
-              before anything was built on it. That's the job: measure the ground first.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── What Tractova does ───────────────────────────────────────────── */}
-      <section className="bg-paper border-b border-gray-200 py-20">
-        <div className="max-w-dashboard mx-auto px-6">
-          <div className="max-w-2xl mb-12">
-            <Eyebrow>What it does</Eyebrow>
-            <h2 className="text-2xl lg:text-3xl font-serif font-semibold text-ink mb-4" style={{ letterSpacing: '-0.02em' }}>
-              One decision. Three pillars.
-            </h2>
-            <p className="text-[15px] text-gray-600 leading-relaxed">
-              Every early-stage call comes down to the same question — <em>is this a go or
-              a no-go?</em> — and in community solar, the answer rests on three things.
-              Tractova is organized around all three.
-            </p>
+          {/* Desktop: the survey baseline with five station nodes. */}
+          <div className="hidden lg:block">
+            <BaselineNav active={active} onPick={setActive} />
+            <StationCard
+              station={STATIONS[active]}
+              activeIndex={active}
+              onHoverChange={setPaused}
+              reduce={reduce}
+            />
           </div>
 
-          <div className="grid md:grid-cols-3 gap-5">
-            {[
-              {
-                n: '01',
-                title: 'Offtake',
-                body: 'The revenue structure — usually a function of state policy. Is the program open, is capacity left, what does the incentive stack actually pay, and can you meet the LMI requirements to enter at all?',
-              },
-              {
-                n: '02',
-                title: 'Interconnection',
-                body: 'Whether the grid can take the project. Queue saturation, utility ease scores, and study timelines — the layer most likely to quietly kill a project after the money is spent.',
-              },
-              {
-                n: '03',
-                title: 'Site control',
-                body: 'Whether the land is buildable. Wetlands, prime-farmland classification, and land-use constraints — the difference between a parcel worth optioning and one that never had a chance.',
-              },
-            ].map((p) => (
-              <div key={p.n} className="bg-white border border-gray-200 rounded-xl p-6">
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="font-mono text-[11px] font-bold" style={{ color: TEAL_DEEP }}>{p.n}</span>
-                  <h3 className="text-base font-bold text-ink">{p.title}</h3>
-                </div>
-                <p className="text-sm text-gray-600 leading-relaxed">{p.body}</p>
-              </div>
+          {/* Mobile: stations stack vertically, each its own self-contained
+              card. Auto-advance is disabled implicitly because the desktop
+              <StationCard> isn't mounted. */}
+          <div className="lg:hidden space-y-6">
+            <p className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold mb-2" style={{ color: TEAL }}>
+              ◆ Stations 01 → 05
+            </p>
+            {STATIONS.map((s) => (
+              <MobileStation key={s.n} station={s} />
             ))}
           </div>
 
-          <p className="text-[13px] text-gray-500 leading-relaxed mt-8 max-w-2xl">
-            Get those three wrong — a structurally weak incentive, a capped queue, wetlands
-            across the parcel — and no amount of later diligence saves the project. Tractova
-            surfaces them first, before the expensive part begins.
-          </p>
         </div>
       </section>
 
-      {/* ── Honest by design ─────────────────────────────────────────────── */}
-      <section className="bg-white border-b border-gray-200 py-20">
-        <div className="max-w-3xl mx-auto px-6">
-          <Eyebrow>Honest about what it is</Eyebrow>
-          <h2 className="text-2xl lg:text-3xl font-serif font-semibold text-ink mb-6" style={{ letterSpacing: '-0.02em' }}>
-            Tractova covers the 80%. It will never claim the last 20%.
-          </h2>
-          <div className="space-y-5 text-[15px] text-gray-600 leading-relaxed">
-            <p>
-              No screening tool can tell you a project is financeable, and Tractova doesn't
-              pretend to. What it does is cover roughly the{' '}
-              <strong className="text-ink">80% of early-stage diligence that's knowable from
-              public data</strong> — the federal, state, and ISO/RTO record — and surface the
-              handful of things most likely to end a project before you've committed capital.
-            </p>
-            <p>
-              The last 20% — title work, environmental studies, a real interconnection
-              application, legal review — still belongs to the specialists. Tractova's job is
-              to tell you whether it's worth paying them.
-            </p>
-            <p>
-              And it's honest about its own data. Every number traces back to a verifiable
-              source. Where a state's sample is thin, or its incentive design leaves no paper
-              trail, Tractova labels the estimate as an estimate rather than dressing it up as
-              fact. Screening decisions deserve numbers you can audit — not a confident guess.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Who's behind it ──────────────────────────────────────────────── */}
-      <section className="bg-paper border-b border-gray-200 py-20">
-        <div className="max-w-3xl mx-auto px-6">
-          <Eyebrow>Who's behind it</Eyebrow>
-          <h2 className="text-2xl lg:text-3xl font-serif font-semibold text-ink mb-6" style={{ letterSpacing: '-0.02em' }}>
-            One person, building something worth owning.
-          </h2>
-          <div className="space-y-5 text-[15px] text-gray-600 leading-relaxed">
-            <p>
-              Tractova is built and run by <strong className="text-ink">Aden Walker</strong> —
-              a renewable-energy project finance analyst, based in Boston. The two and a half
-              years spent underwriting utility-scale solar and storage deals — sale-leasebacks,
-              construction debt, tax-equity structures, IRA compliance — are where the gap that
-              Tractova fills first became obvious.
-            </p>
-            <p>
-              It's a deliberately independent project. Tractova isn't venture-backed and isn't
-              chasing an exit. It's built by one person who wants to <em>own</em> something —
-              and who will put in as many hours as it takes, because the ethics of smaller-scale
-              renewable development are genuinely worth the work.
-            </p>
-            <p>
-              Cheap, fast, early-stage screening sounds like a small thing. But making it
-              easier to learn whether a clean-energy project can happen compounds — and
-              resilient, accessible electricity is one of the highest-leverage things a
-              developer can build. Tractova starts with U.S. community solar. The ambition,
-              over time, is wider: emerging markets, energy access, and the early-stage
-              decisions that decide whether projects there ever break ground.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ── The Adder ────────────────────────────────────────────────────── */}
+      {/* ── Field notes — The Adder ──────────────────────────────────────── */}
       <section className="bg-white border-b border-gray-200 py-14">
         <div className="max-w-dashboard mx-auto px-6 flex flex-col lg:flex-row items-center justify-between gap-8">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: TEAL_DEEP }}>
-              From the same desk
+            <div
+              className="text-xs font-mono font-semibold uppercase tracking-[0.24em] mb-2"
+              style={{ color: TEAL }}
+            >
+              ◆ From the same desk
             </div>
-            <h3 className="text-xl font-serif font-semibold text-ink mb-2" style={{ letterSpacing: '-0.02em' }}>
+            <h3
+              className="text-xl lg:text-2xl font-serif font-semibold text-ink mb-2"
+              style={{ letterSpacing: '-0.02em' }}
+            >
               The Adder Newsletter
             </h3>
-            <p className="text-sm text-gray-500 max-w-lg">
-              Notes on community solar policy and the market forces that move it — built so
-              developers can stay ahead of the regulation that decides their projects. Free,
-              and opinionated.
+            <p className="text-sm text-gray-500 max-w-lg leading-relaxed">
+              Notes on community solar policy and the market forces that move it — built
+              so developers can stay ahead of the regulation that decides their projects.
+              Free, and opinionated.
             </p>
           </div>
           <a
@@ -245,16 +197,16 @@ export default function About() {
             target="_blank"
             rel="noopener noreferrer"
             className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors"
-            style={{ border: `1px solid ${TEAL}`, color: TEAL_DEEP }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = TEAL; e.currentTarget.style.color = '#FFFFFF' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = TEAL_DEEP }}
+            style={{ border: `1px solid ${TEAL_BRIGHT}`, color: TEAL }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = TEAL_BRIGHT; e.currentTarget.style.color = '#FFFFFF' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = TEAL }}
           >
             Read The Adder ↗
           </a>
         </div>
       </section>
 
-      {/* ── CTA ──────────────────────────────────────────────────────────── */}
+      {/* ── Final CTA ────────────────────────────────────────────────────── */}
       <section className="text-white py-20 relative" style={{ background: NAVY_GRADIENT }}>
         <div className="absolute top-0 left-0 right-0 h-px" style={{ background: TEAL_RAIL }} />
         <div className="max-w-dashboard mx-auto px-6 text-center">
@@ -268,9 +220,9 @@ export default function About() {
             <Link
               to="/signup"
               className="px-8 py-3 text-white font-semibold rounded-lg transition-colors"
-              style={{ background: TEAL, boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = TEAL_DEEP }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = TEAL }}
+              style={{ background: TEAL_BRIGHT, boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = TEAL }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = TEAL_BRIGHT }}
             >
               Create Free Account
             </Link>
@@ -288,14 +240,1101 @@ export default function About() {
   )
 }
 
-// ── Tiny presentation helper ─────────────────────────────────────────────────
-function Eyebrow({ children }) {
+// ─── Baseline nav (desktop) ──────────────────────────────────────────────────
+// The horizontal teal line spanning the section is the "survey baseline."
+// Five circular numbered nodes sit on it, evenly spaced. The active node
+// fills with teal; inactive nodes are outlined. A subtle "you are here"
+// downward chevron uses layoutId to slide between active nodes.
+
+function BaselineNav({ active, onPick }) {
   return (
-    <p
-      className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold mb-3"
-      style={{ color: TEAL_DEEP }}
+    <div className="relative mb-10">
+
+      {/* Section eyebrow */}
+      <div className="flex items-center justify-between mb-7">
+        <p
+          className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold"
+          style={{ color: TEAL }}
+        >
+          ◆ Survey baseline
+        </p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.20em] text-gray-400">
+          Station {STATIONS[active].n} / {STATIONS[STATIONS.length - 1].n}
+        </p>
+      </div>
+
+      {/* The baseline itself + station nodes. Positioned via CSS grid so the
+          tick spacing is identical regardless of label length. */}
+      <div className="relative">
+
+        {/* Horizontal teal baseline. inset-x-[6%] keeps the line from
+            running past the outermost nodes — surveyor's lines don't
+            extend beyond their markers. */}
+        <div
+          className="absolute left-[6%] right-[6%] top-[18px] h-px"
+          style={{
+            background: `linear-gradient(90deg, ${TEAL} 0%, ${TEAL_BRIGHT} 50%, ${TEAL} 100%)`,
+          }}
+        />
+        {/* Decorative end-caps: tiny vertical strokes at each end of the
+            baseline, like the rangepoles on a survey line. */}
+        <div className="absolute left-[6%] top-[12px] w-px h-[13px]" style={{ background: TEAL }} />
+        <div className="absolute right-[6%] top-[12px] w-px h-[13px]" style={{ background: TEAL }} />
+
+        {/* The five station nodes */}
+        <div className="grid grid-cols-5 gap-2">
+          {STATIONS.map((s, i) => (
+            <StationNode
+              key={s.n}
+              station={s}
+              isActive={i === active}
+              onPick={() => onPick(i)}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StationNode({ station, isActive, onPick }) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="group flex flex-col items-center focus-visible:outline-none"
+      aria-label={`Station ${station.n}: ${station.label}`}
+      aria-current={isActive ? 'step' : undefined}
     >
-      {children}
-    </p>
+      {/* The node circle. Active = filled navy with teal border + small
+          teal core; inactive = white background with teal border. */}
+      <div className="relative flex items-center justify-center" style={{ width: 36, height: 36 }}>
+        {/* Active-state pulse halo */}
+        {isActive && (
+          <motion.span
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="absolute inset-0 rounded-full"
+            style={{ background: 'rgba(20,184,166,0.18)' }}
+          />
+        )}
+        <div
+          className="relative w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+          style={{
+            background: isActive ? NAVY : '#FFFFFF',
+            border: `1.5px solid ${isActive ? TEAL_BRIGHT : TEAL}`,
+            boxShadow: isActive
+              ? '0 0 0 4px rgba(20,184,166,0.10), 0 8px 18px rgba(15,26,46,0.18)'
+              : '0 1px 2px rgba(15,26,46,0.06)',
+          }}
+        >
+          <span
+            className="font-mono text-[11px] font-bold tabular-nums"
+            style={{ color: isActive ? TEAL_LIGHT : TEAL }}
+          >
+            {station.n}
+          </span>
+        </div>
+      </div>
+
+      {/* "You are here" indicator — a small chevron sliding to the active
+          node via layoutId. */}
+      <div className="h-2 mt-1 w-full flex justify-center">
+        {isActive && (
+          <motion.span
+            layoutId="here-indicator"
+            transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+            className="block"
+            style={{
+              width: 0,
+              height: 0,
+              borderLeft: '5px solid transparent',
+              borderRight: '5px solid transparent',
+              borderTop: `6px solid ${TEAL_BRIGHT}`,
+            }}
+          />
+        )}
+      </div>
+
+      {/* Label beneath the node */}
+      <span
+        className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.16em] transition-colors"
+        style={{
+          color: isActive ? NAVY : '#94A3B8',
+          fontWeight: isActive ? 700 : 500,
+        }}
+      >
+        {station.label}
+      </span>
+    </button>
+  )
+}
+
+// ─── Station card (desktop) ──────────────────────────────────────────────────
+// Dark navy card with two columns: left = text content, right = a hand-drawn
+// technical-drawing SVG illustration. Crossfades between stations with motion.
+
+function StationCard({ station, activeIndex, onHoverChange, reduce }) {
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden shadow-2xl"
+      style={{
+        background: NAVY_GRADIENT,
+        border: '1px solid rgba(20,184,166,0.18)',
+        minHeight: 520,
+      }}
+      onMouseEnter={() => onHoverChange(true)}
+      onMouseLeave={() => onHoverChange(false)}
+    >
+      {/* Top teal rail (the baseline visually "enters" the card). */}
+      <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: TEAL_RAIL }} />
+
+      {/* Tiny upward arrow at top-left aligned to active station — visual
+          continuation from the baseline above into this card. */}
+      <div
+        className="absolute z-10 transition-all duration-500 ease-out"
+        style={{
+          top: -1,
+          left: `calc(${(activeIndex + 0.5) * (100 / STATIONS.length)}% - 6px)`,
+        }}
+      >
+        <span
+          className="block"
+          style={{
+            width: 0,
+            height: 0,
+            borderLeft: '6px solid transparent',
+            borderRight: '6px solid transparent',
+            borderBottom: `7px solid ${TEAL_BRIGHT}`,
+          }}
+        />
+      </div>
+
+      {/* Corner survey marks — small L-shaped brackets in each corner,
+          like reference marks on a survey drawing. */}
+      <CornerMarks />
+
+      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 px-10 lg:px-14 py-12 lg:py-14 relative">
+        {/* Left — text content. Crossfades on station change. */}
+        <div className="relative">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={station.n}
+              initial={reduce ? { opacity: 1 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduce ? { opacity: 1 } : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <p
+                className="font-mono text-[10px] uppercase tracking-[0.32em] font-bold mb-4 flex items-center gap-3"
+                style={{ color: TEAL_LIGHT }}
+              >
+                <span>Station {station.n}</span>
+                <span style={{ color: 'rgba(94,234,212,0.4)' }}>/</span>
+                <span>{station.label}</span>
+              </p>
+
+              <h2
+                className="text-3xl lg:text-[2.5rem] font-serif font-semibold text-white leading-[1.1] tracking-tight mb-7"
+                style={{ letterSpacing: '-0.02em' }}
+              >
+                {station.headline}
+              </h2>
+
+              <div className="space-y-4 text-[15px] text-white/70 leading-relaxed max-w-xl">
+                {station.body.map((p, i) => (
+                  <p key={i}>{p}</p>
+                ))}
+              </div>
+
+              {/* Trailing arrow — Palantir homepage cards have an arrow
+                  glyph at the bottom-right of each card; we put it at the
+                  bottom-left of the text column. */}
+              <div className="mt-9 flex items-center gap-3">
+                <span
+                  className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold"
+                  style={{ color: TEAL_LIGHT }}
+                >
+                  {activeIndex < STATIONS.length - 1 ? 'Next station' : 'Walk again'}
+                </span>
+                <motion.span
+                  animate={reduce ? {} : { x: [0, 4, 0] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  style={{ color: TEAL_BRIGHT }}
+                >
+                  <svg width="16" height="14" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="2" y1="9" x2="20" y2="9" />
+                    <polyline points="14 3 20 9 14 15" />
+                  </svg>
+                </motion.span>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        </div>
+
+        {/* Right — SVG illustration. Re-keyed on station so paths re-draw. */}
+        <div className="relative flex items-center justify-center">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={station.n + '-art'}
+              initial={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full"
+            >
+              <StationArt kind={station.illustration} reduce={reduce} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// L-shaped marker brackets in each corner of the card.
+function CornerMarks() {
+  const stroke = 'rgba(94,234,212,0.42)'
+  const len = 16
+  const off = 14
+  return (
+    <svg
+      className="absolute inset-0 pointer-events-none"
+      width="100%"
+      height="100%"
+      style={{ overflow: 'visible' }}
+      aria-hidden="true"
+    >
+      {/* top-left */}
+      <line x1={off} y1={off} x2={off + len} y2={off} stroke={stroke} strokeWidth="1" />
+      <line x1={off} y1={off} x2={off} y2={off + len} stroke={stroke} strokeWidth="1" />
+      {/* top-right */}
+      <line x1={`calc(100% - ${off}px)`} y1={off} x2={`calc(100% - ${off + len}px)`} y2={off} stroke={stroke} strokeWidth="1" />
+      <line x1={`calc(100% - ${off}px)`} y1={off} x2={`calc(100% - ${off}px)`} y2={off + len} stroke={stroke} strokeWidth="1" />
+      {/* bottom-left */}
+      <line x1={off} y1={`calc(100% - ${off}px)`} x2={off + len} y2={`calc(100% - ${off}px)`} stroke={stroke} strokeWidth="1" />
+      <line x1={off} y1={`calc(100% - ${off}px)`} x2={off} y2={`calc(100% - ${off + len}px)`} stroke={stroke} strokeWidth="1" />
+      {/* bottom-right */}
+      <line x1={`calc(100% - ${off}px)`} y1={`calc(100% - ${off}px)`} x2={`calc(100% - ${off + len}px)`} y2={`calc(100% - ${off}px)`} stroke={stroke} strokeWidth="1" />
+      <line x1={`calc(100% - ${off}px)`} y1={`calc(100% - ${off}px)`} x2={`calc(100% - ${off}px)`} y2={`calc(100% - ${off + len}px)`} stroke={stroke} strokeWidth="1" />
+    </svg>
+  )
+}
+
+// ─── Mobile station ──────────────────────────────────────────────────────────
+function MobileStation({ station }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="relative rounded-xl overflow-hidden"
+      style={{
+        background: NAVY_GRADIENT,
+        border: '1px solid rgba(20,184,166,0.18)',
+      }}
+    >
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: TEAL_RAIL }} />
+      <div className="px-6 py-7">
+        <p
+          className="font-mono text-[10px] uppercase tracking-[0.28em] font-bold mb-3 flex items-center gap-2"
+          style={{ color: TEAL_LIGHT }}
+        >
+          <span>Station {station.n}</span>
+          <span style={{ color: 'rgba(94,234,212,0.4)' }}>/</span>
+          <span>{station.label}</span>
+        </p>
+        <h2
+          className="text-2xl font-serif font-semibold text-white leading-tight mb-5"
+          style={{ letterSpacing: '-0.02em' }}
+        >
+          {station.headline}
+        </h2>
+        <div className="space-y-3 text-[14px] text-white/70 leading-relaxed">
+          {station.body.map((p, i) => (
+            <p key={i}>{p}</p>
+          ))}
+        </div>
+        <div className="mt-6 flex justify-center opacity-70">
+          <div className="w-full max-w-[240px]">
+            <StationArt kind={station.illustration} reduce={true} compact />
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── Illustration router ─────────────────────────────────────────────────────
+function StationArt({ kind, reduce, compact = false }) {
+  switch (kind) {
+    case 'gap': return <GapArt reduce={reduce} compact={compact} />
+    case 'groma': return <GromaArt reduce={reduce} compact={compact} />
+    case 'triangulation': return <TriangulationArt reduce={reduce} compact={compact} />
+    case 'coverage': return <CoverageArt reduce={reduce} compact={compact} />
+    case 'notebook': return <NotebookArt reduce={reduce} compact={compact} />
+    default: return null
+  }
+}
+
+// Animation primitive — a path that draws itself from 0 to full length.
+function drawProps(reduce, delay = 0, duration = 0.9) {
+  if (reduce) return { initial: { pathLength: 1, opacity: 1 }, animate: { pathLength: 1, opacity: 1 } }
+  return {
+    initial: { pathLength: 0, opacity: 0 },
+    animate: { pathLength: 1, opacity: 1 },
+    transition: { duration, delay, ease: [0.22, 1, 0.36, 1] },
+  }
+}
+function fadeProps(reduce, delay = 0) {
+  if (reduce) return { initial: { opacity: 1 }, animate: { opacity: 1 } }
+  return {
+    initial: { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: { duration: 0.6, delay, ease: 'easeOut' },
+  }
+}
+
+// ─── Illustration: Station 01 — THE GAP ──────────────────────────────────────
+// "The stack of expensive opinions" — a horizontal bar diagram showing
+// project returns being shaved by Legal / IE / Financing layers. Axis on
+// left; annotations on right.
+function GapArt({ reduce }) {
+  const W = 360
+  const H = 320
+  const x0 = 60
+  const widthFor = (pct) => (pct / 100) * 250
+  const rows = [
+    { label: 'PROJECT RETURNS', pct: 100, y: 60 },
+    { label: '− LEGAL', pct: 84, y: 110 },
+    { label: '− IE', pct: 68, y: 160 },
+    { label: '− FINANCING', pct: 50, y: 210 },
+    { label: 'WHAT\'S LEFT', pct: 34, y: 260 },
+  ]
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
+      {/* Axis (left vertical line + tick marks) */}
+      <line x1={x0} y1={45} x2={x0} y2={H - 30} stroke={TEAL} strokeWidth="1" />
+      {[0, 25, 50, 75, 100].map((t, i) => (
+        <g key={t}>
+          <line x1={x0 - 4} y1={45 + (i * (H - 75) / 4)} x2={x0} y2={45 + (i * (H - 75) / 4)} stroke={TEAL} strokeWidth="1" />
+          <text x={x0 - 8} y={45 + (i * (H - 75) / 4) + 3} fill="rgba(255,255,255,0.4)" fontSize="8" fontFamily="ui-monospace,Menlo,monospace" textAnchor="end">{100 - t}</text>
+        </g>
+      ))}
+      {/* Bars */}
+      {rows.map((r, i) => {
+        const w = widthFor(r.pct)
+        const isLast = i === rows.length - 1
+        const fillColor = isLast ? TEAL_BRIGHT : i === 0 ? TEAL : `rgba(20,184,166,${0.6 - i * 0.1})`
+        return (
+          <g key={r.label}>
+            <motion.line
+              x1={x0}
+              y1={r.y}
+              x2={x0 + w}
+              y2={r.y}
+              stroke={fillColor}
+              strokeWidth="14"
+              strokeLinecap="butt"
+              {...drawProps(reduce, 0.1 + i * 0.12, 0.6)}
+            />
+            <motion.text
+              x={x0 + w + 8}
+              y={r.y + 3}
+              fill="rgba(255,255,255,0.55)"
+              fontSize="9"
+              fontFamily="ui-monospace,Menlo,monospace"
+              letterSpacing="0.06em"
+              {...fadeProps(reduce, 0.4 + i * 0.12)}
+            >
+              {r.label}
+            </motion.text>
+          </g>
+        )
+      })}
+      {/* Annotation: a curly brace + label on the right side */}
+      <motion.g {...fadeProps(reduce, 1.0)}>
+        <path
+          d={`M ${x0 + 280} 60 Q ${x0 + 290} ${H / 2 - 20} ${x0 + 280} ${H / 2 - 20} Q ${x0 + 290} ${H / 2 - 20} ${x0 + 280} 210`}
+          stroke="rgba(94,234,212,0.45)"
+          strokeWidth="1"
+          fill="none"
+        />
+        <text
+          x={x0 + 295}
+          y={H / 2 - 18}
+          fill={TEAL_LIGHT}
+          fontSize="8"
+          fontFamily="ui-monospace,Menlo,monospace"
+          letterSpacing="0.16em"
+        >
+          THE
+        </text>
+        <text
+          x={x0 + 295}
+          y={H / 2 - 6}
+          fill={TEAL_LIGHT}
+          fontSize="8"
+          fontFamily="ui-monospace,Menlo,monospace"
+          letterSpacing="0.16em"
+        >
+          STACK
+        </text>
+      </motion.g>
+    </svg>
+  )
+}
+
+// ─── Illustration: Station 02 — THE NAME (Groma) ─────────────────────────────
+// A Roman surveyor's groma: vertical staff, horizontal crossarm, four
+// plumb-bobs hanging from the cross-arm ends, and a parcel grid to the
+// right showing the surveyed land.
+function GromaArt({ reduce }) {
+  const W = 360
+  const H = 320
+  const cx = 130
+  const top = 70
+  const armLen = 80
+  const staffBottom = 250
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
+      {/* Parcel grid on the right */}
+      <motion.g {...fadeProps(reduce, 0.05)}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <line
+            key={`gv-${i}`}
+            x1={220 + i * 24}
+            y1={130}
+            x2={220 + i * 24}
+            y2={250}
+            stroke="rgba(20,184,166,0.15)"
+            strokeWidth="0.6"
+          />
+        ))}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <line
+            key={`gh-${i}`}
+            x1={220}
+            y1={130 + i * 24}
+            x2={340}
+            y2={130 + i * 24}
+            stroke="rgba(20,184,166,0.15)"
+            strokeWidth="0.6"
+          />
+        ))}
+        {/* A highlighted parcel — solid teal corner marks */}
+        {[[244, 154], [292, 154], [244, 202], [292, 202]].map(([x, y], i) => (
+          <g key={`pc-${i}`}>
+            <line x1={x - 3} y1={y} x2={x + 3} y2={y} stroke={TEAL_BRIGHT} strokeWidth="1" />
+            <line x1={x} y1={y - 3} x2={x} y2={y + 3} stroke={TEAL_BRIGHT} strokeWidth="1" />
+          </g>
+        ))}
+      </motion.g>
+
+      {/* Sight-line from the groma to the parcel */}
+      <motion.line
+        x1={cx}
+        y1={top + 24}
+        x2={290}
+        y2={180}
+        stroke={TEAL_LIGHT}
+        strokeWidth="0.8"
+        strokeDasharray="3 3"
+        {...drawProps(reduce, 0.9, 0.6)}
+      />
+
+      {/* Crossarm (horizontal) */}
+      <motion.line
+        x1={cx - armLen}
+        y1={top + 24}
+        x2={cx + armLen}
+        y2={top + 24}
+        stroke={TEAL_BRIGHT}
+        strokeWidth="2"
+        {...drawProps(reduce, 0.05, 0.5)}
+      />
+
+      {/* Vertical staff */}
+      <motion.line
+        x1={cx}
+        y1={top}
+        x2={cx}
+        y2={staffBottom}
+        stroke={TEAL_BRIGHT}
+        strokeWidth="2"
+        {...drawProps(reduce, 0.15, 0.55)}
+      />
+
+      {/* Plumb-bob lines (vertical from each arm end) + bobs */}
+      {[-armLen, armLen].map((dx, i) => (
+        <g key={`bob-${i}`}>
+          <motion.line
+            x1={cx + dx}
+            y1={top + 24}
+            x2={cx + dx}
+            y2={top + 70}
+            stroke={TEAL_LIGHT}
+            strokeWidth="1"
+            {...drawProps(reduce, 0.4 + i * 0.1, 0.45)}
+          />
+          <motion.circle
+            cx={cx + dx}
+            cy={top + 70}
+            r={4}
+            fill={TEAL_BRIGHT}
+            {...fadeProps(reduce, 0.7 + i * 0.1)}
+          />
+        </g>
+      ))}
+
+      {/* Smaller intermediate plumb bobs (4-bob groma has 4 bobs — render 2
+          slightly forward + 2 back to suggest the 3D form) */}
+      {[-armLen / 2, armLen / 2].map((dx, i) => (
+        <g key={`bob2-${i}`} opacity={0.6}>
+          <motion.line
+            x1={cx + dx}
+            y1={top + 24}
+            x2={cx + dx}
+            y2={top + 58}
+            stroke={TEAL_LIGHT}
+            strokeWidth="0.7"
+            strokeDasharray="2 2"
+            {...drawProps(reduce, 0.55 + i * 0.08, 0.4)}
+          />
+          <motion.circle
+            cx={cx + dx}
+            cy={top + 58}
+            r={2.5}
+            fill={TEAL_LIGHT}
+            {...fadeProps(reduce, 0.85 + i * 0.08)}
+          />
+        </g>
+      ))}
+
+      {/* Crossarm hub */}
+      <motion.circle
+        cx={cx}
+        cy={top + 24}
+        r={4}
+        fill={NAVY}
+        stroke={TEAL_BRIGHT}
+        strokeWidth="1.5"
+        {...fadeProps(reduce, 0.5)}
+      />
+
+      {/* Ground reference line + tick marks at the staff base */}
+      <motion.line
+        x1={cx - 35}
+        y1={staffBottom}
+        x2={cx + 35}
+        y2={staffBottom}
+        stroke={TEAL}
+        strokeWidth="1"
+        {...drawProps(reduce, 0.3, 0.4)}
+      />
+      {[-30, -15, 0, 15, 30].map((dx, i) => (
+        <motion.line
+          key={`tick-${i}`}
+          x1={cx + dx}
+          y1={staffBottom}
+          x2={cx + dx}
+          y2={staffBottom + 4}
+          stroke={TEAL}
+          strokeWidth="1"
+          {...drawProps(reduce, 0.45 + i * 0.05, 0.3)}
+        />
+      ))}
+
+      {/* Annotation */}
+      <motion.text
+        x={cx - 38}
+        y={staffBottom + 16}
+        fill="rgba(255,255,255,0.45)"
+        fontSize="8"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.18em"
+        {...fadeProps(reduce, 0.9)}
+      >
+        GROMA · I AD
+      </motion.text>
+
+      <motion.text
+        x={244}
+        y={272}
+        fill={TEAL_LIGHT}
+        fontSize="8"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.16em"
+        textAnchor="middle"
+        {...fadeProps(reduce, 1.0)}
+      >
+        TRACTUS
+      </motion.text>
+    </svg>
+  )
+}
+
+// ─── Illustration: Station 03 — THE METHOD (Triangulation) ───────────────────
+// Equilateral triangle with three labeled vertices (Offtake / IX / Site);
+// faint sight-lines extending outward from each vertex; a center dot
+// labeled GO / NO-GO; tick marks along each triangle edge.
+function TriangulationArt({ reduce }) {
+  const W = 360
+  const H = 320
+  const cx = 180
+  const cy = 175
+  const r = 110
+  // Three vertices of an equilateral triangle, point-up
+  const A = { x: cx,         y: cy - r,         label: 'OFFTAKE' }
+  const B = { x: cx - r * 0.866, y: cy + r * 0.5, label: 'IX' }
+  const C = { x: cx + r * 0.866, y: cy + r * 0.5, label: 'SITE' }
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
+      {/* Faint outward sight-lines from each vertex — like survey sightings
+          into the landscape beyond the triangle. */}
+      {[A, B, C].map((v, i) => {
+        const dx = v.x - cx
+        const dy = v.y - cy
+        const norm = Math.hypot(dx, dy)
+        const ex = v.x + (dx / norm) * 40
+        const ey = v.y + (dy / norm) * 40
+        return (
+          <motion.line
+            key={`sight-${i}`}
+            x1={v.x}
+            y1={v.y}
+            x2={ex}
+            y2={ey}
+            stroke="rgba(94,234,212,0.35)"
+            strokeWidth="0.7"
+            strokeDasharray="3 3"
+            {...drawProps(reduce, 0.7 + i * 0.08, 0.45)}
+          />
+        )
+      })}
+
+      {/* Triangle edges */}
+      {[
+        [A, B], [B, C], [C, A],
+      ].map(([p, q], i) => (
+        <motion.line
+          key={`edge-${i}`}
+          x1={p.x}
+          y1={p.y}
+          x2={q.x}
+          y2={q.y}
+          stroke={TEAL_BRIGHT}
+          strokeWidth="1.5"
+          {...drawProps(reduce, 0.05 + i * 0.18, 0.6)}
+        />
+      ))}
+
+      {/* Tick marks along each edge (3 per edge) */}
+      {[[A, B], [B, C], [C, A]].map(([p, q], i) =>
+        [0.25, 0.5, 0.75].map((t, j) => {
+          const mx = p.x + (q.x - p.x) * t
+          const my = p.y + (q.y - p.y) * t
+          // perpendicular short tick (4px)
+          const dx = q.x - p.x
+          const dy = q.y - p.y
+          const len = Math.hypot(dx, dy)
+          const px = -dy / len
+          const py = dx / len
+          return (
+            <motion.line
+              key={`tick-${i}-${j}`}
+              x1={mx - px * 3}
+              y1={my - py * 3}
+              x2={mx + px * 3}
+              y2={my + py * 3}
+              stroke={TEAL}
+              strokeWidth="1"
+              {...drawProps(reduce, 0.55 + i * 0.05 + j * 0.03, 0.25)}
+            />
+          )
+        })
+      )}
+
+      {/* Vertex markers + labels */}
+      {[A, B, C].map((v, i) => (
+        <g key={`vx-${i}`}>
+          <motion.circle
+            cx={v.x}
+            cy={v.y}
+            r={6}
+            fill={NAVY}
+            stroke={TEAL_BRIGHT}
+            strokeWidth="1.5"
+            {...fadeProps(reduce, 0.8 + i * 0.08)}
+          />
+          <motion.text
+            x={v.x}
+            y={v === A ? v.y - 14 : v.y + 22}
+            fill={TEAL_LIGHT}
+            fontSize="10"
+            fontFamily="ui-monospace,Menlo,monospace"
+            letterSpacing="0.20em"
+            fontWeight="700"
+            textAnchor="middle"
+            {...fadeProps(reduce, 0.95 + i * 0.08)}
+          >
+            {v.label}
+          </motion.text>
+        </g>
+      ))}
+
+      {/* Center: GO/NO-GO marker */}
+      <motion.circle
+        cx={cx}
+        cy={cy}
+        r={26}
+        fill="rgba(20,184,166,0.10)"
+        stroke="rgba(20,184,166,0.35)"
+        strokeWidth="0.8"
+        {...fadeProps(reduce, 1.1)}
+      />
+      <motion.circle
+        cx={cx}
+        cy={cy}
+        r={3}
+        fill={TEAL_BRIGHT}
+        {...fadeProps(reduce, 1.2)}
+      />
+      <motion.text
+        x={cx}
+        y={cy - 34}
+        fill="rgba(255,255,255,0.7)"
+        fontSize="8"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.22em"
+        textAnchor="middle"
+        {...fadeProps(reduce, 1.25)}
+      >
+        GO / NO-GO
+      </motion.text>
+
+      {/* Cross-bearing lines from center to each vertex (very faint) */}
+      {[A, B, C].map((v, i) => (
+        <motion.line
+          key={`bearing-${i}`}
+          x1={cx}
+          y1={cy}
+          x2={v.x}
+          y2={v.y}
+          stroke="rgba(94,234,212,0.18)"
+          strokeWidth="0.6"
+          strokeDasharray="2 4"
+          {...drawProps(reduce, 1.0 + i * 0.05, 0.5)}
+        />
+      ))}
+    </svg>
+  )
+}
+
+// ─── Illustration: Station 04 — THE LIMITS (Coverage map) ────────────────────
+// A rectangle divided into ~80% solid (knowable from public data) and ~20%
+// dashed-outline (specialist work). Annotation arrows + "TRACTOVA ENDS HERE"
+// marker at the boundary.
+function CoverageArt({ reduce }) {
+  const W = 360
+  const H = 320
+  const x0 = 30
+  const y0 = 80
+  const totalW = 290
+  const totalH = 160
+  const splitX = x0 + totalW * 0.8
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
+      {/* Survey grid underneath the rectangle (very faint) */}
+      <motion.g {...fadeProps(reduce, 0.05)}>
+        {Array.from({ length: 14 }).map((_, i) => (
+          <line key={`vg-${i}`} x1={x0 + i * (totalW / 14)} y1={y0} x2={x0 + i * (totalW / 14)} y2={y0 + totalH} stroke="rgba(20,184,166,0.08)" strokeWidth="0.5" />
+        ))}
+        {Array.from({ length: 8 }).map((_, i) => (
+          <line key={`hg-${i}`} x1={x0} y1={y0 + i * (totalH / 8)} x2={x0 + totalW} y2={y0 + i * (totalH / 8)} stroke="rgba(20,184,166,0.08)" strokeWidth="0.5" />
+        ))}
+      </motion.g>
+
+      {/* Solid 80% region — filled with a subtle teal hatch */}
+      <motion.rect
+        x={x0}
+        y={y0}
+        width={splitX - x0}
+        height={totalH}
+        fill="rgba(20,184,166,0.18)"
+        stroke={TEAL_BRIGHT}
+        strokeWidth="1.2"
+        initial={reduce ? { opacity: 1 } : { opacity: 0, scaleX: 0 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        style={{ transformOrigin: `${x0}px ${y0 + totalH / 2}px` }}
+      />
+      {/* Diagonal hatch lines inside the solid region */}
+      <motion.g {...fadeProps(reduce, 0.6)}>
+        <defs>
+          <pattern id="hatch" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(94,234,212,0.25)" strokeWidth="0.7" />
+          </pattern>
+        </defs>
+        <rect x={x0} y={y0} width={splitX - x0} height={totalH} fill="url(#hatch)" />
+      </motion.g>
+
+      {/* Dashed 20% region — outline only */}
+      <motion.rect
+        x={splitX}
+        y={y0}
+        width={totalW - (splitX - x0)}
+        height={totalH}
+        fill="none"
+        stroke="rgba(94,234,212,0.55)"
+        strokeWidth="1.2"
+        strokeDasharray="5 4"
+        initial={reduce ? { opacity: 1 } : { opacity: 0, scaleX: 0 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ duration: 0.7, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        style={{ transformOrigin: `${splitX}px ${y0 + totalH / 2}px` }}
+      />
+
+      {/* Boundary marker — a vertical dotted line + small triangle */}
+      <motion.line
+        x1={splitX}
+        y1={y0 - 10}
+        x2={splitX}
+        y2={y0 + totalH + 10}
+        stroke={TEAL_LIGHT}
+        strokeWidth="0.8"
+        strokeDasharray="2 3"
+        {...drawProps(reduce, 0.9, 0.4)}
+      />
+      <motion.polygon
+        points={`${splitX - 4},${y0 - 14} ${splitX + 4},${y0 - 14} ${splitX},${y0 - 6}`}
+        fill={TEAL_BRIGHT}
+        {...fadeProps(reduce, 1.05)}
+      />
+
+      {/* Region labels */}
+      <motion.text
+        x={x0 + (splitX - x0) / 2}
+        y={y0 - 16}
+        fill={TEAL_LIGHT}
+        fontSize="9"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.20em"
+        fontWeight="700"
+        textAnchor="middle"
+        {...fadeProps(reduce, 0.7)}
+      >
+        80% · PUBLIC DATA
+      </motion.text>
+      <motion.text
+        x={splitX + (totalW - (splitX - x0)) / 2}
+        y={y0 + totalH + 22}
+        fill="rgba(255,255,255,0.6)"
+        fontSize="9"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.20em"
+        fontWeight="700"
+        textAnchor="middle"
+        {...fadeProps(reduce, 0.95)}
+      >
+        20% · SPECIALISTS
+      </motion.text>
+
+      {/* "TRACTOVA ENDS HERE" marker pointing at the boundary */}
+      <motion.text
+        x={splitX}
+        y={y0 + totalH + 36}
+        fill={TEAL_LIGHT}
+        fontSize="8"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.24em"
+        fontWeight="700"
+        textAnchor="middle"
+        {...fadeProps(reduce, 1.2)}
+      >
+        ◆ TRACTOVA ENDS HERE
+      </motion.text>
+
+      {/* Sub-labels inside the solid block */}
+      {['STATE PROGRAMS', 'IX QUEUES', 'WETLANDS', 'FARMLAND'].map((t, i) => (
+        <motion.text
+          key={t}
+          x={x0 + 14}
+          y={y0 + 28 + i * 28}
+          fill="rgba(94,234,212,0.65)"
+          fontSize="8"
+          fontFamily="ui-monospace,Menlo,monospace"
+          letterSpacing="0.14em"
+          {...fadeProps(reduce, 0.8 + i * 0.05)}
+        >
+          {t}
+        </motion.text>
+      ))}
+      {/* Sub-labels in the dashed block */}
+      {['TITLE', 'IE', 'LEGAL'].map((t, i) => (
+        <motion.text
+          key={t}
+          x={splitX + 10}
+          y={y0 + 32 + i * 28}
+          fill="rgba(255,255,255,0.45)"
+          fontSize="8"
+          fontFamily="ui-monospace,Menlo,monospace"
+          letterSpacing="0.14em"
+          {...fadeProps(reduce, 1.05 + i * 0.05)}
+        >
+          {t}
+        </motion.text>
+      ))}
+    </svg>
+  )
+}
+
+// ─── Illustration: Station 05 — THE OPERATOR (Field notebook) ────────────────
+// An open field notebook spread: left page = layered data lines (annotated
+// OFFTAKE / IX / SITE / POLICY), right page = a stamped seal + signature
+// loops. A pencil rests on the right page.
+function NotebookArt({ reduce }) {
+  const W = 360
+  const H = 320
+  // Notebook bounds
+  const nb = { x: 30, y: 60, w: 300, h: 200 }
+  const spine = nb.x + nb.w / 2
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
+      {/* Notebook outer rectangle */}
+      <motion.rect
+        x={nb.x}
+        y={nb.y}
+        width={nb.w}
+        height={nb.h}
+        rx={4}
+        fill="rgba(15,26,46,0.6)"
+        stroke={TEAL_BRIGHT}
+        strokeWidth="1.2"
+        {...drawProps(reduce, 0.05, 0.7)}
+      />
+      {/* Center spine line */}
+      <motion.line
+        x1={spine}
+        y1={nb.y}
+        x2={spine}
+        y2={nb.y + nb.h}
+        stroke="rgba(94,234,212,0.45)"
+        strokeWidth="0.8"
+        strokeDasharray="2 3"
+        {...drawProps(reduce, 0.5, 0.4)}
+      />
+
+      {/* Left page — layered data lines, each labeled */}
+      {['OFFTAKE', 'IX', 'SITE', 'POLICY'].map((label, i) => {
+        const y = nb.y + 26 + i * 36
+        const baseX = nb.x + 18
+        const endX = spine - 14
+        return (
+          <g key={label}>
+            <motion.text
+              x={baseX}
+              y={y - 8}
+              fill="rgba(94,234,212,0.65)"
+              fontSize="7"
+              fontFamily="ui-monospace,Menlo,monospace"
+              letterSpacing="0.20em"
+              fontWeight="700"
+              {...fadeProps(reduce, 0.3 + i * 0.08)}
+            >
+              {label}
+            </motion.text>
+            {/* Sparkline-style data trace */}
+            <motion.path
+              d={(() => {
+                const pts = []
+                for (let k = 0; k <= 8; k++) {
+                  const x = baseX + (k * (endX - baseX)) / 8
+                  // pseudo-random but stable per-row jitter
+                  const seed = (i * 7 + k * 3) % 9
+                  const dy = ((seed % 5) - 2) * 2
+                  pts.push(`${k === 0 ? 'M' : 'L'} ${x} ${y + dy}`)
+                }
+                return pts.join(' ')
+              })()}
+              fill="none"
+              stroke={TEAL_BRIGHT}
+              strokeWidth="1.2"
+              {...drawProps(reduce, 0.4 + i * 0.1, 0.6)}
+            />
+            {/* Endpoint dot */}
+            <motion.circle
+              cx={endX}
+              cy={y}
+              r={2.2}
+              fill={TEAL_LIGHT}
+              {...fadeProps(reduce, 0.9 + i * 0.08)}
+            />
+          </g>
+        )
+      })}
+
+      {/* Right page — concentric stamp seal + a few signature loops */}
+      <motion.g {...fadeProps(reduce, 1.0)}>
+        {/* Stamp seal */}
+        <circle cx={spine + 80} cy={nb.y + 70} r={32} fill="none" stroke={TEAL_LIGHT} strokeWidth="0.8" strokeDasharray="2 2" />
+        <circle cx={spine + 80} cy={nb.y + 70} r={24} fill="none" stroke={TEAL_LIGHT} strokeWidth="0.6" />
+        <text x={spine + 80} y={nb.y + 66} fill={TEAL_LIGHT} fontSize="7" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.20em" fontWeight="700" textAnchor="middle">TRACTOVA</text>
+        <text x={spine + 80} y={nb.y + 78} fill="rgba(94,234,212,0.6)" fontSize="6" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.24em" textAnchor="middle">FIELD NOTES</text>
+        {/* Star at center */}
+        <polygon points={`${spine + 80},${nb.y + 86} ${spine + 76},${nb.y + 96} ${spine + 84},${nb.y + 96}`} fill={TEAL_BRIGHT} />
+      </motion.g>
+
+      {/* Signature loops on right page */}
+      <motion.path
+        d={`M ${spine + 18} ${nb.y + 145} C ${spine + 30} ${nb.y + 135}, ${spine + 50} ${nb.y + 155}, ${spine + 70} ${nb.y + 145} S ${spine + 110} ${nb.y + 145}, ${spine + 130} ${nb.y + 150}`}
+        fill="none"
+        stroke="rgba(255,255,255,0.55)"
+        strokeWidth="1"
+        {...drawProps(reduce, 1.1, 0.7)}
+      />
+      <motion.line
+        x1={spine + 18}
+        y1={nb.y + 168}
+        x2={spine + 130}
+        y2={nb.y + 168}
+        stroke="rgba(255,255,255,0.3)"
+        strokeWidth="0.6"
+        {...drawProps(reduce, 1.4, 0.4)}
+      />
+      <motion.text
+        x={spine + 18}
+        y={nb.y + 180}
+        fill="rgba(255,255,255,0.45)"
+        fontSize="7"
+        fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.20em"
+        {...fadeProps(reduce, 1.6)}
+      >
+        OPERATOR · BOSTON, MA
+      </motion.text>
+
+      {/* Pencil — a tilted line with a small triangular tip resting on the
+          right page */}
+      <motion.g
+        initial={reduce ? { opacity: 1, rotate: -18, x: 0, y: 0 } : { opacity: 0, rotate: -18, x: 12, y: 10 }}
+        animate={{ opacity: 1, rotate: -18, x: 0, y: 0 }}
+        transition={{ duration: 0.6, delay: 1.5, ease: [0.22, 1, 0.36, 1] }}
+        style={{ transformOrigin: `${spine + 110}px ${nb.y + 180}px` }}
+      >
+        <line x1={spine + 50} y1={nb.y + 200} x2={spine + 120} y2={nb.y + 185} stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" />
+        <line x1={spine + 50} y1={nb.y + 200} x2={spine + 120} y2={nb.y + 185} stroke={TEAL_BRIGHT} strokeWidth="1" strokeDasharray="3 4" />
+        <polygon
+          points={`${spine + 45},${nb.y + 201} ${spine + 52},${nb.y + 196} ${spine + 53},${nb.y + 203}`}
+          fill={NAVY}
+          stroke="rgba(255,255,255,0.7)"
+          strokeWidth="1"
+        />
+      </motion.g>
+    </svg>
   )
 }
