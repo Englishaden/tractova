@@ -40,20 +40,39 @@ const TECH_TYPE_TERMS = Object.entries(TECH_DEFINITIONS).map(([_name, def]) => (
 // mapping each definition to its canonical pillar. Only new terms not
 // already present below.
 const GLOSSARY_PILLAR_MAP = {
+  // Site pillar
   'Prime Farmland':     'site',
   'Wetland Warning':    'site',
+  'Section 404':        'site',
+  'NWI':                'site',
+  'SSURGO':             'site',
+  // Offtake pillar
   'Capacity Factor':    'offtake',
   'Energy Community':   'offtake',
-  'IX · Live':          'ix',
-  'Site · Live':        'site',
   'Scenario Studio':    'offtake',
   'Achievable Baseline':'offtake',
   'Year 1 Revenue':     'offtake',
   'Simple Payback':     'offtake',
   'Capex':              'offtake',
-  'IX Cost':            'ix',
   'Program Allocation': 'offtake',
   'REC Price':          'offtake',
+  'PPA':                'offtake',
+  'Bill Credit':        'offtake',
+  'Offtaker':           'offtake',
+  'CCA':                'offtake',
+  // Interconnection pillar
+  'IX · Live':          'ix',
+  'IX Cost':            'ix',
+  'IX Queue':           'ix',
+  'Study Window':       'ix',
+  'ISO/RTO':            'ix',
+  // Cross-cutting (project lifecycle / finance / regulatory)
+  'Site · Live':        'site',
+  'COD':                'all',
+  'NTP':                'all',
+  'Safe Harbor':        'all',
+  'Confidence Tier':    'all',
+  'p50 / p90':          'all',
 }
 const GLOSSARY_NEW_TERMS = Object.entries(GLOSSARY_DEFINITIONS)
   .filter(([key]) => key in GLOSSARY_PILLAR_MAP)

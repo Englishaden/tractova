@@ -256,6 +256,96 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'Solar CS: 25 years standard (REC contract or PPA term). C&I PPA: 15-25 years typical. BESS: 15 years (battery degradation cap). Longer tenor = more lifetime revenue + (usually) higher IRR. Adjust if your specific offtake contract is shorter (e.g. 10-yr municipal CS) or longer (e.g. 30-yr utility PPA).',
     inputs: 'baseline 25yr solar / 15yr BESS · adjusts cashflow stream length',
   },
+  'Section 404': {
+    title: 'Section 404 (Clean Water Act)',
+    short: 'Federal permit required when a project fills or disturbs any wetland — administered by US Army Corps of Engineers.',
+    long: 'Section 404 of the Clean Water Act governs discharge of dredged or fill material into "waters of the United States," which includes most wetlands. Three permit flavors: Nationwide Permits (NWP) for small fills under ~0.5 acres (30-60 day review), Regional General Permits for routine project categories, Individual Permits for larger or complex fills (typically 6-12 months with public comment + environmental review). State wetland rules usually stack on top — NY DEC, MA WPA, NJ Freshwater Wetlands Act often the longer pole. Tractova\'s Lens timeline surfaces a Section 404 flag when county wetland coverage ≥25% as a proxy for "site selection likely to encounter wetland-adjacent parcels"; the actual permit trigger is parcel-level fill activity, not county coverage. Confirm via a parcel-level NWI delineation before treating the flag as deterministic.',
+    inputs: 'USFWS NWI county polygons (≥25% coverage proxy) · USACE permit framework',
+  },
+  'COD': {
+    title: 'COD (Commercial Operation Date)',
+    short: 'The date a project starts generating revenue — final commissioning + utility energization complete.',
+    long: 'Commercial Operation Date is the milestone when a project transitions from construction to producing revenue. It requires: utility witness tests passed, interconnection energization completed, REC certification (if applicable), final permits closed out. Lenders + tax-equity investors size facilities to a target COD; missing it triggers contract penalties and delays REC accrual. Tractova\'s timeline phase bar models four phases ending at COD: IX Study → Permitting → Construction → Energization (~3-mo final buffer).',
+    inputs: 'phase-stack model · ixQueueSummary.avgStudyMonths · permit / construct / energization defaults',
+  },
+  'PPA': {
+    title: 'PPA (Power Purchase Agreement)',
+    short: 'Long-term contract under which a power buyer agrees to purchase project output at a fixed or escalating $/MWh rate.',
+    long: 'The PPA is the offtake instrument for C&I and utility-scale solar. Typical terms: 15-25 years, fixed $/MWh price with 0-2% annual escalator, take-or-pay structure. Counterparty creditworthiness drives financeability — investment-grade corporate or municipal anchors most projects, retail/utility BLAs are second tier. Distinct from CS bill-credit programs, where the customer is the program administrator rather than an end-user. Tractova\'s C&I revenue model uses EIA Form 861 retail rates as a baseline PPA-spread proxy.',
+    inputs: 'EIA Form 861 commercial retail rates (curated 12 states) · revenue_rates.ppa_rate_cents_kwh',
+  },
+  'Bill Credit': {
+    title: 'Bill Credit (Net Metering / NEM)',
+    short: 'Per-kWh value of community-solar generation credited to subscriber utility bills.',
+    long: 'In CS markets, subscribers don\'t buy power directly — they buy bill-credit allocations off a shared facility. The state PUC sets the bill-credit rate (typically 80-100% of retail electric rate) and the program administrator allocates credits monthly. Subscribers see lower bills; the project earns the bill-credit value × allocated kWh as revenue. Bill-credit rates vary 5-25 ¢/kWh across states. The 2023 CA NEM 3.0 reform cut residential bill credits 57% — a precedent for downside risk Tractova flags via the policy_climate sub-score.',
+    inputs: 'state PUC tariff filings · revenue_rates.bill_credit_cents_kwh (per-state curated)',
+  },
+  'Offtaker': {
+    title: 'Offtaker',
+    short: 'The counterparty that contractually purchases project output — corporate buyer, utility, CS subscribers, or capacity market.',
+    long: 'Distinct from the Offtake pillar (which scores how good the market structure is): the offtaker is the specific entity that signs the PPA, bill-credit allocation agreement, or capacity-market clearing position. For CS: state program administrator + downstream subscribers. For C&I: an investment-grade corporate buyer, university, or municipality. For BESS: the ISO capacity market + ancillary services. Offtaker credit quality is one of the top three diligence items for project finance.',
+    inputs: 'project-specific · sourced from comparable_deals + project metadata',
+  },
+  'CCA': {
+    title: 'CCA (Community Choice Aggregation)',
+    short: 'Municipal energy procurement programs that aggregate local demand to negotiate independently from the incumbent utility.',
+    long: 'CCAs operate in CA, MA, NY, IL, NJ, OH, RI, NH, VA. A municipality (or coalition) forms a CCA to procure power on behalf of its residents — often serving as an anchor offtaker for community-solar projects with multi-year subscription guarantees. CCAs stabilize subscriber pipelines in a way single-residential subscription doesn\'t, lifting offtake confidence. Tractova\'s subscription-target lever surfaces "anchor offtaker / CCA partnership" at the 90-100% subscription tier for this reason.',
+    inputs: 'state CCA enabling legislation · curated per-state CCA list (admin)',
+  },
+  'IX Queue': {
+    title: 'IX Queue (Interconnection Queue)',
+    short: 'The utility\'s ordered list of pending projects awaiting interconnection study + grid impact analysis.',
+    long: 'Every project needing grid interconnection joins a queue at its host utility. The queue is studied in clusters or sequentially depending on the utility / ISO. Live queue data from 8 top CS markets (NY, NJ, IL, MA, MD, CO, ME, MN as of 2026-04-30) flows into Tractova\'s IX sub-score; the other 42 states use a curated ixDifficulty baseline. Study windows range from 4-6 months (small distribution) to 36+ months (PJM cluster). Queue position is the single biggest timeline risk for CS development.',
+    inputs: 'ix_queue_data (live · 8 states) · state_programs.ixDifficulty (curated baseline · 50 states)',
+  },
+  'Study Window': {
+    title: 'Study Window (IX Study)',
+    short: 'Time the utility / ISO spends evaluating grid impacts before issuing an interconnection agreement.',
+    long: 'The utility runs three studies in sequence: Feasibility (rough screen — weeks), System Impact (cluster modeling — months), and Facilities (detailed engineering for required upgrades — months). Total window: 4 months on a fast distribution path, 24-36+ months on a saturated transmission cluster. Tractova surfaces the live weighted-average study window from ix_queue_data; the Dev Feasibility "IX Assumption" lever scales it (queue=100%, acquire=50%, distribution fast-track=25%) to model alternate routing.',
+    inputs: 'ix_queue_data.avgStudyMonths · curated fallback ~18mo when live data not wired',
+  },
+  'NWI': {
+    title: 'NWI (National Wetlands Inventory)',
+    short: 'USFWS dataset mapping wetland polygons across the US — Tractova\'s authoritative wetland-coverage source.',
+    long: 'The US Fish and Wildlife Service maintains the National Wetlands Inventory, a GIS dataset of wetland boundaries derived from aerial imagery + ground truthing. Tractova ingests county-aggregated wetland coverage % from NWI as the primary site-control input. Polygons are accurate at the county scale but should be verified parcel-by-parcel via on-site delineation before committing capex — NWI polygons can be 1-5 years stale depending on coverage region.',
+    inputs: 'USFWS NWI polygons → county aggregation → county_geospatial_data.wetland_coverage_pct',
+  },
+  'SSURGO': {
+    title: 'SSURGO (Soil Survey Geographic Database)',
+    short: 'USDA dataset classifying soil types — Tractova reads prime-farmland coverage from it for site permitting risk.',
+    long: 'USDA NRCS publishes SSURGO with detailed soil-classification polygons. Prime farmland classification triggers state ag-protection review in NJ, NY, CA, IL, MI — adding 3-9 months to permitting and sometimes blocking conversion entirely. Tractova ingests county-level prime farmland coverage % as a Site Control input. Counties ≥40% prime farmland get a "verify ag-land protections + dual-use eligibility" diligence flag in the Dev Feasibility verdict rationale.',
+    inputs: 'USDA NRCS SSURGO polygons → county aggregation → county_geospatial_data.prime_farmland_pct',
+  },
+  'ISO/RTO': {
+    title: 'ISO / RTO (Independent System Operator / Regional Transmission Organization)',
+    short: 'Independent grid operators that manage transmission, run wholesale markets, and administer interconnection queues regionally.',
+    long: 'The US power grid is operated by seven major ISO/RTOs covering ~70% of demand: NYISO (NY), PJM (mid-Atlantic + Ohio Valley + IL), ISO-NE (New England), CAISO (CA), MISO (Midwest + south), SPP (south-central), ERCOT (TX, separate non-FERC grid). Outside these, vertically-integrated utilities (TVA, PNW, Southeast) manage their own interconnection. Each ISO has its own queue, study process, and timeline — driving structural differences in IX difficulty by region.',
+    inputs: 'ISO public queue dashboards · ix_queue_data per-utility roll-up',
+  },
+  'Confidence Tier': {
+    title: 'Confidence Tier (Tier A / Tier B)',
+    short: 'How much observed install data backs a state\'s capex baseline — Tier A = n≥40 observed installs, Tier B = thinner sample.',
+    long: 'Tractova\'s solar cost baselines come from the LBNL Tracking the Sun observed-install dataset. States with ≥40 observed installs in the vintage window get Tier A confidence (p10-p90 spread surfaced inline). States with 3-39 installs get Tier B (median shown, no spread). States with <3 installs use a synthesized national-extrapolation baseline. Tier A is anchored in observed data; Tier B and the synthesis layer should be tuned against your own pipeline quotes before underwriting.',
+    inputs: 'LBNL Tracking the Sun · cs_cost_index.install_count · vintage_window',
+  },
+  'Safe Harbor': {
+    title: 'Safe Harbor (ITC / Tax Credit)',
+    short: 'IRS provision that locks in a project\'s ITC rate by demonstrating "begun construction" before a rate cut takes effect.',
+    long: 'Federal solar incentives can change year-to-year. Safe-harboring lets developers lock in the current ITC rate by purchasing 5% of project cost in equipment or starting physical construction. Once safe-harbored, the project has 4 years to reach COD without losing the protected rate. Critical for projects spanning policy transitions (IRA passage, ITC step-downs, FEOC rules). Tractova flags policy events as "safe harbor eligible" when their effective date allows pre-construction locking.',
+    inputs: 'IRS Notice 2018-59 + IRA §13701 framework · policy_impact_events.safe_harbor_eligible',
+  },
+  'NTP': {
+    title: 'NTP (Notice to Proceed)',
+    short: 'Project stage when all financing, permits, and contracts are closed — construction begins.',
+    long: 'Notice to Proceed is the contractual signal from the developer to the EPC contractor authorizing construction to start. It marks the transition from "development" to "execution" and triggers the construction-period interest clock. Requirements typically include: final IX agreement signed, all permits issued, tax equity committed, EPC contract executed, debt closed. Tractova\'s stage modifier adds +8 offtake / -5 IX / +25 site to projects at NTP — reflecting the de-risked nature of permits + the now-locked queue position.',
+    inputs: 'Tractova stage modifier · project.stage = "NTP (Notice to Proceed)"',
+  },
+  'p50 / p90': {
+    title: 'p50 / p90 (Statistical Percentiles)',
+    short: 'p50 is the median; p90 is the value below which 90% of observations fall — used to communicate spread.',
+    long: 'When Tractova surfaces a capex range like "$1.32/W (p25) – $1.78/W (p75)" from LBNL observed installs, those percentiles describe the spread of real-world install costs. p10 is the most-favorable 10% (lowest cost); p90 is the worst 10% (highest cost). Project finance often models p50 as "expected case" and p90 as "downside stress." A p25-p75 band is the interquartile range — half the observed projects cleared in this zone. Tractova surfaces the band on Tier A states so developers can size against typical spread, not just the median.',
+    inputs: 'LBNL Tracking the Sun observed-install distribution · cs_cost_index.p10/p25/p50/p75/p90',
+  },
 }
 
 // Convenience: shape for a `<GlossaryLabel>` short-tooltip use case.
