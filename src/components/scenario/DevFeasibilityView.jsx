@@ -12,7 +12,7 @@
 // (CS / C&I / BESS / Hybrid) — pillar shapes differ enough that a single
 // table doesn't fit cleanly.
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
@@ -35,14 +35,14 @@ function classifyVerdict(composite) {
 // Subscription % is continuous, not bucketed — operating CS projects
 // land anywhere from ~50% (LMI-mandated first-year launches) up through
 // 100% (CCA-anchored or fully-LMI-subscribed deals). The slider treats
-// it as a free 0–100% input. This is currently informational only — it
-// doesn't drive the pillar sub-scores or the financial outputs. Future
-// integration: feed into the Financial Sensitivity tab as a Year 1
-// revenue scaler.
+// it as a free 0–100% input, with one regulatory constraint applied:
+// when a state mandates an LMI carve-out (NY 20%, IL 50%, NJ 51%, etc.),
+// the slider floor locks at that percentage — projects can't structurally
+// subscribe below the regulatory minimum.
 const SUBSCRIPTION_DEFAULT_PCT = 80
 const SUBSCRIPTION_TOOLTIP = {
   title: 'Subscription target',
-  body: 'Target fill rate for your project. Operating CS projects in the NREL Sharing the Sun dataset cluster roughly 50–100%, varying by program age, marketing reach, LMI mandate, and anchor-offtaker presence. Informational at the moment — used as conversation framing, not as an input to scoring. Will feed Year 1 revenue when subscription is wired into the financial engine.',
+  body: 'Target fill rate for your project. Operating CS projects in the NREL Sharing the Sun dataset cluster roughly 50–100%, varying by program age, marketing reach, LMI mandate, and anchor-offtaker presence. When a state mandates an LMI carve-out (NY 20%, IL 50%, NJ 51%, MD 40%, CO 25%), the slider floor locks at that percentage — projects can\'t subscribe below the regulatory minimum.',
 }
 
 const IX_ASSUMPTIONS = [
@@ -81,6 +81,18 @@ export default function DevFeasibilityView({
     subscriptionPct: SUBSCRIPTION_DEFAULT_PCT,
     ixAssumption: 'queue',
   })
+
+  // LMI floor — when a state mandates a carve-out (NY 20%, IL 50%, etc.),
+  // subscription can't structurally drop below it. Snap up if the user
+  // switches state mid-session and current pct falls under the new floor.
+  const lmiFloor = (stateProgram?.lmiRequired && stateProgram?.lmiPercent > 0)
+    ? stateProgram.lmiPercent
+    : 0
+  useEffect(() => {
+    if (lmiFloor > 0 && levers.subscriptionPct < lmiFloor) {
+      setLevers((prev) => ({ ...prev, subscriptionPct: lmiFloor }))
+    }
+  }, [lmiFloor, levers.subscriptionPct])
 
   // Recompute the pillar sub-scores live as MW changes. Other levers
   // shape the timeline narrative only — they don't move scoreEngine.
@@ -160,6 +172,8 @@ export default function DevFeasibilityView({
         mw={effectiveMw}
         onMwChange={onMwChange}
         isCS={isCS}
+        lmiFloor={lmiFloor}
+        stateName={stateName}
       />
 
       <TimelineEstimate
@@ -461,7 +475,7 @@ function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
 
 // ── Feasibility levers ─────────────────────────────────────────────────────
 
-function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS }) {
+function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS, lmiFloor = 0, stateName = '' }) {
   const ixLabels = IX_ASSUMPTIONS.map(p => p.label)
   const ixTooltips = Object.fromEntries(IX_ASSUMPTIONS.map(p => [p.label, p.hint]))
   const currentIxLabel = IX_ASSUMPTIONS.find(p => p.key === levers.ixAssumption)?.label || ''
@@ -499,7 +513,12 @@ function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS }) {
         />
 
         {isCS && (
-          <SubscriptionSlider pct={levers.subscriptionPct} onChange={(v) => onChange({ ...levers, subscriptionPct: v })} />
+          <SubscriptionSlider
+            pct={levers.subscriptionPct}
+            onChange={(v) => onChange({ ...levers, subscriptionPct: v })}
+            minPct={lmiFloor}
+            floorLabel={lmiFloor > 0 ? `Min ${lmiFloor}% — ${stateName || 'state'} LMI carve-out` : null}
+          />
         )}
 
         <FieldSelect
@@ -521,7 +540,13 @@ function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS }) {
 // Shared slider chrome used by Project Size + Subscription. Matches the
 // teal/slate vocab used by the financial-side SliderRow but lighter (no
 // glossary label, no direction palette — these are pure scalar levers).
-function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip }) {
+//
+// `floorTickPct` (0–100) draws a faint navy tick on the track to mark a
+// regulatory floor (e.g. LMI carve-out on the subscription slider). The
+// slider's native `min` enforces the constraint; the tick discloses it.
+// `footerCaption` renders a slate mono caption below the slider when set
+// (e.g. "Min 50% — Illinois LMI carve-out").
+function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip, floorTickPct = null, footerCaption = null }) {
   const labelEl = (
     <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1.5 cursor-help">
       {label}
@@ -538,17 +563,38 @@ function LeverSlider({ label, value, min, max, step, fillPct, format, tooltip })
           </TooltipContent>
         </Tooltip>
       ) : labelEl}
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => format.onChange(parseFloat(e.target.value))}
-        className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider"
-        style={{ background: `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${fillPct}%, #E2E8F0 ${fillPct}%, #E2E8F0 100%)` }}
-      />
+      <div className="relative">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => format.onChange(parseFloat(e.target.value))}
+          className="w-full h-1.5 rounded-lg appearance-none cursor-pointer scenario-slider"
+          style={{ background: `linear-gradient(to right, #14B8A6 0%, #14B8A6 ${fillPct}%, #E2E8F0 ${fillPct}%, #E2E8F0 100%)` }}
+        />
+        {floorTickPct != null && floorTickPct > 0 && floorTickPct < 100 && (
+          <span
+            aria-hidden="true"
+            className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+            style={{
+              left: `${floorTickPct}%`,
+              transform: `translate(-50%, -50%)`,
+              width: '2px',
+              height: '10px',
+              background: '#0F1A2E',
+              opacity: 0.4,
+            }}
+          />
+        )}
+      </div>
       <div className="text-[11px] font-mono tabular-nums text-ink mt-1">{format.display(value)}</div>
+      {footerCaption && (
+        <div className="text-[9px] font-mono uppercase tracking-[0.16em] text-gray-500 mt-1 leading-snug">
+          {footerCaption}
+        </div>
+      )}
     </div>
   )
 }
@@ -567,17 +613,22 @@ function ProjectSizeSlider({ mw, onChange }) {
   )
 }
 
-function SubscriptionSlider({ pct, onChange }) {
+function SubscriptionSlider({ pct, onChange, minPct = 0, floorLabel = null }) {
+  // Clamp to floor so the displayed value can't fall below the regulatory
+  // minimum even when the upstream snap-up effect hasn't run yet.
+  const safePct = Math.max(minPct, pct)
   return (
     <LeverSlider
       label="Subscription"
-      value={pct}
-      min={0}
+      value={safePct}
+      min={minPct}
       max={100}
       step={5}
-      fillPct={pct}
+      fillPct={safePct}
       format={{ onChange, display: (v) => `${Math.round(v)}%` }}
       tooltip={SUBSCRIPTION_TOOLTIP}
+      floorTickPct={minPct > 0 ? minPct : null}
+      footerCaption={floorLabel}
     />
   )
 }
