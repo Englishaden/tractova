@@ -176,6 +176,7 @@ export default function DevFeasibilityView({
         stateName={stateName}
         technology={technology}
         mw={effectiveMw}
+        servingUtility={countyData?.interconnection?.servingUtility || null}
       />
     </div>
     </TooltipProvider>

@@ -1,16 +1,38 @@
 // Comparable projects panel — pulls operating CS projects from cs_projects
 // (NREL Sharing the Sun) for the current state, optionally narrowed by
-// MW range. Honest empty state when the table has no rows for the state
-// (most non-CS-active states).
+// MW range. Splits the result into two sub-sections when the user's
+// serving utility is known:
+//   - "Same utility · N" (top 3) — most relevant comparables since they
+//     share IX queue, rate base, regulatory environment
+//   - "Statewide · N" (top 3) — broader benchmark, excluding the same-
+//     utility rows above to avoid duplicates
 //
-// Uses the existing getCsProjectsAsComparables helper — no new endpoint,
-// no new query path. The helper already shapes rows for comparable_deals
-// rendering so we reuse the data shape here.
+// Honest empty states for each bucket. Falls back to a single statewide
+// list when servingUtility is unknown.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { getCsProjectsAsComparables } from '../../lib/programData'
 
-export default function ComparableProjectsPanel({ state, stateName, technology, mw }) {
+// Utility name matching tolerates the naming drift between
+// county_intelligence (interconnection.servingUtility, short form like
+// "ComEd") and cs_projects.utility_name (NREL formal name, "Commonwealth
+// Edison Company"). Substring match in either direction after
+// normalization is the safest cheap approach; a curated alias table
+// would be more precise but is overkill for a screening panel.
+function normalizeUtility(s) {
+  if (!s) return ''
+  return String(s).toLowerCase().replace(/\s+/g, ' ').trim()
+}
+
+function utilityMatch(rowUtility, target) {
+  if (!rowUtility || !target) return false
+  const a = normalizeUtility(rowUtility)
+  const b = normalizeUtility(target)
+  if (!a || !b) return false
+  return a.includes(b) || b.includes(a)
+}
+
+export default function ComparableProjectsPanel({ state, stateName, technology, mw, servingUtility = null }) {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState(null)
 
@@ -29,12 +51,14 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
     getCsProjectsAsComparables({ state, technology, mwRange: [mwLo, mwHi] })
       .then((data) => {
         if (cancelled) return
-        // Sort by vintage desc (most recent first); cap at 5 for readability.
+        // Sort by vintage desc (most recent first). Cap done downstream
+        // per-bucket so the same-utility list isn't crowded out by
+        // unrelated rows.
         const sorted = [...data].sort((a, b) => {
           const aYear = a.filingDate ? parseInt(a.filingDate.slice(0, 4), 10) : 0
           const bYear = b.filingDate ? parseInt(b.filingDate.slice(0, 4), 10) : 0
           return bYear - aYear
-        }).slice(0, 5)
+        })
         setRows(sorted)
       })
       .catch((e) => {
@@ -47,6 +71,24 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
   }, [state, technology, mw])
 
   const isCS = technology === 'Community Solar' || technology === 'Hybrid'
+
+  // Bucket rows: same-utility rows surface first; statewide remainder
+  // excludes them to avoid dupes. Memoized so the user dragging MW
+  // doesn't thrash the sort on every keystroke.
+  const { sameUtility, statewide } = useMemo(() => {
+    if (!rows) return { sameUtility: [], statewide: [] }
+    if (!servingUtility) return { sameUtility: [], statewide: rows.slice(0, 5) }
+    const matched = []
+    const other = []
+    for (const r of rows) {
+      if (utilityMatch(r.servingUtility, servingUtility)) {
+        matched.push(r)
+      } else {
+        other.push(r)
+      }
+    }
+    return { sameUtility: matched.slice(0, 3), statewide: other.slice(0, 3) }
+  }, [rows, servingUtility])
 
   if (!isCS) {
     return (
@@ -62,7 +104,9 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
   return (
     <div className="rounded-md px-4 py-3 bg-white" style={{ border: '1px solid #E2E8F0' }}>
       <div className="flex items-center justify-between mb-2">
-        <div className="eyebrow-mono text-gray-500">Comparable Projects · {stateName || state}</div>
+        <div className="eyebrow-mono text-gray-500">
+          Comparable Projects · {stateName || state}
+        </div>
         <span className="text-[10px] font-mono text-gray-400">
           NREL Sharing the Sun
         </span>
@@ -74,6 +118,45 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
         <div className="text-[11px] text-gray-600">
           No operating comparable CS projects in {stateName || state} match this size band (±50% MW). Try widening the project size lever.
         </div>
+      ) : (
+        <div className="space-y-3">
+          {servingUtility && (
+            <ComparableBucket
+              header="Same utility"
+              subhead={servingUtility}
+              rows={sameUtility}
+              emptyCopy={`No operating CS projects at ${servingUtility} match this size band yet — adjacent comparables shown below.`}
+            />
+          )}
+          <ComparableBucket
+            header={servingUtility ? 'Statewide' : `Statewide · ${stateName || state}`}
+            subhead={servingUtility ? `Other utilities in ${stateName || state}` : null}
+            rows={statewide}
+            emptyCopy={`No additional comparable CS projects statewide match this size band.`}
+          />
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-2 text-[10px] text-amber-700">
+          {error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ComparableBucket({ header, subhead, rows, emptyCopy }) {
+  return (
+    <div>
+      <div className="flex items-baseline gap-2 mb-1.5">
+        <span className="eyebrow-mono text-gray-500">{header} · {rows.length}</span>
+        {subhead && (
+          <span className="text-[10px] text-gray-400 truncate max-w-[280px]">{subhead}</span>
+        )}
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-[10px] text-gray-500 italic leading-snug">{emptyCopy}</div>
       ) : (
         <table className="w-full text-[11px] tabular-nums">
           <thead>
@@ -106,12 +189,6 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
             ))}
           </tbody>
         </table>
-      )}
-
-      {error && (
-        <div className="mt-2 text-[10px] text-amber-700">
-          {error}
-        </div>
       )}
     </div>
   )
