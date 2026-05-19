@@ -20,5 +20,19 @@
       "Bash(npx vercel deploy --prod*)",
       "Bash(npx vercel promote*)"
     ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/session-pickup.mjs",
+            "statusMessage": "Loading BUILD_LOG pickup…",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
   }
 }

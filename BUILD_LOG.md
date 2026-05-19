@@ -18,6 +18,8 @@
 
 **Resume command:** `Continue from BUILD_LOG 2026-05-19 close-out. All formal-plan backlog items shipped. Standing rule: every new term introduced in UI copy must get a Glossary entry. Next session priorities open — likely About Us page (Aden flagged for "eventually") or prod-test feedback from the major UX changes.`
 
+**Workflow note (2026-05-19):** This pickup block is auto-injected at every session start by the `SessionStart` hook in `.claude/settings.json` (runs `scripts/session-pickup.mjs`) — no manual handover paste needed. Keep this section tight and current; it is the first thing every new session sees. Claude owns all git / worktree / merge plumbing end-to-end (sessions launch in per-chat worktrees; Claude fast-forwards `main` at session close). Standing rules live in CLAUDE.md + auto-memory.
+
 ---
 
 ### Twelve arcs shipped today — high-level
