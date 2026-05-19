@@ -13,7 +13,7 @@ import { Component } from 'react'
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { error: null, info: null }
+    this.state = { error: null, info: null, copyState: 'idle' }
   }
 
   static getDerivedStateFromError(error) {
@@ -44,20 +44,49 @@ export default class ErrorBoundary extends Component {
       'Component stack:',
       info?.componentStack || '(no component stack)',
     ].join('\n')
+
+    // Try modern clipboard API first. Falls back to textarea + execCommand
+    // when the page is in a non-secure context, an iframe without
+    // clipboard-write permission, or an older browser. The visible state
+    // change ("Copied" / "Copy failed") is the difference between this
+    // version and the prior one — without feedback users couldn't tell
+    // whether the button worked.
+    let succeeded = false
     try {
-      await navigator.clipboard.writeText(payload)
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(payload)
+        succeeded = true
+      } else {
+        throw new Error('clipboard API unavailable')
+      }
     } catch {
-      // Clipboard blocked (older iOS, insecure context). Fall back to
-      // a textarea so the user can copy manually.
       const ta = document.createElement('textarea')
       ta.value = payload
+      ta.setAttribute('readonly', '')
       ta.style.position = 'fixed'
+      ta.style.top = '0'
+      ta.style.left = '0'
       ta.style.opacity = '0'
       document.body.appendChild(ta)
+      ta.focus()
       ta.select()
-      try { document.execCommand('copy') } catch { /* nothing more to do */ }
+      try {
+        succeeded = document.execCommand('copy')
+      } catch {
+        succeeded = false
+      }
       document.body.removeChild(ta)
     }
+
+    this.setState({ copyState: succeeded ? 'copied' : 'failed' })
+    // Auto-revert label after a couple seconds so the button is
+    // re-clickable without ambiguity.
+    if (this._copyResetTimer) clearTimeout(this._copyResetTimer)
+    this._copyResetTimer = setTimeout(() => this.setState({ copyState: 'idle' }), 2200)
+  }
+
+  componentWillUnmount() {
+    if (this._copyResetTimer) clearTimeout(this._copyResetTimer)
   }
 
   render() {
@@ -94,9 +123,19 @@ export default class ErrorBoundary extends Component {
               <button
                 onClick={this.handleCopyDiagnostics}
                 className="font-mono text-[10px] uppercase tracking-[0.18em] font-semibold px-4 py-2.5 rounded-sm transition-all"
-                style={{ background: 'transparent', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.20)', minHeight: 44 }}
+                style={
+                  this.state.copyState === 'copied'
+                    ? { background: 'rgba(20,184,166,0.18)', color: '#5EEAD4', border: '1px solid rgba(20,184,166,0.55)', minHeight: 44 }
+                    : this.state.copyState === 'failed'
+                    ? { background: 'rgba(220,38,38,0.18)', color: '#FCA5A5', border: '1px solid rgba(220,38,38,0.55)', minHeight: 44 }
+                    : { background: 'transparent', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.20)', minHeight: 44 }
+                }
               >
-                Copy diagnostics
+                {this.state.copyState === 'copied'
+                  ? '✓ Copied'
+                  : this.state.copyState === 'failed'
+                  ? 'Copy failed — select & copy manually'
+                  : 'Copy diagnostics'}
               </button>
             </div>
           </div>

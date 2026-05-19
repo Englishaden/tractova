@@ -55,8 +55,15 @@ export default function DevFeasibilityView({
   stateName,
   countyName,
 }) {
+  // `mw` arrives from Search.jsx's form state, which holds it as a string
+  // ("5"). parseFloat coerces; Number.isFinite null-guards every subsequent
+  // .toFixed call. Default 5 MW matches the Lens form default.
+  const initialMw = (() => {
+    const n = parseFloat(mw)
+    return Number.isFinite(n) && n > 0 ? n : 5
+  })()
   const [levers, setLevers] = useState({
-    mw: mw || 5,
+    mw: initialMw,
     codYear: 2027,
     subscription: 'realistic',
     ixAssumption: 'queue',
