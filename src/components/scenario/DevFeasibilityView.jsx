@@ -60,31 +60,33 @@ export default function DevFeasibilityView({
   policyEvents,
   technology,
   stage,
-  mw,
+  mw,           // live MW (lifted to Search.jsx — single source of truth across §03 + §04)
+  searchMw,     // original search MW for the "Searched at X · Reset" affordance
+  onMwChange,   // setter — when present, the MW slider writes through to Search.jsx state
   stateName,
   countyName,
 }) {
-  // `mw` arrives from Search.jsx's form state, which holds it as a string
-  // ("5"). parseFloat coerces; Number.isFinite null-guards every subsequent
-  // .toFixed call. Default 5 MW matches the Lens form default.
-  const initialMw = (() => {
+  // MW comes from the lifted Search.jsx state (number, coerced upstream).
+  // Fall back to a safe local default if a caller forgets to pass it.
+  const effectiveMw = (() => {
     const n = parseFloat(mw)
     return Number.isFinite(n) && n > 0 ? n : 5
   })()
+
+  // Non-MW levers stay local to this view — they're informational only
+  // (COD year + subscription % + IX assumption shape the timeline
+  // narrative below but don't drive scoreEngine outputs or §04 cards).
   const [levers, setLevers] = useState({
-    mw: initialMw,
     codYear: 2027,
     subscriptionPct: SUBSCRIPTION_DEFAULT_PCT,
     ixAssumption: 'queue',
   })
 
-  // Recompute the pillar sub-scores live as the user drags MW. The other
-  // levers (COD year, subscription, IX assumption) influence the timeline
-  // narrative below but don't move scoreEngine outputs — those are
-  // market-structure signals, not project-shape inputs.
+  // Recompute the pillar sub-scores live as MW changes. Other levers
+  // shape the timeline narrative only — they don't move scoreEngine.
   const subScores = useMemo(
-    () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, levers.mw),
-    [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, levers.mw]
+    () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, effectiveMw),
+    [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, effectiveMw]
   )
 
   const composite = useMemo(
@@ -155,6 +157,8 @@ export default function DevFeasibilityView({
       <FeasibilityLevers
         levers={levers}
         onChange={setLevers}
+        mw={effectiveMw}
+        onMwChange={onMwChange}
         isCS={isCS}
       />
 
@@ -171,7 +175,7 @@ export default function DevFeasibilityView({
         state={stateProgram?.id || null}
         stateName={stateName}
         technology={technology}
-        mw={levers.mw}
+        mw={effectiveMw}
       />
     </div>
     </TooltipProvider>
@@ -456,7 +460,7 @@ function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
 
 // ── Feasibility levers ─────────────────────────────────────────────────────
 
-function FeasibilityLevers({ levers, onChange, isCS }) {
+function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS }) {
   const ixLabels = IX_ASSUMPTIONS.map(p => p.label)
   const ixTooltips = Object.fromEntries(IX_ASSUMPTIONS.map(p => [p.label, p.hint]))
   const currentIxLabel = IX_ASSUMPTIONS.find(p => p.key === levers.ixAssumption)?.label || ''
@@ -469,11 +473,21 @@ function FeasibilityLevers({ levers, onChange, isCS }) {
           displayAs="Feasibility Levers"
           className="eyebrow-mono text-gray-500"
         />
-        <span className="text-[10px] text-gray-400 italic">project-shape assumptions · informational</span>
+        <span className="text-[10px] text-gray-400 italic">
+          {onMwChange ? 'Project Size syncs across §03 + §04 · others are informational' : 'project-shape assumptions · informational'}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
-        <ProjectSizeSlider mw={levers.mw} onChange={(v) => onChange({ ...levers, mw: v })} />
+        <ProjectSizeSlider
+          mw={mw}
+          onChange={(v) => {
+            // Lifted MW: writes through to Search.jsx so §04 cards
+            // recompute reactively. If onMwChange isn't wired (older
+            // caller), no-op gracefully — slider stays static.
+            if (onMwChange) onMwChange(v)
+          }}
+        />
 
         <FieldSelect
           label="Target COD"

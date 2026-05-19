@@ -331,6 +331,26 @@ function SearchContent() {
   const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
   const [analyzing, setAnalyzing]     = useState(false)
+  // Live MW lever — shared across Scenario Studio (Dev Feasibility tab)
+  // and the §04 Pillar Diagnostics cards so the user dragging "Project
+  // Size" in the Studio gets reactive recompute everywhere instead of
+  // a frozen-search snapshot. Initialized to results.form.mw whenever
+  // a new Lens search completes; user can revert via the "Searched at
+  // X MW · Reset" caption when it diverges.
+  const [liveMw, setLiveMw] = useState(null)
+  useEffect(() => {
+    if (results?.form?.mw != null) {
+      const n = parseFloat(results.form.mw)
+      if (Number.isFinite(n) && n > 0) setLiveMw(n)
+    }
+  }, [results?.form?.mw])
+  // NaN-safe MW resolution. parseFloat('') / parseFloat(undefined) returns
+  // NaN which is NOT caught by ?? (only nullish is). Number.isFinite is
+  // the explicit guard.
+  const searchMwRaw = parseFloat(results?.form?.mw)
+  const searchMw = Number.isFinite(searchMwRaw) && searchMwRaw > 0 ? searchMwRaw : null
+  const effectiveMw = Number.isFinite(liveMw) && liveMw > 0 ? liveMw : searchMw
+  const mwDiverged = effectiveMw != null && searchMw != null && Math.abs(effectiveMw - searchMw) > 0.01
   // Look up the most recent saved project matching the current Lens
   // context (state + county + tech). When found, scenarios saved from
   // the Studio attach to that project_id so the Library card can show
@@ -995,12 +1015,26 @@ function SearchContent() {
                 <h2 className="text-base font-bold text-gray-900">
                   {results.form.county} County, {results.stateProgram?.name || results.form.state}
                   <span className="text-gray-400 font-normal mx-2">·</span>
-                  <span className="text-gray-600">{results.form.mw} MW AC</span>
+                  <span className="text-gray-600">
+                    {effectiveMw != null ? effectiveMw.toFixed(1) : results.form.mw} MW AC
+                  </span>
                   <span className="text-gray-400 font-normal mx-2">·</span>
                   <span className="text-gray-600">{results.form.technology}</span>
                   <span className="text-gray-400 font-normal mx-2">·</span>
                   <span className="text-gray-600">{results.form.stage}</span>
                 </h2>
+                {mwDiverged && searchMw != null && (
+                  <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-500 mt-0.5 flex items-center gap-2">
+                    <span>Searched at {searchMw.toFixed(1)} MW</span>
+                    <button
+                      type="button"
+                      onClick={() => setLiveMw(searchMw)}
+                      className="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-ink transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </p>
+                )}
                 <p className="text-xs text-gray-400 mt-0.5">
                   Intelligence as of {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                   {(() => {
@@ -1103,7 +1137,9 @@ function SearchContent() {
                 technology={results.form.technology}
                 stage={results.form.stage || null}
                 stateName={results.stateProgram?.name || results.form.state}
-                mw={results.form.mw}
+                mw={effectiveMw}
+                searchMw={searchMw}
+                onMwChange={setLiveMw}
               />
             </div>
 
@@ -1120,7 +1156,7 @@ function SearchContent() {
                 stateProgram={results.stateProgram}
                 revenueStack={results.revenueStack}
                 technology={results.form.technology}
-                mw={results.form.mw}
+                mw={effectiveMw}
                 rates={results.revenueRates}
                 energyCommunity={results.energyCommunity}
                 nmtcLic={results.nmtcLic}
@@ -1131,7 +1167,7 @@ function SearchContent() {
                 interconnection={results.countyData?.interconnection}
                 stateProgram={results.stateProgram}
                 stateId={results.stateProgram?.id}
-                mw={results.form.mw}
+                mw={effectiveMw}
                 queueSummary={results.ixQueueSummary}
               />
               <SiteControlCard
@@ -1141,7 +1177,7 @@ function SearchContent() {
                 stateName={results.stateProgram?.name || results.form.state}
                 county={results.form.county}
                 stateId={results.stateProgram?.id}
-                mw={results.form.mw}
+                mw={effectiveMw}
                 substations={results.substations}
               />
             </div>
@@ -1154,7 +1190,7 @@ function SearchContent() {
             <LensPolicyClimateSection
               policyEvents={results.policyEvents || []}
               stateName={results.stateProgram?.name || results.form.state}
-              mw={results.form.mw}
+              mw={effectiveMw}
               technology={results.form.technology}
             />
             </div>
@@ -1188,7 +1224,7 @@ function SearchContent() {
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
               technology={results.form.technology}
-              mw={results.form.mw}
+              mw={effectiveMw}
             />
 
             {/* § 06 Regulatory Watch — chronological feed of policy_impact_events

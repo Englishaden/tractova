@@ -75,6 +75,8 @@ export default function ScenarioStudio({
   stage = null,
   stateName = '',
   mw = null,
+  searchMw = null,
+  onMwChange = null,
 }) {
   const { showToast } = useToast()
   const [activeTab, setActiveTab] = useState(() => {
@@ -345,6 +347,8 @@ export default function ScenarioStudio({
           technology={technology || baseline?.technologyLabel || baseline?.technology}
           stage={stage}
           mw={mw ?? baseline?.inputs?.systemSizeMW}
+          searchMw={searchMw}
+          onMwChange={onMwChange}
           stateName={stateName || baseline?.stateLabel || baseline?.stateId}
           countyName={countyName}
         />
