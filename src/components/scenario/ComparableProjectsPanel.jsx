@@ -88,8 +88,9 @@ export default function ComparableProjectsPanel({ state, stateName, technology, 
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-gray-100">
-                <td className="py-1 pr-2 text-ink font-medium truncate max-w-[180px]">
-                  {r.id}
+                <td className="py-1 pr-2 text-ink font-medium truncate max-w-[200px]"
+                  title={r.name && r.name !== r.id ? `${r.name} · ${r.id}` : r.id}>
+                  {r.name || r.id}
                 </td>
                 <td className="py-1 pr-2 text-ink">{r.mw != null ? r.mw.toFixed(1) : '—'}</td>
                 <td className="py-1 pr-2 text-gray-600">

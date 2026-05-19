@@ -12,9 +12,11 @@
 // (CS / C&I / BESS / Hybrid) — pillar shapes differ enough that a single
 // table doesn't fit cleanly.
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import GlossaryLabel from '../ui/GlossaryLabel'
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
+import FieldSelect from '../FieldSelect'
 import ComparableProjectsPanel from './ComparableProjectsPanel'
 
 const VERDICT_PALETTE = {
@@ -30,19 +32,24 @@ function classifyVerdict(composite) {
   return 'nogo'
 }
 
+// Subscription presets — Tractova editorial brackets (not anchored to a
+// specific empirical source). Real CS subscription rates land anywhere
+// in [50%, 100%] depending on program age, marketing, LMI mandate,
+// utility partnership. The presets are a "pick the regime" shortcut;
+// see audit note in BUILD_LOG for the slider-replacement question.
 const SUBSCRIPTION_PRESETS = [
-  { key: 'pessimistic', label: 'Pessimistic', pct: 60, hint: 'Subscriber acquisition lags — typical for first-year CS launches in non-LMI states.' },
-  { key: 'realistic',   label: 'Realistic',   pct: 80, hint: 'Industry median fill rate for active CS programs (LBNL CS Cost Study 2024).' },
-  { key: 'full',        label: 'Full',        pct: 100, hint: 'Best-case subscription — assumes anchor offtaker or community CCA partnership.' },
+  { key: 'pessimistic', label: 'Pessimistic · 60%', pct: 60, hint: 'Slow subscriber acquisition. Typical for first-year CS launches without anchor offtaker, or for sub-scale projects in markets with weak retail-rate displacement.' },
+  { key: 'realistic',   label: 'Realistic · 80%',   pct: 80, hint: 'Mid-range fill rate for active CS programs after 12–18 months of marketing. Editorial estimate — actual rates vary widely by state, utility, and LMI mandate.' },
+  { key: 'full',        label: 'Full · 100%',       pct: 100, hint: 'Best-case subscription — assumes anchor offtaker, established CCA partnership, or fully-LMI-allocated project with state subscription guarantee.' },
 ]
 
 const IX_ASSUMPTIONS = [
-  { key: 'queue',     label: 'Stand in queue',  hint: 'Greenfield project — file fresh IX study, accept current queue position.' },
-  { key: 'acquire',   label: 'Acquire position', hint: 'Buy a mid-queue position from a developer who exited — skips the wait but adds acquisition cost.' },
-  { key: 'fast_lane', label: 'Express upgrade', hint: 'Distribution-tied small project (<2 MW) eligible for utility fast-lane in some states.' },
+  { key: 'queue',         label: 'Stand in queue',     hint: 'Greenfield project — file fresh IX study, accept current queue position. Average study window for the state shown on the IX pillar card.' },
+  { key: 'acquire',       label: 'Acquire position',   hint: 'Buy a mid-queue position from a developer who exited or dropped out. Skips the wait but adds acquisition cost (typically $5k–$50k/MW) and inherits any prior study assumptions.' },
+  { key: 'distribution',  label: 'Distribution fast-track', hint: 'Distribution-tied small project (typically <2 MW) eligible for the utility fast-track interconnection path in states that support it. Bypasses transmission-queue delays.' },
 ]
 
-const COD_YEARS = [2026, 2027, 2028, 2029, 2030]
+const COD_YEAR_OPTIONS = ['2026', '2027', '2028', '2029', '2030']
 
 export default function DevFeasibilityView({
   stateProgram,
@@ -105,6 +112,7 @@ export default function DevFeasibilityView({
   const isCS = technology === 'Community Solar' || technology === 'Hybrid'
 
   return (
+    <TooltipProvider delayDuration={150}>
     <div className="px-6 py-5 space-y-5">
       <VerdictTile
         verdict={verdict}
@@ -164,6 +172,7 @@ export default function DevFeasibilityView({
         mw={levers.mw}
       />
     </div>
+    </TooltipProvider>
   )
 }
 
@@ -225,12 +234,12 @@ function PillarReadout({ label, value }) {
 
 function verdictRationale(verdict, subScores) {
   const weakest = [
-    { name: 'offtake', val: subScores.offtake },
-    { name: 'interconnection', val: subScores.ix },
-    { name: 'site', val: subScores.site },
+    { name: 'Offtake', val: subScores.offtake },
+    { name: 'Interconnection', val: subScores.ix },
+    { name: 'Site', val: subScores.site },
   ].sort((a, b) => a.val - b.val)[0]
 
-  if (verdict === 'go') return `All four pillars clear the build-it threshold. Watch ${weakest.name} (${Math.round(weakest.val)}) as the weakest link.`
+  if (verdict === 'go') return `All pillars clear the build-it threshold. Watch ${weakest.name} (${Math.round(weakest.val)}/100) as the weakest link.`
   if (verdict === 'caution') return `Mixed signals — ${weakest.name} is the dominant friction at ${Math.round(weakest.val)}/100. Diligence the bottom-ranked pillar before committing capex.`
   return `${weakest.name} scores ${Math.round(weakest.val)}/100. Either the market structure or the site fundamentally doesn't support this project shape.`
 }
@@ -253,6 +262,28 @@ function PillarCardShell({ pillarLabel, subScore, coverage, children }) {
   )
 }
 
+// Coverage chip lineage taxonomy — matches scoreEngine.js coverage tiers.
+// Source of truth for the body copy is the comments in computeSubScores.
+const COVERAGE_TOOLTIPS = {
+  live: {
+    title: 'Live data',
+    body: 'Score is driven by real-time data — IX queue scrapes (8 CS states), county geospatial (NWI wetlands + SSURGO farmland, all 3,142 counties), or live news/PUC ingest. Refreshed on cron; data-age stamps surface staleness when scrapers lag.',
+  },
+  researched: {
+    title: 'Researched · curated',
+    body: 'Score uses Tractova-curated baseline values — county_intelligence boolean (~18 states seeded), CS program status from state_programs (all 50 states). Stable but not live; updated when manual research lands.',
+  },
+  curated: {
+    title: 'Curated baseline',
+    body: 'Score uses the state-level curated baseline (e.g. ixDifficulty tier from state_programs). All 50 states have a curated value; the live-blend overlay applies only where ix_queue_data is wired.',
+  },
+  fallback: {
+    title: 'Fallback estimate',
+    body: 'Curated data not yet seeded for this state/county — score uses a neutral placeholder (50–60 depending on pillar). Treat as low-confidence; verify directly before using to make a decision.',
+  },
+  none: null,
+}
+
 function CoverageChip({ coverage }) {
   if (!coverage || coverage === 'none') return null
   const palette =
@@ -260,11 +291,26 @@ function CoverageChip({ coverage }) {
     coverage === 'researched' ? { bg: 'rgba(15,26,46,0.06)', fg: '#475569' } :
     coverage === 'curated' ? { bg: 'rgba(15,26,46,0.06)', fg: '#475569' } :
     { bg: 'rgba(217,119,6,0.10)', fg: '#92400E' }
+  const tip = COVERAGE_TOOLTIPS[coverage]
   return (
     <div className="mt-2 pt-2 border-t border-gray-100">
-      <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm" style={{ background: palette.bg, color: palette.fg }}>
-        {coverage}
-      </span>
+      {tip ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm cursor-help" style={{ background: palette.bg, color: palette.fg }}>
+              {coverage}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{tip.title}</p>
+            <p className="leading-relaxed">{tip.body}</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm" style={{ background: palette.bg, color: palette.fg }}>
+          {coverage}
+        </span>
+      )}
     </div>
   )
 }
@@ -375,6 +421,13 @@ function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
 // ── Feasibility levers ─────────────────────────────────────────────────────
 
 function FeasibilityLevers({ levers, onChange, isCS }) {
+  const subscriptionLabels = SUBSCRIPTION_PRESETS.map(p => p.label)
+  const subscriptionTooltips = Object.fromEntries(SUBSCRIPTION_PRESETS.map(p => [p.label, p.hint]))
+  const ixLabels = IX_ASSUMPTIONS.map(p => p.label)
+  const ixTooltips = Object.fromEntries(IX_ASSUMPTIONS.map(p => [p.label, p.hint]))
+  const currentSubscriptionLabel = SUBSCRIPTION_PRESETS.find(p => p.key === levers.subscription)?.label || ''
+  const currentIxLabel = IX_ASSUMPTIONS.find(p => p.key === levers.ixAssumption)?.label || ''
+
   return (
     <div className="rounded-lg px-4 py-3 bg-white" style={{ border: '1px solid #E2E8F0' }}>
       <div className="flex items-center gap-2 mb-3">
@@ -386,9 +439,9 @@ function FeasibilityLevers({ levers, onChange, isCS }) {
         <span className="text-[10px] text-gray-400 italic">project-shape assumptions · informational</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
         <div>
-          <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1">
+          <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1.5">
             Project Size
           </label>
           <input
@@ -404,48 +457,39 @@ function FeasibilityLevers({ levers, onChange, isCS }) {
           <div className="text-[11px] font-mono tabular-nums text-ink mt-1">{levers.mw.toFixed(1)} MW</div>
         </div>
 
-        <div>
-          <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1">
-            Target COD
-          </label>
-          <select
-            value={levers.codYear}
-            onChange={(e) => onChange({ ...levers, codYear: parseInt(e.target.value, 10) })}
-            className="w-full text-[11px] px-2 py-1 rounded-sm border border-gray-200 bg-white font-mono tabular-nums"
-          >
-            {COD_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
+        <FieldSelect
+          label="Target COD"
+          value={String(levers.codYear)}
+          onChange={(val) => onChange({ ...levers, codYear: parseInt(val, 10) })}
+          options={COD_YEAR_OPTIONS}
+          placeholder="Select…"
+        />
 
         {isCS && (
-          <div>
-            <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1">
-              Subscription
-            </label>
-            <select
-              value={levers.subscription}
-              onChange={(e) => onChange({ ...levers, subscription: e.target.value })}
-              className="w-full text-[11px] px-2 py-1 rounded-sm border border-gray-200 bg-white"
-              title={SUBSCRIPTION_PRESETS.find(p => p.key === levers.subscription)?.hint}
-            >
-              {SUBSCRIPTION_PRESETS.map(p => <option key={p.key} value={p.key}>{p.label} · {p.pct}%</option>)}
-            </select>
-          </div>
+          <FieldSelect
+            label="Subscription"
+            value={currentSubscriptionLabel}
+            onChange={(val) => {
+              const next = SUBSCRIPTION_PRESETS.find(p => p.label === val)
+              if (next) onChange({ ...levers, subscription: next.key })
+            }}
+            options={subscriptionLabels}
+            optionTooltips={subscriptionTooltips}
+            placeholder="Select…"
+          />
         )}
 
-        <div>
-          <label className="block text-[10px] font-mono uppercase tracking-[0.18em] font-semibold text-gray-500 mb-1">
-            IX Assumption
-          </label>
-          <select
-            value={levers.ixAssumption}
-            onChange={(e) => onChange({ ...levers, ixAssumption: e.target.value })}
-            className="w-full text-[11px] px-2 py-1 rounded-sm border border-gray-200 bg-white"
-            title={IX_ASSUMPTIONS.find(p => p.key === levers.ixAssumption)?.hint}
-          >
-            {IX_ASSUMPTIONS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
-        </div>
+        <FieldSelect
+          label="IX Assumption"
+          value={currentIxLabel}
+          onChange={(val) => {
+            const next = IX_ASSUMPTIONS.find(p => p.label === val)
+            if (next) onChange({ ...levers, ixAssumption: next.key })
+          }}
+          options={ixLabels}
+          optionTooltips={ixTooltips}
+          placeholder="Select…"
+        />
       </div>
     </div>
   )

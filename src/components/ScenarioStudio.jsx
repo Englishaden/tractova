@@ -288,6 +288,7 @@ export default function ScenarioStudio({
   }
 
   return (
+    <TooltipProvider delayDuration={150}>
     <article
       className="mb-6 bg-white rounded-lg overflow-hidden relative"
       style={{ border: '1px solid #E2E8F0' }}
@@ -425,7 +426,6 @@ export default function ScenarioStudio({
               Applies modest 15-30% multipliers to the helpful sliders so the
               user can quickly see a reasonable upside vs. downside without
               learning the slider semantics first. */}
-          <TooltipProvider delayDuration={150}>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[9px] font-mono uppercase tracking-[0.20em] text-gray-500 font-bold mr-1">
               Try
@@ -470,7 +470,6 @@ export default function ScenarioStudio({
               </button>
             )}
           </div>
-          </TooltipProvider>
 
           {sliderConfig.map((cfg) => (
             <SliderRow
@@ -678,6 +677,7 @@ export default function ScenarioStudio({
       </>}
 
     </article>
+    </TooltipProvider>
   )
 }
 
@@ -728,6 +728,29 @@ const LINEAGE_PALETTE = {
   user:     { bg: 'rgba(15,26,46,0.06)',   fg: '#475569', border: 'rgba(15,26,46,0.18)' },
 }
 
+// Lineage tooltip copy — promoted from inline `title` strings to Radix
+// Tooltip bodies so they render in the same styled box as the rest of
+// the app (teal-border navy popover) and break across multiple lines
+// cleanly. Each tone gets a title + 1–2 sentence body.
+const LINEAGE_TOOLTIPS = {
+  observed: {
+    title: 'Observed source',
+    body: 'Pulled from a published, observable dataset — REC market clearing prices, EIA Form 861 PPA rates, NREL PVWatts capacity factors, statutory ITC %, or CS bill-credit tariffs filed with state PUCs. The number you see is the source number, not a Tractova synthesis.',
+  },
+  synth: {
+    title: 'Tractova synthesis',
+    body: 'Capex baselines are forward-extrapolated from observed 2023 NREL TTS medians to 2026 via editorial bumps for YoY cost trajectory, tariff/FEOC phase-in, reshoring, and supply-chain logistics. Directionally informed but not a real-time observation. Tune the slider toward your actual site quote.',
+  },
+  industry: {
+    title: 'Industry default',
+    body: 'Applied uniformly across all states and sites — IX cost ($0.10/W typical CS interconnection), opex ($20/kW/yr Wood Mac H2 2025), or program subscription default (100%). Not site-specific; tune toward your project diligence.',
+  },
+  user: {
+    title: 'User input',
+    body: 'Default starting value with no empirical anchor — Tractova picked a reasonable midpoint (8% discount rate, 25-yr contract tenor) so the sensitivity analysis can run. Move freely to reflect your deal structure or financing assumptions.',
+  },
+}
+
 // Color tokens for the three directional slider states. Equal-to-baseline is
 // a slate-blue (no judgment, just "this is the starting point"). Better is
 // teal (the platform's positive accent). Worse is amber (softer than red,
@@ -768,22 +791,24 @@ function SliderRow({ cfg, value, onChange }) {
           />
           {cfg.unit && <span className="text-[10px] text-gray-500 font-mono">{cfg.unit}</span>}
           {lineage && (
-            <span
-              className="eyebrow-mono px-1.5 py-0.5 rounded-sm"
-              style={{
-                background: lineagePalette.bg,
-                color: lineagePalette.fg,
-                border: `1px solid ${lineagePalette.border}`,
-              }}
-              title={
-                lineage.tone === 'observed' ? 'Pulled from a published, observable source — REC market, NREL PVWatts, EIA, etc.' :
-                lineage.tone === 'synth' ? 'Tractova synthesis — capex baselines are forward-extrapolated from 2023 NREL TTS to 2026 via editorial bumps. Tune to your site.' :
-                lineage.tone === 'industry' ? 'Industry default — applied across all states/sites. Tune toward your actual quote.' :
-                'User-controlled default — drag to model alternatives.'
-              }
-            >
-              {lineage.label}
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="eyebrow-mono px-1.5 py-0.5 rounded-sm cursor-help"
+                  style={{
+                    background: lineagePalette.bg,
+                    color: lineagePalette.fg,
+                    border: `1px solid ${lineagePalette.border}`,
+                  }}
+                >
+                  {lineage.label}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{LINEAGE_TOOLTIPS[lineage.tone].title}</p>
+                <p className="leading-relaxed">{LINEAGE_TOOLTIPS[lineage.tone].body}</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">

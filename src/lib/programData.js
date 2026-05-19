@@ -1034,6 +1034,7 @@ export async function getCsProjectsAsComparables({ state, technology, mwRange } 
 
       return data.map((p) => ({
         id:                p.project_id,
+        name:              p.project_name || null,
         mw:                p.system_size_mw_ac,
         technology:        'Community Solar',
         status:            'operational',                 // Sharing the Sun = operating only
