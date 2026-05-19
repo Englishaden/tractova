@@ -1,25 +1,34 @@
 // Structured Lens form rendered inside the Cmd-K palette. Replaces the
-// position-argument grammar (:lens MA 5 CS) with discrete labeled fields
-// so the user doesn't have to memorize token order or which tech codes
-// map to which technology. The colon shorthand still works — when typed,
-// the parsed args pre-fill these fields and focus jumps to the first
-// empty one (typically County, since the shorthand doesn't carry it).
+// position-argument grammar (:lens MA 5 CS — hard to memorize, token
+// order matters) with the same labeled-card vocabulary used by the
+// full Lens form on /search. The colon shorthand still works as a
+// quick-fill — when typed, the parsed args pre-fill these fields and
+// focus jumps to the first empty one (typically County, since the
+// shorthand doesn't carry it).
 //
-// Submit dispatches a navigation event back to the palette, which closes
-// the dialog and navigates to /search?state=...&county=...&mw=...&tech=...
-// The auto-submit effect in Search.jsx (signature-tracked, post 4546426)
-// then re-fires the analysis with the new params.
+// Field chrome matches src/pages/Search.jsx exactly:
+//   - State / Stage / Technology use FieldSelect (white card + internal
+//     mono label + chevron + dropdown list with option tooltips).
+//   - County uses CountyCombobox (searchable; same card chrome).
+//   - MW uses a hand-rolled labeled card with a number input — same
+//     pattern as the MW field on /search line 818.
 //
-// Tab order: State → County → MW → Tech → Stage → Run. Enter on Tech or
-// Stage chip selects; Enter on any other input submits if all fields are
-// complete. Esc cancels (returns palette to normal mode).
+// Submit dispatches back to the palette, which navigates to
+// /search?state=...&county=...&mw=...&technology=...&stage=... — the
+// signature-tracked auto-submit effect in Search.jsx then re-fires
+// the analysis with the new params.
 
 import { useEffect, useRef, useState } from 'react'
-import { ALL_STATES, STAGES, TECHNOLOGIES_FLAT } from '../../lib/lensFormConstants'
+import { ALL_STATES, STAGES, TECHNOLOGIES } from '../../lib/lensFormConstants'
+import FieldSelect from '../FieldSelect'
 import CountyCombobox from '../CountyCombobox'
 
-const FIELD_LABEL_CLS = 'font-mono text-[9px] uppercase tracking-[0.18em] font-semibold text-gray-500'
-const INPUT_BASE_CLS = 'w-full text-sm bg-white border border-gray-200 rounded-md px-3 py-2 text-ink placeholder-gray-400 outline-hidden focus-visible:border-teal-500 focus-visible:ring-2 focus-visible:ring-teal-500/15'
+const STATE_OPTIONS = ALL_STATES.map(s => s.name)
+
+// Field-card chrome matches /search MW input pattern (Search.jsx:818).
+const FIELD_CARD_CLS = 'bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15'
+const LABEL_CLS = 'block text-[10px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5 flex items-center gap-1.5'
+const INNER_INPUT_CLS = 'w-full text-sm bg-transparent border-0 outline-hidden px-0 py-0 text-gray-900 placeholder-gray-400 appearance-none'
 
 export default function PaletteLensForm({
   initial = {},
@@ -35,36 +44,26 @@ export default function PaletteLensForm({
   const [tech, setTech] = useState(initial.tech || '')
   const [stage, setStage] = useState(initial.stage || '')
 
-  const stateRef = useRef(null)
-  const countyRef = useRef(null)
   const mwRef = useRef(null)
   const submitRef = useRef(null)
 
-  // Auto-focus first empty field on mount. If state is pre-filled (via
-  // colon shorthand), jump to County which is almost always empty.
+  // Auto-focus the first empty field on mount. If state pre-filled (via
+  // colon shorthand), skip directly to whichever field comes next —
+  // usually County, occasionally MW.
   useEffect(() => {
     const t = setTimeout(() => {
-      if (!stateId) stateRef.current?.focus()
-      else if (!county) countyRef.current?.focus()
-      else if (!mw) mwRef.current?.focus()
-      else submitRef.current?.focus()
+      if (!mw && stateId) {
+        mwRef.current?.focus()
+      } else if (!stateId) {
+        // No reliable ref into FieldSelect's internal display — rely on
+        // browser focus order: Tab from here lands on the first FieldSelect.
+      } else if (stateId && county && mw) {
+        submitRef.current?.focus()
+      }
     }, 60)
     return () => clearTimeout(t)
-  // Intentionally empty deps — focus once on mount; subsequent edits
-  // are user-driven and shouldn't re-yank focus.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Clear county when state changes — county options are state-scoped.
-  useEffect(() => {
-    setCounty(prev => {
-      // Only clear if the new state is genuinely different and the
-      // previous county wasn't carried in from `initial`.
-      if (prev && !initial.county) return ''
-      return prev
-    })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stateId])
 
   const isComplete = Boolean(stateId && county && mw && tech && stage)
   const stateName = ALL_STATES.find(s => s.id === stateId)?.name || ''
@@ -79,10 +78,10 @@ export default function PaletteLensForm({
     if (e.key === 'Escape') {
       e.preventDefault()
       onCancel?.()
-    } else if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
-      // Enter from a text input / select submits if complete.
+    } else if (e.key === 'Enter' && e.target.tagName !== 'BUTTON' && isComplete) {
+      // Enter from any input submits when the form is complete.
       e.preventDefault()
-      if (isComplete) handleSubmit()
+      handleSubmit()
     }
   }
 
@@ -90,92 +89,96 @@ export default function PaletteLensForm({
     <form
       onSubmit={handleSubmit}
       onKeyDown={handleKeyDown}
-      className="px-4 py-3 space-y-3 bg-white"
+      className="px-4 py-3 space-y-2.5 bg-white"
       aria-label="Lens — quick run"
     >
       <div className="flex items-center gap-2 mb-1">
         <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: '#0F766E' }}>
           Lens — Quick Run
         </span>
-        <span className="text-[10px] text-gray-400 italic">structured form replaces :lens shorthand · Tab cycles fields</span>
+        <span className="text-[10px] text-gray-400 italic">structured form · Tab cycles fields · ↵ to run</span>
       </div>
 
-      <FieldRow label="State">
-        <select
-          ref={stateRef}
-          value={stateId}
-          onChange={(e) => setStateId(e.target.value)}
-          className={INPUT_BASE_CLS}
-          required
-        >
-          <option value="">Select state…</option>
-          {ALL_STATES.map(s => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
-      </FieldRow>
-
-      <FieldRow label="County">
-        <div ref={countyRef}>
-          <CountyComboboxWrap
-            stateId={stateId}
-            value={county}
-            onValueChange={setCounty}
-          />
-        </div>
-      </FieldRow>
-
-      <FieldRow label="Size (MW AC)">
-        <input
-          ref={mwRef}
-          type="number"
-          min="0.1"
-          step="0.1"
-          value={mw}
-          onChange={(e) => setMw(e.target.value)}
-          placeholder="e.g. 5"
-          className={INPUT_BASE_CLS}
+      {/* Two-column grid on wider palette viewports; single-column stack
+          on narrow. Mirrors the /search form's information density without
+          inheriting its 5-col compression. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {/* State — FieldSelect (matches /search:797) */}
+        <FieldSelect
+          label="State"
+          labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>}
+          value={stateName}
+          onChange={(name) => {
+            const s = ALL_STATES.find(s => s.name === name)
+            setStateId(s?.id || '')
+            // Clear county whenever state changes — county options are
+            // state-scoped (matches /search:803 behavior).
+            if (s?.id !== stateId) setCounty('')
+          }}
+          options={STATE_OPTIONS}
+          placeholder="Select state…"
           required
         />
-      </FieldRow>
 
-      <FieldRow label="Technology">
-        <div className="flex flex-wrap gap-1.5">
-          {TECHNOLOGIES_FLAT.map(t => (
-            <ChipButton
-              key={t}
-              active={tech === t}
-              onClick={() => setTech(t)}
-              ariaPressed={tech === t}
-            >
-              {t}
-            </ChipButton>
-          ))}
-        </div>
-      </FieldRow>
+        {/* County — CountyCombobox (matches /search:811). Renders its
+            own labeled-card chrome; no external wrapper needed. */}
+        <CountyCombobox
+          stateId={stateId}
+          value={county}
+          onValueChange={setCounty}
+        />
 
-      <FieldRow label="Stage">
-        <div className="flex flex-wrap gap-1.5">
-          {STAGES.map(s => (
-            <ChipButton
-              key={s}
-              active={stage === s}
-              onClick={() => setStage(s)}
-              ariaPressed={stage === s}
-            >
-              {s.split(' (')[0]}
-            </ChipButton>
-          ))}
+        {/* MW — labeled card with number input (matches /search:818) */}
+        <div className={FIELD_CARD_CLS}>
+          <label className={LABEL_CLS} style={{ color: 'var(--color-primary-700, #0F766E)' }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Project Size (MW AC)
+          </label>
+          <input
+            ref={mwRef}
+            type="number"
+            min="0.1"
+            step="0.1"
+            value={mw}
+            onChange={(e) => setMw(e.target.value)}
+            placeholder="e.g. 5"
+            required
+            className={INNER_INPUT_CLS}
+          />
         </div>
-      </FieldRow>
+
+        {/* Tech — FieldSelect (matches /search:847) */}
+        <FieldSelect
+          label="Technology"
+          labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>}
+          value={tech}
+          onChange={setTech}
+          options={TECHNOLOGIES}
+          placeholder="Select type…"
+          required
+        />
+
+        {/* Stage — FieldSelect (matches /search:836) */}
+        <div className="sm:col-span-2">
+          <FieldSelect
+            label="Development Stage"
+            labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>}
+            value={stage}
+            onChange={setStage}
+            options={STAGES}
+            placeholder="Select stage…"
+            required
+          />
+        </div>
+      </div>
 
       <div className="flex items-center justify-between gap-3 pt-2 border-t" style={{ borderColor: '#E2E8F0' }}>
-        <span className="text-[10px] font-mono text-gray-400">
+        <span className="text-[10px] font-mono text-gray-400 truncate">
           {isComplete
             ? `Ready · ${stateName} · ${county} · ${mw} MW · ${tech} · ${stage.split(' (')[0]}`
             : 'Fill all fields to enable Run Lens'}
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={onCancel}
@@ -198,45 +201,5 @@ export default function PaletteLensForm({
         </div>
       </div>
     </form>
-  )
-}
-
-function FieldRow({ label, children }) {
-  return (
-    <div className="grid grid-cols-[120px_1fr] gap-3 items-center">
-      <span className={FIELD_LABEL_CLS}>{label}</span>
-      <div>{children}</div>
-    </div>
-  )
-}
-
-function ChipButton({ active, onClick, ariaPressed, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={ariaPressed}
-      className="cursor-pointer font-mono text-[10px] uppercase tracking-[0.14em] font-semibold px-2.5 py-1 rounded-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/40"
-      style={
-        active
-          ? { background: '#0F766E', color: 'white', border: '1px solid #0F766E' }
-          : { background: 'white', color: '#475569', border: '1px solid #E2E8F0' }
-      }
-    >
-      {children}
-    </button>
-  )
-}
-
-// CountyCombobox renders its own inputs; wrap it in the same border+pad
-// shell as the native inputs so the form has consistent chrome.
-function CountyComboboxWrap({ stateId, value, onValueChange }) {
-  return (
-    <div
-      className="w-full text-sm bg-white border border-gray-200 rounded-md px-3 py-1.5 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 transition-colors"
-      style={{ minHeight: 38 }}
-    >
-      <CountyCombobox stateId={stateId} value={value} onValueChange={onValueChange} />
-    </div>
   )
 }

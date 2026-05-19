@@ -180,11 +180,20 @@ export default function CommandPalette() {
 
   useEffect(() => {
     if (open) {
+      // On open: focus the input. DON'T reset mode here — that would
+      // override the Cmd-Shift-L handler's setMode('lens') that fires
+      // in the same render cycle. Mode resets happen on CLOSE so the
+      // next open starts clean unless a hotkey explicitly chose a mode.
+      setTimeout(() => inputRef.current?.focus(), 50)
+    } else {
+      // On close: reset to normal mode + clear input so the next Cmd-K
+      // open is a fresh palette. Cmd-Shift-L sets mode='lens' AFTER
+      // setOpen(true) — which only triggers this effect on the CLOSE
+      // transition, never the open transition.
+      setMode('normal')
       setQ('')
       setActiveIndex(0)
-      setMode('normal')
       setLensInitial({})
-      setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [open])
 
