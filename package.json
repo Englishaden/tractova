@@ -20,6 +20,7 @@
     "lint:secrets": "node scripts/lint-secrets.mjs",
     "lint:audit": "node scripts/audit-check.mjs",
     "lint:locs": "node scripts/lint-locs.mjs",
+    "audit:visual": "node scripts/visual-audit.mjs",
     "verify": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run test:unit && npm run build && npm run test:smoke",
     "verify:full": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run test:unit && npm run build && npm run test:smoke:all"
   },
