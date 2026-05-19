@@ -1,5 +1,4 @@
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
-import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
 
 export default function SiteControlCard({ siteControl, interconnection, geospatial, stateName, county, stateId, mw, substations }) {
@@ -123,14 +122,11 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
     },
   ]
 
+  // Outer chrome moved to PillarDetailModal — see OfftakeCard for the
+  // same refactor pattern. Header info (eyebrow + title + caption) now
+  // renders in the modal tab strip.
   return (
-    <CollapsibleCard
-      accentColor="#2563EB"
-      eyebrow="03 / Site Control"
-      title={`${county} County`}
-      caption={stateName.toUpperCase()}
-    >
-      {/* Body */}
+    <div className="space-y-4">
       <div className="px-5 py-4">
         {/* Population density context */}
         <div className="flex items-center gap-2 mb-3">
@@ -303,6 +299,6 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           Site control flags are screening signals. Always confirm with a per-site survey (Phase I ESA, parcel-level wetland delineation, county zoning verification) before committing capital.
         </p>
       </CardDrilldown>
-    </CollapsibleCard>
+    </div>
   )
 }

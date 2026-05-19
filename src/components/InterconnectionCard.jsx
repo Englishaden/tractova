@@ -1,4 +1,3 @@
-import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
 import { EaseArcGauge, QueueBadge, SectionLabel } from '../lib/searchShared.jsx'
 
@@ -29,14 +28,11 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
   }
   const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${n.toLocaleString()}`
 
+  // Outer chrome moved to PillarDetailModal — see OfftakeCard for the
+  // same refactor pattern. Header info (eyebrow + title + caption) now
+  // renders in the modal tab strip.
   return (
-    <CollapsibleCard
-      accentColor="#D97706"
-      eyebrow="02 / Interconnection"
-      title={servingUtility || 'Utility TBD'}
-      caption="QUEUE & UPGRADE COST CONDITIONS"
-    >
-      {/* Body */}
+    <div className="space-y-4">
       <div className="px-5 py-4 space-y-4">
         {/* Utility · Queue · Ease — single structured panel matching the
             ISO Queue Data block below for visual consistency. Replaces the
@@ -233,6 +229,6 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
           Ease score is a leading indicator. Confirm interconnection economics with a system-impact study before committing capital — actual upgrade costs vary 2–3× from cluster-average benchmarks.
         </p>
       </CardDrilldown>
-    </CollapsibleCard>
+    </div>
   )
 }

@@ -7,9 +7,10 @@ import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import MarketPositionPanel from '../components/MarketPositionPanel.jsx'
-import SiteControlCard from '../components/SiteControlCard.jsx'
-import InterconnectionCard from '../components/InterconnectionCard.jsx'
-import OfftakeCard from '../components/OfftakeCard.jsx'
+import OfftakeCardSummary from '../components/lens/OfftakeCardSummary.jsx'
+import InterconnectionCardSummary from '../components/lens/InterconnectionCardSummary.jsx'
+import SiteControlCardSummary from '../components/lens/SiteControlCardSummary.jsx'
+import PillarDetailModal from '../components/lens/PillarDetailModal.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
 import LensPolicyClimateSection from '../components/LensPolicyClimateSection.jsx'
 import LensComparablesSection from '../components/LensComparablesSection.jsx'
@@ -351,6 +352,9 @@ function SearchContent() {
   const searchMw = Number.isFinite(searchMwRaw) && searchMwRaw > 0 ? searchMwRaw : null
   const effectiveMw = Number.isFinite(liveMw) && liveMw > 0 ? liveMw : searchMw
   const mwDiverged = effectiveMw != null && searchMw != null && Math.abs(effectiveMw - searchMw) > 0.01
+  // §04 Pillar Detail Modal — single mount, active pillar drives which tab
+  // body renders. null = modal closed.
+  const [activePillar, setActivePillar] = useState(null)
   // Look up the most recent saved project matching the current Lens
   // context (state + county + tech). When found, scenarios saved from
   // the Studio attach to that project_id so the Library card can show
@@ -1149,38 +1153,49 @@ function SearchContent() {
                 consistent white surface. items-start: cards size independently. */}
             <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site · policy climate" />
             <div data-tour-id="pillars" className="space-y-5">
-            <div
-              className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start"
-            >
-              <OfftakeCard
-                stateProgram={results.stateProgram}
-                revenueStack={results.revenueStack}
-                technology={results.form.technology}
-                mw={effectiveMw}
-                rates={results.revenueRates}
-                energyCommunity={results.energyCommunity}
-                nmtcLic={results.nmtcLic}
-                hudQctDda={results.hudQctDda}
-                county={results.form.county}
-              />
-              <InterconnectionCard
-                interconnection={results.countyData?.interconnection}
-                stateProgram={results.stateProgram}
-                stateId={results.stateProgram?.id}
-                mw={effectiveMw}
-                queueSummary={results.ixQueueSummary}
-              />
-              <SiteControlCard
-                siteControl={results.countyData?.siteControl}
-                interconnection={results.countyData?.interconnection}
-                geospatial={results.countyData?.geospatial}
-                stateName={results.stateProgram?.name || results.form.state}
-                county={results.form.county}
-                stateId={results.stateProgram?.id}
-                mw={effectiveMw}
-                substations={results.substations}
-              />
-            </div>
+            {(() => {
+              // Structural sub-scores drive the §04 summary card gauges.
+              // Same math as the Lens header Feasibility Index — single
+              // source of truth across the result panel. Dev Feasibility
+              // tab (§03) layers lever adjustments on top of this baseline.
+              const sub = computeSubScores(
+                results.stateProgram,
+                results.countyData,
+                results.form.stage,
+                results.form.technology,
+                results.ixQueueSummary,
+                results.policyEvents,
+                effectiveMw,
+              )
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+                  <OfftakeCardSummary
+                    stateProgram={results.stateProgram}
+                    score={sub.offtake}
+                    coverage={sub.coverage?.offtake}
+                    technology={results.form.technology}
+                    mw={effectiveMw}
+                    onOpen={() => setActivePillar('offtake')}
+                  />
+                  <InterconnectionCardSummary
+                    interconnection={results.countyData?.interconnection}
+                    queueSummary={results.ixQueueSummary}
+                    score={sub.ix}
+                    coverage={sub.coverage?.ix}
+                    onOpen={() => setActivePillar('ix')}
+                  />
+                  <SiteControlCardSummary
+                    siteControl={results.countyData?.siteControl}
+                    geospatial={results.countyData?.geospatial}
+                    county={results.form.county}
+                    stateName={results.stateProgram?.name || results.form.state}
+                    score={sub.site}
+                    coverage={sub.coverage?.site}
+                    onOpen={() => setActivePillar('site')}
+                  />
+                </div>
+              )
+            })()}
 
             {/* Shadow pillar — re-enabled 2026-05-11 in OOM bisect step.
                 Step 1: re-enable this (lighter — uses existing
@@ -1273,6 +1288,38 @@ function SearchContent() {
           caveats one click away from the Lens disclaimer. Opens on
           "Data limitations →" click in the bottom CTA block. */}
       <DataLimitationsModal open={dataLimitationsOpen} onOpenChange={setDataLimitationsOpen} />
+
+      {/* §04 Pillar Detail Modal — Bloomberg-style fullscreen overlay
+          driven by the three summary cards in §04. One mount covers all
+          three pillars via the tab strip; analyst hops Offtake → IX →
+          Site without closing. Mounted at root so the focus trap and
+          backdrop sit above the result panel correctly. */}
+      {results && (
+        <PillarDetailModal
+          activePillar={activePillar}
+          onClose={() => setActivePillar(null)}
+          onPillarChange={setActivePillar}
+          pillarProps={{
+            stateProgram:    results.stateProgram,
+            countyData:      results.countyData,
+            revenueStack:    results.revenueStack,
+            technology:      results.form.technology,
+            mw:              effectiveMw,
+            rates:           results.revenueRates,
+            energyCommunity: results.energyCommunity,
+            nmtcLic:         results.nmtcLic,
+            hudQctDda:       results.hudQctDda,
+            county:          results.form.county,
+            interconnection: results.countyData?.interconnection,
+            geospatial:      results.countyData?.geospatial,
+            siteControl:     results.countyData?.siteControl,
+            stateId:         results.stateProgram?.id,
+            stateName:       results.stateProgram?.name || results.form.state,
+            substations:     results.substations,
+            queueSummary:    results.ixQueueSummary,
+          }}
+        />
+      )}
 
       {/* Save modal — sign-in prompt if not authed, name input if authed */}
       {saveModal && (

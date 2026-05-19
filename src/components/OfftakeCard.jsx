@@ -1,7 +1,6 @@
 import { computeCIRevenueProjection, computeBESSProjection, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
 import { computeBaseline } from '../lib/scenarioEngine'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
-import CollapsibleCard from './CollapsibleCard'
 import CardDrilldown from './CardDrilldown'
 import RevenueStackBar from './RevenueStackBar'
 import RevenueProjectionSection from './RevenueProjectionSection'
@@ -28,14 +27,13 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
     : null
   const lifecycleOutputs = lifecycleBaseline?.outputs ?? null
 
+  // Outer chrome is now provided by the consumer (PillarDetailModal renders
+  // this card inside the modal body; standalone usage gets the body alone).
+  // Header content (eyebrow + title + caption) moved into PillarDetailModal's
+  // tab strip — eliminates the prior CollapsibleCard wrapper + its
+  // height-auto motion (OOM landmine per BUILD_LOG 2026-05-11).
   return (
-    <CollapsibleCard
-      accentColor="#0F766E"
-      eyebrow="01 / Offtake"
-      title={isCS ? (stateProgram?.csProgram || 'No CS Program') : `${technology}`}
-      caption={isCS ? 'PROGRAM STATUS · REVENUE STACK' : 'REVENUE PROFILE'}
-    >
-      {/* Body */}
+    <div className="space-y-4">
       <div className="px-5 py-4 space-y-4">
 
         {/* Per-state $/W data lineage panel — promoted out of the methodology
@@ -598,6 +596,6 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
           Tariff rates change quarterly. Verify CS program enrollment terms, IRA bonus designations, and current bill-credit values directly with state PUC and tax counsel before committing capital.
         </p>
       </CardDrilldown>
-    </CollapsibleCard>
+    </div>
   )
 }
