@@ -4,21 +4,39 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-19 marathon close-out (27 commits, full Lens rebuild + Cmd-K UX + Glossary expansion)
+## 🟢 Pickup — 2026-05-19 evening (About Us shipped + Surveyor's Field Notes revamp + 2 new standing rules)
 
-**One-day session. 27 commits. Twelve thematic arcs. Aden returned from a 5-day camping trip and pushed the Lens / Library / Scenario Studio surfaces through a comprehensive UX rebuild. End-of-day state: every backlog item from the formal plan file is now shipped, the Glossary is canonical for every domain term that appears in UI copy, and the platform is in a strong state to sit + prod-test before the next iteration.**
+**Same-day continuation of the marathon close-out. Aden asked for the About Us page (his "eventually" item), then mid-session asked to revamp it Palantir-style after the v1 felt static. Shipped two About pages back-to-back (v1 stacked-sections → v2 animated walkthrough), an audit-findings doc, two new standing-rule memories, and an annotated Huly plan. Five commits on top of the morning's 27.**
 
-**Quick state for next session:**
-- Lens result page is the matured surface — §03 Scenario Studio (collapsible, Dev Feasibility default tab, lever-driven composite scores, structured Cmd-K form) → §04 Pillar Diagnostics (4-card summary grid + Bloomberg-style detail modal with 4 tabs) → §05 / §06 unchanged.
-- Cmd-K palette has the verb chip strip (Lens / Library / Glossary + ? help button), Cmd-Shift-L hotkey, full command reference dialog.
-- Compare lives in Lens (Add to Compare) + Library (chip + bulk + Comparisons tab) — removed from the palette entirely per Aden's call.
-- Library map: cool slate canvas, max-width 1100px, warm-paper empty states (cool/warm contrast).
-- Glossary: 55 entries, all UI-surfaced industry terms covered.
-- Test suite: 158/158 unit (was 129 at session start), 7/7 smoke.
+**What's live on prod NOW (Vercel auto-deployed from main):**
+- **`/about`** — "Surveyor's Field Notes" walkthrough. Five station nodes on a teal survey baseline; auto-advance 9s with hover-pause; navy station card crossfades; hand-drawn technical-drawing SVG illustrations per station (groma / triangulation / coverage map / field notebook); useReducedMotion honored; mobile collapses to vertical stack. Linked from Footer.
+- **No employer named anywhere on the rendered page** (function-only background). Aden Walker is named in the founder station per the naming decision he confirmed.
+- All copy from the v1 About preserved, restructured as walk stations.
 
-**Resume command:** `Continue from BUILD_LOG 2026-05-19 close-out. All formal-plan backlog items shipped. Standing rule: every new term introduced in UI copy must get a Glossary entry. Next session priorities open — likely About Us page (Aden flagged for "eventually") or prod-test feedback from the major UX changes.`
+**Commits since marathon close (b703fdc):**
+- `8d4fe9f` About v1 — stacked-sections founder-led narrative
+- `7009fe7` docs: audit-findings-2026-05-19 — primary-teal token drift finding
+- `bc51804` About: scrub Nexamp from internal comment
+- `348a029` About v2 — Surveyor's Field Notes walkthrough (replaces v1)
 
-**Workflow note (2026-05-19):** This pickup block is auto-injected at every session start by the `SessionStart` hook in `.claude/settings.json` (runs `scripts/session-pickup.mjs`) — no manual handover paste needed. Keep this section tight and current; it is the first thing every new session sees. Claude owns all git / worktree / merge plumbing end-to-end (sessions launch in per-chat worktrees; Claude fast-forwards `main` at session close). Standing rules live in CLAUDE.md + auto-memory.
+**Open items Aden flagged for next session:**
+1. **Headless visual-audit script** — Aden said "Yes build it in a sec." Proposed shape: `scripts/visual-audit.mjs` + `npm run audit:visual` — headless Playwright walks routes, captures screenshots + console messages to `audit/<timestamp>/`, writes `findings.md`. Supports `--url <preview-or-prod>` flag and mobile-viewport presets. Authed-route mode reuses `tests/auth.setup.js` storage state. ~150 LOC. **This is the next deliverable.**
+2. **Full UI/UX + functionality audit** — to be run via the headless script above once it exists, against the now-live About + the rest of the platform. The 2026-05-19 audit findings doc at `docs/audit-findings-2026-05-19.md` is only Round 1 (cut short by Playwright MCP browser instability).
+3. **Audit finding F1 — `--color-primary` token drift** — `src/index.css:41,45` still has `--color-primary: #0f6e56;` (legacy) while every component literal uses `#0F766E` (canonical). 56 `bg-primary`/`text-primary` uses across 14 files render the wrong teal. One-file fix but visually shifts every primary button site-wide — CLAUDE.md §4 needs sign-off before applying. **Awaiting Aden's go-ahead.**
+4. **Onboarding revamp (Huly plan)** — long-standing item. Plan at `~/.claude/plans/huly-onboarding-revamp.md`. **Now has a ⚠ Standing rule callout near the top: do not name Nexamp/Ameresco anywhere in the revamp.**
+
+**New standing rules added this session (already in auto-memory):**
+- **No employer naming on public surfaces** (`feedback_no_employer_naming.md`) — never name Nexamp or Ameresco on About / Landing / onboarding / marketing copy. Background described by function only. Only the Privacy Policy's narrow "professional relationship" line stays. Confirmed by Aden 2026-05-19.
+- **No browser popups** (`feedback_no_browser_popups.md`) — don't invoke Playwright MCP `browser_navigate` etc. without an explicit ask; verify smoke configs are headless before running; never `start`/`open` URLs.
+
+**Workflow gap surfaced (worth fixing in a future session):**
+- **Worktree sessions don't inherit `.env.local`.** It's gitignored, lives only in the main repo dir, so the dev server falls back to `placeholder.supabase.co` and smoke tests fail with ERR_NAME_NOT_RESOLVED. Aden gave one-time permission this session to copy it manually; future sessions hit the same wall. **Proposed fix:** `scripts/session-pickup.mjs` should auto-copy `.env.local` from main repo into the worktree if missing. Aden hasn't confirmed yet — flag this when relevant.
+
+**Test suite:** 158/158 unit, 7/7 smoke (after the env-var copy this session; re-runs needed for future worktree sessions unless the auto-copy lands).
+
+**Resume command:** `Continue from BUILD_LOG 2026-05-19 evening pickup. Build the headless visual-audit script next per the spec in the open-items list; then walk the live About at /about + the rest of the platform with it. F1 token drift fix still awaiting Aden's sign-off. Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
+
+**Workflow note:** This pickup block is auto-injected at every session start by the `SessionStart` hook in `.claude/settings.json` (runs `scripts/session-pickup.mjs`) — no manual handover paste needed. Keep this section tight and current; it is the first thing every new session sees. Claude owns all git / worktree / merge plumbing end-to-end. Standing rules live in CLAUDE.md + auto-memory.
 
 ---
 
