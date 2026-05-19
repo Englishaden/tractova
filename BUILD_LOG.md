@@ -18,11 +18,13 @@
 - `7009fe7` docs: audit-findings-2026-05-19 — primary-teal token drift finding
 - `bc51804` About: scrub Nexamp from internal comment
 - `348a029` About v2 — Surveyor's Field Notes walkthrough (replaces v1)
+- `b96dd92` BUILD_LOG handoff (this block's previous version)
+- `c2b9de3` `audit:visual` — standalone headless audit script
 
 **Open items Aden flagged for next session:**
-1. **Headless visual-audit script** — Aden said "Yes build it in a sec." Proposed shape: `scripts/visual-audit.mjs` + `npm run audit:visual` — headless Playwright walks routes, captures screenshots + console messages to `audit/<timestamp>/`, writes `findings.md`. Supports `--url <preview-or-prod>` flag and mobile-viewport presets. Authed-route mode reuses `tests/auth.setup.js` storage state. ~150 LOC. **This is the next deliverable.**
-2. **Full UI/UX + functionality audit** — to be run via the headless script above once it exists, against the now-live About + the rest of the platform. The 2026-05-19 audit findings doc at `docs/audit-findings-2026-05-19.md` is only Round 1 (cut short by Playwright MCP browser instability).
-3. **Audit finding F1 — `--color-primary` token drift** — `src/index.css:41,45` still has `--color-primary: #0f6e56;` (legacy) while every component literal uses `#0F766E` (canonical). 56 `bg-primary`/`text-primary` uses across 14 files render the wrong teal. One-file fix but visually shifts every primary button site-wide — CLAUDE.md §4 needs sign-off before applying. **Awaiting Aden's go-ahead.**
+1. **Full UI/UX + functionality audit — RUN IT** — the headless audit script is shipped (`scripts/visual-audit.mjs`, `npm run audit:visual`). First prod walk surfaced a real bug: **`/glossary` throws two React "Encountered two children with the same key" warnings at both desktop and mobile** — duplicate-key in some list render inside `src/pages/Glossary.jsx`. Other public routes (including the new About v2) are clean on prod. **Next deliverable:** a full audit run with `--auth` against prod + a comprehensive findings doc in `docs/`, plus fixes for the keys bug and any others surfaced. To run authed: `npm run test:smoke:pro` once (generates `tests/.auth/pro-user.json`), then `npm run audit:visual -- --auth --url https://tractova.com`.
+2. **Audit finding F1 — `--color-primary` token drift** — `src/index.css:41,45` still has `--color-primary: #0f6e56;` (legacy) while every component literal uses `#0F766E` (canonical). 56 `bg-primary`/`text-primary` uses across 14 files render the wrong teal. One-file fix but visually shifts every primary button site-wide — CLAUDE.md §4 needs sign-off before applying. **Awaiting Aden's go-ahead.**
+3. **Glossary duplicate-key bug** — found by the new audit script's first prod run; surfaces as 2 console.error per page load on `/glossary`. Pure React-hygiene fix, not a visual regression. Track inside the audit-cleanup arc.
 4. **Onboarding revamp (Huly plan)** — long-standing item. Plan at `~/.claude/plans/huly-onboarding-revamp.md`. **Now has a ⚠ Standing rule callout near the top: do not name Nexamp/Ameresco anywhere in the revamp.**
 
 **New standing rules added this session (already in auto-memory):**
@@ -34,7 +36,7 @@
 
 **Test suite:** 158/158 unit, 7/7 smoke (after the env-var copy this session; re-runs needed for future worktree sessions unless the auto-copy lands).
 
-**Resume command:** `Continue from BUILD_LOG 2026-05-19 evening pickup. Build the headless visual-audit script next per the spec in the open-items list; then walk the live About at /about + the rest of the platform with it. F1 token drift fix still awaiting Aden's sign-off. Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
+**Resume command:** `Continue from BUILD_LOG 2026-05-19 evening pickup. Audit script is shipped (npm run audit:visual). Next: run the full audit with --auth against prod, write a comprehensive findings doc, fix the Glossary duplicate-key bug surfaced by the first prod walk. F1 token drift fix still awaiting Aden's sign-off. Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
 
 **Workflow note:** This pickup block is auto-injected at every session start by the `SessionStart` hook in `.claude/settings.json` (runs `scripts/session-pickup.mjs`) — no manual handover paste needed. Keep this section tight and current; it is the first thing every new session sees. Claude owns all git / worktree / merge plumbing end-to-end. Standing rules live in CLAUDE.md + auto-memory.
 
