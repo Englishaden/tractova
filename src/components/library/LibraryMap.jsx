@@ -51,9 +51,14 @@ function colorForScore(score) {
 }
 
 function stateFillForAggregate(agg) {
-  if (!agg) return '#F1F5F9'
+  // 2026-05-19: empty/no-score fills nudged warmer so they don't
+  // blend into the new slate-blue canvas. Warm-paper tones for empty
+  // states create a cool/warm split — saved-portfolio states (teal)
+  // and no-data states (paper) read as distinct categories instead
+  // of two near-identical grays.
+  if (!agg) return '#F5F2EA'
   const score = agg.weightedAvg
-  if (score == null)  return '#E2E8F0'
+  if (score == null)  return '#EDE9DC'
   if (score >= 70)    return '#0F766E'
   if (score >= 60)    return '#14B8A6'
   if (score >= 50)    return '#5EEAD4'
@@ -162,13 +167,16 @@ export default function LibraryMap({
     <div
       className="rounded-xl overflow-hidden relative"
       style={{
-        // Single-layer backdrop — one linear gradient instead of the
-        // prior three stacked radials. Triple-layer composites were
-        // a flicker source on scroll/zoom (each scroll event re-
-        // composited all three). One gradient is plenty for the
-        // pale ocean atmosphere; the box-shadow + border do the
-        // lift work that the radials previously hinted at.
-        background: 'linear-gradient(170deg, #F4FAFA 0%, #E0F0EE 100%)',
+        // 2026-05-19 background re-scheme: prior pale teal gradient
+        // (#F4FAFA → #E0F0EE) sat too close to the light-teal state
+        // fills (#5EEAD4 mid scores, #F1F5F9 empties) — states blended
+        // into the canvas. New scheme: cool slate-blue gradient that
+        // contrasts BOTH ends of the state palette (teal highs +
+        // amber lows pop equally). Keeps the dot-grid pattern + the
+        // teal brand border so the "research terminal" vibe stays;
+        // just shifts the underlying tone from teal to slate so the
+        // map content is the focal layer, not the canvas.
+        background: 'linear-gradient(165deg, #F8FAFC 0%, #E2E8F0 55%, #CBD5E1 100%)',
         border: '1px solid rgba(15,118,110,0.22)',
         boxShadow: '0 0 0 1px rgba(20,184,166,0.08), 0 16px 44px rgba(10,24,40,0.10), 0 2px 8px rgba(10,24,40,0.06)',
         // Promote to its own GPU compositor layer. Stabilizes
@@ -183,7 +191,7 @@ export default function LibraryMap({
             + filter chip when active ───────────────────────────────── */}
       <div
         className="relative z-10 px-5 pt-3 pb-3"
-        style={{ borderBottom: '1px solid rgba(15,118,110,0.12)', background: 'rgba(20,184,166,0.05)' }}
+        style={{ borderBottom: '1px solid rgba(15,118,110,0.12)', background: 'rgba(15,26,46,0.04)' }}
       >
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -579,7 +587,7 @@ function Legend() {
     { color: '#5EEAD4', label: '50–59' },
     { color: '#FCD34D', label: '40–49' },
     { color: '#FCA5A5', label: '<40' },
-    { color: '#F1F5F9', label: 'none', border: '#CBD5E1' },
+    { color: '#F5F2EA', label: 'none', border: '#D6CDB3' },
   ]
   const pinBuckets = [
     { color: '#0F766E', label: '70+' },
