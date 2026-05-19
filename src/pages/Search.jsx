@@ -1096,6 +1096,14 @@ function SearchContent() {
                 user={user}
                 projectId={matchingProjectId}
                 countyName={results.form.county || ''}
+                stateProgram={results.stateProgram}
+                countyData={results.countyData}
+                ixQueueSummary={results.ixQueueSummary}
+                policyEvents={results.policyEvents || []}
+                technology={results.form.technology}
+                stage={results.form.stage || null}
+                stateName={results.stateProgram?.name || results.form.state}
+                mw={results.form.mw}
               />
             </div>
 

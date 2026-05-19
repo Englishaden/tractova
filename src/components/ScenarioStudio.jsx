@@ -5,6 +5,7 @@ import { useToast } from './ui/Toast'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './ui/Tooltip'
 import GlossaryLabel from './ui/GlossaryLabel'
 import ScenarioHistoryList from './ScenarioHistoryList'
+import DevFeasibilityView from './scenario/DevFeasibilityView'
 
 // Tooltip body for the Best/Worst case preset chips. Renders the table
 // of multipliers + sources from SCENARIO_PRESET_METHODOLOGY so users can
@@ -54,8 +55,37 @@ function PresetTooltipBody({ methodology }) {
 //
 // All compute is pure + synchronous (scenarioEngine.applyScenario), so
 // dragging a slider is microsecond-fast — no debouncing needed.
-export default function ScenarioStudio({ baseline, user, projectId = null, countyName = '' }) {
+// Dev Feasibility tab persists in sessionStorage so toggling between views
+// during a session doesn't reset on every Lens re-run. Per-session (not
+// per-user) — survives Lens re-runs but doesn't follow a user across
+// browsers. Defaulted ON: dev-feasibility is the primary read for the
+// 2026-05 strategic pivot away from "fake IRR" pro-forma framing.
+const TAB_STORAGE_KEY = 'scenarioStudio.activeTab'
+
+export default function ScenarioStudio({
+  baseline,
+  user,
+  projectId = null,
+  countyName = '',
+  stateProgram = null,
+  countyData = null,
+  ixQueueSummary = null,
+  policyEvents = [],
+  technology = null,
+  stage = null,
+  stateName = '',
+  mw = null,
+}) {
   const { showToast } = useToast()
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === 'undefined') return 'dev'
+    return window.sessionStorage?.getItem(TAB_STORAGE_KEY) || 'dev'
+  })
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.sessionStorage?.setItem(TAB_STORAGE_KEY, activeTab)
+    }
+  }, [activeTab])
   // Slider default = adjusted inputs so the user's "starting point" reflects
   // active high-confidence policy events for this state. Pre-policy baseline
   // remains accessible via `baseline.inputs` for the breakdown panel.
@@ -265,7 +295,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
       <div className="absolute top-0 left-0 right-0 h-[2px]"
         style={{ background: 'linear-gradient(90deg, transparent 0%, #F59E0B 30%, #F59E0B 70%, transparent 100%)' }} />
 
-      <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100 flex-wrap gap-y-2">
+      <div className="flex items-center justify-between px-6 pt-4 pb-0 flex-wrap gap-y-2">
         <div className="flex items-center gap-3 flex-wrap">
           <GlossaryLabel
             term="Scenario Studio"
@@ -278,7 +308,7 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
             as="span"
           />
         </div>
-        {isDirty && (
+        {isDirty && activeTab === 'fin' && (
           <span
             className="eyebrow-mono px-2 py-0.5"
             style={{ background: 'rgba(245,158,11,0.10)', color: '#92400E', border: '1px solid rgba(245,158,11,0.30)' }}
@@ -287,6 +317,39 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
           </span>
         )}
       </div>
+
+      {/* Tab nav — Dev Feasibility (default) | Financial Sensitivity.
+          Bloomberg-y rectangular tabs with a navy underline on active.
+          The framing decision (2026-05-19): dev-feasibility is the primary
+          read because the financial outputs lean on synth baselines.
+          Devs deciding whether to build benefit more from "is this market
+          structurally workable" than from an IRR readout. The financial
+          tab stays live for users who want the directional sensitivity
+          view, just demoted from default. */}
+      <div className="flex items-center gap-0 px-6 pt-3 border-b border-gray-100">
+        <TabButton active={activeTab === 'dev'} onClick={() => setActiveTab('dev')}>
+          Dev Feasibility
+        </TabButton>
+        <TabButton active={activeTab === 'fin'} onClick={() => setActiveTab('fin')}>
+          Financial Sensitivity
+        </TabButton>
+      </div>
+
+      {activeTab === 'dev' && (
+        <DevFeasibilityView
+          stateProgram={stateProgram}
+          countyData={countyData}
+          ixQueueSummary={ixQueueSummary}
+          policyEvents={policyEvents}
+          technology={technology || baseline?.technologyLabel || baseline?.technology}
+          stage={stage}
+          mw={mw ?? baseline?.inputs?.systemSizeMW}
+          stateName={stateName || baseline?.stateLabel || baseline?.stateId}
+          countyName={countyName}
+        />
+      )}
+
+      {activeTab === 'fin' && <>
 
       {/* Directional-sensitivity banner — prominent in the header so the
           IRR/payback readouts below are framed correctly. Amber to match
@@ -612,7 +675,30 @@ export default function ScenarioStudio({ baseline, user, projectId = null, count
         </div>
       )}
 
+      </>}
+
     </article>
+  )
+}
+
+// Tab nav button — rectangular Bloomberg-y toggles. Active state gets a
+// navy bottom rail + ink text + medium font weight. Inactive stays gray
+// with no border so the active tab is unmistakable. Click target is the
+// full button area; hover lifts to ink for a subtle affordance.
+function TabButton({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`cursor-pointer text-[12px] font-mono uppercase tracking-[0.18em] px-3 py-2 -mb-px transition-colors ${active ? 'font-bold text-ink' : 'font-medium text-gray-500 hover:text-ink'}`}
+      style={{
+        borderBottom: active ? '2px solid #0F1A2E' : '2px solid transparent',
+      }}
+      aria-selected={active}
+      role="tab"
+    >
+      {children}
+    </button>
   )
 }
 
