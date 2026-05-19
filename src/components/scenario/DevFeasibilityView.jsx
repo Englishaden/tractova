@@ -202,9 +202,22 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
               style={{ background: 'rgba(15,26,46,0.06)', color: '#475569', border: '1px solid rgba(15,26,46,0.18)' }}>
               Feasibility Verdict
             </span>
-            <span className="text-[10px] text-gray-500 font-mono tabular-nums">
-              composite {composite}/100
-            </span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[10px] text-gray-500 font-mono tabular-nums cursor-help underline decoration-dotted underline-offset-2">
+                  composite {composite}/100
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="!max-w-[340px]">
+                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Composite + verdict thresholds</p>
+                <p className="leading-relaxed mb-2">
+                  Composite = weighted blend of the four pillar sub-scores (Offtake 36% · IX 31.5% · Site 22.5% · Policy 10%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). Same math as the Feasibility Index gauge in the Lens header — single source of truth.
+                </p>
+                <p className="leading-relaxed">
+                  Verdict bands are <span className="font-semibold" style={{ color: '#5EEAD4' }}>Tractova editorial</span>, not empirically anchored: <b>Go ≥ 70</b>, <b>Caution 50–69</b>, <b>No-Go &lt; 50</b>. They're a screening shortcut for "is this market worth more diligence?" — calibrate to your own deal-flow benchmark over time.
+                </p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           <div className="font-bold text-[18px] leading-tight" style={{ color: palette.tone }}>
             {palette.label} — {countyName ? `${countyName} County, ` : ''}{stateName || 'site'} · {technology}
@@ -266,20 +279,27 @@ function PillarCardShell({ pillarLabel, subScore, coverage, children }) {
 
 // Coverage chip lineage taxonomy — matches scoreEngine.js coverage tiers.
 // Source of truth for the body copy is the comments in computeSubScores.
+// Label = the human-readable text shown in the chip; the internal tier
+// strings ('live' / 'researched' / etc.) stay in the data path for
+// filtering/aggregation consistency with scoreEngine outputs.
 const COVERAGE_TOOLTIPS = {
   live: {
+    label: 'Live data',
     title: 'Live data',
     body: 'Score is driven by real-time data — IX queue scrapes (8 CS states), county geospatial (NWI wetlands + SSURGO farmland, all 3,142 counties), or live news/PUC ingest. Refreshed on cron; data-age stamps surface staleness when scrapers lag.',
   },
   researched: {
+    label: 'Researched',
     title: 'Researched · curated',
     body: 'Score uses Tractova-curated baseline values — county_intelligence boolean (~18 states seeded), CS program status from state_programs (all 50 states). Stable but not live; updated when manual research lands.',
   },
   curated: {
+    label: 'Curated baseline',
     title: 'Curated baseline',
     body: 'Score uses the state-level curated baseline (e.g. ixDifficulty tier from state_programs). All 50 states have a curated value; the live-blend overlay applies only where ix_queue_data is wired.',
   },
   fallback: {
+    label: 'Fallback estimate',
     title: 'Fallback estimate',
     body: 'Curated data not yet seeded for this state/county — score uses a neutral placeholder (50–60 depending on pillar). Treat as low-confidence; verify directly before using to make a decision.',
   },
@@ -300,7 +320,7 @@ function CoverageChip({ coverage }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm cursor-help" style={{ background: palette.bg, color: palette.fg }}>
-              {coverage}
+              {tip.label}
             </span>
           </TooltipTrigger>
           <TooltipContent side="top">
@@ -402,18 +422,32 @@ function SitePillarCard({ countyData, subScore, coverage }) {
 
 function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
   const top = headwinds[0] || tailwinds[0]
+  // coverage='none' means policyEvents wasn't passed in at all — the
+  // wiring isn't live for this state/surface, NOT that we looked and
+  // found zero events. Different copy for each so devs aren't misled
+  // into thinking a state is "policy clean" when we just haven't wired
+  // the data through.
+  const dataNotWired = coverage === 'none'
   return (
     <PillarCardShell pillarLabel="Policy" subScore={subScore} coverage={coverage}>
       <div className="space-y-1 text-[11px]">
-        <div className="font-mono tabular-nums text-ink">
-          {headwinds.length} headwind{headwinds.length === 1 ? '' : 's'} · {tailwinds.length} tailwind{tailwinds.length === 1 ? '' : 's'}
-        </div>
-        {top ? (
-          <div className="text-gray-600 line-clamp-2 leading-snug">
-            {top.event_name || 'Active policy event'}
+        {dataNotWired ? (
+          <div className="text-gray-500 italic leading-snug">
+            Policy data not yet wired for this surface. §06 Regulatory Watch may still surface events independently.
           </div>
         ) : (
-          <div className="text-gray-500 italic">No active high-confidence policy events.</div>
+          <>
+            <div className="font-mono tabular-nums text-ink">
+              {headwinds.length} headwind{headwinds.length === 1 ? '' : 's'} · {tailwinds.length} tailwind{tailwinds.length === 1 ? '' : 's'}
+            </div>
+            {top ? (
+              <div className="text-gray-600 line-clamp-2 leading-snug">
+                {top.event_name || 'Active policy event'}
+              </div>
+            ) : (
+              <div className="text-gray-500 italic">No active high-confidence policy events.</div>
+            )}
+          </>
         )}
       </div>
     </PillarCardShell>
