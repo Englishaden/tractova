@@ -165,18 +165,23 @@ export default function LibraryMap({
 
   return (
     <div
-      className="rounded-xl overflow-hidden relative"
+      className="rounded-xl overflow-hidden relative mx-auto"
       style={{
+        // Width cap (2026-05-19): the previous unbounded width meant
+        // the map filled max-w-dashboard (1440px) on wide screens,
+        // making it ~900px tall — visually dominant and out of
+        // proportion with the Library cards above. Cap at 1100px so
+        // it centers on big monitors with breathing room on either
+        // side; full-width on smaller screens (≤1100px container).
+        maxWidth: '1100px',
         // 2026-05-19 background re-scheme: prior pale teal gradient
-        // (#F4FAFA → #E0F0EE) sat too close to the light-teal state
-        // fills (#5EEAD4 mid scores, #F1F5F9 empties) — states blended
-        // into the canvas. New scheme: cool slate-blue gradient that
-        // contrasts BOTH ends of the state palette (teal highs +
-        // amber lows pop equally). Keeps the dot-grid pattern + the
-        // teal brand border so the "research terminal" vibe stays;
-        // just shifts the underlying tone from teal to slate so the
-        // map content is the focal layer, not the canvas.
-        background: 'linear-gradient(165deg, #F8FAFC 0%, #E2E8F0 55%, #CBD5E1 100%)',
+        // sat too close to the light-teal state fills (#5EEAD4 mid
+        // scores) — states blended into the canvas. Slate-blue
+        // contrasts BOTH teal highs AND amber/red lows; the deeper
+        // 3-stop range (was #F8FAFC → #CBD5E1, now #ECF1F6 → #9FB0C2)
+        // gives the canvas more chromatic body so it reads as
+        // "research terminal" instead of "pale wash."
+        background: 'linear-gradient(165deg, #ECF1F6 0%, #C8D3DF 55%, #9FB0C2 100%)',
         border: '1px solid rgba(15,118,110,0.22)',
         boxShadow: '0 0 0 1px rgba(20,184,166,0.08), 0 16px 44px rgba(10,24,40,0.10), 0 2px 8px rgba(10,24,40,0.06)',
         // Promote to its own GPU compositor layer. Stabilizes
@@ -268,7 +273,7 @@ export default function LibraryMap({
       <div className="relative z-10">
         <ComposableMap
           projection="geoAlbersUsa"
-          projectionConfig={{ scale: 1000 }}
+          projectionConfig={{ scale: 920 }}
           style={{ width: '100%', height: 'auto' }}
         >
           <defs>
