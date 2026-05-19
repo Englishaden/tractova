@@ -447,11 +447,14 @@ Continue from BUILD_LOG pickup. 2026-05-13 evening shipped four commits:
 - §06 EventRow expand-affordance fix ✅
 - PDF intake on PolicyImpactTab (Anthropic native PDF document blocks) ✅
 Remaining backlog needs your direction:
-- Long-tail eyebrow-mono sweep (181 sites — design-judgment-heavy, low ROI)
 - Landing tightening (Three Pillars cards — design-subjective)
 - §04 / §06 visual-redundancy review once curated events make both surfaces live in prod
-- discovered_via enum extension to include 'pdf_upload' (migration FILE — deferred)
+- audit-ui parallel-pressure flakes (Dashboard click matrix + Profile gauge — not in verify chain)
 See § 4 deferred-from-each-phase + BUILD_LOG § Backlog for full list.
+
+Closed:
+- discovered_via enum extension to include 'pdf_upload' (migration 063 applied + handler swap shipped 2026-05-19, commit `3b062f6`)
+- Long-tail eyebrow-mono sweep (closed 2026-05-19 — §06 pilot retained; candidate sites vary too much in size/tracking/weight for a safe sweep)
 ```
 
 Claude will pick up exactly where this session ended.
