@@ -620,94 +620,95 @@ function fadeProps(reduce, delay = 0) {
 }
 
 // ─── Illustration: Station 01 — THE GAP ──────────────────────────────────────
-// "Spent before you know." The real cost isn't a tidy percentage — it's a
-// gauntlet of diligence spend (site control, legal, IE, IX study, financing)
-// a developer must pay through BEFORE they even get a go/no-go answer. No
-// quantities are asserted — assigning fake percentages would be dishonest;
-// the point is the sequence of capital-out gates and the deferred verdict.
+// "The short end of the stick." One stick split unequally: the big, integrated
+// players hold the long end; the lean shop holds the short end. Tractova's
+// bright wedge extends the short end toward — but not all the way to — parity
+// (it narrows the gap; it doesn't pretend a one-person shop becomes an IPP).
+// Lengths are illustrative, NOT quantified — no numbers asserted.
 function GapArt({ reduce }) {
   const W = 360
-  const H = 320
-  const cx = 206 // gates column center (leaves room for the CAPITAL axis)
-  const gateW = 150
-  const gateH = 30
-  const gates = ['SITE CONTROL', 'LEGAL', 'IE / DESIGN', 'IX STUDY', 'FINANCING']
-  const startY = 18
-  const stepY = 45
-  const lastGateBottom = startY + (gates.length - 1) * stepY + gateH
-  const outcomeY = startY + gates.length * stepY + 2
+  const H = 280
+  const x0 = 40        // shared left start of both pieces
+  const longEnd = 300  // the big players' reach
+  const youEnd = 150   // your unaided reach — the short end
+  const wedgeEnd = 272 // your reach with Tractova — near, not at, parity
+  const yLong = 104
+  const yYou = 188
+  const beam = 20
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
-      {/* Left axis — "CAPITAL OUT" growing downward as the gauntlet runs. */}
+      {/* Parity reference — faint dashed line at the big players' reach, so the
+          residual gap (wedge end → here) stays visible and honest. */}
       <motion.line
-        x1={42} y1={startY + 4} x2={42} y2={outcomeY + 8}
-        stroke="rgba(94,234,212,0.40)" strokeWidth="1"
-        {...drawProps(reduce, 0.1, 0.6)}
+        x1={longEnd} y1={yLong - 26} x2={longEnd} y2={yYou + 26}
+        stroke="rgba(94,234,212,0.28)" strokeWidth="1" strokeDasharray="3 4"
+        {...fadeProps(reduce, 1.3)}
       />
-      <motion.polygon
-        points={`38,${outcomeY + 6} 46,${outcomeY + 6} 42,${outcomeY + 14}`}
-        fill="rgba(94,234,212,0.55)" {...fadeProps(reduce, 0.7)}
+
+      {/* Long end — the big, integrated players (dim: the status quo). */}
+      <motion.text
+        x={x0} y={yLong - 18} fill="rgba(255,255,255,0.85)" fontSize="9"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.12em" fontWeight="700"
+        {...fadeProps(reduce, 0.2)}
+      >
+        BIG, INTEGRATED PLAYERS
+      </motion.text>
+      <motion.line
+        x1={x0} y1={yLong} x2={longEnd} y2={yLong}
+        stroke="rgba(20,184,166,0.40)" strokeWidth={beam} strokeLinecap="round"
+        {...drawProps(reduce, 0.15, 0.7)}
       />
       <motion.text
-        x={30} y={(startY + outcomeY) / 2}
-        fill={TEAL_LIGHT} fontSize="8" fontFamily="ui-monospace,Menlo,monospace"
-        letterSpacing="0.22em" textAnchor="middle"
-        transform={`rotate(-90 30 ${(startY + outcomeY) / 2})`}
-        {...fadeProps(reduce, 0.8)}
+        x={x0} y={yLong + 24} fill="rgba(148,163,184,0.7)" fontSize="7"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.10em"
+        {...fadeProps(reduce, 0.5)}
       >
-        CAPITAL OUT
+        in-house finance · legal · design
       </motion.text>
 
-      {/* Diligence gates, stacked; a "$" flows down between each. */}
-      {gates.map((g, i) => {
-        const y = startY + i * stepY
-        return (
-          <g key={g}>
-            <motion.rect
-              x={cx - gateW / 2} y={y} width={gateW} height={gateH} rx={6}
-              fill="rgba(20,184,166,0.12)" stroke="rgba(20,184,166,0.5)" strokeWidth="1"
-              initial={reduce ? { opacity: 1 } : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.15 + i * 0.12 }}
-            />
-            <motion.text
-              x={cx} y={y + gateH / 2 + 3.5}
-              fill="#FFFFFF" fontSize="10" fontFamily="ui-monospace,Menlo,monospace"
-              letterSpacing="0.10em" textAnchor="middle"
-              {...fadeProps(reduce, 0.3 + i * 0.12)}
-            >
-              {g}
-            </motion.text>
-            {i < gates.length - 1 && (
-              <motion.g {...fadeProps(reduce, 0.45 + i * 0.12)}>
-                <line x1={cx} y1={y + gateH} x2={cx} y2={y + stepY} stroke="rgba(94,234,212,0.45)" strokeWidth="1" />
-                <text x={cx + 9} y={y + gateH + 12} fill={TEAL_LIGHT} fontSize="9" fontFamily="ui-monospace,Menlo,monospace">$</text>
-              </motion.g>
-            )}
-          </g>
-        )
-      })}
-
-      {/* Outcome — the answer arrives only AFTER all the spend. */}
-      <motion.line
-        x1={cx} y1={lastGateBottom} x2={cx} y2={outcomeY}
-        stroke="rgba(94,234,212,0.45)" strokeWidth="1"
-        {...drawProps(reduce, 0.3 + gates.length * 0.12, 0.4)}
-      />
-      <motion.g {...fadeProps(reduce, 0.4 + gates.length * 0.12)}>
-        <rect x={cx - 72} y={outcomeY} width={144} height={34} rx={17} fill="none" stroke={TEAL_BRIGHT} strokeWidth="1.4" strokeDasharray="4 3" />
-        <text x={cx} y={outcomeY + 22} fill={TEAL_BRIGHT} fontSize="11" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.12em" fontWeight="700" textAnchor="middle">GO / NO-GO?</text>
-      </motion.g>
-
-      {/* caption */}
+      {/* Short end — you (solid), extended by the Tractova wedge (bright). */}
       <motion.text
-        x={cx} y={H - 6}
-        fill="rgba(255,255,255,0.5)" fontSize="9"
-        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" textAnchor="middle"
-        {...fadeProps(reduce, 1.2)}
+        x={x0} y={yYou - 18} fill="rgba(255,255,255,0.85)" fontSize="9"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.12em" fontWeight="700"
+        {...fadeProps(reduce, 0.45)}
       >
-        SPENT BEFORE YOU KNOW
+        YOU
+      </motion.text>
+      <motion.line
+        x1={x0} y1={yYou} x2={youEnd} y2={yYou}
+        stroke={TEAL} strokeWidth={beam} strokeLinecap="round"
+        {...drawProps(reduce, 0.4, 0.55)}
+      />
+      {/* Tractova wedge — grows in last; the payoff beat. */}
+      <motion.line
+        x1={youEnd} y1={yYou} x2={wedgeEnd} y2={yYou}
+        stroke={TEAL_BRIGHT} strokeWidth={beam} strokeLinecap="round"
+        {...drawProps(reduce, 1.0, 0.7)}
+      />
+      <motion.text
+        x={x0} y={yYou + 24} fill="rgba(148,163,184,0.7)" fontSize="7"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.10em"
+        {...fadeProps(reduce, 0.7)}
+      >
+        a lean shop
+      </motion.text>
+      <motion.text
+        x={(youEnd + wedgeEnd) / 2} y={yYou + 5} fill="#06231f" fontSize="7.5"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.14em" fontWeight="700"
+        textAnchor="middle"
+        {...fadeProps(reduce, 1.55)}
+      >
+        + TRACTOVA
+      </motion.text>
+
+      {/* Caption */}
+      <motion.text
+        x={x0} y={H - 14} fill="rgba(255,255,255,0.5)" fontSize="9"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em"
+        {...fadeProps(reduce, 1.65)}
+      >
+        CLOSING THE GAP
       </motion.text>
     </svg>
   )
