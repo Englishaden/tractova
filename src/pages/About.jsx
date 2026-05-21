@@ -620,81 +620,94 @@ function fadeProps(reduce, delay = 0) {
 }
 
 // ─── Illustration: Station 01 — THE GAP ──────────────────────────────────────
-// "Each cost shaves the return." Each bar is what REMAINS after that cost; a
-// faint full-width track behind every bar is the original 100%, so the gap
-// between the solid bar and the track reads as what was lost. The final
-// highlighted bar (after a divider) is "what's left."
+// "Spent before you know." The real cost isn't a tidy percentage — it's a
+// gauntlet of diligence spend (site control, legal, IE, IX study, financing)
+// a developer must pay through BEFORE they even get a go/no-go answer. No
+// quantities are asserted — assigning fake percentages would be dishonest;
+// the point is the sequence of capital-out gates and the deferred verdict.
 function GapArt({ reduce }) {
-  const W = 380
-  const H = 268
-  const barX = 26
-  const maxW = 250
-  const barH = 24
-  const rowGap = 42
-  const resultGap = 16 // extra space before the highlighted summary bar
-  const rows = [
-    { label: 'PROJECT RETURNS', pct: 100, tone: 'full'   },
-    { label: '− Legal',         pct: 82,  tone: 'cost'   },
-    { label: '− IE / design',   pct: 66,  tone: 'cost'   },
-    { label: '− Financing',     pct: 50,  tone: 'cost'   },
-    { label: "WHAT'S LEFT",     pct: 50,  tone: 'result' },
-  ]
-  const colorFor = (tone) =>
-    tone === 'result' ? TEAL_BRIGHT : tone === 'full' ? TEAL : 'rgba(20,184,166,0.42)'
-  const yFor = (i) => 30 + i * rowGap + (i === rows.length - 1 ? resultGap : 0)
-  const dividerY = yFor(rows.length - 1) - rowGap / 2 - 2
+  const W = 360
+  const H = 320
+  const cx = 206 // gates column center (leaves room for the CAPITAL axis)
+  const gateW = 150
+  const gateH = 30
+  const gates = ['SITE CONTROL', 'LEGAL', 'IE / DESIGN', 'IX STUDY', 'FINANCING']
+  const startY = 18
+  const stepY = 45
+  const lastGateBottom = startY + (gates.length - 1) * stepY + gateH
+  const outcomeY = startY + gates.length * stepY + 2
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
-      {/* Divider before the summary bar */}
+      {/* Left axis — "CAPITAL OUT" growing downward as the gauntlet runs. */}
       <motion.line
-        x1={barX} y1={dividerY} x2={barX + maxW} y2={dividerY}
-        stroke="rgba(94,234,212,0.25)" strokeWidth="1" strokeDasharray="3 3"
-        {...drawProps(reduce, 0.75, 0.4)}
+        x1={42} y1={startY + 4} x2={42} y2={outcomeY + 8}
+        stroke="rgba(94,234,212,0.40)" strokeWidth="1"
+        {...drawProps(reduce, 0.1, 0.6)}
       />
-      {rows.map((r, i) => {
-        const y = yFor(i)
-        const solidW = (r.pct / 100) * maxW
-        const isResult = r.tone === 'result'
+      <motion.polygon
+        points={`38,${outcomeY + 6} 46,${outcomeY + 6} 42,${outcomeY + 14}`}
+        fill="rgba(94,234,212,0.55)" {...fadeProps(reduce, 0.7)}
+      />
+      <motion.text
+        x={30} y={(startY + outcomeY) / 2}
+        fill={TEAL_LIGHT} fontSize="8" fontFamily="ui-monospace,Menlo,monospace"
+        letterSpacing="0.22em" textAnchor="middle"
+        transform={`rotate(-90 30 ${(startY + outcomeY) / 2})`}
+        {...fadeProps(reduce, 0.8)}
+      >
+        CAPITAL OUT
+      </motion.text>
+
+      {/* Diligence gates, stacked; a "$" flows down between each. */}
+      {gates.map((g, i) => {
+        const y = startY + i * stepY
         return (
-          <g key={r.label}>
-            {/* faint 100% reference track */}
-            <line x1={barX} y1={y} x2={barX + maxW} y2={y} stroke="rgba(20,184,166,0.10)" strokeWidth={barH} strokeLinecap="butt" />
-            {/* solid bar = what remains; draws left → right */}
-            <motion.line
-              x1={barX} y1={y} x2={barX + solidW} y2={y}
-              stroke={colorFor(r.tone)} strokeWidth={barH} strokeLinecap="butt"
-              {...drawProps(reduce, 0.1 + i * 0.12, 0.55)}
+          <g key={g}>
+            <motion.rect
+              x={cx - gateW / 2} y={y} width={gateW} height={gateH} rx={6}
+              fill="rgba(20,184,166,0.12)" stroke="rgba(20,184,166,0.5)" strokeWidth="1"
+              initial={reduce ? { opacity: 1 } : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4, delay: 0.15 + i * 0.12 }}
             />
-            {/* label inside the bar */}
             <motion.text
-              x={barX + 10} y={y + 3.5}
-              fill={isResult ? '#06231f' : '#FFFFFF'}
-              fontSize="10" fontFamily="ui-monospace,Menlo,monospace"
-              letterSpacing="0.08em" fontWeight={isResult ? 700 : 500}
-              {...fadeProps(reduce, 0.35 + i * 0.12)}
+              x={cx} y={y + gateH / 2 + 3.5}
+              fill="#FFFFFF" fontSize="10" fontFamily="ui-monospace,Menlo,monospace"
+              letterSpacing="0.10em" textAnchor="middle"
+              {...fadeProps(reduce, 0.3 + i * 0.12)}
             >
-              {r.label}
+              {g}
             </motion.text>
-            {/* % just past the solid bar end */}
-            <motion.text
-              x={barX + solidW + 8} y={y + 3.5}
-              fill={TEAL_LIGHT} fontSize="9" fontFamily="ui-monospace,Menlo,monospace"
-              {...fadeProps(reduce, 0.5 + i * 0.12)}
-            >
-              {r.pct}%
-            </motion.text>
+            {i < gates.length - 1 && (
+              <motion.g {...fadeProps(reduce, 0.45 + i * 0.12)}>
+                <line x1={cx} y1={y + gateH} x2={cx} y2={y + stepY} stroke="rgba(94,234,212,0.45)" strokeWidth="1" />
+                <text x={cx + 9} y={y + gateH + 12} fill={TEAL_LIGHT} fontSize="9" fontFamily="ui-monospace,Menlo,monospace">$</text>
+              </motion.g>
+            )}
           </g>
         )
       })}
+
+      {/* Outcome — the answer arrives only AFTER all the spend. */}
+      <motion.line
+        x1={cx} y1={lastGateBottom} x2={cx} y2={outcomeY}
+        stroke="rgba(94,234,212,0.45)" strokeWidth="1"
+        {...drawProps(reduce, 0.3 + gates.length * 0.12, 0.4)}
+      />
+      <motion.g {...fadeProps(reduce, 0.4 + gates.length * 0.12)}>
+        <rect x={cx - 72} y={outcomeY} width={144} height={34} rx={17} fill="none" stroke={TEAL_BRIGHT} strokeWidth="1.4" strokeDasharray="4 3" />
+        <text x={cx} y={outcomeY + 22} fill={TEAL_BRIGHT} fontSize="11" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.12em" fontWeight="700" textAnchor="middle">GO / NO-GO?</text>
+      </motion.g>
+
       {/* caption */}
       <motion.text
-        x={barX} y={H - 6}
+        x={cx} y={H - 6}
         fill="rgba(255,255,255,0.5)" fontSize="9"
-        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em"
-        {...fadeProps(reduce, 1.0)}
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" textAnchor="middle"
+        {...fadeProps(reduce, 1.2)}
       >
-        EACH COST SHAVES THE RETURN
+        SPENT BEFORE YOU KNOW
       </motion.text>
     </svg>
   )
@@ -1294,28 +1307,36 @@ function NotebookArt({ reduce }) {
         )
       })}
 
-      {/* Right page — clean ownership stamp, centered on the page. */}
+      {/* Right page — a survey-drawing title block (replaces the badge,
+          which read as generic clip-art). Label/value rows like the corner
+          of an engineering drawing: authentic to the surveyor theme. */}
       {(() => {
-        const rcx = spine + (nb.x + nb.w - spine) / 2 // right-page center
-        const scy = nb.y + 58
+        const bx = 196, by = 92, bw = 118, titleH = 22, fieldH = 32
+        const fields = [
+          { label: 'OPERATOR', value: 'Boston, MA' },
+          { label: 'SCOPE',    value: 'Community Solar' },
+          { label: 'STATUS',   value: 'Independent' },
+        ]
+        const bh = titleH + fields.length * fieldH
         return (
-          <g>
-            <motion.g {...fadeProps(reduce, 0.95)}>
-              <circle cx={rcx} cy={scy} r={30} fill="none" stroke={TEAL_LIGHT} strokeWidth="0.8" strokeDasharray="2 2" />
-              <circle cx={rcx} cy={scy} r={22} fill="none" stroke="rgba(94,234,212,0.5)" strokeWidth="0.6" />
-              {/* surveyor diamond above the wordmark */}
-              <rect x={rcx - 3} y={scy - 16} width={6} height={6} fill={TEAL_BRIGHT} transform={`rotate(45 ${rcx} ${scy - 13})`} />
-              <text x={rcx} y={scy + 4} fill={TEAL_LIGHT} fontSize="7.5" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" fontWeight="700" textAnchor="middle">TRACTOVA</text>
-              <text x={rcx} y={scy + 14} fill="rgba(94,234,212,0.65)" fontSize="5.5" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.22em" textAnchor="middle">FIELD NOTES</text>
-            </motion.g>
-
-            {/* Signed-off block — two clean ruled lines + caption. */}
-            <motion.line x1={rcx - 56} y1={nb.y + 132} x2={rcx + 56} y2={nb.y + 132} stroke="rgba(94,234,212,0.30)" strokeWidth="0.7" {...drawProps(reduce, 1.1, 0.45)} />
-            <motion.line x1={rcx - 56} y1={nb.y + 150} x2={rcx + 56} y2={nb.y + 150} stroke="rgba(94,234,212,0.18)" strokeWidth="0.6" {...drawProps(reduce, 1.25, 0.45)} />
-            <motion.text x={rcx} y={nb.y + 172} fill="rgba(255,255,255,0.5)" fontSize="7" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" textAnchor="middle" {...fadeProps(reduce, 1.4)}>
-              OPERATOR · BOSTON, MA
-            </motion.text>
-          </g>
+          <motion.g {...fadeProps(reduce, 0.9)}>
+            {/* block outline + title cell */}
+            <rect x={bx} y={by} width={bw} height={bh} rx={3} fill="rgba(15,26,46,0.5)" stroke="rgba(20,184,166,0.5)" strokeWidth="1" />
+            <rect x={bx} y={by} width={bw} height={titleH} fill="rgba(20,184,166,0.10)" />
+            <rect x={bx + 9} y={by + titleH / 2 - 2.5} width={5} height={5} fill={TEAL_BRIGHT} transform={`rotate(45 ${bx + 11.5} ${by + titleH / 2})`} />
+            <text x={bx + 20} y={by + titleH / 2 + 3} fill={TEAL_LIGHT} fontSize="8" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" fontWeight="700">FIELD NOTES</text>
+            {/* label / value rows */}
+            {fields.map((f, i) => {
+              const cy = by + titleH + i * fieldH
+              return (
+                <g key={f.label}>
+                  <line x1={bx} y1={cy} x2={bx + bw} y2={cy} stroke="rgba(94,234,212,0.20)" strokeWidth="0.6" />
+                  <text x={bx + 10} y={cy + 13} fill="rgba(94,234,212,0.6)" fontSize="6" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" fontWeight="700">{f.label}</text>
+                  <text x={bx + 10} y={cy + 25} fill="rgba(255,255,255,0.85)" fontSize="8.5" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.04em">{f.value}</text>
+                </g>
+              )
+            })}
+          </motion.g>
         )
       })()}
     </svg>
