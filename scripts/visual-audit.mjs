@@ -185,6 +185,15 @@ async function walkRoute({ context, baseUrl, route, viewport, outDir, skipScreen
     if (failure === 'net::ERR_ABORTED') return
     messages.error.push(`[requestfailed:${failure}] ${req.url()}`)
   })
+  // HTTP responses with an error status (4xx/5xx). The browser logs a
+  // bare "Failed to load resource" to the console without the URL; this
+  // captures WHICH resource failed so a 404 can be traced to its source
+  // (e.g. an /api/* fetch that 404s under `vite dev` but works on Vercel).
+  const httpFailures = []
+  page.on('response', (resp) => {
+    const status = resp.status()
+    if (status >= 400) httpFailures.push(`${status} ${resp.url()}`)
+  })
 
   const startMs = Date.now()
   let navigated = false
@@ -226,6 +235,7 @@ async function walkRoute({ context, baseUrl, route, viewport, outDir, skipScreen
     screenshotPath,
     errors:   messages.error,
     warnings: messages.warning,
+    httpFailures,
   }
 }
 
@@ -316,6 +326,24 @@ function writeFindingsMd({ outDir, runMeta, results }) {
     lines.push('## Errors')
     lines.push('')
     lines.push('No console errors, page errors, or failed resource loads across any route × viewport. ✓')
+    lines.push('')
+  }
+
+  // ── Failed HTTP responses (with URLs) ──
+  const allHttp = []
+  for (const r of results) {
+    for (const h of (r.httpFailures ?? [])) allHttp.push({ route: r.route, viewport: r.viewport, http: h })
+  }
+  if (allHttp.length > 0) {
+    lines.push(`## Failed HTTP responses (${allHttp.length})`)
+    lines.push('')
+    lines.push('4xx/5xx responses with the failing URL. A `/api/*` 404 on a localhost run is usually expected — `vite dev` does not run the Vercel functions; verify against a deployed URL before treating it as a real bug.')
+    lines.push('')
+    lines.push('| Route | Viewport | Status + URL |')
+    lines.push('| --- | --- | --- |')
+    for (const h of allHttp) {
+      lines.push(`| \`${h.route}\` | ${h.viewport} | ${escapeMd(h.http)} |`)
+    }
     lines.push('')
   }
 
