@@ -4,39 +4,43 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-19 evening (About Us shipped + Surveyor's Field Notes revamp + 2 new standing rules)
+## 🟢 Pickup — 2026-05-21 (audit arc CLOSED — Glossary + F1 fixed, audit tool shipped)
 
-**Same-day continuation of the marathon close-out. Aden asked for the About Us page (his "eventually" item), then mid-session asked to revamp it Palantir-style after the v1 felt static. Shipped two About pages back-to-back (v1 stacked-sections → v2 animated walkthrough), an audit-findings doc, two new standing-rule memories, and an annotated Huly plan. Five commits on top of the morning's 27.**
+**Continuation of the About/audit arc. Aden gave blanket "allow all changes" autonomy to finish the audit + to-do while stepping away. Outcome: the visual-audit tool is shipped + enhanced, the full authed audit ran clean, and both real findings (Glossary duplicate keys, F1 primary-teal drift) are fixed and pushed. The audit-cleanup arc is now closed; the only carried-forward item is the onboarding revamp.**
 
-**What's live on prod NOW (Vercel auto-deployed from main):**
-- **`/about`** — "Surveyor's Field Notes" walkthrough. Five station nodes on a teal survey baseline; auto-advance 9s with hover-pause; navy station card crossfades; hand-drawn technical-drawing SVG illustrations per station (groma / triangulation / coverage map / field notebook); useReducedMotion honored; mobile collapses to vertical stack. Linked from Footer.
-- **No employer named anywhere on the rendered page** (function-only background). Aden Walker is named in the founder station per the naming decision he confirmed.
-- All copy from the v1 About preserved, restructured as walk stations.
+**What's live on prod (Vercel auto-deployed from main):**
+- **`/about`** — "Surveyor's Field Notes" animated walkthrough (5 station nodes on a survey baseline, crossfading navy cards, hand-drawn SVG illustrations, useReducedMotion-aware, mobile-stacked). No employer named; Aden Walker named in the founder station.
+- **`/glossary`** — duplicate-key React warnings GONE (was 2 console.errors/load).
+- **Primary teal consolidated** — `bg-primary`/`text-primary` now render canonical `#0F766E` everywhere (matched the literals).
 
 **Commits since marathon close (b703fdc):**
-- `8d4fe9f` About v1 — stacked-sections founder-led narrative
-- `7009fe7` docs: audit-findings-2026-05-19 — primary-teal token drift finding
-- `bc51804` About: scrub Nexamp from internal comment
-- `348a029` About v2 — Surveyor's Field Notes walkthrough (replaces v1)
-- `b96dd92` BUILD_LOG handoff (this block's previous version)
-- `c2b9de3` `audit:visual` — standalone headless audit script
+- `8d4fe9f` About v1 · `7009fe7` audit-findings-2026-05-19 · `bc51804` scrub employer comment · `348a029` About v2 walkthrough
+- `b96dd92` BUILD_LOG handoff · `c2b9de3` audit:visual script · `ea95822` BUILD_LOG
+- `fbe6e1b` **fix: Glossary duplicate keys + primary-teal token consolidation**
+- `6f785a5` **audit:visual HTTP-failure capture + audit-findings-2026-05-21 doc**
 
-**Open items Aden flagged for next session:**
-1. **Full UI/UX + functionality audit — RUN IT** — the headless audit script is shipped (`scripts/visual-audit.mjs`, `npm run audit:visual`). First prod walk surfaced a real bug: **`/glossary` throws two React "Encountered two children with the same key" warnings at both desktop and mobile** — duplicate-key in some list render inside `src/pages/Glossary.jsx`. Other public routes (including the new About v2) are clean on prod. **Next deliverable:** a full audit run with `--auth` against prod + a comprehensive findings doc in `docs/`, plus fixes for the keys bug and any others surfaced. To run authed: `npm run test:smoke:pro` once (generates `tests/.auth/pro-user.json`), then `npm run audit:visual -- --auth --url https://tractova.com`.
-2. **Audit finding F1 — `--color-primary` token drift** — `src/index.css:41,45` still has `--color-primary: #0f6e56;` (legacy) while every component literal uses `#0F766E` (canonical). 56 `bg-primary`/`text-primary` uses across 14 files render the wrong teal. One-file fix but visually shifts every primary button site-wide — CLAUDE.md §4 needs sign-off before applying. **Awaiting Aden's go-ahead.**
-3. **Glossary duplicate-key bug** — found by the new audit script's first prod run; surfaces as 2 console.error per page load on `/glossary`. Pure React-hygiene fix, not a visual regression. Track inside the audit-cleanup arc.
-4. **Onboarding revamp (Huly plan)** — long-standing item. Plan at `~/.claude/plans/huly-onboarding-revamp.md`. **Now has a ⚠ Standing rule callout near the top: do not name Nexamp/Ameresco anywhere in the revamp.**
+**Audit arc — DONE:**
+- **`npm run audit:visual`** — standalone headless audit tool (any `--url`, `--auth`, desktop+mobile, screenshots + console + HTTP-failure capture → `.audit/visual-<ts>/findings.md`). Gitignored artifacts.
+- **Full audit ran:** 12 routes × desktop+mobile authed = 24 checks, **all clean post-fix.** Public routes also walked on prod.
+- **F-G1 Glossary dup keys → FIXED** (dedup by term in `glossaryTerms.js`).
+- **F1 `--color-primary` drift → FIXED** (`index.css`: primary + 600 = `#0F766E`, 700 = `#115E59`; light steps 50-300 intentionally left).
+- **F-D1 `/api/lens-insight` 404** on Dashboard/preview = **dev-only** (Vite doesn't run Vercel functions; prod clean). NOT a bug. Optional polish: guard the prefetch with `import.meta.env.PROD` like the Footer does.
+- Findings doc: `docs/audit-findings-2026-05-21.md`.
 
-**New standing rules added this session (already in auto-memory):**
+**Open items for next session:**
+1. **Onboarding revamp (Huly plan)** — the main remaining feature item. Plan at `~/.claude/plans/huly-onboarding-revamp.md` (carries the ⚠ no-employer-naming standing rule). The new `/about` walkthrough is a strong stylistic reference for the animated direction Aden likes.
+2. *(optional)* F-D1 dev-console polish; the `.env.local`-into-worktree auto-copy for `scripts/session-pickup.mjs` (still unconfirmed by Aden).
+
+**Standing rules (in auto-memory):**
 - **No employer naming on public surfaces** (`feedback_no_employer_naming.md`) — never name Nexamp or Ameresco on About / Landing / onboarding / marketing copy. Background described by function only. Only the Privacy Policy's narrow "professional relationship" line stays. Confirmed by Aden 2026-05-19.
 - **No browser popups** (`feedback_no_browser_popups.md`) — don't invoke Playwright MCP `browser_navigate` etc. without an explicit ask; verify smoke configs are headless before running; never `start`/`open` URLs.
 
 **Workflow gap surfaced (worth fixing in a future session):**
 - **Worktree sessions don't inherit `.env.local`.** It's gitignored, lives only in the main repo dir, so the dev server falls back to `placeholder.supabase.co` and smoke tests fail with ERR_NAME_NOT_RESOLVED. Aden gave one-time permission this session to copy it manually; future sessions hit the same wall. **Proposed fix:** `scripts/session-pickup.mjs` should auto-copy `.env.local` from main repo into the worktree if missing. Aden hasn't confirmed yet — flag this when relevant.
 
-**Test suite:** 158/158 unit, 7/7 smoke (after the env-var copy this session; re-runs needed for future worktree sessions unless the auto-copy lands).
+**Test suite:** 158/158 unit, 7/7 smoke. Auth audit storage at `tests/.auth/pro-user.json` (regenerate with `npm run test:smoke:pro`). Worktree `.env.local` still needs manual copy per session until the auto-copy fix lands.
 
-**Resume command:** `Continue from BUILD_LOG 2026-05-19 evening pickup. Audit script is shipped (npm run audit:visual). Next: run the full audit with --auth against prod, write a comprehensive findings doc, fix the Glossary duplicate-key bug surfaced by the first prod walk. F1 token drift fix still awaiting Aden's sign-off. Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
+**Resume command:** `Continue from BUILD_LOG 2026-05-21 pickup. Audit arc is closed (Glossary + F1 fixed, audit:visual tool shipped, all 24 authed checks clean). Next feature item is the onboarding revamp per ~/.claude/plans/huly-onboarding-revamp.md — the new animated /about walkthrough is the style reference. Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
 
 **Workflow note:** This pickup block is auto-injected at every session start by the `SessionStart` hook in `.claude/settings.json` (runs `scripts/session-pickup.mjs`) — no manual handover paste needed. Keep this section tight and current; it is the first thing every new session sees. Claude owns all git / worktree / merge plumbing end-to-end. Standing rules live in CLAUDE.md + auto-memory.
 
