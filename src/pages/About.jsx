@@ -620,32 +620,26 @@ function fadeProps(reduce, delay = 0) {
 }
 
 // ─── Illustration: Station 01 — THE GAP ──────────────────────────────────────
-// "The short end of the stick." One stick split unequally: the big, integrated
-// players hold the long end; the lean shop holds the short end. Tractova's
-// bright wedge extends the short end toward — but not all the way to — parity
-// (it narrows the gap; it doesn't pretend a one-person shop becomes an IPP).
+// "The short end of the stick." The big, integrated players hold the long end;
+// the lean shop holds the short end. A faint track shows the GAP between them,
+// and the bright Tractova wedge LOOPS — repeatedly filling most of that gap —
+// so the "closing" is always visibly happening, not a one-shot you might miss.
+// It fills most (not all) of the gap — Tractova narrows it, doesn't erase it.
 // Lengths are illustrative, NOT quantified — no numbers asserted.
 function GapArt({ reduce }) {
   const W = 360
-  const H = 280
-  const x0 = 40        // shared left start of both pieces
+  const H = 260
+  const x0 = 40        // shared left start
   const longEnd = 300  // the big players' reach
   const youEnd = 150   // your unaided reach — the short end
-  const wedgeEnd = 272 // your reach with Tractova — near, not at, parity
-  const yLong = 104
-  const yYou = 188
+  const yLong = 100
+  const yYou = 180
   const beam = 20
+  const gapW = longEnd - youEnd
+  const fillMax = youEnd + gapW * 0.9 // wedge fills ~90% of the gap
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
-      {/* Parity reference — faint dashed line at the big players' reach, so the
-          residual gap (wedge end → here) stays visible and honest. */}
-      <motion.line
-        x1={longEnd} y1={yLong - 26} x2={longEnd} y2={yYou + 26}
-        stroke="rgba(94,234,212,0.28)" strokeWidth="1" strokeDasharray="3 4"
-        {...fadeProps(reduce, 1.3)}
-      />
-
       {/* Long end — the big, integrated players (dim: the status quo). */}
       <motion.text
         x={x0} y={yLong - 18} fill="rgba(255,255,255,0.85)" fontSize="9"
@@ -667,7 +661,7 @@ function GapArt({ reduce }) {
         in-house finance · legal · design
       </motion.text>
 
-      {/* Short end — you (solid), extended by the Tractova wedge (bright). */}
+      {/* Short end — you (solid). */}
       <motion.text
         x={x0} y={yYou - 18} fill="rgba(255,255,255,0.85)" fontSize="9"
         fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.12em" fontWeight="700"
@@ -675,16 +669,24 @@ function GapArt({ reduce }) {
       >
         YOU
       </motion.text>
+      {/* Faint gap track — the empty distance the wedge will close. */}
+      <motion.line
+        x1={youEnd} y1={yYou} x2={longEnd} y2={yYou}
+        stroke="rgba(20,184,166,0.14)" strokeWidth={beam} strokeLinecap="round"
+        {...fadeProps(reduce, 0.6)}
+      />
       <motion.line
         x1={x0} y1={yYou} x2={youEnd} y2={yYou}
         stroke={TEAL} strokeWidth={beam} strokeLinecap="round"
         {...drawProps(reduce, 0.4, 0.55)}
       />
-      {/* Tractova wedge — grows in last; the payoff beat. */}
+      {/* Tractova wedge — LOOPS filling the gap (the visible "closing"). */}
       <motion.line
-        x1={youEnd} y1={yYou} x2={wedgeEnd} y2={yYou}
+        x1={youEnd} y1={yYou} y2={yYou}
         stroke={TEAL_BRIGHT} strokeWidth={beam} strokeLinecap="round"
-        {...drawProps(reduce, 1.0, 0.7)}
+        initial={reduce ? { x2: fillMax, opacity: 1 } : { x2: youEnd, opacity: 0 }}
+        animate={reduce ? { x2: fillMax, opacity: 1 } : { x2: [youEnd, fillMax, fillMax, youEnd], opacity: [0, 1, 1, 0] }}
+        transition={reduce ? {} : { duration: 3.6, times: [0, 0.38, 0.82, 1], repeat: Infinity, ease: [0.5, 0, 0.2, 1], delay: 0.9 }}
       />
       <motion.text
         x={x0} y={yYou + 24} fill="rgba(148,163,184,0.7)" fontSize="7"
@@ -694,10 +696,10 @@ function GapArt({ reduce }) {
         a lean shop
       </motion.text>
       <motion.text
-        x={(youEnd + wedgeEnd) / 2} y={yYou + 5} fill="#06231f" fontSize="7.5"
-        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.14em" fontWeight="700"
+        x={(youEnd + longEnd) / 2} y={yYou + 24} fill={TEAL_BRIGHT} fontSize="8"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.16em" fontWeight="700"
         textAnchor="middle"
-        {...fadeProps(reduce, 1.55)}
+        {...fadeProps(reduce, 1.2)}
       >
         + TRACTOVA
       </motion.text>
@@ -706,7 +708,7 @@ function GapArt({ reduce }) {
       <motion.text
         x={x0} y={H - 14} fill="rgba(255,255,255,0.5)" fontSize="9"
         fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em"
-        {...fadeProps(reduce, 1.65)}
+        {...fadeProps(reduce, 1.4)}
       >
         CLOSING THE GAP
       </motion.text>
