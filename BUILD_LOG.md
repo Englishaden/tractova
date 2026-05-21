@@ -9,7 +9,7 @@
 **Continuation of the About/audit arc. Aden gave blanket "allow all changes" autonomy to finish the audit + to-do while stepping away. Outcome: the visual-audit tool is shipped + enhanced, the full authed audit ran clean, and both real findings (Glossary duplicate keys, F1 primary-teal drift) are fixed and pushed. The audit-cleanup arc is now closed; the only carried-forward item is the onboarding revamp.**
 
 **What's live on prod (Vercel auto-deployed from main):**
-- **`/about`** — "Surveyor's Field Notes" animated walkthrough (5 station nodes on a survey baseline, crossfading navy cards, hand-drawn SVG illustrations, useReducedMotion-aware, mobile-stacked). Clickable Next/Walk-again button; auto-advance stops on interaction. No employer named; Aden Walker named in the founder station. **Aden reviewed all 5 stations across several rounds:** 02 groma (parcel labeled), 03 triangulation, 04 coverage, 05 notebook (survey title block) all approved. **Station 01 "The Gap" took 4 takes** (% bars → bars/track → diligence gauntlet → final: **"short end of the stick"** — long dim beam = big integrated players, short solid beam = YOU, bright `+ TRACTOVA` wedge extends it toward a dashed parity line; no numbers). Awaiting Aden's final look on the 4th take.
+- **`/about` — APPROVED by Aden ("looks good for now").** "Surveyor's Field Notes" animated walkthrough (5 station nodes on a survey baseline, crossfading navy cards, hand-drawn SVG illustrations, useReducedMotion-aware, mobile-stacked). Clickable Next/Walk-again button; auto-advance stops on interaction; entrance animates on first load (removed AnimatePresence `initial={false}`). No employer named; Aden Walker named in the founder station. All 5 stations approved: 01 the gap, 02 groma (centered, + definition in copy), 03 triangulation, 04 coverage, 05 notebook (survey title block). **Station 01 "The Gap" took 5 takes** (% bars → bars/track → diligence gauntlet → "short end of the stick" static → **final: short-end-of-the-stick with a LOOPING `+ TRACTOVA` wedge that fills ~80% of a faint gap track** — long dim beam = big integrated players, short solid beam = YOU; no dotted line; no numbers).
 - **`/glossary`** — duplicate-key React warnings GONE (was 2 console.errors/load).
 - **Primary teal consolidated** — `bg-primary`/`text-primary` now render canonical `#0F766E` everywhere (matched the literals).
 
@@ -19,7 +19,10 @@
 - `fbe6e1b` Glossary dup-key + primary-teal fixes · `6f785a5` audit:visual HTTP capture + findings · `f97eb1a` BUILD_LOG
 - `8970348` About review tweaks (clickable Next, chevron, gap/groma/notebook clarity, fit-one-screen)
 - `35588be` About: honest gap (no fake %) + notebook title block
-- `1aa79a9` **About: "The Gap" = short end of the stick (4th take, current)**
+- `1aa79a9` About: "The Gap" = short end of the stick (static)
+- `0c62333` About: fix station-01 load animation + center groma + de-corny hero
+- `021c3ef` About: gap visibly closes (looping wedge) + drop dotted line
+- `1c9b1c0` **About: gap wedge fills ~80% (current; Aden-approved)**
 
 **Audit arc — DONE:**
 - **`npm run audit:visual`** — standalone headless audit tool (any `--url`, `--auth`, desktop+mobile, screenshots + console + HTTP-failure capture → `.audit/visual-<ts>/findings.md`). Gitignored artifacts.
@@ -30,8 +33,8 @@
 - Findings doc: `docs/audit-findings-2026-05-21.md`.
 
 **Open items for next session:**
-1. **Confirm Station 01 "short end of the stick"** reads right for Aden (4th take). If yes, the About page is fully closed.
-2. **Huly screen-recording shot-list** — Aden plans to record the platform Huly-style for the onboarding revamp. Offered to turn the Huly plan's asset list into a precise capture checklist (URLs, viewport, what to click, stills vs video loops). Not built yet.
+1. **About page is CLOSED** (Aden-approved). Nothing pending on it.
+2. **Huly screen-recording shot-list** — THE next deliverable. Aden plans to record the platform Huly-style for the onboarding revamp. Turn the Huly plan's asset list into a precise capture checklist (URLs, viewport, what to click, stills vs video loops). Not built yet.
 3. **Onboarding revamp (Huly plan)** — the main feature item. Plan at `~/.claude/plans/huly-onboarding-revamp.md` (carries the ⚠ no-employer-naming standing rule). The finished animated `/about` is the in-house style reference.
 4. *(optional)* F-D1 dev-console polish; the `.env.local`-into-worktree auto-copy for `scripts/session-pickup.mjs` (still unconfirmed by Aden).
 
