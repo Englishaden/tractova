@@ -9,15 +9,17 @@
 **Continuation of the About/audit arc. Aden gave blanket "allow all changes" autonomy to finish the audit + to-do while stepping away. Outcome: the visual-audit tool is shipped + enhanced, the full authed audit ran clean, and both real findings (Glossary duplicate keys, F1 primary-teal drift) are fixed and pushed. The audit-cleanup arc is now closed; the only carried-forward item is the onboarding revamp.**
 
 **What's live on prod (Vercel auto-deployed from main):**
-- **`/about`** — "Surveyor's Field Notes" animated walkthrough (5 station nodes on a survey baseline, crossfading navy cards, hand-drawn SVG illustrations, useReducedMotion-aware, mobile-stacked). No employer named; Aden Walker named in the founder station.
+- **`/about`** — "Surveyor's Field Notes" animated walkthrough (5 station nodes on a survey baseline, crossfading navy cards, hand-drawn SVG illustrations, useReducedMotion-aware, mobile-stacked). Clickable Next/Walk-again button; auto-advance stops on interaction. No employer named; Aden Walker named in the founder station. **Aden reviewed all 5 stations across several rounds:** 02 groma (parcel labeled), 03 triangulation, 04 coverage, 05 notebook (survey title block) all approved. **Station 01 "The Gap" took 4 takes** (% bars → bars/track → diligence gauntlet → final: **"short end of the stick"** — long dim beam = big integrated players, short solid beam = YOU, bright `+ TRACTOVA` wedge extends it toward a dashed parity line; no numbers). Awaiting Aden's final look on the 4th take.
 - **`/glossary`** — duplicate-key React warnings GONE (was 2 console.errors/load).
 - **Primary teal consolidated** — `bg-primary`/`text-primary` now render canonical `#0F766E` everywhere (matched the literals).
 
 **Commits since marathon close (b703fdc):**
 - `8d4fe9f` About v1 · `7009fe7` audit-findings-2026-05-19 · `bc51804` scrub employer comment · `348a029` About v2 walkthrough
-- `b96dd92` BUILD_LOG handoff · `c2b9de3` audit:visual script · `ea95822` BUILD_LOG
-- `fbe6e1b` **fix: Glossary duplicate keys + primary-teal token consolidation**
-- `6f785a5` **audit:visual HTTP-failure capture + audit-findings-2026-05-21 doc**
+- `b96dd92` BUILD_LOG · `c2b9de3` audit:visual script · `ea95822` BUILD_LOG
+- `fbe6e1b` Glossary dup-key + primary-teal fixes · `6f785a5` audit:visual HTTP capture + findings · `f97eb1a` BUILD_LOG
+- `8970348` About review tweaks (clickable Next, chevron, gap/groma/notebook clarity, fit-one-screen)
+- `35588be` About: honest gap (no fake %) + notebook title block
+- `1aa79a9` **About: "The Gap" = short end of the stick (4th take, current)**
 
 **Audit arc — DONE:**
 - **`npm run audit:visual`** — standalone headless audit tool (any `--url`, `--auth`, desktop+mobile, screenshots + console + HTTP-failure capture → `.audit/visual-<ts>/findings.md`). Gitignored artifacts.
@@ -28,8 +30,10 @@
 - Findings doc: `docs/audit-findings-2026-05-21.md`.
 
 **Open items for next session:**
-1. **Onboarding revamp (Huly plan)** — the main remaining feature item. Plan at `~/.claude/plans/huly-onboarding-revamp.md` (carries the ⚠ no-employer-naming standing rule). The new `/about` walkthrough is a strong stylistic reference for the animated direction Aden likes.
-2. *(optional)* F-D1 dev-console polish; the `.env.local`-into-worktree auto-copy for `scripts/session-pickup.mjs` (still unconfirmed by Aden).
+1. **Confirm Station 01 "short end of the stick"** reads right for Aden (4th take). If yes, the About page is fully closed.
+2. **Huly screen-recording shot-list** — Aden plans to record the platform Huly-style for the onboarding revamp. Offered to turn the Huly plan's asset list into a precise capture checklist (URLs, viewport, what to click, stills vs video loops). Not built yet.
+3. **Onboarding revamp (Huly plan)** — the main feature item. Plan at `~/.claude/plans/huly-onboarding-revamp.md` (carries the ⚠ no-employer-naming standing rule). The finished animated `/about` is the in-house style reference.
+4. *(optional)* F-D1 dev-console polish; the `.env.local`-into-worktree auto-copy for `scripts/session-pickup.mjs` (still unconfirmed by Aden).
 
 **Standing rules (in auto-memory):**
 - **No employer naming on public surfaces** (`feedback_no_employer_naming.md`) — never name Nexamp or Ameresco on About / Landing / onboarding / marketing copy. Background described by function only. Only the Privacy Policy's narrow "professional relationship" line stays. Confirmed by Aden 2026-05-19.
@@ -40,7 +44,7 @@
 
 **Test suite:** 158/158 unit, 7/7 smoke. Auth audit storage at `tests/.auth/pro-user.json` (regenerate with `npm run test:smoke:pro`). Worktree `.env.local` still needs manual copy per session until the auto-copy fix lands.
 
-**Resume command:** `Continue from BUILD_LOG 2026-05-21 pickup. Audit arc is closed (Glossary + F1 fixed, audit:visual tool shipped, all 24 authed checks clean). Next feature item is the onboarding revamp per ~/.claude/plans/huly-onboarding-revamp.md — the new animated /about walkthrough is the style reference. Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
+**Resume command:** `Continue from BUILD_LOG 2026-05-21 pickup. About page + audit arc done (all 5 stations shipped; Station 01 is the 4th-take "short end of the stick"; prod /about + /glossary 0-error). Next: build the Huly screen-recording shot-list, then the onboarding revamp per ~/.claude/plans/huly-onboarding-revamp.md (animated /about is the style reference). Standing rules: no employer naming on public surfaces, no browser popups, every UI-copy term gets a Glossary entry.`
 
 **Workflow note:** This pickup block is auto-injected at every session start by the `SessionStart` hook in `.claude/settings.json` (runs `scripts/session-pickup.mjs`) — no manual handover paste needed. Keep this section tight and current; it is the first thing every new session sees. Claude owns all git / worktree / merge plumbing end-to-end. Standing rules live in CLAUDE.md + auto-memory.
 
