@@ -96,19 +96,25 @@ const STATIONS = [
 export default function About() {
   const [active, setActive] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [autoPlay, setAutoPlay] = useState(true)
   const reduce = useReducedMotion()
 
-  // Auto-advance the walkthrough every AUTO_ADVANCE_MS unless the user has
-  // hovered onto the card, or unless reduced-motion is set. The pause-on-
-  // hover behavior matches Palantir's homepage carousel and avoids ripping
-  // content out from under someone reading it.
+  // Manual interaction (clicking a station node or the Next button) takes
+  // over: auto-advance stops for the rest of the visit so the walkthrough
+  // never shifts out from under the user's control.
+  const goTo = (i) => { setAutoPlay(false); setActive(i) }
+  const advance = () => { setAutoPlay(false); setActive((i) => (i + 1) % STATIONS.length) }
+
+  // Auto-advance until the first manual interaction (and never under
+  // reduced-motion or while hovering the card). Pause-on-hover matches
+  // Palantir's homepage carousel and avoids ripping content out mid-read.
   useEffect(() => {
-    if (reduce || paused) return
+    if (reduce || paused || !autoPlay) return
     const id = setInterval(() => {
       setActive((i) => (i + 1) % STATIONS.length)
     }, AUTO_ADVANCE_MS)
     return () => clearInterval(id)
-  }, [reduce, paused])
+  }, [reduce, paused, autoPlay])
 
   return (
     <div className="pt-14">
@@ -146,11 +152,12 @@ export default function About() {
 
           {/* Desktop: the survey baseline with five station nodes. */}
           <div className="hidden lg:block">
-            <BaselineNav active={active} onPick={setActive} />
+            <BaselineNav active={active} onPick={goTo} />
             <StationCard
               station={STATIONS[active]}
               activeIndex={active}
               onHoverChange={setPaused}
+              onAdvance={advance}
               reduce={reduce}
             />
           </div>
@@ -374,118 +381,134 @@ function StationNode({ station, isActive, onPick }) {
 // Dark navy card with two columns: left = text content, right = a hand-drawn
 // technical-drawing SVG illustration. Crossfades between stations with motion.
 
-function StationCard({ station, activeIndex, onHoverChange, reduce }) {
+function StationCard({ station, activeIndex, onHoverChange, onAdvance, reduce }) {
+  const isLast = activeIndex === STATIONS.length - 1
   return (
-    <div
-      className="relative rounded-2xl overflow-hidden shadow-2xl"
-      style={{
-        background: NAVY_GRADIENT,
-        border: '1px solid rgba(20,184,166,0.18)',
-        minHeight: 520,
-      }}
-      onMouseEnter={() => onHoverChange(true)}
-      onMouseLeave={() => onHoverChange(false)}
-    >
-      {/* Top teal rail (the baseline visually "enters" the card). */}
-      <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: TEAL_RAIL }} />
-
-      {/* Tiny upward arrow at top-left aligned to active station — visual
-          continuation from the baseline above into this card. */}
-      <div
-        className="absolute z-10 transition-all duration-500 ease-out"
-        style={{
-          top: -1,
-          left: `calc(${(activeIndex + 0.5) * (100 / STATIONS.length)}% - 6px)`,
-        }}
-      >
+    <div className="relative">
+      {/* Connector — a down-chevron in the gap above the card, aligned to
+          the active station and sliding as it changes. Lives OUTSIDE the
+          card's overflow-hidden box so it is never clipped. */}
+      <div className="relative h-4 mb-2" aria-hidden="true">
         <span
-          className="block"
+          className="absolute block transition-all duration-500 ease-out"
           style={{
+            top: 0,
+            left: `calc(${(activeIndex + 0.5) * (100 / STATIONS.length)}% - 7px)`,
             width: 0,
             height: 0,
-            borderLeft: '6px solid transparent',
-            borderRight: '6px solid transparent',
-            borderBottom: `7px solid ${TEAL_BRIGHT}`,
+            borderLeft: '7px solid transparent',
+            borderRight: '7px solid transparent',
+            borderTop: `8px solid ${TEAL_BRIGHT}`,
           }}
         />
       </div>
 
-      {/* Corner survey marks — small L-shaped brackets in each corner,
-          like reference marks on a survey drawing. */}
-      <CornerMarks />
+      <div
+        className="relative rounded-2xl overflow-hidden shadow-2xl"
+        style={{
+          background: NAVY_GRADIENT,
+          border: '1px solid rgba(20,184,166,0.18)',
+          minHeight: 440,
+        }}
+        onMouseEnter={() => onHoverChange(true)}
+        onMouseLeave={() => onHoverChange(false)}
+      >
+        {/* Top teal rail (the baseline visually "enters" the card). */}
+        <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: TEAL_RAIL }} />
 
-      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 px-10 lg:px-14 py-12 lg:py-14 relative">
-        {/* Left — text content. Crossfades on station change. */}
-        <div className="relative">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={station.n}
-              initial={reduce ? { opacity: 1 } : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={reduce ? { opacity: 1 } : { opacity: 0, y: -8 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        {/* Corner survey marks — L-shaped reference brackets. */}
+        <CornerMarks />
+
+        <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 px-10 lg:px-14 py-10 lg:py-12 relative">
+          {/* Left — crossfading content + a persistent clickable advance. */}
+          <div className="relative flex flex-col">
+            <div className="flex-1">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={station.n}
+                  initial={reduce ? { opacity: 1 } : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduce ? { opacity: 1 } : { opacity: 0, y: -8 }}
+                  transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <p
+                    className="font-mono text-[10px] uppercase tracking-[0.32em] font-bold mb-4 flex items-center gap-3"
+                    style={{ color: TEAL_LIGHT }}
+                  >
+                    <span>Station {station.n}</span>
+                    <span style={{ color: 'rgba(94,234,212,0.4)' }}>/</span>
+                    <span>{station.label}</span>
+                  </p>
+
+                  <h2
+                    className="text-3xl lg:text-[2.4rem] font-serif font-semibold text-white leading-[1.1] tracking-tight mb-6"
+                    style={{ letterSpacing: '-0.02em' }}
+                  >
+                    {station.headline}
+                  </h2>
+
+                  <div className="space-y-4 text-[15px] text-white/70 leading-relaxed max-w-xl">
+                    {station.body.map((p, i) => (
+                      <p key={i}>{p}</p>
+                    ))}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Persistent advance control — a real button. Advancing from
+                the card's bottom means no scrolling back up to the baseline
+                to reach the next station. */}
+            <button
+              type="button"
+              onClick={onAdvance}
+              aria-label={isLast ? 'Restart the walkthrough' : 'Go to the next station'}
+              className="group mt-8 inline-flex items-center gap-3 self-start rounded-full pl-4 pr-3 py-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2DD4BF]"
+              style={{ border: '1px solid rgba(20,184,166,0.35)', background: 'rgba(20,184,166,0.06)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.16)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.06)' }}
             >
-              <p
-                className="font-mono text-[10px] uppercase tracking-[0.32em] font-bold mb-4 flex items-center gap-3"
+              <span
+                className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold"
                 style={{ color: TEAL_LIGHT }}
               >
-                <span>Station {station.n}</span>
-                <span style={{ color: 'rgba(94,234,212,0.4)' }}>/</span>
-                <span>{station.label}</span>
-              </p>
-
-              <h2
-                className="text-3xl lg:text-[2.5rem] font-serif font-semibold text-white leading-[1.1] tracking-tight mb-7"
-                style={{ letterSpacing: '-0.02em' }}
-              >
-                {station.headline}
-              </h2>
-
-              <div className="space-y-4 text-[15px] text-white/70 leading-relaxed max-w-xl">
-                {station.body.map((p, i) => (
-                  <p key={i}>{p}</p>
-                ))}
-              </div>
-
-              {/* Trailing arrow — Palantir homepage cards have an arrow
-                  glyph at the bottom-right of each card; we put it at the
-                  bottom-left of the text column. */}
-              <div className="mt-9 flex items-center gap-3">
-                <span
-                  className="font-mono text-[10px] uppercase tracking-[0.24em] font-bold"
-                  style={{ color: TEAL_LIGHT }}
-                >
-                  {activeIndex < STATIONS.length - 1 ? 'Next station' : 'Walk again'}
-                </span>
+                {isLast ? 'Walk again' : 'Next station'}
+              </span>
+              {isLast ? (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={TEAL_BRIGHT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="1 4 1 10 7 10" />
+                  <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                </svg>
+              ) : (
                 <motion.span
                   animate={reduce ? {} : { x: [0, 4, 0] }}
                   transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                  style={{ color: TEAL_BRIGHT }}
+                  style={{ color: TEAL_BRIGHT, display: 'inline-flex' }}
                 >
                   <svg width="16" height="14" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="2" y1="9" x2="20" y2="9" />
                     <polyline points="14 3 20 9 14 15" />
                   </svg>
                 </motion.span>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
+              )}
+            </button>
+          </div>
 
-        {/* Right — SVG illustration. Re-keyed on station so paths re-draw. */}
-        <div className="relative flex items-center justify-center">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={station.n + '-art'}
-              initial={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full"
-            >
-              <StationArt kind={station.illustration} reduce={reduce} />
-            </motion.div>
-          </AnimatePresence>
+          {/* Right — SVG illustration. Re-keyed on station so paths re-draw. */}
+          <div className="relative flex items-center justify-center">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={station.n + '-art'}
+                initial={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                className="w-full"
+              >
+                <StationArt kind={station.illustration} reduce={reduce} />
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>
@@ -597,91 +620,82 @@ function fadeProps(reduce, delay = 0) {
 }
 
 // ─── Illustration: Station 01 — THE GAP ──────────────────────────────────────
-// "The stack of expensive opinions" — a horizontal bar diagram showing
-// project returns being shaved by Legal / IE / Financing layers. Axis on
-// left; annotations on right.
+// "Each cost shaves the return." Each bar is what REMAINS after that cost; a
+// faint full-width track behind every bar is the original 100%, so the gap
+// between the solid bar and the track reads as what was lost. The final
+// highlighted bar (after a divider) is "what's left."
 function GapArt({ reduce }) {
-  const W = 360
-  const H = 320
-  const x0 = 60
-  const widthFor = (pct) => (pct / 100) * 250
+  const W = 380
+  const H = 268
+  const barX = 26
+  const maxW = 250
+  const barH = 24
+  const rowGap = 42
+  const resultGap = 16 // extra space before the highlighted summary bar
   const rows = [
-    { label: 'PROJECT RETURNS', pct: 100, y: 60 },
-    { label: '− LEGAL', pct: 84, y: 110 },
-    { label: '− IE', pct: 68, y: 160 },
-    { label: '− FINANCING', pct: 50, y: 210 },
-    { label: 'WHAT\'S LEFT', pct: 34, y: 260 },
+    { label: 'PROJECT RETURNS', pct: 100, tone: 'full'   },
+    { label: '− Legal',         pct: 82,  tone: 'cost'   },
+    { label: '− IE / design',   pct: 66,  tone: 'cost'   },
+    { label: '− Financing',     pct: 50,  tone: 'cost'   },
+    { label: "WHAT'S LEFT",     pct: 50,  tone: 'result' },
   ]
+  const colorFor = (tone) =>
+    tone === 'result' ? TEAL_BRIGHT : tone === 'full' ? TEAL : 'rgba(20,184,166,0.42)'
+  const yFor = (i) => 30 + i * rowGap + (i === rows.length - 1 ? resultGap : 0)
+  const dividerY = yFor(rows.length - 1) - rowGap / 2 - 2
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
-      {/* Axis (left vertical line + tick marks) */}
-      <line x1={x0} y1={45} x2={x0} y2={H - 30} stroke={TEAL} strokeWidth="1" />
-      {[0, 25, 50, 75, 100].map((t, i) => (
-        <g key={t}>
-          <line x1={x0 - 4} y1={45 + (i * (H - 75) / 4)} x2={x0} y2={45 + (i * (H - 75) / 4)} stroke={TEAL} strokeWidth="1" />
-          <text x={x0 - 8} y={45 + (i * (H - 75) / 4) + 3} fill="rgba(255,255,255,0.4)" fontSize="8" fontFamily="ui-monospace,Menlo,monospace" textAnchor="end">{100 - t}</text>
-        </g>
-      ))}
-      {/* Bars */}
+      {/* Divider before the summary bar */}
+      <motion.line
+        x1={barX} y1={dividerY} x2={barX + maxW} y2={dividerY}
+        stroke="rgba(94,234,212,0.25)" strokeWidth="1" strokeDasharray="3 3"
+        {...drawProps(reduce, 0.75, 0.4)}
+      />
       {rows.map((r, i) => {
-        const w = widthFor(r.pct)
-        const isLast = i === rows.length - 1
-        const fillColor = isLast ? TEAL_BRIGHT : i === 0 ? TEAL : `rgba(20,184,166,${0.6 - i * 0.1})`
+        const y = yFor(i)
+        const solidW = (r.pct / 100) * maxW
+        const isResult = r.tone === 'result'
         return (
           <g key={r.label}>
+            {/* faint 100% reference track */}
+            <line x1={barX} y1={y} x2={barX + maxW} y2={y} stroke="rgba(20,184,166,0.10)" strokeWidth={barH} strokeLinecap="butt" />
+            {/* solid bar = what remains; draws left → right */}
             <motion.line
-              x1={x0}
-              y1={r.y}
-              x2={x0 + w}
-              y2={r.y}
-              stroke={fillColor}
-              strokeWidth="14"
-              strokeLinecap="butt"
-              {...drawProps(reduce, 0.1 + i * 0.12, 0.6)}
+              x1={barX} y1={y} x2={barX + solidW} y2={y}
+              stroke={colorFor(r.tone)} strokeWidth={barH} strokeLinecap="butt"
+              {...drawProps(reduce, 0.1 + i * 0.12, 0.55)}
             />
+            {/* label inside the bar */}
             <motion.text
-              x={x0 + w + 8}
-              y={r.y + 3}
-              fill="rgba(255,255,255,0.55)"
-              fontSize="9"
-              fontFamily="ui-monospace,Menlo,monospace"
-              letterSpacing="0.06em"
-              {...fadeProps(reduce, 0.4 + i * 0.12)}
+              x={barX + 10} y={y + 3.5}
+              fill={isResult ? '#06231f' : '#FFFFFF'}
+              fontSize="10" fontFamily="ui-monospace,Menlo,monospace"
+              letterSpacing="0.08em" fontWeight={isResult ? 700 : 500}
+              {...fadeProps(reduce, 0.35 + i * 0.12)}
             >
               {r.label}
+            </motion.text>
+            {/* % just past the solid bar end */}
+            <motion.text
+              x={barX + solidW + 8} y={y + 3.5}
+              fill={TEAL_LIGHT} fontSize="9" fontFamily="ui-monospace,Menlo,monospace"
+              {...fadeProps(reduce, 0.5 + i * 0.12)}
+            >
+              {r.pct}%
             </motion.text>
           </g>
         )
       })}
-      {/* Annotation: a curly brace + label on the right side */}
-      <motion.g {...fadeProps(reduce, 1.0)}>
-        <path
-          d={`M ${x0 + 280} 60 Q ${x0 + 290} ${H / 2 - 20} ${x0 + 280} ${H / 2 - 20} Q ${x0 + 290} ${H / 2 - 20} ${x0 + 280} 210`}
-          stroke="rgba(94,234,212,0.45)"
-          strokeWidth="1"
-          fill="none"
-        />
-        <text
-          x={x0 + 295}
-          y={H / 2 - 18}
-          fill={TEAL_LIGHT}
-          fontSize="8"
-          fontFamily="ui-monospace,Menlo,monospace"
-          letterSpacing="0.16em"
-        >
-          THE
-        </text>
-        <text
-          x={x0 + 295}
-          y={H / 2 - 6}
-          fill={TEAL_LIGHT}
-          fontSize="8"
-          fontFamily="ui-monospace,Menlo,monospace"
-          letterSpacing="0.16em"
-        >
-          STACK
-        </text>
-      </motion.g>
+      {/* caption */}
+      <motion.text
+        x={barX} y={H - 6}
+        fill="rgba(255,255,255,0.5)" fontSize="9"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em"
+        {...fadeProps(reduce, 1.0)}
+      >
+        EACH COST SHAVES THE RETURN
+      </motion.text>
     </svg>
   )
 }
@@ -723,11 +737,14 @@ function GromaArt({ reduce }) {
             strokeWidth="0.6"
           />
         ))}
-        {/* A highlighted parcel — solid teal corner marks */}
+        {/* The surveyed plot — faint fill so the grid clearly reads as a
+            tract of land with one parcel staked out. */}
+        <rect x={244} y={154} width={48} height={48} fill="rgba(20,184,166,0.16)" stroke="rgba(20,184,166,0.5)" strokeWidth="0.8" />
+        {/* Corner marks on the staked parcel */}
         {[[244, 154], [292, 154], [244, 202], [292, 202]].map(([x, y], i) => (
           <g key={`pc-${i}`}>
-            <line x1={x - 3} y1={y} x2={x + 3} y2={y} stroke={TEAL_BRIGHT} strokeWidth="1" />
-            <line x1={x} y1={y - 3} x2={x} y2={y + 3} stroke={TEAL_BRIGHT} strokeWidth="1" />
+            <line x1={x - 3} y1={y} x2={x + 3} y2={y} stroke={TEAL_BRIGHT} strokeWidth="1.4" />
+            <line x1={x} y1={y - 3} x2={x} y2={y + 3} stroke={TEAL_BRIGHT} strokeWidth="1.4" />
           </g>
         ))}
       </motion.g>
@@ -856,20 +873,20 @@ function GromaArt({ reduce }) {
         letterSpacing="0.18em"
         {...fadeProps(reduce, 0.9)}
       >
-        GROMA · I AD
+        ROMAN GROMA
       </motion.text>
 
       <motion.text
-        x={244}
-        y={272}
+        x={280}
+        y={270}
         fill={TEAL_LIGHT}
-        fontSize="8"
+        fontSize="7.5"
         fontFamily="ui-monospace,Menlo,monospace"
-        letterSpacing="0.16em"
+        letterSpacing="0.14em"
         textAnchor="middle"
         {...fadeProps(reduce, 1.0)}
       >
-        TRACTUS
+        TRACTUS · A TRACT OF LAND
       </motion.text>
     </svg>
   )
@@ -1229,16 +1246,27 @@ function NotebookArt({ reduce }) {
         {...drawProps(reduce, 0.5, 0.4)}
       />
 
-      {/* Left page — layered data lines, each labeled */}
+      {/* Left page — labeled data traces. The endpoint dot is placed on the
+          path's ACTUAL last point (line + dot share the same jittered y) so
+          they always line up. */}
       {['OFFTAKE', 'IX', 'SITE', 'POLICY'].map((label, i) => {
-        const y = nb.y + 26 + i * 36
+        const y = nb.y + 30 + i * 38
         const baseX = nb.x + 18
-        const endX = spine - 14
+        const endX = spine - 16
+        const pts = []
+        for (let k = 0; k <= 8; k++) {
+          const x = baseX + (k * (endX - baseX)) / 8
+          const seed = (i * 7 + k * 3) % 9
+          const dy = ((seed % 5) - 2) * 2
+          pts.push({ x, y: y + dy })
+        }
+        const d = pts.map((p, k) => `${k === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
+        const last = pts[pts.length - 1]
         return (
           <g key={label}>
             <motion.text
               x={baseX}
-              y={y - 8}
+              y={y - 9}
               fill="rgba(94,234,212,0.65)"
               fontSize="7"
               fontFamily="ui-monospace,Menlo,monospace"
@@ -1248,93 +1276,48 @@ function NotebookArt({ reduce }) {
             >
               {label}
             </motion.text>
-            {/* Sparkline-style data trace */}
             <motion.path
-              d={(() => {
-                const pts = []
-                for (let k = 0; k <= 8; k++) {
-                  const x = baseX + (k * (endX - baseX)) / 8
-                  // pseudo-random but stable per-row jitter
-                  const seed = (i * 7 + k * 3) % 9
-                  const dy = ((seed % 5) - 2) * 2
-                  pts.push(`${k === 0 ? 'M' : 'L'} ${x} ${y + dy}`)
-                }
-                return pts.join(' ')
-              })()}
+              d={d}
               fill="none"
               stroke={TEAL_BRIGHT}
               strokeWidth="1.2"
               {...drawProps(reduce, 0.4 + i * 0.1, 0.6)}
             />
-            {/* Endpoint dot */}
             <motion.circle
-              cx={endX}
-              cy={y}
-              r={2.2}
+              cx={last.x}
+              cy={last.y}
+              r={2.4}
               fill={TEAL_LIGHT}
-              {...fadeProps(reduce, 0.9 + i * 0.08)}
+              {...fadeProps(reduce, 0.9 + i * 0.1)}
             />
           </g>
         )
       })}
 
-      {/* Right page — concentric stamp seal + a few signature loops */}
-      <motion.g {...fadeProps(reduce, 1.0)}>
-        {/* Stamp seal */}
-        <circle cx={spine + 80} cy={nb.y + 70} r={32} fill="none" stroke={TEAL_LIGHT} strokeWidth="0.8" strokeDasharray="2 2" />
-        <circle cx={spine + 80} cy={nb.y + 70} r={24} fill="none" stroke={TEAL_LIGHT} strokeWidth="0.6" />
-        <text x={spine + 80} y={nb.y + 66} fill={TEAL_LIGHT} fontSize="7" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.20em" fontWeight="700" textAnchor="middle">TRACTOVA</text>
-        <text x={spine + 80} y={nb.y + 78} fill="rgba(94,234,212,0.6)" fontSize="6" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.24em" textAnchor="middle">FIELD NOTES</text>
-        {/* Star at center */}
-        <polygon points={`${spine + 80},${nb.y + 86} ${spine + 76},${nb.y + 96} ${spine + 84},${nb.y + 96}`} fill={TEAL_BRIGHT} />
-      </motion.g>
+      {/* Right page — clean ownership stamp, centered on the page. */}
+      {(() => {
+        const rcx = spine + (nb.x + nb.w - spine) / 2 // right-page center
+        const scy = nb.y + 58
+        return (
+          <g>
+            <motion.g {...fadeProps(reduce, 0.95)}>
+              <circle cx={rcx} cy={scy} r={30} fill="none" stroke={TEAL_LIGHT} strokeWidth="0.8" strokeDasharray="2 2" />
+              <circle cx={rcx} cy={scy} r={22} fill="none" stroke="rgba(94,234,212,0.5)" strokeWidth="0.6" />
+              {/* surveyor diamond above the wordmark */}
+              <rect x={rcx - 3} y={scy - 16} width={6} height={6} fill={TEAL_BRIGHT} transform={`rotate(45 ${rcx} ${scy - 13})`} />
+              <text x={rcx} y={scy + 4} fill={TEAL_LIGHT} fontSize="7.5" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" fontWeight="700" textAnchor="middle">TRACTOVA</text>
+              <text x={rcx} y={scy + 14} fill="rgba(94,234,212,0.65)" fontSize="5.5" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.22em" textAnchor="middle">FIELD NOTES</text>
+            </motion.g>
 
-      {/* Signature loops on right page */}
-      <motion.path
-        d={`M ${spine + 18} ${nb.y + 145} C ${spine + 30} ${nb.y + 135}, ${spine + 50} ${nb.y + 155}, ${spine + 70} ${nb.y + 145} S ${spine + 110} ${nb.y + 145}, ${spine + 130} ${nb.y + 150}`}
-        fill="none"
-        stroke="rgba(255,255,255,0.55)"
-        strokeWidth="1"
-        {...drawProps(reduce, 1.1, 0.7)}
-      />
-      <motion.line
-        x1={spine + 18}
-        y1={nb.y + 168}
-        x2={spine + 130}
-        y2={nb.y + 168}
-        stroke="rgba(255,255,255,0.3)"
-        strokeWidth="0.6"
-        {...drawProps(reduce, 1.4, 0.4)}
-      />
-      <motion.text
-        x={spine + 18}
-        y={nb.y + 180}
-        fill="rgba(255,255,255,0.45)"
-        fontSize="7"
-        fontFamily="ui-monospace,Menlo,monospace"
-        letterSpacing="0.20em"
-        {...fadeProps(reduce, 1.6)}
-      >
-        OPERATOR · BOSTON, MA
-      </motion.text>
-
-      {/* Pencil — a tilted line with a small triangular tip resting on the
-          right page */}
-      <motion.g
-        initial={reduce ? { opacity: 1, rotate: -18, x: 0, y: 0 } : { opacity: 0, rotate: -18, x: 12, y: 10 }}
-        animate={{ opacity: 1, rotate: -18, x: 0, y: 0 }}
-        transition={{ duration: 0.6, delay: 1.5, ease: [0.22, 1, 0.36, 1] }}
-        style={{ transformOrigin: `${spine + 110}px ${nb.y + 180}px` }}
-      >
-        <line x1={spine + 50} y1={nb.y + 200} x2={spine + 120} y2={nb.y + 185} stroke="rgba(255,255,255,0.7)" strokeWidth="3" strokeLinecap="round" />
-        <line x1={spine + 50} y1={nb.y + 200} x2={spine + 120} y2={nb.y + 185} stroke={TEAL_BRIGHT} strokeWidth="1" strokeDasharray="3 4" />
-        <polygon
-          points={`${spine + 45},${nb.y + 201} ${spine + 52},${nb.y + 196} ${spine + 53},${nb.y + 203}`}
-          fill={NAVY}
-          stroke="rgba(255,255,255,0.7)"
-          strokeWidth="1"
-        />
-      </motion.g>
+            {/* Signed-off block — two clean ruled lines + caption. */}
+            <motion.line x1={rcx - 56} y1={nb.y + 132} x2={rcx + 56} y2={nb.y + 132} stroke="rgba(94,234,212,0.30)" strokeWidth="0.7" {...drawProps(reduce, 1.1, 0.45)} />
+            <motion.line x1={rcx - 56} y1={nb.y + 150} x2={rcx + 56} y2={nb.y + 150} stroke="rgba(94,234,212,0.18)" strokeWidth="0.6" {...drawProps(reduce, 1.25, 0.45)} />
+            <motion.text x={rcx} y={nb.y + 172} fill="rgba(255,255,255,0.5)" fontSize="7" fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.18em" textAnchor="middle" {...fadeProps(reduce, 1.4)}>
+              OPERATOR · BOSTON, MA
+            </motion.text>
+          </g>
+        )
+      })()}
     </svg>
   )
 }
