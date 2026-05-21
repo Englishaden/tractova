@@ -38,11 +38,18 @@
   --color-primary-300: #6ecdb0;
   --color-primary-400: #34b08a;
   --color-primary-500: #1a9070;
-  --color-primary-600: #0f6e56;
-  --color-primary-700: #0a5240;
+  --color-primary-600: #0F766E;
+  --color-primary-700: #115E59;
   --color-primary-800: #063629;
   --color-primary-900: #031a14;
-  --color-primary: #0f6e56;
+  /* Canonical brand teal. The May-2026 color audit consolidated component
+     literals to #0F766E (Tailwind teal-700) but originally left this token
+     at the legacy #0f6e56, so bg-primary / text-primary rendered a slightly
+     different teal than the style-literal eyebrows. Aligned here so the
+     utility classes match the literals. primary-600 == primary; primary-700
+     (#115E59 = teal-800) is the darker hover / dark-text step and matches
+     the dark-teal chip literals already used across components. */
+  --color-primary: #0F766E;
 
   --color-accent-50: #fdf5e6;
   --color-accent-100: #fae4b3;
@@ -236,7 +243,7 @@
 /*
   shadcn-specific token surface. INTENTIONALLY EXCLUDES:
   - --font-sans (would override our system-sans inheritance)
-  - --color-primary (would override our teal at #0f6e56)
+  - --color-primary (would override our teal at #0F766E)
   - --color-accent  (would override our amber at #ba7517)
   shadcn's button etc. will inherit our primary/accent/font, which is
   exactly what we want -- shadcn components blend into our brand.

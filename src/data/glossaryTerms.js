@@ -83,7 +83,9 @@ const GLOSSARY_NEW_TERMS = Object.entries(GLOSSARY_DEFINITIONS)
     related: ['Feasibility Index'],
   }))
 
-export const GLOSSARY_TERMS = [
+// Raw catalog before dedup. Base terms are authored first and are the
+// canonical versions; tech-type + definition-derived terms append after.
+const RAW_GLOSSARY_TERMS = [
   // ── Development stages ──────────────────────────────────────────────────────
   {
     term: 'Prospecting',
@@ -352,3 +354,13 @@ export const GLOSSARY_TERMS = [
   ...TECH_TYPE_TERMS,
   ...GLOSSARY_NEW_TERMS,
 ]
+
+// Dedupe by term, first-occurrence wins. Some definition-derived titles
+// (e.g. 'NTP (Notice to Proceed)', 'IX Queue (Interconnection Queue)')
+// duplicate a hand-authored base term above; the base entry is canonical
+// so the later duplicate is dropped. This keeps the Glossary card list's
+// React keys unique (key={t.term}) — duplicates previously logged
+// "Encountered two children with the same key" on every /glossary load.
+export const GLOSSARY_TERMS = RAW_GLOSSARY_TERMS.filter(
+  (t, i) => RAW_GLOSSARY_TERMS.findIndex((x) => x.term === t.term) === i,
+)
