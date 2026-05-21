@@ -636,7 +636,7 @@ function GapArt({ reduce }) {
   const yYou = 180
   const beam = 20
   const gapW = longEnd - youEnd
-  const fillMax = youEnd + gapW * 0.9 // wedge fills ~90% of the gap
+  const fillMax = youEnd + gapW * 0.8 // wedge fills ~80% of the gap
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
