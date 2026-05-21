@@ -52,7 +52,7 @@ const STATIONS = [
     headline: 'From tractus — a stretch of land.',
     body: [
       'Tractova comes from the Latin tractus — a tract, a stretch of land — and the Roman practice of staking out land parcels for survey. It\'s also a quiet play on words: a place to track your projects.',
-      'The brand mark carries it through. A surveyor\'s baseline with tick marks, a nod to the Roman tractus who measured ground before anything was built on it. That\'s the job: measure the ground first.',
+      'A Roman surveyor staked out those parcels with a groma — an upright staff with a sighting cross, used to lay straight lines and true right angles before a single stone was placed. Tractova\'s mark keeps the idea: measure the ground first.',
     ],
     illustration: 'groma',
   },
@@ -138,9 +138,9 @@ export default function About() {
               <span style={{ color: TEAL_GLOW }}>Built for the shops that can&apos;t afford it.</span>
             </h1>
             <p className="text-base lg:text-lg text-white/70 leading-relaxed max-w-2xl">
-              Five stations along a survey baseline. Walk them in order — or jump.
-              Each one is the part of building Tractova that mattered enough to mark on
-              the ground.
+              Five stations along a survey baseline: why Tractova exists, where the
+              name comes from, how it works, what it won&apos;t claim, and who runs it.
+              Walk them in order, or jump around.
             </p>
           </div>
         </div>
@@ -423,7 +423,7 @@ function StationCard({ station, activeIndex, onHoverChange, onAdvance, reduce })
           {/* Left — crossfading content + a persistent clickable advance. */}
           <div className="relative flex flex-col">
             <div className="flex-1">
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence mode="wait">
                 <motion.div
                   key={station.n}
                   initial={reduce ? { opacity: 1 } : { opacity: 0, y: 12 }}
@@ -496,7 +496,7 @@ function StationCard({ station, activeIndex, onHoverChange, onAdvance, reduce })
 
           {/* Right — SVG illustration. Re-keyed on station so paths re-draw. */}
           <div className="relative flex items-center justify-center">
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence mode="wait">
               <motion.div
                 key={station.n + '-art'}
                 initial={reduce ? { opacity: 1 } : { opacity: 0, scale: 0.96 }}
@@ -715,47 +715,51 @@ function GapArt({ reduce }) {
 }
 
 // ─── Illustration: Station 02 — THE NAME (Groma) ─────────────────────────────
-// A Roman surveyor's groma: vertical staff, horizontal crossarm, four
-// plumb-bobs hanging from the cross-arm ends, and a parcel grid to the
-// right showing the surveyed land.
+// A Roman surveyor's groma, CENTERED: vertical staff + horizontal crossarm with
+// plumb-bobs on top, sighting straight down to a staked parcel grid (the tract)
+// directly below it. Everything is centered on cx so the instrument reads as the
+// hero. Labeled ROMAN GROMA (top) and TRACTUS · A TRACT OF LAND (bottom).
 function GromaArt({ reduce }) {
   const W = 360
-  const H = 320
-  const cx = 130
-  const top = 70
-  const armLen = 80
-  const staffBottom = 250
+  const H = 300
+  const cx = 180        // centered
+  const top = 50        // top of staff
+  const armY = 74       // crossarm height
+  const armLen = 60     // half-width of crossarm
+  const staffBottom = 150
+  // Tract grid below the instrument, centered on cx
+  const gCell = 24, gCols = 5, gRows = 3
+  const gW = gCols * gCell
+  const gx = cx - gW / 2 // 120
+  const gy = 190
+  const gridRight = gx + gW
+  const gridBottom = gy + gRows * gCell
+  // staked parcel = the centered cell
+  const px = cx - gCell / 2
+  const py = gy + gCell
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" aria-hidden="true">
-      {/* Parcel grid on the right */}
+      {/* Instrument label, top-centered (kept clear of the sight lines). */}
+      <motion.text
+        x={cx} y={30} fill="rgba(255,255,255,0.55)" fontSize="8"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.22em" textAnchor="middle"
+        {...fadeProps(reduce, 0.9)}
+      >
+        ROMAN GROMA
+      </motion.text>
+
+      {/* Tract grid (the surveyed land) below the instrument. */}
       <motion.g {...fadeProps(reduce, 0.05)}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <line
-            key={`gv-${i}`}
-            x1={220 + i * 24}
-            y1={130}
-            x2={220 + i * 24}
-            y2={250}
-            stroke="rgba(20,184,166,0.15)"
-            strokeWidth="0.6"
-          />
+        {Array.from({ length: gCols + 1 }).map((_, i) => (
+          <line key={`gv-${i}`} x1={gx + i * gCell} y1={gy} x2={gx + i * gCell} y2={gridBottom} stroke="rgba(20,184,166,0.15)" strokeWidth="0.6" />
         ))}
-        {Array.from({ length: 6 }).map((_, i) => (
-          <line
-            key={`gh-${i}`}
-            x1={220}
-            y1={130 + i * 24}
-            x2={340}
-            y2={130 + i * 24}
-            stroke="rgba(20,184,166,0.15)"
-            strokeWidth="0.6"
-          />
+        {Array.from({ length: gRows + 1 }).map((_, i) => (
+          <line key={`gh-${i}`} x1={gx} y1={gy + i * gCell} x2={gridRight} y2={gy + i * gCell} stroke="rgba(20,184,166,0.15)" strokeWidth="0.6" />
         ))}
-        {/* The surveyed plot — faint fill so the grid clearly reads as a
-            tract of land with one parcel staked out. */}
-        <rect x={244} y={154} width={48} height={48} fill="rgba(20,184,166,0.16)" stroke="rgba(20,184,166,0.5)" strokeWidth="0.8" />
-        {/* Corner marks on the staked parcel */}
-        {[[244, 154], [292, 154], [244, 202], [292, 202]].map(([x, y], i) => (
+        {/* the staked parcel */}
+        <rect x={px} y={py} width={gCell} height={gCell} fill="rgba(20,184,166,0.18)" stroke="rgba(20,184,166,0.55)" strokeWidth="0.9" />
+        {[[px, py], [px + gCell, py], [px, py + gCell], [px + gCell, py + gCell]].map(([x, y], i) => (
           <g key={`pc-${i}`}>
             <line x1={x - 3} y1={y} x2={x + 3} y2={y} stroke={TEAL_BRIGHT} strokeWidth="1.4" />
             <line x1={x} y1={y - 3} x2={x} y2={y + 3} stroke={TEAL_BRIGHT} strokeWidth="1.4" />
@@ -763,141 +767,42 @@ function GromaArt({ reduce }) {
         ))}
       </motion.g>
 
-      {/* Sight-line from the groma to the parcel */}
-      <motion.line
-        x1={cx}
-        y1={top + 24}
-        x2={290}
-        y2={180}
-        stroke={TEAL_LIGHT}
-        strokeWidth="0.8"
-        strokeDasharray="3 3"
-        {...drawProps(reduce, 0.9, 0.6)}
-      />
+      {/* Sight lines: crossarm ends plumb straight down to the staked cell. */}
+      {[[cx - armLen, px], [cx + armLen, px + gCell]].map(([sx, tx], i) => (
+        <motion.line key={`sight-${i}`} x1={sx} y1={armY} x2={tx} y2={py} stroke={TEAL_LIGHT} strokeWidth="0.7" strokeDasharray="3 3" {...drawProps(reduce, 0.95 + i * 0.1, 0.6)} />
+      ))}
 
-      {/* Crossarm (horizontal) */}
-      <motion.line
-        x1={cx - armLen}
-        y1={top + 24}
-        x2={cx + armLen}
-        y2={top + 24}
-        stroke={TEAL_BRIGHT}
-        strokeWidth="2"
-        {...drawProps(reduce, 0.05, 0.5)}
-      />
+      {/* Crossarm + staff */}
+      <motion.line x1={cx - armLen} y1={armY} x2={cx + armLen} y2={armY} stroke={TEAL_BRIGHT} strokeWidth="2" {...drawProps(reduce, 0.05, 0.5)} />
+      <motion.line x1={cx} y1={top} x2={cx} y2={staffBottom} stroke={TEAL_BRIGHT} strokeWidth="2" {...drawProps(reduce, 0.15, 0.55)} />
 
-      {/* Vertical staff */}
-      <motion.line
-        x1={cx}
-        y1={top}
-        x2={cx}
-        y2={staffBottom}
-        stroke={TEAL_BRIGHT}
-        strokeWidth="2"
-        {...drawProps(reduce, 0.15, 0.55)}
-      />
-
-      {/* Plumb-bob lines (vertical from each arm end) + bobs */}
+      {/* Plumb-bobs from the arm ends (the groma's defining feature) */}
       {[-armLen, armLen].map((dx, i) => (
         <g key={`bob-${i}`}>
-          <motion.line
-            x1={cx + dx}
-            y1={top + 24}
-            x2={cx + dx}
-            y2={top + 70}
-            stroke={TEAL_LIGHT}
-            strokeWidth="1"
-            {...drawProps(reduce, 0.4 + i * 0.1, 0.45)}
-          />
-          <motion.circle
-            cx={cx + dx}
-            cy={top + 70}
-            r={4}
-            fill={TEAL_BRIGHT}
-            {...fadeProps(reduce, 0.7 + i * 0.1)}
-          />
+          <motion.line x1={cx + dx} y1={armY} x2={cx + dx} y2={armY + 32} stroke={TEAL_LIGHT} strokeWidth="1" {...drawProps(reduce, 0.4 + i * 0.1, 0.45)} />
+          <motion.circle cx={cx + dx} cy={armY + 32} r={4} fill={TEAL_BRIGHT} {...fadeProps(reduce, 0.7 + i * 0.1)} />
         </g>
       ))}
-
-      {/* Smaller intermediate plumb bobs (4-bob groma has 4 bobs — render 2
-          slightly forward + 2 back to suggest the 3D form) */}
+      {/* intermediate bobs → suggests the 4-bob 3D form */}
       {[-armLen / 2, armLen / 2].map((dx, i) => (
         <g key={`bob2-${i}`} opacity={0.6}>
-          <motion.line
-            x1={cx + dx}
-            y1={top + 24}
-            x2={cx + dx}
-            y2={top + 58}
-            stroke={TEAL_LIGHT}
-            strokeWidth="0.7"
-            strokeDasharray="2 2"
-            {...drawProps(reduce, 0.55 + i * 0.08, 0.4)}
-          />
-          <motion.circle
-            cx={cx + dx}
-            cy={top + 58}
-            r={2.5}
-            fill={TEAL_LIGHT}
-            {...fadeProps(reduce, 0.85 + i * 0.08)}
-          />
+          <motion.line x1={cx + dx} y1={armY} x2={cx + dx} y2={armY + 24} stroke={TEAL_LIGHT} strokeWidth="0.7" strokeDasharray="2 2" {...drawProps(reduce, 0.55 + i * 0.08, 0.4)} />
+          <motion.circle cx={cx + dx} cy={armY + 24} r={2.5} fill={TEAL_LIGHT} {...fadeProps(reduce, 0.85 + i * 0.08)} />
         </g>
       ))}
-
       {/* Crossarm hub */}
-      <motion.circle
-        cx={cx}
-        cy={top + 24}
-        r={4}
-        fill={NAVY}
-        stroke={TEAL_BRIGHT}
-        strokeWidth="1.5"
-        {...fadeProps(reduce, 0.5)}
-      />
+      <motion.circle cx={cx} cy={armY} r={4} fill={NAVY} stroke={TEAL_BRIGHT} strokeWidth="1.5" {...fadeProps(reduce, 0.5)} />
 
-      {/* Ground reference line + tick marks at the staff base */}
-      <motion.line
-        x1={cx - 35}
-        y1={staffBottom}
-        x2={cx + 35}
-        y2={staffBottom}
-        stroke={TEAL}
-        strokeWidth="1"
-        {...drawProps(reduce, 0.3, 0.4)}
-      />
-      {[-30, -15, 0, 15, 30].map((dx, i) => (
-        <motion.line
-          key={`tick-${i}`}
-          x1={cx + dx}
-          y1={staffBottom}
-          x2={cx + dx}
-          y2={staffBottom + 4}
-          stroke={TEAL}
-          strokeWidth="1"
-          {...drawProps(reduce, 0.45 + i * 0.05, 0.3)}
-        />
+      {/* Short ground line + ticks where the staff stands. */}
+      <motion.line x1={cx - 18} y1={staffBottom} x2={cx + 18} y2={staffBottom} stroke={TEAL} strokeWidth="1" {...drawProps(reduce, 0.3, 0.4)} />
+      {[-12, 0, 12].map((dx, i) => (
+        <motion.line key={`tick-${i}`} x1={cx + dx} y1={staffBottom} x2={cx + dx} y2={staffBottom + 4} stroke={TEAL} strokeWidth="1" {...drawProps(reduce, 0.45 + i * 0.05, 0.3)} />
       ))}
 
-      {/* Annotation */}
+      {/* Tract label, bottom-centered */}
       <motion.text
-        x={cx - 38}
-        y={staffBottom + 16}
-        fill="rgba(255,255,255,0.45)"
-        fontSize="8"
-        fontFamily="ui-monospace,Menlo,monospace"
-        letterSpacing="0.18em"
-        {...fadeProps(reduce, 0.9)}
-      >
-        ROMAN GROMA
-      </motion.text>
-
-      <motion.text
-        x={280}
-        y={270}
-        fill={TEAL_LIGHT}
-        fontSize="7.5"
-        fontFamily="ui-monospace,Menlo,monospace"
-        letterSpacing="0.14em"
-        textAnchor="middle"
+        x={cx} y={gridBottom + 22} fill={TEAL_LIGHT} fontSize="7.5"
+        fontFamily="ui-monospace,Menlo,monospace" letterSpacing="0.14em" textAnchor="middle"
         {...fadeProps(reduce, 1.0)}
       >
         TRACTUS · A TRACT OF LAND
