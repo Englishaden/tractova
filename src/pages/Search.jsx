@@ -34,8 +34,6 @@ import DataLimitationsModal from '../components/DataLimitationsModal'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import RunIdMasthead from '../components/RunIdMasthead'
 import SectionMarker from '../components/SectionMarker'
-import Reveal from '../components/ui/Reveal'
-import ScrollAssemble from '../components/ui/ScrollAssemble'
 import LensScenarioRow from '../components/LensScenarioRow'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
@@ -1033,11 +1031,10 @@ function SearchContent() {
               )
             })()}
 
-            {/* Results header + §01 Market Position = the signature "assemble"
-                opening: a scroll-scrubbed pixel-particle gather (ScrollAssemble)
-                — the whole hero flows in from the edges. §02-§06 keep the calm
-                Reveal. */}
-            <ScrollAssemble>
+            {/* Results header + §01 Market Position. Every § is wrapped in
+                .lens-reveal — a native scroll-driven fade+rise that reverses on
+                scroll up/down (see index.css). */}
+            <div className="lens-reveal">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">
@@ -1122,10 +1119,10 @@ function SearchContent() {
               formForApi={results.form}
               programMap={programMap}
             />
-            </ScrollAssemble>
+            </div>
 
             {/* Market Intelligence Summary */}
-            <Reveal>
+            <div className="lens-reveal">
             <SectionMarker index={2} label="Analyst Brief" sublabel="claude · sonnet 4.6" />
             <MarketIntelligenceSummary
               stateProgram={results.stateProgram}
@@ -1139,7 +1136,7 @@ function SearchContent() {
               setRationaleLoading={setRationaleLoading}
               ixQueueSummary={results.ixQueueSummary}
             />
-            </Reveal>
+            </div>
 
             {/* §2.5: Scenario Studio — interactive sensitivity layer over an
                 "achievable baseline." Phase 2 launch feature. Sits between
@@ -1147,7 +1144,7 @@ function SearchContent() {
                 signals) so the user moves: AI narrative → quantitative
                 sensitivity → component scores. Pre-computed baseline reuses
                 revenueEngine via scenarioEngine.computeBaseline. */}
-            <Reveal>
+            <div className="lens-reveal">
             <SectionMarker index={3} label="Scenario Studio" sublabel="sensitivity · year-1 revenue + payback" />
             <div data-tour-id="scenario">
               <ScenarioStudio
@@ -1174,13 +1171,13 @@ function SearchContent() {
                 onMwChange={setLiveMw}
               />
             </div>
-            </Reveal>
+            </div>
 
             {/* Pillar Diagnostics — same SectionMarker treatment as the other
                 § sections (Market Position / Analyst Brief / Scenario Studio)
                 so the four sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
-            <Reveal>
+            <div className="lens-reveal">
             <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site · policy climate" />
             <div data-tour-id="pillars" className="space-y-5">
             {(() => {
@@ -1242,7 +1239,7 @@ function SearchContent() {
                 Offtake / IX / Site; clicking opens the same modal at
                 the Policy tab. */}
             </div>
-            </Reveal>
+            </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
                 so all three geographic-designation incentives (Energy
@@ -1268,7 +1265,7 @@ function SearchContent() {
                 If heavy-rowcount states (MA 374 / IL 261 / NY 1351 cs_projects)
                 still crash, revert this and pivot to path B (paginated Table
                 view + Operating Projects → Library cockpit). */}
-            <Reveal>
+            <div className="lens-reveal">
             <SectionDivider />
             <LensComparablesSection
               state={results.stateProgram?.id || results.form.state}
@@ -1276,20 +1273,20 @@ function SearchContent() {
               technology={results.form.technology}
               mw={effectiveMw}
             />
-            </Reveal>
+            </div>
 
             {/* § 06 Regulatory Watch — chronological feed of policy_impact_events
                 + curation-gated Active Proceedings (puc_dockets). Reuses
                 results.policyEvents (already fetched, no new query) — same
                 source of truth as § 04 (Policy Climate), different cut. */}
-            <Reveal>
+            <div className="lens-reveal">
             <SectionDivider />
             <LensRegulatoryWatchSection
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
               policyEvents={results.policyEvents || []}
             />
-            </Reveal>
+            </div>
 
             {/* First-time-Pro guided tour. Inert unless `?onboarding=1` is in
                 the URL AND localStorage doesn't show prior completion. The
