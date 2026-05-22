@@ -336,13 +336,6 @@ function IconTrendingUp() {
 // V3: brand navy chrome with teal accent rails (replaces dark emerald cards)
 const CARD_BG = 'linear-gradient(145deg, #0F1A2E 0%, #0A132A 100%)'
 
-// Returns days-since if > 14, otherwise null (signal only shown when stale)
-function staleDays(dateStr) {
-  if (!dateStr) return null
-  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24))
-  return days > 14 ? days : null
-}
-
 // Count-up: animates a number 0 → value on mount. Reduced-motion renders the
 // final value instantly. Rounds + thousands-separates; optional suffix (e.g.
 // " MW"). Draws the eye to the figures that drive a go/no-go call.
@@ -537,14 +530,11 @@ export default function MetricsBar({ previewMode = false }) {
         ))}
       </div>
 
-      {(() => {
-        const stale = staleDays(liveMetrics?.lastUpdated)
-        return stale ? (
-          <p className="text-right text-[10px] font-mono mt-1.5" style={{ color: 'rgba(156,163,175,0.50)' }}>
-            <span style={{ color: 'rgba(156,163,175,0.35)' }}>⚠</span> data verified {stale}d ago
-          </p>
-        ) : null
-      })()}
+      {/* Freshness lives in the canonical "Refreshed [date]" pill in the
+          Dashboard header + Footer (cron_runs via useDataRefresh). The old
+          per-metric "data verified Nd ago" note used state_programs.updated_at,
+          which lags weeks behind real refreshes — removed to avoid a second,
+          contradictory freshness signal on the same page. */}
 
       {openCard && (
         <MetricsModal title={openCard.modalTitle} onClose={() => setOpenKey(null)}>

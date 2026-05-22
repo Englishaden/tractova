@@ -59,7 +59,7 @@ function getStateColor(stateId, isHovered, isSelected, stateProgramMap) {
   return '#F0FDFA'                     // teal-50 — non-viable (<25)
 }
 
-export default function USMap({ onStateClick, selectedStateId, stateProgramMap = {} }) {
+export default function USMap({ onStateClick, selectedStateId, stateProgramMap = {}, deltaMap = null }) {
   const [tooltip, setTooltip] = useState(null)
   const [hoveredId, setHoveredId] = useState(null)
 
@@ -213,6 +213,37 @@ export default function USMap({ onStateClick, selectedStateId, stateProgramMap =
                       geography={geo}
                       fill={overlayFill}
                       stroke="none"
+                      style={{
+                        default:  { pointerEvents: 'none', outline: 'none' },
+                        hover:    { pointerEvents: 'none', outline: 'none' },
+                        pressed:  { pointerEvents: 'none', outline: 'none' },
+                      }}
+                      tabIndex={-1}
+                      aria-hidden="true"
+                    />
+                  )
+                })}
+
+                {/* ── Layer 3: "moved this week" pulse ─────────────────────
+                    A non-interactive teal outline that breathes on states
+                    whose feasibility score changed week-over-week (deltaMap).
+                    Draws the developer's eye to what shifted. Pointer events
+                    off so clicks land on Layer 1; degrades to nothing when no
+                    deltas exist yet (snapshot history can be sparse early on).
+                    Direction (↑/↓) is read from the Markets-on-the-Move strip
+                    + the state panel — the map pulse is a "look here" signal. */}
+                {deltaMap && geographies.map((geo) => {
+                  const fips = String(geo.id).padStart(2, '0')
+                  const stateId = FIPS[fips]
+                  if (!stateProgramMap[stateId]) return null
+                  if (!deltaMap.get?.(stateId)) return null
+                  return (
+                    <Geography
+                      key={`${geo.rsmKey}-pulse`}
+                      geography={geo}
+                      fill="none"
+                      stroke="#14B8A6"
+                      className="state-pulse"
                       style={{
                         default:  { pointerEvents: 'none', outline: 'none' },
                         hover:    { pointerEvents: 'none', outline: 'none' },

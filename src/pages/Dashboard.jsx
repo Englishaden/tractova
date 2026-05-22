@@ -344,6 +344,7 @@ export default function Dashboard({ previewMode = false }) {
               onStateClick={handleStateClick}
               selectedStateId={selectedStateId}
               stateProgramMap={stateProgramMap}
+              deltaMap={deltaMap}
             />
           </div>
 

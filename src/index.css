@@ -193,6 +193,20 @@
 .health-ring-2 { animation-delay: 0.8s; }
 .health-ring-3 { animation-delay: 1.6s; }
 
+/* Dashboard map — pulsing outline on states whose feasibility score MOVED
+   this week (WoW delta). Draws the developer's eye to what changed. Applied
+   to a non-interactive overlay Geography layer; the stroke color is set inline
+   (brand teal), the keyframe animates only stroke width + opacity so the
+   outline "breathes". Reduced-motion shows a steady ring instead. */
+@keyframes tractova-state-pulse {
+  0%, 100% { stroke-opacity: 0.25; stroke-width: 1; }
+  50%      { stroke-opacity: 1;    stroke-width: 3; }
+}
+.state-pulse { animation: tractova-state-pulse 2.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .state-pulse { animation: none; stroke-opacity: 0.85; stroke-width: 2; }
+}
+
 /* Phase 0 — Skeleton shimmer for branded loading states. Slower + lower
    contrast than Tailwind's default animate-pulse so it reads as
    research-grade loading rather than generic web app. */
