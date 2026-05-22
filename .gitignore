@@ -65,3 +65,9 @@ public/Lazard*.pdf
 # Manual Supabase snapshots from scripts/dump-supabase-snapshot.mjs.
 # Stay local; never commit DB content.
 backups/
+
+# Local design-inspiration assets (screen recordings / screenshots). Large,
+# reference-only — must NEVER be committed (GitHub 100MB limit) or deployed
+# (everything in public/ ships to prod). Keep them local. Ideally these live
+# outside public/ entirely, but ignoring the folder handles the immediate risk.
+public/Website Inspiration/
