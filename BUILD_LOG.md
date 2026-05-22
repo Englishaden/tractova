@@ -39,10 +39,14 @@
 - Findings doc: `docs/audit-findings-2026-05-21.md`.
 
 **Open items for next session:**
-1. **About page is CLOSED** (Aden-approved). Nothing pending on it.
-2. **Huly screen-recording shot-list** — THE next deliverable. Aden plans to record the platform Huly-style for the onboarding revamp. Turn the Huly plan's asset list into a precise capture checklist (URLs, viewport, what to click, stills vs video loops). Not built yet.
-3. **Onboarding revamp (Huly plan)** — the main feature item. Plan at `~/.claude/plans/huly-onboarding-revamp.md` (carries the ⚠ no-employer-naming standing rule). The finished animated `/about` is the in-house style reference.
-4. *(optional)* F-D1 dev-console polish; the `.env.local`-into-worktree auto-copy for `scripts/session-pickup.mjs` (still unconfirmed by Aden).
+1. **🎨 DASHBOARD REVAMP — IN PROGRESS (started 2026-05-22).** Aden wants a *mild*, developer-first Dashboard polish, reference-driven. Refs studied: two Mobbin dashboards (Quicken — "X left of Y" progress bars; Cake — period-over-period delta panel + ranked bars) and a Godly clip (marketing-site motion → noted it belongs on the Lens result page, NOT the Dashboard tool). Key principle: motion that *informs*, not decorates (tool ≠ marketing). Plan = 3 phases, one commit each:
+   - **Phase 1 — SHIPPED (`be85892`):** MetricsBar count-up numbers + loading shimmer skeletons; staggered fade-rise entrance for metrics/markets/map (Reveal helper). Reduced-motion aware. Awaiting Aden's prod review.
+   - **Phase 2 — NEXT:** map states **pulse when they moved this week** (powered by existing `getStateProgramDeltas` → `deltaMap`; degrades cleanly when no deltas), tie Markets-on-the-Move to the same accent + a "N markets moved" headline.
+   - **Phase 3:** detail-panel polish — "Remaining capacity" → runway-pressure bar (reuse `RUNWAY_COLORS`; it's a depletion bar, no original-total stored); WoW ▲N-pts chip in the panel header.
+   - NOTE: state→Lens deep-link ("Search in Lens"/"Analyze in Lens", `/search?state=`) + ScoreBar animation ALREADY EXIST — don't rebuild.
+2. **Lens result "beautiful walkthrough"** — the Godly-grade scroll-reveal energy belongs here (Aden's words: "beautiful to walk through"). Earmarked as a later track after the Dashboard.
+3. **Huly screen-recording shot-list / onboarding revamp** — still queued. Plan at `~/.claude/plans/huly-onboarding-revamp.md` (⚠ no-employer-naming rule). Animated `/about` is the style reference. Local inspiration assets now live in gitignored repo-root `inspiration/` (moved out of public/).
+4. *(optional)* F-D1 dev-console polish; `.env.local`-into-worktree auto-copy for `scripts/session-pickup.mjs`.
 
 **Standing rules (in auto-memory):**
 - **No employer naming on public surfaces** (`feedback_no_employer_naming.md`) — never name Nexamp or Ameresco on About / Landing / onboarding / marketing copy. Background described by function only. Only the Privacy Policy's narrow "professional relationship" line stays. Confirmed by Aden 2026-05-19.
