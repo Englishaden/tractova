@@ -356,6 +356,7 @@ export default function Dashboard({ previewMode = false }) {
                 news={news}
                 onClose={handleClosePanel}
                 previewMode={effectivePreviewMode}
+                delta={deltaMap?.get?.(selectedStateId)?.delta ?? null}
               />
             ) : (
               <NewsFeed news={news} previewMode={effectivePreviewMode} />

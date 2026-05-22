@@ -80,6 +80,16 @@ const RUNWAY_COLORS = {
   urgent:   { bg: '#FEE2E2', text: '#7F1D1D' },
 }
 
+// Brighter fills for the runway-pressure bar (the RUNWAY_COLORS.text shades
+// are dark, tuned for text-on-light, and read muddy as a bar). More runway
+// remaining = fuller, calmer bar; a short red bar = act now.
+const RUNWAY_BAR = {
+  strong:   '#14B8A6',
+  moderate: '#F59E0B',
+  watch:    '#F97316',
+  urgent:   '#DC2626',
+}
+
 const TABS = [
   { id: 'program',     label: 'Program' },
   { id: 'market',      label: 'Market' },
@@ -144,14 +154,28 @@ function ProgramTab({ state, runway }) {
         <div className="bg-surface rounded-md p-3 space-y-0.5">
           <StatRow label="Remaining capacity" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : '—'} highlight />
           {runway && (
-            <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
-              <span className="text-xs text-gray-500">Est. program runway</span>
-              <span
-                className="text-xs font-semibold px-2 py-0.5 rounded-sm font-mono tabular-nums"
-                style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
-              >
-                ~{runway.months} mo{runway.urgency === 'watch' ? ' · watch' : runway.urgency === 'urgent' ? ' · act now' : ''}
-              </span>
+            <div className="py-1.5 border-b border-gray-100 last:border-0">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs text-gray-500">Est. program runway</span>
+                <span
+                  className="text-xs font-semibold px-2 py-0.5 rounded-sm font-mono tabular-nums"
+                  style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
+                >
+                  ~{runway.months} mo{runway.urgency === 'watch' ? ' · watch' : runway.urgency === 'urgent' ? ' · act now' : ''}
+                </span>
+              </div>
+              {/* Runway-pressure bar: fill = months against a 24-mo reference
+                  (illustrative, not a % of capacity — we don't store original
+                  total). A short red bar = act now; a fuller teal bar = headroom. */}
+              <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: '#F1F5F9' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.max(4, Math.min(100, Math.round((runway.months / 24) * 100)))}%`,
+                    background: RUNWAY_BAR[runway.urgency] || '#14B8A6',
+                  }}
+                />
+              </div>
             </div>
           )}
           {state.enrollmentRateMWPerMonth && (
@@ -497,7 +521,7 @@ function NewsTab({ state, news }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function StateDetailPanel({ state, news = [], onClose, previewMode = false }) {
+export default function StateDetailPanel({ state, news = [], onClose, previewMode = false, delta = null }) {
   // V3 Wave 2 — fetch live PUC docket count for the regulatory tab badge
   // and the panel content. Cached at the data-layer (1h TTL) so flipping
   // states + back is free.
@@ -545,6 +569,21 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
                 {status.label}
               </span>
               <CoverageBadge tier={state.coverageTier} />
+              {/* WoW score-movement chip — mirrors the map pulse + Markets-on-
+                  the-Move strip. Only shown when this state actually moved. */}
+              {Number.isFinite(delta) && delta !== 0 && (
+                <span
+                  className="text-xs font-semibold font-mono tabular-nums px-2 py-0.5 rounded-full inline-flex items-center gap-0.5"
+                  style={{
+                    color: delta > 0 ? '#0F766E' : '#DC2626',
+                    background: delta > 0 ? 'rgba(15,118,110,0.08)' : 'rgba(220,38,38,0.08)',
+                    border: `1px solid ${delta > 0 ? 'rgba(15,118,110,0.25)' : 'rgba(220,38,38,0.25)'}`,
+                  }}
+                  title={`Feasibility score ${delta > 0 ? 'up' : 'down'} ${Math.abs(delta)} point${Math.abs(delta) === 1 ? '' : 's'} week-over-week`}
+                >
+                  {delta > 0 ? '▲' : '▼'}{Math.abs(delta)} pts this week
+                </span>
+              )}
             </div>
             {state.csProgram && (
               <p className="text-xs text-gray-500 mt-0.5">{state.csProgram}</p>
