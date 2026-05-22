@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { animate, useReducedMotion } from 'motion/react'
 import { getDashboardMetrics, getStatePrograms, getNewsFeed } from '../lib/programData'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
+import CountUp from './ui/CountUp'
 import PreviewSignupGate from './PreviewSignupGate'
 
 // In preview mode, modal-content panels render this many rows + a gate.
@@ -336,23 +336,7 @@ function IconTrendingUp() {
 // V3: brand navy chrome with teal accent rails (replaces dark emerald cards)
 const CARD_BG = 'linear-gradient(145deg, #0F1A2E 0%, #0A132A 100%)'
 
-// Count-up: animates a number 0 → value on mount. Reduced-motion renders the
-// final value instantly. Rounds + thousands-separates; optional suffix (e.g.
-// " MW"). Draws the eye to the figures that drive a go/no-go call.
-function CountUp({ value, suffix = '' }) {
-  const reduce = useReducedMotion()
-  const [display, setDisplay] = useState(() => (reduce ? value : 0))
-  useEffect(() => {
-    if (reduce) { setDisplay(value); return }
-    const controls = animate(0, value, {
-      duration: 1.0,
-      ease: [0.22, 1, 0.36, 1],
-      onUpdate: (v) => setDisplay(v),
-    })
-    return () => controls.stop()
-  }, [value, reduce])
-  return <span className="tabular-nums">{Math.round(display).toLocaleString()}{suffix}</span>
-}
+// CountUp moved to ui/CountUp.jsx (shared with the Library). Same curve + feel.
 
 // Loading skeleton — five shimmer cards matching the real card shape, shown
 // until liveMetrics resolves. Cleaner than a row of "—".

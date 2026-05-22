@@ -8,6 +8,8 @@ import { useBulkSelection } from '../hooks/useBulkSelection'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
 import FilterSelect from '../components/ui/FilterSelect'
+import CountUp from '../components/ui/CountUp'
+import MountReveal from '../components/ui/MountReveal'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
@@ -622,6 +624,7 @@ function LibraryContent() {
       <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-16">
 
         {/* V3: Brand-navy hero banner — adds institutional depth, replaces stark white-on-white */}
+        <MountReveal delay={0}>
         <div
           className="mt-4 rounded-xl overflow-hidden mb-6 relative"
           style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
@@ -635,9 +638,9 @@ function LibraryContent() {
               <p className="text-sm mt-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
                 {projects.length > 0 ? (
                   <>
-                    <span className="font-mono tabular-nums">{projects.length}</span> project{projects.length !== 1 ? 's' : ''}
+                    <span className="font-mono"><CountUp value={projects.length} /></span> project{projects.length !== 1 ? 's' : ''}
                     <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
-                    <span className="font-mono tabular-nums">{projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)}</span> MW tracked
+                    <span className="font-mono"><CountUp value={projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)} decimals={1} /></span> MW tracked
                     <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
                     monitored for policy changes
                   </>
@@ -700,6 +703,7 @@ function LibraryContent() {
             </div>
           </div>
         </div>
+        </MountReveal>
 
         {/* Page content */}
         <div className="mb-8">
@@ -708,23 +712,26 @@ function LibraryContent() {
           {projects.length > 0 && (
             <>
               {/* V3 stat strip: navy chrome with teal accent rail; monospace numerics */}
+              <MountReveal delay={0.08}>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
-                  { label: 'Saved Projects', value: projects.length,   sub: 'across all states',     valColor: '#0F1A2E' },
-                  { label: 'Total Capacity', value: `${projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0).toFixed(1)} MW`, sub: 'AC nameplate', valColor: '#0F1A2E' },
-                  { label: 'Active Alerts',  value: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap, countyDataMap).length, 0), sub: 'policy or market flags', valColor: '#0F1A2E' },
-                ].map(({ label, value, sub, valColor }) => (
+                  { label: 'Saved Projects', rawValue: projects.length, decimals: 0, suffix: '',     sub: 'across all states',     valColor: '#0F1A2E' },
+                  { label: 'Total Capacity', rawValue: projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0), decimals: 1, suffix: ' MW', sub: 'AC nameplate', valColor: '#0F1A2E' },
+                  { label: 'Active Alerts',  rawValue: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap, countyDataMap).length, 0), decimals: 0, suffix: '', sub: 'policy or market flags', valColor: '#0F1A2E' },
+                ].map(({ label, rawValue, decimals, suffix, sub, valColor }) => (
                   <div key={label} className="rounded-xl px-4 py-3 bg-white border border-gray-200 relative overflow-hidden">
                     <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">{label}</p>
-                    <p className="text-xl font-bold font-mono tabular-nums mt-0.5" style={{ color: valColor }}>{value}</p>
+                    <p className="text-xl font-bold font-mono tabular-nums mt-0.5" style={{ color: valColor }}><CountUp value={rawValue} decimals={decimals} suffix={suffix} /></p>
                     <p className="text-[10px] mt-0.5 text-gray-400">{sub}</p>
                   </div>
                 ))}
               </div>
+              </MountReveal>
 
               {/* Pipeline distribution bar — V3: click to filter, weeks-in-stage stale flag.
                   Stage ramp uses V3 feasibility tokens (was hardcoded emerald cascade). */}
+              <MountReveal delay={0.16}>
               {(() => {
                 const STAGE_COLORS = ['#F0FDFA', '#99F6E4', '#5EEAD4', '#2DD4BF', '#14B8A6', '#0F766E', '#0F1A2E']
                 const now = Date.now()
@@ -863,6 +870,7 @@ function LibraryContent() {
                   </div>
                 )
               })()}
+              </MountReveal>
 
               {/* Filter + sort bar relocated to sit directly above the
                   LibraryToolbar (below WeeklySummaryCard + SectionDivider)
@@ -1225,6 +1233,7 @@ function LibraryContent() {
                   />
                 </Suspense>
               ) : (
+              <MountReveal delay={0.24}>
               <div className="grid gap-3">
                 {pagedProjects.map((p) => (
                   <ProjectCard
@@ -1248,6 +1257,7 @@ function LibraryContent() {
                   />
                 ))}
               </div>
+              </MountReveal>
               )}
               {/* Pagination strip — always visible in Cards / Table when
                   the portfolio has at least one project. Skipped in Map

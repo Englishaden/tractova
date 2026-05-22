@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { motion, useReducedMotion } from 'motion/react'
 import MetricsBar from '../components/MetricsBar'
 import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
@@ -12,7 +11,7 @@ import WalkingTractovaMark from '../components/WalkingTractovaMark'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
-import { HOUSE_EASE } from '../components/ui/Reveal'
+import MountReveal from '../components/ui/MountReveal'
 
 // V3 §4.1: top-of-dashboard strip surfacing recently-active states.
 // Pragmatic v1 -- ranks by max(lastVerified, updatedAt). When weekly
@@ -135,26 +134,6 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
   )
 }
 
-// Staggered fade-rise wrapper for the dashboard's top-level blocks. Mount
-// entrance (the blocks are above the fold on load), restrained for a daily-
-// driver tool — but on the same HOUSE_EASE expo-out curve as the Lens
-// scroll-reveal so the whole app shares one motion feel. Slightly slower +
-// longer travel than the old snappy take, which read cheap. No blur here
-// (that's reserved for the Lens "walk-through" showcase). Reduced-motion
-// renders children with no animation.
-function Reveal({ children, delay = 0, reduce }) {
-  if (reduce) return children
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay, ease: HOUSE_EASE }}
-    >
-      {children}
-    </motion.div>
-  )
-}
-
 export default function Dashboard({ previewMode = false }) {
   const [selectedStateId,  setSelectedStateId]  = useState(null)
   const [stateProgramMap,  setStateProgramMap]  = useState({})
@@ -232,7 +211,6 @@ export default function Dashboard({ previewMode = false }) {
     }
   }, [refreshAt])
 
-  const reduce = useReducedMotion()
 
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))
@@ -328,20 +306,20 @@ export default function Dashboard({ previewMode = false }) {
         <SectionDivider />
 
         {/* Metrics bar */}
-        <Reveal delay={0} reduce={reduce}>
+        <MountReveal delay={0}>
           <MetricsBar previewMode={effectivePreviewMode} />
-        </Reveal>
+        </MountReveal>
 
         <SectionDivider />
 
         {/* V3 §4.1: Markets on the Move — surfaces WoW score deltas when
             state_programs_snapshots history exists, else recency-sorted. */}
-        <Reveal delay={0.08} reduce={reduce}>
+        <MountReveal delay={0.08}>
           <MarketsOnTheMove stateProgramMap={stateProgramMap} deltaMap={deltaMap} onStateClick={handleStateClick} />
-        </Reveal>
+        </MountReveal>
 
         {/* Main two-panel layout — stacks on mobile/tablet, side-by-side at lg+ */}
-        <Reveal delay={0.16} reduce={reduce}>
+        <MountReveal delay={0.16}>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           {/* Map — full-width on mobile, 60% on lg+ */}
           <div className="lg:col-span-3">
@@ -368,7 +346,7 @@ export default function Dashboard({ previewMode = false }) {
             )}
           </div>
         </div>
-        </Reveal>
+        </MountReveal>
 
       </main>
     </div>
