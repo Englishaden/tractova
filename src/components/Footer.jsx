@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { useDataRefresh } from '../lib/useDataRefresh'
 
 // Relative-time formatter for the "Data refreshed" caption. Resolves to:
 //   <60s          → "just now"
@@ -21,42 +21,11 @@ function formatRelativeTime(iso) {
 }
 
 export default function Footer() {
-  // Source: /api/data-health?action=last-refresh — public endpoint that
-  // returns max(cron_runs.finished_at WHERE status='success'). This is the
-  // genuine "when did data last refresh" timestamp. No DB migration needed
-  // (cron_runs is already populated by every cron + manual admin Refresh).
-  // Falls back gracefully if the endpoint fails (renders just "—").
-  const [refreshAt, setRefreshAt] = useState(null)
-
-  useEffect(() => {
-    // F.5 (2026-05-08): skip the fetch in dev mode. Vite's dev server
-    // doesn't run the api/ Vercel functions, so /api/data-health serves
-    // back index.html / a JS module → the JSON parse fails noisily in
-    // every Playwright + dev-server console output. The Footer
-    // timestamp is server-side data; not having it during dev is fine.
-    if (!import.meta.env.PROD) return
-    let cancelled = false
-    fetch('/api/data-health?action=last-refresh')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled) return
-        if (data?.finishedAt) setRefreshAt(data.finishedAt)
-      })
-      .catch(err => {
-        // Footer caption is a nice-to-have; degrade silently to no value.
-        console.warn('[Footer] last-refresh fetch failed:', err)
-      })
-    return () => { cancelled = true }
-  }, [])
-
-  // Auto-tick every 30s so a long-open tab doesn't drift to stale-looking
-  // labels (e.g. stays at "5m ago" instead of updating to "1h ago").
-  const [, setTick] = useState(0)
-  useEffect(() => {
-    if (!refreshAt) return
-    const t = setInterval(() => setTick((n) => n + 1), 30000)
-    return () => clearInterval(t)
-  }, [refreshAt])
+  // Shared freshness signal (max(cron_runs.finished_at WHERE status='success')
+  // via /api/data-health?action=last-refresh). The hook fetches on mount and
+  // re-fetches on the admin Refresh broadcast / window focus / poll, and ticks
+  // every 30s so the relative label keeps aging. Renders "—" until it resolves.
+  const refreshAt = useDataRefresh()
 
   const relativeLabel = refreshAt ? formatRelativeTime(refreshAt) : null
   const absoluteIso   = refreshAt ? new Date(refreshAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : null

@@ -10,6 +10,7 @@ import IntelligenceBackground from '../components/IntelligenceBackground'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
+import { useDataRefresh } from '../lib/useDataRefresh'
 
 // V3 §4.1: top-of-dashboard strip surfacing recently-active states.
 // Pragmatic v1 -- ranks by max(lastVerified, updatedAt). When weekly
@@ -194,40 +195,20 @@ export default function Dashboard({ previewMode = false }) {
   const selectedState = selectedStateId ? stateProgramMap[selectedStateId] : null
 
   // Surface data freshness on the dashboard hero so the "live-updated weekly"
-  // promise is provable to the user, not just claimed.
-  //
-  // Source: /api/data-health?action=last-refresh — same public endpoint the
-  // Footer uses (max(cron_runs.finished_at WHERE status='success')). This
-  // is the authoritative cron-completion timestamp. Previously we derived
-  // freshness from state_programs.last_verified / updated_at, which can lag
-  // weeks behind actual cron runs (state-program rows only get touched when
-  // the curator updates them) — meaning the Dashboard caption could read
-  // "27 days ago" while the Footer/Admin showed a refresh from this morning.
-  const [lastRefresh, setLastRefresh] = useState(null)
-  useEffect(() => {
-    // Dev mode: Vite doesn't serve api/ functions, so this would fetch
-    // back HTML and noisily fail JSON.parse in every smoke run.
-    if (!import.meta.env.PROD) return
-    let cancelled = false
-    fetch('/api/data-health?action=last-refresh')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled) return
-        if (!data?.finishedAt) return
-        const ageDays = Math.floor((Date.now() - new Date(data.finishedAt).getTime()) / 86400000)
-        setLastRefresh({
-          date:    new Date(data.finishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          ageDays,
-          isStale: ageDays > 14,
-        })
-      })
-      .catch(err => {
-        // Hero caption is a nice-to-have; degrade silently rather than
-        // breaking the page if the public endpoint hiccups.
-        console.warn('[Dashboard] last-refresh fetch failed:', err)
-      })
-    return () => { cancelled = true }
-  }, [])
+  // promise is provable to the user, not just claimed. Shared signal
+  // (max(cron_runs.finished_at WHERE status='success')) via useDataRefresh —
+  // re-fetches on the admin Refresh broadcast / window focus / poll so the
+  // caption tracks a refresh across the platform, not only on a hard reload.
+  const refreshAt = useDataRefresh()
+  const lastRefresh = useMemo(() => {
+    if (!refreshAt) return null
+    const ageDays = Math.floor((Date.now() - new Date(refreshAt).getTime()) / 86400000)
+    return {
+      date:    new Date(refreshAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      ageDays,
+      isStale: ageDays > 14,
+    }
+  }, [refreshAt])
 
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))

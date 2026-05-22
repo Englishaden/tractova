@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+﻿import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -10,6 +10,7 @@ import SectionDivider from '../components/SectionDivider'
 import FilterSelect from '../components/ui/FilterSelect'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
+import { useDataRefresh } from '../lib/useDataRefresh'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { convertOrphanGroupToProject } from '../lib/orphanConversion'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
@@ -259,32 +260,20 @@ function LibraryContent() {
     getStateProgramDeltas().then(setStateDeltaMap).catch(console.error)
   }, [])
 
-  // Freshness signal — unified with Dashboard / Footer / Admin on the
-  // /api/data-health?action=last-refresh endpoint (max(cron_runs.finished_at)
-  // where status='success'). Previously this was a local useMemo over
-  // state_programs.last_verified|updated_at, which drifted from the other
-  // surfaces whenever the weekly cron ran successfully but the source
-  // identical content (no row changes → local signal stays stale even
-  // though the platform refreshed). Single source of truth across surfaces.
-  const [lastRefresh, setLastRefresh] = useState(null)
-  useEffect(() => {
-    if (!import.meta.env.PROD) return
-    let cancelled = false
-    fetch('/api/data-health?action=last-refresh')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (cancelled) return
-        if (!data?.finishedAt) return
-        const ageDays = Math.floor((Date.now() - new Date(data.finishedAt).getTime()) / 86400000)
-        setLastRefresh({
-          date:    new Date(data.finishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-          ageDays,
-          isStale: ageDays > 14,
-        })
-      })
-      .catch(err => console.warn('[Library] last-refresh fetch failed:', err))
-    return () => { cancelled = true }
-  }, [])
+  // Freshness signal — unified with Dashboard / Footer / Admin via the shared
+  // useDataRefresh hook (max(cron_runs.finished_at WHERE status='success')).
+  // The hook re-fetches on the admin Refresh broadcast / window focus / poll,
+  // so the caption tracks a refresh across the platform, not only on reload.
+  const refreshAt = useDataRefresh()
+  const lastRefresh = useMemo(() => {
+    if (!refreshAt) return null
+    const ageDays = Math.floor((Date.now() - new Date(refreshAt).getTime()) / 86400000)
+    return {
+      date:    new Date(refreshAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      ageDays,
+      isStale: ageDays > 14,
+    }
+  }, [refreshAt])
 
   // Centralize county data fetch -- previously each ProjectCard fetched its
   // own, leaving the sort logic with no county info and ranking projects

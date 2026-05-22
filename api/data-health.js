@@ -49,7 +49,11 @@ export default async function handler(req, res) {
   // aggregate value the whole product (anon + signed-in) needs to see.
   if (action === 'last-refresh') {
     if (req.method !== 'GET') return res.status(405).end('Method Not Allowed')
-    res.setHeader('Cache-Control', 'public, max-age=60')
+    // no-store: this is a freshness SIGNAL — it must reflect an admin refresh
+    // immediately, not lag behind a CDN/browser cache window. The query is a
+    // single indexed `limit 1`, so serving it uncached is cheap. (Was
+    // public,max-age=60, which delayed the "Data refreshed" caption updating.)
+    res.setHeader('Cache-Control', 'no-store')
     try {
       const { data, error } = await supabaseAdmin
         .from('cron_runs')
