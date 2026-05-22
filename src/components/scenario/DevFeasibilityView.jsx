@@ -18,7 +18,6 @@ import { applyLeverAdjustments } from '../../lib/leverAdjustments'
 import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
 import FieldSelect from '../FieldSelect'
-import ComparableProjectsPanel from './ComparableProjectsPanel'
 import CoverageChip from '../lens/CoverageChip'
 
 const VERDICT_PALETTE = {
@@ -216,13 +215,9 @@ export default function DevFeasibilityView({
         codYear={levers.codYear}
       />
 
-      <ComparableProjectsPanel
-        state={stateProgram?.id || null}
-        stateName={stateName}
-        technology={technology}
-        mw={effectiveMw}
-        servingUtility={countyData?.interconnection?.servingUtility || null}
-      />
+      {/* Comparable operating projects live only in §05 (Comparable Deals &
+          Benchmarks) — removed the duplicate panel here (2026-05-22) so the
+          same NREL "Sharing the Sun" material isn't double-counted on the page. */}
     </div>
     </TooltipProvider>
   )
