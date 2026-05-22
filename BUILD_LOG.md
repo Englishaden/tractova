@@ -4,6 +4,48 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-22 (Lens walkthrough phase 1 SHIPPED — Dashboard revamp closed)
+
+**Animation-polish arc. After the audit arc closed, Aden said he likes the
+About-page motion style and asked for a "mild" reference-driven revamp of the
+key surfaces, end-user = the developer. Dashboard revamp (3 phases) shipped +
+on prod. Now the Lens result page is getting the same house-motion treatment;
+Aden approved "Build Phase 1 from house style." Phase 1 is shipped — Aden
+reviews on prod before Phases 2-3.**
+
+**Lens result page (`/search` authed result) — Phase 1 SHIPPED (`1f40c37`):**
+- New shared primitive `src/components/ui/Reveal.jsx` — scroll-reveal wrapper
+  (fade + rise, `whileInView` `once:true`, house easing `[0.22,1,0.36,1]`,
+  `useReducedMotion` → plain render). Same easing as the About walkthrough.
+- The six § result sections (01 Market Position, 02 Analyst Brief, 03 Scenario
+  Studio, 04 Pillar Diagnostics, 05 Comparable Deals, 06 Regulatory Watch) are
+  each wrapped in `<Reveal>` so they fade/rise in once as the developer scrolls
+  the report. `once:true` deliberate — a dense report is re-read/scrubbed, so
+  re-animating on scroll-up would be maddening.
+- Verified: build + lint + 158 unit + 7/7 smoke green; headless authed capture
+  of the IL/Will/5MW result rendered all six sections + a real AI insight, 0
+  actionable console errors (lone 404 = dev-only optional resource, smoke-filtered).
+- **Phases 2-3 teed up (await Aden's prod review):** P2 = §01 gauge count-up +
+  luminous focal moment, §04 pillar-card stagger; P3 = section-progress
+  rail/scrollspy, Scenario Studio slider→metric transitions.
+
+**Dashboard revamp — SHIPPED (phases 1-3, on prod, Aden reviewing):**
+- P1 (`029bc24`): count-up metric numbers (`MetricsBar` `CountUp` + skeleton);
+  staggered mount entrance via `Reveal` (mount variant) on Dashboard.
+- P2 (`dd72a47`): USMap Layer-3 pulse-on-change (`state-pulse` keyframe) driven
+  by `getStateProgramDeltas`; dropped the stale "data verified Nd ago" caption.
+- P3 (`ae65768`): runway-pressure bar + WoW "▲N pts this week" chip in
+  `StateDetailPanel`. **Runway bar is intentionally 5-state** (CO/IL/MA/NJ/NY —
+  the only states with `enrollment_rate_mw_per_month` seeded); Aden saw it on
+  Colorado and said "keep as-is." Map pulse + WoW chip currently dormant (0 WoW
+  deltas exist by design) — both degrade cleanly to nothing.
+
+**Standing constraints reaffirmed this arc:** no employer naming (Nexamp/Ameresco)
+on public/marketing/onboarding copy; no unprompted browser popups (headless
+Playwright only); always push to origin/main (Aden reviews on Vercel prod).
+
+---
+
 ## 🟢 Pickup — 2026-05-21 (audit arc CLOSED — Glossary + F1 fixed, audit tool shipped)
 
 **Continuation of the About/audit arc. Aden gave blanket "allow all changes" autonomy to finish the audit + to-do while stepping away. Outcome: the visual-audit tool is shipped + enhanced, the full authed audit ran clean, and both real findings (Glossary duplicate keys, F1 primary-teal drift) are fixed and pushed. The audit-cleanup arc is now closed; the only carried-forward item is the onboarding revamp.**
