@@ -114,12 +114,12 @@ export default function DevFeasibilityView({
   const subScores = leverResult.adjusted
 
   const composite = useMemo(
-    () => safeScore(subScores.offtake, subScores.ix, subScores.site, undefined, subScores.policyClimate),
+    () => safeScore(subScores.offtake, subScores.ix, subScores.site),
     [subScores]
   )
 
   const structuralComposite = useMemo(
-    () => safeScore(structuralSubScores.offtake, structuralSubScores.ix, structuralSubScores.site, undefined, structuralSubScores.policyClimate),
+    () => safeScore(structuralSubScores.offtake, structuralSubScores.ix, structuralSubScores.site),
     [structuralSubScores]
   )
 
@@ -263,7 +263,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
               <TooltipContent side="top" className="!max-w-[340px]">
                 <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Composite + verdict thresholds</p>
                 <p className="leading-relaxed mb-2">
-                  Composite = weighted blend of the four pillar sub-scores (Offtake 36% · IX 31.5% · Site 22.5% · Policy 10%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). The Dev Feasibility verdict reflects your levers (Subscription / COD / IX Assumption); the structural baseline shown in the Lens header gauge does NOT — it's the pre-lever search snapshot.
+                  Composite = weighted blend of the three pillar sub-scores (Offtake 40% · IX 35% · Site 25%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). Policy climate is a separate <em>signal</em> (surfaced in the verdict rationale + Regulatory Watch), not folded into the number. The Dev Feasibility verdict reflects your levers (Subscription / COD / IX Assumption); the structural baseline shown in the Lens header gauge does NOT — it's the pre-lever search snapshot.
                 </p>
                 <p className="leading-relaxed">
                   Verdict bands are <span className="font-semibold" style={{ color: '#5EEAD4' }}>Tractova editorial</span>, not empirically anchored: <b>Go ≥ 70</b>, <b>Caution 50–69</b>, <b>No-Go &lt; 50</b>. They're a screening shortcut for "is this market worth more diligence?" — calibrate to your own deal-flow benchmark over time.
@@ -571,7 +571,7 @@ function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
   // the data through.
   const dataNotWired = coverage === 'none'
   return (
-    <PillarCardShell pillarLabel="Policy" subScore={subScore} coverage={coverage}>
+    <PillarCardShell pillarLabel="Policy (signal)" subScore={subScore} coverage={coverage}>
       <div className="space-y-1 text-[11px]">
         {dataNotWired ? (
           <div className="text-gray-500 italic leading-snug">

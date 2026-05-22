@@ -1,10 +1,10 @@
-// Policy pillar summary card — 4th tile in the §04 row alongside Offtake /
-// IX / Site Control. Replaces the standalone LensPolicyClimateSection
-// that sat loose below the pillars (Aden flagged it as feeling thrown
-// behind the row instead of being a peer).
+// Policy-climate SIGNAL tile — sits in the §04 row beside the three scored
+// pillars (Offtake / IX / Site) but is deliberately framed as a signal, not a
+// scored prong: policy climate is surfaced here + in Regulatory Watch + the
+// verdict rationale, and is NOT folded into the Feasibility Index (3-pillar).
 //
-// Click → opens the same PillarDetailModal as the other pillars on the
-// 'policy' tab, which renders LensPolicyClimateSection inside.
+// Click → opens the same PillarDetailModal as the pillars on the 'policy' tab,
+// which renders LensPolicyClimateSection inside.
 
 import { SummaryShell } from './OfftakeCardSummary'
 
@@ -58,7 +58,7 @@ export default function PolicyPillarCardSummary({ policyEvents = [], stateName, 
 
   return (
     <SummaryShell
-      pillarLabel="04 / Policy"
+      pillarLabel="Signal / Policy"
       pillarAccent={PILLAR_ACCENT}
       title={title}
       score={score}

@@ -152,10 +152,10 @@ export default function LensPolicyClimateSection({ policyEvents, stateName, mw, 
       <p className="text-[11px] text-gray-500 leading-relaxed">
         Cross-cutting and per-pillar policy events for this state. The chips on each
         pillar card above show only the events filed to that pillar; this section is
-        the complete view across all four pillars (including the cross-cutting events
-        that don't have a single home).
+        the complete view across every category (offtake, IX, site, and the
+        cross-cutting events that don't have a single home).
         <GlossaryLabel term="Modeled in financials" displayAs=" High-confidence rows" className="text-[11px] text-gray-500" />
-        {' '}feed Scenario Studio + composite; medium/low rows are{' '}
+        {' '}feed Scenario Studio + the policy signal; medium/low rows are{' '}
         <GlossaryLabel term="Qualitative — not modeled" displayAs="qualitative" className="text-[11px] text-gray-500" />.
       </p>
       <div className="mt-4 space-y-4">

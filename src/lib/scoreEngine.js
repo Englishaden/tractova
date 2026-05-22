@@ -314,35 +314,22 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
 //
 // If/when we get developer-survey or empirical IRR-vs-pillar data that would
 // anchor these weights, replace WEIGHT_SCENARIOS with the empirical values.
-// 4-dim weights (PIE-001 Phase C). Each scenario allocates 90% across the
-// existing offtake/ix/site dimensions in the SAME RATIO as the pre-PIE
-// 3-dim weights (so when computeDisplayScore rebalances 3-dim for legacy
-// callers, results are bit-for-bit identical to pre-PIE). The remaining
-// 10% is the policy_climate slot.
-//
-// Default: 0.4/0.35/0.25 × 0.9 = 0.36/0.315/0.225, + 0.10 policy = 1.0
-// Revenue: 0.5/0.3/0.2   × 0.9 = 0.45/0.27/0.18,   + 0.10 policy = 1.0
-// IX:      0.3/0.4/0.3   × 0.9 = 0.27/0.36/0.27,   + 0.10 policy = 1.0
-// Permit:  0.3/0.3/0.4   × 0.9 = 0.27/0.27/0.36,   + 0.10 policy = 1.0
-// 4-dim weights (PIE-001 Phase C) carry both the new policy-aware weights AND
-// the legacy 3-dim weights they were derived from. computeDisplayScore uses
-// the 4-dim weights when a policyClimate is provided, and the legacy3dim
-// weights (bit-identical to pre-PIE) when no policy data is passed in. This
-// preserves exact backwards compatibility for Library/Portfolio surfaces
-// that don't yet plumb policy_impact_events.
+// Three-pillar weights — the Feasibility Index blends offtake / IX / site only.
+// Policy is a SIGNAL (surfaced as Regulatory Watch + the §04 policy-climate
+// tile + verdict-rationale headwinds), NOT a scored prong, so the headline
+// number is one consistent value across Lens / Library / Compare / saved
+// scores. (The PIE-001 4th prong was reverted to a signal on 2026-05-22 — it
+// had been wired into the Lens gauge but not Library/Compare, so the same
+// project showed a different Feasibility Index on different screens.)
 export const WEIGHT_SCENARIOS = {
-  default:    { offtake: 0.36, ix: 0.315, site: 0.225, policy: 0.10, label: 'Default (offtake-led)',
-                legacy3dim: { offtake: 0.40, ix: 0.35, site: 0.25 },
-                rationale: 'Tractova default — offtake gets highest weight as the revenue mechanism, IX second as the binary go/no-go gate, site third as the most solvable. Policy climate (PIE-001) at 10% captures active high-confidence policy events not yet absorbed into structural baselines.' },
-  revenue:    { offtake: 0.45, ix: 0.27,  site: 0.18,  policy: 0.10, label: 'Revenue-tilt',
-                legacy3dim: { offtake: 0.50, ix: 0.30, site: 0.20 },
-                rationale: 'For developers who view CS programs (REC value, capacity availability) as the dominant project-success predictor.' },
-  ix:         { offtake: 0.27, ix: 0.36,  site: 0.27,  policy: 0.10, label: 'IX-tilt',
-                legacy3dim: { offtake: 0.30, ix: 0.40, site: 0.30 },
-                rationale: 'For developers in long-queue ISO regions (PJM, MISO) where interconnection delays are the project killer.' },
-  permit:     { offtake: 0.27, ix: 0.27,  site: 0.36,  policy: 0.10, label: 'Permit-tilt',
-                legacy3dim: { offtake: 0.30, ix: 0.30, site: 0.40 },
-                rationale: 'For developers in permit-heavy markets (NJ farmland, MA wetlands) where site control is the dominant friction.' },
+  default: { offtake: 0.40, ix: 0.35, site: 0.25, label: 'Default (offtake-led)',
+             rationale: 'Tractova default — offtake gets highest weight as the revenue mechanism, IX second as the binary go/no-go gate, site third as the most solvable.' },
+  revenue: { offtake: 0.50, ix: 0.30, site: 0.20, label: 'Revenue-tilt',
+             rationale: 'For developers who view CS programs (REC value, capacity availability) as the dominant project-success predictor.' },
+  ix:      { offtake: 0.30, ix: 0.40, site: 0.30, label: 'IX-tilt',
+             rationale: 'For developers in long-queue ISO regions (PJM, MISO) where interconnection delays are the project killer.' },
+  permit:  { offtake: 0.30, ix: 0.30, site: 0.40, label: 'Permit-tilt',
+             rationale: 'For developers in permit-heavy markets (NJ farmland, MA wetlands) where site control is the dominant friction.' },
 }
 
 const DEFAULT_WEIGHTS = WEIGHT_SCENARIOS.default
@@ -357,18 +344,9 @@ const DEFAULT_WEIGHTS = WEIGHT_SCENARIOS.default
  * @param {{offtake:number, ix:number, site:number}} [weights] — defaults to WEIGHT_SCENARIOS.default
  * @returns {number} rounded weighted average
  */
-export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS, policyClimate = null) {
-  // No policy data → use the bundled legacy3dim weights so the composite
-  // is bit-identical to pre-PIE. (Library bulk scoring, pre-PIE callers.)
-  // Falls back to standard 0.40/0.35/0.25 if a custom weights object
-  // without legacy3dim was passed in.
-  if (policyClimate == null) {
-    const w3 = weights.legacy3dim || { offtake: 0.40, ix: 0.35, site: 0.25 }
-    return Math.round(offtake * w3.offtake + ix * w3.ix + site * w3.site)
-  }
-  const pc = Number.isFinite(policyClimate) ? policyClimate : 50
-  const pw = Number.isFinite(weights.policy) ? weights.policy : 0
-  return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site + pc * pw)
+export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
+  // Three-pillar weighted blend. Policy is a signal, not a scored prong.
+  return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site)
 }
 
 /**
@@ -388,10 +366,10 @@ export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS
  * @param {object} [weights]
  * @returns {number|null}
  */
-export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS, policyClimate = null) {
+export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
   if (!Number.isFinite(offtake) || !Number.isFinite(ix) || !Number.isFinite(site)) return null
   if (!weights || !Number.isFinite(weights.offtake) || !Number.isFinite(weights.ix) || !Number.isFinite(weights.site)) return null
-  const result = computeDisplayScore(offtake, ix, site, weights, policyClimate)
+  const result = computeDisplayScore(offtake, ix, site, weights)
   return Number.isFinite(result) ? result : null
 }
 
@@ -405,12 +383,12 @@ export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS, policyCl
  * @param {number} site
  * @returns {{default:number, min:number, max:number, spread:number, scenarios:object}}
  */
-export function computeDisplayScoreRange(offtake, ix, site, policyClimate = null) {
+export function computeDisplayScoreRange(offtake, ix, site) {
   const scenarios = {}
   let min = Infinity, max = -Infinity
   for (const [k, w] of Object.entries(WEIGHT_SCENARIOS)) {
-    const s = computeDisplayScore(offtake, ix, site, w, policyClimate)
-    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site, policy: w.policy } }
+    const s = computeDisplayScore(offtake, ix, site, w)
+    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site } }
     if (s < min) min = s
     if (s > max) max = s
   }
@@ -449,7 +427,7 @@ export function scoreProjects(projects, stateProgramMap, policyEventsByState = n
     if (!sp) return { ...p, score: 0 }
     const policies = policyEventsByState?.[p.state] || null
     const subs = computeSubScores(sp, null, p.stage, p.technology, null, policies, p.mw)
-    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site, undefined, subs.policyClimate) }
+    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
   })
 }
 

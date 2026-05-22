@@ -364,7 +364,7 @@ export default function ScenarioStudio({
 
       {collapsed && (
         <div className="px-6 py-3 text-[11px] text-gray-500 leading-relaxed border-t border-gray-100">
-          Studio collapsed. Click the chevron above to expand and run scenarios across the four pillars or stress-test the financial baseline.
+          Studio collapsed. Click the chevron above to expand and run scenarios across the three pillars or stress-test the financial baseline.
         </div>
       )}
 

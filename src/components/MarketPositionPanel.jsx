@@ -14,13 +14,13 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
   if (!stateProgram) return null
   // Apply scenario override if active — recompute sub-scores from the override state
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const { offtake, ix, site, policyClimate, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw)
+  const { offtake, ix, site, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw)
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
-  const score = safeScore(offtake, ix, site, undefined, policyClimate)
+  const score = safeScore(offtake, ix, site)
   // Base-case score for delta calculation
   const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw)
-  const baseScore = safeScore(baseSubs.offtake, baseSubs.ix, baseSubs.site, undefined, baseSubs.policyClimate)
+  const baseScore = safeScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
   // Guard delta math against null scores (safeScore returns null when any
   // sub-score isn't finite — e.g. partial data + edge-case state programs).
   const delta = (activeScenario && score != null && baseScore != null) ? score - baseScore : 0
@@ -38,7 +38,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
   // whether the project's verdict is robust to methodology choice.
   // Surfaced when spread > 4 (meaningful sensitivity); suppressed otherwise
   // so it doesn't add noise to clearly-strong / clearly-weak projects.
-  const scoreRange = computeDisplayScoreRange(offtake, ix, site, policyClimate)
+  const scoreRange = computeDisplayScoreRange(offtake, ix, site)
   // When state/county is outside our curated coverage, surface that to match
   // the honesty already in the revenue panel ("model not available"). Without
   // this, the user sees a feasibility number that looks researched but is

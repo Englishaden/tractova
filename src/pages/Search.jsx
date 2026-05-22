@@ -1182,7 +1182,7 @@ function SearchContent() {
                 so the four sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
             <div className="lens-reveal">
-            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site · policy climate" />
+            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site + policy signal" />
             <div data-tour-id="pillars" className="space-y-5">
             {(() => {
               // Structural sub-scores drive the §04 summary card gauges.
