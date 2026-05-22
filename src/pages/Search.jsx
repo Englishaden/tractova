@@ -36,7 +36,6 @@ import RunIdMasthead from '../components/RunIdMasthead'
 import SectionMarker from '../components/SectionMarker'
 import Reveal from '../components/ui/Reveal'
 import ScrollAssemble from '../components/ui/ScrollAssemble'
-import WordsReveal from '../components/ui/WordsReveal'
 import LensScenarioRow from '../components/LensScenarioRow'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
@@ -1035,13 +1034,14 @@ function SearchContent() {
             })()}
 
             {/* Results header + §01 Market Position = the signature "assemble"
-                opening: scroll-scrubbed grain coalesce (ScrollAssemble) with a
-                per-word headline (WordsReveal). §02-§06 keep the calm Reveal. */}
-            <ScrollAssemble introDelay={0.8}>
+                opening: a scroll-scrubbed pixel-particle gather (ScrollAssemble)
+                — the whole hero flows in from the edges. §02-§06 keep the calm
+                Reveal. */}
+            <ScrollAssemble>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">
-                  <WordsReveal text={`${results.form.county} County, ${results.stateProgram?.name || results.form.state}`} />
+                  {results.form.county} County, {results.stateProgram?.name || results.form.state}
                   <span className="text-gray-400 font-normal mx-2">·</span>
                   <span className="text-gray-600">
                     {effectiveMw != null ? effectiveMw.toFixed(1) : results.form.mw} MW AC

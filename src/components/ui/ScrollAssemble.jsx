@@ -1,107 +1,147 @@
-import { createContext, useEffect, useId, useRef } from 'react'
-import {
-  motion,
-  useReducedMotion,
-  useScroll,
-  useTransform,
-  useMotionValue,
-  useMotionValueEvent,
-  animate,
-} from 'motion/react'
+import { useEffect, useRef, useState } from 'react'
+import { useReducedMotion, useScroll, useTransform, useMotionValue, useMotionValueEvent, animate } from 'motion/react'
+import { domToCanvas } from 'modern-screenshot'
 
-// Shared assemble progress (0 = scattered grain, 1 = fully assembled). Any
-// descendant can ride it — e.g. WordsReveal on the headline, so the words
-// re-gather in lockstep with the panel. null when not inside a ScrollAssemble.
-export const AssembleContext = createContext(null)
+// ScrollAssemble — pixel-particle "gather" reveal, modeled on the Huly hero
+// Aden flagged: the panel breaks into tiles that flow in from the screen edges
+// and gather to fill the image, then disperse back out as you scroll up.
+//
+// How it works:
+//   1. The live §01 DOM is snapshotted once (modern-screenshot → canvas; works
+//      with Tailwind v4 oklch + the SVG gauge because it renders via the
+//      browser, not a CSS reimplementation).
+//   2. The snapshot is diced into a grid of pixel-tiles. Each tile starts off
+//      the nearest screen edge (left/right) with vertical jitter + a random
+//      per-tile delay → "smooth chaotic" inflow, and lerps to its home cell.
+//   3. A single `progress` (0 = scattered off the sides, 1 = assembled) drives
+//      every tile. It's `intro × scrollPosition`, so it plays once on load AND
+//      is fully reversible on scroll — scrub up and the tiles fly back out.
+//   4. Once assembled we show the real (crisp, interactive) DOM and hide the
+//      canvas, crossfaded so any snapshot/live mismatch is invisible.
+//
+// Canvas drawImage of the tiles is far cheaper than the per-frame SVG filter
+// the first take used — that recompute was the lag. If the snapshot ever fails
+// we just show the DOM (graceful). Reduced-motion → plain children.
 
-// Scroll-scrubbed "grain coalesce" — the signature opening beat for the Lens
-// result, modeled on the Huly hero where the UI/data materialises out of a
-// pixelated haze. The REAL content (gauge, scores, headline) is displaced by
-// fractal-noise (reads as drifting static), blurred and dimmed while scattered,
-// then gathers into a crisp picture as it settles in the upper viewport.
-//
-//   - Fully reversible: scrubbing back up re-scatters it; coming back down
-//     re-assembles. Progress is locked to scroll position, not a fixed timer.
-//   - An intro tween plays the assemble ONCE on mount, so the report visibly
-//     "forms" the moment the analysis lands.
-//   - Crispness + perf: the SVG filter is detached entirely (filter:none) once
-//     assembled, so the resting report carries no filter layer over dense text.
-//
-// Reduced-motion renders children plain — no filter, no scrub, no intro.
-export default function ScrollAssemble({ children, className, introDelay = 0 }) {
+const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3)
+
+export default function ScrollAssemble({ children, className }) {
   const reduce = useReducedMotion()
   const hostRef = useRef(null)
-  const dispRef = useRef(null)
-  const blurRef = useRef(null)
-  const filterId = `assemble-${useId().replace(/:/g, '')}`
+  const contentRef = useRef(null)
+  const canvasRef = useRef(null)
+  const dataRef = useRef(null)                                  // {cell, csrc, w, h, src, tiles}
+  const stateRef = useRef({ prog: 1, assembled: true, raf: 0 })
+  const stopRef = useRef(null)
+  const [assembled, setAssembled] = useState(true)             // true → live DOM visible
 
-  // 0 while the block sits at the top of the viewport, → 1 as it scrolls up and
-  // out the top. Inverted so "in place" = assembled, "scrolled away" = scattered.
   const { scrollYProgress } = useScroll({ target: hostRef, offset: ['start start', 'end start'] })
   const scrollAssembled = useTransform(scrollYProgress, [0, 0.6], [1, 0], { clamp: true })
+  const intro = useMotionValue(reduce ? 1 : 0)
 
-  // Intro gate — assemble once on mount. `introDelay` lets a caller hold the
-  // grain-gather until a covering element (e.g. the Lens "analyzing" overlay)
-  // has cleared, so the materialise actually plays in view rather than behind it.
-  const intro = useMotionValue(0)
+  const draw = () => {
+    const d = dataRef.current, cv = canvasRef.current
+    if (!d || !cv) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const ctx = cv.getContext('2d')
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, d.w, d.h)
+    const prog = stateRef.current.prog
+    for (let i = 0; i < d.tiles.length; i++) {
+      const t = d.tiles[i]
+      const lp = Math.max(0, Math.min(1, (prog - t.off) / (1 - t.off)))
+      if (lp <= 0) continue
+      const e = easeOutCubic(lp)
+      ctx.globalAlpha = lp < 0.85 ? lp : 1
+      ctx.drawImage(d.src, t.sxi, t.syi, d.csrc, d.csrc,
+        t.sx + (t.hx - t.sx) * e, t.sy + (t.hy - t.sy) * e, d.cell, d.cell)
+    }
+    ctx.globalAlpha = 1
+  }
+
+  const render = () => {
+    stateRef.current.raf = 0
+    const prog = (reduce ? 1 : intro.get()) * scrollAssembled.get()
+    stateRef.current.prog = prog
+    const asm = prog > 0.99
+    if (asm !== stateRef.current.assembled) { stateRef.current.assembled = asm; setAssembled(asm) }
+    if (!asm) draw()
+  }
+  const schedule = () => {
+    if (!dataRef.current) return
+    if (!stateRef.current.raf) stateRef.current.raf = requestAnimationFrame(render)
+  }
+  useMotionValueEvent(scrollAssembled, 'change', schedule)
+
   useEffect(() => {
-    if (reduce) { intro.set(1); return }
-    const controls = animate(intro, 1, { duration: 1.7, delay: introDelay, ease: [0.16, 1, 0.3, 1] })
-    return () => controls.stop()
-  }, [reduce, intro, introDelay])
+    if (reduce) return undefined
+    const el = contentRef.current
+    if (!el) return undefined
+    let cancelled = false
+    const timer = setTimeout(async () => {
+      try {
+        const rect = el.getBoundingClientRect()
+        const w = Math.round(rect.width), h = Math.round(rect.height)
+        if (!w || !h) return
+        const src = await domToCanvas(el, { scale: 1, font: false })
+        if (cancelled) return
+        buildTiles(src, w, h)
+        sizeCanvas(w, h)
+        schedule() // paint the scattered state immediately (held while the
+                   // "analyzing" overlay finishes dismissing)…
+        // …then play the full gather in view. delay ≈ overlay dismiss so the
+        // dramatic edge-inflow isn't hidden behind the scrim.
+        const controls = animate(intro, 1, { duration: 1.7, delay: 0.55, ease: [0.16, 1, 0.3, 1], onUpdate: schedule })
+        stopRef.current = () => controls.stop()
+      } catch {
+        if (!cancelled) setAssembled(true) // graceful fallback → show DOM
+      }
+    }, 150)
+    return () => { cancelled = true; clearTimeout(timer); stopRef.current?.(); cancelAnimationFrame(stateRef.current.raf) }
+  }, [reduce]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const assembled = useTransform(() => intro.get() * scrollAssembled.get())
-  const scattered = useTransform(assembled, (v) => 1 - v)
-  // Keep a high opacity floor so the displaced content stays VISIBLE while
-  // scattered — the point is to watch grain/static gather into the picture, not
-  // fade up from black. Floor lifts fast so it's legible almost immediately.
-  const opacity = useTransform(assembled, [0, 1], [0.4, 1])
-  const noiseOpacity = useTransform(scattered, [0, 1], [0, 0.65])
-  // Detach the filter once assembled → crisp text + no filter cost at rest.
-  const filter = useTransform(scattered, (v) => (v < 0.012 ? 'none' : `url(#${filterId})`))
-
-  // Drive the SVG displacement + blur imperatively (cheap, zero React renders).
-  const apply = (v) => {
-    dispRef.current?.setAttribute('scale', String(v * 34))
-    blurRef.current?.setAttribute('stdDeviation', String(v * 4))
+  function buildTiles(src, w, h) {
+    const cell = 26
+    const sxScale = src.width / w           // source px per CSS px (handles dpr)
+    const csrc = cell * sxScale
+    const cols = Math.ceil(w / cell), rows = Math.ceil(h / cell)
+    const cx = w / 2
+    const tiles = []
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const hx = c * cell, hy = r * cell
+        const fromLeft = (hx + cell / 2) < cx
+        tiles.push({
+          hx, hy,
+          sx: fromLeft ? -(cell + Math.random() * 0.6 * w) : w + Math.random() * 0.6 * w,
+          sy: hy + (Math.random() - 0.5) * h * 0.7,
+          off: Math.random() * 0.4,        // per-tile stagger → chaotic gather
+          sxi: c * csrc, syi: r * csrc,
+        })
+      }
+    }
+    dataRef.current = { cell, csrc, w, h, src, tiles }
   }
-  useMotionValueEvent(scattered, 'change', apply)
-  useEffect(() => { apply(scattered.get()) }, [scattered])
 
-  if (reduce) {
-    return (
-      <AssembleContext.Provider value={null}>
-        <div className={className}>{children}</div>
-      </AssembleContext.Provider>
-    )
+  function sizeCanvas(w, h) {
+    const cv = canvasRef.current; if (!cv) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr)
+    cv.style.width = `${w}px`; cv.style.height = `${h}px`
   }
+
+  if (reduce) return <div className={className}>{children}</div>
 
   return (
-    <div ref={hostRef} className={className}>
-      <svg aria-hidden width="0" height="0" style={{ position: 'absolute' }}>
-        <filter id={filterId} x="-15%" y="-15%" width="130%" height="130%" colorInterpolationFilters="sRGB">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="11" result="noise" />
-          <feDisplacementMap ref={dispRef} in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G" result="disp" />
-          <feGaussianBlur ref={blurRef} in="disp" stdDeviation="0" />
-        </filter>
-      </svg>
-
-      <AssembleContext.Provider value={assembled}>
-        <motion.div className="relative" style={{ opacity, filter, willChange: 'filter, opacity' }}>
-          {children}
-          {/* Drifting-static overlay — fades out as the picture gathers. */}
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{
-              opacity: noiseOpacity,
-              mixBlendMode: 'overlay',
-              backgroundImage:
-                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
-            }}
-          />
-        </motion.div>
-      </AssembleContext.Provider>
+    <div ref={hostRef} className={className} style={{ position: 'relative' }}>
+      <div ref={contentRef} style={{ opacity: assembled ? 1 : 0, transition: 'opacity 160ms linear', pointerEvents: assembled ? 'auto' : 'none' }}>
+        {children}
+      </div>
+      <canvas
+        ref={canvasRef}
+        aria-hidden
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', opacity: assembled ? 0 : 1, transition: 'opacity 160ms linear' }}
+      />
     </div>
   )
 }
