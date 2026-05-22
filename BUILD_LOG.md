@@ -4,55 +4,83 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-22 (Lens walkthrough phase 1 SHIPPED — Dashboard revamp closed)
+## 🟢 Pickup — 2026-05-22 (motion polish + 3-pillar Index fix SHIPPED — NEXT: IX scraper fix, then county-geo dup cleanup)
 
-**Animation-polish arc. After the audit arc closed, Aden said he likes the
-About-page motion style and asked for a "mild" reference-driven revamp of the
-key surfaces, end-user = the developer. Dashboard revamp (3 phases) shipped +
-on prod. Now the Lens result page is getting the same house-motion treatment;
-Aden approved "Build Phase 1 from house style." Phase 1 is shipped — Aden
-reviews on prod before Phases 2-3.**
+**Long session: finished the motion-polish arc (About → Dashboard → Lens →
+Library), then Aden surfaced real reservations and we tackled the substantive
+ones — fixed the pillar-model incoherence and dedup'd comparables, then built a
+data-coverage audit. All shipped to prod. Two concrete data tasks carried
+forward (see ⏭ NEXT). Do these before the onboarding revamp / recording.**
 
-**Lens result page (`/search` authed result) — Phase 1 SHIPPED (`1f40c37`,
-motion reworked `9f91903`):**
-- Shared primitive `src/components/ui/Reveal.jsx` — scroll-reveal wrapper
-  (`whileInView` `once:true`, `useReducedMotion` → plain render).
-- **Motion reworked after Aden's feedback** ("fade+rise comes in too fast,
-  not tech-like"). Referenced his Godly inspiration reel
-  (`inspiration/Godly…mp4`, gitignored) — uniformly dark/premium/gradient
-  tech sites (Browser Company, "humanity transcends", AIR, M2, SHIP) with
-  slow, soft, sharpen-in reveals. New house feel: **expo-out `[0.16,1,0.3,1]`
-  over 0.8s** (front-loaded then long settle), **blur(10px)→0 sharpen-in**
-  (filter cleared imperatively on complete so no layer lingers over the dense
-  report), y 16→28. Exported `HOUSE_EASE`; Dashboard mount-entrance aligned to
-  the same curve (0.6s, y 20, no blur — restrained daily-driver). Verified via
-  headless mid-animation capture (blur-in/rise across the curve → crisp settle).
-- The six § result sections (01 Market Position, 02 Analyst Brief, 03 Scenario
-  Studio, 04 Pillar Diagnostics, 05 Comparable Deals, 06 Regulatory Watch) are
-  each wrapped in `<Reveal>` so they fade/rise in once as the developer scrolls
-  the report. `once:true` deliberate — a dense report is re-read/scrubbed, so
-  re-animating on scroll-up would be maddening.
-- Verified: build + lint + 158 unit + 7/7 smoke green; headless authed capture
-  of the IL/Will/5MW result rendered all six sections + a real AI insight, 0
-  actionable console errors (lone 404 = dev-only optional resource, smoke-filtered).
-- **Phases 2-3 teed up (await Aden's prod review):** P2 = §01 gauge count-up +
-  luminous focal moment, §04 pillar-card stagger; P3 = section-progress
-  rail/scrollspy, Scenario Studio slider→metric transitions.
+### ⏭ NEXT SESSION — start here (in order)
+1. **IX scraper fix (THE data gap).** The coverage matrix (`node scripts/coverage-matrix.mjs`)
+   proved: SITE is live for all 51, OFFTAKE status is known for all 51 (32 "none"
+   = states with genuinely no CS program, not a gap), but **IX live-queue data
+   exists for only 8 states (CO/IL/ME/MD/MA/MN/NJ/NY) and 7 of those 8 are STALE
+   at 28d** — only MN is fresh. 43 states are curated-only (no live feed). Root
+   cause (per `programData.js:655` comment + the §01 "STALE 28D" tooltip): the
+   ISO scrapers (PJM/NYISO/ISO-NE) 404'd — upstream public CSV/JSON URLs changed,
+   scrapers pending repair. Data lives in `ix_queue_data` (rows carry
+   `fetched_at`; freshness = days since oldest). **Task: re-point the ISO scrapers
+   at the new URLs so the 8 live states refresh + ideally widen live coverage.**
+   The scraper code is likely in `api/` or `scripts/` (not yet located — find it).
+2. **County-geo duplicate cleanup.** `county_geospatial_data` has **3,969 rows
+   vs ~3,143 actual US counties** (~800 extra) — likely duplicate rows. Doesn't
+   change "site is covered everywhere" but is a hygiene flag. Check for dup
+   `county_fips` (note: `getCountyData` uses `.maybeSingle()` on county_fips, which
+   would THROW on a true dup — so dups may be by state/territory rows or vintage).
+   Investigate + dedup migration if real.
 
-**Dashboard revamp — SHIPPED (phases 1-3, on prod, Aden reviewing):**
-- P1 (`029bc24`): count-up metric numbers (`MetricsBar` `CountUp` + skeleton);
-  staggered mount entrance via `Reveal` (mount variant) on Dashboard.
-- P2 (`dd72a47`): USMap Layer-3 pulse-on-change (`state-pulse` keyframe) driven
-  by `getStateProgramDeltas`; dropped the stale "data verified Nd ago" caption.
-- P3 (`ae65768`): runway-pressure bar + WoW "▲N pts this week" chip in
-  `StateDetailPanel`. **Runway bar is intentionally 5-state** (CO/IL/MA/NJ/NY —
-  the only states with `enrollment_rate_mw_per_month` seeded); Aden saw it on
-  Colorado and said "keep as-is." Map pulse + WoW chip currently dormant (0 WoW
-  deltas exist by design) — both degrade cleanly to nothing.
+### DONE this session (all on prod)
+- **3-PILLAR FEASIBILITY INDEX (data-trust fix, `97d2d3b` + `982baf9`).** Aden's
+  reservation was right: the composite was computed two ways — the Lens gauge +
+  Scenario Studio folded in a 4th "policy climate" prong (10%); Library card /
+  Compare / saved `last_observed_score` / map / table / XLSX export were all
+  3-dim. Same project showed a different Index on different screens. **Fix:
+  three scored pillars EVERYWHERE (offtake 40 / IX 35 / site 25); policy is now a
+  SIGNAL, not a scored prong** — lives in §06 Regulatory Watch + the verdict
+  rationale only. `scoreEngine` WEIGHT_SCENARIOS back to clean 3-dim;
+  `computeSubScores` still returns `policyClimate` (signal value). Removed policy
+  from the §04 pillar row + the PillarDetailModal tab; **deleted
+  PolicyPillarCardSummary.jsx + LensPolicyClimateSection.jsx**. Swept all copy
+  (glossary, DevFeasibility "four pillars/Policy 10%" tooltip, etc.). 158/158
+  unit pass (scoreEngine assertions were already 3-dim). NOTE: for states WITH
+  high-confidence policy events the Lens number shifted to MATCH the already-3-dim
+  Library/Compare/export (a convergence, not a regression).
+- **Comparables dedup (`556c81c`).** §03 Scenario Studio "Comparable Projects"
+  panel double-counted the same NREL "Sharing the Sun" material as §05 Comparable
+  Deals. Removed it (deleted `ComparableProjectsPanel.jsx`); comparables live in
+  §05 only.
+- **Coverage matrix tool (`scripts/coverage-matrix.mjs`, committed this push).**
+  Read-only, $0, anon-key. Per-state × {offtake/IX/site} coverage from source
+  tables. The aggregate version of the per-project LIVE/RESEARCHED/STALE badges.
+  Run `node scripts/coverage-matrix.mjs` anytime. (This is what produced the
+  IX-gap + county-dup findings above.)
+- **Lens motion (`1f40c37`→`4497a71`).** Long iteration: scroll-reveal → expo+blur
+  → Aden: "too fast / laggy" → tried a pixel-particle "gather" (Huly-style, via
+  `modern-screenshot`) → Aden reverted ("too much for a working report") → CSS
+  `animation-timeline: view()` (didn't render in Aden's browser — Safari/older
+  Chromium don't support it) → **final: `src/lib/useLensReveal.js`**, a JS
+  scroll-linked fade (one passive listener + rAF, opacity+transform only, works
+  every browser), reversible, `FADE=0.21`. The pixel-particle showpiece is
+  **preserved in git @ `a24b68b`** for the future onboarding hero (its right home).
+  `modern-screenshot` dep was uninstalled.
+- **Library motion (`0c5b755`).** "Match the Dashboard": count-up the hero +
+  stat-strip numbers, staggered mount entrance (hero→stats→pipeline→cards).
+  Extracted shared `ui/CountUp.jsx` (now with `decimals` for MW) + `ui/MountReveal.jsx`;
+  MetricsBar + Dashboard refactored to use them (no parallel copies).
 
-**Standing constraints reaffirmed this arc:** no employer naming (Nexamp/Ameresco)
+### Housekeeping
+- A few local Vite dev servers (ports 5180/5181/5184) were left running from
+  headless captures — `taskkill /F` is blocked by the safety rule, so they'll
+  die when the terminals/machine close. Harmless.
+- `inspiration/Godly…mp4` (Aden's web-design reel) is gitignored; the reference
+  for premium motion if onboarding needs it.
+
+**Standing constraints (still in force):** no employer naming (Nexamp/Ameresco)
 on public/marketing/onboarding copy; no unprompted browser popups (headless
-Playwright only); always push to origin/main (Aden reviews on Vercel prod).
+Playwright only); always push to origin/main (Aden reviews on Vercel prod);
+never fabricate data — read the source.
 
 ---
 
