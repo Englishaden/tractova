@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
 import UpgradePrompt from '../components/UpgradePrompt'
 import SectionDivider from '../components/SectionDivider'
+import { useLensReveal } from '../lib/useLensReveal'
 import MarketPositionPanel from '../components/MarketPositionPanel.jsx'
 import OfftakeCardSummary from '../components/lens/OfftakeCardSummary.jsx'
 import InterconnectionCardSummary from '../components/lens/InterconnectionCardSummary.jsx'
@@ -308,6 +309,9 @@ function SearchContent() {
   const [programMap, setProgramMap]   = useState(null)
   const [results, setResults]         = useState(null)
   const [analyzing, setAnalyzing]     = useState(false)
+  // Scroll-linked reveal for the § sections once a report is on screen (JS so
+  // it works in every browser; see useLensReveal). Re-binds when results swap.
+  useLensReveal(!!results)
   // Live MW lever — shared across Scenario Studio (Dev Feasibility tab)
   // and the §04 Pillar Diagnostics cards so the user dragging "Project
   // Size" in the Studio gets reactive recompute everywhere instead of

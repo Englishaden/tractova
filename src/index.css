@@ -207,34 +207,11 @@
   .state-pulse { animation: none; stroke-opacity: 0.85; stroke-width: 2; }
 }
 
-/* Lens result — scroll-linked section reveal. Each § fades + rises in as it
-   enters the viewport and fades + sinks out as it leaves, FULLY REVERSIBLE
-   (scroll up and it runs backward). Driven by a native `view()` scroll
-   timeline so it runs on the compositor — locked to the scrollbar at the
-   monitor's refresh rate (the "165Hz" feel), zero JS per frame. Only opacity
-   + transform animate, so it never triggers layout/paint.
-
-   One keyframe set across the element's full `cover` range (bottom-enters →
-   top-exits): hidden at both ends, full + settled through the middle 76% so
-   the report is always crisp while you're actually reading it.
-
-   Progressive enhancement: browsers without scroll-driven animations (or with
-   reduced-motion) just render the content statically at full opacity. */
-@keyframes lens-scroll-reveal {
-  0%   { opacity: 0; transform: translateY(34px); }
-  12%  { opacity: 1; transform: translateY(0); }
-  88%  { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-34px); }
-}
-@media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
-    .lens-reveal {
-      animation: lens-scroll-reveal linear both;
-      animation-timeline: view();
-      will-change: opacity, transform;
-    }
-  }
-}
+/* Lens result — scroll-linked section reveal is driven by JS (useLensReveal),
+   which writes opacity + transform inline. JS is used instead of the native CSS
+   `animation-timeline: view()` because that scroll-timeline isn't supported in
+   Safari / older Chromium yet, so it silently did nothing for many users. The
+   .lens-reveal class is just a hook the JS queries; no styles needed here. */
 
 /* Phase 0 — Skeleton shimmer for branded loading states. Slower + lower
    contrast than Tailwind's default animate-pulse so it reads as
