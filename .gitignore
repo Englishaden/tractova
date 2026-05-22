@@ -67,7 +67,6 @@ public/Lazard*.pdf
 backups/
 
 # Local design-inspiration assets (screen recordings / screenshots). Large,
-# reference-only — must NEVER be committed (GitHub 100MB limit) or deployed
-# (everything in public/ ships to prod). Keep them local. Ideally these live
-# outside public/ entirely, but ignoring the folder handles the immediate risk.
-public/Website Inspiration/
+# reference-only — kept out of git (GitHub 100MB limit) and out of public/
+# (which deploys to prod). Lives in a repo-root inspiration/ folder, local only.
+inspiration/
