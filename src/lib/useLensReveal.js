@@ -25,7 +25,7 @@ export function useLensReveal(active) {
     if (!els.length) return undefined
     els.forEach((el) => { el.style.willChange = 'opacity, transform' })
 
-    const FADE = 0.16  // fraction of each section's pass spent fading in / out
+    const FADE = 0.21  // fraction of each section's pass spent fading in / out
     const RISE = 42    // px of travel
     let raf = 0
     const update = () => {
