@@ -35,6 +35,8 @@ import IntelligenceBackground from '../components/IntelligenceBackground'
 import RunIdMasthead from '../components/RunIdMasthead'
 import SectionMarker from '../components/SectionMarker'
 import Reveal from '../components/ui/Reveal'
+import ScrollAssemble from '../components/ui/ScrollAssemble'
+import WordsReveal from '../components/ui/WordsReveal'
 import LensScenarioRow from '../components/LensScenarioRow'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
@@ -1032,11 +1034,14 @@ function SearchContent() {
               )
             })()}
 
-            {/* Results header */}
+            {/* Results header + §01 Market Position = the signature "assemble"
+                opening: scroll-scrubbed grain coalesce (ScrollAssemble) with a
+                per-word headline (WordsReveal). §02-§06 keep the calm Reveal. */}
+            <ScrollAssemble introDelay={0.8}>
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">
-                  {results.form.county} County, {results.stateProgram?.name || results.form.state}
+                  <WordsReveal text={`${results.form.county} County, ${results.stateProgram?.name || results.form.state}`} />
                   <span className="text-gray-400 font-normal mx-2">·</span>
                   <span className="text-gray-600">
                     {effectiveMw != null ? effectiveMw.toFixed(1) : results.form.mw} MW AC
@@ -1090,7 +1095,6 @@ function SearchContent() {
               </div>
             </div>
 
-            <Reveal>
             <SectionMarker index={1} label="Market Position" sublabel="composite feasibility · sensitivity scenarios" />
 
             <div data-tour-id="composite">
@@ -1118,7 +1122,7 @@ function SearchContent() {
               formForApi={results.form}
               programMap={programMap}
             />
-            </Reveal>
+            </ScrollAssemble>
 
             {/* Market Intelligence Summary */}
             <Reveal>
