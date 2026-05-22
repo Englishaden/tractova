@@ -9,6 +9,7 @@
 **Continuation of the About/audit arc. Aden gave blanket "allow all changes" autonomy to finish the audit + to-do while stepping away. Outcome: the visual-audit tool is shipped + enhanced, the full authed audit ran clean, and both real findings (Glossary duplicate keys, F1 primary-teal drift) are fixed and pushed. The audit-cleanup arc is now closed; the only carried-forward item is the onboarding revamp.**
 
 **What's live on prod (Vercel auto-deployed from main):**
+- **🔧 PROD BUILD-MODE FIX (2026-05-21).** Found while debugging the Footer's "Data refreshed: —" bug: **Vercel was building the site in DEVELOPMENT mode** (`import.meta.env.PROD === false`). Proof: the prod bundle still contained the `/_e2e/crash` route (gated behind `import.meta.env.DEV` in App.jsx, stripped from real prod builds). Consequences (all now fixed): Footer `/api/data-health` fetch was tree-shaken (→ "—"); the dev crash-test route shipped to prod; React's slower DEV build was served. Local `vite build` was always correct, so the dev-mode came from a **Vercel dashboard Build Command override**. Fix: pinned `"buildCommand": "npm run build"` + `"outputDirectory": "dist"` in `vercel.json` (per docs, vercel.json overrides the dashboard). Verified live: new bundle has 0 `/_e2e/crash`, the fetch fires (200), Footer shows "Data refreshed: 2d ago". **⚠ Aden should also clear the stale dashboard Build Command override for cleanliness** (vercel.json wins regardless). NOTE: other `import.meta.env.PROD`-gated behaviors that were silently skipped on prod (e.g. the Dashboard/preview lens-insight prefetch) will now activate as intended — watch for anything unexpected.
 - **`/about` — APPROVED by Aden ("looks good for now").** "Surveyor's Field Notes" animated walkthrough (5 station nodes on a survey baseline, crossfading navy cards, hand-drawn SVG illustrations, useReducedMotion-aware, mobile-stacked). Clickable Next/Walk-again button; auto-advance stops on interaction; entrance animates on first load (removed AnimatePresence `initial={false}`). No employer named; Aden Walker named in the founder station. All 5 stations approved: 01 the gap, 02 groma (centered, + definition in copy), 03 triangulation, 04 coverage, 05 notebook (survey title block). **Station 01 "The Gap" took 5 takes** (% bars → bars/track → diligence gauntlet → "short end of the stick" static → **final: short-end-of-the-stick with a LOOPING `+ TRACTOVA` wedge that fills ~80% of a faint gap track** — long dim beam = big integrated players, short solid beam = YOU; no dotted line; no numbers).
 - **`/glossary`** — duplicate-key React warnings GONE (was 2 console.errors/load).
 - **Primary teal consolidated** — `bg-primary`/`text-primary` now render canonical `#0F766E` everywhere (matched the literals).
@@ -22,7 +23,9 @@
 - `1aa79a9` About: "The Gap" = short end of the stick (static)
 - `0c62333` About: fix station-01 load animation + center groma + de-corny hero
 - `021c3ef` About: gap visibly closes (looping wedge) + drop dotted line
-- `1c9b1c0` **About: gap wedge fills ~80% (current; Aden-approved)**
+- `1c9b1c0` About: gap wedge fills ~80% (Aden-approved)
+- `3bb4476` BUILD_LOG: About closed
+- `337a8b1` **fix: force production build on Vercel (was building in dev mode)**
 
 **Audit arc — DONE:**
 - **`npm run audit:visual`** — standalone headless audit tool (any `--url`, `--auth`, desktop+mobile, screenshots + console + HTTP-failure capture → `.audit/visual-<ts>/findings.md`). Gitignored artifacts.
