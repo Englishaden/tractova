@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { animate, useReducedMotion } from 'motion/react'
 import { getDashboardMetrics, getStatePrograms, getNewsFeed } from '../lib/programData'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import PreviewSignupGate from './PreviewSignupGate'
@@ -342,6 +343,41 @@ function staleDays(dateStr) {
   return days > 14 ? days : null
 }
 
+// Count-up: animates a number 0 → value on mount. Reduced-motion renders the
+// final value instantly. Rounds + thousands-separates; optional suffix (e.g.
+// " MW"). Draws the eye to the figures that drive a go/no-go call.
+function CountUp({ value, suffix = '' }) {
+  const reduce = useReducedMotion()
+  const [display, setDisplay] = useState(() => (reduce ? value : 0))
+  useEffect(() => {
+    if (reduce) { setDisplay(value); return }
+    const controls = animate(0, value, {
+      duration: 1.0,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setDisplay(v),
+    })
+    return () => controls.stop()
+  }, [value, reduce])
+  return <span className="tabular-nums">{Math.round(display).toLocaleString()}{suffix}</span>
+}
+
+// Loading skeleton — five shimmer cards matching the real card shape, shown
+// until liveMetrics resolves. Cleaner than a row of "—".
+function MetricsSkeleton() {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mt-6">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="relative overflow-hidden rounded-xl px-5 py-5 animate-pulse" style={{ background: CARD_BG }}>
+          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
+          <div className="h-2.5 w-16 rounded bg-white/10 mb-3.5" />
+          <div className="h-6 w-12 rounded bg-white/15 mb-2.5" />
+          <div className="h-2 w-20 rounded bg-white/8" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function MetricsBar({ previewMode = false }) {
@@ -380,6 +416,8 @@ export default function MetricsBar({ previewMode = false }) {
       key: 'activeCS',
       label: 'CS Coverage',
       value: m.statesWithActiveCS,
+      rawValue: liveMetrics?.statesWithActiveCS,
+      suffix: '',
       sub: `${m.statesWithAnyCS} with any program`,
       icon: <IconMap />,
       modalTitle: 'CS Coverage — Active Markets',
@@ -390,6 +428,8 @@ export default function MetricsBar({ previewMode = false }) {
       key: 'ixCapacity',
       label: 'IX Headroom',
       value: m.utilitiesWithIXHeadroom,
+      rawValue: liveMetrics?.utilitiesWithIXHeadroom,
+      suffix: '',
       sub: 'open queue capacity',
       icon: <IconZap />,
       modalTitle: 'IX Headroom — Open Queues',
@@ -400,6 +440,8 @@ export default function MetricsBar({ previewMode = false }) {
       key: 'policyAlerts',
       label: 'Policy Pulse',
       value: m.policyAlertsThisWeek,
+      rawValue: liveMetrics?.policyAlertsThisWeek,
+      suffix: '',
       sub: 'this week · all pillars',
       icon: <IconBell />,
       modalTitle: 'Policy Pulse — This Week',
@@ -414,6 +456,8 @@ export default function MetricsBar({ previewMode = false }) {
         const num = typeof raw === 'string' ? parseInt(raw, 10) : raw
         return isNaN(num) ? raw : `${num} MW`
       })(),
+      rawValue: parseInt(liveMetrics?.avgCSCapacityRemaining, 10),
+      suffix: ' MW',
       sub: 'avg remaining · active states',
       icon: <IconGauge />,
       modalTitle: 'Average Capacity Remaining — Active Programs',
@@ -424,6 +468,8 @@ export default function MetricsBar({ previewMode = false }) {
       key: 'mwPipeline',
       label: 'Pipeline Load',
       value: typeof m.totalMWInPipeline === 'number' ? m.totalMWInPipeline.toLocaleString() : m.totalMWInPipeline,
+      rawValue: liveMetrics?.totalMWInPipeline,
+      suffix: '',
       sub: 'active + limited states',
       icon: <IconTrendingUp />,
       modalTitle: 'Pipeline Load — Active + Limited',
@@ -433,6 +479,10 @@ export default function MetricsBar({ previewMode = false }) {
   ]
 
   const openCard = CARDS.find((c) => c.key === openKey)
+
+  // Until the live metrics resolve, show shimmer skeletons rather than a row
+  // of "—". (programs/news for the modals can keep loading behind this.)
+  if (!liveMetrics) return <MetricsSkeleton />
 
   return (
     <>
@@ -459,9 +509,9 @@ export default function MetricsBar({ previewMode = false }) {
                     {c.label}
                   </p>
 
-                  {/* Value */}
+                  {/* Value — count-up on load (numeric cards); static fallback otherwise */}
                   <div className="text-2xl font-bold font-mono text-white leading-none tabular-nums">
-                    {c.value}
+                    {Number.isFinite(c.rawValue) ? <CountUp value={c.rawValue} suffix={c.suffix} /> : c.value}
                   </div>
 
                   {/* Sub */}

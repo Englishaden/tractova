@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import MetricsBar from '../components/MetricsBar'
 import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
@@ -133,6 +134,22 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
   )
 }
 
+// Staggered fade-rise wrapper for the dashboard's top-level blocks. Fast and
+// subtle (this is a daily-driver tool, not a marketing page). Reduced-motion
+// renders children with no animation.
+function Reveal({ children, delay = 0, reduce }) {
+  if (reduce) return children
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
 export default function Dashboard({ previewMode = false }) {
   const [selectedStateId,  setSelectedStateId]  = useState(null)
   const [stateProgramMap,  setStateProgramMap]  = useState({})
@@ -209,6 +226,8 @@ export default function Dashboard({ previewMode = false }) {
       isStale: ageDays > 14,
     }
   }, [refreshAt])
+
+  const reduce = useReducedMotion()
 
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))
@@ -304,15 +323,20 @@ export default function Dashboard({ previewMode = false }) {
         <SectionDivider />
 
         {/* Metrics bar */}
-        <MetricsBar previewMode={effectivePreviewMode} />
+        <Reveal delay={0} reduce={reduce}>
+          <MetricsBar previewMode={effectivePreviewMode} />
+        </Reveal>
 
         <SectionDivider />
 
         {/* V3 §4.1: Markets on the Move — surfaces WoW score deltas when
             state_programs_snapshots history exists, else recency-sorted. */}
-        <MarketsOnTheMove stateProgramMap={stateProgramMap} deltaMap={deltaMap} onStateClick={handleStateClick} />
+        <Reveal delay={0.08} reduce={reduce}>
+          <MarketsOnTheMove stateProgramMap={stateProgramMap} deltaMap={deltaMap} onStateClick={handleStateClick} />
+        </Reveal>
 
         {/* Main two-panel layout — stacks on mobile/tablet, side-by-side at lg+ */}
+        <Reveal delay={0.16} reduce={reduce}>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
           {/* Map — full-width on mobile, 60% on lg+ */}
           <div className="lg:col-span-3">
@@ -337,6 +361,7 @@ export default function Dashboard({ previewMode = false }) {
             )}
           </div>
         </div>
+        </Reveal>
 
       </main>
     </div>
