@@ -12,6 +12,7 @@ import WalkingTractovaMark from '../components/WalkingTractovaMark'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
+import { HOUSE_EASE } from '../components/ui/Reveal'
 
 // V3 §4.1: top-of-dashboard strip surfacing recently-active states.
 // Pragmatic v1 -- ranks by max(lastVerified, updatedAt). When weekly
@@ -134,16 +135,20 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
   )
 }
 
-// Staggered fade-rise wrapper for the dashboard's top-level blocks. Fast and
-// subtle (this is a daily-driver tool, not a marketing page). Reduced-motion
+// Staggered fade-rise wrapper for the dashboard's top-level blocks. Mount
+// entrance (the blocks are above the fold on load), restrained for a daily-
+// driver tool — but on the same HOUSE_EASE expo-out curve as the Lens
+// scroll-reveal so the whole app shares one motion feel. Slightly slower +
+// longer travel than the old snappy take, which read cheap. No blur here
+// (that's reserved for the Lens "walk-through" showcase). Reduced-motion
 // renders children with no animation.
 function Reveal({ children, delay = 0, reduce }) {
   if (reduce) return children
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.6, delay, ease: HOUSE_EASE }}
     >
       {children}
     </motion.div>
