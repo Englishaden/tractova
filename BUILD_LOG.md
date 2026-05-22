@@ -13,10 +13,20 @@ on prod. Now the Lens result page is getting the same house-motion treatment;
 Aden approved "Build Phase 1 from house style." Phase 1 is shipped — Aden
 reviews on prod before Phases 2-3.**
 
-**Lens result page (`/search` authed result) — Phase 1 SHIPPED (`1f40c37`):**
-- New shared primitive `src/components/ui/Reveal.jsx` — scroll-reveal wrapper
-  (fade + rise, `whileInView` `once:true`, house easing `[0.22,1,0.36,1]`,
-  `useReducedMotion` → plain render). Same easing as the About walkthrough.
+**Lens result page (`/search` authed result) — Phase 1 SHIPPED (`1f40c37`,
+motion reworked `9f91903`):**
+- Shared primitive `src/components/ui/Reveal.jsx` — scroll-reveal wrapper
+  (`whileInView` `once:true`, `useReducedMotion` → plain render).
+- **Motion reworked after Aden's feedback** ("fade+rise comes in too fast,
+  not tech-like"). Referenced his Godly inspiration reel
+  (`inspiration/Godly…mp4`, gitignored) — uniformly dark/premium/gradient
+  tech sites (Browser Company, "humanity transcends", AIR, M2, SHIP) with
+  slow, soft, sharpen-in reveals. New house feel: **expo-out `[0.16,1,0.3,1]`
+  over 0.8s** (front-loaded then long settle), **blur(10px)→0 sharpen-in**
+  (filter cleared imperatively on complete so no layer lingers over the dense
+  report), y 16→28. Exported `HOUSE_EASE`; Dashboard mount-entrance aligned to
+  the same curve (0.6s, y 20, no blur — restrained daily-driver). Verified via
+  headless mid-animation capture (blur-in/rise across the curve → crisp settle).
 - The six § result sections (01 Market Position, 02 Analyst Brief, 03 Scenario
   Studio, 04 Pillar Diagnostics, 05 Comparable Deals, 06 Regulatory Watch) are
   each wrapped in `<Reveal>` so they fade/rise in once as the developer scrolls
