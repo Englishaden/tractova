@@ -11,11 +11,10 @@ import MarketPositionPanel from '../components/MarketPositionPanel.jsx'
 import OfftakeCardSummary from '../components/lens/OfftakeCardSummary.jsx'
 import InterconnectionCardSummary from '../components/lens/InterconnectionCardSummary.jsx'
 import SiteControlCardSummary from '../components/lens/SiteControlCardSummary.jsx'
-import PolicyPillarCardSummary from '../components/lens/PolicyPillarCardSummary.jsx'
 import PillarDetailModal from '../components/lens/PillarDetailModal.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
-// LensPolicyClimateSection now mounted inside PillarDetailModal as the
-// 4th Policy tab (2026-05-19 refactor); no longer imported here.
+// Policy is a SIGNAL, not a scored pillar — it lives in §06 Regulatory Watch +
+// the verdict rationale, not in the §04 pillar row (3 pillars: offtake/IX/site).
 import LensComparablesSection from '../components/LensComparablesSection.jsx'
 import { useToast } from '../components/ui/Toast'
 
@@ -1182,7 +1181,7 @@ function SearchContent() {
                 so the four sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
             <div className="lens-reveal">
-            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site + policy signal" />
+            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site" />
             <div data-tour-id="pillars" className="space-y-5">
             {(() => {
               // Structural sub-scores drive the §04 summary card gauges.
@@ -1199,7 +1198,7 @@ function SearchContent() {
                 effectiveMw,
               )
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
                   <OfftakeCardSummary
                     stateProgram={results.stateProgram}
                     score={sub.offtake}
@@ -1224,24 +1223,14 @@ function SearchContent() {
                     coverage={sub.coverage?.site}
                     onOpen={() => setActivePillar('site')}
                   />
-                  <PolicyPillarCardSummary
-                    policyEvents={results.policyEvents || []}
-                    stateName={results.stateProgram?.name || results.form.state}
-                    score={sub.policyClimate}
-                    coverage={sub.coverage?.policy}
-                    onOpen={() => setActivePillar('policy')}
-                  />
                 </div>
               )
             })()}
 
-            {/* LensPolicyClimateSection no longer renders standalone — it
-                now lives inside the §04 PillarDetailModal as the 4th tab.
-                Removed 2026-05-19 per user feedback that the standalone
-                section read as "thrown behind" the pillar row. The 4-card
-                §04 grid surfaces the policy summary at peer status with
-                Offtake / IX / Site; clicking opens the same modal at
-                the Policy tab. */}
+            {/* §04 is the three SCORED pillars only (offtake / IX / site).
+                Policy is a signal, not a pillar (2026-05-22) — it lives in §06
+                Regulatory Watch + the verdict rationale, so it's not in this row
+                or the pillar-detail modal. */}
             </div>
             </div>
 
