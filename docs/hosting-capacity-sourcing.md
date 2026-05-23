@@ -31,6 +31,17 @@ is a web app backed by an ArcGIS REST service you can capture in ~60 seconds:
 4. Copy that base URL. **That's the endpoint.** Send it to me and I wire up a
    scraper (same shape as the NY/NJ ones).
 
+### When there's NO download button (Experience Builder maps)
+Many utility maps (e.g. Ameren IL) are ArcGIS **Experience Builder** apps with no
+export button. Don't bother — the data is a queryable REST service behind the app.
+The map URL contains the experience item id: `experience.arcgis.com/experience/{ID}/…`.
+Resolve it to the FeatureServer server-side (no browser):
+1. `https://www.arcgis.com/sharing/rest/content/items/{ID}/data?f=json`
+   → `dataSources` lists Web Map item ids.
+2. `https://www.arcgis.com/sharing/rest/content/items/{WEBMAP_ID}/data?f=json`
+   → `operationalLayers[].url` is the FeatureServer.
+(Send me the experience URL and I'll do this for you, like I did for Ameren below.)
+
 ### Confirm it's usable (optional, paste in a browser)
 - **Service metadata / layer list:** add `?f=json` →
   `…/FeatureServer?f=json` (shows the layers + whether a token is required).
@@ -50,6 +61,7 @@ is a web app backed by an ArcGIS REST service you can capture in ~60 seconds:
 | **PG&E** (CA) | DRP/ICA FeatureServer, 20 layers (feeders, substations, hosting capacity) | `https://services2.arcgis.com/mJaJSax0KPHoCNB6/ArcGIS/rest/services/DRPComplianceRelProd/FeatureServer` |
 | **SCE** (CA) | DRPEP Data Portal (ArcGIS Open Data hub) | `https://drpep-sce2.opendata.arcgis.com` |
 | **Exelon org** — **ComEd (IL), BGE (MD)**, + PECO (PA), Pepco (DC/MD), Delmarva (DE/MD), ACE (NJ) | 48 services incl. `BGE_HOSTING_CAPACITY_EPRI_AGOL`, `ComEd_*` | `https://services3.arcgis.com/agWTKEK7X5K1Bx7o/ArcGIS/rest/services?f=json` (browse, pick the hosting-capacity service per utility) |
+| **Ameren Illinois** (IL) | Distribution HC grid, **1.67M cells**; field `MAXGENMW_TXT` = MW headroom, + `FEEDERID`, `OPERATINGVOLTAGE`, `GENLIMITER` | `https://services5.arcgis.com/3jEEGnl6c1x9Sze7/arcgis/rest/services/IL_HC_Grids/FeatureServer/0` (resolved from experience `38e61537…` 2026-05-23) |
 
 The Exelon org alone potentially covers **IL, MD, PA, DC, DE, NJ** hosting
 capacity from one ArcGIS org — the highest-leverage single source. Other big
