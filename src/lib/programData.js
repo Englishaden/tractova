@@ -691,6 +691,16 @@ const CS_PIPELINE_SOURCES = {
     region: 'JCP&L territory',
     note: 'JCP&L monthly NJ interconnection queue (BPU docket QO21010085) · metering type = Community Solar (active queue). JCP&L territory only — PSE&G / ACE / Rockland file separately. A deployment-pipeline signal, not study-queue depth — the IX score uses the curated state baseline.',
   },
+  va_dominion_queue: {
+    label: 'Dominion VA Interconnection Queue',
+    region: 'Dominion VA',
+    note: 'Dominion Energy Virginia Queue Status Report (quarterly) · solar projects, sub-50 MW distribution-level (median ~3 MW). Active = pipeline, In Service = energized. A deployment-pipeline signal, not study-queue depth — the IX score uses the curated state baseline.',
+  },
+  wi_alliant_queue: {
+    label: 'Alliant WI DG Solar Queue',
+    region: 'Alliant WI territory',
+    note: 'Alliant Energy WI distributed-generation queue (weekly) · ALL distributed solar (≈90% residential rooftop, not CS-specific). Shown as live DG-activity context, not a community-solar pipeline. Alliant territory only. The IX score uses the curated state baseline.',
+  },
 }
 
 // ── getIXQueueData ───────────────────────────────────────────────────────────

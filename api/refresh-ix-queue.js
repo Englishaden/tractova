@@ -3,6 +3,8 @@ import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { scrapeNyDg } from './scrapers/_refresh-ny-dg.js'
 import { scrapeNjDg } from './scrapers/_refresh-nj-dg.js'
+import { scrapeVaDg } from './scrapers/_refresh-va-dg.js'
+import { scrapeWiDg } from './scrapers/_refresh-wi-dg.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IX Queue Refresh Cron
@@ -30,6 +32,8 @@ import { scrapeNjDg } from './scrapers/_refresh-nj-dg.js'
 const SCRAPERS = [
   { name: 'NY-DG', fn: scrapeNyDg },
   { name: 'NJ-DG', fn: scrapeNjDg },
+  { name: 'VA-DG', fn: scrapeVaDg },
+  { name: 'WI-DG', fn: scrapeWiDg },
 ]
 
 // ── Trend computation ────────────────────────────────────────────────────────
