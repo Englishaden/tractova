@@ -4,71 +4,26 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-22 (motion polish + 3-pillar Index fix SHIPPED — NEXT: IX scraper fix, then county-geo dup cleanup)
+## 🟢 Pickup — 2026-05-22 IX distribution pivot + county-resolver fix (merged with same-day motion/3-pillar arc)
 
-**Long session: finished the motion-polish arc (About → Dashboard → Lens →
-Library), then Aden surfaced real reservations and we tackled the substantive
-ones — fixed the pillar-model incoherence and dedup'd comparables, then built a
-data-coverage audit. All shipped to prod. Two concrete data tasks carried
-forward (see ⏭ NEXT). Do these before the onboarding revamp / recording.**
+**Two same-day arcs, now merged. (A) Motion-polish + 3-pillar Index fix + coverage-matrix audit (shipped earlier). (B) IX model PIVOT: the coverage audit flagged IX as THE data gap — the fix turned out to be a model change, not a scraper repair. We verified empirically that ISO transmission queues (NYISO/MISO/CAISO) contain almost NO community-scale solar (IL: 68 solar in the MISO queue, ZERO under 25MW) — CS interconnects at the DISTRIBUTION level, which ISO queues don't see. So we dropped the empty <25MW-ISO filter and sourced the real distribution-level CS signal (NY via NYSERDA), endorsed by Aden.**
 
-### ⏭ NEXT SESSION — start here (in order)
-1. **IX scraper fix (THE data gap).** The coverage matrix (`node scripts/coverage-matrix.mjs`)
-   proved: SITE is live for all 51, OFFTAKE status is known for all 51 (32 "none"
-   = states with genuinely no CS program, not a gap), but **IX live-queue data
-   exists for only 8 states (CO/IL/ME/MD/MA/MN/NJ/NY) and 7 of those 8 are STALE
-   at 28d** — only MN is fresh. 43 states are curated-only (no live feed). Root
-   cause (per `programData.js:655` comment + the §01 "STALE 28D" tooltip): the
-   ISO scrapers (PJM/NYISO/ISO-NE) 404'd — upstream public CSV/JSON URLs changed,
-   scrapers pending repair. Data lives in `ix_queue_data` (rows carry
-   `fetched_at`; freshness = days since oldest). **Task: re-point the ISO scrapers
-   at the new URLs so the 8 live states refresh + ideally widen live coverage.**
-   The scraper code is likely in `api/` or `scripts/` (not yet located — find it).
-2. **County-geo duplicate cleanup.** `county_geospatial_data` has **3,969 rows
-   vs ~3,143 actual US counties** (~800 extra) — likely duplicate rows. Doesn't
-   change "site is covered everywhere" but is a hygiene flag. Check for dup
-   `county_fips` (note: `getCountyData` uses `.maybeSingle()` on county_fips, which
-   would THROW on a true dup — so dups may be by state/territory rows or vintage).
-   Investigate + dedup migration if real.
+### ⏭ NEXT SESSION — start here
+1. **GATED — finish the NY IX cutover.** (a) Apply migration `064_ix_queue_cs_pipeline.sql` in Supabase (adds `completed_projects`/`completed_mw`). Apply promptly — until then the weekly IX cron fails on the missing columns (harmless, logged). (b) Run `node scripts/apply-ny-dg.mjs --apply` (dry-run by default): DELETEs 7 stale NY rows (fabricated seed + 20×-undercounted NYISO-scraper rows) and INSERTs 7 real NYSERDA rows. Then browser-verify the NY IX card (single shared Supabase, so couldn't verify pre-cutover).
+2. **Extend the cs_pipeline model to NJ + MA** (same pattern). NJ = JCP&L direct `.xlsx` + BPU docket QO21010085. MA = DOER monthly Excel. Both verified GREEN/redistribution-safe. **IL & CA = RED** (Illinois Shines forbids commercial redistribution; CA californiadgstats + PJM Data Miner 2 both forbid scraping) → stay curated/honest. No free national distribution aggregator exists (LBNL=transmission-only; interconnection.fyi=paid).
+3. **County-geo ROW duplication (still open — distinct from the resolver fix below).** `county_geospatial_data` has **3,969 rows vs ~3,143 counties** (~800 extra). NOTE: `getCountyData` uses `.maybeSingle()` on county_fips → would THROW on a true dup, so the extras are likely territory/vintage rows, not dup county_fips. Investigate (`scripts/coverage-matrix.mjs` surfaced it) + dedup migration if real. (This is a SEPARATE issue from the dropdown/name-collision fix shipped this session.)
 
-### DONE this session (all on prod)
-- **3-PILLAR FEASIBILITY INDEX (data-trust fix, `97d2d3b` + `982baf9`).** Aden's
-  reservation was right: the composite was computed two ways — the Lens gauge +
-  Scenario Studio folded in a 4th "policy climate" prong (10%); Library card /
-  Compare / saved `last_observed_score` / map / table / XLSX export were all
-  3-dim. Same project showed a different Index on different screens. **Fix:
-  three scored pillars EVERYWHERE (offtake 40 / IX 35 / site 25); policy is now a
-  SIGNAL, not a scored prong** — lives in §06 Regulatory Watch + the verdict
-  rationale only. `scoreEngine` WEIGHT_SCENARIOS back to clean 3-dim;
-  `computeSubScores` still returns `policyClimate` (signal value). Removed policy
-  from the §04 pillar row + the PillarDetailModal tab; **deleted
-  PolicyPillarCardSummary.jsx + LensPolicyClimateSection.jsx**. Swept all copy
-  (glossary, DevFeasibility "four pillars/Policy 10%" tooltip, etc.). 158/158
-  unit pass (scoreEngine assertions were already 3-dim). NOTE: for states WITH
-  high-confidence policy events the Lens number shifted to MATCH the already-3-dim
-  Library/Compare/export (a convergence, not a regression).
-- **Comparables dedup (`556c81c`).** §03 Scenario Studio "Comparable Projects"
-  panel double-counted the same NREL "Sharing the Sun" material as §05 Comparable
-  Deals. Removed it (deleted `ComparableProjectsPanel.jsx`); comparables live in
-  §05 only.
-- **Coverage matrix tool (`scripts/coverage-matrix.mjs`, committed this push).**
-  Read-only, $0, anon-key. Per-state × {offtake/IX/site} coverage from source
-  tables. The aggregate version of the per-project LIVE/RESEARCHED/STALE badges.
-  Run `node scripts/coverage-matrix.mjs` anytime. (This is what produced the
-  IX-gap + county-dup findings above.)
-- **Lens motion (`1f40c37`→`4497a71`).** Long iteration: scroll-reveal → expo+blur
-  → Aden: "too fast / laggy" → tried a pixel-particle "gather" (Huly-style, via
-  `modern-screenshot`) → Aden reverted ("too much for a working report") → CSS
-  `animation-timeline: view()` (didn't render in Aden's browser — Safari/older
-  Chromium don't support it) → **final: `src/lib/useLensReveal.js`**, a JS
-  scroll-linked fade (one passive listener + rAF, opacity+transform only, works
-  every browser), reversible, `FADE=0.21`. The pixel-particle showpiece is
-  **preserved in git @ `a24b68b`** for the future onboarding hero (its right home).
-  `modern-screenshot` dep was uninstalled.
-- **Library motion (`0c5b755`).** "Match the Dashboard": count-up the hero +
-  stat-strip numbers, staggered mount entrance (hero→stats→pipeline→cards).
-  Extracted shared `ui/CountUp.jsx` (now with `decimals` for MW) + `ui/MountReveal.jsx`;
-  MetricsBar + Dashboard refactored to use them (no parallel copies).
+### DONE this session — arc B (IX pivot + county resolver), code complete + verified 159/159 unit + 7/7 smoke + build, pushed
+- **NY IX → real NYSERDA distribution data.** New scraper `api/scrapers/_refresh-ny-dg.js` (NYSERDA "Solar Electric Programs", Open-NY, redistribution-safe; `community_distributed_generation='Yes'`) → 7 real NY utility rows (CS in *pipeline* vs *energized*, per utility, county-resolved). `refresh-ix-queue.js` rewritten — dead ISO transmission scrapers removed (they're the wrong layer for CS), NY-DG wired. New `data_source='nyserda_cdg'`; migration 064 adds `completed_projects`/`completed_mw`.
+- **Honest scoring (Aden's call):** `cs_pipeline` flips IX coverage to `live` (real data shown as CONTEXT) but does NOT blend the score — IX stays on the curated `ixDifficulty` baseline (NYSERDA has no study-months; never fabricated). `scoreEngine.ixLiveAdjustment` returns 0 for `cs_pipeline`; new unit test pins it. UI (IX card / §04 summary / DevFeasibility / live-badge tooltip) + glossary (`CS Pipeline · Live` added) all branch on `signalType`.
+- **County NAME-collision fix (distinct from the geo ROW dup in NEXT #3).** `allCounties.json` disambiguated 6 independent-city collisions (MD Baltimore, MO St. Louis, VA Fairfax/Franklin/Richmond/Roanoke) with a ` (city)` marker; shared `resolveCountyFips()` in `programData.js` (exact base-match, city-vs-county aware) replaced the buggy `ilike('%name%')` in the geospatial/NMTC/HUD resolvers — was loading the WRONG county's wetland/farmland data for those 6. Validated 19/19 vs live DB (`scripts/probe-county-resolve.mjs`).
+
+### DONE this session — arc A (motion polish + 3-pillar Index fix + audit), shipped to prod earlier
+- **3-PILLAR FEASIBILITY INDEX (data-trust fix, `97d2d3b` + `982baf9`).** Composite was computed two ways — Lens gauge + Scenario Studio folded in a 4th "policy climate" prong (10%); Library/Compare/saved/map/table/XLSX were 3-dim → same project, different Index per screen. Fix: three scored pillars EVERYWHERE (offtake 40 / IX 35 / site 25); policy is now a SIGNAL (Regulatory Watch + verdict rationale), not a scored prong. `WEIGHT_SCENARIOS` back to clean 3-dim; `computeSubScores` still returns `policyClimate` (signal). Removed policy from §04 pillar row + PillarDetailModal tab; **deleted PolicyPillarCardSummary.jsx + LensPolicyClimateSection.jsx**.
+- **Comparables dedup (`556c81c`).** Removed §03 "Comparable Projects" panel (deleted `ComparableProjectsPanel.jsx`); comparables live in §05 only.
+- **Coverage matrix tool (`scripts/coverage-matrix.mjs`).** Read-only, $0, anon-key. Per-state × {offtake/IX/site} coverage. Produced the IX-gap + county-geo-dup findings.
+- **Lens motion (`1f40c37`→`4497a71`).** Final: `src/lib/useLensReveal.js` — JS scroll-linked fade (works every browser), `FADE=0.21`. Pixel-particle showpiece preserved @ `a24b68b` for the future onboarding hero.
+- **Library motion (`0c5b755`).** Count-up + staggered mount; shared `ui/CountUp.jsx` + `ui/MountReveal.jsx`.
 
 ### Housekeeping
 - A few local Vite dev servers (ports 5180/5181/5184) were left running from

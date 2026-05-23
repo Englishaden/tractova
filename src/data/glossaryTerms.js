@@ -62,6 +62,7 @@ const GLOSSARY_PILLAR_MAP = {
   'CCA':                'offtake',
   // Interconnection pillar
   'IX · Live':          'ix',
+  'CS Pipeline · Live': 'ix',
   'IX Cost':            'ix',
   'IX Queue':           'ix',
   'Study Window':       'ix',

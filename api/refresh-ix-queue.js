@@ -1,282 +1,34 @@
 import { isAdminFromBearer } from './_admin-auth.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
+import { scrapeNyDg } from './scrapers/_refresh-ny-dg.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IX Queue Refresh Cron
 //
-// Runs weekly (Sunday 6 AM UTC). Fetches public interconnection queue data
-// from MISO, PJM, NYISO, and ISO-NE. Filters to solar projects <25MW,
-// aggregates by utility territory, and upserts to ix_queue_data.
+// Runs weekly (Sunday 6 AM UTC). Refreshes the distribution-level community-DG
+// signal that drives the IX pillar's live CONTEXT.
 //
-// Each ISO scraper is independent — one failure doesn't block the others.
+// HISTORY / why this is not the ISO transmission queue: the original design
+// scraped ISO queues (PJM/MISO/NYISO/ISO-NE) filtered to <25MW solar. We
+// verified empirically (scripts/probe-iso-counts.mjs, 2026-05-22) that ISO
+// transmission queues contain almost NO community-scale solar — CS interconnects
+// at the DISTRIBUTION level, which ISO queues don't see (IL had 68 solar in the
+// MISO queue, ZERO under 25MW). The ISO scrapers were removed.
+//
+// Current source: NY — NYSERDA Solar Electric Programs (community_distributed_
+// generation flag), a redistribution-safe DEPLOYMENT-PIPELINE signal. See
+// api/scrapers/_refresh-ny-dg.js. Other states retain curated/seed rows until a
+// redistribution-safe distribution feed is wired (NJ BPU / MA DOER are next).
+//
+// Each scraper is independent — one failure doesn't block the others.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Utility → state mapping (which state each utility's queue data applies to)
-const UTILITY_STATE_MAP = {
-  // PJM
-  'ComEd':            'IL',
-  'PSE&G':            'NJ',
-  'PSEG':             'NJ',
-  'JCP&L':            'NJ',
-  'BGE':              'MD',
-  'Pepco':            'MD',
-  'PECO':             'PA',
-  // MISO
-  'Ameren Illinois':  'IL',
-  'Ameren':           'IL',
-  'Xcel Energy':      'MN',
-  // NYISO — utility codes as they appear in NYISO's queue xlsx (verified
-  // 2026-05-02 against the active queue download). NYISO is single-state.
-  'ConEdison':        'NY',
-  'Con Edison':       'NY',
-  'National Grid':    'NY',
-  'NM-NG':            'NY',  // NYISO's abbreviation for National Grid
-  'NYSEG':            'NY',
-  'RG&E':             'NY',
-  'Central Hudson':   'NY',
-  'CHG&E':            'NY',  // NYISO's abbreviation for Central Hudson
-  'NYPA':             'NY',  // New York Power Authority (state-owned)
-  'LIPA':             'NY',  // Long Island Power Authority
-  'O&R':              'NY',  // Orange & Rockland
-  // ISO-NE
-  'National Grid MA': 'MA',
-  'Eversource':       'MA',
-  'CMP':              'ME',
-  'Versant':          'ME',
-}
-
-// States we track and their ISO assignments
-const STATE_ISO_MAP = {
-  IL: ['PJM', 'MISO'],
-  NY: ['NYISO'],
-  MA: ['ISO-NE'],
-  MN: ['MISO'],
-  CO: ['WAPA'],
-  NJ: ['PJM'],
-  MD: ['PJM'],
-  ME: ['ISO-NE'],
-}
-
-// ── ISO-specific scrapers ────────────────────────────────────────────────────
-// Each returns an array of { stateId, iso, utilityName, projects, mw, studyMonths }
-// or throws on failure. The caller catches per-ISO.
-
-async function scrapePJM() {
-  // PJM publishes queue data as CSV at their planning page
-  // URL pattern: https://www.pjm.com/planning/services-requests/interconnection-queues
-  // The actual CSV download requires navigating their queue tool.
-  // For now, we use their public API endpoint.
-  const url = 'https://services.pjm.com/PJMPlanningApi/api/Queue/ExportToCSV'
-
-  const res = await fetch(url, {
-    headers: { 'Accept': 'text/csv' },
-    signal: AbortSignal.timeout(30000),
-  })
-
-  if (!res.ok) throw new Error(`PJM fetch failed: ${res.status}`)
-  const text = await res.text()
-  return parseCSVQueue(text, 'PJM', {
-    fuelColumn: 'Fuel',
-    fuelFilter: ['Solar', 'SUN'],
-    mwColumn: 'MFO',
-    mwMax: 25,
-    utilityColumn: 'Transmission Owner',
-    statusColumn: 'Status',
-    dateColumn: 'Queue Date',
-  })
-}
-
-async function scrapeMISO() {
-  // MISO GIA queue: https://www.misoenergy.org/planning/generator-interconnection/GI_Queue/
-  // Downloads as Excel but they also have a JSON API
-  const url = 'https://www.misoenergy.org/api/giqueue/getprojects'
-
-  const res = await fetch(url, {
-    headers: { 'Accept': 'application/json' },
-    signal: AbortSignal.timeout(30000),
-  })
-
-  if (!res.ok) throw new Error(`MISO fetch failed: ${res.status}`)
-  const data = await res.json()
-
-  // Filter to solar <25MW
-  const solar = (Array.isArray(data) ? data : []).filter(p =>
-    p.fuelType?.toLowerCase().includes('solar') &&
-    (parseFloat(p.summerCapacity || p.capacity || 0) < 25)
-  )
-
-  return aggregateByUtility(solar, 'MISO', {
-    utilityField: 'transmissionOwner',
-    mwField: 'summerCapacity',
-    dateField: 'queueDate',
-  })
-}
-
-async function scrapeNYISO() {
-  // Rewrite 2026-05-02. The previous scraper hit a JSON endpoint
-  // (https://www.nyiso.com/api/interconnections) that has been 404 since
-  // at least 2026-04-24. NYISO now publishes the queue as a monthly
-  // dated xlsx at /documents/20142/1407078/NYISO-Interconnection-Queue-MM-DD-YYYY.xlsx.
-  // The path before the date is stable; the date in the filename rolls
-  // monthly. We discover the current URL by scraping the public
-  // /interconnections landing page, then parse the xlsx with the `xlsx`
-  // package (already in deps).
-
-  // Step 1: discover the current xlsx URL.
-  const landingRes = await fetch('https://www.nyiso.com/interconnections', {
-    signal: AbortSignal.timeout(20000),
-  })
-  if (!landingRes.ok) throw new Error(`NYISO landing fetch failed: ${landingRes.status}`)
-  const html = await landingRes.text()
-  // Match: /documents/{path}/NYISO-Interconnection-Queue-MM-DD-YYYY.xlsx
-  // The bare URL (without the trailing /uuid?t=... that NYISO appends in
-  // the link element) returns 200 directly, so we trim at the .xlsx.
-  const match = html.match(/\/documents\/[^"'\s]+?NYISO-Interconnection-Queue-\d{2}-\d{2}-\d{4}\.xlsx/)
-  if (!match) throw new Error('NYISO: queue xlsx URL not found on landing page (selector may have shifted)')
-  const xlsxUrl = `https://www.nyiso.com${match[0]}`
-
-  // Step 2: download the xlsx.
-  const xlsxRes = await fetch(xlsxUrl, { signal: AbortSignal.timeout(30000) })
-  if (!xlsxRes.ok) throw new Error(`NYISO xlsx fetch failed: ${xlsxRes.status} (${xlsxUrl})`)
-  const buf = Buffer.from(await xlsxRes.arrayBuffer())
-
-  // Step 3: parse. Sheet name is "Interconnection Queue" with the
-  // active-queue rows (verified 2026-05-02 against the 03-31-2026 file).
-  const XLSX = await import('xlsx')
-  const wb = XLSX.read(buf, { type: 'buffer' })
-  const sheet = wb.Sheets['Interconnection Queue']
-  if (!sheet) throw new Error(`NYISO: 'Interconnection Queue' sheet missing — got [${wb.SheetNames.join(', ')}]`)
-  const rows = XLSX.utils.sheet_to_json(sheet)
-
-  // Step 4: filter to community-scale solar (<25 MW, > 0 MW). Type/Fuel
-  // is "S" for Solar, "ES" for Energy Storage, "W" for Wind, etc.
-  const projects = rows
-    .filter((r) => {
-      const fuel = String(r['Type/ Fuel'] || '').trim().toUpperCase()
-      const mw = parseFloat(r['SP (MW)']) || 0
-      return /^S\b|^S$/.test(fuel) && mw > 0 && mw < 25
-    })
-    .map((r) => ({
-      utility: String(r['Utility'] || '').trim(),
-      mw: parseFloat(r['SP (MW)']) || 0,
-    }))
-
-  return aggregateProjects(projects, 'NYISO')
-}
-
-async function scrapeISONE() {
-  // ISO-NE: https://irtt.iso-ne.com/reports/external
-  // They publish queue data as CSV
-  const url = 'https://irtt.iso-ne.com/reports/external?reportId=interconnectionQueue&format=csv'
-
-  const res = await fetch(url, {
-    headers: { 'Accept': 'text/csv' },
-    signal: AbortSignal.timeout(30000),
-  })
-
-  if (!res.ok) throw new Error(`ISO-NE fetch failed: ${res.status}`)
-  const text = await res.text()
-  return parseCSVQueue(text, 'ISO-NE', {
-    fuelColumn: 'Fuel Type',
-    fuelFilter: ['Solar', 'SUN', 'PV'],
-    mwColumn: 'Net MW',
-    mwMax: 25,
-    utilityColumn: 'Host Utility',
-    statusColumn: 'Status',
-    dateColumn: 'Queue Date',
-  })
-}
-
-// ── CSV parser ───────────────────────────────────────────────────────────────
-
-function parseCSVQueue(csvText, iso, opts) {
-  const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean)
-  if (lines.length < 2) return []
-
-  const headers = parseCSVLine(lines[0])
-  const fuelIdx = findColumn(headers, opts.fuelColumn)
-  const mwIdx = findColumn(headers, opts.mwColumn)
-  const utilIdx = findColumn(headers, opts.utilityColumn)
-
-  if (fuelIdx < 0 || mwIdx < 0 || utilIdx < 0) {
-    throw new Error(`${iso}: missing required columns (fuel=${fuelIdx}, mw=${mwIdx}, util=${utilIdx})`)
-  }
-
-  const projects = []
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i])
-    const fuel = (cols[fuelIdx] || '').toLowerCase()
-    const mw = parseFloat(cols[mwIdx]) || 0
-    const utility = cols[utilIdx] || ''
-
-    if (opts.fuelFilter.some(f => fuel.includes(f.toLowerCase())) && mw > 0 && mw < opts.mwMax) {
-      projects.push({ utility, mw })
-    }
-  }
-
-  return aggregateProjects(projects, iso)
-}
-
-function parseCSVLine(line) {
-  const result = []
-  let current = ''
-  let inQuotes = false
-  for (const char of line) {
-    if (char === '"') { inQuotes = !inQuotes; continue }
-    if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; continue }
-    current += char
-  }
-  result.push(current.trim())
-  return result
-}
-
-function findColumn(headers, name) {
-  return headers.findIndex(h =>
-    h.toLowerCase().replace(/[^a-z0-9]/g, '') === name.toLowerCase().replace(/[^a-z0-9]/g, '')
-  )
-}
-
-// ── Aggregation helpers ──────────────────────────────────────────────────────
-
-function aggregateProjects(projects, iso) {
-  const byUtility = {}
-  for (const p of projects) {
-    const key = normalizeUtility(p.utility)
-    if (!key) continue
-    if (!byUtility[key]) byUtility[key] = { name: key, projects: 0, totalMW: 0 }
-    byUtility[key].projects++
-    byUtility[key].totalMW += p.mw
-  }
-
-  return Object.values(byUtility).map(u => ({
-    utilityName: u.name,
-    iso,
-    stateId: UTILITY_STATE_MAP[u.name] || null,
-    projectsInQueue: u.projects,
-    mwPending: Math.round(u.totalMW),
-  })).filter(u => u.stateId) // Only keep utilities we track
-}
-
-function aggregateByUtility(projects, iso, fields) {
-  const mapped = projects.map(p => ({
-    utility: p[fields.utilityField] || '',
-    mw: parseFloat(p[fields.mwField]) || 0,
-  }))
-  return aggregateProjects(mapped, iso)
-}
-
-function normalizeUtility(raw) {
-  if (!raw) return null
-  const cleaned = raw.trim()
-  // Try exact match first
-  if (UTILITY_STATE_MAP[cleaned]) return cleaned
-  // Try partial match
-  for (const key of Object.keys(UTILITY_STATE_MAP)) {
-    if (cleaned.toLowerCase().includes(key.toLowerCase())) return key
-  }
-  return null
-}
+// State distribution-DG scrapers. Each returns ready-to-upsert ix_queue_data
+// rows (snake_case DB shape) for its state(s), or throws on failure.
+const SCRAPERS = [
+  { name: 'NY-DG', fn: scrapeNyDg },
+]
 
 // ── Trend computation ────────────────────────────────────────────────────────
 
@@ -316,8 +68,6 @@ async function handlerInner(req, res) {
 
   let isAdminAuth = false
   if (!isVercelCron && !isBearerAuth && authHeader?.startsWith('Bearer ')) {
-    // C1 fix 2026-05-05: role-based admin check via profiles.role (057)
-    // with legacy email fallback during rollout.
     const adminCheck = await isAdminFromBearer(supabaseAdmin, authHeader)
     if (adminCheck.ok) isAdminAuth = true
   }
@@ -327,134 +77,101 @@ async function handlerInner(req, res) {
   }
 
   const startedAt = new Date()
-  const results = { success: [], failed: [], updated: 0, unchanged: 0, warnings: [] }
+  const results = { success: [], failed: [], updated: 0, unchanged: 0, warnings: [], snapshotsRecorded: 0 }
 
-  // Fetch current data for trend comparison
+  // Existing rows for trend comparison (keyed by state:utility).
   const { data: existing } = await supabaseAdmin
     .from('ix_queue_data')
-    .select('state_id, utility_name, projects_in_queue, iso')
+    .select('state_id, utility_name, projects_in_queue')
   const existingMap = {}
   for (const row of (existing || [])) {
     existingMap[`${row.state_id}:${row.utility_name}`] = row.projects_in_queue
   }
 
-  // Run all scrapers in parallel — each one is independent
-  const scrapers = [
-    { name: 'PJM', fn: scrapePJM },
-    { name: 'MISO', fn: scrapeMISO },
-    { name: 'NYISO', fn: scrapeNYISO },
-    { name: 'ISO-NE', fn: scrapeISONE },
-  ]
-
-  const scraperResults = await Promise.allSettled(
-    scrapers.map(async s => {
+  // Run all scrapers in parallel — each is independent.
+  const settled = await Promise.allSettled(
+    SCRAPERS.map(async (s) => {
       try {
-        const data = await s.fn()
-        return { name: s.name, data }
+        return { name: s.name, rows: await s.fn() }
       } catch (err) {
         throw { name: s.name, error: err.message }
       }
     })
   )
 
-  // Collect all successful results
-  const allUpdates = []
-  for (const result of scraperResults) {
-    if (result.status === 'fulfilled') {
-      results.success.push(result.value.name)
-      allUpdates.push(...result.value.data)
+  const allRows = []
+  for (const r of settled) {
+    if (r.status === 'fulfilled') {
+      // Skip a scraper that returned 0 rows (treat as a soft failure, don't
+      // wipe context). Only count it as success when it produced data.
+      if (!r.value.rows || r.value.rows.length === 0) {
+        results.warnings.push(`${r.value.name} returned 0 rows — skipped`)
+        results.failed.push({ scraper: r.value.name, error: '0 rows' })
+        continue
+      }
+      results.success.push(r.value.name)
+      allRows.push(...r.value.rows)
     } else {
-      const reason = result.reason
-      results.failed.push({ iso: reason.name, error: reason.error })
+      results.failed.push({ scraper: r.reason.name, error: r.reason.error })
     }
   }
 
-  // Validate: skip ISOs that returned 0 rows when they previously had data
-  const isoRowCounts = {}
-  for (const u of allUpdates) { isoRowCounts[u.iso] = (isoRowCounts[u.iso] || 0) + 1 }
-  const existingISOs = new Set(Object.keys(existingMap).length > 0
-    ? (existing || []).map(r => r.iso).filter(Boolean)
-    : [])
-  for (const iso of existingISOs) {
-    if (!isoRowCounts[iso] || isoRowCounts[iso] === 0) {
-      results.warnings.push(`${iso} returned 0 rows but had existing data — skipping`)
-    }
-  }
-
-  // Upsert each utility's data
-  for (const update of allUpdates) {
-    const key = `${update.stateId}:${update.utilityName}`
+  // Upsert each row; compute trend; log changes; snapshot for the time series.
+  for (const row of allRows) {
+    const key = `${row.state_id}:${row.utility_name}`
     const oldCount = existingMap[key]
+    const trend = computeTrend(row.projects_in_queue, oldCount)
 
-    // Validate: flag large drops but still write
-    if (oldCount != null && oldCount > 0 && update.projectsInQueue < oldCount * 0.5) {
-      results.warnings.push(`${key}: projects_in_queue dropped ${Math.round((1 - update.projectsInQueue / oldCount) * 100)}% (${oldCount} → ${update.projectsInQueue})`)
+    // Flag large drops but still write (data honesty over silent skip).
+    if (oldCount != null && oldCount > 0 && row.projects_in_queue < oldCount * 0.5) {
+      results.warnings.push(`${key}: projects dropped ${Math.round((1 - row.projects_in_queue / oldCount) * 100)}% (${oldCount} → ${row.projects_in_queue})`)
     }
 
-    const trend = computeTrend(update.projectsInQueue, oldCount)
-
-    const row = {
-      state_id: update.stateId,
-      iso: update.iso,
-      utility_name: update.utilityName,
-      projects_in_queue: update.projectsInQueue,
-      mw_pending: update.mwPending,
-      queue_trend: trend,
-      data_source: 'scraper',
-      fetched_at: new Date().toISOString(),
-    }
-
-    // Only include fields that were scraped (preserve existing values for others)
-    if (update.avgStudyMonths != null) row.avg_study_months = update.avgStudyMonths
-    if (update.withdrawalPct != null) row.withdrawal_pct = update.withdrawalPct
-    if (update.avgUpgradeCostMW != null) row.avg_upgrade_cost_mw = update.avgUpgradeCostMW
+    const upsertRow = { ...row, queue_trend: trend }
 
     const { error } = await supabaseAdmin
       .from('ix_queue_data')
-      .upsert(row, { onConflict: 'state_id,utility_name' })
+      .upsert(upsertRow, { onConflict: 'state_id,utility_name' })
 
     if (error) {
-      results.failed.push({ utility: update.utilityName, error: error.message })
-    } else if (oldCount !== update.projectsInQueue) {
+      results.failed.push({ utility: row.utility_name, error: error.message })
+      continue
+    }
+    if (oldCount !== row.projects_in_queue) {
       results.updated++
-      // Log the change
       await supabaseAdmin.from('data_updates').insert({
         table_name: 'ix_queue_data',
-        row_id: `${update.stateId}:${update.utilityName}`,
+        row_id: key,
         field: 'projects_in_queue',
         old_value: String(oldCount ?? 'null'),
-        new_value: String(update.projectsInQueue),
+        new_value: String(row.projects_in_queue),
         updated_by: 'ix-queue-scraper',
       })
     } else {
       results.unchanged++
     }
 
-    // V3 Wave 1: append a snapshot row to ix_queue_snapshots regardless of
-    // whether the value changed. This builds the time-series the Wave 2
-    // Forecaster needs (P50/P90 study completion modeling). Snapshot is
-    // best-effort -- if it fails, we don't fail the cron, just log.
-    const snapshotRow = {
-      state_id:            update.stateId,
-      iso:                 update.iso,
-      utility_name:        update.utilityName,
-      projects_in_queue:   update.projectsInQueue,
-      mw_pending:          update.mwPending,
+    // Append a snapshot regardless of change (builds the trend time series).
+    const { error: snapErr } = await supabaseAdmin.from('ix_queue_snapshots').insert({
+      state_id:            row.state_id,
+      iso:                 row.iso,
+      utility_name:        row.utility_name,
+      projects_in_queue:   row.projects_in_queue,
+      mw_pending:          row.mw_pending,
       queue_trend:         trend,
-      avg_study_months:    update.avgStudyMonths ?? null,
-      withdrawal_pct:      update.withdrawalPct ?? null,
-      avg_upgrade_cost_mw: update.avgUpgradeCostMW ?? null,
-      data_source:         'scraper',
-    }
-    const { error: snapErr } = await supabaseAdmin.from('ix_queue_snapshots').insert(snapshotRow)
+      avg_study_months:    row.avg_study_months ?? null,
+      withdrawal_pct:      row.withdrawal_pct ?? null,
+      avg_upgrade_cost_mw: row.avg_upgrade_cost_mw ?? null,
+      data_source:         row.data_source,
+    })
     if (snapErr) {
-      console.warn(`[ix-queue] snapshot insert failed for ${update.stateId}:${update.utilityName}:`, snapErr.message)
+      console.warn(`[ix-queue] snapshot insert failed for ${key}:`, snapErr.message)
     } else {
-      results.snapshotsRecorded = (results.snapshotsRecorded || 0) + 1
+      results.snapshotsRecorded++
     }
   }
 
-  // Log cron run for observability
+  // Log cron run for observability.
   try {
     await supabaseAdmin.from('cron_runs').insert({
       cron_name: 'ix-queue-refresh',
@@ -469,7 +186,7 @@ async function handlerInner(req, res) {
   }
 
   return res.status(200).json({
-    message: `IX queue refresh complete`,
+    message: 'IX queue refresh complete',
     ...results,
     timestamp: new Date().toISOString(),
   })

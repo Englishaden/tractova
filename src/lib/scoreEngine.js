@@ -90,6 +90,13 @@ export function getOfftakeCoverageStates(technology) {
 function ixLiveAdjustment(ixQueueSummary) {
   if (!ixQueueSummary || !ixQueueSummary.totalProjects) return 0
 
+  // cs_pipeline (NYSERDA distribution) is a DEPLOYMENT-PIPELINE signal, not ISO
+  // study-queue depth — it carries no study-months/withdrawal/upgrade-cost. We
+  // do NOT blend it into the score (a large active CS pipeline ≠ a slow study
+  // queue); it surfaces as live CONTEXT only, with the score held on the
+  // curated ixDifficulty baseline. Coverage still reads 'live' (real data shown).
+  if (ixQueueSummary.signalType === 'cs_pipeline') return 0
+
   let adj = 0
 
   // Study-time band — strongest signal. p50=20, p75=24 across observed rows.

@@ -144,9 +144,15 @@ export const GLOSSARY_DEFINITIONS = {
   },
   'IX · Live': {
     title: 'IX · Live',
-    short: 'This state has current ISO/RTO queue data feeding the IX sub-score — not a curated baseline.',
-    long: 'When this badge appears, the Interconnection sub-score blends quantitative signals from the live ISO queue (avg study months, total MW pending) on top of the curated ixDifficulty baseline. Adjustment is clamped to ±10 so the live signal can move the score meaningfully without overwhelming structural ISO context. Currently live for 8 states: CO, IL, MA, MD, ME, MN, NJ, NY.',
-    inputs: 'ix_queue_data table · ISO/RTO weekly scrapers · clamp(±10)',
+    short: 'This state has live interconnection data feeding the IX card — not a curated-only baseline.',
+    long: 'When this badge appears, the Interconnection card is backed by live data rather than a curated-only baseline. The legacy form (CO, IL, MA, MD, ME, MN, NJ) blends ISO queue signals (avg study months, total MW pending) onto the curated ixDifficulty baseline, clamped to ±10. New York uses a different, distribution-level signal — see "CS Pipeline · Live".',
+    inputs: 'ix_queue_data table · curated ixDifficulty baseline · clamp(±10) on legacy ISO blend',
+  },
+  'CS Pipeline · Live': {
+    title: 'CS Pipeline · Live',
+    short: 'New York shows real distribution-level community-DG activity from NYSERDA — pipeline vs energized CS projects.',
+    long: 'NY interconnects community solar at the DISTRIBUTION level, which ISO transmission queues don\'t capture (we verified ISO queues hold almost no <25MW solar). Instead we use NYSERDA\'s Solar Electric Programs feed (Open-NY), filtered to community_distributed_generation = Yes, to show real CS projects in the active development pipeline vs energized to date, per serving utility. This is a deployment-pipeline signal shown as CONTEXT — it does NOT move the IX sub-score (which stays on the curated ixDifficulty baseline), because the source carries no study-months/withdrawal/upgrade-cost and we never fabricate them.',
+    inputs: 'NYSERDA Solar Electric Programs (data.ny.gov 3x8r-34rs) · CDG=Yes · pipeline vs complete by utility',
   },
   'Site · Live': {
     title: 'Site · Live',
@@ -295,8 +301,8 @@ export const GLOSSARY_DEFINITIONS = {
   'IX Queue': {
     title: 'IX Queue (Interconnection Queue)',
     short: 'The utility\'s ordered list of pending projects awaiting interconnection study + grid impact analysis.',
-    long: 'Every project needing grid interconnection joins a queue at its host utility. The queue is studied in clusters or sequentially depending on the utility / ISO. Live queue data from 8 top CS markets (NY, NJ, IL, MA, MD, CO, ME, MN as of 2026-04-30) flows into Tractova\'s IX sub-score; the other 42 states use a curated ixDifficulty baseline. Study windows range from 4-6 months (small distribution) to 36+ months (PJM cluster). Queue position is the single biggest timeline risk for CS development.',
-    inputs: 'ix_queue_data (live · 8 states) · state_programs.ixDifficulty (curated baseline · 50 states)',
+    long: 'Every project needing grid interconnection joins a queue. Community solar interconnects at the DISTRIBUTION level (host utility), which is separate from the ISO transmission queue — we verified ISO transmission queues hold almost no community-scale (<25MW) solar. For New York, Tractova shows the real distribution-level CS pipeline from NYSERDA (projects applied vs energized, per utility) as live context; the IX sub-score everywhere stays on the curated ixDifficulty baseline (50 states). Study windows range from 4-6 months (small distribution) to 36+ months (transmission cluster). Queue position is the single biggest timeline risk for CS development.',
+    inputs: 'NY: NYSERDA distribution CS pipeline (context) · state_programs.ixDifficulty (score baseline · 50 states)',
   },
   'Study Window': {
     title: 'Study Window (IX Study)',

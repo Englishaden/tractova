@@ -213,6 +213,22 @@ describe('computeSubScores — main entry', () => {
     expect(baseline.ix - blended.ix).toBeLessThanOrEqual(10)
   })
 
+  it('cs_pipeline (NYSERDA) signal flips coverage to live but does NOT blend the score', () => {
+    // Aden's design call (2026-05-22): NYSERDA distribution data is a CS
+    // deployment-pipeline signal, not ISO study-queue depth. It surfaces as
+    // live CONTEXT (coverage='live') but the IX SCORE stays on the curated
+    // ixDifficulty baseline — a large pipeline MW must NOT trigger the legacy
+    // -6 MW-band blend.
+    const base = { id: 'NY', csStatus: 'active', ixDifficulty: 'hard' }
+    const curated = computeSubScores(base, null, '', 'Community Solar')
+    const pipeline = computeSubScores(
+      base, null, '', 'Community Solar',
+      { totalProjects: 1021, totalMW: 2616, signalType: 'cs_pipeline', avgStudyMonths: null },
+    )
+    expect(pipeline.coverage.ix).toBe('live')
+    expect(pipeline.ix).toBe(curated.ix)
+  })
+
   it('stage modifier table is referenced and additive, not multiplicative', () => {
     expect(STAGE_MODIFIERS).toHaveProperty('Operational')
     expect(STAGE_MODIFIERS).toHaveProperty('Prospecting')

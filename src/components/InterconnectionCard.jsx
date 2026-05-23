@@ -94,8 +94,73 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
           </div>
         </div>
 
+        {/* Distribution-level CS pipeline (NYSERDA NY-Sun) — real per-utility
+            counts. Deployment-pipeline signal, NOT ISO study-queue depth, so
+            it shows pipeline-vs-energized instead of study-months/upgrade-cost
+            (which this source doesn't observe). The IX score stays on the
+            curated state baseline; this is live CONTEXT. */}
+        {queueSummary && queueSummary.signalType === 'cs_pipeline' && (
+          <div>
+            <SectionLabel>CS Interconnection Pipeline · NY-Sun</SectionLabel>
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
+            >
+              <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: 'rgba(217,119,6,0.06)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Active Development Pipeline</span>
+                  <span className="text-[10px] text-gray-400">·</span>
+                  <span className="text-[10px] text-gray-500 tabular-nums">{queueSummary.totalProjects} CS projects</span>
+                </div>
+                <span className="text-xs font-bold tabular-nums text-gray-700">{queueSummary.totalMW.toLocaleString()} MW</span>
+              </div>
+
+              <div className="px-4 py-2.5 grid grid-cols-2 gap-3 bg-white border-b border-gray-100">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-gray-900 tabular-nums">
+                    {queueSummary.totalProjects}
+                    <span className="text-xs font-semibold text-gray-400"> / {queueSummary.totalMW.toLocaleString()} MW</span>
+                  </p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">in pipeline · applied</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold tabular-nums" style={{ color: '#0F766E' }}>
+                    {queueSummary.completedProjects}
+                    <span className="text-xs font-semibold text-gray-400"> / {queueSummary.completedMw.toLocaleString()} MW</span>
+                  </p>
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">energized to date</p>
+                </div>
+              </div>
+
+              <div className="px-4 py-2.5 bg-white space-y-2">
+                {queueSummary.utilities.map(u => (
+                  <div key={u.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-gray-700 truncate">{u.name}</span>
+                      <span className="text-[10px] tabular-nums" style={{ color: TREND_COLOR[u.queueTrend] }}>
+                        {TREND_ICON[u.queueTrend]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2.5 shrink-0 text-gray-500 tabular-nums">
+                      <span>{u.projectsInQueue} pipeline</span>
+                      <span className="text-gray-300">·</span>
+                      <span>{u.completedProjects} done</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="px-4 py-1.5 border-t border-gray-100">
+                <p className="text-[9px] text-gray-400 leading-relaxed">
+                  NYSERDA Solar Electric Programs · community distributed generation (distribution-level). Pipeline = applied, not yet energized. Updated monthly. A deployment-pipeline signal, not ISO study-queue depth — the IX score uses the curated state baseline.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ISO Queue Data — real numbers from public queue reports */}
-        {queueSummary && (
+        {queueSummary && queueSummary.signalType !== 'cs_pipeline' && (
           <div>
             <SectionLabel>Queue Data · {queueSummary.iso}</SectionLabel>
             <div

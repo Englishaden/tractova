@@ -117,6 +117,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
           {coverage?.ix === 'live' && (() => {
             const ageDays = ixQueueSummary?.dataAgeDays
             const isStale = ageDays != null && ageDays > 7
+            const isPipeline = ixQueueSummary?.signalType === 'cs_pipeline'
             const badgeStyle = isStale
               ? { background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.45)' }
               : { background: 'rgba(20,184,166,0.10)', color: '#115E59', border: '1px solid rgba(20,184,166,0.30)' }
@@ -133,14 +134,29 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
                       style={badgeStyle}
                     >
                       <span className="relative inline-flex w-1.5 h-1.5 rounded-full" style={dotStyle} />
-                      {isStale ? `IX · Live · stale ${ageDays}d` : 'IX · Live'}
+                      {isStale ? `${isPipeline ? 'CS Pipeline' : 'IX'} · stale ${ageDays}d` : (isPipeline ? 'CS Pipeline · Live' : 'IX · Live')}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" align="end" className="text-[10px]">
                     <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>
-                      {isStale ? 'Live IX Queue Data — STALE' : 'Live IX Queue Data'}
+                      {isPipeline
+                        ? (isStale ? 'Live CS Pipeline (NY-Sun) — STALE' : 'Live CS Pipeline (NY-Sun)')
+                        : (isStale ? 'Live IX Queue Data — STALE' : 'Live IX Queue Data')}
                     </p>
-                    {isStale ? (
+                    {isPipeline ? (
+                      isStale ? (
+                        <>
+                          <p>Our weekly refresh of the NYSERDA community-DG feed hasn't updated in {ageDays} days. The pipeline counts below reflect the last successful pull on {ixQueueSummary?.oldestFetchedAt ? new Date(ixQueueSummary.oldestFetchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'an earlier date'}.</p>
+                          <p className="mt-1.5 text-gray-400">Shown in amber so you can interpret the pipeline context honestly. The IX sub-score is unaffected — it stays on the curated baseline.</p>
+                        </>
+                      ) : (
+                        <>
+                          <p>Live distribution-level community-DG data from NYSERDA's Solar Electric Programs (Open-NY). Shown as CONTEXT — the Interconnection sub-score stays on the curated <span className="font-mono">ixDifficulty</span> baseline.</p>
+                          <p className="mt-1.5"><span className="text-teal-300 font-mono">SHOWS</span> — CS projects in active pipeline vs energized to date, per serving utility (MWdc)</p>
+                          <p className="mt-0.5"><span className="text-amber-300 font-mono">NOTE</span> — this is a deployment-pipeline signal, not ISO study-queue depth, so it does not move the score (no fabricated study-months).</p>
+                        </>
+                      )
+                    ) : isStale ? (
                       <>
                         <p>The ISO scraper for this state hasn't returned fresh data in {ageDays} days. The queue numbers below reflect the last successful pull on {ixQueueSummary?.oldestFetchedAt ? new Date(ixQueueSummary.oldestFetchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'an earlier date'}.</p>
                         <p className="mt-1.5"><span className="text-amber-300 font-mono">REASON</span> — upstream public-CSV/JSON URLs changed on the ISO side; our scrapers are pending repair.</p>

@@ -165,22 +165,70 @@ export async function getCountyData(stateId, countyName) {
   })
 }
 
+// ── resolveCountyFips ─────────────────────────────────────────────────────────
+// Resolve a dropdown county display name → county_fips via county_acs_data (the
+// canonical FIPS source). Disambiguates independent-city / county name
+// collisions: VA Fairfax/Franklin/Richmond/Roanoke, MD Baltimore, MO St. Louis.
+// The dropdown marks the independent city with a ' (city)' suffix (see
+// src/data/allCounties.json); Census names it '{base} city, {State}' vs the
+// county '{base} County, {State}'. A naive ILIKE '%name%' matched BOTH and
+// returned an arbitrary FIPS — so the wrong county's wetland / farmland / NMTC /
+// HUD data could load. Returns the 5-digit FIPS or null.
+async function resolveCountyFips(stateId, countyName) {
+  const rawName = String(countyName || '').trim()
+  if (!stateId || !rawName) return null
+  const wantCity = /\(city\)\s*$/i.test(rawName)
+  const base = rawName
+    .replace(/\s*\(city\)\s*$/i, '')
+    .replace(/,.*$/, '')
+    .replace(/\s+(county|parish|borough|census area|municipality)$/i, '')
+    .trim()
+  // Census independent cities end with ' city' (pre-comma); counties end with
+  // ' County'. The $-anchor correctly keeps 'Charles City County' / 'James City
+  // County' classified as counties (they end in 'County', not 'city').
+  const stripType = (cn) => String(cn).replace(/,.*$/, '')
+    .replace(/\s+(county|parish|borough|census area|municipality|city)$/i, '').trim().toLowerCase()
+  const isCityRow = (cn) => /\bcity$/i.test(String(cn).replace(/,.*$/, '').trim())
+  const baseL = base.toLowerCase()
+  const pick = (rows) => {
+    if (!rows || rows.length === 0) return null
+    // Prefer an EXACT base-name match so 'Lake' doesn't grab 'Lake of the Woods'
+    // (prefix-match would). Fall back to all prefix candidates only if none match.
+    let cands = rows.filter(r => stripType(r.county_name) === baseL)
+    if (cands.length === 0) cands = rows
+    const m = wantCity
+      ? cands.find(r => isCityRow(r.county_name))
+      : (cands.find(r => !isCityRow(r.county_name)) || cands[0])
+    return m?.county_fips ?? null
+  }
+  // Prefix-match the Census leading token (base + space) so 'Will ' can't match
+  // 'Williamson'; disambiguate city-vs-county among candidates in JS.
+  const { data } = await supabase
+    .from('county_acs_data')
+    .select('county_fips, county_name')
+    .eq('state', stateId)
+    .ilike('county_name', `${base} %`)
+    .limit(12)
+  if (data && data.length) return pick(data)
+  // Fallback for odd Census spellings that don't prefix-match (e.g. no type word).
+  const { data: d2 } = await supabase
+    .from('county_acs_data')
+    .select('county_fips, county_name')
+    .eq('state', stateId)
+    .ilike('county_name', `%${base}%`)
+    .limit(12)
+  return pick(d2)
+}
+
 async function fetchCountyGeospatial(stateId, countyName) {
   if (!stateId || !countyName) return null
-  const cleanName = countyName.replace(/\s+county.*$/i, '').replace(/\s+parish.*$/i, '')
-  const { data: acs } = await supabase
-    .from('county_acs_data')
-    .select('county_fips')
-    .eq('state', stateId)
-    .ilike('county_name', `%${cleanName}%`)
-    .limit(1)
-    .maybeSingle()
-  if (!acs?.county_fips) return null
+  const countyFips = await resolveCountyFips(stateId, countyName)
+  if (!countyFips) return null
 
   const { data: geo } = await supabase
     .from('county_geospatial_data')
     .select('*')
-    .eq('county_fips', acs.county_fips)
+    .eq('county_fips', countyFips)
     .maybeSingle()
   if (!geo) return null
 
@@ -308,20 +356,13 @@ export async function getEnergyCommunity(stateId, countyName) {
 export async function getNmtcLic(stateId, countyName) {
   if (!stateId || !countyName) return null
   return withCache(`nmtc_lic:${stateId}:${countyName.toLowerCase()}`, async () => {
-    // Resolve county_fips via county_acs_data (canonical FIPS source in our schema)
-    const { data: acs } = await supabase
-      .from('county_acs_data')
-      .select('county_fips')
-      .eq('state', stateId)
-      .ilike('county_name', `%${countyName.replace(/\s+county.*$/i, '')}%`)
-      .limit(1)
-      .maybeSingle()
-    if (!acs?.county_fips) return null
+    const countyFips = await resolveCountyFips(stateId, countyName)
+    if (!countyFips) return null
 
     const { data, error } = await supabase
       .from('nmtc_lic_data')
       .select('*')
-      .eq('county_fips', acs.county_fips)
+      .eq('county_fips', countyFips)
       .maybeSingle()
     if (error) throw error
     if (!data) return null
@@ -352,23 +393,13 @@ export async function getHudQctDda(stateId, countyName) {
   // Look up county_fips via county_acs_data (canonical FIPS source)
   const slug = (countyName || '').toLowerCase().trim()
   return withCache(`hud_qct_dda:${stateId}:${slug}`, async () => {
-    // Resolve county_fips from county_acs_data first (single source of truth
-    // for FIPS in our schema). Fall back to fuzzy match on hud_qct_dda_data
-    // by lower(county_name) if county_acs_data has no row.
-    const { data: acs } = await supabase
-      .from('county_acs_data')
-      .select('county_fips, state, county_name')
-      .eq('state', stateId)
-      .ilike('county_name', `%${countyName.replace(/\s+county.*$/i, '')}%`)
-      .limit(1)
-      .maybeSingle()
-
-    if (!acs?.county_fips) return null
+    const countyFips = await resolveCountyFips(stateId, countyName)
+    if (!countyFips) return null
 
     const { data, error } = await supabase
       .from('hud_qct_dda_data')
       .select('*')
-      .eq('county_fips', acs.county_fips)
+      .eq('county_fips', countyFips)
       .maybeSingle()
     if (error) throw error
     if (!data) return null
@@ -671,16 +702,26 @@ export async function getIXQueueData(stateId) {
     const dataAgeDays = oldestFetchedAt
       ? Math.floor((Date.now() - new Date(oldestFetchedAt).getTime()) / (1000 * 60 * 60 * 24))
       : null
+    // signalType distinguishes the distribution-level CS deployment-pipeline
+    // signal (NYSERDA, source 'nyserda_cdg') from the legacy ISO queue-depth
+    // model. cs_pipeline rows carry no study-months/withdrawal/upgrade-cost —
+    // those stay null and the IX score is NOT blended (curated baseline only);
+    // the data is shown as live CONTEXT (pipeline vs completed CS projects).
+    const signalType = data.some(r => r.data_source === 'nyserda_cdg') ? 'cs_pipeline' : 'queue_depth'
     return {
       iso: data[0].iso,
+      signalType,
       utilities: data.map(row => ({
         name:            row.utility_name,
         projectsInQueue: row.projects_in_queue,
         mwPending:       row.mw_pending,
+        completedProjects: row.completed_projects,
+        completedMw:     row.completed_mw,
         avgStudyMonths:  row.avg_study_months,
         withdrawalPct:   row.withdrawal_pct,
         avgUpgradeCostMW: row.avg_upgrade_cost_mw,
         queueTrend:      row.queue_trend,
+        dataSource:      row.data_source,
         fetchedAt:       row.fetched_at,
       })),
       oldestFetchedAt,
@@ -706,22 +747,34 @@ export async function getIXQueueSummary(stateId, mwAC) {
   const mw = parseFloat(mwAC) || 5
   const totalProjects = data.utilities.reduce((s, u) => s + u.projectsInQueue, 0)
   const totalMW = data.utilities.reduce((s, u) => s + u.mwPending, 0)
-  const weightedStudy = totalProjects > 0 ? data.utilities.reduce((s, u) => s + u.avgStudyMonths * u.projectsInQueue, 0) / totalProjects : 0
-  const weightedWithdrawal = totalProjects > 0 ? data.utilities.reduce((s, u) => s + u.withdrawalPct * u.projectsInQueue, 0) / totalProjects : 0
-  const weightedUpgrade = totalProjects > 0 ? data.utilities.reduce((s, u) => s + u.avgUpgradeCostMW * u.projectsInQueue, 0) / totalProjects : 0
+  const isPipeline = data.signalType === 'cs_pipeline'
 
-  const estimatedUpgradeCost = Math.round(weightedUpgrade * mw)
+  // queue-depth (ISO) signal carries study/withdrawal/upgrade; cs_pipeline
+  // (NYSERDA) does NOT — keep those null rather than fabricating a 0/round.
+  const sumW = (key) => data.utilities.reduce((s, u) => s + (Number(u[key]) || 0) * u.projectsInQueue, 0)
+  const avgStudyMonths   = isPipeline || totalProjects === 0 ? null : Math.round(sumW('avgStudyMonths') / totalProjects)
+  const avgWithdrawalPct = isPipeline || totalProjects === 0 ? null : Math.round(sumW('withdrawalPct') / totalProjects)
+  const avgUpgradeCostPerMW = isPipeline || totalProjects === 0 ? null : Math.round(sumW('avgUpgradeCostMW') / totalProjects)
+  const estimatedUpgradeCost = avgUpgradeCostPerMW == null ? null : Math.round(avgUpgradeCostPerMW * mw)
+
+  // Deployment context (cs_pipeline only): CS projects energized to date.
+  const completedProjects = data.utilities.reduce((s, u) => s + (Number(u.completedProjects) || 0), 0)
+  const completedMw = data.utilities.reduce((s, u) => s + (Number(u.completedMw) || 0), 0)
+
   const congestionLevel = totalProjects > 100 ? 'high' : totalProjects > 50 ? 'moderate' : 'low'
 
   return {
     iso: data.iso,
+    signalType: data.signalType,
     utilities: data.utilities,
     totalProjects,
     totalMW,
-    avgStudyMonths: Math.round(weightedStudy),
-    avgWithdrawalPct: Math.round(weightedWithdrawal),
+    completedProjects,
+    completedMw,
+    avgStudyMonths,
+    avgWithdrawalPct,
     estimatedUpgradeCost,
-    avgUpgradeCostPerMW: Math.round(weightedUpgrade),
+    avgUpgradeCostPerMW,
     congestionLevel,
     // Pass-through staleness metadata so the IX · Live pill can downgrade
     // its badge styling (amber + 'stale Nd' suffix) when the underlying
