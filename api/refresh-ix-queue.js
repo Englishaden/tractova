@@ -2,6 +2,7 @@ import { isAdminFromBearer } from './_admin-auth.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { scrapeNyDg } from './scrapers/_refresh-ny-dg.js'
+import { scrapeNjDg } from './scrapers/_refresh-nj-dg.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IX Queue Refresh Cron
@@ -28,6 +29,7 @@ import { scrapeNyDg } from './scrapers/_refresh-ny-dg.js'
 // rows (snake_case DB shape) for its state(s), or throws on failure.
 const SCRAPERS = [
   { name: 'NY-DG', fn: scrapeNyDg },
+  { name: 'NJ-DG', fn: scrapeNjDg },
 ]
 
 // ── Trend computation ────────────────────────────────────────────────────────

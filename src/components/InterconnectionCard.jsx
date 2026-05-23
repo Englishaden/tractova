@@ -94,14 +94,17 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
           </div>
         </div>
 
-        {/* Distribution-level CS pipeline (NYSERDA NY-Sun) — real per-utility
-            counts. Deployment-pipeline signal, NOT ISO study-queue depth, so
-            it shows pipeline-vs-energized instead of study-months/upgrade-cost
-            (which this source doesn't observe). The IX score stays on the
-            curated state baseline; this is live CONTEXT. */}
+        {/* Distribution-level CS pipeline — real per-utility counts from a
+            state's distribution-DG feed (NY = NYSERDA, NJ = JCP&L queue, …).
+            Deployment-pipeline signal, NOT ISO study-queue depth, so it shows
+            pipeline-vs-energized instead of study-months/upgrade-cost (which
+            these sources don't observe). The IX score stays on the curated
+            state baseline; this is live CONTEXT. Labels/footer are source-driven
+            (queueSummary.sourceRegion / sourceNote). "energized" is omitted when
+            the source reports no energized history (completedProjects == null). */}
         {queueSummary && queueSummary.signalType === 'cs_pipeline' && (
           <div>
-            <SectionLabel>CS Interconnection Pipeline · NY-Sun</SectionLabel>
+            <SectionLabel>CS Interconnection Pipeline · {queueSummary.sourceRegion || 'Distribution'}</SectionLabel>
             <div
               className="rounded-lg overflow-hidden"
               style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
@@ -115,7 +118,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                 <span className="text-xs font-bold tabular-nums text-gray-700">{queueSummary.totalMW.toLocaleString()} MW</span>
               </div>
 
-              <div className="px-4 py-2.5 grid grid-cols-2 gap-3 bg-white border-b border-gray-100">
+              <div className={`px-4 py-2.5 grid ${queueSummary.completedProjects != null ? 'grid-cols-2' : 'grid-cols-1'} gap-3 bg-white border-b border-gray-100`}>
                 <div className="text-center">
                   <p className="text-lg font-bold text-gray-900 tabular-nums">
                     {queueSummary.totalProjects}
@@ -123,13 +126,15 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                   </p>
                   <p className="text-[9px] text-gray-400 uppercase tracking-wider">in pipeline · applied</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-lg font-bold tabular-nums" style={{ color: '#0F766E' }}>
-                    {queueSummary.completedProjects}
-                    <span className="text-xs font-semibold text-gray-400"> / {queueSummary.completedMw.toLocaleString()} MW</span>
-                  </p>
-                  <p className="text-[9px] text-gray-400 uppercase tracking-wider">energized to date</p>
-                </div>
+                {queueSummary.completedProjects != null && (
+                  <div className="text-center">
+                    <p className="text-lg font-bold tabular-nums" style={{ color: '#0F766E' }}>
+                      {queueSummary.completedProjects}
+                      <span className="text-xs font-semibold text-gray-400"> / {(queueSummary.completedMw || 0).toLocaleString()} MW</span>
+                    </p>
+                    <p className="text-[9px] text-gray-400 uppercase tracking-wider">energized to date</p>
+                  </div>
+                )}
               </div>
 
               <div className="px-4 py-2.5 bg-white space-y-2">
@@ -143,8 +148,12 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0 text-gray-500 tabular-nums">
                       <span>{u.projectsInQueue} pipeline</span>
-                      <span className="text-gray-300">·</span>
-                      <span>{u.completedProjects} done</span>
+                      {u.completedProjects != null && (
+                        <>
+                          <span className="text-gray-300">·</span>
+                          <span>{u.completedProjects} done</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -152,7 +161,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
 
               <div className="px-4 py-1.5 border-t border-gray-100">
                 <p className="text-[9px] text-gray-400 leading-relaxed">
-                  NYSERDA Solar Electric Programs · community distributed generation (distribution-level). Pipeline = applied, not yet energized. Updated monthly. A deployment-pipeline signal, not ISO study-queue depth — the IX score uses the curated state baseline.
+                  {queueSummary.sourceNote}
                 </p>
               </div>
             </div>

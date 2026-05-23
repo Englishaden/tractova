@@ -515,8 +515,10 @@ function InterconnectionPillarCard({ ixQueueSummary, stateProgram, subScore, str
           <div className="font-mono tabular-nums text-ink">
             {ixQueueSummary.totalProjects.toLocaleString()} in pipeline · {ixQueueSummary.totalMW.toLocaleString()} MW
           </div>
-          <div className="text-gray-600">{(ixQueueSummary.completedProjects || 0).toLocaleString()} CS projects energized to date</div>
-          <div className="text-[10px] text-gray-500">NY-Sun CDG · score on curated baseline</div>
+          {ixQueueSummary.completedProjects != null && (
+            <div className="text-gray-600">{ixQueueSummary.completedProjects.toLocaleString()} CS projects energized to date</div>
+          )}
+          <div className="text-[10px] text-gray-500">{ixQueueSummary.sourceRegion || 'Distribution'} · score on curated baseline</div>
         </div>
       ) : hasLive ? (
         <div className="space-y-1 text-[11px]">

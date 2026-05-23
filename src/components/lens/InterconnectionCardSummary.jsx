@@ -13,9 +13,12 @@ export default function InterconnectionCardSummary({ interconnection, queueSumma
   // Caption prefers live data when wired; falls back to curated string.
   let caption = null
   if (queueSummary && queueSummary.signalType === 'cs_pipeline') {
-    // Distribution CS pipeline (NYSERDA) — show pipeline vs energized, not a
-    // study window (this source doesn't observe one).
-    caption = `${queueSummary.totalProjects.toLocaleString()} CS in pipeline · ${(queueSummary.completedProjects || 0).toLocaleString()} energized · NY-Sun`
+    // Distribution CS pipeline — show pipeline (+ energized when the source
+    // reports it), not a study window (these sources don't observe one).
+    const region = queueSummary.sourceRegion || 'distribution'
+    caption = queueSummary.completedProjects != null
+      ? `${queueSummary.totalProjects.toLocaleString()} CS in pipeline · ${queueSummary.completedProjects.toLocaleString()} energized · ${region}`
+      : `${queueSummary.totalProjects.toLocaleString()} CS in active pipeline · ${region}`
   } else if (queueSummary && queueSummary.totalProjects > 0) {
     const months = queueSummary.avgStudyMonths
     const mwPending = queueSummary.totalMW

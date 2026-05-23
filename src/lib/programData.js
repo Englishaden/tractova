@@ -676,6 +676,23 @@ export async function getDashboardMetrics() {
   })
 }
 
+// Distribution-level CS-pipeline data sources (vs the legacy ISO queue-depth
+// seed/scraper rows). Each state's feed is a different dataset, so each carries
+// its own honest UI label + footer note. Adding a state = add its data_source
+// here + its scraper in api/scrapers/. See [[project_ix_distribution_data]].
+const CS_PIPELINE_SOURCES = {
+  nyserda_cdg: {
+    label: 'NYSERDA Solar Electric Programs',
+    region: 'NY-Sun',
+    note: 'NYSERDA Solar Electric Programs · community distributed generation (distribution-level). Pipeline = applied, not yet energized. Updated monthly. A deployment-pipeline signal, not ISO study-queue depth — the IX score uses the curated state baseline.',
+  },
+  nj_ic_queue: {
+    label: 'NJ EDC Interconnection Queue',
+    region: 'JCP&L territory',
+    note: 'JCP&L monthly NJ interconnection queue (BPU docket QO21010085) · metering type = Community Solar (active queue). JCP&L territory only — PSE&G / ACE / Rockland file separately. A deployment-pipeline signal, not study-queue depth — the IX score uses the curated state baseline.',
+  },
+}
+
 // ── getIXQueueData ───────────────────────────────────────────────────────────
 // Returns raw IX queue rows for a state, grouped by utility.
 // Shape: { iso, utilities: [{ name, projectsInQueue, mwPending, ... }],
@@ -703,14 +720,20 @@ export async function getIXQueueData(stateId) {
       ? Math.floor((Date.now() - new Date(oldestFetchedAt).getTime()) / (1000 * 60 * 60 * 24))
       : null
     // signalType distinguishes the distribution-level CS deployment-pipeline
-    // signal (NYSERDA, source 'nyserda_cdg') from the legacy ISO queue-depth
-    // model. cs_pipeline rows carry no study-months/withdrawal/upgrade-cost —
-    // those stay null and the IX score is NOT blended (curated baseline only);
-    // the data is shown as live CONTEXT (pipeline vs completed CS projects).
-    const signalType = data.some(r => r.data_source === 'nyserda_cdg') ? 'cs_pipeline' : 'queue_depth'
+    // signal (one of CS_PIPELINE_SOURCES) from the legacy ISO queue-depth model.
+    // cs_pipeline rows carry no study-months/withdrawal/upgrade-cost — those stay
+    // null and the IX score is NOT blended (curated baseline only); the data is
+    // shown as live CONTEXT (pipeline vs completed CS projects). sourceMeta drives
+    // honest per-source UI labels (each state's feed is a different dataset).
+    const csSource = data.find(r => CS_PIPELINE_SOURCES[r.data_source])
+    const signalType = csSource ? 'cs_pipeline' : 'queue_depth'
+    const sourceMeta = csSource ? CS_PIPELINE_SOURCES[csSource.data_source] : null
     return {
       iso: data[0].iso,
       signalType,
+      sourceLabel:  sourceMeta?.label ?? null,
+      sourceRegion: sourceMeta?.region ?? null,
+      sourceNote:   sourceMeta?.note ?? null,
       utilities: data.map(row => ({
         name:            row.utility_name,
         projectsInQueue: row.projects_in_queue,
@@ -757,15 +780,21 @@ export async function getIXQueueSummary(stateId, mwAC) {
   const avgUpgradeCostPerMW = isPipeline || totalProjects === 0 ? null : Math.round(sumW('avgUpgradeCostMW') / totalProjects)
   const estimatedUpgradeCost = avgUpgradeCostPerMW == null ? null : Math.round(avgUpgradeCostPerMW * mw)
 
-  // Deployment context (cs_pipeline only): CS projects energized to date.
-  const completedProjects = data.utilities.reduce((s, u) => s + (Number(u.completedProjects) || 0), 0)
-  const completedMw = data.utilities.reduce((s, u) => s + (Number(u.completedMw) || 0), 0)
+  // Deployment context (cs_pipeline only): CS projects energized to date. Null
+  // when the source reports no energized history (e.g. NJ's active-only queue) —
+  // unknown ≠ zero, so the UI omits the stat rather than showing a false 0.
+  const hasCompleted = data.utilities.some(u => u.completedProjects != null)
+  const completedProjects = hasCompleted ? data.utilities.reduce((s, u) => s + (Number(u.completedProjects) || 0), 0) : null
+  const completedMw = hasCompleted ? data.utilities.reduce((s, u) => s + (Number(u.completedMw) || 0), 0) : null
 
   const congestionLevel = totalProjects > 100 ? 'high' : totalProjects > 50 ? 'moderate' : 'low'
 
   return {
     iso: data.iso,
     signalType: data.signalType,
+    sourceLabel: data.sourceLabel,
+    sourceRegion: data.sourceRegion,
+    sourceNote: data.sourceNote,
     utilities: data.utilities,
     totalProjects,
     totalMW,
