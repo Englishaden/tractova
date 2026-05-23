@@ -93,6 +93,13 @@ const FEEDS = [
     capField: 'ica_overall_pv', unit: 'MW',  // verified: 667,140 circuit segments, 121,167 ≥5MW, max 103
     grid_resolution: 'circuit_segment',
   },
+  {
+    state: 'CA',
+    utility_name: 'PG&E',
+    url: 'https://services2.arcgis.com/mJaJSax0KPHoCNB6/ArcGIS/rest/services/DRPComplianceRelProd/FeatureServer/3',
+    capField: 'GenericPVCapacity_kW', unit: 'kW',  // verified: 1.3M line segments, server-side aggregates in ~6s, max 14.8MW
+    grid_resolution: 'line_segment',
+  },
   // Verified NOT usable (kept here so we don't re-investigate):
   //  - PHI (Pepco/Delmarva/ACE): Feeder_Large_Gen_HC kW capped at 3MW (murky).
   //  - DTE (MI): Hosting__1 caps at 1MW (0 sites ≥5MW would mislead; murky/old June-2023 vintage).
