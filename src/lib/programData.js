@@ -832,7 +832,8 @@ export async function getHostingCapacity(stateId) {
 
     const utilities = data.map(r => ({
       name:              r.utility_name,
-      sitesWithCapacity: r.cells_with_capacity,   // # grid units (feeder/segment/quad) that can host ≥ threshold
+      sitesWithCapacity: r.cells_with_capacity,   // # grid units that can host ≥5MW (fallback headline)
+      sitesByThreshold:  r.sites_by_threshold || null,  // { "1":n, "2":n, "3":n, "5":n, "10":n } — MW→count
       maxAvailMw:        r.max_avail_mw,           // best single location, MW
       thresholdMw:       r.capacity_threshold_mw,
       gridResolution:    r.grid_resolution,
@@ -850,6 +851,20 @@ export async function getHostingCapacity(stateId) {
       maxAvailMw: Math.max(...utilities.map(u => u.maxAvailMw || 0)),
     }
   })
+}
+
+// Given a utility's per-threshold buckets and the developer's project MW, return
+// { threshold, count } for the smallest CS bucket >= the project size — i.e. the
+// number of grid sites that can definitely host a project of that size (most CS
+// is 1-5MW, so this matches the developer's actual job). Conservative: if the MW
+// falls between buckets, rounds UP to the next bucket. Returns null if no buckets.
+export function sitesForMw(sitesByThreshold, mw) {
+  if (!sitesByThreshold || typeof sitesByThreshold !== 'object') return null
+  const buckets = Object.keys(sitesByThreshold).map(Number).filter(Number.isFinite).sort((a, b) => a - b)
+  if (!buckets.length) return null
+  const m = Number(mw) || 5
+  const threshold = buckets.find(b => b >= m) ?? buckets[buckets.length - 1]
+  return { threshold, count: sitesByThreshold[String(threshold)] ?? 0 }
 }
 
 // ── solar_cost_index lineage helpers ─────────────────────────────────────────

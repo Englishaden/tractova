@@ -23,7 +23,8 @@
 
 import { supabaseAdmin } from './_scraperBase.js'
 
-const CS_THRESHOLD_MW = 5  // a CS-relevant amount of open feeder headroom
+const CS_THRESHOLD_MW = 5  // legacy single threshold (kept for the cells_with_capacity column)
+const CS_THRESHOLDS_MW = [1, 2, 3, 5, 10]  // CS-relevant buckets — most CS is 1-5MW, sub-10MW
 
 // Each feed: an ArcGIS FeatureServer LAYER url + the numeric capacity field.
 const FEEDS = [
@@ -129,6 +130,16 @@ async function aggregateFeed(feed, signal) {
     f: 'json',
   }, signal)
 
+  // CS-relevant buckets: # sites that can host >= each threshold (in field's
+  // native unit). Parallel — one round-trip per threshold.
+  const bucketCounts = await Promise.all(
+    CS_THRESHOLDS_MW.map(mw =>
+      arcgis(feed.url, { where: `${feed.capField} >= ${mw / toMw}`, returnCountOnly: 'true', f: 'json' }, signal)
+        .then(r => [String(mw), r.count || 0])
+    )
+  )
+  const sitesByThreshold = Object.fromEntries(bucketCounts)
+
   const totalCells = total.count || 0
   const cellsWithCapacity = withCap.count || 0
   const a = stats.features?.[0]?.attributes || {}
@@ -143,6 +154,7 @@ async function aggregateFeed(feed, signal) {
     total_cells:           totalCells,
     cells_with_capacity:   cellsWithCapacity,
     capacity_threshold_mw: CS_THRESHOLD_MW,
+    sites_by_threshold:    sitesByThreshold,
     pct_with_capacity:     Math.round((cellsWithCapacity / totalCells) * 1000) / 10,
     avg_avail_mw:          a.avg_v != null ? Math.round(a.avg_v * toMw * 100) / 100 : null,
     max_avail_mw:          a.max_v != null ? Math.round(a.max_v * toMw * 10) / 10 : null,
