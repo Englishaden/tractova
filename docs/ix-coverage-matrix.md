@@ -35,16 +35,16 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | CT | United Illuminating |  | ⛔ |  | Only SYMBOLCOLOR, no MW field |
 | CT | Eversource / UI | ❓ |  |  | PURA docket queue — not verified |
 | RI | Rhode Island Energy | ❓ | ✅ | ✓ 24284 features | Not verified |
-| ME | Central Maine Power | 🔶 | ✅ | ✓ 204541 features | CMP "Level 4 Public Queue" + Level 2 tracker — recurring distribution queue (capacity/status/circuit/study dates), twice-monthly (agent high-conf). File URL needs extraction. |
+| ME | Central Maine Power | 🔶 | ✅ | ✓ 204541 features | CMP "Chapter 324 Level 4 Public Queue" — URL found, but the CDN endpoint TIMES OUT on server fetch (90s) — gated/slow, needs a browser or manual download. |
 | ME | Versant | ∅ | ⛔ |  | CONFIRMED (agent): queue lives in ME PUC filings only, no clean public file · SaaS portal, no open feed |
 | CO | Xcel Energy | 🔶 | ⛔ |  | Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only · DEMOTED 2026-05-23: CO PUC publicly called Xcel grid/HC data "totally useless" — removed from FEEDS + DB row deleted. CO now on curated baseline. |
-| MN | Xcel Energy | 🔶 | ✅ | ✓ 167482 features | Xcel "Public DER Queue" — monthly Excel (pending + in-service, capacity/status/location), agent-confirmed. License viewer-only. |
+| MN | Xcel Energy | 🔶 | ✅ | ✓ 167482 features | Xcel "Public DER Queue" Excel exists, but it is served behind a Salesforce Experience Cloud portal (mn.my.xcelenergy.com/s) — JS-gated, needs a browser to reach the file. |
 | MI | Indiana Michigan Power |  | ✅ | ✓ 94523 features |  |
 | MI | DTE |  | ⛔ |  | Hosting__1 field caps at 1MW |
 | MI | Consumers Energy |  | ❓ |  | Not verified |
 | MI | DTE / Consumers | ❓ |  |  | Not verified |
 | CA | SCE |  | ✅ | ✓ 667140 features |  |
-| CA | PG&E | 🔶 | ✅ | ✓ HTTP 206, 1024B | VERIFIED real .xlsx — PG&E Wholesale Distribution interconnection queue (sub-50MW at substations). No posted license. |
+| CA | PG&E | ✅ | ✅ | ✓ HTTP 206, 1024B | WIRED 2026-05-23: 852 solar pipeline / 2247 MW + 402 energized (sub-50MW distribution). Not CS-specific (CA has no formal CS program). |
 | CA | SDG&E |  | ∅ |  | CONFIRMED (agent): interactive map only, no machine-readable REST/CSV export |
 | CA | IOUs (californiadgstats) | ⛔ |  |  | CONFIRMED (agent): californiadgstats terms EXPLICITLY prohibit extraction/redistribution beyond NEM program (view-only) |
 | IL | ComEd | ⛔ | ⛔ |  | Queue map-only; Illinois Shines forbids commercial redistribution · HC ArcGIS service token-gated |
@@ -60,7 +60,7 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | PA | PECO |  | ✅ | ✓ 3443 features |  |
 
 ## Summary
-- Cells: 64 — ✅ live 21 · 🔶 candidate 10 · ⛔ blocked 15 · ∅ none 8 · ❓ unchecked 10
+- Cells: 64 — ✅ live 22 · 🔶 candidate 9 · ⛔ blocked 15 · ∅ none 8 · ❓ unchecked 10
 - Liveness probes (live + candidate): 22/22 returning data
 - CS states with ≥1 live source: 12/19 — CA, CT, MA, MD, ME, MI, MN, NJ, NY, RI, VA, WI
 - CS states with ZERO live source: 7 — CO, IL, FL, HI, NM, OR, WA
@@ -69,17 +69,16 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 > These are the answer to "what did we miss." Ranked roughly by license-safety + CS-relevance.
 - NJ · Atlantic City Electric · queue (license: gov) — BPU-mandated monthly queue exists, but file link is JS-rendered on atlanticcityelectric.com — needs a headless browser to isolate the URL.
 - MD · State (MEA) · queue (license: gov) — MEA Community Solar project list (Excel, quarterly, ~139 projects/204MW by utility) — gov-public CS DEPLOYMENT signal (agent-confirmed). File URL embedded on page — needs extraction.
-- ME · Central Maine Power · queue (license: unknown) — CMP "Level 4 Public Queue" + Level 2 tracker — recurring distribution queue (capacity/status/circuit/study dates), twice-monthly (agent high-conf). File URL needs extraction.
+- ME · Central Maine Power · queue (license: unknown) — CMP "Chapter 324 Level 4 Public Queue" — URL found, but the CDN endpoint TIMES OUT on server fetch (90s) — gated/slow, needs a browser or manual download.
 - CO · Xcel Energy · queue (license: unknown) — Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only
-- MN · Xcel Energy · queue (license: unknown) — Xcel "Public DER Queue" — monthly Excel (pending + in-service, capacity/status/location), agent-confirmed. License viewer-only.
-- CA · PG&E · queue (license: unknown) [probe ✓ HTTP 206, 1024B] — VERIFIED real .xlsx — PG&E Wholesale Distribution interconnection queue (sub-50MW at substations). No posted license.
+- MN · Xcel Energy · queue (license: unknown) — Xcel "Public DER Queue" Excel exists, but it is served behind a Salesforce Experience Cloud portal (mn.my.xcelenergy.com/s) — JS-gated, needs a browser to reach the file.
 - HI · Hawaiian Electric · queue (license: unknown) — Integrated Interconnection Queue (IIQ) — Oahu/Maui/Hawaii Island, monthly, circuit-level, ~11,698 PV requests (agent high-conf). Web table — bulk CSV/XLSX export UNCONFIRMED.
 - OR · Portland General / PacifiCorp / Idaho Power · queue (license: unknown) — MISS — all 3 OR IOUs publish DEDICATED Community Solar queues via OATI OASIS (agent high-conf). Most CS-targeted of any state. OASIS web tables — bulk export-ability UNCONFIRMED.
 - OR · Portland General / PacifiCorp · hc (license: unknown) — PGE DG Evaluation map + PacifiCorp DG map (DOE Atlas) — ArcGIS, REST endpoint not yet isolated
 - WA · Avista · hc (license: unknown) — RE-CHECK: agent found a feeder-level DER Hosting Capacity Experience Builder app — DIFFERENT from the GEN_MAX_KW 50kW layer I rejected. REST endpoint needs extraction.
 
 ## License posture (a SEPARATE axis from accurate/live — flagged by all 3 agents)
-- LIVE feeds by license: open=1 · unknown=17 · gov=3
+- LIVE feeds by license: open=1 · unknown=18 · gov=3
 - 'open' = NY Open-NY (commercial reuse OK). 'gov' = govt/BPU-mandated public filing (strong public-record footing).
 - 'unknown' = utility ArcGIS "viewer-only" disclaimer — DECISION NEEDED before commercial redistribution. Most live HC feeds are here.
 

@@ -701,6 +701,11 @@ const CS_PIPELINE_SOURCES = {
     region: 'Alliant WI territory',
     note: 'Alliant Energy WI distributed-generation queue (weekly) · ALL distributed solar (≈90% residential rooftop, not CS-specific). Shown as live DG-activity context, not a community-solar pipeline. Alliant territory only. The IX score uses the curated state baseline.',
   },
+  ca_pge_queue: {
+    label: 'PG&E Wholesale Distribution Queue',
+    region: 'PG&E territory',
+    note: 'PG&E Wholesale Distribution interconnection queue · Solar PV at distribution substations, sub-50 MW (median ~2 MW). CA has no formal community-solar program, so this is a DISTRIBUTION solar queue, not a CS pipeline. Active = pipeline, In Service = energized. Live DG-activity context — the IX score uses the curated state baseline.',
+  },
 }
 
 // ── getIXQueueData ───────────────────────────────────────────────────────────

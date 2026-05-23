@@ -128,8 +128,8 @@ const REGISTRY = [
     url: 'https://services.arcgis.com/c0HK6TaWF3mGiNhc/arcgis/rest/services/CMP_Hosting_Capacity/FeatureServer/0' }),
   E('ME', 'Versant', 'hc', 'blocked', { reason: 'SaaS portal, no open feed' }),
   E('ME', 'Central Maine Power', 'queue', 'candidate', { license: 'unknown',
-    url: 'https://www.cmpco.com/suppliersandpartners/servicesandresources/interconnection',
-    reason: 'CMP "Level 4 Public Queue" + Level 2 tracker — recurring distribution queue (capacity/status/circuit/study dates), twice-monthly (agent high-conf). File URL needs extraction.' }),
+    url: 'https://www.cmpco.com/documents/d/cmp/chapter-324-level-4-public-queue',
+    reason: 'CMP "Chapter 324 Level 4 Public Queue" — URL found, but the CDN endpoint TIMES OUT on server fetch (90s) — gated/slow, needs a browser or manual download.' }),
   E('ME', 'Versant', 'queue', 'none', { reason: 'CONFIRMED (agent): queue lives in ME PUC filings only, no clean public file' }),
 
   // ── RI — RI Energy HC wired; queue unchecked ────────────────────────────────
@@ -147,7 +147,8 @@ const REGISTRY = [
   E('MN', 'Xcel Energy', 'hc', 'live', { dataSource: 'arcgis_hc', probe: 'arcgis',
     url: 'https://services1.arcgis.com/eM84fwjsSggLQk61/arcgis/rest/services/NSPM_may2025_popUps/FeatureServer/3' }),
   E('MN', 'Xcel Energy', 'queue', 'candidate', { license: 'unknown',
-    reason: 'Xcel "Public DER Queue" — monthly Excel (pending + in-service, capacity/status/location), agent-confirmed. License viewer-only.' }),
+    url: 'https://mn.my.xcelenergy.com/s/renewable/developers/interconnection',
+    reason: 'Xcel "Public DER Queue" Excel exists, but it is served behind a Salesforce Experience Cloud portal (mn.my.xcelenergy.com/s) — JS-gated, needs a browser to reach the file.' }),
 
   // ── MI — AEP I&M HC wired; DTE/Consumers blocked; queue unchecked ───────────
   E('MI', 'Indiana Michigan Power', 'hc', 'live', { dataSource: 'arcgis_hc', probe: 'arcgis',
@@ -161,9 +162,9 @@ const REGISTRY = [
     url: 'https://drpep.sce.com/arcgis_server/rest/services/hosted/ica_layer/FeatureServer/2' }),
   E('CA', 'PG&E', 'hc', 'live', { dataSource: 'arcgis_hc', probe: 'arcgis',
     url: 'https://services2.arcgis.com/mJaJSax0KPHoCNB6/ArcGIS/rest/services/DRPComplianceRelProd/FeatureServer/3' }),
-  E('CA', 'PG&E', 'queue', 'candidate', { probe: 'http', license: 'unknown',
+  E('CA', 'PG&E', 'queue', 'live', { dataSource: 'ca_pge_queue', probe: 'http', license: 'unknown',
     url: 'https://www.pge.com/assets/pge/docs/about/doing-business-with-pge/PublicQueueInterconnection.xlsx',
-    reason: 'VERIFIED real .xlsx — PG&E Wholesale Distribution interconnection queue (sub-50MW at substations). No posted license.' }),
+    reason: 'WIRED 2026-05-23: 852 solar pipeline / 2247 MW + 402 energized (sub-50MW distribution). Not CS-specific (CA has no formal CS program).' }),
   E('CA', 'SDG&E', 'hc', 'none', { reason: 'CONFIRMED (agent): interactive map only, no machine-readable REST/CSV export' }),
   E('CA', 'IOUs (californiadgstats)', 'queue', 'blocked', { license: 'prohibited',
     reason: 'CONFIRMED (agent): californiadgstats terms EXPLICITLY prohibit extraction/redistribution beyond NEM program (view-only)' }),
