@@ -24,7 +24,9 @@
 import { supabaseAdmin } from './_scraperBase.js'
 
 const CS_THRESHOLD_MW = 5  // legacy single threshold (kept for the cells_with_capacity column)
-const CS_THRESHOLDS_MW = [1, 2, 3, 5, 10]  // CS-relevant buckets — most CS is 1-5MW, sub-10MW
+// Capture EVERY size, smallest → sub-50MW. 0.15 = 150kW, 0.5 = 500kW. Don't drop
+// small projects — the Lens picks the bucket nearest the developer's project MW.
+const CS_THRESHOLDS_MW = [0.15, 0.5, 1, 2, 3, 5, 10, 20, 50]
 
 // Each feed: an ArcGIS FeatureServer LAYER url + the numeric capacity field.
 const FEEDS = [
