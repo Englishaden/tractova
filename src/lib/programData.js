@@ -706,6 +706,11 @@ const CS_PIPELINE_SOURCES = {
     region: 'PG&E territory',
     note: 'PG&E Wholesale Distribution interconnection queue · Solar PV at distribution substations, sub-50 MW (median ~2 MW). CA has no formal community-solar program, so this is a DISTRIBUTION solar queue, not a CS pipeline. Active = pipeline, In Service = energized. Live DG-activity context — the IX score uses the curated state baseline.',
   },
+  md_mea_cs: {
+    label: 'MD Community Solar Program (MEA)',
+    region: 'Maryland EDCs',
+    note: 'Maryland Energy Administration community-solar project list · per EDC (BGE, Pepco, Delmarva, Potomac Edison). In Service = energized, Under Construction / Design & Development = pipeline. A real CS deployment signal (MD has a permanent CS program). Updated periodically. The IX score uses the curated state baseline.',
+  },
 }
 
 // ── getIXQueueData ───────────────────────────────────────────────────────────

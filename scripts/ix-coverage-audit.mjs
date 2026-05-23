@@ -101,9 +101,9 @@ const REGISTRY = [
   E('MD', 'BGE', 'hc', 'live', { dataSource: 'arcgis_hc', probe: 'arcgis',
     url: 'https://services3.arcgis.com/agWTKEK7X5K1Bx7o/arcgis/rest/services/BGE_HOSTING_CAPACITY_EPRI_AGOL/FeatureServer/1' }),
   E('MD', 'BGE', 'queue', 'unchecked', { reason: 'CSEGS queue — not verified as a downloadable feed' }),
-  E('MD', 'State (MEA)', 'queue', 'candidate', { license: 'gov',
+  E('MD', 'State (MEA)', 'queue', 'live', { dataSource: 'md_mea_cs', probe: 'http', license: 'gov',
     url: 'https://energy.maryland.gov/Pages/MarylandCommunitySolar.aspx',
-    reason: 'MEA Community Solar project list (Excel, quarterly, ~139 projects/204MW by utility) — gov-public CS DEPLOYMENT signal (agent-confirmed). File URL embedded on page — needs extraction.' }),
+    reason: 'WIRED 2026-05-23: 434 CS projects across BGE/Delmarva/Pepco/Potomac Edison (233 pipeline + 201 energized). Real CS deployment signal; page scraped for dated .xlsx link.' }),
   E('MD', 'Pepco', 'hc', 'blocked', { reason: 'PHI kW capped 3MW' }),
   E('MD', 'Delmarva', 'hc', 'blocked', { reason: 'PHI kW capped 3MW' }),
 

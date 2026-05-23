@@ -6,6 +6,7 @@ import { scrapeNjDg } from './scrapers/_refresh-nj-dg.js'
 import { scrapeVaDg } from './scrapers/_refresh-va-dg.js'
 import { scrapeWiDg } from './scrapers/_refresh-wi-dg.js'
 import { scrapeCaDg } from './scrapers/_refresh-ca-dg.js'
+import { scrapeMdDg } from './scrapers/_refresh-md-dg.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IX Queue Refresh Cron
@@ -36,6 +37,7 @@ const SCRAPERS = [
   { name: 'VA-DG', fn: scrapeVaDg },
   { name: 'WI-DG', fn: scrapeWiDg },
   { name: 'CA-DG', fn: scrapeCaDg },
+  { name: 'MD-DG', fn: scrapeMdDg },
 ]
 
 // ── Trend computation ────────────────────────────────────────────────────────

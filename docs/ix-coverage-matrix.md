@@ -25,7 +25,7 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | WI | Madison Gas & Electric | ❓ |  |  | Not verified |
 | WI | Xcel (NSPW) | ❓ |  |  | Not verified |
 | MD | BGE | ❓ | ✅ | ✓ 2601 features | CSEGS queue — not verified as a downloadable feed |
-| MD | State (MEA) | 🔶 |  |  | MEA Community Solar project list (Excel, quarterly, ~139 projects/204MW by utility) — gov-public CS DEPLOYMENT signal (agent-confirmed). File URL embedded on page — needs extraction. |
+| MD | State (MEA) | ✅ |  | ✓ HTTP 200 | WIRED 2026-05-23: 434 CS projects across BGE/Delmarva/Pepco/Potomac Edison (233 pipeline + 201 energized). Real CS deployment signal; page scraped for dated .xlsx link. |
 | MD | Pepco |  | ⛔ |  | PHI kW capped 3MW |
 | MD | Delmarva |  | ⛔ |  | PHI kW capped 3MW |
 | MA | National Grid |  | ✅ | ✓ 967 features |  |
@@ -60,15 +60,14 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | PA | PECO |  | ✅ | ✓ 3443 features |  |
 
 ## Summary
-- Cells: 64 — ✅ live 22 · 🔶 candidate 9 · ⛔ blocked 15 · ∅ none 8 · ❓ unchecked 10
-- Liveness probes (live + candidate): 22/22 returning data
+- Cells: 64 — ✅ live 23 · 🔶 candidate 8 · ⛔ blocked 15 · ∅ none 8 · ❓ unchecked 10
+- Liveness probes (live + candidate): 23/23 returning data
 - CS states with ≥1 live source: 12/19 — CA, CT, MA, MD, ME, MI, MN, NJ, NY, RI, VA, WI
 - CS states with ZERO live source: 7 — CO, IL, FL, HI, NM, OR, WA
 
 ## 🔶 Candidates found by the independent sweep (real sources, NOT yet wired)
 > These are the answer to "what did we miss." Ranked roughly by license-safety + CS-relevance.
 - NJ · Atlantic City Electric · queue (license: gov) — BPU-mandated monthly queue exists, but file link is JS-rendered on atlanticcityelectric.com — needs a headless browser to isolate the URL.
-- MD · State (MEA) · queue (license: gov) — MEA Community Solar project list (Excel, quarterly, ~139 projects/204MW by utility) — gov-public CS DEPLOYMENT signal (agent-confirmed). File URL embedded on page — needs extraction.
 - ME · Central Maine Power · queue (license: unknown) — CMP "Chapter 324 Level 4 Public Queue" — URL found, but the CDN endpoint TIMES OUT on server fetch (90s) — gated/slow, needs a browser or manual download.
 - CO · Xcel Energy · queue (license: unknown) — Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only
 - MN · Xcel Energy · queue (license: unknown) — Xcel "Public DER Queue" Excel exists, but it is served behind a Salesforce Experience Cloud portal (mn.my.xcelenergy.com/s) — JS-gated, needs a browser to reach the file.
@@ -78,7 +77,7 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 - WA · Avista · hc (license: unknown) — RE-CHECK: agent found a feeder-level DER Hosting Capacity Experience Builder app — DIFFERENT from the GEN_MAX_KW 50kW layer I rejected. REST endpoint needs extraction.
 
 ## License posture (a SEPARATE axis from accurate/live — flagged by all 3 agents)
-- LIVE feeds by license: open=1 · unknown=18 · gov=3
+- LIVE feeds by license: open=1 · unknown=18 · gov=4
 - 'open' = NY Open-NY (commercial reuse OK). 'gov' = govt/BPU-mandated public filing (strong public-record footing).
 - 'unknown' = utility ArcGIS "viewer-only" disclaimer — DECISION NEEDED before commercial redistribution. Most live HC feeds are here.
 
