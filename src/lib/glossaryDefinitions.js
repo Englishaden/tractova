@@ -157,8 +157,8 @@ export const GLOSSARY_DEFINITIONS = {
   'Hosting Capacity · Live': {
     title: 'Hosting Capacity · Live',
     short: 'How much more distributed generation a utility\'s grid can absorb — sourced live from utility hosting-capacity maps.',
-    long: 'Hosting capacity (a.k.a. Integration Capacity Analysis / ICA) is the approximate MW of new DG a distribution feeder can accommodate before triggering grid upgrades. Tractova aggregates a utility\'s public hosting-capacity ArcGIS feed server-side into a per-utility signal: what % of the grid still has CS-relevant headroom (≥5 MW open), plus average and max available MW. It is a leading indicator of distribution interconnection ease — and a DIFFERENT metric than a project queue (grid headroom, not wait time). Shown as live CONTEXT on the IX card; the IX score stays on the curated ixDifficulty baseline. Live where a utility publishes an open feed (e.g. BGE / Maryland).',
-    inputs: 'utility hosting-capacity / ICA ArcGIS feeds → hosting_capacity_data (per-utility % ≥ threshold · avg · max MW)',
+    long: 'Hosting capacity (a.k.a. Integration Capacity Analysis / ICA) is the approximate MW of new DG a distribution feeder can accommodate before triggering grid upgrades. Tractova aggregates a utility\'s public hosting-capacity ArcGIS feed server-side into a per-utility signal: the number of grid "sites" (feeders / segments / circuits) that can host ≥5 MW of new DG, plus the best available MW in the territory. Counts reflect each utility\'s grid granularity, so they are read per-utility, not compared across utilities. It is a leading indicator of distribution interconnection ease — a DIFFERENT metric than a project queue (grid headroom, not wait time). Shown as live CONTEXT on the IX card; the IX score stays on the curated ixDifficulty baseline. Live where a utility publishes an open feed (BGE/MD, PECO/PA, National Grid/MA+NY, Con Edison, O&R, Central Hudson, NYSEG-RG&E/NY, SCE/CA).',
+    inputs: 'utility hosting-capacity / ICA ArcGIS feeds → hosting_capacity_data (per-utility # sites ≥ threshold · best MW)',
   },
   'Site · Live': {
     title: 'Site · Live',

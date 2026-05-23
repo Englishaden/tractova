@@ -242,28 +242,29 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
               style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
             >
               <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: 'rgba(217,119,6,0.06)' }}>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Grid Headroom · available capacity</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Grid Headroom · open capacity</span>
                 <span className="text-xs font-bold tabular-nums" style={{ color: '#0F766E' }}>
-                  {hostingCapacity.pctWithCapacity}% open ≥{hostingCapacity.thresholdMw}MW
+                  best {hostingCapacity.maxAvailMw} MW open
                 </span>
               </div>
               <div className="px-4 py-2.5 bg-white space-y-2">
                 {hostingCapacity.utilities.map(u => (
                   <div key={u.name} className="flex items-center justify-between text-xs">
-                    <span className="font-semibold text-gray-700 truncate">{u.name}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-semibold text-gray-700 truncate">{u.name}</span>
+                      {u.gridResolution && <span className="text-[9px] text-gray-400 shrink-0">{u.gridResolution.replace(/_/g, ' ')}</span>}
+                    </div>
                     <div className="flex items-center gap-2.5 shrink-0 text-gray-500 tabular-nums">
-                      <span>{u.pctWithCapacity}% ≥{u.thresholdMw}MW</span>
+                      <span>{u.sitesWithCapacity.toLocaleString()} sites ≥{u.thresholdMw}MW</span>
                       <span className="text-gray-300">·</span>
-                      <span>avg {u.avgAvailMw}MW</span>
-                      <span className="text-gray-300">·</span>
-                      <span>max {u.maxAvailMw}MW</span>
+                      <span>best {u.maxAvailMw}MW</span>
                     </div>
                   </div>
                 ))}
               </div>
               <div className="px-4 py-1.5 border-t border-gray-100">
                 <p className="text-[9px] text-gray-400 leading-relaxed">
-                  Utility hosting-capacity maps{hostingCapacity.utilities[0]?.gridResolution ? ` (${hostingCapacity.utilities[0].gridResolution.replace(/_/g, ' ')} grid)` : ''}. Grid HEADROOM = how much DG a feeder can absorb — a leading indicator of distribution interconnection ease, distinct from the project queue. Shown as context; the IX score uses the curated state baseline.
+                  Utility hosting-capacity maps. "Sites" = distribution grid units (feeder / segment / circuit) that can absorb ≥{hostingCapacity.thresholdMw}MW of new DG — counts reflect each utility's grid granularity (not directly comparable across utilities). Grid HEADROOM is a leading indicator of distribution interconnection ease, distinct from the project queue. Shown as context; the IX score uses the curated state baseline.
                 </p>
               </div>
             </div>

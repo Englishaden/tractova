@@ -38,14 +38,65 @@ const FEEDS = [
     state: 'PA',
     utility_name: 'PECO',
     url: 'https://services3.arcgis.com/agWTKEK7X5K1Bx7o/arcgis/rest/services/PECO_Available_Distribution_Capacity_Map/FeatureServer/0',
-    capField: 'NET_AVAILABLE_CAPACITY',  // MW (verified: avg 4.6, max 19.9)
+    capField: 'NET_AVAILABLE_CAPACITY', unit: 'MW',  // verified: avg 4.6, max 19.9
     grid_resolution: 'major_quad',
   },
+  {
+    state: 'MA',
+    utility_name: 'National Grid',
+    url: 'https://systemdataportal.nationalgrid.com/arcgis/rest/services/MASDP/MASDP_HostingCapacity/MapServer/0',
+    capField: 'HC_Available_MW', unit: 'MW',  // verified: 967 feeders, 303 ≥5MW, max 19.4
+    grid_resolution: 'feeder',
+  },
+  {
+    state: 'NY',
+    utility_name: 'National Grid',
+    url: 'https://systemdataportal.nationalgrid.com/arcgis/rest/services/NYSDP/Hosting_Capacity_Data/MapServer/0',
+    capField: 'feeder_max_hc', unit: 'MW',  // verified: 1912 feeders, 487 ≥5MW, max 10
+    grid_resolution: 'feeder',
+  },
+  {
+    state: 'NY',
+    utility_name: 'Con Edison',
+    url: 'https://services.arcgis.com/ciPnsNFi1JLWVjva/arcgis/rest/services/CECONY_NodalHCV_Prod/FeatureServer/0',
+    capField: 'LOCAL_MAX', unit: 'MW',  // verified: 82,810 segments, 17,705 ≥5MW, max 19.3
+    grid_resolution: 'nodal_segment',
+  },
+  {
+    state: 'NY',
+    utility_name: 'Orange & Rockland',
+    url: 'https://services.arcgis.com/ciPnsNFi1JLWVjva/arcgis/rest/services/ORU_NodalHCV_Prod/FeatureServer/0',
+    capField: 'LOCAL_MAX', unit: 'MW',  // verified: 88,930 segments, 27,528 ≥5MW, max 10
+    grid_resolution: 'nodal_segment',
+  },
+  {
+    state: 'NY',
+    utility_name: 'Central Hudson',
+    url: 'https://services1.arcgis.com/CEN9MBRF2dIzEmKF/arcgis/rest/services/Hosting_Capacity_Stage3/FeatureServer/0',
+    capField: 'HCMin', unit: 'MW',  // verified: HCMin (conservative); MaxHostingCapacity is null. 306k segments, max 6
+    grid_resolution: 'segment',
+  },
+  {
+    state: 'NY',
+    utility_name: 'NYSEG / RG&E',
+    url: 'https://services.arcgis.com/c0HK6TaWF3mGiNhc/arcgis/rest/services/HostingCapacity_DCirc_NYSEG_RGE/FeatureServer/0',
+    capField: 'MAX_HC_MVA_2', unit: 'MW',  // verified: 23,344 conductors, 1,112 ≥5MW, max 20
+    grid_resolution: 'conductor',
+  },
+  {
+    state: 'CA',
+    utility_name: 'SCE',
+    url: 'https://drpep.sce.com/arcgis_server/rest/services/hosted/ica_layer/FeatureServer/2',
+    capField: 'ica_overall_pv', unit: 'MW',  // verified: 667,140 circuit segments, 121,167 ≥5MW, max 103
+    grid_resolution: 'circuit_segment',
+  },
   // Verified NOT usable (kept here so we don't re-investigate):
-  //  - PHI (Pepco/Delmarva/ACE): Feeder_Large_Gen_HC is kW + capped at 3MW (murky semantics).
-  //  - PG&E (CA): LineDetail GenericPVCapacity_kW = 1.3M segments (too granular for server-side agg).
-  //  - Ameren IL: MAXGENMW_TXT is text/multi-value, 1.67M cells.
-  //  - SCE (CA): data behind an Open-Data hub search page; FeatureServer not yet resolved.
+  //  - PHI (Pepco/Delmarva/ACE): Feeder_Large_Gen_HC kW capped at 3MW (murky).
+  //  - DTE (MI): Hosting__1 caps at 1MW (0 sites ≥5MW would mislead; murky/old June-2023 vintage).
+  //  - Dominion (VA): LIMIT_VAL is bucketed integer codes, not continuous MW.
+  //  - Xcel CO/MN: capacity fields are STRING type (can't server-side aggregate, like Ameren).
+  //  - PG&E (CA): server-side works BUT it's line-segment (1.3M) — SCE already covers CA; revisit if needed.
+  //  - Ameren IL: MAXGENMW_TXT text/multi-value. SCE/SDG&E/Duke/APS/NV/GA/PNM/WE/Alliant/Consumers/Eversource: gated or none.
 ]
 
 async function arcgis(layerUrl, params, signal) {
@@ -61,13 +112,19 @@ async function arcgis(layerUrl, params, signal) {
 }
 
 async function aggregateFeed(feed, signal) {
+  // Per-feed unit: capacity field is either MW (default) or kW. We compute the
+  // threshold in the field's native unit, then convert stored avg/max to MW so
+  // all rows are unit-normalized.
+  const toMw = feed.unit === 'kW' ? 0.001 : 1
+  const thresholdNative = CS_THRESHOLD_MW / toMw  // 5 MW expressed in the field's unit
+
   const total = await arcgis(feed.url, { where: '1=1', returnCountOnly: 'true', f: 'json' }, signal)
-  const withCap = await arcgis(feed.url, { where: `${feed.capField} >= ${CS_THRESHOLD_MW}`, returnCountOnly: 'true', f: 'json' }, signal)
+  const withCap = await arcgis(feed.url, { where: `${feed.capField} >= ${thresholdNative}`, returnCountOnly: 'true', f: 'json' }, signal)
   const stats = await arcgis(feed.url, {
     where: '1=1',
     outStatistics: JSON.stringify([
-      { statisticType: 'avg', onStatisticField: feed.capField, outStatisticFieldName: 'avg_mw' },
-      { statisticType: 'max', onStatisticField: feed.capField, outStatisticFieldName: 'max_mw' },
+      { statisticType: 'avg', onStatisticField: feed.capField, outStatisticFieldName: 'avg_v' },
+      { statisticType: 'max', onStatisticField: feed.capField, outStatisticFieldName: 'max_v' },
     ]),
     f: 'json',
   }, signal)
@@ -87,8 +144,8 @@ async function aggregateFeed(feed, signal) {
     cells_with_capacity:   cellsWithCapacity,
     capacity_threshold_mw: CS_THRESHOLD_MW,
     pct_with_capacity:     Math.round((cellsWithCapacity / totalCells) * 1000) / 10,
-    avg_avail_mw:          a.avg_mw != null ? Math.round(a.avg_mw * 10) / 10 : null,
-    max_avail_mw:          a.max_mw != null ? Math.round(a.max_mw * 10) / 10 : null,
+    avg_avail_mw:          a.avg_v != null ? Math.round(a.avg_v * toMw * 100) / 100 : null,
+    max_avail_mw:          a.max_v != null ? Math.round(a.max_v * toMw * 10) / 10 : null,
     data_source:           'arcgis_hc',
     data_source_url:       feed.url,
     fetched_at:            new Date().toISOString(),

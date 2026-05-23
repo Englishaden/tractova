@@ -832,24 +832,20 @@ export async function getHostingCapacity(stateId) {
 
     const utilities = data.map(r => ({
       name:              r.utility_name,
-      totalCells:        r.total_cells,
-      cellsWithCapacity: r.cells_with_capacity,
-      pctWithCapacity:   r.pct_with_capacity,
+      sitesWithCapacity: r.cells_with_capacity,   // # grid units (feeder/segment/quad) that can host ≥ threshold
+      maxAvailMw:        r.max_avail_mw,           // best single location, MW
       thresholdMw:       r.capacity_threshold_mw,
-      avgAvailMw:        r.avg_avail_mw,
-      maxAvailMw:        r.max_avail_mw,
       gridResolution:    r.grid_resolution,
       dataSourceUrl:     r.data_source_url,
       fetchedAt:         r.fetched_at,
     }))
-    // State rollup, cell-weighted across utilities.
-    const totalCells = utilities.reduce((s, u) => s + (u.totalCells || 0), 0)
-    const cellsWithCapacity = utilities.reduce((s, u) => s + (u.cellsWithCapacity || 0), 0)
+    // NOTE: no cross-utility cell rollup — utilities publish at different grid
+    // granularities (feeder vs nodal-segment vs quad), so summing cells / a
+    // pooled % would mix units and mislead. We surface per-utility counts + the
+    // single comparable headline: the best available MW across the state.
     return {
       utilities,
-      totalCells,
-      cellsWithCapacity,
-      pctWithCapacity: totalCells > 0 ? Math.round((cellsWithCapacity / totalCells) * 1000) / 10 : null,
+      utilityCount: utilities.length,
       thresholdMw: utilities[0]?.thresholdMw ?? 5,
       maxAvailMw: Math.max(...utilities.map(u => u.maxAvailMw || 0)),
     }
