@@ -131,7 +131,18 @@ export default async function refreshGeospatialFarmland() {
   const upsertRows = []
   let mappedCount = 0
   let exceptionStateRows = 0
-  const skipped = { ak: 0, territories: 0, malformed: 0 }
+  const skipped = { ak: 0, territories: 0, malformed: 0, nonCounty: 0 }
+
+  // Canonical county FIPS set. SSURGO has special survey areas whose 3-digit
+  // suffix is ≥600 (national parks, reservations, multi-county surveys) — these
+  // pass the /^\d{3}$/ check but build a FIPS that is NOT a real county (e.g.
+  // FL608 → 12608). Gate the CONUS upserts on this set so those artifacts don't
+  // pollute county_geospatial_data (was the source of ~800 spurious rows).
+  const { data: acsFips } = await supabaseAdmin.from('county_acs_data').select('county_fips')
+  const validFips = new Set((acsFips || []).map(r => r.county_fips))
+  if (validFips.size < 3000) {
+    return { ok: false, error: `Could not load canonical county FIPS set (got ${validFips.size}); aborting to avoid mis-gating SSURGO rows.` }
+  }
 
   for (const [st, areas] of byState) {
     // Skip out-of-scope: territories and Mexico shoulder.
@@ -184,6 +195,11 @@ export default async function refreshGeospatialFarmland() {
         continue
       }
       const fullFips = `${stateFips}${suffix}`
+      // Skip SSURGO special survey areas that don't map to a real county.
+      if (!validFips.has(fullFips)) {
+        skipped.nonCounty += 1
+        continue
+      }
       const pct = a.total > 0 ? (a.prime / a.total) * 100 : 0
       upsertRows.push({
         county_fips:           fullFips,
