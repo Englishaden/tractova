@@ -202,6 +202,7 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                           stateId={pillarProps.stateId}
                           mw={pillarProps.mw}
                           queueSummary={pillarProps.queueSummary}
+                          hostingCapacity={pillarProps.hostingCapacity}
                         />
                       </div>
                     )}

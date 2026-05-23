@@ -6,7 +6,7 @@ import { QueueBadge } from '../../lib/searchShared.jsx'
 
 const PILLAR_ACCENT = '#D97706'
 
-export default function InterconnectionCardSummary({ interconnection, queueSummary, score, coverage, onOpen }) {
+export default function InterconnectionCardSummary({ interconnection, queueSummary, hostingCapacity, score, coverage, onOpen }) {
   const servingUtility = interconnection?.servingUtility || 'Utility TBD'
   const queueStatusCode = interconnection?.queueStatusCode || null
 
@@ -23,6 +23,9 @@ export default function InterconnectionCardSummary({ interconnection, queueSumma
     const months = queueSummary.avgStudyMonths
     const mwPending = queueSummary.totalMW
     caption = `${months}-mo avg study · ${mwPending.toLocaleString()} MW pending in ${queueSummary.iso || 'queue'}`
+  } else if (hostingCapacity && hostingCapacity.pctWithCapacity != null) {
+    // Grid headroom (hosting capacity) — a different live signal than a queue.
+    caption = `${hostingCapacity.pctWithCapacity}% of grid open ≥${hostingCapacity.thresholdMw}MW · hosting capacity`
   } else if (interconnection?.avgStudyTimeline) {
     caption = `Curated: ${interconnection.avgStudyTimeline}`
   } else {

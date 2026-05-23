@@ -814,6 +814,48 @@ export async function getIXQueueSummary(stateId, mwAC) {
   }
 }
 
+// ── getHostingCapacity ───────────────────────────────────────────────────────
+// Distribution grid HEADROOM per state (from hosting_capacity_data — utility
+// hosting-capacity ArcGIS feeds aggregated server-side). Feeds the IX pillar as
+// live CONTEXT (grid headroom, NOT a project queue, NOT the SITE-pillar
+// geospatial data). Score stays on the curated ixDifficulty baseline. Returns
+// null when no utility in the state has a wired feed.
+export async function getHostingCapacity(stateId) {
+  return withCache(`hosting_capacity:${stateId}`, async () => {
+    const { data, error } = await supabase
+      .from('hosting_capacity_data')
+      .select('*')
+      .eq('state', stateId)
+      .order('utility_name')
+    if (error) throw error
+    if (!data || data.length === 0) return null
+
+    const utilities = data.map(r => ({
+      name:              r.utility_name,
+      totalCells:        r.total_cells,
+      cellsWithCapacity: r.cells_with_capacity,
+      pctWithCapacity:   r.pct_with_capacity,
+      thresholdMw:       r.capacity_threshold_mw,
+      avgAvailMw:        r.avg_avail_mw,
+      maxAvailMw:        r.max_avail_mw,
+      gridResolution:    r.grid_resolution,
+      dataSourceUrl:     r.data_source_url,
+      fetchedAt:         r.fetched_at,
+    }))
+    // State rollup, cell-weighted across utilities.
+    const totalCells = utilities.reduce((s, u) => s + (u.totalCells || 0), 0)
+    const cellsWithCapacity = utilities.reduce((s, u) => s + (u.cellsWithCapacity || 0), 0)
+    return {
+      utilities,
+      totalCells,
+      cellsWithCapacity,
+      pctWithCapacity: totalCells > 0 ? Math.round((cellsWithCapacity / totalCells) * 1000) / 10 : null,
+      thresholdMw: utilities[0]?.thresholdMw ?? 5,
+      maxAvailMw: Math.max(...utilities.map(u => u.maxAvailMw || 0)),
+    }
+  })
+}
+
 // ── solar_cost_index lineage helpers ─────────────────────────────────────────
 // solar_cost_index (migration 048) carries OBSERVED LBNL TTS percentiles. We
 // expose it as a `solar_cost_lineage` field on the revenue-rates payload so

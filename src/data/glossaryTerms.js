@@ -63,6 +63,7 @@ const GLOSSARY_PILLAR_MAP = {
   // Interconnection pillar
   'IX · Live':          'ix',
   'CS Pipeline · Live': 'ix',
+  'Hosting Capacity · Live': 'ix',
   'IX Cost':            'ix',
   'IX Queue':           'ix',
   'Study Window':       'ix',

@@ -154,6 +154,12 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'NY interconnects community solar at the DISTRIBUTION level, which ISO transmission queues don\'t capture (we verified ISO queues hold almost no <25MW solar). Instead we use NYSERDA\'s Solar Electric Programs feed (Open-NY), filtered to community_distributed_generation = Yes, to show real CS projects in the active development pipeline vs energized to date, per serving utility. This is a deployment-pipeline signal shown as CONTEXT — it does NOT move the IX sub-score (which stays on the curated ixDifficulty baseline), because the source carries no study-months/withdrawal/upgrade-cost and we never fabricate them.',
     inputs: 'NYSERDA Solar Electric Programs (data.ny.gov 3x8r-34rs) · CDG=Yes · pipeline vs complete by utility',
   },
+  'Hosting Capacity · Live': {
+    title: 'Hosting Capacity · Live',
+    short: 'How much more distributed generation a utility\'s grid can absorb — sourced live from utility hosting-capacity maps.',
+    long: 'Hosting capacity (a.k.a. Integration Capacity Analysis / ICA) is the approximate MW of new DG a distribution feeder can accommodate before triggering grid upgrades. Tractova aggregates a utility\'s public hosting-capacity ArcGIS feed server-side into a per-utility signal: what % of the grid still has CS-relevant headroom (≥5 MW open), plus average and max available MW. It is a leading indicator of distribution interconnection ease — and a DIFFERENT metric than a project queue (grid headroom, not wait time). Shown as live CONTEXT on the IX card; the IX score stays on the curated ixDifficulty baseline. Live where a utility publishes an open feed (e.g. BGE / Maryland).',
+    inputs: 'utility hosting-capacity / ICA ArcGIS feeds → hosting_capacity_data (per-utility % ≥ threshold · avg · max MW)',
+  },
   'Site · Live': {
     title: 'Site · Live',
     short: 'This county has live geospatial data (NWI wetlands + SSURGO farmland) driving the Site Control sub-score.',

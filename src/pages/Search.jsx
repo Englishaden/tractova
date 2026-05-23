@@ -23,7 +23,7 @@ import { useToast } from '../components/ui/Toast'
 // now imports its own scoreEngine / revenueEngine helpers directly).
 // Kept only the helpers Search.jsx itself still references.
 
-import { getIXQueueSummary } from '../lib/programData'
+import { getIXQueueSummary, getHostingCapacity } from '../lib/programData'
 import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import ScenarioStudio from '../components/ScenarioStudio'
 import { computeBaseline as computeScenarioBaseline, denormalizeTech } from '../lib/scenarioEngine'
@@ -516,7 +516,7 @@ function SearchContent() {
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token ?? ''
 
-      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents] = await Promise.all([
+      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity] = await Promise.all([
         programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
         getCountyData(form.state, form.county),
         getRevenueStack(form.state),
@@ -527,6 +527,7 @@ function SearchContent() {
         getHudQctDda(form.state, form.county),
         getNmtcLic(form.state, form.county),
         getPolicyImpactEvents({ state: form.state }),
+        getHostingCapacity(form.state),
       ])
       const runway = stateProgram?.runway ?? null
 
@@ -544,7 +545,7 @@ function SearchContent() {
         // analysis is still useful without the AI verdict.
       }
 
-      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents, aiInsight })
+      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity, aiInsight })
     } catch (err) {
       // Any uncaught error in data fetching used to leave analyzing=true forever
       // (the white-screen loading hang). Surface it to the user instead.
@@ -1210,6 +1211,7 @@ function SearchContent() {
                   <InterconnectionCardSummary
                     interconnection={results.countyData?.interconnection}
                     queueSummary={results.ixQueueSummary}
+                    hostingCapacity={results.hostingCapacity}
                     score={sub.ix}
                     coverage={sub.coverage?.ix}
                     onOpen={() => setActivePillar('ix')}
@@ -1345,6 +1347,7 @@ function SearchContent() {
             stateName:       results.stateProgram?.name || results.form.state,
             substations:     results.substations,
             queueSummary:    results.ixQueueSummary,
+            hostingCapacity: results.hostingCapacity,
             policyEvents:    results.policyEvents || [],
           }}
         />

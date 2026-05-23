@@ -1,7 +1,7 @@
 import CardDrilldown from './CardDrilldown'
 import { EaseArcGauge, QueueBadge, SectionLabel } from '../lib/searchShared.jsx'
 
-export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary }) {
+export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary, hostingCapacity }) {
   if (!interconnection) return null
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
 
@@ -225,6 +225,46 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
 
               <div className="px-4 py-1.5 border-t border-gray-100">
                 <p className="text-[9px] text-gray-400">Aggregated from public ISO queue filings. Solar projects &lt;25MW. Updated Q1 2026.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Distribution hosting capacity — grid HEADROOM per utility (from
+            utility hosting-capacity ArcGIS feeds, hosting_capacity_data). A
+            different metric than a project queue: how much DG a feeder can
+            absorb. Shown as live context; the IX score stays curated. */}
+        {hostingCapacity && hostingCapacity.utilities?.length > 0 && (
+          <div>
+            <SectionLabel>Distribution Hosting Capacity</SectionLabel>
+            <div
+              className="rounded-lg overflow-hidden"
+              style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
+            >
+              <div className="px-4 py-2.5 flex items-center justify-between" style={{ background: 'rgba(217,119,6,0.06)' }}>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Grid Headroom · available capacity</span>
+                <span className="text-xs font-bold tabular-nums" style={{ color: '#0F766E' }}>
+                  {hostingCapacity.pctWithCapacity}% open ≥{hostingCapacity.thresholdMw}MW
+                </span>
+              </div>
+              <div className="px-4 py-2.5 bg-white space-y-2">
+                {hostingCapacity.utilities.map(u => (
+                  <div key={u.name} className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-gray-700 truncate">{u.name}</span>
+                    <div className="flex items-center gap-2.5 shrink-0 text-gray-500 tabular-nums">
+                      <span>{u.pctWithCapacity}% ≥{u.thresholdMw}MW</span>
+                      <span className="text-gray-300">·</span>
+                      <span>avg {u.avgAvailMw}MW</span>
+                      <span className="text-gray-300">·</span>
+                      <span>max {u.maxAvailMw}MW</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-1.5 border-t border-gray-100">
+                <p className="text-[9px] text-gray-400 leading-relaxed">
+                  Utility hosting-capacity maps{hostingCapacity.utilities[0]?.gridResolution ? ` (${hostingCapacity.utilities[0].gridResolution.replace(/_/g, ' ')} grid)` : ''}. Grid HEADROOM = how much DG a feeder can absorb — a leading indicator of distribution interconnection ease, distinct from the project queue. Shown as context; the IX score uses the curated state baseline.
+                </p>
               </div>
             </div>
           </div>
