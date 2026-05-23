@@ -23,10 +23,13 @@ export default function InterconnectionCardSummary({ interconnection, queueSumma
     const months = queueSummary.avgStudyMonths
     const mwPending = queueSummary.totalMW
     caption = `${months}-mo avg study · ${mwPending.toLocaleString()} MW pending in ${queueSummary.iso || 'queue'}`
-  } else if (hostingCapacity && hostingCapacity.maxAvailMw != null) {
+  } else if (hostingCapacity && hostingCapacity.utilityCount > 0) {
     // Grid headroom (hosting capacity) — a different live signal than a queue.
     const n = hostingCapacity.utilityCount
-    caption = `Hosting capacity: best ${hostingCapacity.maxAvailMw} MW open · ${n} ${n === 1 ? 'utility' : 'utilities'}`
+    const utils = `${n} ${n === 1 ? 'utility' : 'utilities'}`
+    caption = hostingCapacity.maxAvailMw != null
+      ? `Hosting capacity: best ${hostingCapacity.maxAvailMw} MW open · ${utils}`
+      : `Live grid hosting capacity · ${utils}`
   } else if (interconnection?.avgStudyTimeline) {
     caption = `Curated: ${interconnection.avgStudyTimeline}`
   } else {

@@ -844,11 +844,12 @@ export async function getHostingCapacity(stateId) {
     // granularities (feeder vs nodal-segment vs quad), so summing cells / a
     // pooled % would mix units and mislead. We surface per-utility counts + the
     // single comparable headline: the best available MW across the state.
+    const maxes = utilities.map(u => u.maxAvailMw).filter(v => v != null)
     return {
       utilities,
       utilityCount: utilities.length,
       thresholdMw: utilities[0]?.thresholdMw ?? 5,
-      maxAvailMw: Math.max(...utilities.map(u => u.maxAvailMw || 0)),
+      maxAvailMw: maxes.length ? Math.max(...maxes) : null,  // null when no utility reports a max (e.g. CT's MapServer)
     }
   })
 }

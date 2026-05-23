@@ -100,20 +100,54 @@ const FEEDS = [
     capField: 'GenericPVCapacity_kW', unit: 'kW',  // verified: 1.3M line segments, server-side aggregates in ~6s, max 14.8MW
     grid_resolution: 'line_segment',
   },
+  {
+    state: 'CT',
+    utility_name: 'Eversource',
+    url: 'https://epochprodgasdist.eversource.com/wamgasgis/rest/services/EV_Hosting/EV_HC_Capacity_CT/MapServer/0',
+    capField: 'FEEDER_CAPACITY_TO_MAP_MW', unit: 'MW',  // verified: 663,775 segments, 105k ≥5MW. MapServer: max via orderBy (no outStatistics).
+    grid_resolution: 'feeder_segment',
+  },
+  {
+    state: 'ME',
+    utility_name: 'Central Maine Power',
+    url: 'https://services.arcgis.com/c0HK6TaWF3mGiNhc/arcgis/rest/services/CMP_Hosting_Capacity/FeatureServer/0',
+    capField: 'HostingCapNumTemp', unit: 'kW',  // verified (Avangrid): 204,541 segments, 60,546 ≥5MW, max 30MW
+    grid_resolution: 'segment',
+  },
+  {
+    state: 'RI',
+    utility_name: 'Rhode Island Energy',
+    url: 'https://systemdataportal.nationalgrid.com/arcgis/rest/services/RISDP/Hosting_Capacity_All/MapServer/0',
+    capField: 'Max_HC', unit: 'MW',  // verified: 24,284 feeders, 10,189 ≥5MW, max 27MW (data Apr 2024)
+    grid_resolution: 'feeder',
+  },
+  {
+    state: 'CO',
+    utility_name: 'Xcel Energy',
+    url: 'https://services1.arcgis.com/eM84fwjsSggLQk61/arcgis/rest/services/PSCO22Final/FeatureServer/0',
+    capField: 'MaxMW', unit: 'MW', parse: true,  // STRING field → pull+parse. 97,699 segments.
+    grid_resolution: 'segment',
+  },
+  {
+    state: 'MN',
+    utility_name: 'Xcel Energy',
+    url: 'https://services1.arcgis.com/eM84fwjsSggLQk61/arcgis/rest/services/NSPM_may2025_popUps/FeatureServer/3',
+    capField: 'Maximum_Available_Hosting_Capac', unit: 'MW', parse: true,  // STRING field → pull+parse. 167,482 segments (May 2025).
+    grid_resolution: 'segment',
+  },
   // Verified NOT usable (kept here so we don't re-investigate):
+  //  - Avista (WA): GEN_MAX_KW caps at 100kW — not feeder HC (wrong scale, would mislead).
   //  - PHI (Pepco/Delmarva/ACE): Feeder_Large_Gen_HC kW capped at 3MW (murky).
-  //  - DTE (MI): Hosting__1 caps at 1MW (0 sites ≥5MW would mislead; murky/old June-2023 vintage).
-  //  - Dominion (VA): LIMIT_VAL is bucketed integer codes, not continuous MW.
-  //  - Xcel CO/MN: capacity fields are STRING type (can't server-side aggregate, like Ameren).
-  //  - PG&E (CA): server-side works BUT it's line-segment (1.3M) — SCE already covers CA; revisit if needed.
-  //  - Ameren IL: MAXGENMW_TXT text/multi-value. SCE/SDG&E/Duke/APS/NV/GA/PNM/WE/Alliant/Consumers/Eversource: gated or none.
+  //  - DTE (MI): Hosting__1 caps at 1MW. Dominion (VA): LIMIT_VAL bucketed integer codes.
+  //  - UI (CT): only SYMBOLCOLOR, no MW. Versant (ME): SaaS. PSE (WA): gated. HECO (HI): address tool.
+  //  - Ameren IL: text/multi-value 1.67M. ComEd IL / PacifiCorp / PGE-OR / FPL / Duke / APS / NV / GA / PNM / WE / Alliant / Consumers / Appalachian / Seattle CL: gated or no open feed.
 ]
 
 async function arcgis(layerUrl, params, signal) {
   const url = `${layerUrl}/query?${new URLSearchParams(params).toString()}`
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Tractova data pipeline (+https://tractova.com)' },
-    signal: signal || AbortSignal.timeout(30000),
+    signal: signal || AbortSignal.timeout(60000),  // some self-hosted MapServers (Eversource) are slow
   })
   if (!res.ok) throw new Error(`ArcGIS ${res.status} on ${layerUrl}`)
   const j = await res.json()
@@ -121,39 +155,9 @@ async function arcgis(layerUrl, params, signal) {
   return j
 }
 
-async function aggregateFeed(feed, signal) {
-  // Per-feed unit: capacity field is either MW (default) or kW. We compute the
-  // threshold in the field's native unit, then convert stored avg/max to MW so
-  // all rows are unit-normalized.
-  const toMw = feed.unit === 'kW' ? 0.001 : 1
-  const thresholdNative = CS_THRESHOLD_MW / toMw  // 5 MW expressed in the field's unit
-
-  const total = await arcgis(feed.url, { where: '1=1', returnCountOnly: 'true', f: 'json' }, signal)
-  const withCap = await arcgis(feed.url, { where: `${feed.capField} >= ${thresholdNative}`, returnCountOnly: 'true', f: 'json' }, signal)
-  const stats = await arcgis(feed.url, {
-    where: '1=1',
-    outStatistics: JSON.stringify([
-      { statisticType: 'avg', onStatisticField: feed.capField, outStatisticFieldName: 'avg_v' },
-      { statisticType: 'max', onStatisticField: feed.capField, outStatisticFieldName: 'max_v' },
-    ]),
-    f: 'json',
-  }, signal)
-
-  // CS-relevant buckets: # sites that can host >= each threshold (in field's
-  // native unit). Parallel — one round-trip per threshold.
-  const bucketCounts = await Promise.all(
-    CS_THRESHOLDS_MW.map(mw =>
-      arcgis(feed.url, { where: `${feed.capField} >= ${mw / toMw}`, returnCountOnly: 'true', f: 'json' }, signal)
-        .then(r => [String(mw), r.count || 0])
-    )
-  )
-  const sitesByThreshold = Object.fromEntries(bucketCounts)
-
-  const totalCells = total.count || 0
-  const cellsWithCapacity = withCap.count || 0
-  const a = stats.features?.[0]?.attributes || {}
+function buildRow(feed, { totalCells, sitesByThreshold, maxMw }) {
   if (totalCells === 0) throw new Error(`${feed.utility_name}: 0 cells returned`)
-
+  const cellsWithCapacity = sitesByThreshold[String(CS_THRESHOLD_MW)] ?? 0
   return {
     state:                 feed.state,
     utility_name:          feed.utility_name,
@@ -165,12 +169,71 @@ async function aggregateFeed(feed, signal) {
     capacity_threshold_mw: CS_THRESHOLD_MW,
     sites_by_threshold:    sitesByThreshold,
     pct_with_capacity:     Math.round((cellsWithCapacity / totalCells) * 1000) / 10,
-    avg_avail_mw:          a.avg_v != null ? Math.round(a.avg_v * toMw * 100) / 100 : null,
-    max_avail_mw:          a.max_v != null ? Math.round(a.max_v * toMw * 10) / 10 : null,
+    avg_avail_mw:          null,  // not displayed; avoids an outStatistics dependency some MapServers lack
+    max_avail_mw:          maxMw != null ? Math.round(maxMw * 10) / 10 : null,
     data_source:           'arcgis_hc',
     data_source_url:       feed.url,
     fetched_at:            new Date().toISOString(),
   }
+}
+
+// Server-side path (numeric fields): count + per-threshold counts via the API,
+// max via orderBy (robust — works on MapServers that lack outStatistics).
+async function aggregateServerSide(feed, signal) {
+  const toMw = feed.unit === 'kW' ? 0.001 : 1
+  const total = await arcgis(feed.url, { where: '1=1', returnCountOnly: 'true', f: 'json' }, signal)
+  const bucketCounts = await Promise.all(
+    CS_THRESHOLDS_MW.map(mw =>
+      arcgis(feed.url, { where: `${feed.capField} >= ${mw / toMw}`, returnCountOnly: 'true', f: 'json' }, signal)
+        .then(r => [String(mw), r.count || 0])
+    )
+  )
+  // max: outStatistics first (works on most FeatureServers), fall back to
+  // orderBy DESC (works on MapServers that lack outStatistics, e.g. Eversource).
+  let maxMw = null
+  try {
+    const s = await arcgis(feed.url, { where: '1=1', outStatistics: JSON.stringify([{ statisticType: 'max', onStatisticField: feed.capField, outStatisticFieldName: 'mx' }]), f: 'json' }, signal)
+    const v = s.features?.[0]?.attributes?.mx
+    if (v != null && Number.isFinite(Number(v))) maxMw = Number(v) * toMw
+  } catch { /* fall through */ }
+  if (maxMw == null) {
+    try {
+      const m = await arcgis(feed.url, { where: '1=1', outFields: feed.capField, orderByFields: `${feed.capField} DESC`, resultRecordCount: '1', returnGeometry: 'false', f: 'json' }, signal)
+      const v = m.features?.[0]?.attributes?.[feed.capField]
+      if (v != null && Number.isFinite(Number(v))) maxMw = Number(v) * toMw
+    } catch { /* max is best-effort */ }
+  }
+  return buildRow(feed, { totalCells: total.count || 0, sitesByThreshold: Object.fromEntries(bucketCounts), maxMw })
+}
+
+// Pull+parse path (STRING capacity fields, e.g. Xcel): page through the field
+// only, parseFloat each, count buckets + max locally. For string fields the API
+// can't filter/aggregate numerically, so we must read every value.
+async function aggregatePull(feed, signal) {
+  const toMw = feed.unit === 'kW' ? 0.001 : 1
+  const PAGE = 2000
+  let offset = 0, total = 0, maxV = 0
+  const counts = Object.fromEntries(CS_THRESHOLDS_MW.map(m => [String(m), 0]))
+  for (;;) {
+    const r = await arcgis(feed.url, { where: '1=1', outFields: feed.capField, returnGeometry: 'false', resultOffset: String(offset), resultRecordCount: String(PAGE), f: 'json' }, signal)
+    const feats = r.features || []
+    for (const f of feats) {
+      const v = parseFloat(f.attributes[feed.capField])
+      if (!Number.isFinite(v)) continue
+      total++
+      if (v > maxV) maxV = v
+      const vMw = v * toMw
+      for (const m of CS_THRESHOLDS_MW) if (vMw >= m) counts[String(m)]++
+    }
+    const more = r.exceededTransferLimit === true || (r.exceededTransferLimit === undefined && feats.length === PAGE)
+    offset += feats.length
+    if (!more || feats.length === 0 || offset > 600000) break
+  }
+  return buildRow(feed, { totalCells: total, sitesByThreshold: counts, maxMw: maxV * toMw })
+}
+
+async function aggregateFeed(feed, signal) {
+  return feed.parse ? aggregatePull(feed, signal) : aggregateServerSide(feed, signal)
 }
 
 /** Returns ready-to-upsert hosting_capacity_data rows (one per FEED). */

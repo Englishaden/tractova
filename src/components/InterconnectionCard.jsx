@@ -246,9 +246,11 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                 <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
                   Grid Headroom{Number(mw) > 0 ? ` · sites for a ~${Math.round(Number(mw) * 10) / 10} MW project` : ''}
                 </span>
-                <span className="text-xs font-bold tabular-nums" style={{ color: '#0F766E' }}>
-                  best {hostingCapacity.maxAvailMw} MW open
-                </span>
+                {hostingCapacity.maxAvailMw != null && (
+                  <span className="text-xs font-bold tabular-nums" style={{ color: '#0F766E' }}>
+                    best {hostingCapacity.maxAvailMw} MW open
+                  </span>
+                )}
               </div>
               <div className="px-4 py-2.5 bg-white space-y-2">
                 {hostingCapacity.utilities.map(u => {
@@ -265,8 +267,12 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                       </div>
                       <div className="flex items-center gap-2.5 shrink-0 text-gray-500 tabular-nums">
                         <span>{(count || 0).toLocaleString()} sites ≥{thr}MW</span>
-                        <span className="text-gray-300">·</span>
-                        <span>best {u.maxAvailMw}MW</span>
+                        {u.maxAvailMw != null && (
+                          <>
+                            <span className="text-gray-300">·</span>
+                            <span>best {u.maxAvailMw}MW</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   )
