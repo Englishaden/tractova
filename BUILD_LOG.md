@@ -4,6 +4,29 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-23 IX gap CLOSED: +VA +WI, every scrapeable feed now live
+
+**Aden's last ask was "for all CS states we have Live IX data, or at least everything we can? You haven't unknowingly constrained yourself?" — answer: I HAD. The earlier "100%" only re-checked hosting-capacity ArcGIS for the blocked states, never the QUEUE feeds. Re-checking queues surfaced TWO more real, redistribution-safe distribution feeds → VA + WI now live. This is the verified scrapeable ceiling.**
+
+### ✅ SHIPPED + LIVE-VERIFIED 2026-05-23 (commit `6e57107`, pushed)
+- **VA = Dominion Energy Virginia "Queue Status Report" (.xlsx, quarterly).** `_refresh-va-dg.js` — sheet 'VA Queue Status', header row idx 2; Fuel Type=Solar; Status 'A'=Active→pipeline (717/3643MW), 'I'=In Service→energized (96/886MW). Genuine CS-scale (all sub-50MW, median ~3MW). `data_source=va_dominion_queue`, iso=PJM. (This is the DG/customer QUEUE — distinct from Dominion's bucketed `LIMIT_VAL` hosting-capacity ArcGIS we'd correctly rejected.)
+- **WI = Alliant Energy DG interconnection queue (.csv, weekly).** `_refresh-wi-dg.js` — custom RFC-4180 parser (quoted "city, county, WI" fields); Technology=Solar; all non-withdrawn=pipeline (6740/176MW), no in-service status→completed null. **Honestly labeled "Alliant WI DG Solar Queue" (~90% residential rooftop, NOT CS-specific)** — live DG-activity context, not a CS pipeline. `data_source=wi_alliant_queue`, iso=MISO.
+- Both wired into `refresh-ix-queue.js` SCRAPERS + `CS_PIPELINE_SOURCES` registry (honest labels/notes) + populated **additively** via `scripts/apply-va-wi-dg.mjs --apply` (no DELETE — brand-new states). **`ix_queue_data` now 10 rows / 4 states = `{nyserda_cdg:7, nj_ic_queue:1, va_dominion_queue:1, wi_alliant_queue:1}`.** Verified live via `probe-ix-queue.mjs`. Full verify green (lint chain + 159 unit + 7/7 smoke + build).
+- IX score stays on curated baseline for both (no fabricated study-months); shown as live CONTEXT only.
+
+### 📊 IX coverage final tally (the verified scrapeable ceiling)
+- **Real live IX data = 13 of 19 CS states:** NY + NJ + **VA** (real CS pipeline queue) · **WI** (real DG-solar queue, labeled non-CS) · MD, MA, CA, CT, ME, RI, CO, MN, MI (real hosting capacity, 16 utilities) + PA bonus.
+- **6 holdouts have NO open redistribution-safe feed in EITHER form (queue OR hosting capacity), re-verified twice:** IL (ComEd token-gated, Ameren text-1.67M, Illinois Shines forbids commercial redistribution), FL (FPL/Duke/TECO none), HI (HECO address-tool), NM (PNM none), OR (PacifiCorp/PGE none), WA (Avista 50kW-cap wrong-scale / PSE gated). **These require manual-upload or paid interconnection.fyi — safe to move to manual-data work from here.**
+- Lesson logged in `project_ix_distribution_data` memory: always re-check the QUEUE form for "blocked" states, not just hosting-capacity (that's how VA+WI were missed on round 1).
+
+### ⏭ NEXT SESSION — start here (manual-data phase)
+1. **Manual-upload ingest pipeline for the 6 holdouts + gated queue sources** (IL via interconnection.fyi or internal; NJ PSE&G/ACE BPU-docket PDFs; MA Eversource). Aden downloads → Supabase Storage → ingest parser. Not yet built.
+2. **interconnection.fyi** (paid, quote-only, 16 states incl. IL) — Aden investigating pricing.
+3. **Browser-verify** the NY/NJ/VA/WI IX cards + the 11 hosting-capacity blocks render on prod (couldn't pop a browser unprompted).
+4. Then: the data-validity audit Aden flagged (2-prong: is the data accurate + is it live/not-hardcoded).
+
+---
+
 ## 🟢 Pickup — 2026-05-22 IX distribution pivot + county-resolver fix (merged with same-day motion/3-pillar arc)
 
 **Two same-day arcs, now merged. (A) Motion-polish + 3-pillar Index fix + coverage-matrix audit (shipped earlier). (B) IX model PIVOT: the coverage audit flagged IX as THE data gap — the fix turned out to be a model change, not a scraper repair. We verified empirically that ISO transmission queues (NYISO/MISO/CAISO) contain almost NO community-scale solar (IL: 68 solar in the MISO queue, ZERO under 25MW) — CS interconnects at the DISTRIBUTION level, which ISO queues don't see. So we dropped the empty <25MW-ISO filter and sourced the real distribution-level CS signal (NY via NYSERDA), endorsed by Aden.**
