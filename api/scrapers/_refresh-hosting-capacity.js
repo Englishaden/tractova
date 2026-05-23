@@ -31,11 +31,21 @@ const FEEDS = [
     state: 'MD',
     utility_name: 'BGE',
     url: 'https://services3.arcgis.com/agWTKEK7X5K1Bx7o/arcgis/rest/services/BGE_HOSTING_CAPACITY_EPRI_AGOL/FeatureServer/1',
-    capField: 'Sum_FEEDER_AVAIL_CAP_MW_MIN',
+    capField: 'Sum_FEEDER_AVAIL_CAP_MW_MIN',  // MW
     grid_resolution: 'mile_square',
   },
-  // Add after verification (see scripts/probe-hosting-capacity.mjs):
-  // PHI (Pepco/Delmarva/ACE), PECO (PA), PG&E (CA), SCE (CA).
+  {
+    state: 'PA',
+    utility_name: 'PECO',
+    url: 'https://services3.arcgis.com/agWTKEK7X5K1Bx7o/arcgis/rest/services/PECO_Available_Distribution_Capacity_Map/FeatureServer/0',
+    capField: 'NET_AVAILABLE_CAPACITY',  // MW (verified: avg 4.6, max 19.9)
+    grid_resolution: 'major_quad',
+  },
+  // Verified NOT usable (kept here so we don't re-investigate):
+  //  - PHI (Pepco/Delmarva/ACE): Feeder_Large_Gen_HC is kW + capped at 3MW (murky semantics).
+  //  - PG&E (CA): LineDetail GenericPVCapacity_kW = 1.3M segments (too granular for server-side agg).
+  //  - Ameren IL: MAXGENMW_TXT is text/multi-value, 1.67M cells.
+  //  - SCE (CA): data behind an Open-Data hub search page; FeatureServer not yet resolved.
 ]
 
 async function arcgis(layerUrl, params, signal) {
