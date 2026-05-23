@@ -11,6 +11,7 @@ import refreshNmtcLic from './scrapers/_refresh-nmtc-lic.js'
 import refreshGeospatialFarmland from './scrapers/_refresh-geospatial-farmland.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
+import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
 // DSIRE scrapers (state_programs + revenue_stacks) removed 2026-05-11:
 // DSIRE's free API was deprecated to a $4,950/yr licensed model, and the
 // integration had never produced a successful row across the entire
@@ -43,7 +44,7 @@ import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs', 'policy_scan']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs', 'policy_scan', 'hosting_capacity']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -201,6 +202,7 @@ export default async function handler(req, res) {
       else if (source === 'geospatial_farmland') result = await refreshGeospatialFarmland()
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
       else if (source === 'policy_scan')         result = await refreshPolicyScan()
+      else if (source === 'hosting_capacity')    result = await refreshHostingCapacity()
       else                                     result = { error: 'Handler not implemented' }
       result.duration_ms = Date.now() - srcStart
       result = await applyStaleTolerance(source, result)
