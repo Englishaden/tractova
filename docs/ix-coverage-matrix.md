@@ -15,9 +15,9 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | NY | Central Hudson |  | ✅ | ✓ 306419 features |  |
 | NY | NYSEG / RG&E |  | ✅ | ✓ 23344 features |  |
 | NJ | JCP&L | ✅ |  | ✓ HTTP 206, 1024B |  |
-| NJ | PSE&G | 🔶 |  | ✓ HTTP 206, 1024B | VERIFIED real .xlsx (BPU QO21010085 monthly queue, Nov 2025) — same legal footing as JCP&L. Ready to wire. |
-| NJ | Atlantic City Electric | 🔶 | ⛔ |  | BPU-mandated monthly queue (filed Nov 2025) — exists, exact file URL on ACE site not yet isolated · PHI feed Feeder_Large_Gen_HC kW capped at 3MW (murky) |
-| NJ | Rockland Electric | 🔶 |  |  | BPU-mandated monthly queue — small territory, file URL not yet isolated |
+| NJ | PSE&G | ✅ |  | ✓ HTTP 206, 1024B | WIRED 2026-05-23: 129 CS / 276 MW. BPU QO21010085 monthly queue. |
+| NJ | Rockland Electric (RECO) | ✅ |  | ✓ HTTP 206, 1024B | WIRED 2026-05-23: feed live but 0 CS in queue now — auto-appears when CS>0 (separate Yes/No layout handled). |
+| NJ | Atlantic City Electric | 🔶 | ⛔ |  | BPU-mandated monthly queue exists, but file link is JS-rendered on atlanticcityelectric.com — needs a headless browser to isolate the URL. · PHI feed Feeder_Large_Gen_HC kW capped at 3MW (murky) |
 | VA | Dominion | ✅ | ⛔ | ✓ HTTP 206, 1024B | ICA layer only bucketed LIMIT_VAL integer codes, not real MW |
 | VA | Appalachian Power | ∅ |  |  | CONFIRMED (agent): PowerClerk app only, no public queue/HC map, absent from DOE Atlas |
 | WI | Alliant Energy | ✅ |  | ✓ HTTP 206, 1024B |  |
@@ -37,7 +37,7 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | RI | Rhode Island Energy | ❓ | ✅ | ✓ 24284 features | Not verified |
 | ME | Central Maine Power | 🔶 | ✅ | ✓ 204541 features | CMP "Level 4 Public Queue" + Level 2 tracker — recurring distribution queue (capacity/status/circuit/study dates), twice-monthly (agent high-conf). File URL needs extraction. |
 | ME | Versant | ∅ | ⛔ |  | CONFIRMED (agent): queue lives in ME PUC filings only, no clean public file · SaaS portal, no open feed |
-| CO | Xcel Energy | 🔶 | ✅ | ✓ 97699 features | Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only · DATA-TRUST FLAG: CO PUC publicly called Xcel grid/HC data "totally useless" (independent agent, 2026-05-23) — consider demoting |
+| CO | Xcel Energy | 🔶 | ⛔ |  | Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only · DEMOTED 2026-05-23: CO PUC publicly called Xcel grid/HC data "totally useless" — removed from FEEDS + DB row deleted. CO now on curated baseline. |
 | MN | Xcel Energy | 🔶 | ✅ | ✓ 167482 features | Xcel "Public DER Queue" — monthly Excel (pending + in-service, capacity/status/location), agent-confirmed. License viewer-only. |
 | MI | Indiana Michigan Power |  | ✅ | ✓ 94523 features |  |
 | MI | DTE |  | ⛔ |  | Hosting__1 field caps at 1MW |
@@ -60,16 +60,14 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | PA | PECO |  | ✅ | ✓ 3443 features |  |
 
 ## Summary
-- Cells: 64 — ✅ live 20 · 🔶 candidate 12 · ⛔ blocked 14 · ∅ none 8 · ❓ unchecked 10
+- Cells: 64 — ✅ live 21 · 🔶 candidate 10 · ⛔ blocked 15 · ∅ none 8 · ❓ unchecked 10
 - Liveness probes (live + candidate): 22/22 returning data
-- CS states with ≥1 live source: 13/19 — CA, CO, CT, MA, MD, ME, MI, MN, NJ, NY, RI, VA, WI
-- CS states with ZERO live source: 6 — IL, FL, HI, NM, OR, WA
+- CS states with ≥1 live source: 12/19 — CA, CT, MA, MD, ME, MI, MN, NJ, NY, RI, VA, WI
+- CS states with ZERO live source: 7 — CO, IL, FL, HI, NM, OR, WA
 
 ## 🔶 Candidates found by the independent sweep (real sources, NOT yet wired)
 > These are the answer to "what did we miss." Ranked roughly by license-safety + CS-relevance.
-- NJ · PSE&G · queue (license: gov) [probe ✓ HTTP 206, 1024B] — VERIFIED real .xlsx (BPU QO21010085 monthly queue, Nov 2025) — same legal footing as JCP&L. Ready to wire.
-- NJ · Atlantic City Electric · queue (license: gov) — BPU-mandated monthly queue (filed Nov 2025) — exists, exact file URL on ACE site not yet isolated
-- NJ · Rockland Electric · queue (license: gov) — BPU-mandated monthly queue — small territory, file URL not yet isolated
+- NJ · Atlantic City Electric · queue (license: gov) — BPU-mandated monthly queue exists, but file link is JS-rendered on atlanticcityelectric.com — needs a headless browser to isolate the URL.
 - MD · State (MEA) · queue (license: gov) — MEA Community Solar project list (Excel, quarterly, ~139 projects/204MW by utility) — gov-public CS DEPLOYMENT signal (agent-confirmed). File URL embedded on page — needs extraction.
 - ME · Central Maine Power · queue (license: unknown) — CMP "Level 4 Public Queue" + Level 2 tracker — recurring distribution queue (capacity/status/circuit/study dates), twice-monthly (agent high-conf). File URL needs extraction.
 - CO · Xcel Energy · queue (license: unknown) — Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only
@@ -81,7 +79,7 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 - WA · Avista · hc (license: unknown) — RE-CHECK: agent found a feeder-level DER Hosting Capacity Experience Builder app — DIFFERENT from the GEN_MAX_KW 50kW layer I rejected. REST endpoint needs extraction.
 
 ## License posture (a SEPARATE axis from accurate/live — flagged by all 3 agents)
-- LIVE feeds by license: open=1 · unknown=18 · gov=1
+- LIVE feeds by license: open=1 · unknown=17 · gov=3
 - 'open' = NY Open-NY (commercial reuse OK). 'gov' = govt/BPU-mandated public filing (strong public-record footing).
 - 'unknown' = utility ArcGIS "viewer-only" disclaimer — DECISION NEEDED before commercial redistribution. Most live HC feeds are here.
 

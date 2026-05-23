@@ -688,8 +688,8 @@ const CS_PIPELINE_SOURCES = {
   },
   nj_ic_queue: {
     label: 'NJ EDC Interconnection Queue',
-    region: 'JCP&L territory',
-    note: 'JCP&L monthly NJ interconnection queue (BPU docket QO21010085) · metering type = Community Solar (active queue). JCP&L territory only — PSE&G / ACE / Rockland file separately. A deployment-pipeline signal, not study-queue depth — the IX score uses the curated state baseline.',
+    region: 'NJ (multi-EDC)',
+    note: 'NJ EDC monthly interconnection queue inventories (BPU Docket QO21010085) · metering type = Community Solar (active queue). Covers JCP&L + PSE&G; Rockland (RECO) currently has 0 CS in queue; ACE pending (file URL JS-gated). A deployment-pipeline signal, not study-queue depth — the IX score uses the curated state baseline.',
   },
   va_dominion_queue: {
     label: 'Dominion VA Interconnection Queue',

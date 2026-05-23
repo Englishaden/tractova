@@ -74,13 +74,14 @@ const REGISTRY = [
   // ── NJ — 4 EDCs. Only JCP&L wired. The other 3 are KNOWN HOLES. ─────────────
   E('NJ', 'JCP&L', 'queue', 'live', { dataSource: 'nj_ic_queue', probe: 'http', license: 'gov',
     url: 'https://www.firstenergycorp.com/content/dam/feconnect/files/retail/nj/JCPL-Monthly-Interconnection-Queue-Report.xlsx' }),
-  E('NJ', 'PSE&G', 'queue', 'candidate', { probe: 'http', license: 'gov',
+  E('NJ', 'PSE&G', 'queue', 'live', { dataSource: 'nj_ic_queue', probe: 'http', license: 'gov',
     url: 'https://nj.pseg.com/-/media/pseg/public-site/documents/pseg-queue-inventory.ashx',
-    reason: 'VERIFIED real .xlsx (BPU QO21010085 monthly queue, Nov 2025) — same legal footing as JCP&L. Ready to wire.' }),
+    reason: 'WIRED 2026-05-23: 129 CS / 276 MW. BPU QO21010085 monthly queue.' }),
+  E('NJ', 'Rockland Electric (RECO)', 'queue', 'live', { dataSource: 'nj_ic_queue', probe: 'http', license: 'gov',
+    url: 'https://cdnc-dcxprod2-sitecore.azureedge.net/-/media/files/oru/documents/saveenergyandmoney/using-private-generation-energy-sources/applying-for-private-generation-interconnection-in-new-jersey/interconnection-queue.xlsx?rev=5d8a63aa5321456f86bb8159eb75aead',
+    reason: 'WIRED 2026-05-23: feed live but 0 CS in queue now — auto-appears when CS>0 (separate Yes/No layout handled).' }),
   E('NJ', 'Atlantic City Electric', 'queue', 'candidate', { license: 'gov',
-    reason: 'BPU-mandated monthly queue (filed Nov 2025) — exists, exact file URL on ACE site not yet isolated' }),
-  E('NJ', 'Rockland Electric', 'queue', 'candidate', { license: 'gov',
-    reason: 'BPU-mandated monthly queue — small territory, file URL not yet isolated' }),
+    reason: 'BPU-mandated monthly queue exists, but file link is JS-rendered on atlanticcityelectric.com — needs a headless browser to isolate the URL.' }),
   E('NJ', 'Atlantic City Electric', 'hc', 'blocked', { reason: 'PHI feed Feeder_Large_Gen_HC kW capped at 3MW (murky)' }),
 
   // ── VA — Dominion queue wired; Appalachian unchecked ────────────────────────
@@ -137,9 +138,8 @@ const REGISTRY = [
   E('RI', 'Rhode Island Energy', 'queue', 'unchecked', { reason: 'Not verified' }),
 
   // ── CO — Xcel HC wired; queue unchecked ─────────────────────────────────────
-  E('CO', 'Xcel Energy', 'hc', 'live', { dataSource: 'arcgis_hc', probe: 'arcgis', license: 'unknown',
-    url: 'https://services1.arcgis.com/eM84fwjsSggLQk61/arcgis/rest/services/PSCO22Final/FeatureServer/0',
-    reason: 'DATA-TRUST FLAG: CO PUC publicly called Xcel grid/HC data "totally useless" (independent agent, 2026-05-23) — consider demoting' }),
+  E('CO', 'Xcel Energy', 'hc', 'blocked', {
+    reason: 'DEMOTED 2026-05-23: CO PUC publicly called Xcel grid/HC data "totally useless" — removed from FEEDS + DB row deleted. CO now on curated baseline.' }),
   E('CO', 'Xcel Energy', 'queue', 'candidate', { license: 'unknown',
     reason: 'Xcel "Public DER Queue" — monthly downloadable Excel exists (agent-confirmed); license viewer-only' }),
 

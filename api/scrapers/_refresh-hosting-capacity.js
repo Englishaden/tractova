@@ -121,13 +121,11 @@ const FEEDS = [
     capField: 'Max_HC', unit: 'MW',  // verified: 24,284 feeders, 10,189 ≥5MW, max 27MW (data Apr 2024)
     grid_resolution: 'feeder',
   },
-  {
-    state: 'CO',
-    utility_name: 'Xcel Energy',
-    url: 'https://services1.arcgis.com/eM84fwjsSggLQk61/arcgis/rest/services/PSCO22Final/FeatureServer/0',
-    capField: 'MaxMW', unit: 'MW', parse: true,  // STRING field → pull+parse. 97,699 segments.
-    grid_resolution: 'segment',
-  },
+  // CO (Xcel PSCo) REMOVED 2026-05-23: the Colorado PUC publicly called Xcel's
+  // grid/hosting-capacity data "totally useless" and questioned compliance
+  // (surfaced by the independent IX-coverage sweep). Demoted to the curated
+  // ixDifficulty baseline rather than present regulator-disputed data as live.
+  // Endpoint (if ever re-validated): services1.arcgis.com/eM84fwjsSggLQk61/.../PSCO22Final/FeatureServer/0
   {
     state: 'MN',
     utility_name: 'Xcel Energy',
