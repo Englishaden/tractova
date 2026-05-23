@@ -135,6 +135,13 @@ const FEEDS = [
     capField: 'Maximum_Available_Hosting_Capac', unit: 'MW', parse: true,  // STRING field → pull+parse. 167,482 segments (May 2025).
     grid_resolution: 'segment',
   },
+  {
+    state: 'MI',
+    utility_name: 'Indiana Michigan Power',
+    url: 'https://services.arcgis.com/ZnwBsu4Q8SvSAofV/arcgis/rest/services/PROD_MI_HC_GRID/FeatureServer/0',
+    capField: 'MAX_HCLOAD', unit: 'kW',  // AEP I&M — verified: 94,523 sections, max 7.5MW, 9,666 ≥5MW (found on re-check)
+    grid_resolution: 'grid_section',
+  },
   // Verified NOT usable (kept here so we don't re-investigate):
   //  - Avista (WA): GEN_MAX_KW caps at 100kW — not feeder HC (wrong scale, would mislead).
   //  - PHI (Pepco/Delmarva/ACE): Feeder_Large_Gen_HC kW capped at 3MW (murky).
