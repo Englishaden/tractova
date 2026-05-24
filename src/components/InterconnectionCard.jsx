@@ -1,10 +1,18 @@
 import CardDrilldown from './CardDrilldown'
 import { EaseArcGauge, QueueBadge, SectionLabel } from '../lib/searchShared.jsx'
 import { sitesForMw } from '../lib/programData'
+import { structureNoun, STRUCTURE_FROM_TAG } from '../lib/lensFormConstants'
 
 export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary, hostingCapacity }) {
   if (!interconnection) return null
   const { servingUtility, queueStatus, queueStatusCode, easeScore, avgStudyTimeline, queueNotes } = interconnection
+
+  // Monetization-structure noun for the live-pipeline copy — follows the selected
+  // structure view (CS / net-metering / DG) instead of hardcoding "CS" (which was
+  // wrong for net-metering + fuel-type-only queues). availableStructures (>1) also
+  // drives a per-structure breakdown strip so capture-all data is visible.
+  const ixNoun = queueSummary ? structureNoun(queueSummary.view, queueSummary.availableStructures) : { short: 'DG', label: 'Distribution-DG' }
+  const ixBreakdown = (queueSummary?.availableStructures || []).filter(s => (s.projectsInQueue || 0) > 0)
 
   const TREND_ICON = { growing: '↑', stable: '→', shrinking: '↓' }
   // Trend uses amber-family intensities to stay consistent with the IX
@@ -103,9 +111,21 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
             state baseline; this is live CONTEXT. Labels/footer are source-driven
             (queueSummary.sourceRegion / sourceNote). "energized" is omitted when
             the source reports no energized history (completedProjects == null). */}
-        {queueSummary && queueSummary.signalType === 'cs_pipeline' && (
+        {queueSummary && queueSummary.signalType === 'cs_pipeline' && queueSummary.totalProjects === 0 && (
           <div>
-            <SectionLabel>CS Interconnection Pipeline · {queueSummary.sourceRegion || 'Distribution'}</SectionLabel>
+            <SectionLabel>{ixNoun.label} Interconnection Pipeline · {queueSummary.sourceRegion || 'Distribution'}</SectionLabel>
+            <div className="rounded-lg px-4 py-3 text-[11px] text-gray-500 leading-relaxed" style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706', background: 'rgba(217,119,6,0.04)' }}>
+              No interconnection-queue data tagged <span className="font-semibold text-gray-700">{ixNoun.label.toLowerCase()}</span> for this state yet — IX shown on the curated baseline.
+              {ixBreakdown.length > 0 && (
+                <span className="block mt-1 text-gray-400">Live here: {ixBreakdown.map(s => `${STRUCTURE_FROM_TAG[s.meteringType] || s.meteringType} (${s.projectsInQueue.toLocaleString()})`).join(' · ')}</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {queueSummary && queueSummary.signalType === 'cs_pipeline' && queueSummary.totalProjects > 0 && (
+          <div>
+            <SectionLabel>{ixNoun.label} Interconnection Pipeline · {queueSummary.sourceRegion || 'Distribution'}</SectionLabel>
             <div
               className="rounded-lg overflow-hidden"
               style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706' }}
@@ -114,10 +134,22 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">Active Development Pipeline</span>
                   <span className="text-[10px] text-gray-400">·</span>
-                  <span className="text-[10px] text-gray-500 tabular-nums">{queueSummary.totalProjects} CS projects</span>
+                  <span className="text-[10px] text-gray-500 tabular-nums">{queueSummary.totalProjects.toLocaleString()} {ixNoun.short} projects</span>
                 </div>
                 <span className="text-xs font-bold tabular-nums text-gray-700">{queueSummary.totalMW.toLocaleString()} MW</span>
               </div>
+
+              {/* Monetization-structure breakdown — surfaces the capture-all-DG mix
+                  when viewing All structures (more than one tag present). */}
+              {ixBreakdown.length > 1 && (
+                <div className="px-4 py-1.5 flex flex-wrap gap-x-3 gap-y-0.5 bg-white border-b border-gray-100">
+                  {ixBreakdown.map(s => (
+                    <span key={s.meteringType} className="text-[10px] text-gray-500 tabular-nums">
+                      <span className="font-semibold text-gray-700">{STRUCTURE_FROM_TAG[s.meteringType] || s.meteringType}</span> {s.projectsInQueue.toLocaleString()} · {(s.mwPending || 0).toLocaleString()}MW
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className={`px-4 py-2.5 grid ${queueSummary.completedProjects != null ? 'grid-cols-2' : 'grid-cols-1'} gap-3 bg-white border-b border-gray-100`}>
                 <div className="text-center">

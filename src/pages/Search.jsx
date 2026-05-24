@@ -78,7 +78,7 @@ export {
 // ALL_STATES + STAGES + TECHNOLOGIES moved to src/lib/lensFormConstants.js
 // so the Cmd-K palette's inline Lens form can share the same source of
 // truth. Re-imported here.
-import { ALL_STATES, STAGES, TECHNOLOGIES } from '../lib/lensFormConstants.js'
+import { ALL_STATES, STAGES, TECHNOLOGIES, STRUCTURE_OPTIONS, STRUCTURE_TO_TAG, STRUCTURE_DEFAULT, structureLabelFromTag, getStickyStructure, setStickyStructure } from '../lib/lensFormConstants.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small UI helpers
@@ -236,6 +236,11 @@ function SearchContent() {
   // when already a display label. Handles legacy slug-format scenarios +
   // any external links / bookmarks using the slug form.
   const initialTechnology = denormalizeTech(searchParams.get('technology') || '')
+  // Monetization-structure discovery filter — from ?structure=<tag>, else the
+  // user's sticky pref (default 'All structures'). Scopes the IX-context view only.
+  const initialStructure = searchParams.get('structure')
+    ? structureLabelFromTag(searchParams.get('structure'))
+    : getStickyStructure()
 
   const [form, setForm] = useState({
     state: initialState,
@@ -243,6 +248,7 @@ function SearchContent() {
     mw: initialMW,
     stage: initialStage,
     technology: initialTechnology,
+    structure: initialStructure,
   })
 
   // Phase 2C — `?fromProject=<id>` deep-link. The Cmd-K `:rerun <project>`
@@ -461,7 +467,7 @@ function SearchContent() {
   // to fill the missing fields.
   useEffect(() => {
     if (!programMap) return
-    const urlKey = `${initialState}|${initialCounty}|${initialMW}|${initialStage}|${initialTechnology}`
+    const urlKey = `${initialState}|${initialCounty}|${initialMW}|${initialStage}|${initialTechnology}|${initialStructure}`
     // First mount or repeat — don't redo work
     if (lastAutoSubmitKey.current === urlKey) return
     // Ignore the empty-URL case (user landed on /search with no params).
@@ -480,6 +486,7 @@ function SearchContent() {
       mw:         initialMW         || '',
       stage:      initialStage      || '',
       technology: initialTechnology || '',
+      structure:  initialStructure  || STRUCTURE_DEFAULT,
     })
     // Clear stale result so the user isn't reading old data while the
     // new search dispatches (or while they fill in missing fields).
@@ -491,7 +498,7 @@ function SearchContent() {
     if (initialState && initialCounty && initialMW) {
       setTimeout(() => formRef.current?.requestSubmit(), 0)
     }
-  }, [programMap, initialState, initialCounty, initialMW, initialStage, initialTechnology])
+  }, [programMap, initialState, initialCounty, initialMW, initialStage, initialTechnology, initialStructure])
 
   // Phase 2C auto-kickoff: ?fromProject= hydrates the form async (the
   // useEffect above fetches the projects row + calls setForm). Once
@@ -520,7 +527,7 @@ function SearchContent() {
         programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
         getCountyData(form.state, form.county),
         getRevenueStack(form.state),
-        getIXQueueSummary(form.state, form.mw),
+        getIXQueueSummary(form.state, form.mw, STRUCTURE_TO_TAG[form.structure] ?? 'all'),
         getNearestSubstations(form.state, form.county),
         getRevenueRates(form.state),
         getEnergyCommunity(form.state, form.county),
@@ -691,7 +698,7 @@ function SearchContent() {
   }
 
   const handleClearAll = () => {
-    setForm({ state: '', county: '', mw: '', stage: '', technology: '' })
+    setForm({ state: '', county: '', mw: '', stage: '', technology: '', structure: getStickyStructure() })
     setResults(null)
     setConfirmClear(false)
     sessionStorage.removeItem('tractova_lens_form')
@@ -797,7 +804,7 @@ function SearchContent() {
 
           {/* Fields — V3 paper background, no longer green-tinted */}
           <div className="px-5 py-5 bg-paper rounded-b-xl">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
 
               {/* State */}
               <FieldSelect
@@ -859,6 +866,17 @@ function SearchContent() {
                 placeholder="Select type…"
                 optionTooltips={TECH_FILTER_TOOLTIPS}
                 required
+              />
+
+              {/* Monetization structure — DISCOVERY filter for the live IX queue
+                  (which monetization slice you're viewing). Defaults to All;
+                  pinning a structure sticks (localStorage). Not a scoring input. */}
+              <FieldSelect
+                label="Monetization Structure"
+                labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+                value={form.structure}
+                onChange={(val) => { setForm((f) => ({ ...f, structure: val })); setStickyStructure(val) }}
+                options={STRUCTURE_OPTIONS}
               />
             </div>
           </div>

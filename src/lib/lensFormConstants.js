@@ -48,6 +48,75 @@ export const STAGES = [
 export const TECHNOLOGIES = ['Community Solar', 'Hybrid', '---', 'C&I Solar', 'BESS']
 export const TECHNOLOGIES_FLAT = TECHNOLOGIES.filter(t => t !== '---')
 
+// ── Monetization-structure filter (capture-all-DG, scope decision 2026-05-23) ──
+// A DISCOVERY filter that scopes the IX-context view by monetization structure
+// (metering_type tag — single source of truth: api/scrapers/_meteringType.js).
+// 'All structures' = every tag. This is NOT an offtake-scoring input — Technology
+// still drives the score; structure decides which interconnection/monetization
+// slice of the live IX queue you're looking at (discovery in the Lens; program
+// economics live in Scenario Studio). CS is the wedge, so a CS specialist can pin
+// structure=Community Solar and it sticks (localStorage).
+export const STRUCTURE_OPTIONS = ['All structures', 'Community Solar', 'Net Metering', 'Net Billing', 'C&I behind-the-meter']
+export const STRUCTURE_DEFAULT = 'All structures'
+
+// Label ⇄ metering_type tag. 'All structures' → 'all' (every structure; maps to
+// getIXQueueSummary's view=null). Labels that have no live source coverage yet
+// (net_billing, ci_btm) are offered as a product statement — the IX card shows an
+// honest "no IX data tagged for this structure" state until a source tags them.
+export const STRUCTURE_TO_TAG = {
+  'All structures':       'all',
+  'Community Solar':      'community_solar',
+  'Net Metering':         'net_metering',
+  'Net Billing':          'net_billing',
+  'C&I behind-the-meter': 'ci_btm',
+}
+export const STRUCTURE_FROM_TAG = Object.fromEntries(
+  Object.entries(STRUCTURE_TO_TAG).map(([label, tag]) => [tag, label]),
+)
+
+// Resolve a URL/?structure= value (a tag) to its display label; falls back to the
+// default when absent or unrecognized.
+export function structureLabelFromTag(tag) {
+  return STRUCTURE_FROM_TAG[tag] || STRUCTURE_DEFAULT
+}
+
+// Display nouns per structure tag — for honest IX-card copy (the card used to
+// hardcode "CS projects" even for net-metering / fuel-type-only queues). `short`
+// goes in "{n} {short} projects"; `label` heads the section.
+const STRUCTURE_NOUN = {
+  community_solar: { short: 'CS',                label: 'Community-Solar' },
+  net_metering:    { short: 'net-metering',      label: 'Net-Metering' },
+  net_billing:     { short: 'net-billing',       label: 'Net-Billing' },
+  ci_btm:          { short: 'C&I BTM',           label: 'C&I Behind-the-Meter' },
+  on_bill:         { short: 'on-bill',           label: 'On-Bill' },
+  other:           { short: 'other-structure',   label: 'Other-Structure' },
+  unknown:         { short: 'DG',                label: 'Distribution-DG' },
+}
+const DG_NOUN = { short: 'DG', label: 'Distribution-DG' }
+
+// Resolve the display noun for an IX summary view. An explicit single-structure
+// view names that structure; the 'all' view (view==null) names the lone structure
+// when there's only one, else the generic "DG" (mixed structures).
+export function structureNoun(view, availableStructures = []) {
+  if (view && STRUCTURE_NOUN[view]) return STRUCTURE_NOUN[view]
+  const tags = (availableStructures || []).map(s => s.meteringType)
+  if (tags.length === 1 && STRUCTURE_NOUN[tags[0]]) return STRUCTURE_NOUN[tags[0]]
+  return DG_NOUN
+}
+
+// Sticky structure preference (localStorage). Guarded so it's safe in node/SSR
+// (returns the default when localStorage is unavailable).
+const STRUCTURE_PREF_KEY = 'tractova_lens_structure'
+export function getStickyStructure() {
+  try {
+    const v = localStorage.getItem(STRUCTURE_PREF_KEY)
+    return STRUCTURE_OPTIONS.includes(v) ? v : STRUCTURE_DEFAULT
+  } catch { return STRUCTURE_DEFAULT }
+}
+export function setStickyStructure(label) {
+  try { if (STRUCTURE_OPTIONS.includes(label)) localStorage.setItem(STRUCTURE_PREF_KEY, label) } catch { /* ignore */ }
+}
+
 // Resolve a state input — accepts either a 2-letter id ('MA') or a full
 // name ('Massachusetts'). Returns the matching ALL_STATES row or null.
 // Case-insensitive. Used by the palette form to hydrate from parsed

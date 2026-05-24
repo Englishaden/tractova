@@ -3,6 +3,7 @@
 
 import { SummaryShell } from './OfftakeCardSummary'
 import { QueueBadge } from '../../lib/searchShared.jsx'
+import { structureNoun } from '../../lib/lensFormConstants'
 
 const PILLAR_ACCENT = '#D97706'
 
@@ -13,12 +14,18 @@ export default function InterconnectionCardSummary({ interconnection, queueSumma
   // Caption prefers live data when wired; falls back to curated string.
   let caption = null
   if (queueSummary && queueSummary.signalType === 'cs_pipeline') {
-    // Distribution CS pipeline — show pipeline (+ energized when the source
-    // reports it), not a study window (these sources don't observe one).
+    // Distribution DG pipeline — noun follows the selected monetization-structure
+    // view (CS / net-metering / DG), not a hardcoded "CS". Show pipeline (+ energized
+    // when the source reports it), not a study window (these sources don't observe one).
     const region = queueSummary.sourceRegion || 'distribution'
-    caption = queueSummary.completedProjects != null
-      ? `${queueSummary.totalProjects.toLocaleString()} CS in pipeline · ${queueSummary.completedProjects.toLocaleString()} energized · ${region}`
-      : `${queueSummary.totalProjects.toLocaleString()} CS in active pipeline · ${region}`
+    const noun = structureNoun(queueSummary.view, queueSummary.availableStructures).short
+    if (queueSummary.totalProjects === 0) {
+      caption = `No ${noun} interconnection-queue data for this state yet · curated baseline`
+    } else {
+      caption = queueSummary.completedProjects != null
+        ? `${queueSummary.totalProjects.toLocaleString()} ${noun} in pipeline · ${queueSummary.completedProjects.toLocaleString()} energized · ${region}`
+        : `${queueSummary.totalProjects.toLocaleString()} ${noun} in active pipeline · ${region}`
+    }
   } else if (queueSummary && queueSummary.totalProjects > 0) {
     const months = queueSummary.avgStudyMonths
     const mwPending = queueSummary.totalMW

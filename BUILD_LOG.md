@@ -4,6 +4,30 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-24 (later) SHIPPED Lens monetization-structure filter (additive) — NJ re-scrape is the gated next step
+
+**Migration 068 is APPLIED (verified live: `ix_queue_data` = 13 community_solar + 3 unknown).** Built the Lens structure work via the **additive** path (Aden's call): keep the Technology dropdown driving scoring untouched; add a secondary **Monetization Structure** discovery filter that scopes the live IX-queue view. No scoreEngine refactor, no saved-project migration. BESS left as-is this slice (merchant-BESS scope reconciliation logged as its own future slice — reframing it now needs the very scoring/data changes the additive path avoids).
+
+### ✅ SHIPPED (code complete + verified; NOT yet committed/pushed at time of writing)
+- **Structure filter constants + sticky pref** (`lensFormConstants.js`): `STRUCTURE_OPTIONS` [All structures · Community Solar · Net Metering · Net Billing · C&I behind-the-meter], `STRUCTURE_TO_TAG`/`STRUCTURE_FROM_TAG`, `structureLabelFromTag`, `structureNoun`, `getStickyStructure`/`setStickyStructure` (localStorage, default All; CS pin sticks). All guarded for node.
+- **Lens forms** (`Search.jsx` + `PaletteLensForm.jsx`): new "Monetization Structure" `FieldSelect` (default sticky All). Wired to URL `?structure=<tag>`, the URL-sync signature, and `getIXQueueSummary(state, mw, tag)`. Grid widened to `lg:grid-cols-6`. Palette emits `structureTag` → `CommandPalette` adds `&structure=` (omits when 'all'). DECOUPLED from offtake scoring — Technology still drives the score; structure scopes the IX-context view only (discovery in Lens, economics in Scenario Studio).
+- **IX card copy structure-aware** (`InterconnectionCard.jsx` + `InterconnectionCardSummary.jsx` + `DevFeasibilityView.jsx`): the hardcoded "CS projects" now follows the view via `structureNoun(view, availableStructures)` ("CS" / "net-metering" / "DG"). This also fixes the pre-existing mislabel where VA/WI/CA (fuel-type-only `unknown` queues) read "CS projects". Added: a per-structure breakdown strip when a state spans >1 structure (dormant until NJ re-scrape), and an honest empty-state ("No interconnection-queue data tagged <structure> for this state yet — curated baseline") when the selected structure has no rows.
+- **Glossary** (`glossaryDefinitions.js` + `glossaryTerms.js` pillar map): added Monetization Structure, Net Metering (NEM), Net Billing (NBT), C&I Behind-the-Meter — all `offtake` pillar.
+- **Tests** (`tests/unit/structureFilter.spec.js`): label↔tag round-trip, `structureLabelFromTag` fallback, `structureNoun` (explicit / single / mixed), `getStickyStructure` node-safe default.
+
+### ⚠️ Why it's display-neutral right now (and the gated next step)
+Every live state is currently single-structure (NY/MD/NJ = community_solar, VA/WI/CA = unknown), so the structure filter + breakdown have nothing multi-structure to show YET. The payoff lands when **NJ is re-scraped to capture-all** (JCP&L/PSE&G net-metering ≈ 8k projects). That's a **prod-data mutation** + must happen **after this code deploys** (so the card is structure-aware before net-metering data arrives) → gated on Aden's OK. Non-destructive path = the weekly ix-queue cron upsert converges NJ (old CS rows update in place, new structure rows insert — no DELETE needed); or `apply-dist-cutover.mjs NJ --apply` (destructive DELETE+INSERT, needs §1.1 approval).
+
+### ⏭ DO NEXT
+1. **Trigger the NJ capture-all re-scrape** (after this deploys) → net-metering goes live with honest copy; the breakdown strip + structure filter become meaningful. Then NY (drop the CDG-only filter, tag CDG=Yes→CS / CDG=No→net_metering).
+2. Browser-verify the structure filter on prod (default All; pin CS sticks; card noun follows selection).
+3. **Future slices (deliberate, not now):** the full two-axis rename (replace Technology with Architecture × Structure, scoreEngine refactor, saved-project migration); the merchant-BESS scope reconciliation; offtake models for net metering / net billing (or keep "coverage: limited").
+
+### Still open from the prior arc (manual-data phase)
+7 browser/manual-gated IX candidates (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS CS queues) → manual-upload ingest pipeline.
+
+---
+
 ## 🟢 Pickup — 2026-05-24 SHIPPED capture-all-DG data layer (schema + scrapers + read layer) — Lens UI is NEXT
 
 **The scope decision is now in DATA form.** Schema fork resolved with Aden: **row per (state, utility, metering_type)** (not a per-utility breakdown column). The NJ spike grounded the tag mapping in real file values before any code — no guessing.

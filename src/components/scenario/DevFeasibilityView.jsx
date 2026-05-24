@@ -15,6 +15,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import { applyLeverAdjustments } from '../../lib/leverAdjustments'
+import { structureNoun } from '../../lib/lensFormConstants'
 import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
 import FieldSelect from '../FieldSelect'
@@ -516,7 +517,7 @@ function InterconnectionPillarCard({ ixQueueSummary, stateProgram, subScore, str
             {ixQueueSummary.totalProjects.toLocaleString()} in pipeline · {ixQueueSummary.totalMW.toLocaleString()} MW
           </div>
           {ixQueueSummary.completedProjects != null && (
-            <div className="text-gray-600">{ixQueueSummary.completedProjects.toLocaleString()} CS projects energized to date</div>
+            <div className="text-gray-600">{ixQueueSummary.completedProjects.toLocaleString()} {structureNoun(ixQueueSummary.view, ixQueueSummary.availableStructures).short} projects energized to date</div>
           )}
           <div className="text-[10px] text-gray-500">{ixQueueSummary.sourceRegion || 'Distribution'} · score on curated baseline</div>
         </div>

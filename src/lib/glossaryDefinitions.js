@@ -34,6 +34,30 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'The pillar that answers "how does this project actually make money?" For Community Solar: state CS program (capacity remaining, LMI carveout requirements, contract tenor). For C&I: retail electricity rates from EIA Form 861 (curated for 12 high-rate states). For BESS: ISO capacity-market clearing prices (curated for 10 active markets). For Hybrid: blended.',
     inputs: 'state_programs · revenue_stacks · EIA Form 861 · ISO capacity markets',
   },
+  'Monetization Structure': {
+    title: 'Monetization Structure',
+    short: 'How a distribution-DG project earns revenue — the program or tariff it monetizes under (community solar, net metering, net billing, C&I behind-the-meter).',
+    long: 'Tractova\'s monetization axis, distinct from system architecture (PV / PV+storage / storage). The same physical solar array can be monetized as a community-solar subscription, on-site net metering, a net-billing export tariff, or a C&I behind-the-meter PPA — each with different economics and a different interconnection path. The Lens "Monetization Structure" filter scopes the live interconnection queue to the slice you care about (discovery); program economics are modeled in Scenario Studio.',
+    inputs: 'ix_queue_data.metering_type · state_programs · revenue_stacks',
+  },
+  'Net Metering': {
+    title: 'Net Metering (NEM)',
+    short: 'Retail-rate bill credit for exported generation — kWh sent to the grid offset kWh drawn, at (or near) the full retail rate.',
+    long: 'The most common distribution-DG monetization mechanism: a behind-the-meter system\'s exports net against its imports, crediting the customer at or near the retail rate. Favorable where on-site load roughly matches generation. As DG penetration rises, many states are migrating from full retail net metering toward net billing. Community solar typically rides a VIRTUAL net-metering variant that allocates credits to off-site subscribers.',
+    inputs: 'ix_queue_data.metering_type · utility tariff schedules',
+  },
+  'Net Billing': {
+    title: 'Net Billing (NBT)',
+    short: 'Export credit at avoided-cost (below retail) rather than the full retail rate — the successor tariff replacing net metering in several states.',
+    long: 'Under net billing, exported generation is credited at an avoided-cost or time-varying export rate typically well below the retail rate, while imports are billed at retail. California\'s NEM 3.0 Net Billing Tariff is the highest-profile example, and other states are following as DG penetration grows. Net billing weakens stand-alone export economics and pushes projects toward on-site consumption plus storage to shift exports into higher-value periods.',
+    inputs: 'ix_queue_data.metering_type · utility export-credit schedules',
+  },
+  'C&I Behind-the-Meter': {
+    title: 'C&I Behind-the-Meter (BTM)',
+    short: 'Solar sited behind a commercial/industrial customer\'s meter, offsetting on-site load at the retail rate via a PPA or host ownership.',
+    long: 'A behind-the-meter system serving a single commercial or industrial off-taker, displacing grid purchases at the customer\'s retail rate (the higher the rate, the better the spread). Monetized through a long-tenor PPA or host-owned with savings accruing directly. Distinct from front-of-meter community solar, which exports and allocates credits to subscribers. Tractova scores C&I offtake against state commercial retail rates (EIA Form 861).',
+    inputs: 'EIA Form 861 retail rates · ix_queue_data.metering_type',
+  },
   'Feasibility Index': {
     title: 'Feasibility Index',
     short: 'Composite 0-100 score blending three pillars — Offtake (40%), Interconnection (35%), and Site Control (25%) sub-scores.',
