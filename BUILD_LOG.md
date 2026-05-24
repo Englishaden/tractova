@@ -4,6 +4,31 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-24 (latest) SHIPPED two-axis rename — Technology → Architecture × Structure
+
+**The conflated `technology` field is split into two orthogonal axes** (scope decision in code). Aden's calls: **full rename** (real DB columns + migration) and **drop Standalone BESS** from the form (merchant out of scope; legacy BESS preserved + still scored). Done as ONE backward-compatible slice — the foundation (engine + constants) is no-UI-change and verified before the UI flip.
+
+### Engineering shape (how "full" stays safe)
+- **`technology` is kept as a DERIVED MIRROR** (composed label, e.g. "Community Solar + Storage") so the ~25 long-tail read sites (PDF/exports/alerts/Compare/Library/ProjectCard) keep working unchanged. The new `architecture` + `structure` columns are canonical; the Lens form + scoreEngine use the axes. SSOT for the mapping: `lensFormConstants.composeTechnology` / `axesFromTechnology` (round-trips every form combo; unit-tested).
+- **Migration `069_two_axis_architecture_structure.sql`** (FILE — Aden applies) — adds `architecture` + `structure` to projects / comparable_deals / scenario_snapshots, backfills from `technology` (mirrors axesFromTechnology). Saving is resilient (strips the new columns if 069 isn't applied yet), so it's safe pre/post-apply.
+
+### ✅ SHIPPED (verified: lint + 193 unit + 7/7 smoke + build green; commit pending)
+- **Constants** (`lensFormConstants.js`): `ARCHITECTURE_OPTIONS` [Standalone PV · PV + Storage] (BESS = legacy data value, not a form option); `STRUCTURE_OPTIONS` now a required project attribute [Community Solar · Net Metering · Net Billing · C&I behind-the-meter] (dropped "All structures"); `composeTechnology` / `axesFromTechnology`; architecture sticky pref.
+- **scoreEngine**: `computeSubScores` takes axes (or a legacy technology string via axesFromTechnology). **Offtake from STRUCTURE** (CS / C&I curated; Net Metering / Net Billing → honest `fallback`/'limited' baseline, NB < NM, NOT a CS default; legacy BESS kept). **IX/site modifier from ARCHITECTURE** (PV + Storage −5 IX; legacy BESS +5 / wetland-only site). `getOfftakeCoverageStates` axis-aware. **Semantic change:** old "Hybrid" (CS+BESS offtake blend) → now PV+Storage+CS = CS offtake only (merchant BESS value removed = scope-correct).
+- **scenarioEngine**: `normalizeTech` routed through the axis SSOT (fixes 'Community Solar + Storage' mis-classifying as BESS). Net Metering / Net Billing / C&I+Storage have **no revenue model → computeForTech returns null → Scenario Studio gates** ("not available for this combination") instead of silently showing CS revenue.
+- **Lens forms** (Search.jsx + PaletteLensForm.jsx): single Technology select → **Architecture + Structure** selects (both required, sticky). `technology` kept as a derived field so all existing `form.technology` reads + `computeSubScores`/`computeBaseline` calls work untouched. URL params `architecture=` + `structure=`; legacy `?technology=` decomposed into axes. Save persists architecture+structure (resilient). CommandPalette carries the architecture param.
+- **Glossary**: System Architecture (new), Monetization Structure (updated). Tests updated + added (scoreEngine two-axis; compose⇄axes round-trip).
+
+### ⏭ DO NEXT
+1. **Apply migration 069** in Supabase (Aden). Saving works before/after (resilient insert).
+2. Browser-verify on prod once deployed: System Architecture + Monetization Structure selects (sticky); legacy saved projects still render (composed technology mirror); Net Metering/Net Billing score with "limited offtake" + Scenario Studio gated.
+3. **Flagged future slices:** net-metering / net-billing offtake + revenue models (so Scenario Studio works for them); merchant-BESS scope reconciliation; optionally surface architecture/structure as separate chips on display sites (currently the composed `technology` label conveys both).
+
+### Still open from the prior arc (manual-data phase)
+7 browser/manual-gated IX candidates (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS CS queues) → manual-upload ingest pipeline.
+
+---
+
 ## 🟢 Pickup — 2026-05-24 (later) SHIPPED Lens structure filter + NJ & NY capture-all re-scrapes LIVE
 
 **Migration 068 is APPLIED (verified live: `ix_queue_data` = 13 community_solar + 3 unknown).** Built the Lens structure work via the **additive** path (Aden's call): keep the Technology dropdown driving scoring untouched; add a secondary **Monetization Structure** discovery filter that scopes the live IX-queue view. No scoreEngine refactor, no saved-project migration. BESS left as-is this slice (merchant-BESS scope reconciliation logged as its own future slice — reframing it now needs the very scoring/data changes the additive path avoids).

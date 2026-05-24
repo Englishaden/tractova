@@ -245,13 +245,62 @@ describe('getOfftakeCoverageStates — published coverage', () => {
     expect(list).toEqual(sorted)
   })
 
-  it('returns BESS coverage for BESS and Hybrid', () => {
+  it('returns BESS coverage for legacy BESS', () => {
     expect(getOfftakeCoverageStates('BESS')).toBeTruthy()
-    expect(getOfftakeCoverageStates('Hybrid')).toBeTruthy()
-    expect(getOfftakeCoverageStates('BESS')).toEqual(getOfftakeCoverageStates('Hybrid'))
+    expect(getOfftakeCoverageStates('BESS').length).toBeGreaterThan(10)
+  })
+
+  it('Hybrid is now CS-family (PV+Storage + CS) → null coverage, not BESS', () => {
+    // Two-axis rename: Hybrid = PV+Storage architecture + CS structure. Offtake
+    // is driven by structure (CS, all-50 curated), not the old CS/BESS blend.
+    expect(getOfftakeCoverageStates('Hybrid')).toBeNull()
+  })
+
+  it('returns [] for Net Metering / Net Billing (no curated model yet)', () => {
+    expect(getOfftakeCoverageStates('Net Metering')).toEqual([])
+    expect(getOfftakeCoverageStates('Net Billing')).toEqual([])
   })
 
   it('returns null for Community Solar (all 50 states are curated)', () => {
     expect(getOfftakeCoverageStates('Community Solar')).toBeNull()
+  })
+})
+
+describe('computeSubScores — two-axis model (architecture × structure)', () => {
+  const NY = { id: 'NY', csStatus: 'active', capacityMW: 600, ixDifficulty: 'moderate' }
+
+  it('accepts an {architecture, structure} object', () => {
+    const r = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Community Solar' })
+    expect(r.offtake).toBeGreaterThan(0)
+    expect(r.coverage.offtake).toBe('researched')
+  })
+
+  it('legacy technology strings still resolve to the right axes', () => {
+    // 'C&I Solar' → C&I structure; 'Hybrid' → PV+Storage + CS.
+    const ci = computeSubScores(NY, null, '', 'C&I Solar')
+    const ciAxes = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I behind-the-meter' })
+    expect(ci.offtake).toBe(ciAxes.offtake)
+  })
+
+  it('PV+Storage applies the -5 IX modifier vs Standalone PV', () => {
+    const pv = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Community Solar' })
+    const hyb = computeSubScores(NY, null, '', { architecture: 'PV + Storage', structure: 'Community Solar' })
+    expect(pv.ix - hyb.ix).toBe(5)
+    expect(pv.offtake).toBe(hyb.offtake) // same structure → same offtake
+  })
+
+  it('Net Metering / Net Billing score offtake as limited (fallback), NB < NM', () => {
+    const nm = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
+    const nb = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Billing' })
+    expect(nm.coverage.offtake).toBe('fallback')
+    expect(nb.coverage.offtake).toBe('fallback')
+    expect(nb.offtake).toBeLessThan(nm.offtake)
+  })
+
+  it('legacy standalone BESS still scores (offtake from capacity market, +5 IX)', () => {
+    const bess = computeSubScores(NY, null, '', 'BESS')
+    const pv = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Community Solar' })
+    expect(bess.ix - pv.ix).toBe(5)
+    expect(bess.offtake).toBeGreaterThan(0)
   })
 })

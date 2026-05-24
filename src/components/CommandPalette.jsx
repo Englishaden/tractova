@@ -295,14 +295,15 @@ export default function CommandPalette() {
   // Structured Lens form submission. Builds the same /search?... URL
   // the colon shorthand would have built, but with the County (the bit
   // the shorthand never carried).
-  const handleLensSubmit = useCallback(({ stateId, stateName, county, mw, tech, stage, structureTag }) => {
+  const handleLensSubmit = useCallback(({ stateId, stateName, county, mw, tech, stage, architecture, structureTag }) => {
     const params = new URLSearchParams()
     params.set('state', stateId)
     params.set('county', county)
     params.set('mw', String(mw))
-    params.set('technology', tech)
-    params.set('stage', stage)
+    params.set('technology', tech)          // derived mirror (back-compat)
+    if (architecture) params.set('architecture', architecture)
     if (structureTag && structureTag !== 'all') params.set('structure', structureTag)
+    params.set('stage', stage)
     const path = `/search?${params.toString()}`
     const label = `${stateName || stateId} · ${county} · ${mw} MW`
     const hint = `${tech} · ${stage.split(' (')[0]}`

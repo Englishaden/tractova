@@ -27,6 +27,7 @@ import {
   computeBESSProjection,
 } from './revenueEngine'
 import { computePolicyAdjustments } from './policyAdjustments'
+import { axesFromTechnology } from './lensFormConstants'
 
 // ── Industry baselines ──────────────────────────────────────────────────────
 // Values that aren't in revenueEngine's per-state data but are needed to
@@ -469,13 +470,23 @@ export function formatScenarioSummary(scenario, baseline) {
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
-// Normalize tech strings to the engine's four canonical buckets.
+// Normalize a technology string OR {architecture, structure} axes to a revenue-
+// engine bucket. Routed through axesFromTechnology (the axis SSOT) so the new
+// two-axis labels map correctly — e.g. 'Community Solar + Storage' is HYBRID, not
+// 'bess' (the old substring check mis-classified it). Buckets with no revenue
+// model yet (net-metering / net-billing / C&I+storage) get their own slugs;
+// computeForTech returns null for them → computeBaseline returns null →
+// Scenario Studio is gated (the existing "no revenue data" path).
 function normalizeTech(t) {
-  const s = String(t || '').toLowerCase()
-  if (s.includes('bess') || s.includes('storage') || s.includes('battery')) return 'bess'
-  if (s.includes('c&i') || s.includes('commercial') || s.includes('industrial')) return 'commercial-industrial'
-  if (s.includes('hybrid')) return 'hybrid'
-  return 'community-solar'
+  const { architecture, structure } = (t && typeof t === 'object') ? t : axesFromTechnology(t)
+  if (architecture === 'Standalone BESS') return 'bess'          // legacy merchant storage
+  if (structure === 'Net Metering') return 'net-metering'        // no revenue model yet
+  if (structure === 'Net Billing') return 'net-billing'          // no revenue model yet
+  if (structure === 'C&I behind-the-meter') {
+    return architecture === 'PV + Storage' ? 'ci-storage' : 'commercial-industrial' // ci-storage: no model yet
+  }
+  // Community Solar
+  return architecture === 'PV + Storage' ? 'hybrid' : 'community-solar'
 }
 
 // Inverse of normalizeTech — engine slug → display name. The engine uses
@@ -497,7 +508,10 @@ function computeForTech(tech, stateId, mw, rates) {
   if (tech === 'commercial-industrial') return computeCIRevenueProjection(stateId, mw, rates)
   if (tech === 'bess') return computeBESSProjection(stateId, mw, 4, rates)
   if (tech === 'hybrid') return computeHybridForScenario(stateId, mw, rates)
-  return computeRevenueProjection(stateId, mw, rates)
+  if (tech === 'community-solar') return computeRevenueProjection(stateId, mw, rates)
+  // net-metering | net-billing | ci-storage — no Scenario-Studio revenue model
+  // yet. Returning null gates the tab honestly (vs silently showing CS revenue).
+  return null
 }
 
 // Hybrid scenario raw data — combines CS + BESS underlying revenue projections

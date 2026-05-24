@@ -60,6 +60,7 @@ const GLOSSARY_PILLAR_MAP = {
   'Bill Credit':        'offtake',
   'Offtaker':           'offtake',
   'CCA':                'offtake',
+  'System Architecture': 'all',
   'Monetization Structure': 'offtake',
   'Net Metering':       'offtake',
   'Net Billing':        'offtake',

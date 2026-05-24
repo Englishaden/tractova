@@ -24,7 +24,6 @@ import { useToast } from '../components/ui/Toast'
 // Kept only the helpers Search.jsx itself still references.
 
 import { getIXQueueSummary, getHostingCapacity } from '../lib/programData'
-import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
 import ScenarioStudio from '../components/ScenarioStudio'
 import { computeBaseline as computeScenarioBaseline, denormalizeTech } from '../lib/scenarioEngine'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
@@ -78,7 +77,7 @@ export {
 // ALL_STATES + STAGES + TECHNOLOGIES moved to src/lib/lensFormConstants.js
 // so the Cmd-K palette's inline Lens form can share the same source of
 // truth. Re-imported here.
-import { ALL_STATES, STAGES, TECHNOLOGIES, STRUCTURE_OPTIONS, STRUCTURE_TO_TAG, STRUCTURE_DEFAULT, structureLabelFromTag, getStickyStructure, setStickyStructure } from '../lib/lensFormConstants.js'
+import { ALL_STATES, STAGES, ARCHITECTURE_OPTIONS, STRUCTURE_OPTIONS, STRUCTURE_TO_TAG, STRUCTURE_DEFAULT, ARCHITECTURE_DEFAULT, structureLabelFromTag, composeTechnology, axesFromTechnology, getStickyStructure, setStickyStructure, getStickyArchitecture, setStickyArchitecture } from '../lib/lensFormConstants.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small UI helpers
@@ -235,20 +234,40 @@ function SearchContent() {
   // Solar") so the dropdown can match against TECHNOLOGIES list. Pass-through
   // when already a display label. Handles legacy slug-format scenarios +
   // any external links / bookmarks using the slug form.
-  const initialTechnology = denormalizeTech(searchParams.get('technology') || '')
-  // Monetization-structure discovery filter — from ?structure=<tag>, else the
-  // user's sticky pref (default 'All structures'). Scopes the IX-context view only.
-  const initialStructure = searchParams.get('structure')
-    ? structureLabelFromTag(searchParams.get('structure'))
-    : getStickyStructure()
+  // Two-axis project model. URL precedence: explicit ?architecture=/?structure=
+  // win; else a legacy ?technology= is decomposed into axes; else the user's
+  // sticky prefs (architecture→Standalone PV, structure→Community Solar). A
+  // legacy Standalone BESS technology degrades to the sticky architecture (BESS
+  // isn't offered for new projects). technology is the derived composed mirror.
+  const [initialArchitecture, initialStructure] = (() => {
+    const urlArch = searchParams.get('architecture')
+    const urlStructTag = searchParams.get('structure')
+    const urlTech = searchParams.get('technology')
+    if (urlArch || urlStructTag) {
+      return [
+        ARCHITECTURE_OPTIONS.includes(urlArch) ? urlArch : getStickyArchitecture(),
+        urlStructTag ? structureLabelFromTag(urlStructTag) : getStickyStructure(),
+      ]
+    }
+    if (urlTech) {
+      const ax = axesFromTechnology(denormalizeTech(urlTech))
+      return [
+        ax.architecture === 'Standalone BESS' ? getStickyArchitecture() : ax.architecture,
+        ax.structure || getStickyStructure(),
+      ]
+    }
+    return [getStickyArchitecture(), getStickyStructure()]
+  })()
+  const initialTechnology = composeTechnology(initialArchitecture, initialStructure)
 
   const [form, setForm] = useState({
     state: initialState,
     county: initialCounty,
     mw: initialMW,
     stage: initialStage,
-    technology: initialTechnology,
+    architecture: initialArchitecture,
     structure: initialStructure,
+    technology: initialTechnology,
   })
 
   // Phase 2C — `?fromProject=<id>` deep-link. The Cmd-K `:rerun <project>`
@@ -275,7 +294,7 @@ function SearchContent() {
       try {
         const { data, error } = await supabase
           .from('projects')
-          .select('id, name, state, county, mw, stage, technology, saved_at, opportunity_score, last_observed_score, cs_status, ix_difficulty')
+          .select('id, name, state, county, mw, stage, technology, architecture, structure, saved_at, opportunity_score, last_observed_score, cs_status, ix_difficulty')
           .eq('id', fromProjectId)
           .eq('user_id', user.id)
           .single()
@@ -291,12 +310,17 @@ function SearchContent() {
           baselineCsStatus: data.cs_status ?? null,
           baselineIxDifficulty: data.ix_difficulty ?? null,
         })
+        const ax = (data.architecture || data.structure)
+          ? { architecture: data.architecture, structure: data.structure }
+          : axesFromTechnology(data.technology)
         setForm({
           state: data.state || '',
           county: data.county || '',
           mw: String(data.mw || ''),
           stage: data.stage || '',
-          technology: data.technology || '',
+          architecture: ax.architecture || ARCHITECTURE_DEFAULT,
+          structure: ax.structure || STRUCTURE_DEFAULT,
+          technology: data.technology || composeTechnology(ax.architecture || ARCHITECTURE_DEFAULT, ax.structure || STRUCTURE_DEFAULT),
         })
       } catch { /* silent — user may not have access; fall back to empty form */ }
     })()
@@ -467,7 +491,7 @@ function SearchContent() {
   // to fill the missing fields.
   useEffect(() => {
     if (!programMap) return
-    const urlKey = `${initialState}|${initialCounty}|${initialMW}|${initialStage}|${initialTechnology}|${initialStructure}`
+    const urlKey = `${initialState}|${initialCounty}|${initialMW}|${initialStage}|${initialArchitecture}|${initialStructure}`
     // First mount or repeat — don't redo work
     if (lastAutoSubmitKey.current === urlKey) return
     // Ignore the empty-URL case (user landed on /search with no params).
@@ -481,12 +505,13 @@ function SearchContent() {
     // Sync visible form to the new URL. Without this, requestSubmit
     // would re-fire with the OLD form values from the first render.
     setForm({
-      state:      initialState      || '',
-      county:     initialCounty     || '',
-      mw:         initialMW         || '',
-      stage:      initialStage      || '',
-      technology: initialTechnology || '',
-      structure:  initialStructure  || STRUCTURE_DEFAULT,
+      state:        initialState        || '',
+      county:       initialCounty       || '',
+      mw:           initialMW           || '',
+      stage:        initialStage        || '',
+      architecture: initialArchitecture || ARCHITECTURE_DEFAULT,
+      structure:    initialStructure    || STRUCTURE_DEFAULT,
+      technology:   initialTechnology   || composeTechnology(ARCHITECTURE_DEFAULT, STRUCTURE_DEFAULT),
     })
     // Clear stale result so the user isn't reading old data while the
     // new search dispatches (or while they fill in missing fields).
@@ -498,7 +523,7 @@ function SearchContent() {
     if (initialState && initialCounty && initialMW) {
       setTimeout(() => formRef.current?.requestSubmit(), 0)
     }
-  }, [programMap, initialState, initialCounty, initialMW, initialStage, initialTechnology, initialStructure])
+  }, [programMap, initialState, initialCounty, initialMW, initialStage, initialArchitecture, initialStructure])
 
   // Phase 2C auto-kickoff: ?fromProject= hydrates the form async (the
   // useEffect above fetches the projects row + calls setForm). Once
@@ -596,6 +621,8 @@ function SearchContent() {
         mw:               isNaN(mwNum) ? null : mwNum,
         stage:            results.form.stage,
         technology:       results.form.technology,
+        architecture:     results.form.architecture || null,
+        structure:        results.form.structure || null,
         cs_program:       results.stateProgram?.csProgram || null,
         cs_status:        results.stateProgram?.csStatus || 'none',
         serving_utility:  results.countyData?.interconnection?.servingUtility || null,
@@ -698,15 +725,18 @@ function SearchContent() {
   }
 
   const handleClearAll = () => {
-    setForm({ state: '', county: '', mw: '', stage: '', technology: '', structure: getStickyStructure() })
+    const arch = getStickyArchitecture(), struct = getStickyStructure()
+    setForm({ state: '', county: '', mw: '', stage: '', architecture: arch, structure: struct, technology: composeTechnology(arch, struct) })
     setResults(null)
     setConfirmClear(false)
     sessionStorage.removeItem('tractova_lens_form')
     sessionStorage.removeItem('tractova_lens_results')
   }
 
-  const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.technology
-  const hasAnyInput = form.state || form.county || form.mw || form.stage || form.technology || results
+  const isFormValid = form.state && form.county.trim() && form.mw && form.stage && form.architecture && form.structure
+  // architecture/structure/technology are always defaulted (sticky), so they don't
+  // count as "input" for the Clear-All affordance — only user-entered fields do.
+  const hasAnyInput = form.state || form.county || form.mw || form.stage || results
 
   // V3: form labels use ink-muted for institutional feel (was text-primary-700 emerald)
   const labelCls = "block text-[10px] font-semibold uppercase tracking-wider text-ink-muted mb-1.5"
@@ -856,27 +886,30 @@ function SearchContent() {
                 required
               />
 
-              {/* Technology */}
+              {/* System architecture (axis 1) — what's physically built. Drives
+                  the IX/site modifier. Standalone BESS dropped (merchant out of
+                  scope); storage is in-scope only as PV + Storage. Sticky pref. */}
               <FieldSelect
-                label="Technology Type"
+                label="System Architecture"
                 labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>}
-                value={form.technology}
-                onChange={(val) => setForm((f) => ({ ...f, technology: val }))}
-                options={TECHNOLOGIES}
-                placeholder="Select type…"
-                optionTooltips={TECH_FILTER_TOOLTIPS}
+                value={form.architecture}
+                onChange={(val) => { setForm((f) => ({ ...f, architecture: val, technology: composeTechnology(val, f.structure) })); setStickyArchitecture(val) }}
+                options={ARCHITECTURE_OPTIONS}
+                placeholder="Select architecture…"
                 required
               />
 
-              {/* Monetization structure — DISCOVERY filter for the live IX queue
-                  (which monetization slice you're viewing). Defaults to All;
-                  pinning a structure sticks (localStorage). Not a scoring input. */}
+              {/* Monetization structure (axis 2) — how electrons are monetized.
+                  Drives the offtake sub-score + scopes the live IX-queue view.
+                  CS is the wedge (sticky default). Required project attribute. */}
               <FieldSelect
                 label="Monetization Structure"
                 labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
                 value={form.structure}
-                onChange={(val) => { setForm((f) => ({ ...f, structure: val })); setStickyStructure(val) }}
+                onChange={(val) => { setForm((f) => ({ ...f, structure: val, technology: composeTechnology(f.architecture, val) })); setStickyStructure(val) }}
                 options={STRUCTURE_OPTIONS}
+                placeholder="Select structure…"
+                required
               />
             </div>
           </div>

@@ -34,11 +34,17 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'The pillar that answers "how does this project actually make money?" For Community Solar: state CS program (capacity remaining, LMI carveout requirements, contract tenor). For C&I: retail electricity rates from EIA Form 861 (curated for 12 high-rate states). For BESS: ISO capacity-market clearing prices (curated for 10 active markets). For Hybrid: blended.',
     inputs: 'state_programs · revenue_stacks · EIA Form 861 · ISO capacity markets',
   },
+  'System Architecture': {
+    title: 'System Architecture',
+    short: 'What is physically built — Standalone PV or PV + Storage (co-located battery). The first of Tractova\'s two project axes.',
+    long: 'Tractova models a project as a system architecture × a monetization structure. Architecture is the physical build: Standalone PV, or PV + Storage (a co-located battery sharing one interconnection). Architecture drives the interconnection sub-score (PV + Storage carries a -5 IX modifier — combined-resource studies are more complex) and the site model. Merchant standalone storage is out of scope, so the Lens offers only Standalone PV and PV + Storage; legacy standalone-BESS projects are preserved and still scored.',
+    inputs: 'project.architecture · IRA §48 storage ITC adder · IX queue (combined-resource studies)',
+  },
   'Monetization Structure': {
     title: 'Monetization Structure',
     short: 'How a distribution-DG project earns revenue — the program or tariff it monetizes under (community solar, net metering, net billing, C&I behind-the-meter).',
-    long: 'Tractova\'s monetization axis, distinct from system architecture (PV / PV+storage / storage). The same physical solar array can be monetized as a community-solar subscription, on-site net metering, a net-billing export tariff, or a C&I behind-the-meter PPA — each with different economics and a different interconnection path. The Lens "Monetization Structure" filter scopes the live interconnection queue to the slice you care about (discovery); program economics are modeled in Scenario Studio.',
-    inputs: 'ix_queue_data.metering_type · state_programs · revenue_stacks',
+    long: 'Tractova\'s monetization axis, distinct from system architecture (PV / PV + Storage). The same physical solar array can be monetized as a community-solar subscription, on-site net metering, a net-billing export tariff, or a C&I behind-the-meter PPA — each with different economics and a different interconnection path. Structure drives the offtake sub-score + scopes the live interconnection-queue view; program economics are modeled in Scenario Studio (net metering / net billing models are pending).',
+    inputs: 'project.structure · ix_queue_data.metering_type · state_programs · revenue_stacks',
   },
   'Net Metering': {
     title: 'Net Metering (NEM)',

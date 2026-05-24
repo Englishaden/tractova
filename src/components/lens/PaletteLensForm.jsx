@@ -19,7 +19,7 @@
 // the analysis with the new params.
 
 import { useEffect, useRef, useState } from 'react'
-import { ALL_STATES, STAGES, TECHNOLOGIES, STRUCTURE_OPTIONS, STRUCTURE_TO_TAG, getStickyStructure, setStickyStructure } from '../../lib/lensFormConstants'
+import { ALL_STATES, STAGES, ARCHITECTURE_OPTIONS, STRUCTURE_OPTIONS, STRUCTURE_TO_TAG, composeTechnology, axesFromTechnology, getStickyStructure, setStickyStructure, getStickyArchitecture, setStickyArchitecture } from '../../lib/lensFormConstants'
 import FieldSelect from '../FieldSelect'
 import CountyCombobox from '../CountyCombobox'
 
@@ -41,9 +41,11 @@ export default function PaletteLensForm({
   const [stateId, setStateId] = useState(initial.stateId || '')
   const [county, setCounty] = useState(initial.county || '')
   const [mw, setMw] = useState(initial.mw || '')
-  const [tech, setTech] = useState(initial.tech || '')
   const [stage, setStage] = useState(initial.stage || '')
-  const [structure, setStructure] = useState(initial.structure || getStickyStructure())
+  // Two-axis: a colon-shorthand tech (e.g. :lens MA 5 CS) seeds both axes.
+  const seed = initial.tech ? axesFromTechnology(initial.tech) : null
+  const [architecture, setArchitecture] = useState(initial.architecture || seed?.architecture || getStickyArchitecture())
+  const [structure, setStructure] = useState(initial.structure || seed?.structure || getStickyStructure())
 
   const mwRef = useRef(null)
   const submitRef = useRef(null)
@@ -66,13 +68,18 @@ export default function PaletteLensForm({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const isComplete = Boolean(stateId && county && mw && tech && stage)
+  const isComplete = Boolean(stateId && county && mw && architecture && structure && stage)
   const stateName = ALL_STATES.find(s => s.id === stateId)?.name || ''
 
   function handleSubmit(e) {
     e?.preventDefault?.()
     if (!isComplete) return
-    onSubmit?.({ stateId, stateName, county, mw, tech, stage, structureTag: STRUCTURE_TO_TAG[structure] ?? 'all' })
+    onSubmit?.({
+      stateId, stateName, county, mw, stage,
+      architecture, structure,
+      structureTag: STRUCTURE_TO_TAG[structure] ?? 'community_solar',
+      tech: composeTechnology(architecture, structure),  // derived label for display/URL
+    })
   }
 
   function handleKeyDown(e) {
@@ -148,24 +155,26 @@ export default function PaletteLensForm({
           />
         </div>
 
-        {/* Tech — FieldSelect (matches /search:847) */}
+        {/* System architecture (axis 1) — sticky pref */}
         <FieldSelect
-          label="Technology"
+          label="System Architecture"
           labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>}
-          value={tech}
-          onChange={setTech}
-          options={TECHNOLOGIES}
-          placeholder="Select type…"
+          value={architecture}
+          onChange={(val) => { setArchitecture(val); setStickyArchitecture(val) }}
+          options={ARCHITECTURE_OPTIONS}
+          placeholder="Select architecture…"
           required
         />
 
-        {/* Monetization structure — DISCOVERY filter (default All, sticky pref) */}
+        {/* Monetization structure (axis 2) — drives offtake + IX-view scope */}
         <FieldSelect
           label="Monetization Structure"
           labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
           value={structure}
           onChange={(val) => { setStructure(val); setStickyStructure(val) }}
           options={STRUCTURE_OPTIONS}
+          placeholder="Select structure…"
+          required
         />
 
         {/* Stage — FieldSelect (matches /search:836) */}
@@ -185,7 +194,7 @@ export default function PaletteLensForm({
       <div className="flex items-center justify-between gap-3 pt-2 border-t" style={{ borderColor: '#E2E8F0' }}>
         <span className="text-[10px] font-mono text-gray-400 truncate">
           {isComplete
-            ? `Ready · ${stateName} · ${county} · ${mw} MW · ${tech} · ${stage.split(' (')[0]}`
+            ? `Ready · ${stateName} · ${county} · ${mw} MW · ${architecture} · ${structure} · ${stage.split(' (')[0]}`
             : 'Fill all fields to enable Run Lens'}
         </span>
         <div className="flex items-center gap-2 shrink-0">

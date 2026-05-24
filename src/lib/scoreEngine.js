@@ -1,4 +1,5 @@
 import { computePolicyClimateScore } from './policyAdjustments'
+import { axesFromTechnology, composeTechnology } from './lensFormConstants'
 
 export const STAGE_MODIFIERS = {
   'Prospecting':              [  0,   0,   0 ],
@@ -71,9 +72,17 @@ const BESS_OFFTAKE_SCORES = {
 export const CI_OFFTAKE_COVERAGE = Object.keys(CI_OFFTAKE_SCORES).sort()
 export const BESS_OFFTAKE_COVERAGE = Object.keys(BESS_OFFTAKE_SCORES).sort()
 
+// Curated offtake coverage for a project's monetization structure (accepts a
+// legacy technology string or an {architecture, structure} axes object).
+//   - C&I behind-the-meter → EIA Form 861 retail-rate coverage list
+//   - legacy Standalone BESS → ISO capacity-market coverage list
+//   - Net Metering / Net Billing → [] (no curated model yet — 'limited')
+//   - Community Solar → null (all 50 states curated)
 export function getOfftakeCoverageStates(technology) {
-  if (technology === 'C&I Solar') return CI_OFFTAKE_COVERAGE
-  if (technology === 'BESS' || technology === 'Hybrid') return BESS_OFFTAKE_COVERAGE
+  const { architecture, structure } = axesFromTechnology(technology)
+  if (architecture === 'Standalone BESS') return BESS_OFFTAKE_COVERAGE
+  if (structure === 'C&I behind-the-meter') return CI_OFFTAKE_COVERAGE
+  if (structure === 'Net Metering' || structure === 'Net Billing') return []
   return null
 }
 
@@ -137,15 +146,15 @@ function ixLiveAdjustment(ixQueueSummary) {
 // NWI catches up showing high wetland coverage).
 //
 // Both null → site=60 baseline (no info, neutral).
-function computeSiteSubScore(technology, availableLand, wetlandWarning) {
-  if (technology === 'BESS') {
-    // BESS depends primarily on wetland permitting, not land area
-    // (1-2 acres/MW vs solar's 5-7).
+function computeSiteSubScore(architecture, availableLand, wetlandWarning) {
+  if (architecture === 'Standalone BESS') {
+    // Legacy standalone BESS depends primarily on wetland permitting, not land
+    // area (1-2 acres/MW vs solar's 5-7).
     if (wetlandWarning === false) return 78
     if (wetlandWarning === true)  return 58
     return 68  // wetland unknown — midpoint of (78, 58)
   }
-  // Solar (CS / C&I / Hybrid)
+  // Solar (Standalone PV / PV + Storage) — footprint dominated by the PV array.
   const land = availableLand
   const wet  = wetlandWarning
   if (land === true  && wet === false) return 82
@@ -170,12 +179,21 @@ function computeSiteSubScore(technology, availableLand, wetlandWarning) {
  * @param {object|null} stateProgram — row from state_programs
  * @param {object|null} countyData — { siteControl, geospatial, ... }
  * @param {string} [stage] — project stage ('Prospecting' .. 'Operational') for stage modifiers
- * @param {'Community Solar'|'C&I Solar'|'BESS'|'Hybrid'} [technology]
+ * @param {string|{architecture:string, structure:string}} [technology] — two-axis
+ *        project model: pass {architecture, structure}, OR a legacy/derived
+ *        technology string (normalized via axesFromTechnology for back-compat).
+ *        Offtake is driven by structure; the IX/site modifier by architecture.
  * @param {{totalProjects:number, totalMW:number, avgStudyMonths:number}|null} [ixQueueSummary] — when present, blends ±10 pts onto the curated IX baseline
  * @returns {{offtake:number, ix:number, site:number, coverage:{offtake:'researched'|'fallback', ix:'live'|'curated', site:'live'|'researched'|'fallback'}}}
  */
 export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null, policyEvents = null, mw = null) {
   if (!stateProgram) return { offtake: 0, ix: 0, site: 0, policyClimate: 50, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', policy: 'none' } }
+
+  // Two-axis model: accept {architecture, structure} or a legacy technology string.
+  const { architecture, structure } = (technology && typeof technology === 'object')
+    ? technology
+    : axesFromTechnology(technology)
+  const isLegacyBess = architecture === 'Standalone BESS'
 
   let offtake, ix, site
   // 'researched' = state is in our curated coverage list for this tech / county
@@ -205,19 +223,22 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   // architecture means no regression where the data isn't pre-fetched.
   const ixCoverage = (ixQueueSummary && ixQueueSummary.totalProjects > 0) ? 'live' : 'curated'
 
-  // ── Offtake sub-score (varies by tech type) ──
-  if (technology === 'C&I Solar') {
-    if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
-    offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
-  } else if (technology === 'BESS') {
+  // ── Offtake sub-score (driven by monetization STRUCTURE) ──
+  if (isLegacyBess) {
+    // Legacy standalone BESS (merchant capacity market) — preserved for existing
+    // saved projects; not offered for new ones (scope: merchant storage is OUT).
     if (BESS_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = BESS_OFFTAKE_SCORES[stateProgram.id] ?? 45
-  } else if (technology === 'Hybrid') {
-    const csBase = { active: 80, limited: 52, pending: 25, none: 8 }
-    const csOfftake = csBase[stateProgram.csStatus] ?? 8
-    if (BESS_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
-    const bessOfftake = BESS_OFFTAKE_SCORES[stateProgram.id] ?? 45
-    offtake = Math.min(85, Math.round((csOfftake + bessOfftake) / 2))
+  } else if (structure === 'C&I behind-the-meter') {
+    if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
+    offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
+  } else if (structure === 'Net Metering' || structure === 'Net Billing') {
+    // No curated offtake model yet — honest 'limited' coverage (flagged), NOT a
+    // CS default. Net billing credits exports at avoided cost (below retail), so
+    // it's directionally weaker than retail net metering. Baselines uncalibrated
+    // pending real models (the flagged future slice).
+    offtakeCoverage = 'fallback'
+    offtake = structure === 'Net Billing' ? 45 : 55
   } else {
     // Community Solar (default) — driven entirely by state_programs DB,
     // which has all 50 states curated, so coverage stays 'researched'.
@@ -228,11 +249,11 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     else if (stateProgram.lmiRequired && stateProgram.lmiPercent >= 25) offtake -= 5
   }
 
-  // ── IX sub-score (adjusted by tech type + optional live blend) ──
+  // ── IX sub-score (adjusted by ARCHITECTURE + optional live blend) ──
   // Curated baseline from stateProgram.ixDifficulty (covers all 50 states).
   ix = { easy: 88, moderate: 65, hard: 38, very_hard: 14 }[stateProgram.ixDifficulty] ?? 50
-  if (technology === 'BESS') ix += 5          // Storage typically has faster IX studies
-  else if (technology === 'Hybrid') ix -= 5   // Combined resources = more complex IX
+  if (isLegacyBess) ix += 5                           // legacy storage — faster IX studies
+  else if (architecture === 'PV + Storage') ix -= 5  // combined resource — more complex IX
   // Live-blend: when ix_queue_data covers this state, layer the quantitative
   // queue-health signal on top. Top-CS-markets coverage as of 2026-04-30:
   // CO, IL, MA, MD, ME, MN, NJ, NY (~8 of 50). For the other 42, ixCoverage
@@ -276,7 +297,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     wetlandWarning = countyData.siteControl.wetlandWarning
   }
 
-  site = computeSiteSubScore(technology, availableLand, wetlandWarning)
+  site = computeSiteSubScore(architecture, availableLand, wetlandWarning)
 
   // ── Stage modifiers ──
   const [dOft, dIX, dSite] = STAGE_MODIFIERS[stage] ?? [0, 0, 0]
@@ -294,7 +315,8 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   let policyClimate = null
   let policyCoverage = 'none'
   if (Array.isArray(policyEvents)) {
-    const project = (mw || stage || technology) ? { mw, stage, technology } : null
+    const techLabel = typeof technology === 'string' ? technology : composeTechnology(architecture, structure)
+    const project = (mw || stage || techLabel) ? { mw, stage, technology: techLabel } : null
     policyClimate = computePolicyClimateScore(policyEvents, project)
     policyCoverage = policyEvents.length > 0 ? 'live' : 'none'
   }

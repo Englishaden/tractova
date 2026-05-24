@@ -48,23 +48,29 @@ export const STAGES = [
 export const TECHNOLOGIES = ['Community Solar', 'Hybrid', '---', 'C&I Solar', 'BESS']
 export const TECHNOLOGIES_FLAT = TECHNOLOGIES.filter(t => t !== '---')
 
-// ── Monetization-structure filter (capture-all-DG, scope decision 2026-05-23) ──
-// A DISCOVERY filter that scopes the IX-context view by monetization structure
-// (metering_type tag — single source of truth: api/scrapers/_meteringType.js).
-// 'All structures' = every tag. This is NOT an offtake-scoring input — Technology
-// still drives the score; structure decides which interconnection/monetization
-// slice of the live IX queue you're looking at (discovery in the Lens; program
-// economics live in Scenario Studio). CS is the wedge, so a CS specialist can pin
-// structure=Community Solar and it sticks (localStorage).
-export const STRUCTURE_OPTIONS = ['All structures', 'Community Solar', 'Net Metering', 'Net Billing', 'C&I behind-the-meter']
-export const STRUCTURE_DEFAULT = 'All structures'
+// ── Two-axis project model (scope decision 2026-05-23; full rename 2026-05-24) ──
+// The old single "Technology" select conflated two orthogonal axes. A project is
+// now (1) a SYSTEM ARCHITECTURE × (2) a MONETIZATION STRUCTURE. Both are required
+// project attributes (real columns; `technology` is kept as a derived mirror via
+// composeTechnology for legacy/display call sites).
+//
+// AXIS 1 — system architecture (what's physically built). Standalone BESS is a
+// LEGACY data value only (merchant storage is out of scope per the scope line) —
+// preserved for existing saved projects + scored, but NOT offered for new ones.
+export const ARCHITECTURE_OPTIONS = ['Standalone PV', 'PV + Storage']
+export const ARCHITECTURE_DEFAULT = 'Standalone PV'
 
-// Label ⇄ metering_type tag. 'All structures' → 'all' (every structure; maps to
-// getIXQueueSummary's view=null). Labels that have no live source coverage yet
-// (net_billing, ci_btm) are offered as a product statement — the IX card shows an
+// AXIS 2 — monetization structure (how electrons are monetized). Drives the
+// offtake sub-score + scopes the live IX-queue view. CS is the wedge (sticky
+// default). Net Metering / Net Billing are scored as 'limited' coverage and have
+// no Scenario-Studio revenue model yet (honest gate, not a CS default).
+export const STRUCTURE_OPTIONS = ['Community Solar', 'Net Metering', 'Net Billing', 'C&I behind-the-meter']
+export const STRUCTURE_DEFAULT = 'Community Solar'
+
+// Label ⇄ metering_type tag (api/scrapers/_meteringType.js). Drives the IX-view
+// scope. Labels with no live source coverage yet (net_billing, ci_btm) show an
 // honest "no IX data tagged for this structure" state until a source tags them.
 export const STRUCTURE_TO_TAG = {
-  'All structures':       'all',
   'Community Solar':      'community_solar',
   'Net Metering':         'net_metering',
   'Net Billing':          'net_billing',
@@ -78,6 +84,42 @@ export const STRUCTURE_FROM_TAG = Object.fromEntries(
 // default when absent or unrecognized.
 export function structureLabelFromTag(tag) {
   return STRUCTURE_FROM_TAG[tag] || STRUCTURE_DEFAULT
+}
+
+// ── technology mirror (derived) ⇄ axes ─────────────────────────────────────────
+// `technology` is a single composed label kept for back-compat (saved-project
+// display, exports, PDF, alerts, scenario dispatch). composeTechnology builds it
+// from the two axes; axesFromTechnology recovers the axes from any legacy/derived
+// technology string (the canonical fallback for the ~25 call sites still reading
+// `project.technology`). Round-trips for every form-producible combination.
+const TECH_LABEL = {
+  'Standalone PV|Community Solar':       'Community Solar',
+  'Standalone PV|C&I behind-the-meter':  'C&I Solar',
+  'Standalone PV|Net Metering':          'Net Metering Solar',
+  'Standalone PV|Net Billing':           'Net Billing Solar',
+  'PV + Storage|Community Solar':        'Community Solar + Storage',
+  'PV + Storage|C&I behind-the-meter':   'C&I Solar + Storage',
+  'PV + Storage|Net Metering':           'Net Metering + Storage',
+  'PV + Storage|Net Billing':            'Net Billing + Storage',
+}
+export function composeTechnology(architecture, structure) {
+  return TECH_LABEL[`${architecture}|${structure}`] || structure || architecture || STRUCTURE_DEFAULT
+}
+
+// Recover { architecture, structure } from a legacy or derived technology string
+// (also handles engine slugs like 'community-solar'). Legacy standalone BESS →
+// { architecture: 'Standalone BESS', structure: null } (merchant, preserved).
+export function axesFromTechnology(technology) {
+  const t = String(technology || '').toLowerCase()
+  if (/bess|battery/.test(t) && !/solar|community|c&i|commercial|industrial|net /.test(t)) {
+    return { architecture: 'Standalone BESS', structure: null }
+  }
+  const architecture = /\+\s*storage|hybrid|storage/.test(t) ? 'PV + Storage' : 'Standalone PV'
+  let structure = 'Community Solar'
+  if (/c&i|commercial|industrial/.test(t)) structure = 'C&I behind-the-meter'
+  else if (/net billing/.test(t)) structure = 'Net Billing'
+  else if (/net metering/.test(t)) structure = 'Net Metering'
+  return { architecture, structure }
 }
 
 // Display nouns per structure tag — for honest IX-card copy (the card used to
@@ -115,6 +157,17 @@ export function getStickyStructure() {
 }
 export function setStickyStructure(label) {
   try { if (STRUCTURE_OPTIONS.includes(label)) localStorage.setItem(STRUCTURE_PREF_KEY, label) } catch { /* ignore */ }
+}
+
+const ARCHITECTURE_PREF_KEY = 'tractova_lens_architecture'
+export function getStickyArchitecture() {
+  try {
+    const v = localStorage.getItem(ARCHITECTURE_PREF_KEY)
+    return ARCHITECTURE_OPTIONS.includes(v) ? v : ARCHITECTURE_DEFAULT
+  } catch { return ARCHITECTURE_DEFAULT }
+}
+export function setStickyArchitecture(label) {
+  try { if (ARCHITECTURE_OPTIONS.includes(label)) localStorage.setItem(ARCHITECTURE_PREF_KEY, label) } catch { /* ignore */ }
 }
 
 // Resolve a state input — accepts either a 2-letter id ('MA') or a full
