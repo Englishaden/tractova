@@ -62,19 +62,21 @@ export const ARCHITECTURE_DEFAULT = 'Standalone PV'
 
 // AXIS 2 — monetization structure (how electrons are monetized). Drives the
 // offtake sub-score + scopes the live IX-queue view. CS is the wedge (sticky
-// default). Net Metering / Net Billing are scored as 'limited' coverage and have
-// no Scenario-Studio revenue model yet (honest gate, not a CS default).
-export const STRUCTURE_OPTIONS = ['Community Solar', 'Net Metering', 'Net Billing', 'C&I behind-the-meter']
+// default). Net Metering is scored on the retail-rate anchor (researched
+// coverage) with a Scenario-Studio revenue model; Net Billing stays 'limited'
+// (no per-state export-credit data) and gated. 'C&I Solar' is the canonical
+// C&I label site-wide (was 'C&I behind-the-meter' pre-2026-05-24).
+export const STRUCTURE_OPTIONS = ['Community Solar', 'Net Metering', 'Net Billing', 'C&I Solar']
 export const STRUCTURE_DEFAULT = 'Community Solar'
 
 // Label ⇄ metering_type tag (api/scrapers/_meteringType.js). Drives the IX-view
 // scope. Labels with no live source coverage yet (net_billing, ci_btm) show an
 // honest "no IX data tagged for this structure" state until a source tags them.
 export const STRUCTURE_TO_TAG = {
-  'Community Solar':      'community_solar',
-  'Net Metering':         'net_metering',
-  'Net Billing':          'net_billing',
-  'C&I behind-the-meter': 'ci_btm',
+  'Community Solar': 'community_solar',
+  'Net Metering':    'net_metering',
+  'Net Billing':     'net_billing',
+  'C&I Solar':       'ci_btm',
 }
 export const STRUCTURE_FROM_TAG = Object.fromEntries(
   Object.entries(STRUCTURE_TO_TAG).map(([label, tag]) => [tag, label]),
@@ -84,6 +86,17 @@ export const STRUCTURE_FROM_TAG = Object.fromEntries(
 // default when absent or unrecognized.
 export function structureLabelFromTag(tag) {
   return STRUCTURE_FROM_TAG[tag] || STRUCTURE_DEFAULT
+}
+
+// Legacy structure-label aliases → canonical. The C&I structure was labeled
+// 'C&I behind-the-meter' before the 2026-05-24 consistency pass; saved projects
+// (projects.structure) from before then carry the old string. Scoring + the
+// Library filter compare against the canonical 'C&I Solar', so normalize on read
+// — otherwise legacy C&I rows fall through to the CS offtake branch (mis-score)
+// and split the structure filter into two C&I buckets. No DB migration needed.
+const STRUCTURE_ALIASES = { 'C&I behind-the-meter': 'C&I Solar' }
+export function normalizeStructure(structure) {
+  return STRUCTURE_ALIASES[structure] || structure
 }
 
 // Human chip label for ANY metering_type tag (incl. the non-product tags that
@@ -101,14 +114,14 @@ export function structureChipLabel(tag) {
 // technology string (the canonical fallback for the ~25 call sites still reading
 // `project.technology`). Round-trips for every form-producible combination.
 const TECH_LABEL = {
-  'Standalone PV|Community Solar':       'Community Solar',
-  'Standalone PV|C&I behind-the-meter':  'C&I Solar',
-  'Standalone PV|Net Metering':          'Net Metering Solar',
-  'Standalone PV|Net Billing':           'Net Billing Solar',
-  'PV + Storage|Community Solar':        'Community Solar + Storage',
-  'PV + Storage|C&I behind-the-meter':   'C&I Solar + Storage',
-  'PV + Storage|Net Metering':           'Net Metering + Storage',
-  'PV + Storage|Net Billing':            'Net Billing + Storage',
+  'Standalone PV|Community Solar':  'Community Solar',
+  'Standalone PV|C&I Solar':        'C&I Solar',
+  'Standalone PV|Net Metering':     'Net Metering',
+  'Standalone PV|Net Billing':      'Net Billing',
+  'PV + Storage|Community Solar':   'Community Solar + Storage',
+  'PV + Storage|C&I Solar':         'C&I Solar + Storage',
+  'PV + Storage|Net Metering':      'Net Metering + Storage',
+  'PV + Storage|Net Billing':       'Net Billing + Storage',
 }
 export function composeTechnology(architecture, structure) {
   return TECH_LABEL[`${architecture}|${structure}`] || structure || architecture || STRUCTURE_DEFAULT
@@ -124,7 +137,7 @@ export function axesFromTechnology(technology) {
   }
   const architecture = /\+\s*storage|hybrid|storage/.test(t) ? 'PV + Storage' : 'Standalone PV'
   let structure = 'Community Solar'
-  if (/c&i|commercial|industrial/.test(t)) structure = 'C&I behind-the-meter'
+  if (/c&i|commercial|industrial/.test(t)) structure = 'C&I Solar'
   else if (/net billing/.test(t)) structure = 'Net Billing'
   else if (/net metering/.test(t)) structure = 'Net Metering'
   return { architecture, structure }
@@ -134,10 +147,10 @@ export function axesFromTechnology(technology) {
 // hardcode "CS projects" even for net-metering / fuel-type-only queues). `short`
 // goes in "{n} {short} projects"; `label` heads the section.
 const STRUCTURE_NOUN = {
-  community_solar: { short: 'CS',                label: 'Community-Solar' },
-  net_metering:    { short: 'net-metering',      label: 'Net-Metering' },
-  net_billing:     { short: 'net-billing',       label: 'Net-Billing' },
-  ci_btm:          { short: 'C&I BTM',           label: 'C&I Behind-the-Meter' },
+  community_solar: { short: 'CS',                label: 'Community Solar' },
+  net_metering:    { short: 'net-metering',      label: 'Net Metering' },
+  net_billing:     { short: 'net-billing',       label: 'Net Billing' },
+  ci_btm:          { short: 'C&I',               label: 'C&I Solar' },
   on_bill:         { short: 'on-bill',           label: 'On-Bill' },
   other:           { short: 'other-structure',   label: 'Other-Structure' },
   unknown:         { short: 'DG',                label: 'Distribution-DG' },

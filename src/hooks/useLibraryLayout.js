@@ -2,11 +2,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { getAlerts } from '../lib/alertHelpers'
-import { axesFromTechnology } from '../lib/lensFormConstants'
+import { axesFromTechnology, normalizeStructure } from '../lib/lensFormConstants'
 
 // A saved project's monetization structure — the real column post-migration 069,
-// falling back to deriving it from the legacy technology label.
-const structureOf = (p) => p.structure || axesFromTechnology(p.technology).structure
+// falling back to deriving it from the legacy technology label. normalizeStructure
+// folds the pre-2026-05-24 'C&I behind-the-meter' label into canonical 'C&I Solar'
+// so legacy rows don't split the filter into two C&I buckets.
+const structureOf = (p) => normalizeStructure(p.structure || axesFromTechnology(p.technology).structure)
 
 const LAYOUT_STORAGE_KEY = 'tractova_library_view'
 const PAGE_SIZE_KEY      = 'tractova_library_page_size'

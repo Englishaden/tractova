@@ -64,7 +64,6 @@ const GLOSSARY_PILLAR_MAP = {
   'Monetization Structure': 'offtake',
   'Net Metering':       'offtake',
   'Net Billing':        'offtake',
-  'C&I Behind-the-Meter': 'offtake',
   // Interconnection pillar
   'IX · Live':          'ix',
   'CS Pipeline · Live': 'ix',

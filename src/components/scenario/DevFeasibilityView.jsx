@@ -300,11 +300,14 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
           )}
         </div>
       </div>
+      {/* Readout strip mirrors the composite's three pillars only. Policy is a
+          SIGNAL, not a scored prong — showing "POL" here read as a 4th equal
+          pillar even though it isn't in the composite. It keeps its own
+          dedicated "Policy (signal)" card below. */}
       <div className="hidden md:flex items-center gap-3 text-[10px] font-mono tabular-nums shrink-0">
         <PillarReadout label="OFFT" value={subScores.offtake} />
         <PillarReadout label="IX"   value={subScores.ix} />
         <PillarReadout label="SITE" value={subScores.site} />
-        <PillarReadout label="POL"  value={subScores.policyClimate} />
       </div>
     </div>
   )
@@ -815,11 +818,15 @@ function computePhases({ ixQueueSummary, countyData, ixAssumption }) {
   const wet = countyData?.geospatial?.wetlandCoveragePct
   const wetlandPermitAdd = (wet != null && wet >= 25) ? PHASE_DEFAULTS.permitWetlandBump : 0
   const permitMonths = PHASE_DEFAULTS.permitMonths + wetlandPermitAdd
+  // Phase colors run a warm→cool PROGRESSION (amber friction → teal energized),
+  // not pillar identities — these are time segments, not sub-scores. Both stops
+  // are brand colors (amber accent + teal primary), so the bar reads on-system
+  // instead of the old off-palette blue/slate gantt.
   return [
-    { key: 'ix',           label: 'IX Study',     months: ixMonths,                              color: '#D97706' },
-    { key: 'permit',       label: 'Permitting',   months: permitMonths,                          color: '#2563EB' },
-    { key: 'construct',    label: 'Construction', months: PHASE_DEFAULTS.constructMonths,        color: '#475569' },
-    { key: 'energization', label: 'Energization', months: PHASE_DEFAULTS.energizationMonths,     color: '#0F766E' },
+    { key: 'ix',           label: 'IX Study',     months: ixMonths,                          color: '#B45309' },
+    { key: 'permit',       label: 'Permitting',   months: permitMonths,                       color: '#F59E0B' },
+    { key: 'construct',    label: 'Construction', months: PHASE_DEFAULTS.constructMonths,     color: '#14B8A6' },
+    { key: 'energization', label: 'Energization', months: PHASE_DEFAULTS.energizationMonths, color: '#0F766E' },
   ]
 }
 
@@ -877,38 +884,50 @@ function TimelineEstimate({ ixQueueSummary, siteCoverage, countyData, headwindCo
   const slack = minMonths - totalMonths
 
   return (
-    <div className="rounded-md px-4 py-3" style={{ background: 'rgba(15,26,46,0.04)', border: '1px solid #E2E8F0' }}>
-      <div className="flex items-center gap-2 mb-2">
+    <div
+      className="rounded-lg overflow-hidden"
+      style={{ border: '1px solid rgba(15,26,46,0.10)', borderLeft: '3px solid #0F766E' }}
+    >
+      {/* Research-panel header strip — mono eyebrow + runway meta, matching the
+          IX/offtake card chrome used across the Lens. */}
+      <div
+        className="px-4 py-2.5 flex items-center justify-between gap-2 border-b"
+        style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}
+      >
         <GlossaryLabel
           term="Timeline to COD"
           displayAs="Timeline to COD"
-          className="eyebrow-mono text-gray-500"
+          className="eyebrow-mono font-bold text-teal-800"
         />
-        <span className="text-[10px] font-mono tabular-nums text-gray-500">target {codYear} · {minMonths} mo runway</span>
+        <span className="font-mono text-[9px] uppercase tracking-[0.16em] tabular-nums text-gray-500">
+          target {codYear} · {minMonths} mo runway
+        </span>
       </div>
 
-      <PhaseBar phases={phases} totalMonths={totalMonths} minMonths={minMonths} overRunway={overRunway} slack={slack} />
+      <div className="px-4 py-3.5 bg-white">
+        <PhaseBar phases={phases} totalMonths={totalMonths} minMonths={minMonths} overRunway={overRunway} slack={slack} />
 
-      <ul className="space-y-1 text-[11px] text-gray-700 leading-snug mt-3">
-        {lines.map((l, i) => (
-          <li key={i}>
-            ·{' '}
-            {l.tooltip ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="cursor-help underline decoration-dotted underline-offset-2">{l.text}</span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="!max-w-[380px]">
-                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{l.tooltip.title}</p>
-                  <p className="leading-relaxed">{l.tooltip.body}</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              l.text
-            )}
-          </li>
-        ))}
-      </ul>
+        <ul className="space-y-1 text-[11px] text-gray-700 leading-snug mt-3.5">
+          {lines.map((l, i) => (
+            <li key={i} className="flex gap-1.5">
+              <span className="text-teal-600/60 shrink-0">·</span>
+              {l.tooltip ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help underline decoration-dotted underline-offset-2">{l.text}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="!max-w-[380px]">
+                    <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{l.tooltip.title}</p>
+                    <p className="leading-relaxed">{l.tooltip.body}</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <span>{l.text}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   )
 }
@@ -929,16 +948,26 @@ function PhaseBar({ phases, totalMonths, minMonths, overRunway, slack }) {
 
   return (
     <div>
-      {/* Bar */}
-      <div className="relative h-5 rounded-sm overflow-hidden" style={{ background: 'rgba(15,26,46,0.06)' }}>
+      {/* Bar — segments resize fluidly (transition-[width]) when levers change.
+          A 1px inner-light divider separates phases; the month count renders
+          inside any segment wide enough to hold it (gantt-style). */}
+      <div className="relative h-6 rounded-md overflow-hidden" style={{ background: 'rgba(15,26,46,0.05)' }}>
         <div className="flex h-full">
-          {phaseSegments.map((p) => (
+          {phaseSegments.map((p, i) => (
             <Tooltip key={p.key}>
               <TooltipTrigger asChild>
                 <div
-                  className="h-full cursor-help transition-opacity hover:opacity-85"
-                  style={{ width: `${p.widthPct}%`, background: p.color }}
-                />
+                  className="h-full cursor-help transition-[width] duration-500 ease-out hover:brightness-110 flex items-center justify-center overflow-hidden"
+                  style={{
+                    width: `${p.widthPct}%`,
+                    background: p.color,
+                    boxShadow: i > 0 ? 'inset 1px 0 0 rgba(255,255,255,0.30)' : 'none',
+                  }}
+                >
+                  {p.widthPct > 13 && (
+                    <span className="font-mono text-[9px] font-bold tabular-nums text-white/90 select-none">{p.months}</span>
+                  )}
+                </div>
               </TooltipTrigger>
               <TooltipContent side="top" className="!max-w-[300px]">
                 <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{p.label} · {p.months} mo</p>
@@ -947,17 +976,18 @@ function PhaseBar({ phases, totalMonths, minMonths, overRunway, slack }) {
             </Tooltip>
           ))}
         </div>
-        {/* COD runway marker */}
+        {/* COD runway marker — dashed for "on track", solid red when over. */}
         {runwayMarkerPct != null && (
           <Tooltip>
             <TooltipTrigger asChild>
               <div
-                className="absolute top-0 bottom-0 cursor-help"
+                className="absolute top-0 bottom-0 cursor-help transition-[left] duration-500 ease-out"
                 style={{
                   left: `${runwayMarkerPct}%`,
                   width: '2px',
                   background: overRunway ? '#DC2626' : '#0F1A2E',
                   transform: 'translateX(-50%)',
+                  boxShadow: overRunway ? '0 0 4px rgba(220,38,38,0.55)' : 'none',
                 }}
               />
             </TooltipTrigger>
@@ -974,19 +1004,19 @@ function PhaseBar({ phases, totalMonths, minMonths, overRunway, slack }) {
       </div>
 
       {/* Legend + total */}
-      <div className="flex items-center justify-between gap-3 mt-1.5 flex-wrap">
-        <div className="flex items-center gap-2.5 flex-wrap">
+      <div className="flex items-center justify-between gap-3 mt-2 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           {phases.map(p => (
-            <div key={p.key} className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: p.color }} />
+            <div key={p.key} className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
               <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-gray-500">
-                {p.label} {p.months}
+                {p.label} <span className="text-gray-700 font-bold tabular-nums">{p.months}</span>
               </span>
             </div>
           ))}
         </div>
         <span
-          className="font-mono text-[10px] tabular-nums shrink-0"
+          className="font-mono text-[10px] tabular-nums shrink-0 font-bold"
           style={{ color: overRunway ? '#B91C1C' : '#0F766E' }}
         >
           {totalMonths} mo total{overRunway ? ` · tight by ${Math.abs(slack)}` : slack > 0 ? ` · ${slack} mo slack` : ''}

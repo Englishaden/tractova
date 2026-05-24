@@ -1,5 +1,5 @@
 import { computePolicyClimateScore } from './policyAdjustments'
-import { axesFromTechnology, composeTechnology } from './lensFormConstants'
+import { axesFromTechnology, composeTechnology, normalizeStructure } from './lensFormConstants'
 
 export const STAGE_MODIFIERS = {
   'Prospecting':              [  0,   0,   0 ],
@@ -74,14 +74,15 @@ export const BESS_OFFTAKE_COVERAGE = Object.keys(BESS_OFFTAKE_SCORES).sort()
 
 // Curated offtake coverage for a project's monetization structure (accepts a
 // legacy technology string or an {architecture, structure} axes object).
-//   - C&I behind-the-meter → EIA Form 861 retail-rate coverage list
+//   - C&I Solar → EIA Form 861 retail-rate coverage list
 //   - legacy Standalone BESS → ISO capacity-market coverage list
-//   - Net Metering / Net Billing → [] (no curated model yet — 'limited')
+//   - Net Metering → retail-rate coverage list (full-retail export anchor)
+//   - Net Billing → [] (no curated export-credit model yet — 'limited')
 //   - Community Solar → null (all 50 states curated)
 export function getOfftakeCoverageStates(technology) {
   const { architecture, structure } = axesFromTechnology(technology)
   if (architecture === 'Standalone BESS') return BESS_OFFTAKE_COVERAGE
-  if (structure === 'C&I behind-the-meter') return CI_OFFTAKE_COVERAGE
+  if (structure === 'C&I Solar') return CI_OFFTAKE_COVERAGE
   if (structure === 'Net Metering') return CI_OFFTAKE_COVERAGE  // retail-rate anchor
   if (structure === 'Net Billing') return []                    // no curated model yet
   return null
@@ -191,9 +192,13 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   if (!stateProgram) return { offtake: 0, ix: 0, site: 0, policyClimate: 50, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', policy: 'none' } }
 
   // Two-axis model: accept {architecture, structure} or a legacy technology string.
-  const { architecture, structure } = (technology && typeof technology === 'object')
+  // normalizeStructure maps the pre-2026-05-24 'C&I behind-the-meter' label that
+  // legacy saved rows carry to the canonical 'C&I Solar' so they score correctly.
+  const axes = (technology && typeof technology === 'object')
     ? technology
     : axesFromTechnology(technology)
+  const architecture = axes.architecture
+  const structure = normalizeStructure(axes.structure)
   const isLegacyBess = architecture === 'Standalone BESS'
 
   let offtake, ix, site
@@ -230,7 +235,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     // saved projects; not offered for new ones (scope: merchant storage is OUT).
     if (BESS_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = BESS_OFFTAKE_SCORES[stateProgram.id] ?? 45
-  } else if (structure === 'C&I behind-the-meter') {
+  } else if (structure === 'C&I Solar') {
     if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
   } else if (structure === 'Net Metering') {

@@ -832,9 +832,13 @@ function SearchContent() {
             </p>
           </div>
 
-          {/* Fields — V3 paper background, no longer green-tinted */}
+          {/* Fields — V3 paper background, no longer green-tinted. Two rows of
+              three on md+ (location+size / stage+architecture+structure): the
+              longer two-axis labels ("System Architecture", "Monetization
+              Structure") need the column width to stay on one line — a 6-up row
+              wrapped them and dropped their controls out of alignment. */}
           <div className="px-5 py-5 bg-paper rounded-b-xl">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
 
               {/* State */}
               <FieldSelect

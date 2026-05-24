@@ -10,6 +10,7 @@ import {
   structureNoun,
   composeTechnology,
   axesFromTechnology,
+  normalizeStructure,
   getStickyStructure,
   getStickyArchitecture,
 } from '../../src/lib/lensFormConstants.js'
@@ -25,7 +26,7 @@ describe('Two-axis constants (architecture × structure)', () => {
     expect(STRUCTURE_OPTIONS).not.toContain('All structures')
     expect(STRUCTURE_DEFAULT).toBe('Community Solar')
     expect(STRUCTURE_OPTIONS[0]).toBe(STRUCTURE_DEFAULT)
-    expect(STRUCTURE_OPTIONS).toEqual(['Community Solar', 'Net Metering', 'Net Billing', 'C&I behind-the-meter'])
+    expect(STRUCTURE_OPTIONS).toEqual(['Community Solar', 'Net Metering', 'Net Billing', 'C&I Solar'])
   })
 
   it('every structure option maps to a tag and round-trips', () => {
@@ -47,8 +48,8 @@ describe('Two-axis constants (architecture × structure)', () => {
 describe('composeTechnology ⇄ axesFromTechnology (the derived mirror)', () => {
   it('composes a label for every form-producible combination', () => {
     expect(composeTechnology('Standalone PV', 'Community Solar')).toBe('Community Solar')
-    expect(composeTechnology('Standalone PV', 'C&I behind-the-meter')).toBe('C&I Solar')
-    expect(composeTechnology('Standalone PV', 'Net Metering')).toBe('Net Metering Solar')
+    expect(composeTechnology('Standalone PV', 'C&I Solar')).toBe('C&I Solar')
+    expect(composeTechnology('Standalone PV', 'Net Metering')).toBe('Net Metering')
     expect(composeTechnology('PV + Storage', 'Community Solar')).toBe('Community Solar + Storage')
     expect(composeTechnology('PV + Storage', 'Net Billing')).toBe('Net Billing + Storage')
   })
@@ -64,13 +65,20 @@ describe('composeTechnology ⇄ axesFromTechnology (the derived mirror)', () => 
 
   it('normalizes legacy technology strings', () => {
     expect(axesFromTechnology('Community Solar')).toEqual({ architecture: 'Standalone PV', structure: 'Community Solar' })
-    expect(axesFromTechnology('C&I Solar')).toEqual({ architecture: 'Standalone PV', structure: 'C&I behind-the-meter' })
+    expect(axesFromTechnology('C&I Solar')).toEqual({ architecture: 'Standalone PV', structure: 'C&I Solar' })
     expect(axesFromTechnology('Hybrid')).toEqual({ architecture: 'PV + Storage', structure: 'Community Solar' })
     expect(axesFromTechnology('community-solar')).toEqual({ architecture: 'Standalone PV', structure: 'Community Solar' })
   })
 
   it('preserves legacy standalone BESS (merchant) as architecture=Standalone BESS', () => {
     expect(axesFromTechnology('BESS')).toEqual({ architecture: 'Standalone BESS', structure: null })
+  })
+
+  it('normalizeStructure folds the legacy C&I label into canonical C&I Solar', () => {
+    expect(normalizeStructure('C&I behind-the-meter')).toBe('C&I Solar')
+    expect(normalizeStructure('C&I Solar')).toBe('C&I Solar')
+    expect(normalizeStructure('Community Solar')).toBe('Community Solar')
+    expect(normalizeStructure(undefined)).toBe(undefined)
   })
 })
 

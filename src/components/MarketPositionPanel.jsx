@@ -370,9 +370,15 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
                   <span className="font-bold uppercase tracking-wider text-[9px]">Limited coverage — directional only</span>
                   <span className="block mt-0.5 font-normal space-y-0.5">
                     {offtakeCoverageStates && (
-                      <span className="block">
-                        <strong>Offtake:</strong> {technology} economics are curated for {offtakeCoverageStates.join(', ')}. {stateProgram.name} uses an estimated baseline.
-                      </span>
+                      offtakeCoverageStates.length > 0 ? (
+                        <span className="block">
+                          <strong>Offtake:</strong> {technology} economics are curated for {offtakeCoverageStates.join(', ')}. {stateProgram.name} uses an estimated baseline.
+                        </span>
+                      ) : (
+                        <span className="block">
+                          <strong>Offtake:</strong> Net-billing economics aren't modeled in any state yet — exports credit below the retail rate and there's no clean per-state export-credit dataset to model honestly. {stateProgram.name} uses a directional baseline.
+                        </span>
+                      )
                     )}
                     {siteFallback && (
                       <span className="block">

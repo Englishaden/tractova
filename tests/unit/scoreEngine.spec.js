@@ -278,8 +278,17 @@ describe('computeSubScores — two-axis model (architecture × structure)', () =
   it('legacy technology strings still resolve to the right axes', () => {
     // 'C&I Solar' → C&I structure; 'Hybrid' → PV+Storage + CS.
     const ci = computeSubScores(NY, null, '', 'C&I Solar')
-    const ciAxes = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I behind-the-meter' })
+    const ciAxes = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I Solar' })
     expect(ci.offtake).toBe(ciAxes.offtake)
+  })
+
+  it('legacy "C&I behind-the-meter" structure still scores as C&I (normalizeStructure)', () => {
+    // Saved rows from before the 2026-05-24 rename carry the old structure label.
+    // They must score identically to canonical 'C&I Solar', not fall through to CS.
+    const legacy = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I behind-the-meter' })
+    const canonical = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I Solar' })
+    expect(legacy.offtake).toBe(canonical.offtake)
+    expect(legacy.coverage.offtake).toBe(canonical.coverage.offtake)
   })
 
   it('PV+Storage applies the -5 IX modifier vs Standalone PV', () => {
@@ -292,7 +301,7 @@ describe('computeSubScores — two-axis model (architecture × structure)', () =
   it('Net Metering tracks the retail-rate (C&I) anchor; Net Billing stays limited, NB < NM', () => {
     const nm = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
     const nb = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Billing' })
-    const ci = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I behind-the-meter' })
+    const ci = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I Solar' })
     expect(nm.offtake).toBe(ci.offtake)             // same retail-rate anchor (NY curated)
     expect(nm.coverage.offtake).toBe('researched')  // NY is in the curated retail list
     expect(nb.coverage.offtake).toBe('fallback')    // no export-credit model yet

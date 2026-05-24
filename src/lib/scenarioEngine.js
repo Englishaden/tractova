@@ -28,7 +28,7 @@ import {
   computeBESSProjection,
 } from './revenueEngine'
 import { computePolicyAdjustments } from './policyAdjustments'
-import { axesFromTechnology } from './lensFormConstants'
+import { axesFromTechnology, normalizeStructure } from './lensFormConstants'
 
 // ── Industry baselines ──────────────────────────────────────────────────────
 // Values that aren't in revenueEngine's per-state data but are needed to
@@ -479,11 +479,13 @@ export function formatScenarioSummary(scenario, baseline) {
 // computeForTech returns null for them → computeBaseline returns null →
 // Scenario Studio is gated (the existing "no revenue data" path).
 function normalizeTech(t) {
-  const { architecture, structure } = (t && typeof t === 'object') ? t : axesFromTechnology(t)
+  const axes = (t && typeof t === 'object') ? t : axesFromTechnology(t)
+  const architecture = axes.architecture
+  const structure = normalizeStructure(axes.structure)
   if (architecture === 'Standalone BESS') return 'bess'          // legacy merchant storage
-  if (structure === 'Net Metering') return 'net-metering'        // no revenue model yet
-  if (structure === 'Net Billing') return 'net-billing'          // no revenue model yet
-  if (structure === 'C&I behind-the-meter') {
+  if (structure === 'Net Metering') return 'net-metering'        // retail-rate revenue model
+  if (structure === 'Net Billing') return 'net-billing'          // gated — no export-credit model yet
+  if (structure === 'C&I Solar') {
     return architecture === 'PV + Storage' ? 'ci-storage' : 'commercial-industrial' // ci-storage: no model yet
   }
   // Community Solar
