@@ -4,6 +4,30 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-24 (latest) SHIPPED net-metering economics — first-class structure (offtake + Scenario Studio)
+
+**Net Metering is now a fully-scored, fully-modeled structure** (was 'limited' + Scenario-Studio-gated after the two-axis rename). Data-backed, no fabrication, NO migration (uses existing `revenue_rates`).
+
+### Data reality that made it honest (probed live)
+- `revenue_rates.ci_retail_rate_cents_kwh` exists for 17 states (CA 22¢ · MA 23¢ · NY 21¢ · NJ 16.6¢ …) + capacity factor + cost → **net metering = production × FULL retail rate** (vs C&I's discounted PPA) is computable from data we already have.
+- `revenue_stacks.net_metering_status` is CS-focused free *text*, not a clean availability enum → rather than GATE the score on per-state NM availability (which we can't cleanly source), we follow the project's **expose + disclose** tenet (surface `net_metering_status`, score on the retail-rate anchor).
+- **Net BILLING stays gated/'limited'** — it credits exports at avoided cost (below retail) and we have NO export-credit data; inventing a discount factor = fabrication. Flagged for when export-credit data is sourced.
+
+### ✅ SHIPPED (197 unit + 7/7 smoke + build green; commit pending)
+- **revenueEngine** `computeNetMeteringProjection` — mirrors the C&I projection with the per-kWh value = retail rate (savingsPercent=0, full retail credit). Returns a C&I-shaped raw. Null when a state has no retail-rate data.
+- **scenarioEngine** — net metering reuses the C&I machinery via a `revenueModelOf()` alias (extractInputs/computeOutputs/getSliderConfig); `computeForTech('net-metering')` → the NM projection. **Un-gates Scenario Studio for net metering.** Net billing / C&I+Storage still gate (null baseline → honest "not available").
+- **scoreEngine** — Net Metering offtake → the curated retail-rate anchor (`CI_OFFTAKE_SCORES`; net-metering value ∝ retail, same signal as C&I), 'researched' where covered. `getOfftakeCoverageStates`: Net Metering → C&I coverage list; Net Billing → []. Net Billing stays flat 'fallback' baseline.
+- **Tests** — `computeNetMeteringProjection` (full-retail ≥ discounted-PPA revenue, null guards); net-metering offtake tracks the C&I anchor + NB < NM; getSliderConfig net-metering aliases the C&I slider set.
+
+### ⏭ DO NEXT
+1. Browser-verify on prod: a Net Metering project now scores offtake (not 'limited') + Scenario Studio renders revenue (was gated). Net Billing still shows the gated state.
+2. **Flagged future:** net-BILLING offtake + revenue (needs per-state avoided-cost export-credit sourcing); merchant-BESS reconciliation; optionally surface architecture/structure as separate display chips.
+
+### Still open from the prior arc (manual-data phase)
+7 browser/manual-gated IX candidates (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS CS queues) → manual-upload ingest pipeline.
+
+---
+
 ## 🟢 Pickup — 2026-05-24 (latest) SHIPPED two-axis rename — Technology → Architecture × Structure
 
 **The conflated `technology` field is split into two orthogonal axes** (scope decision in code). Aden's calls: **full rename** (real DB columns + migration) and **drop Standalone BESS** from the form (merchant out of scope; legacy BESS preserved + still scored). Done as ONE backward-compatible slice — the foundation (engine + constants) is no-UI-change and verified before the UI flip.

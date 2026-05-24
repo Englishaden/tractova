@@ -523,6 +523,69 @@ export function computeCIRevenueProjection(stateId, mwAC, rates) {
   }
 }
 
+/**
+ * Net-metering projection. Net metering credits a project's production at the
+ * FULL retail rate (vs C&I's discounted PPA) — so it reuses the C&I model with
+ * the per-kWh value = ci_retail_rate_cents_kwh (the retail rate the customer
+ * avoids). Honest + data-backed: retail rate + capacity factor + cost all live
+ * in revenue_rates. Returns a C&I-shaped raw so the scenario machinery (which
+ * aliases 'net-metering' → 'commercial-industrial') consumes it unchanged.
+ *
+ * NOTE: net BILLING is NOT this — it credits exports at avoided cost (below
+ * retail), and we have no export-credit data, so it stays unmodeled.
+ *
+ * @returns {object|null} null when the state has no retail-rate data.
+ */
+export function computeNetMeteringProjection(stateId, mwAC, rates) {
+  const data = (rates ? mapCIRates(rates) : null) || CI_REVENUE_DATA[stateId]
+  if (!data || !data.retailRateCentsKwh || !mwAC || mwAC <= 0) return null
+
+  const mw = parseFloat(mwAC)
+  const cf = data.capacityFactorPct / 100
+  const annualMWh = mw * HOURS_PER_YEAR * cf
+  const annualKWh = annualMWh * 1000
+
+  // Full retail credit (no PPA discount) — the defining feature of net metering.
+  const nemRevenue = annualKWh * (data.retailRateCentsKwh / 100)
+  const installedCostTotal = mw * 1000000 * data.installedCostPerWatt
+  const itcValueOneTime = installedCostTotal * (data.itcPct / 100)
+  const itcAnnualized = itcValueOneTime / 6
+  const annualGrossRevenue = nemRevenue + itcAnnualized
+
+  const discountRate = 0.08
+  let npv25 = 0
+  for (let year = 1; year <= 25; year++) {
+    const degradation = Math.pow(1 - data.degradationPct / 100, year - 1)
+    const escalator = Math.pow(1 + data.escalatorPct / 100, year - 1)
+    const yearRev = nemRevenue * degradation * escalator
+    const yearITC = year <= 6 ? itcAnnualized : 0
+    npv25 += (yearRev + yearITC) / Math.pow(1 + discountRate, year)
+  }
+
+  return {
+    stateId,
+    stateLabel: data.label,
+    mw,
+    capacityFactor: data.capacityFactorPct,
+    annualMWh: Math.round(annualMWh),
+    // C&I-shaped fields (the scenario machinery reads ppa*): for net metering the
+    // "rate" IS the retail rate, and there's no PPA-vs-retail discount.
+    ppaRevenue: Math.round(nemRevenue),
+    ppaRateCentsKwh: data.retailRateCentsKwh,
+    retailRateCentsKwh: data.retailRateCentsKwh,
+    savingsPercent: 0,
+    escalatorPct: data.escalatorPct,
+    itcPct: data.itcPct,
+    itcValueOneTime: Math.round(itcValueOneTime),
+    itcAnnualized: Math.round(itcAnnualized),
+    annualGrossRevenue: Math.round(annualGrossRevenue),
+    revenuePerMW: Math.round(annualGrossRevenue / mw),
+    npv25: Math.round(npv25),
+    installedCostPerWatt: data.installedCostPerWatt,
+    installedCostTotal: Math.round(installedCostTotal),
+  }
+}
+
 // ── BESS projection (capacity market + demand charge + arbitrage) ─────────────
 export function getBESSRevenueData(stateId) {
   return BESS_REVENUE_DATA[stateId] ?? null

@@ -40,6 +40,19 @@ describe('getSliderConfig — null guard', () => {
   })
 })
 
+describe('getSliderConfig — net metering aliases the C&I slider set', () => {
+  it('net-metering uses C&I sliders (capacity factor; no REC / allocation)', () => {
+    const nm = getSliderConfig({
+      technology: 'net-metering',
+      inputs: { systemSizeMW: 5, capexPerWatt: 1.6, ixCostPerWatt: 0.12, capacityFactor: 0.18, opexPerKwYear: 18, discountRate: 0.08, contractYears: 25 },
+    })
+    const keys = nm.map(s => s.key)
+    expect(keys).toContain('capacityFactor')
+    expect(keys).not.toContain('recPricePerMwh')    // CS-only
+    expect(keys).not.toContain('programAllocation') // CS-only
+  })
+})
+
 describe('getSliderConfig — capex range scales with baseline (A.1 fix)', () => {
   it('Cumberland-Maine case: $2.70/W baseline → range $1.35 to $5.40 (proportional, no ceiling)', () => {
     const cfg = getSliderConfig(baseSolar({ capexPerWatt: 2.70 }))

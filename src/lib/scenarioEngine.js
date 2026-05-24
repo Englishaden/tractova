@@ -24,6 +24,7 @@
 import {
   computeRevenueProjection,
   computeCIRevenueProjection,
+  computeNetMeteringProjection,
   computeBESSProjection,
 } from './revenueEngine'
 import { computePolicyAdjustments } from './policyAdjustments'
@@ -224,7 +225,7 @@ export function applyScenario(baseline, sliders) {
 export function getSliderConfig(baseline) {
   if (!baseline) return []
   const i = baseline.inputs
-  const tech = baseline.technology
+  const tech = revenueModelOf(baseline.technology)  // net-metering → C&I sliders
 
   // direction: 'higher-better' | 'lower-better' | 'neutral'
   // Drives the slider color (grey at baseline, teal when "good direction,"
@@ -499,6 +500,7 @@ export function denormalizeTech(slug) {
   if (s === 'commercial-industrial') return 'C&I Solar'
   if (s === 'hybrid')                return 'Hybrid'
   if (s === 'community-solar')       return 'Community Solar'
+  if (s === 'net-metering')          return 'Net Metering'
   // Pass-through for already-display values (so the call site doesn't have
   // to know whether it has a slug or a label).
   return slug
@@ -506,12 +508,20 @@ export function denormalizeTech(slug) {
 
 function computeForTech(tech, stateId, mw, rates) {
   if (tech === 'commercial-industrial') return computeCIRevenueProjection(stateId, mw, rates)
+  if (tech === 'net-metering') return computeNetMeteringProjection(stateId, mw, rates)
   if (tech === 'bess') return computeBESSProjection(stateId, mw, 4, rates)
   if (tech === 'hybrid') return computeHybridForScenario(stateId, mw, rates)
   if (tech === 'community-solar') return computeRevenueProjection(stateId, mw, rates)
-  // net-metering | net-billing | ci-storage — no Scenario-Studio revenue model
-  // yet. Returning null gates the tab honestly (vs silently showing CS revenue).
+  // net-billing | ci-storage — no Scenario-Studio revenue model yet (net billing
+  // needs export-credit data we don't have). Null gates the tab honestly.
   return null
+}
+
+// Net metering reuses the C&I scenario machinery (same production × rate shape) —
+// alias it for the input/output/slider dispatch. computeForTech still uses the
+// net-metering-specific projection (full retail rate) for the raw.
+function revenueModelOf(tech) {
+  return tech === 'net-metering' ? 'commercial-industrial' : tech
 }
 
 // Hybrid scenario raw data — combines CS + BESS underlying revenue projections
@@ -546,6 +556,7 @@ function computeHybridForScenario(stateId, mw, rates) {
 }
 
 function extractInputs(tech, raw) {
+  tech = revenueModelOf(tech)  // net-metering → commercial-industrial machinery
   // Tech-specific defaults for the lifecycle assumptions. BESS uses a
   // 15-year project life (battery warranty); solar tech uses 25-year.
   const baseLife = tech === 'bess' ? INDUSTRY_BASELINE.bessContractYears : INDUSTRY_BASELINE.contractYears
@@ -598,6 +609,7 @@ function extractInputs(tech, raw) {
 }
 
 function computeOutputs(tech, raw, inputs, baseOutputs) {
+  tech = revenueModelOf(tech)  // net-metering → commercial-industrial machinery
   if (tech === 'commercial-industrial') return computeCIOutputs(raw, inputs, baseOutputs)
   if (tech === 'bess') return computeBESSOutputs(raw, inputs, baseOutputs)
   if (tech === 'hybrid') return computeHybridOutputs(raw, inputs, baseOutputs)

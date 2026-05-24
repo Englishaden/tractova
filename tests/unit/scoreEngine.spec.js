@@ -256,8 +256,8 @@ describe('getOfftakeCoverageStates — published coverage', () => {
     expect(getOfftakeCoverageStates('Hybrid')).toBeNull()
   })
 
-  it('returns [] for Net Metering / Net Billing (no curated model yet)', () => {
-    expect(getOfftakeCoverageStates('Net Metering')).toEqual([])
+  it('Net Metering uses the retail-rate (C&I) coverage; Net Billing has none yet', () => {
+    expect(getOfftakeCoverageStates('Net Metering')).toEqual(getOfftakeCoverageStates('C&I Solar'))
     expect(getOfftakeCoverageStates('Net Billing')).toEqual([])
   })
 
@@ -289,11 +289,13 @@ describe('computeSubScores — two-axis model (architecture × structure)', () =
     expect(pv.offtake).toBe(hyb.offtake) // same structure → same offtake
   })
 
-  it('Net Metering / Net Billing score offtake as limited (fallback), NB < NM', () => {
+  it('Net Metering tracks the retail-rate (C&I) anchor; Net Billing stays limited, NB < NM', () => {
     const nm = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
     const nb = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Billing' })
-    expect(nm.coverage.offtake).toBe('fallback')
-    expect(nb.coverage.offtake).toBe('fallback')
+    const ci = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I behind-the-meter' })
+    expect(nm.offtake).toBe(ci.offtake)             // same retail-rate anchor (NY curated)
+    expect(nm.coverage.offtake).toBe('researched')  // NY is in the curated retail list
+    expect(nb.coverage.offtake).toBe('fallback')    // no export-credit model yet
     expect(nb.offtake).toBeLessThan(nm.offtake)
   })
 

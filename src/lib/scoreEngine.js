@@ -82,7 +82,8 @@ export function getOfftakeCoverageStates(technology) {
   const { architecture, structure } = axesFromTechnology(technology)
   if (architecture === 'Standalone BESS') return BESS_OFFTAKE_COVERAGE
   if (structure === 'C&I behind-the-meter') return CI_OFFTAKE_COVERAGE
-  if (structure === 'Net Metering' || structure === 'Net Billing') return []
+  if (structure === 'Net Metering') return CI_OFFTAKE_COVERAGE  // retail-rate anchor
+  if (structure === 'Net Billing') return []                    // no curated model yet
   return null
 }
 
@@ -232,13 +233,18 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   } else if (structure === 'C&I behind-the-meter') {
     if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
-  } else if (structure === 'Net Metering' || structure === 'Net Billing') {
-    // No curated offtake model yet — honest 'limited' coverage (flagged), NOT a
-    // CS default. Net billing credits exports at avoided cost (below retail), so
-    // it's directionally weaker than retail net metering. Baselines uncalibrated
-    // pending real models (the flagged future slice).
+  } else if (structure === 'Net Metering') {
+    // Net metering credits exports at the FULL retail rate, so its offtake value
+    // tracks the same retail-rate signal as C&I — reuse that curated anchor (EIA
+    // Form 861). 'researched' where curated; the UI discloses net_metering_status
+    // (expose + disclose) rather than gating on per-state NM availability.
+    if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
+    offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
+  } else if (structure === 'Net Billing') {
+    // Exports credited at avoided cost (below retail). No curated export-credit
+    // data yet → honest 'limited' baseline, directionally below net metering.
     offtakeCoverage = 'fallback'
-    offtake = structure === 'Net Billing' ? 45 : 55
+    offtake = 45
   } else {
     // Community Solar (default) — driven entirely by state_programs DB,
     // which has all 50 states curated, so coverage stays 'researched'.

@@ -6,6 +6,7 @@ import {
   computeRevenueProjection,
   hasCIRevenueData,
   computeCIRevenueProjection,
+  computeNetMeteringProjection,
   hasBESSRevenueData,
   computeBESSProjection,
   computeHybridProjection,
@@ -99,6 +100,32 @@ describe('C&I revenue projection guards', () => {
     if (!state) return
     expect(computeCIRevenueProjection(state, 0)).toBeNull()
     expect(computeCIRevenueProjection(state, null)).toBeNull()
+  })
+})
+
+describe('net-metering projection (full retail credit)', () => {
+  const state = ['CA', 'NY', 'MA', 'NJ'].find(s => hasCIRevenueData(s))
+
+  it('returns non-null for a retail-rate-covered state', () => {
+    if (!state) return
+    const r = computeNetMeteringProjection(state, 5)
+    expect(r).not.toBeNull()
+    expect(r.savingsPercent).toBe(0)                       // full retail, no PPA discount
+    expect(r.ppaRateCentsKwh).toBe(r.retailRateCentsKwh)   // credited at retail
+  })
+
+  it('credits at full retail → revenue ≥ the discounted C&I PPA for the same state', () => {
+    if (!state) return
+    const nm = computeNetMeteringProjection(state, 5)
+    const ci = computeCIRevenueProjection(state, 5)
+    expect(nm.ppaRevenue).toBeGreaterThanOrEqual(ci.ppaRevenue)
+  })
+
+  it('returns null for null/zero/negative MW', () => {
+    if (!state) return
+    expect(computeNetMeteringProjection(state, 0)).toBeNull()
+    expect(computeNetMeteringProjection(state, null)).toBeNull()
+    expect(computeNetMeteringProjection(state, -1)).toBeNull()
   })
 })
 
