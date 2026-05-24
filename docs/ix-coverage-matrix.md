@@ -18,7 +18,7 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | NJ | PSE&G | ✅ |  | ✓ HTTP 206, 1024B | WIRED 2026-05-23: 129 CS / 276 MW. BPU QO21010085 monthly queue. |
 | NJ | Rockland Electric (RECO) | ✅ |  | ✓ HTTP 206, 1024B | WIRED 2026-05-23: feed live but 0 CS in queue now — auto-appears when CS>0 (separate Yes/No layout handled). |
 | NJ | Atlantic City Electric | 🔶 | ⛔ |  | BPU-mandated monthly queue exists, but file link is JS-rendered on atlanticcityelectric.com — needs a headless browser to isolate the URL. · PHI feed Feeder_Large_Gen_HC kW capped at 3MW (murky) |
-| VA | Dominion | ✅ | ⛔ | ✓ HTTP 206, 1024B | ICA layer only bucketed LIMIT_VAL integer codes, not real MW |
+| VA | Dominion | ✅ | ⛔ | ✓ HTTP 206, 1024B | RE-CONFIRMED 2026-05-23: Primary_HostingCapacity_Final EB layer only has LIMIT_VAL bucketed integer codes, not real MW. (VA queue is live anyway.) |
 | VA | Appalachian Power | ∅ |  |  | CONFIRMED (agent): PowerClerk app only, no public queue/HC map, absent from DOE Atlas |
 | WI | Alliant Energy | ✅ |  | ✓ HTTP 206, 1024B |  |
 | WI | We Energies | ❓ |  |  | WEC Energy — not verified |
@@ -54,13 +54,13 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 | NM | PNM / El Paso Electric | ∅ | ∅ |  | CONFIRMED (agent): PNM OATI OASIS is TRANSMISSION queue (no CS); El Paso none · CONFIRMED (agent): PNM CartoVista is TRANSMISSION POI only; El Paso procedures-only; no distribution HC |
 | OR | Portland General / PacifiCorp / Idaho Power | 🔶 |  |  | MISS — all 3 OR IOUs publish DEDICATED Community Solar queues via OATI OASIS (agent high-conf). Most CS-targeted of any state. OASIS web tables — bulk export-ability UNCONFIRMED. |
 | OR | Portland General / PacifiCorp |  | 🔶 |  | PGE DG Evaluation map + PacifiCorp DG map (DOE Atlas) — ArcGIS, REST endpoint not yet isolated |
-| WA | Avista |  | 🔶 |  | RE-CHECK: agent found a feeder-level DER Hosting Capacity Experience Builder app — DIFFERENT from the GEN_MAX_KW 50kW layer I rejected. REST endpoint needs extraction. |
+| WA | Avista |  | ⛔ |  | RE-CHECKED 2026-05-23: resolved the EB app → HeatMap_MW_Impact is quantized/transmission-scale (max 300MW, >=1MW count == >=5MW count) and CS24_Queue is transmission cluster studies (115–230kV, up to 375MW). Both wrong layer/scale — not distribution CS. Correctly NOT wired. |
 | WA | Puget Sound Energy |  | ⛔ |  | CONFIRMED (agent): DER+Load maps email-request only, not openly published |
 | WA | Avista / PSE | ∅ |  |  | CONFIRMED (agent): no downloadable distribution queue from either IOU |
 | PA | PECO |  | ✅ | ✓ 3443 features |  |
 
 ## Summary
-- Cells: 64 — ✅ live 23 · 🔶 candidate 8 · ⛔ blocked 15 · ∅ none 8 · ❓ unchecked 10
+- Cells: 64 — ✅ live 23 · 🔶 candidate 7 · ⛔ blocked 16 · ∅ none 8 · ❓ unchecked 10
 - Liveness probes (live + candidate): 23/23 returning data
 - CS states with ≥1 live source: 12/19 — CA, CT, MA, MD, ME, MI, MN, NJ, NY, RI, VA, WI
 - CS states with ZERO live source: 7 — CO, IL, FL, HI, NM, OR, WA
@@ -74,7 +74,6 @@ Cross-checked 2026-05-23 by 3 independent research agents (NE / Midwest-Mountain
 - HI · Hawaiian Electric · queue (license: unknown) — Integrated Interconnection Queue (IIQ) — Oahu/Maui/Hawaii Island, monthly, circuit-level, ~11,698 PV requests (agent high-conf). Web table — bulk CSV/XLSX export UNCONFIRMED.
 - OR · Portland General / PacifiCorp / Idaho Power · queue (license: unknown) — MISS — all 3 OR IOUs publish DEDICATED Community Solar queues via OATI OASIS (agent high-conf). Most CS-targeted of any state. OASIS web tables — bulk export-ability UNCONFIRMED.
 - OR · Portland General / PacifiCorp · hc (license: unknown) — PGE DG Evaluation map + PacifiCorp DG map (DOE Atlas) — ArcGIS, REST endpoint not yet isolated
-- WA · Avista · hc (license: unknown) — RE-CHECK: agent found a feeder-level DER Hosting Capacity Experience Builder app — DIFFERENT from the GEN_MAX_KW 50kW layer I rejected. REST endpoint needs extraction.
 
 ## License posture (a SEPARATE axis from accurate/live — flagged by all 3 agents)
 - LIVE feeds by license: open=1 · unknown=18 · gov=4

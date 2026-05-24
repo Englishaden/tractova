@@ -87,7 +87,7 @@ const REGISTRY = [
   // ── VA — Dominion queue wired; Appalachian unchecked ────────────────────────
   E('VA', 'Dominion', 'queue', 'live', { dataSource: 'va_dominion_queue', probe: 'http',
     url: 'https://cdn-dominionenergy-prd-001.azureedge.net/-/media/content/large-business-services/files/dominion-energy-virginia-queue-status-report.xlsx' }),
-  E('VA', 'Dominion', 'hc', 'blocked', { reason: 'ICA layer only bucketed LIMIT_VAL integer codes, not real MW' }),
+  E('VA', 'Dominion', 'hc', 'blocked', { reason: 'RE-CONFIRMED 2026-05-23: Primary_HostingCapacity_Final EB layer only has LIMIT_VAL bucketed integer codes, not real MW. (VA queue is live anyway.)' }),
   E('VA', 'Appalachian Power', 'queue', 'none', { reason: 'CONFIRMED (agent): PowerClerk app only, no public queue/HC map, absent from DOE Atlas' }),
 
   // ── WI — Alliant queue wired; other utilities unchecked ─────────────────────
@@ -187,9 +187,7 @@ const REGISTRY = [
     reason: 'MISS — all 3 OR IOUs publish DEDICATED Community Solar queues via OATI OASIS (agent high-conf). Most CS-targeted of any state. OASIS web tables — bulk export-ability UNCONFIRMED.' }),
   E('OR', 'Portland General / PacifiCorp', 'hc', 'candidate', { license: 'unknown',
     reason: 'PGE DG Evaluation map + PacifiCorp DG map (DOE Atlas) — ArcGIS, REST endpoint not yet isolated' }),
-  E('WA', 'Avista', 'hc', 'candidate', { license: 'unknown',
-    url: 'https://experience.arcgis.com/experience/955db80ba1124479a906c0a6edefe1cc/page/Distributed-Energy-Resource-Hosting-Capacity',
-    reason: 'RE-CHECK: agent found a feeder-level DER Hosting Capacity Experience Builder app — DIFFERENT from the GEN_MAX_KW 50kW layer I rejected. REST endpoint needs extraction.' }),
+  E('WA', 'Avista', 'hc', 'blocked', { reason: 'RE-CHECKED 2026-05-23: resolved the EB app → HeatMap_MW_Impact is quantized/transmission-scale (max 300MW, >=1MW count == >=5MW count) and CS24_Queue is transmission cluster studies (115–230kV, up to 375MW). Both wrong layer/scale — not distribution CS. Correctly NOT wired.' }),
   E('WA', 'Puget Sound Energy', 'hc', 'blocked', { reason: 'CONFIRMED (agent): DER+Load maps email-request only, not openly published' }),
   E('WA', 'Avista / PSE', 'queue', 'none', { reason: 'CONFIRMED (agent): no downloadable distribution queue from either IOU' }),
 ]
