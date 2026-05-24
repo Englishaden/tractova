@@ -4,6 +4,24 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-24 (NEXT) Scope decision → scraper capture-all-DG + Lens taxonomy split
+
+**Strategic decision made 2026-05-23 (discussion only, code tomorrow). See memory `project_scope_and_tech_taxonomy`.**
+
+**SCOPE LINE:** Tractova = the platform for the developer building DISTRIBUTION-interconnected generation, monetized via retail/program structures (CS, C&I behind-the-meter, net metering, net billing, on-bill), roughly **sub-10–20 MW**. OUT (on purpose): transmission/ISO-queue utility-scale, wholesale/merchant, BESS market value-stack (arbitrage/ancillary/capacity). *Narrow on scale, broad on monetization.* Focus = depth (per-state/program) = the moat = the data-trust posture restated.
+
+**TAXONOMY FIX:** the Lens "Tech type" {CS, Hybrid, BESS, C&I} conflates 2 orthogonal axes → split into (1) **system architecture** (Standalone PV / PV+Storage hybrid / Standalone BESS) and (2) **monetization structure** (CS / net metering / net billing / C&I BTM / on-bill). CS is a PROGRAM riding a (virtual) net-metering MECHANISM — not a tech type. BESS not binary: DG-coupled IN, merchant arbitrage OUT. CS = the wedge, not the ceiling.
+
+### ⏭ DO FIRST tomorrow (highest leverage)
+1. **Scrapers: stop filtering to CS-only — capture ALL distribution DG + tag by monetization structure** (metering_type where the source provides it, 'unknown' else). This IS the scope decision in data form. Payoff: 50–100× the dataset + serves net-metering devs, ~no new scraping. **Spike on NJ first** (PSE&G file = 7,357 rows; we keep 132 today). Then NY (drop CDG-only filter, tag instead). PG&E/WI already capture-all.
+   - Needs a schema think: add a `metering_type`/`structure` tag column to `ix_queue_data` (or a new wider table?) + decide whether per-(state,utility,structure) rows or keep per-(state,utility) with structure breakdown.
+2. **Then** split the Lens "Tech type" dropdown into the two-axis model (architecture + structure), structure defaulting to "All", CS-specialist sticky pref. Discovery in Lens; program economics in Scenario Studio.
+
+### Still open from the prior arc (manual-data phase)
+7 browser/manual-gated IX candidates (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS CS queues) → manual-upload ingest pipeline. Browser-verify the new NJ/CA/MD IX cards on prod.
+
+---
+
 ## 🟢 Pickup — 2026-05-23 (late) IX coverage AUDITED + acted on: matrix, 3-agent verify, +NJ/CA/MD, CO demote
 
 **Aden pushed back on my repeated "safe to move on" (I'd been wrong twice). Answer built: an AUDITABLE artifact + independent verification, not my word.** `scripts/ix-coverage-audit.mjs` declares coverage at state×utility×source-type grain, live-probes every claimed-live cell (23/23 green), regenerates `docs/ix-coverage-matrix.md`. Cross-checked by 3 independent from-scratch research agents (NE / Midwest-Mtn / West-South). They found 12 real candidate sources I'd MISSED + corroborated the true dead-ends. Then acted on the findings.
