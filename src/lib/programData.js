@@ -714,16 +714,75 @@ const CS_PIPELINE_SOURCES = {
 }
 
 // ── getIXQueueData ───────────────────────────────────────────────────────────
-// Returns raw IX queue rows for a state, grouped by utility.
-// Shape: { iso, utilities: [{ name, projectsInQueue, mwPending, ... }],
+// Returns IX queue rows for a state, grouped by utility.
+//
+// Capture-all-DG (migration 068): the table now holds one row per
+// (state, utility, metering_type) — every distribution-DG project, tagged by
+// monetization structure, not just Community Solar. We group back to one entry
+// per utility for the cards (top-level numbers are the all-structure sum) and
+// carry a per-structure `structures[]` breakdown + a state-wide
+// `availableStructures` rollup so the Lens structure filter / summary can scope a
+// view without re-querying.
+//
+// Shape: { iso, signalType, source*, utilities: [{ name, projectsInQueue,
+//         mwPending, ..., structures: [{ meteringType, ... }] }],
+//         availableStructures: [{ meteringType, projectsInQueue, mwPending, ... }],
 //         oldestFetchedAt, newestFetchedAt, dataAgeDays }
 //
 // dataAgeDays is the worst-case (oldest) staleness across utilities — used
-// by the UI to flag IX-live data that's drifted past the freshness window
-// (the underlying ISO scrapers are not always reliable; PJM, NYISO, ISO-NE
-// scrapers all 404'd as of 2026-04-24, so live data in those ISOs has been
-// frozen for >7 days. The UI should signal this honestly rather than imply
-// the data is fresh).
+// by the UI to flag IX-live data that's drifted past the freshness window.
+
+// Build one per-utility card entry from its (one-or-many) structure rows. The
+// top-level numbers sum across structures (the "all structures" view);
+// `structures` carries the per-structure split for the Lens filter.
+function buildIxUtilityEntry(rows) {
+  const sum = (k) => rows.reduce((s, r) => s + (Number(r[k]) || 0), 0)
+  const anyCompleted = rows.some(r => r.completed_projects != null)
+  const firstNonNull = (k) => { const r = rows.find(r => r[k] != null); return r ? r[k] : null }
+  const newestFetched = rows.map(r => r.fetched_at).filter(Boolean).sort().slice(-1)[0] || null
+  const structures = rows
+    .map(r => ({
+      meteringType:      r.metering_type || 'unknown',
+      projectsInQueue:   r.projects_in_queue,
+      mwPending:         r.mw_pending,
+      completedProjects: r.completed_projects,
+      completedMw:       r.completed_mw,
+      queueTrend:        r.queue_trend,
+    }))
+    .sort((a, b) => (b.projectsInQueue || 0) - (a.projectsInQueue || 0))
+  return {
+    name:              rows[0].utility_name,
+    projectsInQueue:   sum('projects_in_queue'),
+    mwPending:         sum('mw_pending'),
+    completedProjects: anyCompleted ? sum('completed_projects') : null,
+    completedMw:       anyCompleted ? sum('completed_mw') : null,
+    avgStudyMonths:    firstNonNull('avg_study_months'),
+    withdrawalPct:     firstNonNull('withdrawal_pct'),
+    avgUpgradeCostMW:  firstNonNull('avg_upgrade_cost_mw'),
+    queueTrend:        rows[0].queue_trend,
+    dataSource:        rows[0].data_source,
+    fetchedAt:         newestFetched,
+    structures,
+  }
+}
+
+// State-wide totals per metering_type, sorted by pipeline count desc. Drives the
+// default summary view (CS = the wedge) + the future Lens structure chips.
+function summarizeIxStructures(rows) {
+  const by = new Map()
+  for (const r of rows) {
+    const k = r.metering_type || 'unknown'
+    if (!by.has(k)) by.set(k, { meteringType: k, projectsInQueue: 0, mwPending: 0, completedProjects: 0, completedMw: 0, _hasCompleted: false })
+    const a = by.get(k)
+    a.projectsInQueue += Number(r.projects_in_queue) || 0
+    a.mwPending += Number(r.mw_pending) || 0
+    if (r.completed_projects != null) { a._hasCompleted = true; a.completedProjects += Number(r.completed_projects) || 0; a.completedMw += Number(r.completed_mw) || 0 }
+  }
+  return [...by.values()]
+    .map(({ _hasCompleted, ...a }) => ({ ...a, completedProjects: _hasCompleted ? a.completedProjects : null, completedMw: _hasCompleted ? a.completedMw : null }))
+    .sort((x, y) => (y.projectsInQueue || 0) - (x.projectsInQueue || 0))
+}
+
 export async function getIXQueueData(stateId) {
   return withCache(`ix_queue:${stateId}`, async () => {
     const { data, error } = await supabase
@@ -748,25 +807,22 @@ export async function getIXQueueData(stateId) {
     const csSource = data.find(r => CS_PIPELINE_SOURCES[r.data_source])
     const signalType = csSource ? 'cs_pipeline' : 'queue_depth'
     const sourceMeta = csSource ? CS_PIPELINE_SOURCES[csSource.data_source] : null
+
+    // Group (utility, metering_type) rows back to one entry per utility.
+    const byUtil = new Map()
+    for (const row of data) {
+      if (!byUtil.has(row.utility_name)) byUtil.set(row.utility_name, [])
+      byUtil.get(row.utility_name).push(row)
+    }
+
     return {
       iso: data[0].iso,
       signalType,
       sourceLabel:  sourceMeta?.label ?? null,
       sourceRegion: sourceMeta?.region ?? null,
       sourceNote:   sourceMeta?.note ?? null,
-      utilities: data.map(row => ({
-        name:            row.utility_name,
-        projectsInQueue: row.projects_in_queue,
-        mwPending:       row.mw_pending,
-        completedProjects: row.completed_projects,
-        completedMw:     row.completed_mw,
-        avgStudyMonths:  row.avg_study_months,
-        withdrawalPct:   row.withdrawal_pct,
-        avgUpgradeCostMW: row.avg_upgrade_cost_mw,
-        queueTrend:      row.queue_trend,
-        dataSource:      row.data_source,
-        fetchedAt:       row.fetched_at,
-      })),
+      utilities: [...byUtil.values()].map(buildIxUtilityEntry),
+      availableStructures: summarizeIxStructures(data),
       oldestFetchedAt,
       newestFetchedAt,
       dataAgeDays,
@@ -781,31 +837,65 @@ export async function hasIXQueueData(stateId) {
 }
 
 // ── getIXQueueSummary ────────────────────────────────────────────────────────
-// Aggregated summary across all utilities for a state + project MW.
-// Drop-in replacement for ixQueueEngine.getIXQueueSummary().
-export async function getIXQueueSummary(stateId, mwAC) {
+// Aggregated summary for a state + project MW, scoped to a monetization-structure
+// VIEW. With capture-all-DG (migration 068) a state can hold multiple structures
+// (CS / net metering / other); the headline must reflect ONE coherent view or the
+// card's "CS projects" copy would mislabel net metering. Default view = Community
+// Solar when the state has any CS rows (CS = the wedge), else all structures. The
+// Lens passes an explicit `meteringType` to switch views: a tag ('net_metering',
+// 'community_solar', …) for one structure, 'all' for every structure, or
+// null/undefined for the default. Drop-in for ixQueueEngine.getIXQueueSummary().
+export async function getIXQueueSummary(stateId, mwAC, meteringType = null) {
   const data = await getIXQueueData(stateId)
   if (!data) return null
 
+  // Active view: 'all' = every structure; an explicit tag = that one; null/undefined
+  // = default to CS when the state has any (the wedge), else every structure.
+  const hasCs = data.availableStructures.some(s => s.meteringType === 'community_solar')
+  const view = meteringType === 'all' ? null : (meteringType ?? (hasCs ? 'community_solar' : null))
+
+  // Scope each utility to the view's single structure, or keep the all-structure
+  // aggregate when view is null. Utilities lacking the view's structure drop out.
+  const utilities = view == null
+    ? data.utilities
+    : data.utilities.flatMap(u => {
+        const s = u.structures.find(x => x.meteringType === view)
+        if (!s) return []
+        return [{
+          name: u.name,
+          projectsInQueue: s.projectsInQueue,
+          mwPending: s.mwPending,
+          completedProjects: s.completedProjects,
+          completedMw: s.completedMw,
+          avgStudyMonths: u.avgStudyMonths,
+          withdrawalPct: u.withdrawalPct,
+          avgUpgradeCostMW: u.avgUpgradeCostMW,
+          queueTrend: s.queueTrend,
+          dataSource: u.dataSource,
+          fetchedAt: u.fetchedAt,
+          structures: [s],
+        }]
+      })
+
   const mw = parseFloat(mwAC) || 5
-  const totalProjects = data.utilities.reduce((s, u) => s + u.projectsInQueue, 0)
-  const totalMW = data.utilities.reduce((s, u) => s + u.mwPending, 0)
+  const totalProjects = utilities.reduce((s, u) => s + u.projectsInQueue, 0)
+  const totalMW = utilities.reduce((s, u) => s + u.mwPending, 0)
   const isPipeline = data.signalType === 'cs_pipeline'
 
-  // queue-depth (ISO) signal carries study/withdrawal/upgrade; cs_pipeline
-  // (NYSERDA) does NOT — keep those null rather than fabricating a 0/round.
-  const sumW = (key) => data.utilities.reduce((s, u) => s + (Number(u[key]) || 0) * u.projectsInQueue, 0)
+  // queue-depth (ISO) signal carries study/withdrawal/upgrade; cs_pipeline does
+  // NOT — keep those null rather than fabricating a 0/round.
+  const sumW = (key) => utilities.reduce((s, u) => s + (Number(u[key]) || 0) * u.projectsInQueue, 0)
   const avgStudyMonths   = isPipeline || totalProjects === 0 ? null : Math.round(sumW('avgStudyMonths') / totalProjects)
   const avgWithdrawalPct = isPipeline || totalProjects === 0 ? null : Math.round(sumW('withdrawalPct') / totalProjects)
   const avgUpgradeCostPerMW = isPipeline || totalProjects === 0 ? null : Math.round(sumW('avgUpgradeCostMW') / totalProjects)
   const estimatedUpgradeCost = avgUpgradeCostPerMW == null ? null : Math.round(avgUpgradeCostPerMW * mw)
 
-  // Deployment context (cs_pipeline only): CS projects energized to date. Null
-  // when the source reports no energized history (e.g. NJ's active-only queue) —
+  // Deployment context (cs_pipeline only): projects energized to date. Null when
+  // the source reports no energized history (e.g. NJ's active-only queue) —
   // unknown ≠ zero, so the UI omits the stat rather than showing a false 0.
-  const hasCompleted = data.utilities.some(u => u.completedProjects != null)
-  const completedProjects = hasCompleted ? data.utilities.reduce((s, u) => s + (Number(u.completedProjects) || 0), 0) : null
-  const completedMw = hasCompleted ? data.utilities.reduce((s, u) => s + (Number(u.completedMw) || 0), 0) : null
+  const hasCompleted = utilities.some(u => u.completedProjects != null)
+  const completedProjects = hasCompleted ? utilities.reduce((s, u) => s + (Number(u.completedProjects) || 0), 0) : null
+  const completedMw = hasCompleted ? utilities.reduce((s, u) => s + (Number(u.completedMw) || 0), 0) : null
 
   const congestionLevel = totalProjects > 100 ? 'high' : totalProjects > 50 ? 'moderate' : 'low'
 
@@ -815,7 +905,11 @@ export async function getIXQueueSummary(stateId, mwAC) {
     sourceLabel: data.sourceLabel,
     sourceRegion: data.sourceRegion,
     sourceNote: data.sourceNote,
-    utilities: data.utilities,
+    utilities,
+    // Active structure view + the state's structure rollup — lets the Lens render
+    // structure chips and switch views without re-querying.
+    view,
+    availableStructures: data.availableStructures,
     totalProjects,
     totalMW,
     completedProjects,

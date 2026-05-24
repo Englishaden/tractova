@@ -39,13 +39,13 @@ console.log(`═══ ${state} ix_queue_data cutover — ${APPLY ? 'APPLY (writ
 
 const newRows = await SCRAPERS[state]()
 console.log(`scraper produced ${newRows.length} row(s):`)
-for (const r of newRows) console.log(`  + ${r.utility_name.padEnd(18)} pipeline ${String(r.projects_in_queue).padStart(4)}/${String(r.mw_pending).padStart(5)}MW · completed ${r.completed_projects ?? '—'} · src=${r.data_source}`)
+for (const r of newRows) console.log(`  + ${r.utility_name.padEnd(18)} ${String(r.metering_type ?? 'unknown').padEnd(16)} pipeline ${String(r.projects_in_queue).padStart(4)}/${String(r.mw_pending).padStart(5)}MW · completed ${r.completed_projects ?? '—'} · src=${r.data_source}`)
 
 const { data: oldRows, error: oldErr } = await admin
-  .from('ix_queue_data').select('utility_name, data_source, projects_in_queue, fetched_at').eq('state_id', state)
+  .from('ix_queue_data').select('utility_name, metering_type, data_source, projects_in_queue, fetched_at').eq('state_id', state)
 if (oldErr) { console.error(oldErr); process.exit(1) }
 console.log(`\nexisting ${state} rows to be DELETED (${oldRows.length}):`)
-for (const r of oldRows) console.log(`  - ${r.utility_name.padEnd(18)} src=${r.data_source} proj=${r.projects_in_queue} @${r.fetched_at?.slice(0,10)}`)
+for (const r of oldRows) console.log(`  - ${r.utility_name.padEnd(18)} ${String(r.metering_type ?? 'unknown').padEnd(16)} src=${r.data_source} proj=${r.projects_in_queue} @${r.fetched_at?.slice(0,10)}`)
 
 if (!APPLY) { console.log(`\nDRY RUN — no writes. Re-run with --apply.`); process.exit(0) }
 
@@ -59,7 +59,7 @@ const ins = await admin.from('ix_queue_data').insert(newRows)
 if (ins.error) { console.error('INSERT failed:', ins.error.message); process.exit(1) }
 console.log(`\nDeleted ${state} rows; inserted ${newRows.length}.`)
 
-const { data: check } = await admin.from('ix_queue_data').select('utility_name, projects_in_queue, completed_projects, data_source').eq('state_id', state)
+const { data: check } = await admin.from('ix_queue_data').select('utility_name, metering_type, projects_in_queue, completed_projects, data_source').eq('state_id', state)
 console.log(`Verified ${state} rows now (${check.length}):`)
-for (const r of check) console.log(`  ${r.utility_name.padEnd(18)} pipeline=${r.projects_in_queue} completed=${r.completed_projects ?? '—'} src=${r.data_source}`)
+for (const r of check) console.log(`  ${r.utility_name.padEnd(18)} ${String(r.metering_type ?? 'unknown').padEnd(16)} pipeline=${r.projects_in_queue} completed=${r.completed_projects ?? '—'} src=${r.data_source}`)
 console.log('\nDone.')

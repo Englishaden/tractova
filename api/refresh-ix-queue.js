@@ -89,13 +89,14 @@ async function handlerInner(req, res) {
   const startedAt = new Date()
   const results = { success: [], failed: [], updated: 0, unchanged: 0, warnings: [], snapshotsRecorded: 0 }
 
-  // Existing rows for trend comparison (keyed by state:utility).
+  // Existing rows for trend comparison (keyed by state:utility:structure —
+  // the capture-all-DG grain, matching the unique constraint after migration 068).
   const { data: existing } = await supabaseAdmin
     .from('ix_queue_data')
-    .select('state_id, utility_name, projects_in_queue')
+    .select('state_id, utility_name, metering_type, projects_in_queue')
   const existingMap = {}
   for (const row of (existing || [])) {
-    existingMap[`${row.state_id}:${row.utility_name}`] = row.projects_in_queue
+    existingMap[`${row.state_id}:${row.utility_name}:${row.metering_type}`] = row.projects_in_queue
   }
 
   // Run all scrapers in parallel — each is independent.
@@ -128,7 +129,7 @@ async function handlerInner(req, res) {
 
   // Upsert each row; compute trend; log changes; snapshot for the time series.
   for (const row of allRows) {
-    const key = `${row.state_id}:${row.utility_name}`
+    const key = `${row.state_id}:${row.utility_name}:${row.metering_type ?? 'unknown'}`
     const oldCount = existingMap[key]
     const trend = computeTrend(row.projects_in_queue, oldCount)
 
@@ -141,7 +142,7 @@ async function handlerInner(req, res) {
 
     const { error } = await supabaseAdmin
       .from('ix_queue_data')
-      .upsert(upsertRow, { onConflict: 'state_id,utility_name' })
+      .upsert(upsertRow, { onConflict: 'state_id,utility_name,metering_type' })
 
     if (error) {
       results.failed.push({ utility: row.utility_name, error: error.message })
@@ -166,6 +167,7 @@ async function handlerInner(req, res) {
       state_id:            row.state_id,
       iso:                 row.iso,
       utility_name:        row.utility_name,
+      metering_type:       row.metering_type ?? 'unknown',
       projects_in_queue:   row.projects_in_queue,
       mw_pending:          row.mw_pending,
       queue_trend:         trend,

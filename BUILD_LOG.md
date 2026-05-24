@@ -4,7 +4,38 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-24 (NEXT) Scope decision → scraper capture-all-DG + Lens taxonomy split
+## 🟢 Pickup — 2026-05-24 SHIPPED capture-all-DG data layer (schema + scrapers + read layer) — Lens UI is NEXT
+
+**The scope decision is now in DATA form.** Schema fork resolved with Aden: **row per (state, utility, metering_type)** (not a per-utility breakdown column). The NJ spike grounded the tag mapping in real file values before any code — no guessing.
+
+### 🔬 NJ spike (`scripts/spike-nj-structures.mjs`, read-only) — the real distribution
+- **JCP&L** 3,883 rows: Net Metering 3,829/63MW · Community Solar 33/84MW · tail (Offset Load 19, PURPA 1, Back-up 1). Status all `Active`.
+- **PSE&G** 7,357 rows: Net Metering 7,222/96MW · Community Solar 132/282MW · PEP 2 · Cogen 1. **Status splits `Active`/`In-Service`** → energized is observable here (JCP&L is active-only).
+- **RECO** 29 rows: separate Yes/No boolean cols (Net Metering / Remote NM / Community Solar Project); all CS=No. (Its System Capacity col doesn't populate in the public file → MW reads 0, count honest.)
+
+### ✅ SHIPPED (code complete + verified; NOT yet committed/pushed at time of writing)
+- **`api/scrapers/_meteringType.js`** — canonical vocabulary (single source of truth): `community_solar | net_metering | net_billing | ci_btm | on_bill | other | unknown` + `normalizeMeteringType()`. `other` (source named a non-retail category: PURPA/cogen/backup/offset) is deliberately distinct from `unknown` (source gave no indicator) — honesty split.
+- **`_refresh-nj-dg.js` reworked → capture-all + tag.** Drops the CS-only filter; groups per (EDC × structure); per-EDC pipeline-vs-energized split (PSE&G gets observed `completed_*`, JCP&L stays null = unknown≠zero); RECO boolean layout handled. Dry-run output: 7 rows (JCP&L nm/cs/other, PSE&G nm/cs/other, RECO nm).
+- **Migration `068_ix_queue_metering_type.sql`** (FILE — Aden applies) — adds `metering_type` to `ix_queue_data` + `ix_queue_snapshots`, backfills the 16 live rows (nyserda_cdg/nj_ic_queue/md_mea_cs → community_solar; va/wi/ca → unknown), **swaps the unique key (state,utility) → (state,utility,metering_type)**, widens the snapshot lookup index.
+- **`refresh-ix-queue.js`** — `onConflict` + existingMap/trend key + snapshot insert all carry `metering_type`. NY/MD scrapers emit `community_solar`; VA/WI/CA emit `unknown` (honest single tag, no behavior change).
+- **`programData.js` read layer** — `getIXQueueData` groups (utility,structure) rows back to one card per utility + carries a per-structure `structures[]` breakdown + state-wide `availableStructures` rollup. `getIXQueueSummary(stateId, mw, meteringType?)` scopes a **structure VIEW**: explicit tag, `'all'`, or default = **Community Solar when present (the wedge)**.
+- **Tests** — `tests/unit/meteringType.spec.js` (normalizer vs the spike's real strings) + `tests/unit/ixQueueStructure.spec.js` (grouping + the honesty-guard: NJ default view = CS 162, not the 8k all-DG total).
+
+### ⚠️ KEY honesty decision — NJ DB re-scrape is DEFERRED to the Lens slice (on purpose)
+The IX card copy hardcodes **"CS projects"**. If capture-all NJ rows (net-metering-dominant) aggregated into that headline, it would mislabel net metering as CS. Guard: the read layer **defaults to the CS view**, so the card stays truthful whether or not NJ is re-scraped. The captured net-metering/other data banks in the DB + `structures[]`, surfaced honestly only once the structure-aware Lens UI ships. **So: do NOT trigger the NJ capture-all cutover until the Lens slice is ready to display structures.** (`getIXQueueSummary` already passes a `view` + `availableStructures` for the Lens to consume.)
+
+### ⏭ DO FIRST next session — Lens two-axis split (item 2 of the scope decision)
+1. **Apply migration 068** in Supabase (Aden), then the data layer is live (display-neutral until NJ re-scrape).
+2. **Split the Lens "Tech type" dropdown** into (1) system architecture (PV / PV+storage / standalone BESS) × (2) monetization structure (CS / net metering / net billing / C&I), structure defaulting to **All**, CS sticky pref. Wire the structure selector → `getIXQueueSummary(state, mw, meteringType)`. Fix the IX card / `InterconnectionCardSummary` / `DevFeasibilityView` copy to be **structure-aware** (stop hardcoding "CS projects" — read `view`/`availableStructures`).
+3. **Then trigger the NJ capture-all cutover** (cron run, or `apply-dist-cutover.mjs NJ --apply`) so the net-metering dataset goes live with honest copy. Then NY (drop the CDG-only filter, tag CDG=Yes→CS / CDG=No→net_metering instead).
+4. New UI terms (net metering / net billing / metering structure) → Glossary entries (per `feedback_always_glossary`).
+
+### Still open from the prior arc (manual-data phase)
+7 browser/manual-gated IX candidates (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS CS queues) → manual-upload ingest pipeline. Browser-verify the new NJ/CA/MD IX cards on prod.
+
+---
+
+## 🟢 Pickup — 2026-05-24 (planning, now superseded by the SHIPPED entry above) Scope decision → scraper capture-all-DG + Lens taxonomy split
 
 **Strategic decision made 2026-05-23 (discussion only, code tomorrow). See memory `project_scope_and_tech_taxonomy`.**
 

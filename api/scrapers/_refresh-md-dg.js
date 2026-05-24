@@ -18,6 +18,8 @@
  * on the curated baseline.
  */
 
+import { MT } from './_meteringType.js'
+
 const PAGE_URL = 'https://energy.maryland.gov/Pages/MarylandCommunitySolar.aspx'
 const ORIGIN = 'https://energy.maryland.gov'
 
@@ -88,6 +90,7 @@ export async function scrapeMdDg(signal) {
       state_id:            'MD',
       iso:                 'PJM',
       utility_name:        utility,
+      metering_type:       MT.COMMUNITY_SOLAR,  // MEA community-solar dataset
       projects_in_queue:   a.pipeline_n,
       mw_pending:          Math.round(a.pipeline_mw),
       completed_projects:  a.energized_n,

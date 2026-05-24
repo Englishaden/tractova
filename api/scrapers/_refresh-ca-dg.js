@@ -18,6 +18,8 @@
  * → null; IX score stays on the curated baseline.
  */
 
+import { MT } from './_meteringType.js'
+
 const URL = 'https://www.pge.com/assets/pge/docs/about/doing-business-with-pge/PublicQueueInterconnection.xlsx'
 const MAX_MW = 50  // distribution-scale ceiling — excludes transmission-scale outliers
 
@@ -60,6 +62,7 @@ export async function scrapeCaDg(signal) {
     state_id:            'CA',
     iso:                 'CAISO',
     utility_name:        'PG&E',
+    metering_type:       MT.UNKNOWN,  // wholesale-distribution queue — no structure indicator
     projects_in_queue:   pipeline.length,
     mw_pending:          Math.round(pipeline.reduce((a, r) => a + num(r[ci]), 0)),
     completed_projects:  energized.length,

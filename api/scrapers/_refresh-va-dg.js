@@ -14,6 +14,8 @@
  * the file → those stay null; IX score stays on the curated baseline.
  */
 
+import { MT } from './_meteringType.js'
+
 const URL = 'https://cdn-dominionenergy-prd-001.azureedge.net/-/media/content/large-business-services/files/dominion-energy-virginia-queue-status-report.xlsx'
 
 export async function scrapeVaDg(signal) {
@@ -47,6 +49,7 @@ export async function scrapeVaDg(signal) {
     state_id:            'VA',
     iso:                 'PJM',
     utility_name:        'Dominion',
+    metering_type:       MT.UNKNOWN,  // fuel-type-only queue — no structure indicator
     projects_in_queue:   pipeline.length,
     mw_pending:          Math.round(pipeline.reduce((a, r) => a + num(r[ci]), 0)),
     completed_projects:  energized.length,

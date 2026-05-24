@@ -15,6 +15,8 @@
  * so it needs a real CSV parser, not split(',').
  */
 
+import { MT } from './_meteringType.js'
+
 const URL = 'https://www.alliantenergy.com/-/media/alliant/documents/ourenergy/customerinterconnection/dg-interconnection-queue.csv?sc_lang=en'
 
 // Minimal RFC-4180-ish parser: handles quoted fields containing commas + "" escapes.
@@ -61,6 +63,7 @@ export async function scrapeWiDg(signal) {
     state_id:            'WI',
     iso:                 'MISO',
     utility_name:        'Alliant Energy',
+    metering_type:       MT.UNKNOWN,  // DG-solar queue — no structure indicator
     projects_in_queue:   pipeline.length,
     mw_pending:          Math.round(pipeline.reduce((a, r) => a + num(r[kwIdx]) / 1000, 0)),
     completed_projects:  null,

@@ -19,6 +19,8 @@
  * The IX SCORE stays on the curated ixDifficulty baseline; this data is live CONTEXT.
  */
 
+import { MT } from './_meteringType.js'
+
 const SODA = 'https://data.ny.gov/resource/3x8r-34rs.json'
 export const NYSERDA_DATASET_URL =
   'https://data.ny.gov/Energy-Environment/Solar-Electric-Programs-Reported-by-NYSERDA-Beginn/3x8r-34rs'
@@ -82,6 +84,7 @@ export async function scrapeNyDg(signal) {
       state_id:            'NY',
       iso:                 'NYISO',
       utility_name:        utility,
+      metering_type:       MT.COMMUNITY_SOLAR,  // CDG=Yes filter — all rows are CS
       projects_in_queue:   a.pipeline_n,
       mw_pending:          Math.round(a.pipeline_mw),
       completed_projects:  a.complete_n,
