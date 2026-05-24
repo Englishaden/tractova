@@ -4,6 +4,32 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-23 (late) IX coverage AUDITED + acted on: matrix, 3-agent verify, +NJ/CA/MD, CO demote
+
+**Aden pushed back on my repeated "safe to move on" (I'd been wrong twice). Answer built: an AUDITABLE artifact + independent verification, not my word.** `scripts/ix-coverage-audit.mjs` declares coverage at state×utility×source-type grain, live-probes every claimed-live cell (23/23 green), regenerates `docs/ix-coverage-matrix.md`. Cross-checked by 3 independent from-scratch research agents (NE / Midwest-Mtn / West-South). They found 12 real candidate sources I'd MISSED + corroborated the true dead-ends. Then acted on the findings.
+
+### ✅ SHIPPED + LIVE-VERIFIED (commits 47a49f6 · 427949a · e7175e5 · 573b5d0 · 322e043)
+- **Audit matrix + script** (`scripts/ix-coverage-audit.mjs` → `docs/ix-coverage-matrix.md`): re-runnable, probes live cells, gaps are visible cells (🔶 candidate / ❓ unchecked / ∅ none), not omissions.
+- **NJ expanded** — generalized `_refresh-nj-dg.js` to all BPU-mandated EDC queue inventories (Docket QO21010085), auto-detecting both file layouts. Now live: **JCP&L 33 + PSE&G 129** CS. Rockland (RECO) wired but 0 CS now (auto-appears). ACE = candidate (file URL JS-gated).
+- **CA wired** — `_refresh-ca-dg.js`: PG&E Wholesale Distribution queue → **852 solar pipeline / 2247 MW + 402 energized** (sub-50MW). Honestly a distribution solar queue, not CS (CA has no formal CS program). `ca_pge_queue`.
+- **MD wired** — `_refresh-md-dg.js`: MEA Community Solar list (gov) → **BGE/Delmarva/Pepco/Potomac Edison, 233 pipeline + 201 energized**. Page scraped for the dated .xlsx link. `md_mea_cs`. (MD now has BOTH a CS deployment queue AND BGE hosting capacity.)
+- **CO Xcel HC DEMOTED** — CO PUC called its data "totally useless"; removed from FEEDS + deleted the 1 row. CO → curated baseline.
+- **License posture documented** — `docs/data-license-rationale.md`: aggregate-only (we store per-utility aggregates, never raw rows); per-source open/gov/unknown/prohibited; californiadgstats + Illinois Shines stay EXCLUDED (terms forbid redistribution).
+- **Avista WA + Dominion VA HC re-checked → both confirmed TRAPS** (Avista HeatMap quantized/transmission-scale 300MW; Avista "CS24_Queue" = Cluster Study transmission 115-230kV; Dominion still LIMIT_VAL bucketed). Correctly NOT wired (no-fabrication).
+
+### 📊 State after this arc
+- **`ix_queue_data` = 16 rows / 6 states**: NY 7 (nyserda_cdg), NJ 2 (nj_ic_queue), MD 4 (md_mea_cs), VA 1, WI 1, CA 1.
+- **`hosting_capacity_data` = 15 utilities** (CO Xcel removed).
+- **12 of 19 CS states have ≥1 live IX feed**: CA, CT, MA, MD, ME, MI, MN, NJ, NY, RI, VA, WI. Zero-live: CO, IL, FL, HI, NM, OR, WA.
+
+### ⏭ NEXT — the MANUAL-DATA phase (these are the 7 remaining 🔶 candidates, all browser/manual-gated)
+Confirmed real but NOT cleanly server-scrapeable (need a headless browser or manual download → Supabase Storage → ingest):
+1. **NJ ACE** queue (JS-rendered file link), **ME CMP** Level 4 queue (CDN times out on server fetch), **MN Xcel** DER queue (Salesforce portal), **HI HECO** IIQ (web table), **OR** PGE/PacifiCorp/Idaho Power dedicated Community-Solar OASIS queues (OATI web tables).
+2. Build the manual-upload ingest pipeline for these + IL (interconnection.fyi, paid).
+3. Browser-verify the new NJ/CA/MD IX cards on prod.
+
+---
+
 ## 🟢 Pickup — 2026-05-23 IX gap CLOSED: +VA +WI, every scrapeable feed now live
 
 **Aden's last ask was "for all CS states we have Live IX data, or at least everything we can? You haven't unknowingly constrained yourself?" — answer: I HAD. The earlier "100%" only re-checked hosting-capacity ArcGIS for the blocked states, never the QUEUE feeds. Re-checking queues surfaced TWO more real, redistribution-safe distribution feeds → VA + WI now live. This is the verified scrapeable ceiling.**
