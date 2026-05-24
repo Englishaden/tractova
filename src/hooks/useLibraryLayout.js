@@ -2,6 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { getAlerts } from '../lib/alertHelpers'
+import { axesFromTechnology } from '../lib/lensFormConstants'
+
+// A saved project's monetization structure — the real column post-migration 069,
+// falling back to deriving it from the legacy technology label.
+const structureOf = (p) => p.structure || axesFromTechnology(p.technology).structure
 
 const LAYOUT_STORAGE_KEY = 'tractova_library_view'
 const PAGE_SIZE_KEY      = 'tractova_library_page_size'
@@ -48,7 +53,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
 
   const [sortBy,           setSortBy]           = useState('saved')    // saved|score|mw|alerts
   const [filterState,      setFilterState]      = useState('')
-  const [filterTech,       setFilterTech]       = useState('')
+  const [filterStructure,  setFilterStructure]  = useState('')
   const [filterStage,      setFilterStage]      = useState('')
   const [pipelineExpanded, setPipelineExpanded] = useState(false)
   const [viewMode,         setViewMode]         = useState('projects') // 'projects' | 'scenarios' | 'comparisons'
@@ -105,7 +110,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
   const displayProjects = useMemo(() => {
     let filtered = projects
     if (filterState) filtered = filtered.filter(p => p.state === filterState)
-    if (filterTech)  filtered = filtered.filter(p => p.technology === filterTech)
+    if (filterStructure) filtered = filtered.filter(p => structureOf(p) === filterStructure)
     if (filterStage) filtered = filtered.filter(p => p.stage === filterStage)
     return [...filtered].sort((a, b) => {
       if (sortBy === 'score')  return liveScoreFor(b) - liveScoreFor(a)
@@ -113,14 +118,14 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
       if (sortBy === 'alerts') return getAlerts(b, stateProgramMap, countyDataMap).length - getAlerts(a, stateProgramMap, countyDataMap).length
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
-  }, [projects, filterState, filterTech, filterStage, sortBy, stateProgramMap, countyDataMap, liveScoreFor])
+  }, [projects, filterState, filterStructure, filterStage, sortBy, stateProgramMap, countyDataMap, liveScoreFor])
 
   // Reset to page 1 when the filtered list changes shape — otherwise a
   // user on page 3 of 100 who applies a filter that yields 8 results
   // ends up looking at an empty page 3.
   useEffect(() => {
     setPage(1)
-  }, [filterState, filterTech, filterStage, sortBy])
+  }, [filterState, filterStructure, filterStage, sortBy])
 
   // Windowed projects for rendering. Stat strip + Pipeline Distribution
   // still use the full `displayProjects` (and `projects`) so portfolio-
@@ -141,7 +146,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     // Filters
     sortBy, setSortBy,
     filterState, setFilterState,
-    filterTech, setFilterTech,
+    filterStructure, setFilterStructure,
     filterStage, setFilterStage,
     pipelineExpanded, setPipelineExpanded,
     // Top-level tab

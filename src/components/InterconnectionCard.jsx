@@ -1,7 +1,7 @@
 import CardDrilldown from './CardDrilldown'
 import { EaseArcGauge, QueueBadge, SectionLabel } from '../lib/searchShared.jsx'
 import { sitesForMw } from '../lib/programData'
-import { structureNoun, STRUCTURE_FROM_TAG } from '../lib/lensFormConstants'
+import { structureNoun, structureChipLabel } from '../lib/lensFormConstants'
 
 export default function InterconnectionCard({ interconnection, stateProgram, stateId, mw, queueSummary, hostingCapacity }) {
   if (!interconnection) return null
@@ -117,7 +117,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
             <div className="rounded-lg px-4 py-3 text-[11px] text-gray-500 leading-relaxed" style={{ border: '1px solid rgba(217,119,6,0.30)', borderLeft: '3px solid #D97706', background: 'rgba(217,119,6,0.04)' }}>
               No interconnection-queue data tagged <span className="font-semibold text-gray-700">{ixNoun.label.toLowerCase()}</span> for this state yet — IX shown on the curated baseline.
               {ixBreakdown.length > 0 && (
-                <span className="block mt-1 text-gray-400">Live here: {ixBreakdown.map(s => `${STRUCTURE_FROM_TAG[s.meteringType] || s.meteringType} (${s.projectsInQueue.toLocaleString()})`).join(' · ')}</span>
+                <span className="block mt-1 text-gray-400">Live here: {ixBreakdown.map(s => `${structureChipLabel(s.meteringType)} (${s.projectsInQueue.toLocaleString()})`).join(' · ')}</span>
               )}
             </div>
           </div>
@@ -145,7 +145,7 @@ export default function InterconnectionCard({ interconnection, stateProgram, sta
                 <div className="px-4 py-1.5 flex flex-wrap gap-x-3 gap-y-0.5 bg-white border-b border-gray-100">
                   {ixBreakdown.map(s => (
                     <span key={s.meteringType} className="text-[10px] text-gray-500 tabular-nums">
-                      <span className="font-semibold text-gray-700">{STRUCTURE_FROM_TAG[s.meteringType] || s.meteringType}</span> {s.projectsInQueue.toLocaleString()} · {(s.mwPending || 0).toLocaleString()}MW
+                      <span className="font-semibold text-gray-700">{structureChipLabel(s.meteringType)}</span> {s.projectsInQueue.toLocaleString()} · {(s.mwPending || 0).toLocaleString()}MW
                     </span>
                   ))}
                 </div>

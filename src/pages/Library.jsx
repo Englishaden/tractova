@@ -10,7 +10,7 @@ import SectionDivider from '../components/SectionDivider'
 import FilterSelect from '../components/ui/FilterSelect'
 import CountUp from '../components/ui/CountUp'
 import MountReveal from '../components/ui/MountReveal'
-import { TECH_FILTER_TOOLTIPS } from '../lib/techDefinitions'
+import { axesFromTechnology } from '../lib/lensFormConstants'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
@@ -219,7 +219,7 @@ function LibraryContent() {
   const {
     sortBy, setSortBy,
     filterState, setFilterState,
-    filterTech, setFilterTech,
+    filterStructure, setFilterStructure,
     filterStage, setFilterStage,
     pipelineExpanded, setPipelineExpanded,
     viewMode, setViewMode,
@@ -1140,12 +1140,11 @@ function LibraryContent() {
                   options={[...new Set(projects.map(p => p.state))].sort()}
                 />
                 <FilterSelect
-                  value={filterTech}
-                  onChange={setFilterTech}
-                  placeholder="All Tech"
-                  ariaLabel="Filter by technology"
-                  options={[...new Set(projects.map(p => p.technology).filter(Boolean))].sort()}
-                  optionTooltips={TECH_FILTER_TOOLTIPS}
+                  value={filterStructure}
+                  onChange={setFilterStructure}
+                  placeholder="All Structures"
+                  ariaLabel="Filter by monetization structure"
+                  options={[...new Set(projects.map(p => p.structure || axesFromTechnology(p.technology).structure).filter(Boolean))].sort()}
                 />
                 <FilterSelect
                   value={filterStage}
@@ -1277,7 +1276,7 @@ function LibraryContent() {
               <div className="text-center py-12">
                 <p className="text-sm font-medium text-gray-500">No projects match current filters.</p>
                 <button
-                  onClick={() => { setFilterState(''); setFilterTech(''); setFilterStage('') }}
+                  onClick={() => { setFilterState(''); setFilterStructure(''); setFilterStage('') }}
                   className="mt-2 text-xs font-medium transition-colors"
                   style={{ color: '#0F766E' }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#0A1828' }}

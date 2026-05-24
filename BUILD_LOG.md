@@ -4,6 +4,16 @@
 
 ---
 
+## 🟢 Pickup — 2026-05-24 (latest) SHIPPED two-axis legibility polish (Library structure filter + IX chip labels)
+
+Small consolidation completing the directed two-axis UX (no new data, no migration):
+- **Library: "All Tech" filter → "All Structures"** — filters saved projects by monetization structure (`p.structure` post-069, falling back to `axesFromTechnology(p.technology)`). Cleaner than the 8 composed-technology labels; the right navigation primitive for the two-axis model. Renamed `filterTech`→`filterStructure` through `useLibraryLayout` + `Library.jsx`.
+- **IX breakdown-strip chip labels** — added `structureChipLabel()` so the per-structure breakdown shows "Unspecified"/"Other" instead of raw `unknown`/`other` tags.
+
+**Net billing remains the one structure not economically modeled** — it credits exports at avoided cost (below retail) and there's no clean per-state export-credit dataset; modeling it = fabrication, so it's deferred until that data is sourced (your data-curation call). A "which structure pays best here" comparison view is the natural next product surface (your design call).
+
+---
+
 ## 🟢 Pickup — 2026-05-24 (latest) SHIPPED net-metering economics — first-class structure (offtake + Scenario Studio)
 
 **Net Metering is now a fully-scored, fully-modeled structure** (was 'limited' + Scenario-Studio-gated after the two-axis rename). Data-backed, no fabrication, NO migration (uses existing `revenue_rates`).

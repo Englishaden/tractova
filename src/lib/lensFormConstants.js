@@ -86,6 +86,14 @@ export function structureLabelFromTag(tag) {
   return STRUCTURE_FROM_TAG[tag] || STRUCTURE_DEFAULT
 }
 
+// Human chip label for ANY metering_type tag (incl. the non-product tags that
+// only appear in IX-queue data: 'unknown', 'other', 'on_bill'). Used by the IX
+// card's per-structure breakdown strip so it never shows raw lowercase tags.
+const STRUCTURE_CHIP_EXTRA = { unknown: 'Unspecified', other: 'Other', on_bill: 'On-Bill' }
+export function structureChipLabel(tag) {
+  return STRUCTURE_FROM_TAG[tag] || STRUCTURE_CHIP_EXTRA[tag] || tag
+}
+
 // ── technology mirror (derived) ⇄ axes ─────────────────────────────────────────
 // `technology` is a single composed label kept for back-compat (saved-project
 // display, exports, PDF, alerts, scenario dispatch). composeTechnology builds it
