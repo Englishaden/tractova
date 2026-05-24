@@ -684,7 +684,7 @@ const CS_PIPELINE_SOURCES = {
   nyserda_cdg: {
     label: 'NYSERDA Solar Electric Programs',
     region: 'NY-Sun',
-    note: 'NYSERDA Solar Electric Programs · community distributed generation (distribution-level). Pipeline = applied, not yet energized. Updated monthly. A deployment-pipeline signal, not ISO study-queue depth — the IX score uses the curated state baseline.',
+    note: 'NYSERDA Solar Electric Programs (NY-Sun) · all distributed solar, tagged by monetization structure (community solar vs net-metered customer-sited). Pipeline = applied, not yet energized. Updated monthly. A deployment-pipeline signal, not ISO study-queue depth — the IX score uses the curated state baseline.',
   },
   nj_ic_queue: {
     label: 'NJ EDC Interconnection Queue',

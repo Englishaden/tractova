@@ -4,11 +4,15 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-24 (later) SHIPPED Lens monetization-structure filter (additive) + NJ capture-all re-scrape LIVE
+## 🟢 Pickup — 2026-05-24 (later) SHIPPED Lens structure filter + NJ & NY capture-all re-scrapes LIVE
 
 **Migration 068 is APPLIED (verified live: `ix_queue_data` = 13 community_solar + 3 unknown).** Built the Lens structure work via the **additive** path (Aden's call): keep the Technology dropdown driving scoring untouched; add a secondary **Monetization Structure** discovery filter that scopes the live IX-queue view. No scoreEngine refactor, no saved-project migration. BESS left as-is this slice (merchant-BESS scope reconciliation logged as its own future slice — reframing it now needs the very scoring/data changes the additive path avoids).
 
-**NJ capture-all re-scrape EXECUTED (Aden delegated the call).** Confirmed the honesty guard is live on prod first (`curl` of `programData-CdPvrbHG.js` → contains `availableStructures` + `community_solar` default), then ran a **non-destructive upsert** (onConflict state,utility,metering_type — no DELETE): NJ went **2 rows → 7** (JCP&L + PSE&G × {net_metering, community_solar, other} + RECO net_metering). The 2 old CS rows updated in place (33 / 129, unchanged), 5 net-metering/other rows inserted. CS view still reads 162 CS projects (honest, unchanged under the live guard); the ~8k net-metering pipeline is now in the DB, surfaced once the filter-UI deploy (`bfb6a1c`) lands. `ix_queue_data` now ~21 rows.
+**NJ + NY capture-all re-scrapes EXECUTED (Aden delegated the call).** Confirmed the honesty guard is live on prod first (`curl` of `programData-CdPvrbHG.js` → contains `availableStructures` + `community_solar` default), then ran **non-destructive upserts** (onConflict state,utility,metering_type — no DELETE; existing CS rows update in place, new structure rows insert):
+- **NJ 2 → 7 rows**: JCP&L + PSE&G × {net_metering, community_solar, other} + RECO net_metering. CS view still 162 (unchanged); ~8k net-metering pipeline now in DB.
+- **NY 7 → 14 rows**: reworked `_refresh-ny-dg.js` to drop the CDG-only `$where` and group by utility × status × `community_distributed_generation`, tagging Yes→community_solar / No→net_metering (2026-05-24 spike: CDG=No = 95% residential rooftop + small commercial, none CS). 7 CS rows update in place (Con Edison 580/636 …, unchanged), 7 net-metering rows insert (Con Edison 861 pipeline / 72,472 energized …). `nyserda_cdg` source note updated to be structure-agnostic.
+
+`ix_queue_data` now **28 rows** (NJ 7 · NY 14 · MD 4 · VA 1 · WI 1 · CA 1). Both states' CS-view headlines unchanged under the live guard; net-metering surfaces once the filter-UI deploy (`bfb6a1c`) lands.
 
 ### ✅ SHIPPED (code complete + verified; NOT yet committed/pushed at time of writing)
 - **Structure filter constants + sticky pref** (`lensFormConstants.js`): `STRUCTURE_OPTIONS` [All structures · Community Solar · Net Metering · Net Billing · C&I behind-the-meter], `STRUCTURE_TO_TAG`/`STRUCTURE_FROM_TAG`, `structureLabelFromTag`, `structureNoun`, `getStickyStructure`/`setStickyStructure` (localStorage, default All; CS pin sticks). All guarded for node.
@@ -18,10 +22,9 @@
 - **Tests** (`tests/unit/structureFilter.spec.js`): label↔tag round-trip, `structureLabelFromTag` fallback, `structureNoun` (explicit / single / mixed), `getStickyStructure` node-safe default.
 
 ### ⏭ DO NEXT
-1. **Browser-verify on prod once `bfb6a1c` finishes deploying:** the Monetization Structure filter (default All; pin CS sticks via localStorage); on NJ, "All structures" → DG noun + breakdown strip (CS 162 · Net Metering 7,993 · Other 24), "Community Solar" → 162 CS, "Net Billing"/"C&I" → honest empty-for-structure state. Confirm VA/WI/CA card no longer says "CS projects" (now "DG").
-2. **NY capture-all:** drop the CDG-only filter in `_refresh-ny-dg.js`, tag CDG=Yes→community_solar / CDG=No→net_metering instead (mirrors NJ). Then re-scrape NY (same non-destructive upsert pattern).
-3. **Future slices (deliberate, not now):** the full two-axis rename (replace Technology with Architecture × Structure, scoreEngine refactor, saved-project migration); the merchant-BESS scope reconciliation; offtake models for net metering / net billing (or keep "coverage: limited").
-4. Minor: polish the breakdown-strip chip labels for `unknown`/`other` tags (currently raw); pre-existing citation-lint warning on `glossaryDefinitions.js` p50/p90 example `$1.32/W`–`$1.78/W` (LBNL-attributed illustrative values) — allowlist or genericize.
+1. **Browser-verify on prod once the latest deploy lands:** the Monetization Structure filter (default All; pin CS sticks via localStorage). On NJ, "All structures" → DG noun + breakdown strip (CS 162 · Net Metering 7,993 · Other 24); on NY, "All structures" → CS + Net Metering breakdown, "Net Metering" → the residential fleet (Con Edison 861 pipeline / 72k energized). "Community Solar" → CS only. "Net Billing"/"C&I" → honest empty-for-structure state. Confirm VA/WI/CA card no longer says "CS projects" (now "DG").
+2. **Future slices (deliberate, not now):** the full two-axis rename (replace Technology with Architecture × Structure, scoreEngine refactor, saved-project migration); the merchant-BESS scope reconciliation; offtake models for net metering / net billing (or keep "coverage: limited"). Other capture-all states (VA/WI/CA stay `unknown` — fuel-type-only queues, no structure column).
+3. Minor: polish the breakdown-strip chip labels for `unknown`/`other` tags (currently raw); pre-existing citation-lint warning on `glossaryDefinitions.js` p50/p90 example numbers (LBNL-attributed illustrative values) — allowlist or genericize.
 
 ### Still open from the prior arc (manual-data phase)
 7 browser/manual-gated IX candidates (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS CS queues) → manual-upload ingest pipeline.

@@ -53,38 +53,55 @@ async function soda(params, signal) {
 }
 
 /**
- * Aggregate CDG=Yes projects by electric utility × status.
- * Returns canonical ix_queue_data rows for state_id='NY'.
+ * CAPTURE-ALL + TAG (scope decision 2026-05-23): aggregate EVERY NY-Sun
+ * distributed-solar project by electric utility × status × monetization
+ * structure, instead of filtering to community DG only. Structure tag from the
+ * `community_distributed_generation` flag:
+ *   - Yes → community_solar
+ *   - No  → net_metering  (customer-sited NY-Sun is net-metered / VDER; the
+ *           2026-05-24 spike showed CDG=No is 95% residential rooftop + small
+ *           commercial — none community solar, none wholesale. `net_metering` is
+ *           the honest family-level tag; the dataset carries no finer
+ *           net-metering-vs-VDER mechanism column, so we don't invent one.)
+ *
+ * Aggregate-only (count + MW per group), never per-project rows. Same honest
+ * model: deployment-pipeline signal (Pipeline=applied, Complete=energized), no
+ * study-months → those stay null; the IX score uses the curated baseline.
+ *
  * @param {AbortSignal} [signal]
  */
 export async function scrapeNyDg(signal) {
   const raw = await soda({
-    $select: 'electric_utility, project_status, count(1) as n, sum(totalnameplatekwdc) as kw',
-    $where: "community_distributed_generation='Yes'",
-    $group: 'electric_utility, project_status',
-    $limit: '1000',
+    $select: 'electric_utility, project_status, community_distributed_generation, count(1) as n, sum(totalnameplatekwdc) as kw',
+    $group: 'electric_utility, project_status, community_distributed_generation',
+    $limit: '2000',
   }, signal)
 
-  const byUtil = new Map()
+  // Group by (utility, metering_type). Require a recognized NY EDC — drops
+  // non-utility placeholders (e.g. "Statewide") that appear in the broader,
+  // unfiltered dataset; the 7 NY IOUs + LIPA are all in UTILITY_CANON.
+  const byKey = new Map()
   for (const r of raw) {
-    const canon = UTILITY_CANON[r.electric_utility] || (r.electric_utility || '').trim()
-    if (!canon) continue
-    if (!byUtil.has(canon)) byUtil.set(canon, { pipeline_n: 0, pipeline_mw: 0, complete_n: 0, complete_mw: 0 })
-    const a = byUtil.get(canon)
+    const utility = UTILITY_CANON[r.electric_utility]
+    if (!utility) continue
+    const metering_type = r.community_distributed_generation === 'Yes' ? MT.COMMUNITY_SOLAR : MT.NET_METERING
+    const key = `${utility}|${metering_type}`
+    if (!byKey.has(key)) byKey.set(key, { utility, metering_type, pipeline_n: 0, pipeline_mw: 0, complete_n: 0, complete_mw: 0 })
+    const a = byKey.get(key)
     if (r.project_status === 'Pipeline') { a.pipeline_n += num(r.n); a.pipeline_mw += mw1(r.kw) }
     else if (r.project_status === 'Complete') { a.complete_n += num(r.n); a.complete_mw += mw1(r.kw) }
   }
 
   const fetchedAt = new Date().toISOString()
   const rows = []
-  for (const [utility, a] of byUtil) {
-    // Keep any utility with observed CS activity (pipeline OR completed).
+  for (const a of byKey.values()) {
+    // Keep any (utility, structure) cell with observed activity (pipeline OR completed).
     if (a.pipeline_n === 0 && a.complete_n === 0) continue
     rows.push({
       state_id:            'NY',
       iso:                 'NYISO',
-      utility_name:        utility,
-      metering_type:       MT.COMMUNITY_SOLAR,  // CDG=Yes filter — all rows are CS
+      utility_name:        a.utility,
+      metering_type:       a.metering_type,
       projects_in_queue:   a.pipeline_n,
       mw_pending:          Math.round(a.pipeline_mw),
       completed_projects:  a.complete_n,
@@ -98,8 +115,11 @@ export async function scrapeNyDg(signal) {
       fetched_at:          fetchedAt,
     })
   }
-  // Stable ordering: most active pipeline first.
-  rows.sort((x, y) => y.projects_in_queue - x.projects_in_queue)
+  // CS structure first, then by pipeline size — stable, CS-wedge-forward ordering.
+  rows.sort((x, y) =>
+    x.metering_type === y.metering_type
+      ? y.projects_in_queue - x.projects_in_queue
+      : (x.metering_type === MT.COMMUNITY_SOLAR ? -1 : 1))
   return rows
 }
 
