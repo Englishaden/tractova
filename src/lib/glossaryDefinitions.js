@@ -34,6 +34,18 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'The pillar that answers "how does this project actually make money?" For Community Solar: state CS program (capacity remaining, LMI carveout requirements, contract tenor). For C&I: retail electricity rates from EIA Form 861 (curated for 12 high-rate states). For BESS: ISO capacity-market clearing prices (curated for 10 active markets). For Hybrid: blended.',
     inputs: 'state_programs · revenue_stacks · EIA Form 861 · ISO capacity markets',
   },
+  'Incentives': {
+    title: 'Incentives',
+    short: 'ITC step-up eligibility at this county — the §48E base credit plus the location-bonus adder stack (Energy Community, §48(e) Low-Income).',
+    long: 'The pillar that answers "how rich is the ITC adder stack here?" The §48E base 30% (with prevailing-wage + apprenticeship) is available nationwide; the LOCATION bonuses vary by county and are scored from real federal data — EPA/DOE Energy Communities (+10%), and §48(e) Low-Income Communities via Census/CDFI NMTC tracts or HUD QCT/DDA (+10%). A full stack pushes effective ITC toward ~50%. No dollars — this measures eligibility, not synthesized value.',
+    inputs: 'getEnergyCommunity (DOE NETL) · getNmtcLic (Census/CDFI) · getHudQctDda (HUD)',
+  },
+  'Policy & Timing': {
+    title: 'Policy & Timing',
+    short: 'Federal tax-credit timing risk (OBBBA §48E/§45Y cliffs, FEOC, safe harbor) keyed to stage + target COD, blended with state policy headwind risk.',
+    long: 'The pillar that answers "how exposed is this project to the rug being pulled?" Two inputs, no dollars: (1) a FEDERAL timing rules engine over published OBBBA/IRA law — the §48E/§45Y start-of-construction cutoff (Jul 4 2026), the end-2027 placed-in-service deadline, FEOC applicability, and the >1.5 MWac safe-harbor regime — assigning a clear / watch / at-risk tier from the project\'s stage + target COD year; and (2) STATE policy headwind risk scored as severity × probability across applicable high-confidence policy events. Weighted lightest (10%) as the most situational, fastest-moving signal.',
+    inputs: 'federalTimeline.assessFederalTiming (stage + COD) · computeStatePolicyRiskScore (severity × probability)',
+  },
   'System Architecture': {
     title: 'System Architecture',
     short: 'What is physically built — Standalone PV or PV + Storage (co-located battery). The first of Tractova\'s two project axes.',
@@ -60,9 +72,9 @@ export const GLOSSARY_DEFINITIONS = {
   },
   'Feasibility Index': {
     title: 'Feasibility Index',
-    short: 'Composite 0-100 score blending three pillars — Offtake (40%), Interconnection (35%), and Site Control (25%) sub-scores.',
-    long: 'Tractova\'s headline composite for "how attractive is this project?" Computed live from three pillar sub-scores using a weighted blend that emphasizes revenue (offtake) most, IX second as the binary go/no-go gate, site third as the most solvable. Adjusted by stage modifiers (a Construction-stage project gets +25 site-control credit reflecting de-risked permitting). Policy climate is surfaced as a separate signal (Regulatory Watch + verdict rationale), not folded into the number — so the same project reads the same Index everywhere. 80+ = strong; 60-79 = viable; 40-59 = challenging; <40 = adverse.',
-    inputs: 'safeScore(offtake, ix, site) → 0.40·offtake + 0.35·ix + 0.25·site',
+    short: 'Composite 0-100 score blending five signal pillars — Offtake (25%), Interconnection (25%), Incentives (20%), Site Control (20%), Policy & Timing (10%).',
+    long: 'Tractova\'s headline composite for "is this project worth diligence?" Computed live from five 0-100 SIGNAL pillars — zero synthesized dollars. The weighted blend leads with offtake + interconnection (the classic gates), weights incentives high post-OBBBA, treats site as most solvable, and weights policy & timing lightest as the most situational. It REBALANCES over whichever pillars have data for the surface (a Library card lacking county incentive data scores on the pillars it has, never penalized with a fabricated baseline). Adjusted by stage modifiers. 80+ = strong; 60-79 = viable; 40-59 = challenging; <40 = adverse.',
+    inputs: 'safeScore({offtake, ix, incentives, site, policyTiming}) → 0.25·offtake + 0.25·ix + 0.20·incentives + 0.20·site + 0.10·policyTiming (rebalanced over present pillars)',
   },
   'Active Policy': {
     title: 'Active Policy Events',

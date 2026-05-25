@@ -82,6 +82,9 @@ const GLOSSARY_PILLAR_MAP = {
   'Domestic Content':   'offtake',
   'Confidence Tier':    'all',
   'p50 / p90':          'all',
+  // 5-pillar signal model
+  'Incentives':         'all',
+  'Policy & Timing':    'all',
 }
 const GLOSSARY_NEW_TERMS = Object.entries(GLOSSARY_DEFINITIONS)
   .filter(([key]) => key in GLOSSARY_PILLAR_MAP)

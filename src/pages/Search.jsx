@@ -1085,7 +1085,7 @@ function SearchContent() {
                 signal pivot — no dollars; this is signal sensitivity. */}
             <div className="lens-reveal">
             <SectionMarker index={3} label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" />
-            <div data-tour-id="scenario" className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
+            <div data-tour-id="scenario" className="bg-white rounded-lg" style={{ border: '1px solid #E2E8F0' }}>
               <DevFeasibilityView
                 stateProgram={results.stateProgram}
                 countyData={results.countyData}

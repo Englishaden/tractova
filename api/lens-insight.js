@@ -140,16 +140,17 @@ export function buildContext({ state, county, mw, stage, technology, stateProgra
       lines.push(`\nPOLICY IMPACT EVENTS — ${state} (${applicable.length} active)`)
       for (const ev of applicable) {
         lines.push(`  ${ev.event_name} (${ev.event_type}, effective ${ev.effective_date || 'TBD'}, status: ${ev.status}) — ${ev.pillar}`)
-        // Quantified financial impact (only print the metrics that are set).
-        const impactBits = []
-        if (ev.capex_impact_per_mw_usd != null)   impactBits.push(`capex ${ev.capex_impact_per_mw_usd > 0 ? '+' : '−'}$${Math.abs(ev.capex_impact_per_mw_usd).toLocaleString()}/MW`)
-        if (ev.irr_impact_bps != null)            impactBits.push(`IRR ${ev.irr_impact_bps > 0 ? '+' : '−'}${Math.abs(ev.irr_impact_bps)}bps`)
-        if (ev.ongoing_fee_per_mw_yr_usd != null) impactBits.push(`ongoing $${ev.ongoing_fee_per_mw_yr_usd.toLocaleString()}/MW/yr`)
-        if (ev.revenue_haircut_pct != null)       impactBits.push(`revenue ${ev.revenue_haircut_pct > 0 ? '−' : '+'}${Math.abs(ev.revenue_haircut_pct)}%`)
-        if (impactBits.length > 0) {
-          lines.push(`    Impact: ${impactBits.join(' · ')} (confidence: ${ev.impact_confidence || 'unstated'})`)
+        // Policy & Timing SIGNAL (severity × probability) — NOT synthesized $.
+        // The retired financial model's derived $/MW + IRR-bps fields are no
+        // longer surfaced to the prompt; policy impact is expressed as a risk
+        // tier so the brief stays signal-based.
+        const riskBits = []
+        if (ev.impact_severity)    riskBits.push(`severity: ${ev.impact_severity}`)
+        if (ev.impact_probability) riskBits.push(`probability: ${ev.impact_probability}`)
+        if (riskBits.length > 0) {
+          lines.push(`    Risk signal: ${riskBits.join(' · ')} (confidence: ${ev.impact_confidence || 'unstated'})`)
         } else {
-          lines.push(`    Impact: not yet quantified — see source for raw details`)
+          lines.push(`    Risk signal: severity not yet classified (confidence: ${ev.impact_confidence || 'unstated'})`)
         }
         // Applicability
         const appliesBits = []
@@ -167,13 +168,10 @@ export function buildContext({ state, county, mw, stage, technology, stateProgra
         if (ev.feoc_compliance_required) {
           lines.push(`    FEOC: required${ev.feoc_notes ? ` — ${ev.feoc_notes.slice(0, 160)}` : ''}`)
         }
-        // Methodology + analyst note: pass through with generous limits.
-        // Prior bug: 220-char slice truncated the second fee tier on
-        // tiered-fee policies (LD 1777), causing Sonnet to claim "the
-        // exact rate is not quantified" even though the row had it.
-        if (ev.impact_methodology) {
-          lines.push(`    Methodology: ${ev.impact_methodology.slice(0, 1500)}`)
-        }
+        // impact_methodology is intentionally NOT surfaced — it's the retired
+        // financial model's $/MW + IRR-bps derivation chain, which would lead
+        // the brief back into synthesized dollars. The qualitative analyst_note
+        // + enacted raw provisions below carry the substance instead.
         if (ev.analyst_note) {
           lines.push(`    Analyst note: ${ev.analyst_note.slice(0, 1000)}`)
         }
@@ -438,6 +436,10 @@ export default async function handler(req, res) {
   //        from v=4 reference policy state that may now show different
   //        adjusted Studio + composite numbers — re-fire to keep prose
   //        and numbers in lockstep.
+  //   v=6: 5-pillar signal pivot — synthesized $ removed from buildContext
+  //        (policy now severity×probability, no $/MW + IRR-bps + methodology)
+  //        and system prompt re-aimed off dollars. Re-fire so cached v=5
+  //        briefs drop their dollar/IRR framing.
   const verdictKey = buildCacheKey('verdict', {
     state:               body.state,
     county:              body.county,
@@ -445,7 +447,7 @@ export default async function handler(req, res) {
     stage:               body.stage,
     technology:          body.technology,
     dataVersion:         dataVersionFor(body.stateProgram, policyEvents),
-    buildContextVersion: 5,
+    buildContextVersion: 6,
   })
   const cachedVerdict = await cacheGet(verdictKey)
   if (cachedVerdict) {
