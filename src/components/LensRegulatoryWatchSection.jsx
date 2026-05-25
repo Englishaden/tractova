@@ -22,7 +22,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
 import { getPucDockets } from '../lib/programData'
-import SectionMarker from './SectionMarker'
+import CollapsibleSection from './CollapsibleSection'
 import RegulatoryActivityPanel from './RegulatoryActivityPanel'
 import CollapsibleSubsection from './CollapsibleSubsection'
 import GlossaryLabel from './ui/GlossaryLabel'
@@ -240,11 +240,7 @@ export default function LensRegulatoryWatchSection({ state, stateName, policyEve
 
   return (
     <>
-      <SectionMarker
-        index={6}
-        label="Regulatory Watch"
-        sublabel="pending bills · enacted events · active proceedings"
-      />
+      <CollapsibleSection label="Regulatory Watch" sublabel="pending bills · enacted events · active proceedings">
       <div className="space-y-3">
         <CollapsibleSubsection
           title={
@@ -301,6 +297,7 @@ export default function LensRegulatoryWatchSection({ state, stateName, policyEve
           </CollapsibleSubsection>
         )}
       </div>
+      </CollapsibleSection>
     </>
   )
 }

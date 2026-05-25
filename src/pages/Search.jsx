@@ -34,6 +34,7 @@ import DataLimitationsModal from '../components/DataLimitationsModal'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import RunIdMasthead from '../components/RunIdMasthead'
 import SectionMarker from '../components/SectionMarker'
+import CollapsibleSection from '../components/CollapsibleSection'
 import LensScenarioRow from '../components/LensScenarioRow'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
@@ -1062,7 +1063,7 @@ function SearchContent() {
 
             {/* Market Intelligence Summary */}
             <div className="lens-reveal">
-            <SectionMarker index={2} label="Analyst Brief" sublabel="claude · sonnet 4.6" />
+            <CollapsibleSection index={2} label="Analyst Brief" sublabel="claude · sonnet 4.6">
             <MarketIntelligenceSummary
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -1075,6 +1076,7 @@ function SearchContent() {
               setRationaleLoading={setRationaleLoading}
               ixQueueSummary={results.ixQueueSummary}
             />
+            </CollapsibleSection>
             </div>
 
             {/* §03 Dev Feasibility — the go/no-go scorecard. The 5-pillar
@@ -1084,8 +1086,8 @@ function SearchContent() {
                 synthesized $ revenue/payback sensitivity) in the 2026-05
                 signal pivot — no dollars; this is signal sensitivity. */}
             <div className="lens-reveal">
-            <SectionMarker index={3} label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" />
-            <div data-tour-id="scenario" className="bg-white rounded-lg" style={{ border: '1px solid #E2E8F0' }}>
+            <CollapsibleSection index={3} label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" dataTourId="scenario">
+            <div className="bg-white rounded-lg" style={{ border: '1px solid #E2E8F0' }}>
               <DevFeasibilityView
                 stateProgram={results.stateProgram}
                 countyData={results.countyData}
@@ -1101,6 +1103,7 @@ function SearchContent() {
                 onMwChange={setLiveMw}
               />
             </div>
+            </CollapsibleSection>
             </div>
 
             {/* §04: Structure Comparison — "which monetization structure
@@ -1108,7 +1111,7 @@ function SearchContent() {
                 offtake signal (no $) from the same engine as the Feasibility
                 Index. Compared at Standalone PV. */}
             <div className="lens-reveal">
-            <SectionMarker index={4} label="Structure Comparison" sublabel="which structure monetizes best · offtake signal" />
+            <CollapsibleSection index={4} label="Structure Comparison" sublabel="which structure monetizes best · offtake signal">
             <StructureComparison
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -1120,6 +1123,7 @@ function SearchContent() {
               userArchitecture={results.form.architecture}
               stateName={results.stateProgram?.name || results.form.state}
             />
+            </CollapsibleSection>
             </div>
 
             {/* Pillar Diagnostics — same SectionMarker treatment as the other
@@ -1127,8 +1131,8 @@ function SearchContent() {
                 so the sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
             <div className="lens-reveal">
-            <SectionMarker index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" />
-            <div data-tour-id="pillars" className="space-y-5">
+            <CollapsibleSection index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" dataTourId="pillars">
+            <div className="space-y-5">
             {(() => {
               // Structural sub-scores drive the §04 summary card gauges.
               // Same math as the Lens header Feasibility Index — single
@@ -1194,6 +1198,7 @@ function SearchContent() {
                 incentives / site / policy & timing). All five cards open the
                 PillarDetailModal — each pillar has its own tab + deep-dive body. */}
             </div>
+            </CollapsibleSection>
             </div>
 
             {/* Federal LIHTC moved into the OfftakeCard's federal-bonus stack
@@ -1221,7 +1226,6 @@ function SearchContent() {
                 still crash, revert this and pivot to path B (paginated Table
                 view + Operating Projects → Library cockpit). */}
             <div className="lens-reveal">
-            <SectionDivider />
             <LensComparablesSection
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}
@@ -1235,7 +1239,6 @@ function SearchContent() {
                 results.policyEvents (already fetched, no new query) — same
                 source of truth as § 04 (Policy Climate), different cut. */}
             <div className="lens-reveal">
-            <SectionDivider />
             <LensRegulatoryWatchSection
               state={results.stateProgram?.id || results.form.state}
               stateName={results.stateProgram?.name || results.form.state}

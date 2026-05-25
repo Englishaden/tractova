@@ -5,7 +5,7 @@ import {
   getCsMarketSnapshot,
   getSpecificYieldLineage,
 } from '../lib/programData'
-import SectionMarker from './SectionMarker'
+import CollapsibleSection from './CollapsibleSection'
 import ComparableDealsPanel from './ComparableDealsPanel'
 import CsMarketPanel from './CsMarketPanel'
 import SpecificYieldPanel from './SpecificYieldPanel'
@@ -142,7 +142,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
 
   return (
     <>
-      <SectionMarker index={5} label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates" />
+      <CollapsibleSection label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates">
       <div className="space-y-3">
         {(!bisectOnly || bisectOnly === 'operating') && (
           <LensComparableSubsection
@@ -190,6 +190,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
           </LensComparableSubsection>
         )}
       </div>
+      </CollapsibleSection>
     </>
   )
 }

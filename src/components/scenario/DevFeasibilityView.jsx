@@ -55,6 +55,40 @@ const IX_ASSUMPTIONS = [
 
 const COD_YEAR_OPTIONS = ['2026', '2027', '2028', '2029', '2030']
 
+// ITC what-if scenarios — model a fluxable Incentives outcome. The label is
+// what the user picks; applyItcScenario re-shapes the county eligibility.
+const ITC_SCENARIOS = [
+  { key: 'as_mapped', label: 'As mapped (live eligibility)' },
+  { key: 'no_ec',     label: 'Lose Energy Community adder' },
+  { key: 'base_only', label: 'Base §48E only (no location adders)' },
+]
+const ITC_SCENARIO_HINTS = {
+  'As mapped (live eligibility)':           'Use the real county-level ITC adder eligibility (EPA Energy Community + §48(e) Low-Income).',
+  'Lose Energy Community adder':            'Model the project dropping out of the Energy Community map (e.g. annual DOE NETL remap) — keeps any §48(e) Low-Income adder, drops the +10% EC bonus.',
+  'Base §48E only (no location adders)':    'Model both location adders falling away — only the base 30% §48E credit survives. The downside case for tax-equity dependent deals.',
+}
+
+// Re-shape county incentive getter results per the ITC what-if lever so the
+// Incentives pillar can model a fluxable adder outcome. Only acts when real
+// coverage exists — never fabricates eligibility where the county has none.
+function applyItcScenario(incentives, scenario) {
+  if (!incentives || scenario === 'as_mapped') return incentives
+  if (scenario === 'no_ec') {
+    return {
+      ...incentives,
+      energyCommunity: { ...(incentives.energyCommunity || {}), isEnergyCommunity: false, qualifiesViaMsa: false, qualifiesViaCoalClosure: false },
+    }
+  }
+  if (scenario === 'base_only') {
+    return {
+      energyCommunity: { isEnergyCommunity: false },
+      nmtcLic: { isEligible: false },
+      hudQctDda: { qctCount: 0, isNonMetroDda: false },
+    }
+  }
+  return incentives
+}
+
 export default function DevFeasibilityView({
   stateProgram,
   countyData,
@@ -76,14 +110,26 @@ export default function DevFeasibilityView({
     return Number.isFinite(n) && n > 0 ? n : 5
   })()
 
-  // Non-MW levers stay local to this view — they're informational only
-  // (COD year + subscription % + IX assumption shape the timeline
-  // narrative below but don't drive scoreEngine outputs or §04 cards).
+  // What-if levers (local to this view). Each now FLOWS INTO the verdict:
+  //   - codYear → federal timing (Policy & Timing pillar, structural)
+  //   - itcScenario → Incentives pillar (structural — model losing an adder)
+  //   - subscriptionPct → offtake (lever layer)
+  //   - ixAssumption → interconnection (lever layer)
   const [levers, setLevers] = useState({
     codYear: 2027,
     subscriptionPct: SUBSCRIPTION_DEFAULT_PCT,
     ixAssumption: 'queue',
+    itcScenario: 'as_mapped',
   })
+
+  // ITC what-if: re-shape the county incentive eligibility per the lever so the
+  // user can model fluxable risk — "what if we drop out of the Energy-Community
+  // map?" or "what if only the base §48E credit survives?" Only overrides when
+  // real county coverage exists (never fabricates eligibility where there's none).
+  const scenarioIncentives = useMemo(
+    () => applyItcScenario(incentives, levers.itcScenario),
+    [incentives, levers.itcScenario]
+  )
 
   // LMI floor — when a state mandates a carve-out (NY 20%, IL 50%, etc.),
   // subscription can't structurally drop below it. Snap up if the user
@@ -105,8 +151,8 @@ export default function DevFeasibilityView({
   // timing is a pure function of the target year + stage, so it belongs in
   // computeSubScores, not the bounded ±10 lever layer.
   const structuralSubScores = useMemo(
-    () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, effectiveMw, { incentives, codYear: levers.codYear }),
-    [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, effectiveMw, incentives, levers.codYear]
+    () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, effectiveMw, { incentives: scenarioIncentives, codYear: levers.codYear }),
+    [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, effectiveMw, scenarioIncentives, levers.codYear]
   )
 
   // Lever-adjusted sub-scores — layer Subscription / COD / IX assumption
@@ -210,18 +256,11 @@ export default function DevFeasibilityView({
         stateName={stateName}
       />
 
-      <TimelineEstimate
-        ixQueueSummary={ixQueueSummary}
-        siteCoverage={subScores.coverage.site}
-        countyData={countyData}
-        headwindCount={statePolicyEvents.length}
-        ixAssumption={levers.ixAssumption}
-        codYear={levers.codYear}
-      />
-
-      {/* Comparable operating projects live only in §05 (Comparable Deals &
-          Benchmarks) — removed the duplicate panel here (2026-05-22) so the
-          same NREL "Sharing the Sun" material isn't double-counted on the page. */}
+      {/* The editorial Timeline-to-COD phase Gantt was removed in the 2026-05
+          signal pivot — only the IX study window was real (8 states); the
+          permit/construct/energization segments were uniform editorial guesses.
+          COD's effect now lives where it's real: the Policy & Timing pillar
+          (federal §48E/§45Y cliff) + the IX lever (queue-vs-runway). */}
     </div>
     </TooltipProvider>
   )
@@ -678,6 +717,8 @@ function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS, lmiFloor = 
   const ixLabels = IX_ASSUMPTIONS.map(p => p.label)
   const ixTooltips = Object.fromEntries(IX_ASSUMPTIONS.map(p => [p.label, p.hint]))
   const currentIxLabel = IX_ASSUMPTIONS.find(p => p.key === levers.ixAssumption)?.label || ''
+  const itcLabels = ITC_SCENARIOS.map(s => s.label)
+  const currentItcLabel = ITC_SCENARIOS.find(s => s.key === levers.itcScenario)?.label || ''
 
   return (
     <div className="rounded-lg px-4 py-3 bg-white" style={{ border: '1px solid #E2E8F0' }}>
@@ -688,11 +729,11 @@ function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS, lmiFloor = 
           className="eyebrow-mono text-gray-500"
         />
         <span className="text-[10px] text-gray-400 italic">
-          {onMwChange ? 'Project Size syncs across §03 + §04 · others are informational' : 'project-shape assumptions · informational'}
+          Model fluxable risk — every lever flows into the verdict above{onMwChange ? ' · Project Size syncs across §03 + §04' : ''}
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         <ProjectSizeSlider
           mw={mw}
           onChange={(v) => {
@@ -708,6 +749,19 @@ function FeasibilityLevers({ levers, onChange, mw, onMwChange, isCS, lmiFloor = 
           value={String(levers.codYear)}
           onChange={(val) => onChange({ ...levers, codYear: parseInt(val, 10) })}
           options={COD_YEAR_OPTIONS}
+          placeholder="Select…"
+          optionTooltips={Object.fromEntries(COD_YEAR_OPTIONS.map(y => [y, `Target commercial-operation year ${y} — drives the §48E/§45Y federal timing tier in the Policy & Timing pillar (early stage + a far COD raises FEOC / placed-in-service risk).`]))}
+        />
+
+        <FieldSelect
+          label="ITC Adders"
+          value={currentItcLabel}
+          onChange={(val) => {
+            const next = ITC_SCENARIOS.find(s => s.label === val)
+            if (next) onChange({ ...levers, itcScenario: next.key })
+          }}
+          options={itcLabels}
+          optionTooltips={ITC_SCENARIO_HINTS}
           placeholder="Select…"
         />
 
@@ -853,249 +907,4 @@ function SubscriptionSlider({ pct, onChange, minPct = 0, floorLabel = null }) {
       footerCaption={floorLabel}
     />
   )
-}
-
-// ── Timeline estimate (informational, narrative) ───────────────────────────
-
-// Phase estimates for the horizontal timeline bar. Numbers are
-// utility-scale CS industry conventions (NREL ATB + observed dev
-// timelines) — disclosed as editorial in the tooltip on each
-// segment so devs can calibrate against their own pipeline data.
-const PHASE_DEFAULTS = {
-  permitMonths:       6,   // baseline state permit + AHJ
-  permitWetlandBump: 9,    // additive when wetland ≥25%, midpoint of 6-12 mo Section 404 range
-  constructMonths:   12,   // utility-scale solar typical
-  energizationMonths: 3,   // commissioning + utility energization buffer
-}
-
-function ixAssumptionMultiplier(ixAssumption) {
-  // Maps the IX assumption lever to a fraction of the curated/live
-  // study-window months. Mirrors the leverAdjustments.js IX delta
-  // logic but on the time axis instead of the score axis.
-  if (ixAssumption === 'acquire') return 0.50      // skips ~half the wait
-  if (ixAssumption === 'distribution') return 0.25 // fast-track ~25% of standard
-  return 1.0                                       // queue: full standard wait
-}
-
-function computePhases({ ixQueueSummary, countyData, ixAssumption }) {
-  const ixBase = (ixQueueSummary && ixQueueSummary.avgStudyMonths > 0)
-    ? ixQueueSummary.avgStudyMonths
-    : 18 // curated fallback when no live queue
-  const ixMonths = Math.max(1, Math.round(ixBase * ixAssumptionMultiplier(ixAssumption)))
-  const wet = countyData?.geospatial?.wetlandCoveragePct
-  const wetlandPermitAdd = (wet != null && wet >= 25) ? PHASE_DEFAULTS.permitWetlandBump : 0
-  const permitMonths = PHASE_DEFAULTS.permitMonths + wetlandPermitAdd
-  // Phase colors run a warm→cool PROGRESSION (amber friction → teal energized),
-  // not pillar identities — these are time segments, not sub-scores. Both stops
-  // are brand colors (amber accent + teal primary), so the bar reads on-system
-  // instead of the old off-palette blue/slate gantt.
-  return [
-    { key: 'ix',           label: 'IX Study',     months: ixMonths,                          color: '#B45309' },
-    { key: 'permit',       label: 'Permitting',   months: permitMonths,                       color: '#F59E0B' },
-    { key: 'construct',    label: 'Construction', months: PHASE_DEFAULTS.constructMonths,     color: '#14B8A6' },
-    { key: 'energization', label: 'Energization', months: PHASE_DEFAULTS.energizationMonths, color: '#0F766E' },
-  ]
-}
-
-function TimelineEstimate({ ixQueueSummary, siteCoverage, countyData, headwindCount, ixAssumption, codYear }) {
-  // Lines as { text, tooltip? } objects so any bullet can disclose a
-  // proxy / editorial framing in a hover tooltip without bloating the
-  // main copy. Bullets that have a tooltip render with a dotted-
-  // underline cursor-help affordance matching the rest of the app.
-  const lines = []
-
-  // IX timeline contribution
-  if (ixQueueSummary && ixQueueSummary.avgStudyMonths > 0) {
-    const months = ixQueueSummary.avgStudyMonths
-    if (ixAssumption === 'fast_lane' && months > 12) {
-      lines.push({ text: `Fast-lane IX skips most of the ${months}-month standard queue, but eligibility caps at ~2 MW in most utilities.` })
-    } else if (ixAssumption === 'acquire') {
-      lines.push({ text: `Acquired queue position avoids the ${months}-month study window — add acquisition cost to capex.` })
-    } else {
-      lines.push({ text: `Live IX queue: ${months}-month avg study window · ${ixQueueSummary.totalProjects} projects ahead.` })
-    }
-  } else {
-    lines.push({ text: 'No live IX queue data — fall back to curated difficulty tier.' })
-  }
-
-  // Site contribution — wetland >25% triggers a permit-risk flag. The
-  // bullet now hovers a tooltip that discloses the proxy framing:
-  // Section 404 actually applies to filling ANY wetland regardless of
-  // county-wide coverage; 25% is a Tractova proxy for "you'll likely
-  // hit wetland during site selection." Disclosed honestly.
-  const wet = countyData?.geospatial?.wetlandCoveragePct
-  if (wet != null && wet >= 25) {
-    lines.push({
-      text: `Wetland coverage ${wet.toFixed(0)}% likely triggers state DEC / Army Corps Section 404 review — add 6–12 mo.`,
-      tooltip: {
-        title: 'Wetland flag — proxy framing',
-        body: 'Section 404 of the Clean Water Act applies if your project fills ANY wetland, not when a county has ≥25% coverage. The 25% threshold is a Tractova proxy: at high county-wide coverage, site selection is likely to encounter wetland-adjacent parcels and require Section 404 / state DEC review. Confirm with a parcel-level NWI delineation before treating this as a regulatory threshold.',
-      },
-    })
-  }
-
-  // Policy contribution
-  if (headwindCount > 0) {
-    lines.push({ text: `${headwindCount} active headwind polic${headwindCount === 1 ? 'y' : 'ies'} may shift project economics mid-development — diligence the §06 Regulatory Watch feed.` })
-  }
-
-  // Target vs current year
-  const now = 2026
-  const yearsToTarget = codYear - now
-  const minMonths = yearsToTarget * 12
-
-  // Phase bar — visual companion to the narrative bullets below.
-  const phases = computePhases({ ixQueueSummary, countyData, ixAssumption })
-  const totalMonths = phases.reduce((s, p) => s + p.months, 0)
-  const overRunway = minMonths > 0 && totalMonths > minMonths
-  const slack = minMonths - totalMonths
-
-  return (
-    <div
-      className="rounded-lg overflow-hidden"
-      style={{ border: '1px solid rgba(15,26,46,0.10)', borderLeft: '3px solid #0F766E' }}
-    >
-      {/* Research-panel header strip — mono eyebrow + runway meta, matching the
-          IX/offtake card chrome used across the Lens. */}
-      <div
-        className="px-4 py-2.5 flex items-center justify-between gap-2 border-b"
-        style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}
-      >
-        <GlossaryLabel
-          term="Timeline to COD"
-          displayAs="Timeline to COD"
-          className="eyebrow-mono font-bold text-teal-800"
-        />
-        <span className="font-mono text-[9px] uppercase tracking-[0.16em] tabular-nums text-gray-500">
-          target {codYear} · {minMonths} mo runway
-        </span>
-      </div>
-
-      <div className="px-4 py-3.5 bg-white">
-        <PhaseBar phases={phases} totalMonths={totalMonths} minMonths={minMonths} overRunway={overRunway} slack={slack} />
-
-        <ul className="space-y-1 text-[11px] text-gray-700 leading-snug mt-3.5">
-          {lines.map((l, i) => (
-            <li key={i} className="flex gap-1.5">
-              <span className="text-teal-600/60 shrink-0">·</span>
-              {l.tooltip ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-help underline decoration-dotted underline-offset-2">{l.text}</span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="!max-w-[380px]">
-                    <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{l.tooltip.title}</p>
-                    <p className="leading-relaxed">{l.tooltip.body}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <span>{l.text}</span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  )
-}
-
-// Horizontal phase bar — visual companion to the narrative bullets.
-// Each segment's width is proportional to its month duration. When
-// total phase months exceed the COD runway, the bar shows the spill
-// in amber + a "tight by N mo" warning. When there's slack, the
-// trailing slack zone renders as a faint slate stripe so the user
-// can see the buffer.
-function PhaseBar({ phases, totalMonths, minMonths, overRunway, slack }) {
-  // Bar width domain: max of (totalMonths, minMonths) so both bars
-  // (phase stack + runway marker) fit. Add 5% headroom for the
-  // runway label tick on the right edge.
-  const domain = Math.max(totalMonths, minMonths) * 1.05
-  const phaseSegments = phases.map(p => ({ ...p, widthPct: (p.months / domain) * 100 }))
-  const runwayMarkerPct = minMonths > 0 ? (minMonths / domain) * 100 : null
-
-  return (
-    <div>
-      {/* Bar — segments resize fluidly (transition-[width]) when levers change.
-          A 1px inner-light divider separates phases; the month count renders
-          inside any segment wide enough to hold it (gantt-style). */}
-      <div className="relative h-6 rounded-md overflow-hidden" style={{ background: 'rgba(15,26,46,0.05)' }}>
-        <div className="flex h-full">
-          {phaseSegments.map((p, i) => (
-            <Tooltip key={p.key}>
-              <TooltipTrigger asChild>
-                <div
-                  className="h-full cursor-help transition-[width] duration-500 ease-out hover:brightness-110 flex items-center justify-center overflow-hidden"
-                  style={{
-                    width: `${p.widthPct}%`,
-                    background: p.color,
-                    boxShadow: i > 0 ? 'inset 1px 0 0 rgba(255,255,255,0.30)' : 'none',
-                  }}
-                >
-                  {p.widthPct > 13 && (
-                    <span className="font-mono text-[9px] font-bold tabular-nums text-white/90 select-none">{p.months}</span>
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="!max-w-[300px]">
-                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>{p.label} · {p.months} mo</p>
-                <p className="leading-relaxed">{PHASE_BLURBS[p.key]}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
-        </div>
-        {/* COD runway marker — dashed for "on track", solid red when over. */}
-        {runwayMarkerPct != null && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className="absolute top-0 bottom-0 cursor-help transition-[left] duration-500 ease-out"
-                style={{
-                  left: `${runwayMarkerPct}%`,
-                  width: '2px',
-                  background: overRunway ? '#DC2626' : '#0F1A2E',
-                  transform: 'translateX(-50%)',
-                  boxShadow: overRunway ? '0 0 4px rgba(220,38,38,0.55)' : 'none',
-                }}
-              />
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Target COD · {minMonths} mo from now</p>
-              <p className="leading-relaxed">
-                {overRunway
-                  ? `Phases total ${totalMonths} mo — ${Math.abs(slack)} mo over the target window. Tighten via Distribution fast-track, Acquire mid-queue position, or push COD later.`
-                  : `Phases total ${totalMonths} mo — ${slack} mo of slack against the target window.`}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </div>
-
-      {/* Legend + total */}
-      <div className="flex items-center justify-between gap-3 mt-2 flex-wrap">
-        <div className="flex items-center gap-3 flex-wrap">
-          {phases.map(p => (
-            <div key={p.key} className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-              <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-gray-500">
-                {p.label} <span className="text-gray-700 font-bold tabular-nums">{p.months}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-        <span
-          className="font-mono text-[10px] tabular-nums shrink-0 font-bold"
-          style={{ color: overRunway ? '#B91C1C' : '#0F766E' }}
-        >
-          {totalMonths} mo total{overRunway ? ` · tight by ${Math.abs(slack)}` : slack > 0 ? ` · ${slack} mo slack` : ''}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-const PHASE_BLURBS = {
-  ix:           'Interconnection study window. Live data from the state IX queue (avgStudyMonths) when wired; falls back to a curated 18-mo baseline. Multiplier applied per IX Assumption lever: queue=100%, acquire=50%, distribution fast-track=25%.',
-  permit:       'State + AHJ permitting baseline (~6 mo). Bumped by 9 mo when county wetland coverage ≥25% as a proxy for Section 404 review likelihood — disclosed in the wetland tooltip below.',
-  construct:    'Utility-scale community-solar construction window (~12 mo). Includes mobilization, racking + module install, electrical, and pre-energization testing.',
-  energization: 'Final commissioning + utility energization buffer (~3 mo). Captures interconnection studies that surface late + utility scheduling.',
 }

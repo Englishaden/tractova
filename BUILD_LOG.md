@@ -4,7 +4,38 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-25 (latest) SHIPPED Phase 2 — the synthesized $ layer is GONE. Lens is now 100% signal-based.
+## 🟢 Pickup — 2026-05-25 (latest) SHIPPED post-pivot prod-review feedback (3 waves) — collapsible Lens, pillar detail modals, what-if levers, AI brief de-$'d
+
+Aden reviewed the 5-pillar Lens on prod and sent a feedback batch. Shipped across 3 commits (each verified: build + 172 unit + 7/7 smoke). Four design forks confirmed with Aden up front (all "recommended" options).
+
+### ✅ Wave 1 — `d0b1f06`
+- **AI Analyst Brief was still emitting synthesized $** (−64 bps IRR, −$6,293/MW/yr) — a real Phase-2 miss. `system.js` dropped the dollar-citation + IRR-delta rules, added a hard signal-based no-synthesized-economics mandate (enacted policy provisions OK as fact, never derived project economics). `lens-insight.buildContext` now expresses policy as severity×probability (not $/MW + IRR-bps), drops the $-derivation methodology, keeps enacted raw provisions. `buildContextVersion` 5→6.
+- **IX-assumption dropdown clip fixed** (removed `overflow-hidden` on the §03 wrapper that cut the FieldSelect popover).
+- **Incentives + Policy & Timing sub-score bars now have hover tooltips** — added both as first-class glossary pillar entries + fixed the stale Feasibility Index entry (3-pillar 40/35/25 → 5-pillar 25/25/20/20/10).
+
+### ✅ Wave 2a — `2a94ac5`
+- **§04 Incentives + Policy & Timing cards are now clickable** (Open detail →) like the 3 structural pillars. PillarDetailModal gained Incentives + Policy & Timing tabs (5 tabs, renumbered: Incentives 03, Site 04, Policy & Timing 05). IncentivesDetail (adder eligibility + sub-score methodology) + PolicyTimingDetail (federal §48E/§45Y calendar + tier reasons + applicable state events w/ severity + source links).
+- **De-duplicated** the ITC eligibility panel into a shared `IncentiveStackPanel` used by both OfftakeCard + the new Incentives tab.
+
+### ✅ Wave 2b — `<pending>`
+- **Dev Feasibility what-if levers now flow into the verdict.** Added an **ITC Adders** lever (As mapped / Lose Energy Community adder / Base §48E only) that re-shapes county eligibility → Incentives pillar (models a fluxable adder, e.g. dropping out of the EC map). COD-year lever drives the Policy & Timing federal-timing tier; IX assumption → IX; subscription → offtake. Lever note updated from "informational" → "every lever flows into the verdict."
+- **Removed the Timeline-to-COD phase Gantt** (Aden's call) — permit/construct/energization were uniform editorial guesses; only IX months were real. COD's effect now lives where it's real (Policy & Timing pillar).
+- **Collapsible Lens sections** — new `CollapsibleSection` (chevron toggle + fade-open via AnimatePresence opacity/y; conditional render, NOT height-auto → dodges the OOM landmine). §02–§05 + Comparable Deals + Regulatory Watch collapse, **default collapsed on Lens run**; §01 Market Position stays open (the verdict). Reg Watch + Comparables kept as full feeds (self-gating preserved) with their sub-sections intact. Tour anchors moved to the always-rendered section headers.
+
+### ⏭ Net Billing — DEFERRED DATA ARC (Aden's call: scope, don't fabricate)
+Net Billing shows "not modeled — no per-state export-credit dataset." Modeling it honestly needs REAL per-state export-credit basis, curated state-by-state — NOT fabricated. **What's needed:**
+- A curated `net_billing` availability + export-credit-basis table (which states run net billing, and the credit basis: avoided-cost / ACC schedule / time-varying export rate).
+- **Start with states that publish it:** CA (NEM 3.0 Net Billing Tariff — CPUC Avoided Cost Calculator hourly export values), then others migrating off retail net metering as DG penetration rises.
+- Until sourced, Net Billing stays honestly gated (offtake 'fallback' baseline, "not modeled" in Structure Comparison) — the offtake signal is held at a directional baseline, never a fabricated number.
+- DSIRE (the obvious aggregator) moved behind paid licensing May 2026, so sourcing is per-state PUC tariff filings — a real curation effort, your data call on cadence.
+
+### ⏭ DO NEXT
+1. **Browser-verify on prod**: collapsed-by-default sections + fade; all 5 §04 cards open their modal tab; ITC-adder lever moves the Incentives pillar + verdict; AI brief reads with NO synthesized $ (severity/timing framing); IX dropdown no longer clips.
+2. Optional polish: §06/§07 numbering for the now-unnumbered Comparable Deals + Regulatory Watch collapsibles; rename internal `revenueImpact` field → `signalImpact`; trim stale "Scenario Studio" mentions in Terms/Privacy.
+
+---
+
+## 🟢 Pickup — 2026-05-25 SHIPPED Phase 2 — the synthesized $ layer is GONE. Lens is now 100% signal-based.
 
 The 5-pillar signal pivot is complete: no synthesized dollars anywhere in the Lens. Verified (lint:api + 172 unit + build + 7/7 smoke green). **Aden's two Phase-2 calls:** (1) REMOVE Scenario Studio entirely (DevFeasibilityView promoted to its own §03 section — the go/no-go scorecard + pillar levers ARE the "what moves the score" interactivity); (2) FREEZE the saved-scenarios subsystem as a legacy viewer (Library Scenarios tab + scenario_snapshots reads kept; the save entry point died with Scenario Studio; no NEW scenarios can be saved).
 
