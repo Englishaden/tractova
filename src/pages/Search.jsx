@@ -25,6 +25,7 @@ import { useToast } from '../components/ui/Toast'
 
 import { getIXQueueSummary, getHostingCapacity } from '../lib/programData'
 import ScenarioStudio from '../components/ScenarioStudio'
+import StructureComparison from '../components/lens/StructureComparison'
 import { computeBaseline as computeScenarioBaseline, denormalizeTech } from '../lib/scenarioEngine'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { logProjectEvent } from '../lib/projectEvents'
@@ -1232,12 +1233,32 @@ function SearchContent() {
             </div>
             </div>
 
+            {/* §3.5: Structure Comparison — "which monetization structure pays
+                best for this site + MW." Sits right after Scenario Studio (the
+                other revenue surface) and reuses computeBaseline so the selected
+                structure's number matches. v1 = Standalone PV. */}
+            <div className="lens-reveal">
+            <SectionMarker index={4} label="Structure Comparison" sublabel="which monetization pays best · year-1 revenue" />
+            <StructureComparison
+              stateProgram={results.stateProgram}
+              countyData={results.countyData}
+              stage={results.form.stage || ''}
+              mw={effectiveMw}
+              rates={results.revenueRates}
+              selectedStructure={results.form.structure}
+              ixQueueSummary={results.ixQueueSummary}
+              policyEvents={results.policyEvents || []}
+              userArchitecture={results.form.architecture}
+              stateName={results.stateProgram?.name || results.form.state}
+            />
+            </div>
+
             {/* Pillar Diagnostics — same SectionMarker treatment as the other
                 § sections (Market Position / Analyst Brief / Scenario Studio)
-                so the four sections read as a single typographic family on a
+                so the sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
             <div className="lens-reveal">
-            <SectionMarker index={4} label="Pillar Diagnostics" sublabel="offtake · interconnect · site" />
+            <SectionMarker index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · site" />
             <div data-tour-id="pillars" className="space-y-5">
             {(() => {
               // Structural sub-scores drive the §04 summary card gauges.

@@ -11,6 +11,11 @@
       "path": "src/pages/Library.jsx",
       "ceiling": 1600,
       "reason": "Library cockpit went 1500 → 1508 after Phase 2C added the Comparisons tab + saved-count fetcher + onConvertOrphan handler. The orphan Supabase work already extracted to lib/orphanConversion.js. Decomposition target for Phase 6: lift the bulk-ops handlers (selectedIds + toggleSelect + handleBulk*) into a useBulkSelection hook, and pull the layout-toggle + pagination wiring into a useLibraryLayout hook — would drop main page back under 1300 LOC."
+    },
+    {
+      "path": "src/pages/Search.jsx",
+      "ceiling": 1550,
+      "reason": "Crossed 1500 → 1515 when the Structure Comparison section (§4 'which structure pays best here') was wired into the Lens results. The comparison UI itself is already extracted to components/lens/StructureComparison.jsx + lib/structureCompare.js; only the ~18-line section wiring lives here. Decomposition target: extract the entire `{results && (...)}` results panel into a <LensResults> component (passing form/stateProgram/scores/handlers as props) — the form + state + handlers stay in Search.jsx and the page drops well under 1000 LOC. Tracked for the next refactor sprint."
     }
   ]
 }
