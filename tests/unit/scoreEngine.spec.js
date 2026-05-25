@@ -270,8 +270,8 @@ describe('getOfftakeCoverageStates — published coverage', () => {
 
   it('Net Metering uses the retail-rate (C&I) coverage; Net Billing is sourced only where we have export-credit data', () => {
     expect(getOfftakeCoverageStates('Net Metering')).toEqual(getOfftakeCoverageStates('C&I Solar'))
-    // CA sourced (NEM 3.0 / NBT, CPUC ACC); every other state gated until sourced.
-    expect(getOfftakeCoverageStates('Net Billing')).toEqual(['CA'])
+    // Sourced net-billing states (export-credit ratio verified); others gated.
+    expect(getOfftakeCoverageStates('Net Billing')).toEqual(['AZ', 'CA', 'ID', 'UT'])
   })
 
   it('returns null for Community Solar (all 50 states are curated)', () => {

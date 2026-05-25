@@ -81,13 +81,34 @@ const BESS_OFFTAKE_SCORES = {
 // residual self-consumption value retained when exports ≈ worthless. See the
 // Net Billing branch in computeSubScores.
 //
-// CA — Net Billing Tariff (NEM 3.0), effective 2023-04-15: exports valued at the
-//   CPUC Avoided Cost Calculator (ACC), ~8-9¢/kWh vs ~30-44¢/kWh retail → roughly
-//   0.20-0.27 of retail. Using 0.23 (CA-IOU approximation). Sources: Aurora Solar
-//   NBT analysis (SDG&E Aug example: 8.8¢ export vs 44¢ grid) · PV Magazine (avg
-//   ~30¢→~8¢, ~75% cut vs NEM 2.0). [verified via WebFetch 2026-05-25]
+// Each ratio below is sourced + WebFetch-verified (2026-05-25); states whose
+// export tariff is time-of-use or otherwise can't be reduced to one honest
+// ratio are intentionally LEFT OUT (gated) rather than approximated loosely —
+// e.g. NV credits exports at 75% of retail but calls it net METERING (not
+// avoided-cost net billing); HI's Smart DER export is per-island TOU mid-
+// transition; MS has a sourced export rate but no cleanly-sourced retail.
 const NET_BILLING_EXPORT_RATIO = {
+  // AZ — APS Resource Comparison Proxy (RCP) export rate ~7¢/kWh vs ~14-15¢
+  //   retail → "roughly half". Steps down ≤10%/yr, locked 10yr at interconnection.
+  //   Sources: solar.com AZ net-billing (RCP 7.6¢ vs 15.1¢ Phoenix-metro avg,
+  //   "roughly half") · Solar Topps (2025 RCP 6.85¢ ≈ half of ~12¢).
+  AZ: 0.50,
+  // CA — Net Billing Tariff (NEM 3.0), eff. 2023-04-15: exports at the CPUC
+  //   Avoided Cost Calculator, ~8-9¢/kWh vs ~30-44¢ retail → ~0.20-0.27. Using
+  //   0.23. Sources: Aurora Solar NBT (SDG&E Aug: 8.8¢ vs 44¢) · PV Magazine
+  //   (avg ~30¢→~8¢, ~75% cut vs NEM 2.0).
   CA: 0.23,
+  // ID — Idaho Power moved net metering → net billing (Jan 2024); avoided-cost
+  //   Export Credit Rate ~2.9-3.4¢/kWh for the vast majority of the year vs
+  //   ~8-10¢ retail → ~0.33. (TOU: a narrow summer on-peak window clears 15.7¢,
+  //   above retail — this is the dominant-rate approximation, conservative for
+  //   summer-peaking solar.) Source: pv-magazine-usa (Idaho PUC 2025-09-30 order
+  //   2.9¢/3.4¢/15.7¢; "pays 3¢, sells 8-10¢").
+  ID: 0.33,
+  // UT — Rocky Mountain Power net billing Export Credit Rate 5.636¢ (summer) /
+  //   4.745¢ (winter) vs ~10.2¢ retail → "roughly half". Recalculated each Mar 1.
+  //   Sources: PUCN/RMP ECR figures · EnergySage ("~6¢, roughly half of retail").
+  UT: 0.49,
 }
 
 // Sorted state lists for user-facing "coverage" messaging. Kept here so the
