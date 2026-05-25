@@ -4,7 +4,36 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-24 (latest) SHIPPED two-axis legibility polish (Library structure filter + IX chip labels)
+## 🟢 Pickup — 2026-05-24 (latest) SHIPPED prod-review fixes — label consistency + net-billing copy + form align + Timeline redesign
+
+Commit **`0f9952f`** (pushed to main; verified: 5 linters + 199 unit + build + 7/7 smoke green). Aden's directive: **consistency in all regards — one canonical label per concept, site-wide.**
+
+### Canonical monetization-structure labels (one each, everywhere)
+`Community Solar · Net Metering · Net Billing · **C&I Solar**` — collapsed the four C&I spellings (`C&I behind-the-meter` / `C&I BTM` / `C&I Behind-the-Meter`) onto the dominant **`C&I Solar`** (aligns the ~6 outliers *to* the 15+ existing dispatch sites rather than re-keying AI/scenario/revenue logic). De-hyphenated IX nouns (`Community-Solar`→`Community Solar`); cleaned composed labels (`Net Metering Solar`→`Net Metering`); removed the duplicate `C&I Behind-the-Meter` glossary entry (techDef `C&I Solar` is the single card).
+- **Data-trust safeguard:** `normalizeStructure()` (lensFormConstants) folds legacy saved rows carrying the old `C&I behind-the-meter` structure value into canonical `C&I Solar` **on read** (scoreEngine + scenarioEngine + useLibraryLayout) → legacy C&I projects still score as C&I (not the CS fallback) and don't split the Library filter. **No DB migration needed.** Unit-tested (incl. a scoreEngine legacy-alias guard).
+
+### Bug fixes from prod review
+- **Net-billing offtake note** rendered "curated for **.**" (empty coverage list) → now branches on the empty list to honest net-billing-specific copy ("not modeled in any state yet — exports credit below retail, no clean per-state export-credit dataset"). The "limited" verdict itself was correct.
+- **Lens form alignment:** long two-axis labels wrapped in the 6-up grid and dropped controls out of line → capped at **3 columns** (two clean rows).
+- **Dev Feasibility:** dropped **POL** from the verdict-tile readout strip — policy is a SIGNAL, not a composite prong; it read as a 4th equal pillar. Dedicated "Policy (signal)" card retained.
+- **Timeline-to-COD redesign** (matches research-panel chrome): off-palette blue/slate phase colors → on-brand **amber→teal progression** (friction → energized); teal left-rail panel + mono eyebrow header; fluid `transition-[width]` on lever changes; in-segment month counts.
+
+### Reset bug — NOT reproducible (closed)
+Reported "changing Architecture/Structure resets the other form fields." Drove the real authenticated Pro Lens form headless (Playwright + saved session): changing Architecture (PV→PV+Storage) and Structure (CS→Net Metering) **preserved State/County/MW/Stage every time**; `elementFromPoint` confirmed the dropdown isn't covered. Root-cause theory: the OLD cramped 6-col layout (long `C&I behind-the-meter` value + wrapping labels) reflowed and *read* as a reset — the 3-col + shorter-label fix removes both causes. Aden confirmed fixed on prod.
+
+### Data-trust verdicts logged (from the review)
+- **NJ/NY "energized to date" IX counts = REAL** (scraped `In-Service`/`PTO` rows from EDC compliance .xlsx; energized left null when a file doesn't expose status — never fabricated zero).
+- **IL net-billing "limited" = correct** (deliberately gated; copy was the only bug).
+
+### ⏭ DO NEXT (Aden's call on direction)
+1. **Net-billing economics** — source per-state export-credit data (CA NEM 3.0 ACC + others), model honestly. The last structure still gated.
+2. **"Which structure pays best here" comparison view** — for a state + MW, rank CS / Net Metering / C&I / Net Billing by offtake + revenue. (Design-with-Aden first.)
+3. **Manual-data IX ingest pipeline** for the 7 gated states (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS) — upload → Supabase Storage → parse → `ix_queue_data`.
+4. **Hygiene:** allowlist/genericize the p50/p90 glossary `$1.32–1.78/W` example numbers so the citation linter stops flagging every commit (currently a non-blocking warning).
+
+---
+
+## 🟢 Pickup — 2026-05-24 SHIPPED two-axis legibility polish (Library structure filter + IX chip labels)
 
 Small consolidation completing the directed two-axis UX (no new data, no migration):
 - **Library: "All Tech" filter → "All Structures"** — filters saved projects by monetization structure (`p.structure` post-069, falling back to `axesFromTechnology(p.technology)`). Cleaner than the 8 composed-technology labels; the right navigation primitive for the two-axis model. Renamed `filterTech`→`filterStructure` through `useLibraryLayout` + `Library.jsx`.
