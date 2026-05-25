@@ -67,25 +67,49 @@ const BESS_OFFTAKE_SCORES = {
   FL: 60, NC: 55, GA: 52,
 }
 
+// Net Billing export-credit basis. Under net billing, EXPORTS are credited
+// BELOW the retail rate (at "avoided cost"), unlike net metering's full-retail
+// export — so the offtake signal hinges on how far below retail the export
+// credit sits. Stored as the sourced export-credit-to-retail RATIO per state.
+// Only states with a sourced ratio score for real ('researched'); every other
+// state stays honestly gated on a directional baseline (no fabricated values).
+// Add a state ONLY with a citable source.
+//
+// Two-layer (data-honesty): the RATIO is sourced/real; the 0-100 offtake SIGNAL
+// is Tractova's disclosed synthesis — anchor × (0.35 + 0.65·ratio), where anchor
+// is the state's retail offtake (CI_OFFTAKE_SCORES) and the 0.35 floor is the
+// residual self-consumption value retained when exports ≈ worthless. See the
+// Net Billing branch in computeSubScores.
+//
+// CA — Net Billing Tariff (NEM 3.0), effective 2023-04-15: exports valued at the
+//   CPUC Avoided Cost Calculator (ACC), ~8-9¢/kWh vs ~30-44¢/kWh retail → roughly
+//   0.20-0.27 of retail. Using 0.23 (CA-IOU approximation). Sources: Aurora Solar
+//   NBT analysis (SDG&E Aug example: 8.8¢ export vs 44¢ grid) · PV Magazine (avg
+//   ~30¢→~8¢, ~75% cut vs NEM 2.0). [verified via WebFetch 2026-05-25]
+const NET_BILLING_EXPORT_RATIO = {
+  CA: 0.23,
+}
+
 // Sorted state lists for user-facing "coverage" messaging. Kept here so the
 // scoring engine is a single source of truth — the Lens UI reads these via
 // getOfftakeCoverageStates() to render the "limited coverage" caption.
 export const CI_OFFTAKE_COVERAGE = Object.keys(CI_OFFTAKE_SCORES).sort()
 export const BESS_OFFTAKE_COVERAGE = Object.keys(BESS_OFFTAKE_SCORES).sort()
+export const NET_BILLING_OFFTAKE_COVERAGE = Object.keys(NET_BILLING_EXPORT_RATIO).sort()
 
 // Curated offtake coverage for a project's monetization structure (accepts a
 // legacy technology string or an {architecture, structure} axes object).
 //   - C&I Solar → EIA Form 861 retail-rate coverage list
 //   - legacy Standalone BESS → ISO capacity-market coverage list
 //   - Net Metering → retail-rate coverage list (full-retail export anchor)
-//   - Net Billing → [] (no curated export-credit model yet — 'limited')
+//   - Net Billing → states with a sourced export-credit ratio (else gated)
 //   - Community Solar → null (all 50 states curated)
 export function getOfftakeCoverageStates(technology) {
   const { architecture, structure } = axesFromTechnology(technology)
   if (architecture === 'Standalone BESS') return BESS_OFFTAKE_COVERAGE
   if (structure === 'C&I Solar') return CI_OFFTAKE_COVERAGE
-  if (structure === 'Net Metering') return CI_OFFTAKE_COVERAGE  // retail-rate anchor
-  if (structure === 'Net Billing') return []                    // no curated model yet
+  if (structure === 'Net Metering') return CI_OFFTAKE_COVERAGE        // retail-rate anchor
+  if (structure === 'Net Billing') return NET_BILLING_OFFTAKE_COVERAGE // sourced export-credit states
   return null
 }
 
@@ -277,10 +301,19 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
   } else if (structure === 'Net Billing') {
-    // Exports credited at avoided cost (below retail). No curated export-credit
-    // data yet → honest 'limited' baseline, directionally below net metering.
-    offtakeCoverage = 'fallback'
-    offtake = 45
+    // Exports credited at avoided cost (below retail). Where the export-credit
+    // ratio is sourced (NET_BILLING_EXPORT_RATIO), score it for real: anchor to
+    // the state retail offtake, scaled by the sourced ratio (0.35 floor =
+    // residual self-consumption value when exports ≈ worthless). States without
+    // a sourced ratio stay honestly gated on a directional baseline.
+    const nbRatio = NET_BILLING_EXPORT_RATIO[stateProgram.id]
+    if (nbRatio != null) {
+      const anchor = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
+      offtake = Math.round(anchor * (0.35 + 0.65 * nbRatio))
+    } else {
+      offtakeCoverage = 'fallback'
+      offtake = 45
+    }
   } else {
     // Community Solar (default) — driven entirely by state_programs DB,
     // which has all 50 states curated, so coverage stays 'researched'.

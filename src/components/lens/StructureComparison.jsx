@@ -21,7 +21,7 @@ const COMPARE_ARCH = 'Standalone PV'
 // Why a structure has no modeled offtake — surfaced verbatim so the gate reads
 // as a deliberate honesty stance, not a missing number.
 const GATE_REASON = {
-  'Net Billing': 'no per-state export-credit data',
+  'Net Billing': 'export-credit basis not yet sourced for this state',
 }
 
 const offtakeTone = (v) => v == null ? '#475569' : v >= 70 ? '#0F766E' : v >= 50 ? '#92400E' : '#991B1B'

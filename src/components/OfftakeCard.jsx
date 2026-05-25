@@ -1,5 +1,7 @@
 import CardDrilldown from './CardDrilldown'
 import IncentiveStackPanel from './lens/IncentiveStackPanel'
+import { NET_BILLING_OFFTAKE_COVERAGE } from '../lib/scoreEngine'
+import { axesFromTechnology } from '../lib/lensFormConstants'
 import {
   SectionLabel,
   DataRow,
@@ -115,7 +117,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
           <div className="space-y-3">
             <SectionLabel>{technology} Offtake</SectionLabel>
             <div className="bg-surface rounded-md px-3 py-3 space-y-2">
-              <p className="text-xs text-gray-700 leading-relaxed">{offtakeMechanismCopy(technology)}</p>
+              <p className="text-xs text-gray-700 leading-relaxed">{offtakeMechanismCopy(technology, stateProgram?.id)}</p>
               <p className="text-[10px] text-gray-500 leading-relaxed">
                 The Offtake sub-score (shown on the §04 card) reflects this structure's monetization strength for the state. Confirm the current tariff / PPA terms and program enrollment directly with the serving utility or program administrator before committing capital.
               </p>
@@ -189,17 +191,23 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
   )
 }
 
-// Qualitative offtake mechanism copy per monetization structure (no $).
-function offtakeMechanismCopy(technology) {
-  switch (technology) {
+// Qualitative offtake mechanism copy per monetization structure (no $). Derives
+// the structure from the composed technology so it's correct for the "+ Storage"
+// variants too; the Net Billing copy is state-aware (sourced vs gated).
+function offtakeMechanismCopy(technology, stateId) {
+  const { architecture, structure } = axesFromTechnology(technology)
+  if (architecture === 'Standalone BESS') {
+    return 'Merchant capacity-market / ancillary-services revenue (legacy standalone storage). Highly ISO-dependent and volatile; verify the serving ISO\'s most recent capacity-auction clearing before relying on this structure.'
+  }
+  switch (structure) {
     case 'C&I Solar':
       return 'Behind-the-meter / PPA structure: value comes from displacing the offtaker\'s retail rate. Strength tracks the state\'s commercial retail rate and market depth — high-retail markets (CA, ISO-NE, NY) monetize best. Success hinges on anchor-tenant credit quality and contract length.'
     case 'Net Metering':
       return 'Exports credited at (or near) the full retail rate, so offtake value tracks the state\'s retail-rate tier — the same signal as C&I. Confirm the current NEM tariff: successor tariffs (e.g. CA NEM 3.0) can cut export credit sharply.'
     case 'Net Billing':
-      return 'Exports credited at avoided cost (below retail). Tractova does not model net-billing economics yet — there is no clean per-state export-credit dataset, so the offtake signal is held at a directional baseline rather than fabricated.'
-    case 'BESS':
-      return 'Merchant capacity-market / ancillary-services revenue (legacy standalone storage). Highly ISO-dependent and volatile; verify the serving ISO\'s most recent capacity-auction clearing before relying on this structure.'
+      return NET_BILLING_OFFTAKE_COVERAGE.includes(stateId)
+        ? 'Exports credited at avoided cost (below retail), sourced from the state\'s export-credit basis (CA: NEM 3.0 / Net Billing Tariff, valued at the CPUC Avoided Cost Calculator). The offtake signal scales the state retail anchor by that sourced export-credit ratio; self-consumption still retains full retail value. Verify the current ACC vintage with the utility.'
+        : 'Exports credited at avoided cost (below retail). The per-state export-credit basis isn\'t sourced for this state yet, so the offtake signal is held at a directional baseline rather than fabricated.'
     default:
       return 'Monetization structure offtake reflects the state\'s program / tariff posture. Confirm enrollment terms and current rates with the program administrator.'
   }

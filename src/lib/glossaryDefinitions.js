@@ -228,9 +228,9 @@ export const GLOSSARY_DEFINITIONS = {
   },
   'Scenario Studio': {
     title: 'Scenario Studio',
-    short: 'Interactive sensitivity layer over an "achievable baseline" — drag sliders to see Year 1 revenue + payback shift in real time.',
-    long: 'Tractova\'s deal-structuring tool. Each Lens result has a Scenario Studio tab that pre-computes an achievable baseline (industry-standard capex, IX cost, capacity factor, REC price for the state). Drag any of six sliders to model alternative scenarios — larger system, cheaper capex, looser allocation. Outputs Year 1 revenue + simple payback so you can quickly explore the deal envelope. NOT an investment-grade pro-forma; engage a financial advisor for IC modeling.',
-    inputs: 'scenarioEngine · revenueEngine per-tech formulas · industry baselines',
+    short: 'Retired $-based deal-structuring tab. The Lens is now signal-based; sensitivity lives in Dev Feasibility, and saved Scenario Studio snapshots remain viewable in the Library.',
+    long: 'Tractova\'s original $-based deal-structuring tab — it pre-computed an "achievable baseline" and let you drag sliders to see Year-1 revenue / payback / IRR shift. Retired in the 2026-05 signal pivot: the Lens is now a 5-pillar signal model with no synthesized dollars, and "what moves the score" sensitivity lives in Dev Feasibility (signal levers). Scenarios saved before the pivot stay viewable as a frozen legacy snapshot in the Library.',
+    inputs: 'legacy: scenarioEngine · industry baselines (frozen)',
   },
   'Achievable Baseline': {
     title: 'Achievable Baseline',

@@ -268,9 +268,10 @@ describe('getOfftakeCoverageStates — published coverage', () => {
     expect(getOfftakeCoverageStates('Hybrid')).toBeNull()
   })
 
-  it('Net Metering uses the retail-rate (C&I) coverage; Net Billing has none yet', () => {
+  it('Net Metering uses the retail-rate (C&I) coverage; Net Billing is sourced only where we have export-credit data', () => {
     expect(getOfftakeCoverageStates('Net Metering')).toEqual(getOfftakeCoverageStates('C&I Solar'))
-    expect(getOfftakeCoverageStates('Net Billing')).toEqual([])
+    // CA sourced (NEM 3.0 / NBT, CPUC ACC); every other state gated until sourced.
+    expect(getOfftakeCoverageStates('Net Billing')).toEqual(['CA'])
   })
 
   it('returns null for Community Solar (all 50 states are curated)', () => {
@@ -310,14 +311,29 @@ describe('computeSubScores — two-axis model (architecture × structure)', () =
     expect(pv.offtake).toBe(hyb.offtake) // same structure → same offtake
   })
 
-  it('Net Metering tracks the retail-rate (C&I) anchor; Net Billing stays limited, NB < NM', () => {
+  it('Net Metering tracks the retail-rate (C&I) anchor; unsourced Net Billing stays gated, NB < NM', () => {
     const nm = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
     const nb = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Billing' })
     const ci = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I Solar' })
     expect(nm.offtake).toBe(ci.offtake)             // same retail-rate anchor (NY curated)
     expect(nm.coverage.offtake).toBe('researched')  // NY is in the curated retail list
-    expect(nb.coverage.offtake).toBe('fallback')    // no export-credit model yet
+    expect(nb.coverage.offtake).toBe('fallback')    // NY net-billing export credit not sourced yet
     expect(nb.offtake).toBeLessThan(nm.offtake)
+  })
+
+  it('Net Billing is scored for real where the export-credit ratio is sourced (CA), gated elsewhere', () => {
+    const CA = { id: 'CA', csStatus: 'active', capacityMW: 600, ixDifficulty: 'moderate' }
+    const caNb = computeSubScores(CA, null, '', { architecture: 'Standalone PV', structure: 'Net Billing' })
+    const caNm = computeSubScores(CA, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
+    // CA has a sourced export-credit ratio (NEM 3.0 ACC) → real signal, researched
+    // coverage, and below net metering (exports credited well under retail).
+    expect(caNb.coverage.offtake).toBe('researched')
+    expect(caNb.offtake).toBeGreaterThan(0)
+    expect(caNb.offtake).toBeLessThan(caNm.offtake)
+    // A state without a sourced ratio stays gated on the directional baseline (45).
+    const ks = computeSubScores({ id: 'KS', csStatus: 'none', ixDifficulty: 'moderate' }, null, '', { architecture: 'Standalone PV', structure: 'Net Billing' })
+    expect(ks.coverage.offtake).toBe('fallback')
+    expect(ks.offtake).toBe(45)
   })
 
   it('legacy standalone BESS still scores (offtake from capacity market, +5 IX)', () => {
