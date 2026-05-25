@@ -160,6 +160,30 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'Per IRA §45/§48, projects sited in qualifying tracts get an additional 10% ITC bonus. Two paths: (1) Coal Closure Communities — tracts with mine or generator closures since 1999/2009. (2) Statistical Areas — MSAs with high fossil-fuel-employment + above-average unemployment. Tractova flags county-level eligibility from DOE NETL EDX (the Treasury-designated source). Roughly 40% of US counties qualify under at least one path.',
     inputs: 'DOE NETL EDX ArcGIS FeatureServer (2024 designations)',
   },
+  'OBBBA Tax-Credit Cliff': {
+    title: 'OBBBA Tax-Credit Cliff (§48E / §45Y)',
+    short: 'Post-OBBBA timing rules that decide whether a project can still earn the §48E/§45Y credits — driven by start-of-construction date.',
+    long: 'Under the One Big Beautiful Bill Act, a project that starts construction on or before Jul 4 2026 keeps a ~4-year window to be placed in service; a project starting after that date must be placed in service by end-2027 to earn the §48E (ITC) or §45Y (PTC) credits, which otherwise sunset. Tractova\'s Policy & Timing pillar assesses this as a risk tier (Clear / Watch / At-Risk) keyed to your stage + target COD — early-stage projects are most exposed. Dates re-verified against current Treasury/IRS guidance; expressed as risk, never a fabricated dollar figure.',
+    inputs: 'project stage + target COD year · OBBBA / IRS §48E·§45Y guidance',
+  },
+  'FEOC': {
+    title: 'FEOC (Foreign Entity of Concern)',
+    short: 'Supply-chain restrictions that can disqualify tax-credit eligibility for projects starting construction in 2026+.',
+    long: 'OBBBA applies Foreign-Entity-of-Concern restrictions to projects starting construction in 2026 and beyond — components from prohibited foreign suppliers can void §48E/§45Y eligibility. As of this writing Treasury has not finalized the construction-start rules, so Tractova scores FEOC as a "Watch" disclosure (genuine uncertainty) rather than a precise penalty, and prompts supply-chain verification before capital commitment.',
+    inputs: 'OBBBA / Treasury FEOC guidance (rules pending) · project construction-start year',
+  },
+  'Safe Harbor': {
+    title: 'Safe Harbor / Physical Work Test',
+    short: 'How a project locks its start-of-construction date for tax-credit eligibility — the 5% cost method was removed for larger projects.',
+    long: 'Establishing "start of construction" safe-harbors a project into a tax-credit vintage. As of Sep 2 2025 the 5% cost safe harbor was eliminated for projects over 1.5 MWac, leaving the Physical Work Test as the path — a procedural risk Tractova flags in the Policy & Timing pillar for projects above that size. Hitting the Jul 4 2026 start-of-construction cutoff is what secures the generous §48E/§45Y placed-in-service window.',
+    inputs: 'project size (MWac) · IRS start-of-construction guidance',
+  },
+  'Domestic Content': {
+    title: 'Domestic Content Adder',
+    short: 'A +10% ITC bonus for projects meeting US-manufactured content thresholds — thresholds rise over time.',
+    long: 'Projects meeting the IRA domestic-content thresholds (a rising share of US-manufactured steel, iron, and components) earn an additional ~10% ITC. The qualifying threshold steps up over the IRA schedule, and post-OBBBA FEOC pressure raises the cost of compliant supply. Unlike Energy Community / Low-Income eligibility, domestic content is a supply-chain choice rather than a site attribute, so Tractova surfaces it as upside potential rather than a county-fixed eligibility.',
+    inputs: 'IRA §48E domestic-content schedule · developer supply-chain sourcing',
+  },
   'Program Runway': {
     title: 'Program Runway',
     short: 'Estimated months until a state CS program\'s remaining capacity is fully enrolled.',

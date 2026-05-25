@@ -269,6 +269,7 @@ function SearchContent() {
     architecture: initialArchitecture,
     structure: initialStructure,
     technology: initialTechnology,
+    codYear: '',   // target commercial-operation year — drives the Policy & Timing pillar
   })
 
   // Phase 2C — `?fromProject=<id>` deep-link. The Cmd-K `:rerun <project>`
@@ -622,6 +623,7 @@ function SearchContent() {
         technology:       results.form.technology,
         architecture:     results.form.architecture || null,
         structure:        results.form.structure || null,
+        cod_target_year:  results.form.codYear ? Number(results.form.codYear) : null,
         cs_program:       results.stateProgram?.csProgram || null,
         cs_status:        results.stateProgram?.csStatus || 'none',
         serving_utility:  results.countyData?.interconnection?.servingUtility || null,
@@ -914,6 +916,19 @@ function SearchContent() {
                 placeholder="Select structure…"
                 required
               />
+
+              {/* Target COD year (optional) — drives the Policy & Timing pillar's
+                  federal tax-credit cliff assessment (§48E/§45Y start-of-
+                  construction + placed-in-service windows). Not required: absent
+                  → timing falls back to the stage-only read. */}
+              <FieldSelect
+                label="Target COD"
+                labelIcon={<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
+                value={form.codYear || 'Not set'}
+                onChange={(val) => setForm((f) => ({ ...f, codYear: val === 'Not set' ? '' : val }))}
+                options={['Not set', '2026', '2027', '2028', '2029', '2030', '2031', '2032']}
+                placeholder="Target COD year…"
+              />
             </div>
           </div>
 
@@ -1054,6 +1069,8 @@ function SearchContent() {
                 ixQueueSummary={results.ixQueueSummary}
                 policyEvents={results.policyEvents || []}
                 mw={results.form.mw}
+                incentives={{ energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda }}
+                codYear={results.form.codYear ? Number(results.form.codYear) : null}
               />
             </div>
 
@@ -1162,6 +1179,10 @@ function SearchContent() {
                 results.ixQueueSummary,
                 results.policyEvents,
                 effectiveMw,
+                {
+                  incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda },
+                  codYear: results.form.codYear ? Number(results.form.codYear) : null,
+                },
               )
               return (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">

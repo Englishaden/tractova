@@ -15,7 +15,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
   // Apply scenario override if active — recompute sub-scores from the override state
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
   const subs = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
-  const { offtake, ix, site, coverage } = subs
+  const { offtake, ix, site, incentives: incentivesScore, policyTiming, coverage, incentiveDetail, policyDetail } = subs
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
   const score = safeScore(subs)
@@ -348,17 +348,25 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" align="end" className="text-[10px]">
-                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Methodology</p>
-                  <p><span className="text-teal-300 font-mono">OFFTAKE 40%</span> — Program status, capacity, LMI complexity, enrollment runway</p>
-                  <p className="mt-0.5"><span className="text-amber-300 font-mono">INTERCONN 35%</span> — Queue difficulty, study timelines, upgrade cost risk</p>
-                  <p className="mt-0.5"><span className="text-blue-300 font-mono">SITE CTRL 25%</span> — Land availability, wetland risk, zoning constraints</p>
-                  <p className="mt-1.5 text-gray-400">Offtake viability is the first gate. IX risk is the primary capital risk. Site control is increasingly commoditized.</p>
+                  <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Methodology — 5 signal pillars</p>
+                  <p><span className="text-teal-300 font-mono">OFFTAKE 25%</span> — Monetization structure: program status, capacity, LMI</p>
+                  <p className="mt-0.5"><span className="text-amber-300 font-mono">INTERCONN 25%</span> — Queue difficulty, study timelines, upgrade risk</p>
+                  <p className="mt-0.5"><span className="text-green-300 font-mono">INCENTIVES 20%</span> — ITC step-up eligibility (Energy Community · LMI · NMTC · QCT/DDA)</p>
+                  <p className="mt-0.5"><span className="text-blue-300 font-mono">SITE 20%</span> — Land availability, wetland risk, zoning</p>
+                  <p className="mt-0.5"><span className="font-mono" style={{ color: '#CBD5E1' }}>POLICY &amp; TIMING 10%</span> — Federal tax-credit cliffs (OBBBA §48E/§45Y, FEOC) + state policy risk</p>
+                  <p className="mt-1.5 text-gray-400">All five are signal-based (no synthesized dollars). Weights are editorial — see the weight-sensitivity range below the gauge. Pillars without data are rebalanced out, not penalized.</p>
                 </TooltipContent>
               </Tooltip>
             </div>
-            <SubScoreBar label="Offtake"         weight="40%" value={offtake} baseValue={baseSubs.offtake} color="#0F766E" />
-            <SubScoreBar label="Interconnection" weight="35%" value={ix}      baseValue={baseSubs.ix}      color="#D97706" />
-            <SubScoreBar label="Site Control"    weight="25%" value={site}    baseValue={baseSubs.site}    color="#2563EB" />
+            <SubScoreBar label="Offtake"         weight="25%" value={offtake} baseValue={baseSubs.offtake} color="#0F766E" />
+            <SubScoreBar label="Interconnection" weight="25%" value={ix}      baseValue={baseSubs.ix}      color="#D97706" />
+            {incentivesScore != null && (
+              <SubScoreBar label="Incentives"    weight="20%" value={incentivesScore} baseValue={baseSubs.incentives} color="#15803D" />
+            )}
+            <SubScoreBar label="Site Control"    weight="20%" value={site}    baseValue={baseSubs.site}    color="#2563EB" />
+            {policyTiming != null && (
+              <SubScoreBar label="Policy & Timing" weight="10%" value={policyTiming} baseValue={baseSubs.policyTiming} color="#475569" />
+            )}
             {hasCoverageNote && (
               <div
                 className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm"
@@ -387,6 +395,25 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
                       </span>
                     )}
                   </span>
+                </p>
+              </div>
+            )}
+            {/* Federal tax-credit TIMING alert — surfaces the Policy & Timing
+                pillar's reasoning (OBBBA §48E/§45Y cliff, FEOC, safe harbor) so
+                the sub-score isn't a bare number. Risk tiers, not dollars. */}
+            {policyDetail?.federal && policyDetail.federal.tier !== 'clear' && (
+              <div
+                className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm"
+                style={policyDetail.federal.tier === 'at_risk'
+                  ? { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.20)' }
+                  : { background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.18)' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={policyDetail.federal.tier === 'at_risk' ? '#B91C1C' : '#92400E'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
+                  <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                <p className="text-[10px] leading-snug" style={{ color: policyDetail.federal.tier === 'at_risk' ? '#7F1D1D' : '#78350F' }}>
+                  <span className="font-bold uppercase tracking-wider text-[9px]">Policy &amp; Timing — {policyDetail.federal.headline}</span>
+                  <span className="block mt-0.5 font-normal">{policyDetail.federal.reasons?.[0]}</span>
                 </p>
               </div>
             )}

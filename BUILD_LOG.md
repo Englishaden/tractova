@@ -4,7 +4,29 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-24 (latest) SHIPPED "Which structure pays best here" comparison view (§04 in Lens results)
+## 🟢 Pickup — 2026-05-25 (latest) SHIPPING 5-pillar signal pivot (Phase 1) — Feasibility Index is now go/no-go signals, no $
+
+**Strategic pivot (Aden's call, designed together + plan-approved):** away from synthesized financials (revenue/payback/NPV/$/W/BESS$ — unmaintainable across 50 states, ITC-as-revenue inflated payback ~51% for NY CS, fabrication surface) toward a **5-pillar signal-based go/no-go**. Industry-validated (Wood Mac OBBBA, NREL/EPA siting, HeatSpring — all fetched). Plan file: `~/.claude/plans/itc-is-based-on-zippy-bird.md`. Phased: signals first, remove $ after.
+
+**The 5 pillars** (weights Aden-set): **Offtake 25 · Interconnection 25 · Incentives 20 · Site 20 · Policy & Timing 10.** All 0-100 signals, **zero dollars**, composite rebalances over present pillars.
+
+### ✅ Shipped so far (2 commits: 8dd3f9d engine + this UI slice; 218 unit + build + 7/7 smoke + headless-verified)
+- **Pillar 4 Incentives** (`computeIncentiveScore`, scoreEngine) — "can we get ITC step-ups here?" from REAL county data already in the app (EPA energy community / Census-CDFI NMTC / HUD QCT-DDA), promoted from display-only into the score. Base §48E 50 → +25 Energy Community → +25 Low-Income → 100.
+- **Pillar 5 Policy & Timing** — new **`src/lib/federalTimeline.js`** rules engine over published OBBBA/IRA law (§48E/§45Y Jul-4-2026 SoC cutoff, end-2027 PIS, FEOC pending→watch, >1.5 MWac safe-harbor→Physical Work Test) keyed to stage + target COD, blended with state policy reframed to **Severe/Medium/Small × probability** (`computeStatePolicyRiskScore`; bridges from legacy bps until admin sets severity).
+- **scoreEngine 3→5 pillars** — object-based composite (`safeScore(subs)`) that rebalances over present+finite pillars; 5-weight WEIGHT_SCENARIOS + incentive-tilt; ~14 callers updated; fixed a pre-existing MobileLibrary sort bug.
+- **UI/wiring** — MarketPositionPanel gauge now shows all 5 sub-score bars + a federal-timing alert ("FEDERAL CREDITS AT RISK — …OBBBA"); **Target COD** form field added; Search wires incentives + COD year; save persists `cod_target_year` (resilient).
+- **Migration 070** (FILE — Aden applies): `projects.cod_target_year` + `policy_impact_events.impact_severity/impact_probability`. Reads are undefined-safe pre-apply; save strips unknown cols.
+- **Glossary** — OBBBA Tax-Credit Cliff, FEOC, Safe Harbor / Physical Work Test, Domestic Content (+ registered in pillar map).
+- **Headless-verified** on NY · Albany · 5 MW · Prospecting · COD 2029: Offtake 80 / IX 38 / Incentives 75 / Site 56 / Policy&Timing 25 → composite 58 Viable, federal-credits-at-risk note fires. No $ in the pillars.
+
+### ⏭ DO NEXT (Phase 1 finish, then Phase 2)
+1. Apply **migration 070** in Supabase.
+2. Phase 1 polish: §04 + DevFeasibility 5-pillar pillar cards (Incentives eligibility chips, Policy&Timing event list); **AI-proposed severity** in the admin classify flow (works today via bps→severity bridge).
+3. **Phase 2 — remove the $ layer** (revenueEngine/scenarioEngine/ScenarioStudio/RevenueProjection/LeveragedReturns/PDF economics; re-orient StructureComparison to availability; repurpose Scenario Studio → signal-sensitivity).
+
+---
+
+## 🟢 Pickup — 2026-05-24 SHIPPED "Which structure pays best here" comparison view (§04 in Lens results)
 
 Aden picked this as the next arc (designed together first: placement = section in Lens results · rank by Year-1 revenue · v1 = Standalone PV). For a fixed state + county + MW, ranks the monetization structures by **structural Year-1 revenue** so a developer can see which way to monetize a site pays best.
 

@@ -428,11 +428,12 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
 //   Interconnection (25) — the classic binary go/no-go (queue / cost / timeline).
 //   Incentives (20) — post-OBBBA the ITC adder stack is make-or-break; real,
 //     county-level eligibility (EPA energy community / Census-CDFI NMTC / HUD).
-//   Site (15) — the most solvable friction (land / wetland / farmland / zoning).
-//   Policy & Timing (15) — federal tax-credit cliffs (§48E/§45Y, FEOC, safe
-//     harbor) keyed to COD/NTP + state policy headwind risk (severity tiers).
+//   Site (20) — real friction (land / wetland / farmland / zoning) but solvable.
+//   Policy & Timing (10) — federal tax-credit cliffs (§48E/§45Y, FEOC, safe
+//     harbor) keyed to COD/NTP + state policy headwind risk (severity tiers);
+//     weighted lightest as the most situational / fastest-moving signal.
 export const WEIGHT_SCENARIOS = {
-  default:   { offtake: 0.25, ix: 0.25, incentives: 0.20, site: 0.15, policyTiming: 0.15, label: 'Default (balanced go/no-go)',
+  default:   { offtake: 0.25, ix: 0.25, incentives: 0.20, site: 0.20, policyTiming: 0.10, label: 'Default (balanced go/no-go)',
                rationale: 'Tractova default — offtake + interconnection lead as the classic gates, incentives weighted high post-OBBBA, site most solvable, policy & timing the acute regulatory risk.' },
   revenue:   { offtake: 0.35, ix: 0.20, incentives: 0.20, site: 0.10, policyTiming: 0.15, label: 'Offtake-tilt',
                rationale: 'For developers who view the monetization structure (program / PPA) as the dominant success predictor.' },

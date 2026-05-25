@@ -11,8 +11,10 @@ import {
 } from '../../src/lib/scoreEngine.js'
 
 describe('safeScore — defensive wrapper', () => {
-  it('returns finite weighted score for valid 3-input case', () => {
-    expect(safeScore(80, 70, 60)).toBe(Math.round(80 * 0.40 + 70 * 0.35 + 60 * 0.25))
+  it('returns finite rebalanced weighted score for the 3 core pillars', () => {
+    // Default weights (offtake .25 / ix .25 / site .20) rebalanced over the
+    // three present pillars: (80*.25 + 70*.25 + 60*.20) / .70 = 49.5/.70 ≈ 70.7 → 71
+    expect(safeScore(80, 70, 60)).toBe(71)
   })
 
   it('returns null when any sub-score is null', () => {
@@ -52,9 +54,9 @@ describe('safeScore — defensive wrapper', () => {
 })
 
 describe('computeDisplayScore — basic weighted sum', () => {
-  it('returns the rounded weighted average under default weights', () => {
-    // 80 * .40 + 70 * .35 + 60 * .25 = 32 + 24.5 + 15 = 71.5 → round(71.5) per JS = 72
-    expect(computeDisplayScore(80, 70, 60)).toBe(72)
+  it('returns the rounded rebalanced weighted average under default weights', () => {
+    // offtake/ix/site rebalanced: (80*.25 + 70*.25 + 60*.20) / .70 ≈ 70.7 → 71
+    expect(computeDisplayScore(80, 70, 60)).toBe(71)
   })
 
   it('honors custom weights, rebalanced over the present pillars', () => {

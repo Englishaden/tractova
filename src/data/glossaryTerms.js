@@ -77,6 +77,9 @@ const GLOSSARY_PILLAR_MAP = {
   'COD':                'all',
   'NTP':                'all',
   'Safe Harbor':        'all',
+  'OBBBA Tax-Credit Cliff': 'all',
+  'FEOC':               'all',
+  'Domestic Content':   'offtake',
   'Confidence Tier':    'all',
   'p50 / p90':          'all',
 }
