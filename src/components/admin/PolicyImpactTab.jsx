@@ -29,6 +29,11 @@ const STATUSES      = ['pending', 'enacted', 'partially_effective', 'overturned'
 const PILLARS       = ['offtake', 'ix', 'site', 'cross-cutting']
 const CONFIDENCES   = ['high', 'medium', 'low']
 const REVIEW_STATES = ['draft', 'pending_admin_review', 'published', 'rejected']
+// 5-pillar Policy & Timing: severity × probability (AI-proposed, admin-confirmed).
+// '' = not set → null on save (engine bridges severity from legacy bps, assumes
+// "likely" probability). Severity is for HEADWINDS only — tailwinds stay null.
+const SEVERITIES    = [{ value: '', label: '— none (tailwind / neutral) —' }, { value: 'severe', label: 'Severe' }, { value: 'medium', label: 'Medium' }, { value: 'small', label: 'Small' }]
+const PROBABILITIES = [{ value: '', label: '— not set (assume likely) —' }, { value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }]
 
 export default function PolicyImpactTab() {
   const [items, setItems]               = useState([])
@@ -91,6 +96,9 @@ export default function PolicyImpactTab() {
     revenue_haircut_pct: null,
     impact_confidence: 'medium',
     impact_methodology: '',
+    // 5-pillar Policy & Timing severity (AI-proposed, admin-confirmed)
+    impact_severity: '',
+    impact_probability: '',
     // Applicability
     applies_to_new_applications: true,
     applies_to_existing_queue: false,
@@ -136,6 +144,8 @@ export default function PolicyImpactTab() {
       revenue_haircut_pct:             item.revenueHaircutPct,
       impact_confidence:               item.impactConfidence || 'medium',
       impact_methodology:              item.impactMethodology || '',
+      impact_severity:                 item.impactSeverity || '',
+      impact_probability:              item.impactProbability || '',
       applies_to_new_applications:     !!item.appliesToNewApplications,
       applies_to_existing_queue:       !!item.appliesToExistingQueue,
       applies_to_operating_projects:   !!item.appliesToOperatingProjects,
@@ -188,6 +198,8 @@ export default function PolicyImpactTab() {
         revenue_haircut_pct:            editData.revenue_haircut_pct,
         impact_confidence:              editData.impact_confidence,
         impact_methodology:             editData.impact_methodology     || null,
+        impact_severity:                editData.impact_severity        || null,
+        impact_probability:             editData.impact_probability     || null,
         applies_to_new_applications:    !!editData.applies_to_new_applications,
         applies_to_existing_queue:      !!editData.applies_to_existing_queue,
         applies_to_operating_projects:  !!editData.applies_to_operating_projects,
@@ -278,6 +290,8 @@ export default function PolicyImpactTab() {
       revenue_haircut_pct:            d.revenue_haircut_pct ?? null,
       impact_confidence:              d.impact_confidence || 'medium',
       impact_methodology:             d.impact_methodology || null,
+      impact_severity:                d.impact_severity || null,
+      impact_probability:             d.impact_probability || null,
       applies_to_new_applications:    !!d.applies_to_new_applications,
       applies_to_existing_queue:      !!d.applies_to_existing_queue,
       applies_to_operating_projects:  !!d.applies_to_operating_projects,
@@ -422,6 +436,8 @@ export default function PolicyImpactTab() {
         revenue_haircut_pct:            d.revenue_haircut_pct ?? null,
         impact_confidence:              d.impact_confidence || 'medium',
         impact_methodology:             d.impact_methodology || '',
+        impact_severity:                d.impact_severity || '',
+        impact_probability:             d.impact_probability || '',
         applies_to_new_applications:    !!d.applies_to_new_applications,
         applies_to_existing_queue:      !!d.applies_to_existing_queue,
         applies_to_operating_projects:  !!d.applies_to_operating_projects,
@@ -783,6 +799,14 @@ export default function PolicyImpactTab() {
             <Field label="Impact methodology (how the numbers were derived)" value={editData.impact_methodology} field="impact_methodology" onChange={handleChange} type="textarea" className="md:col-span-2" />
           </div>
 
+          {/* 5-pillar Policy & Timing severity — AI proposes, admin confirms.
+              Drives the severity × probability risk score (no dollars). */}
+          <p className="text-[10px] font-mono uppercase tracking-[0.16em] font-bold text-teal-700 mb-3">◆ Policy &amp; Timing severity (5-pillar · AI-proposed, admin-confirmed)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+            <Field label="Impact severity (headwinds only — leave none for tailwind/neutral)" value={editData.impact_severity} field="impact_severity" onChange={handleChange} options={SEVERITIES} />
+            <Field label="Impact probability (likelihood it hits a project)" value={editData.impact_probability} field="impact_probability" onChange={handleChange} options={PROBABILITIES} />
+          </div>
+
           {/* Applicability */}
           <p className="text-[10px] font-mono uppercase tracking-[0.16em] font-bold text-teal-700 mb-3">◆ Applicability</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
@@ -861,6 +885,7 @@ export default function PolicyImpactTab() {
                   <Badge color={item.status === 'enacted' ? 'green' : item.status === 'pending' ? 'yellow' : 'gray'}>{item.status}</Badge>
                   <Badge>{item.pillar}</Badge>
                   <Badge color={item.impactConfidence === 'high' ? 'green' : item.impactConfidence === 'medium' ? 'yellow' : 'gray'}>conf: {item.impactConfidence || '—'}</Badge>
+                  {item.impactSeverity && <Badge color={item.impactSeverity === 'severe' ? 'red' : item.impactSeverity === 'medium' ? 'yellow' : 'gray'}>sev: {item.impactSeverity}{item.impactProbability ? ` · ${item.impactProbability[0]}` : ''}</Badge>}
                   {item.safeHarborEligible && <Badge color="blue">safe harbor</Badge>}
                   {item.feocComplianceRequired && <Badge color="red">FEOC</Badge>}
                   {staleChip && <Badge color={staleChip.color}>◆ {staleChip.label}</Badge>}

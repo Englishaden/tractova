@@ -51,6 +51,33 @@ describe('computeStatePolicyRiskScore — severity-based Policy & Timing input',
   })
 })
 
+describe('shape tolerance — camelCase (client) rows score like snake_case (server)', () => {
+  // programData.getPolicyImpactEvents() returns camelCase; the engine reads
+  // snake_case. Before normalization, a camelCase row had every gate field
+  // read as undefined → silently dropped → state policy never reached the
+  // Policy & Timing pillar. This guards the choke-point coercion.
+  const camel = {
+    id: 'c1', state: 'ZZ', eventName: 'CamelCase Bill', pillar: 'offtake',
+    impactConfidence: 'high', isActive: true, reviewStatus: 'published',
+    appliesToNewApplications: true, impactSeverity: 'severe', impactProbability: 'high',
+    minMwAc: null, maxMwAc: null, applicableTechnologies: null,
+  }
+
+  it('filterApplicablePolicies accepts a camelCase row and returns it normalized', () => {
+    const r = filterApplicablePolicies([camel], { mw: 5, stage: 'Prospecting', technology: 'Community Solar' })
+    expect(r).toHaveLength(1)
+    expect(r[0].impact_confidence).toBe('high')   // coerced to snake_case
+    expect(r[0].event_name).toBe('CamelCase Bill')
+  })
+
+  it('computeStatePolicyRiskScore reads severity off a camelCase row', () => {
+    const r = computeStatePolicyRiskScore([camel], { stage: 'Prospecting' })
+    expect(r.applicableCount).toBe(1)
+    expect(r.score).toBe(70)   // severe (30) × high (1.0) → 100-30
+    expect(r.events[0].event_name).toBe('CamelCase Bill')
+  })
+})
+
 // Test-fixture factory — produces a policy row with sensible defaults.
 // Tests override only the field they're exercising.
 function makePolicy(overrides = {}) {

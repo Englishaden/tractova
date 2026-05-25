@@ -103,14 +103,33 @@ describe('verdictRationale — pillar-specific actionable friction', () => {
     expect(r).toMatch(/ag-land protections/)
   })
 
-  it('Policy weakest pillar surfaces top headwind event over structural pillar', () => {
-    const subScores = { offtake: 80, ix: 75, site: 70, policyClimate: 30 }
+  it('Policy & Timing weakest — at-risk federal tier surfaces the federal headline', () => {
+    const subScores = { offtake: 80, ix: 75, incentives: 70, site: 70, policyTiming: 25 }
     const r = verdictRationale('caution', subScores, {
       stateName: 'Maine',
-      headwindPolicies: [{ event_name: 'LD 1234 — distribution-tied cap cut' }],
+      federalTiming: { tier: 'at_risk', headline: 'Federal credits at risk', reasons: ['Early stage misses both the Jul 4 2026 cutoff and the end-2027 deadline.'] },
+      statePolicyEvents: [],
     })
-    expect(r).toMatch(/active headwind/)
+    expect(r).toMatch(/Policy & Timing 25/)
+    expect(r).toMatch(/Federal credits at risk/)
+  })
+
+  it('Policy & Timing weakest — clear federal tier surfaces the top state policy event', () => {
+    const subScores = { offtake: 80, ix: 75, incentives: 70, site: 70, policyTiming: 30 }
+    const r = verdictRationale('caution', subScores, {
+      stateName: 'Maine',
+      federalTiming: { tier: 'clear', headline: 'On track for §48E/§45Y', reasons: [] },
+      statePolicyEvents: [{ event_name: 'LD 1234 — distribution-tied cap cut', severity: 'severe' }],
+    })
+    expect(r).toMatch(/state policy headwind/)
     expect(r).toMatch(/LD 1234/)
+  })
+
+  it('Incentives weakest — no adders surfaces the base-only ITC friction', () => {
+    const subScores = { offtake: 80, ix: 75, incentives: 50, site: 75, policyTiming: 70, incentiveDetail: { energyCommunity: false, lowIncomeCommunity: false } }
+    const r = verdictRationale('caution', subScores, {})
+    expect(r).toMatch(/Incentives 50/)
+    expect(r).toMatch(/base §48E only/)
   })
 
   it('go verdict frames rationale as "watch X" instead of "X is the friction"', () => {

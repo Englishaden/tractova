@@ -42,6 +42,10 @@ const CLASSIFY_TOOL = {
       status:          { type: 'string',   enum: ['pending', 'enacted', 'partially_effective', 'overturned', 'expired'] },
       pillar:          { type: 'string',   enum: ['offtake', 'ix', 'site', 'cross-cutting'] },
 
+      // ── 5-pillar Policy & Timing severity (admin-confirmed) ──────────────
+      impact_severity:    { type: ['string', 'null'], enum: ['severe', 'medium', 'small', null], description: 'Adverse-impact tier for a HEADWIND policy. null for tailwinds/neutral.' },
+      impact_probability: { type: ['string', 'null'], enum: ['high', 'medium', 'low', null], description: 'Likelihood the policy hits a project under evaluation. null when uncertain.' },
+
       // ── REQUIRED structured raw provisions — extract verbatim numbers ────
       raw_provisions: {
         type: 'object',
@@ -304,11 +308,14 @@ export default async function handlePolicyClassify(body, res) {
   //   v=8: Migration 063 — pdf_upload promoted from discovery_metadata jsonb
   //        to the discovered_via column. Old v=7 cached responses still carry
   //        the legacy lineage shape, so bump to invalidate.
+  //   v=9: 5-pillar pivot — AI now proposes impact_severity + impact_probability
+  //        (Policy & Timing pillar, severity × probability). Bump so cached
+  //        v=8 drafts re-fire and pick up the two new fields.
   const cacheInputKey = isPdfMode
     ? `pdf:${crypto.createHash('sha256').update(pdfBase64).digest('hex').slice(0, 32)}`
     : `text:${usableText.trim()}`
   const classifyKey = buildCacheKey('policy-classify', {
-    v:     8,
+    v:     9,
     input: cacheInputKey,
     state: (stateHint || '').toUpperCase(),
     name:  eventNameHint || '',

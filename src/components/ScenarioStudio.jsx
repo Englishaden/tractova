@@ -72,6 +72,7 @@ export default function ScenarioStudio({
   countyData = null,
   ixQueueSummary = null,
   policyEvents = [],
+  incentives = null,
   technology = null,
   stage = null,
   stateName = '',
@@ -393,6 +394,7 @@ export default function ScenarioStudio({
           countyData={countyData}
           ixQueueSummary={ixQueueSummary}
           policyEvents={policyEvents}
+          incentives={incentives}
           technology={technology || baseline?.technologyLabel || baseline?.technology}
           stage={stage}
           mw={mw ?? baseline?.inputs?.systemSizeMW}

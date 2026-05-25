@@ -60,6 +60,7 @@ export default function DevFeasibilityView({
   countyData,
   ixQueueSummary,
   policyEvents,
+  incentives,   // raw { energyCommunity, nmtcLic, hudQctDda } county getter results → Incentives pillar
   technology,
   stage,
   mw,           // live MW (lifted to Search.jsx — single source of truth across §03 + §04)
@@ -98,9 +99,14 @@ export default function DevFeasibilityView({
 
   // Structural sub-scores from computeSubScores — driven by state program,
   // county data, IX queue, MW. These also drive the Lens header gauge.
+  // opts: incentives (county ITC adder eligibility → Pillar 4) + the COD-year
+  // lever (drives the federal tax-credit timing inside Pillar 5). The COD
+  // lever is the one lever that feeds the structural call directly — federal
+  // timing is a pure function of the target year + stage, so it belongs in
+  // computeSubScores, not the bounded ±10 lever layer.
   const structuralSubScores = useMemo(
-    () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, effectiveMw),
-    [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, effectiveMw]
+    () => computeSubScores(stateProgram, countyData, stage || '', technology, ixQueueSummary, policyEvents, effectiveMw, { incentives, codYear: levers.codYear }),
+    [stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, effectiveMw, incentives, levers.codYear]
   )
 
   // Lever-adjusted sub-scores — layer Subscription / COD / IX assumption
@@ -128,21 +134,12 @@ export default function DevFeasibilityView({
   const verdict = classifyVerdict(composite)
   const verdictPalette = verdict ? VERDICT_PALETTE[verdict] : null
 
-  const headwindPolicies = useMemo(() => {
-    if (!Array.isArray(policyEvents)) return []
-    return policyEvents.filter(p =>
-      p.confidence_tier === 'high' &&
-      (p.capex_delta > 0 || p.opex_delta > 0 || p.revenue_haircut > 0)
-    )
-  }, [policyEvents])
-
-  const tailwindPolicies = useMemo(() => {
-    if (!Array.isArray(policyEvents)) return []
-    return policyEvents.filter(p =>
-      p.confidence_tier === 'high' &&
-      (p.capex_delta < 0 || p.opex_delta < 0 || p.revenue_haircut < 0)
-    )
-  }, [policyEvents])
+  // Policy & Timing pillar detail (federal tax-credit timing tier + applicable
+  // state-policy events ranked by severity). Sourced from the engine's
+  // policyDetail so the verdict rationale, the Policy & Timing card, and the
+  // composite all read one number — no parallel re-filtering of policyEvents.
+  const federalTiming = subScores.policyDetail?.federal || null
+  const statePolicyEvents = subScores.policyDetail?.statePolicy?.events || []
 
   const isCS = technology === 'Community Solar' || technology === 'Hybrid'
 
@@ -162,10 +159,11 @@ export default function DevFeasibilityView({
         stateProgram={stateProgram}
         countyData={countyData}
         ixQueueSummary={ixQueueSummary}
-        headwindPolicies={headwindPolicies}
+        statePolicyEvents={statePolicyEvents}
+        federalTiming={federalTiming}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         <OfftakePillarCard
           stateProgram={stateProgram}
           subScore={subScores.offtake}
@@ -182,6 +180,11 @@ export default function DevFeasibilityView({
           delta={leverResult.deltas.ix}
           coverage={subScores.coverage.ix}
         />
+        <IncentivesPillarCard
+          subScore={subScores.incentives}
+          coverage={subScores.coverage.incentives}
+          adders={subScores.incentiveDetail}
+        />
         <SitePillarCard
           countyData={countyData}
           subScore={subScores.site}
@@ -189,11 +192,11 @@ export default function DevFeasibilityView({
           delta={leverResult.deltas.site}
           coverage={subScores.coverage.site}
         />
-        <PolicyPillarCard
-          headwinds={headwindPolicies}
-          tailwinds={tailwindPolicies}
-          subScore={subScores.policyClimate}
-          coverage={subScores.coverage.policy}
+        <PolicyTimingPillarCard
+          subScore={subScores.policyTiming}
+          coverage={subScores.coverage.policyTiming}
+          federal={federalTiming}
+          events={statePolicyEvents}
         />
       </div>
 
@@ -211,7 +214,7 @@ export default function DevFeasibilityView({
         ixQueueSummary={ixQueueSummary}
         siteCoverage={subScores.coverage.site}
         countyData={countyData}
-        headwindCount={headwindPolicies.length}
+        headwindCount={statePolicyEvents.length}
         ixAssumption={levers.ixAssumption}
         codYear={levers.codYear}
       />
@@ -226,7 +229,7 @@ export default function DevFeasibilityView({
 
 // ── Verdict tile ───────────────────────────────────────────────────────────
 
-function VerdictTile({ verdict, palette, composite, subScores, stateName, countyName, technology, compositeDelta = 0, leverRationale = [], stateProgram = null, countyData = null, ixQueueSummary = null, headwindPolicies = [] }) {
+function VerdictTile({ verdict, palette, composite, subScores, stateName, countyName, technology, compositeDelta = 0, leverRationale = [], stateProgram = null, countyData = null, ixQueueSummary = null, statePolicyEvents = [], federalTiming = null }) {
   if (!verdict || !palette) {
     return (
       <div className="rounded-lg px-4 py-3 text-[12px] text-gray-500"
@@ -259,7 +262,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
               <TooltipContent side="top" className="!max-w-[340px]">
                 <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Composite + verdict thresholds</p>
                 <p className="leading-relaxed mb-2">
-                  Composite = weighted blend of the three pillar sub-scores (Offtake 40% · IX 35% · Site 25%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). Policy climate is a separate <em>signal</em> (surfaced in the verdict rationale + Regulatory Watch), not folded into the number. The Dev Feasibility verdict reflects your levers (Subscription / COD / IX Assumption); the structural baseline shown in the Lens header gauge does NOT — it's the pre-lever search snapshot.
+                  Composite = weighted blend of the five pillar sub-scores (Offtake 25% · IX 25% · Incentives 20% · Site 20% · Policy &amp; Timing 10%, defined in <code className="text-[10px]" style={{ color: '#FCA5A5' }}>WEIGHT_SCENARIOS.default</code>). Pillars without data for this surface are rebalanced out, not penalized. The Dev Feasibility verdict reflects your levers (Subscription / COD / IX Assumption); the structural baseline shown in the Lens header gauge does NOT — it's the pre-lever search snapshot.
                 </p>
                 <p className="leading-relaxed">
                   Verdict bands are <span className="font-semibold" style={{ color: '#5EEAD4' }}>Tractova editorial</span>, not empirically anchored: <b>Go ≥ 70</b>, <b>Caution 50–69</b>, <b>No-Go &lt; 50</b>. They're a screening shortcut for "is this market worth more diligence?" — calibrate to your own deal-flow benchmark over time.
@@ -271,7 +274,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
             {palette.label} — {countyName ? `${countyName} County, ` : ''}{stateName || 'site'} · {technology}
           </div>
           <div className="text-[11px] text-gray-600 mt-1 leading-snug">
-            {verdictRationale(verdict, subScores, { stateProgram, countyData, ixQueueSummary, headwindPolicies, technology, stateName, countyName })}
+            {verdictRationale(verdict, subScores, { stateProgram, countyData, ixQueueSummary, statePolicyEvents, federalTiming, technology, stateName, countyName })}
           </div>
           {showLeverImpact && (
             <Tooltip>
@@ -300,14 +303,15 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
           )}
         </div>
       </div>
-      {/* Readout strip mirrors the composite's three pillars only. Policy is a
-          SIGNAL, not a scored prong — showing "POL" here read as a 4th equal
-          pillar even though it isn't in the composite. It keeps its own
-          dedicated "Policy (signal)" card below. */}
+      {/* Readout strip mirrors the composite's pillars. All five now feed the
+          composite (rebalanced when a pillar lacks data), so all five show —
+          Incentives + Policy & Timing render only when present for this site. */}
       <div className="hidden md:flex items-center gap-3 text-[10px] font-mono tabular-nums shrink-0">
         <PillarReadout label="OFFT" value={subScores.offtake} />
         <PillarReadout label="IX"   value={subScores.ix} />
+        <PillarReadout label="INC"  value={subScores.incentives} />
         <PillarReadout label="SITE" value={subScores.site} />
+        <PillarReadout label="P&T"  value={subScores.policyTiming} />
       </div>
     </div>
   )
@@ -333,12 +337,18 @@ function PillarReadout({ label, value }) {
 // Falls back to a generic friction line when pillar metadata isn't
 // loaded yet — never blanks the rationale.
 export function verdictRationale(verdict, subScores, ctx = {}) {
+  // All five pillars are weakest-candidates; skip any that lack data for this
+  // surface (null sub-score) so we don't surface a "weakest" pillar that's
+  // really just unmeasured.
   const weakest = [
-    { key: 'offtake',           name: 'Offtake',          val: subScores.offtake },
-    { key: 'ix',                name: 'Interconnection',  val: subScores.ix },
-    { key: 'site',              name: 'Site',             val: subScores.site },
-  ].sort((a, b) => a.val - b.val)[0]
+    { key: 'offtake',      name: 'Offtake',         val: subScores.offtake },
+    { key: 'ix',           name: 'Interconnection', val: subScores.ix },
+    { key: 'incentives',   name: 'Incentives',      val: subScores.incentives },
+    { key: 'site',         name: 'Site',            val: subScores.site },
+    { key: 'policyTiming', name: 'Policy & Timing', val: subScores.policyTiming },
+  ].filter(p => Number.isFinite(p.val)).sort((a, b) => a.val - b.val)[0]
 
+  if (!weakest) return 'Add project parameters (stage, county) to assess feasibility.'
   const action = describePillarFriction(weakest.key, ctx, subScores)
 
   if (verdict === 'go') {
@@ -351,23 +361,37 @@ export function verdictRationale(verdict, subScores, ctx = {}) {
 }
 
 function describePillarFriction(pillar, ctx, subScores) {
-  // When the policy pillar is the actual weakest (lower than offtake/
-  // ix/site), prefer surfacing the policy headwind over the structural
-  // pillar — same logic as the loop in verdictRationale but for the
-  // policy edge case the rotation doesn't catch directly.
-  if (subScores?.policyClimate != null && subScores.policyClimate < Math.min(subScores.offtake, subScores.ix, subScores.site)) {
-    const headwinds = ctx.headwindPolicies || []
-    if (headwinds.length > 0) {
-      const top = headwinds[0]
-      const eventName = top.event_name || 'active headwind policy'
-      const stateLabel = ctx.stateName ? ` in ${ctx.stateName}` : ''
-      return `${headwinds.length} active headwind polic${headwinds.length === 1 ? 'y' : 'ies'}${stateLabel} — top: "${eventName}." Review §06 Regulatory Watch.`
-    }
-  }
-  if (pillar === 'offtake') return offtakeFriction(ctx)
-  if (pillar === 'ix')      return ixFriction(ctx)
-  if (pillar === 'site')    return siteFriction(ctx)
+  if (pillar === 'offtake')      return offtakeFriction(ctx)
+  if (pillar === 'ix')           return ixFriction(ctx)
+  if (pillar === 'site')         return siteFriction(ctx)
+  if (pillar === 'incentives')   return incentivesFriction(subScores)
+  if (pillar === 'policyTiming') return policyTimingFriction(ctx)
   return 'Diligence this pillar before committing capex.'
+}
+
+function incentivesFriction(subScores) {
+  const a = subScores?.incentiveDetail || {}
+  if (!a.energyCommunity && !a.lowIncomeCommunity) {
+    return 'No Energy Community or §48(e) Low-Income adder resolves at this county — base §48E only. Check site-specific brownfield qualification at energycommunities.gov.'
+  }
+  if (!a.energyCommunity) return 'Low-Income adder qualifies but no Energy Community designation — verify brownfield/coal-closure status for the full adder stack.'
+  if (!a.lowIncomeCommunity) return 'Energy Community qualifies but no §48(e) Low-Income tract — confirm NMTC / QCT-DDA tracts near the parcel.'
+  return 'Full ITC adder stack available — confirm prevailing-wage + apprenticeship compliance to bank the base 30%.'
+}
+
+function policyTimingFriction(ctx) {
+  const fed = ctx.federalTiming
+  if (fed && fed.tier === 'at_risk') {
+    return `${fed.headline} — ${fed.reasons?.[0] || 'confirm §48E/§45Y start-of-construction + placed-in-service path.'}`
+  }
+  const events = ctx.statePolicyEvents || []
+  if (events.length > 0) {
+    const top = events[0]
+    const stateLabel = ctx.stateName ? ` in ${ctx.stateName}` : ''
+    return `${events.length} state policy headwind${events.length === 1 ? '' : 's'}${stateLabel} — top: "${top.event_name}" (${top.severity}). Review §06 Regulatory Watch.`
+  }
+  if (fed) return `${fed.headline} — ${fed.reasons?.[0] || 'confirm the federal tax-credit timeline for your target COD.'}`
+  return 'Confirm the §48E/§45Y federal timing window for your target COD year.'
 }
 
 function offtakeFriction(ctx) {
@@ -571,32 +595,75 @@ function SitePillarCard({ countyData, subScore, structuralSubScore, delta, cover
   )
 }
 
-function PolicyPillarCard({ headwinds, tailwinds, subScore, coverage }) {
-  const top = headwinds[0] || tailwinds[0]
-  // coverage='none' means policyEvents wasn't passed in at all — the
-  // wiring isn't live for this state/surface, NOT that we looked and
-  // found zero events. Different copy for each so devs aren't misled
-  // into thinking a state is "policy clean" when we just haven't wired
-  // the data through.
-  const dataNotWired = coverage === 'none'
+// Pillar 4 — Incentives. ITC adder eligibility (Energy Community + §48(e)
+// Low-Income) from real county data. No levers move it (eligibility is fixed
+// by county), so no delta chip.
+function IncentivesPillarCard({ subScore, coverage, adders }) {
+  const a = adders || {}
+  const ec = !!a.energyCommunity
+  const lic = !!a.lowIncomeCommunity
+  const dataNotWired = coverage === 'none' || subScore == null
+  const chip = (label, on) => (
+    <span
+      className="eyebrow-mono px-1.5 py-0.5 rounded-sm"
+      style={on
+        ? { background: 'rgba(21,128,61,0.10)', color: '#166534' }
+        : { background: 'rgba(15,26,46,0.05)', color: '#94A3B8' }}
+    >
+      {on ? '✓' : '–'} {label}
+    </span>
+  )
   return (
-    <PillarCardShell pillarLabel="Policy (signal)" subScore={subScore} coverage={coverage}>
-      <div className="space-y-1 text-[11px]">
+    <PillarCardShell pillarLabel="Incentives" subScore={subScore} coverage={coverage}>
+      <div className="space-y-1.5 text-[11px]">
         {dataNotWired ? (
           <div className="text-gray-500 italic leading-snug">
-            Policy data not yet wired for this surface. §06 Regulatory Watch may still surface events independently.
+            County ITC-adder eligibility not resolved for this geography.
           </div>
         ) : (
           <>
-            <div className="font-mono tabular-nums text-ink">
-              {headwinds.length} headwind{headwinds.length === 1 ? '' : 's'} · {tailwinds.length} tailwind{tailwinds.length === 1 ? '' : 's'}
+            <div className="flex flex-wrap gap-1">
+              {chip('Energy Comm.', ec)}
+              {chip('Low-Income', lic)}
             </div>
-            {top ? (
-              <div className="text-gray-600 line-clamp-2 leading-snug">
-                {top.event_name || 'Active policy event'}
+            <div className="text-[10px] text-gray-500 leading-snug">
+              §48E base 30% nationwide; adders stack to ~50% ITC.
+            </div>
+          </>
+        )}
+      </div>
+    </PillarCardShell>
+  )
+}
+
+// Pillar 5 — Policy & Timing. Federal tax-credit timing tier (OBBBA §48E/§45Y,
+// FEOC, safe harbor) blended with applicable state-policy headwind events.
+function PolicyTimingPillarCard({ subScore, coverage, federal, events = [] }) {
+  const dataNotWired = coverage === 'none' || subScore == null
+  const tierTone = federal?.tier === 'at_risk' ? '#B91C1C' : federal?.tier === 'watch' ? '#92400E' : '#0F766E'
+  const tierLabel = federal?.tier === 'at_risk' ? 'At risk' : federal?.tier === 'watch' ? 'Watch' : 'On track'
+  return (
+    <PillarCardShell pillarLabel="Policy & Timing" subScore={subScore} coverage={coverage}>
+      <div className="space-y-1.5 text-[11px]">
+        {dataNotWired ? (
+          <div className="text-gray-500 italic leading-snug">
+            Set a stage / target COD to assess federal timing + state policy risk.
+          </div>
+        ) : (
+          <>
+            {federal && (
+              <div className="flex items-center gap-1.5">
+                <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm font-bold" style={{ background: 'rgba(15,26,46,0.05)', color: tierTone }}>
+                  Federal · {tierLabel}
+                </span>
+              </div>
+            )}
+            {events.length > 0 ? (
+              <div className="text-gray-600 leading-snug line-clamp-2">
+                {events.length} state polic{events.length === 1 ? 'y' : 'ies'} · {events[0].event_name} ({events[0].severity})
               </div>
             ) : (
-              <div className="text-gray-500 italic">No active high-confidence policy events.</div>
+              <div className="text-[10px] text-gray-500 leading-snug">No applicable state policy headwinds.</div>
             )}
           </>
         )}

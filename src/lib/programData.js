@@ -1493,6 +1493,8 @@ export async function getPolicyImpactEvents({ state, includeUnpublished = false 
       ongoingFeePerMwYrUsd:        row.ongoing_fee_per_mw_yr_usd,
       revenueHaircutPct:           row.revenue_haircut_pct,
       impactConfidence:            row.impact_confidence,
+      impactSeverity:              row.impact_severity,
+      impactProbability:           row.impact_probability,
       impactMethodology:           row.impact_methodology,
       appliesToNewApplications:    row.applies_to_new_applications,
       appliesToExistingQueue:      row.applies_to_existing_queue,

@@ -102,11 +102,17 @@ function clampScore(value) {
 /**
  * Apply user-controlled lever adjustments to the structural sub-scores.
  *
- * @param {{offtake:number, ix:number, site:number, policyClimate:number|null, coverage:object}} subScores
+ * Levers move the three STRUCTURAL pillars (offtake / IX / site). The two
+ * signal pillars (incentives, policyTiming) + their detail objects pass
+ * through UNCHANGED — incentive eligibility is fixed by county; federal
+ * timing already keys off the COD year directly inside computeSubScores, so
+ * docking it again here would double-count the same lever.
+ *
+ * @param {object} subScores — full computeSubScores output (5 pillars + detail)
  * @param {{subscriptionPct:number, codYear:number, ixAssumption:string}} levers
  * @param {{technology:string, ixQueueSummary:object|null}} context
  * @returns {{
- *   adjusted: {offtake:number, ix:number, site:number, policyClimate:number|null, coverage:object},
+ *   adjusted: object,  // same shape as subScores, with offtake/ix/site shifted
  *   deltas:   {offtake:number, ix:number, site:number},
  *   rationale: Array<{pillar:string, lever:string, delta:number, label:string}>,
  * }}
@@ -145,11 +151,12 @@ export function applyLeverAdjustments(subScores, levers, context = {}) {
 
   return {
     adjusted: {
+      // Spread first so every non-structural pillar (incentives, policyTiming,
+      // policyClimate, incentiveDetail, policyDetail, coverage) carries through.
+      ...subScores,
       offtake: clampScore((subScores.offtake ?? 0) + offtakeDelta),
       ix:      clampScore((subScores.ix ?? 0) + ixDelta),
       site:    clampScore((subScores.site ?? 0) + siteDelta),
-      policyClimate: subScores.policyClimate,
-      coverage: subScores.coverage,
     },
     deltas: {
       offtake: offtakeDelta,

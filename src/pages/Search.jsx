@@ -11,10 +11,10 @@ import MarketPositionPanel from '../components/MarketPositionPanel.jsx'
 import OfftakeCardSummary from '../components/lens/OfftakeCardSummary.jsx'
 import InterconnectionCardSummary from '../components/lens/InterconnectionCardSummary.jsx'
 import SiteControlCardSummary from '../components/lens/SiteControlCardSummary.jsx'
+import IncentivesCardSummary from '../components/lens/IncentivesCardSummary.jsx'
+import PolicyTimingCardSummary from '../components/lens/PolicyTimingCardSummary.jsx'
 import PillarDetailModal from '../components/lens/PillarDetailModal.jsx'
 import MarketIntelligenceSummary from '../components/MarketIntelligenceSummary.jsx'
-// Policy is a SIGNAL, not a scored pillar — it lives in §06 Regulatory Watch +
-// the verdict rationale, not in the §04 pillar row (3 pillars: offtake/IX/site).
 import LensComparablesSection from '../components/LensComparablesSection.jsx'
 import { useToast } from '../components/ui/Toast'
 
@@ -1129,6 +1129,7 @@ function SearchContent() {
                 countyData={results.countyData}
                 ixQueueSummary={results.ixQueueSummary}
                 policyEvents={results.policyEvents || []}
+                incentives={{ energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda }}
                 technology={results.form.technology}
                 stage={results.form.stage || null}
                 stateName={results.stateProgram?.name || results.form.state}
@@ -1164,7 +1165,7 @@ function SearchContent() {
                 so the sections read as a single typographic family on a
                 consistent white surface. items-start: cards size independently. */}
             <div className="lens-reveal">
-            <SectionMarker index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · site" />
+            <SectionMarker index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" />
             <div data-tour-id="pillars" className="space-y-5">
             {(() => {
               // Structural sub-scores drive the §04 summary card gauges.
@@ -1185,7 +1186,7 @@ function SearchContent() {
                 },
               )
               return (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-start">
                   <OfftakeCardSummary
                     stateProgram={results.stateProgram}
                     score={sub.offtake}
@@ -1202,6 +1203,14 @@ function SearchContent() {
                     coverage={sub.coverage?.ix}
                     onOpen={() => setActivePillar('ix')}
                   />
+                  <IncentivesCardSummary
+                    score={sub.incentives}
+                    coverage={sub.coverage?.incentives}
+                    adders={sub.incentiveDetail}
+                    energyCommunity={results.energyCommunity}
+                    nmtcLic={results.nmtcLic}
+                    hudQctDda={results.hudQctDda}
+                  />
                   <SiteControlCardSummary
                     siteControl={results.countyData?.siteControl}
                     geospatial={results.countyData?.geospatial}
@@ -1211,14 +1220,20 @@ function SearchContent() {
                     coverage={sub.coverage?.site}
                     onOpen={() => setActivePillar('site')}
                   />
+                  <PolicyTimingCardSummary
+                    score={sub.policyTiming}
+                    coverage={sub.coverage?.policyTiming}
+                    policyDetail={sub.policyDetail}
+                  />
                 </div>
               )
             })()}
 
-            {/* §04 is the three SCORED pillars only (offtake / IX / site).
-                Policy is a signal, not a pillar (2026-05-22) — it lives in §06
-                Regulatory Watch + the verdict rationale, so it's not in this row
-                or the pillar-detail modal. */}
+            {/* §04 is the full 5-pillar diagnostics row (offtake / IX /
+                incentives / site / policy & timing). The three STRUCTURAL
+                pillars (offtake / IX / site) open the pillar-detail modal;
+                Incentives + Policy & Timing are self-contained signal cards
+                (eligibility chips + federal-timing tier + state-policy list). */}
             </div>
             </div>
 

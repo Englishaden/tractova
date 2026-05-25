@@ -16,6 +16,46 @@
 //   - NO STATE-NAME HARDCODING anywhere. Engine consumes whatever rows
 //     exist for the state.
 
+// ── Shape normalization ─────────────────────────────────────────────────
+// Policy event rows reach this engine in TWO shapes:
+//   - snake_case — raw Supabase rows (server-side: api/lens-insight folds
+//     published rows into the AI prompt).
+//   - camelCase  — programData.getPolicyImpactEvents() (client-side: the Lens
+//     passes results.policyEvents into computeSubScores).
+// The engine reads snake_case throughout, so a camelCase object would have
+// every gate field read as undefined → silently filtered out (the Policy &
+// Timing pillar would never see state policy). Coerce camelCase → snake_case
+// at the single choke point (filterApplicablePolicies) so both callers score
+// identically. Snake_case rows pass through untouched.
+function normalizePolicyEvent(p) {
+  if (!p || 'impact_confidence' in p) return p   // already snake_case (or null)
+  return {
+    ...p,
+    id:                            p.id,
+    event_name:                    p.eventName,
+    pillar:                        p.pillar,
+    impact_confidence:             p.impactConfidence,
+    impact_severity:               p.impactSeverity,
+    impact_probability:            p.impactProbability,
+    irr_impact_bps:                p.irrImpactBps,
+    capex_impact_per_mw_usd:       p.capexImpactPerMwUsd,
+    ongoing_fee_per_mw_yr_usd:     p.ongoingFeePerMwYrUsd,
+    revenue_haircut_pct:           p.revenueHaircutPct,
+    is_active:                     p.isActive,
+    review_status:                 p.reviewStatus,
+    min_mw_ac:                     p.minMwAc,
+    max_mw_ac:                     p.maxMwAc,
+    applicable_technologies:       p.applicableTechnologies,
+    applies_to_new_applications:   p.appliesToNewApplications,
+    applies_to_existing_queue:     p.appliesToExistingQueue,
+    applies_to_operating_projects: p.appliesToOperatingProjects,
+    safe_harbor_eligible:          p.safeHarborEligible,
+    safe_harbor_cutoff_date:       p.safeHarborCutoffDate,
+    source_url:                    p.sourceUrl,
+    effective_date:                p.effectiveDate,
+  }
+}
+
 // ── Applicability: stage → boolean-flag-applicability mapping ──────────
 // Maps project stage to which applicability flag must be set for the
 // policy to apply. Each stage is treated as the developer's decision
@@ -50,8 +90,11 @@ const DEFAULT_APPLICABILITY_FLAG = 'applies_to_new_applications'
  * @param {{mw: number, stage: string, technology: string}} project
  * @returns {Array} filtered policies
  */
-export function filterApplicablePolicies(policies, { mw, stage, technology } = {}) {
-  if (!Array.isArray(policies) || policies.length === 0) return []
+export function filterApplicablePolicies(rawPolicies, { mw, stage, technology } = {}) {
+  if (!Array.isArray(rawPolicies) || rawPolicies.length === 0) return []
+  // Coerce camelCase (client) → snake_case (engine) before any field reads,
+  // so the returned rows are uniform for every downstream consumer.
+  const policies = rawPolicies.map(normalizePolicyEvent)
   const hasMw = mw != null && Number.isFinite(Number(mw)) && Number(mw) > 0
   const mwNum = hasMw ? Number(mw) : null
   // When stage is null, accept policies with ANY applicability flag set

@@ -4,7 +4,19 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-25 (latest) SHIPPING 5-pillar signal pivot (Phase 1) — Feasibility Index is now go/no-go signals, no $
+## 🟢 Pickup — 2026-05-25 (latest) SHIPPED 5-pillar Phase 1 POLISH — full pillar cards + AI-proposed severity; Phase 2 ($-removal) next
+
+Migration 070 applied (Aden). Phase 1 polish complete + verified (lint + 226 unit + build + 7/7 smoke green). Next session continues into **Phase 2 — remove the $ layer** (Scenario Studio Financial tab + revenueEngine/scenarioEngine $ math + PDF economics + StructureComparison re-orient; **Aden's call: REMOVE Scenario Studio entirely** — DevFeasibilityView promoted to its own §03 section). Authoritative removal map captured this session.
+
+### ✅ Shipped (Phase 1 polish)
+- **Policy-event shape fix (correctness)** — `policyAdjustments.filterApplicablePolicies` now normalizes camelCase (client `getPolicyImpactEvents`) → snake_case at the choke point. Before this, state-policy events were silently filtered out client-side, so the Policy & Timing pillar was *federal-timing-only* in practice. Now state policy actually scores. camelCase regression test added. `getPolicyImpactEvents` maps `impactSeverity`/`impactProbability`.
+- **§04 Pillar Diagnostics → 5 cards** — new `IncentivesCardSummary` (ITC adder eligibility chips: Energy Community / Low-Income / NMTC / QCT-DDA, source-derived detail) + `PolicyTimingCardSummary` (federal timing tier + severity-ranked state events). Grid 3→5; structural pillars still open the detail modal, the two signal pillars are self-contained.
+- **Dev Feasibility → 5 pillar cards** — added Incentives card + replaced legacy Policy(signal) card with Policy & Timing (federal tier + state events from `policyDetail`). Wired the **COD-year lever + incentives into `computeSubScores`** so pillars 4/5 compute; `leverAdjustments` now carries all 5 pillars through (was dropping incentives/policyTiming). Verdict readout strip + rationale + composite tooltip updated to 5 pillars; verdictRationale gained incentives + policy-timing friction copy.
+- **AI-proposed severity** — `policy-classify` prompt + tool schema now propose `impact_severity` (severe/medium/small, headwinds only) + `impact_probability` (high/medium/low); cache bumped v8→v9. Admin `PolicyImpactTab` gained a "Policy & Timing severity" section (admin-confirm/override) + list badge; passes through draft → save.
+
+---
+
+## 🟢 Pickup — 2026-05-25 SHIPPED 5-pillar signal pivot (Phase 1 core) — Feasibility Index is now go/no-go signals, no $
 
 **Strategic pivot (Aden's call, designed together + plan-approved):** away from synthesized financials (revenue/payback/NPV/$/W/BESS$ — unmaintainable across 50 states, ITC-as-revenue inflated payback ~51% for NY CS, fabrication surface) toward a **5-pillar signal-based go/no-go**. Industry-validated (Wood Mac OBBBA, NREL/EPA siting, HeatSpring — all fetched). Plan file: `~/.claude/plans/itc-is-based-on-zippy-bird.md`. Phased: signals first, remove $ after.
 

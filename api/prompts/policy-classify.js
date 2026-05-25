@@ -189,7 +189,28 @@ CRITICAL RULES — read carefully before responding.
     - "low" — source is qualitative only (no extractable numbers in raw_provisions)
     Default to "low" when raw_provisions is mostly null.
 
-14. Output ONLY a single JSON object — no markdown fence, no prose around it:
+14. FIVE-PILLAR SEVERITY (impact_severity + impact_probability) — Tractova's
+    Policy & Timing pillar scores policy as SEVERITY × PROBABILITY, not dollars.
+    Propose both (the admin confirms or overrides):
+    - impact_severity — how badly an ADVERSE policy hurts project feasibility:
+        "severe"  = threatens project viability (program closure, deep NEB/REC
+                    cut, large retroactive fee on operating projects).
+        "medium"  = material but survivable headwind (moderate fee, partial
+                    rate cut, added interconnection cost).
+        "small"   = minor friction (small administrative fee, reporting burden).
+      For a TAILWIND (program/capacity EXPANSION, favorable rule) or a neutral
+      policy, set impact_severity = null — only headwinds carry a severity tier.
+    - impact_probability — likelihood the policy actually hits a project being
+      evaluated today:
+        "high"   = enacted, clearly applicable, no safe-harbor escape.
+        "medium" = applies but with caveats (phase-ins, partial safe harbor,
+                   only some project sizes/stages).
+        "low"    = pending/unfinalized rules, under litigation, or broadly
+                   avoidable via safe harbor.
+      When genuinely uncertain, set null (the engine assumes "likely" and the
+      admin sets the final value).
+
+15. Output ONLY a single JSON object — no markdown fence, no prose around it:
 
 {
   "state": "ME",
@@ -198,6 +219,8 @@ CRITICAL RULES — read carefully before responding.
   "effective_date": "2024-09-01",
   "status": "enacted",
   "pillar": "cross-cutting",
+  "impact_severity": "severe",
+  "impact_probability": "high",
   "raw_provisions": {
     "rate_cut_pct": null,
     "one_time_fee_per_kw": null,
