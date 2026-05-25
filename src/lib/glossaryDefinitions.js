@@ -415,7 +415,7 @@ export const GLOSSARY_DEFINITIONS = {
   'p50 / p90': {
     title: 'p50 / p90 (Statistical Percentiles)',
     short: 'p50 is the median; p90 is the value below which 90% of observations fall — used to communicate spread.',
-    long: 'When Tractova surfaces a capex range like "$1.32/W (p25) – $1.78/W (p75)" from LBNL observed installs, those percentiles describe the spread of real-world install costs. p10 is the most-favorable 10% (lowest cost); p90 is the worst 10% (highest cost). Project finance often models p50 as "expected case" and p90 as "downside stress." A p25-p75 band is the interquartile range — half the observed projects cleared in this zone. Tractova surfaces the band on Tier A states so developers can size against typical spread, not just the median.',
+    long: 'When Tractova surfaces a capex range — a p25-to-p75 band — from LBNL observed installs, those percentiles describe the spread of real-world install costs. p10 is the most-favorable 10% (lowest cost); p90 is the worst 10% (highest cost). Project finance often models p50 as "expected case" and p90 as "downside stress." A p25-p75 band is the interquartile range — half the observed projects cleared in this zone. Tractova surfaces the band on Tier A states so developers can size against typical spread, not just the median.',
     inputs: 'LBNL Tracking the Sun observed-install distribution · cs_cost_index.p10/p25/p50/p75/p90',
   },
 }
