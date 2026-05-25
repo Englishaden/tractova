@@ -30,13 +30,18 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import OfftakeCard from '../OfftakeCard.jsx'
 import InterconnectionCard from '../InterconnectionCard.jsx'
 import SiteControlCard from '../SiteControlCard.jsx'
+import IncentivesDetail from './IncentivesDetail.jsx'
+import PolicyTimingDetail from './PolicyTimingDetail.jsx'
 
-// Three structural pillars only. Policy is a signal (Regulatory Watch §06 +
-// the verdict rationale), not a scored pillar, so it has no tab here.
+// All five signal pillars get a tab. Order + numbering match the canonical
+// pillar order (Offtake · IX · Incentives · Site · Policy & Timing) and the
+// §04 summary-card grid.
 const PILLAR_TABS = [
-  { key: 'offtake', label: '01 / Offtake',         accent: '#0F766E' },
-  { key: 'ix',      label: '02 / Interconnection', accent: '#D97706' },
-  { key: 'site',    label: '03 / Site Control',    accent: '#2563EB' },
+  { key: 'offtake',      label: '01 / Offtake',         accent: '#0F766E' },
+  { key: 'ix',           label: '02 / Interconnection', accent: '#D97706' },
+  { key: 'incentives',   label: '03 / Incentives',      accent: '#15803D' },
+  { key: 'site',         label: '04 / Site Control',    accent: '#2563EB' },
+  { key: 'policyTiming', label: '05 / Policy & Timing',  accent: '#475569' },
 ]
 
 export default function PillarDetailModal({ activePillar, onClose, onPillarChange, pillarProps = {} }) {
@@ -48,13 +53,13 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
   // remount (preserves computeBaseline + revenue-stack work). Set is
   // reset when the modal closes (Dialog portal unmounts → all bodies
   // unmount → next open re-lazies).
-  const [mounted, setMounted] = useState({ offtake: false, ix: false, site: false })
+  const [mounted, setMounted] = useState({ offtake: false, ix: false, incentives: false, site: false, policyTiming: false })
   useEffect(() => {
     if (open && activePillar) {
       setMounted((prev) => prev[activePillar] ? prev : { ...prev, [activePillar]: true })
     }
     if (!open) {
-      setMounted({ offtake: false, ix: false, site: false })
+      setMounted({ offtake: false, ix: false, incentives: false, site: false, policyTiming: false })
     }
   }, [open, activePillar])
 
@@ -205,6 +210,17 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                         />
                       </div>
                     )}
+                    {mounted.incentives && (
+                      <div role="tabpanel" hidden={activePillar !== 'incentives'} className="px-1 py-2">
+                        <IncentivesDetail
+                          score={pillarProps.incentivesScore}
+                          energyCommunity={pillarProps.energyCommunity}
+                          nmtcLic={pillarProps.nmtcLic}
+                          hudQctDda={pillarProps.hudQctDda}
+                          county={pillarProps.county}
+                        />
+                      </div>
+                    )}
                     {mounted.site && (
                       <div role="tabpanel" hidden={activePillar !== 'site'} className="px-1 py-2">
                         <SiteControlCard
@@ -216,6 +232,14 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                           stateId={pillarProps.stateId}
                           mw={pillarProps.mw}
                           substations={pillarProps.substations}
+                        />
+                      </div>
+                    )}
+                    {mounted.policyTiming && (
+                      <div role="tabpanel" hidden={activePillar !== 'policyTiming'} className="px-1 py-2">
+                        <PolicyTimingDetail
+                          score={pillarProps.policyTimingScore}
+                          policyDetail={pillarProps.policyDetail}
                         />
                       </div>
                     )}

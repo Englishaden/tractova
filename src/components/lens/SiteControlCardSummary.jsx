@@ -48,7 +48,7 @@ export default function SiteControlCardSummary({ siteControl, geospatial, county
 
   return (
     <SummaryShell
-      pillarLabel="03 / Site Control"
+      pillarLabel="04 / Site Control"
       pillarAccent={PILLAR_ACCENT}
       title={title}
       score={score}

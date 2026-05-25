@@ -1169,9 +1169,7 @@ function SearchContent() {
                     score={sub.incentives}
                     coverage={sub.coverage?.incentives}
                     adders={sub.incentiveDetail}
-                    energyCommunity={results.energyCommunity}
-                    nmtcLic={results.nmtcLic}
-                    hudQctDda={results.hudQctDda}
+                    onOpen={() => setActivePillar('incentives')}
                   />
                   <SiteControlCardSummary
                     siteControl={results.countyData?.siteControl}
@@ -1186,16 +1184,15 @@ function SearchContent() {
                     score={sub.policyTiming}
                     coverage={sub.coverage?.policyTiming}
                     policyDetail={sub.policyDetail}
+                    onOpen={() => setActivePillar('policyTiming')}
                   />
                 </div>
               )
             })()}
 
             {/* §04 is the full 5-pillar diagnostics row (offtake / IX /
-                incentives / site / policy & timing). The three STRUCTURAL
-                pillars (offtake / IX / site) open the pillar-detail modal;
-                Incentives + Policy & Timing are self-contained signal cards
-                (eligibility chips + federal-timing tier + state-policy list). */}
+                incentives / site / policy & timing). All five cards open the
+                PillarDetailModal — each pillar has its own tab + deep-dive body. */}
             </div>
             </div>
 
@@ -1283,11 +1280,23 @@ function SearchContent() {
       <DataLimitationsModal open={dataLimitationsOpen} onOpenChange={setDataLimitationsOpen} />
 
       {/* §04 Pillar Detail Modal — Bloomberg-style fullscreen overlay
-          driven by the three summary cards in §04. One mount covers all
-          three pillars via the tab strip; analyst hops Offtake → IX →
-          Site without closing. Mounted at root so the focus trap and
-          backdrop sit above the result panel correctly. */}
-      {results && (
+          driven by the five summary cards in §04. One mount covers all five
+          pillars via the tab strip; analyst hops Offtake → IX → Incentives →
+          Site → Policy & Timing without closing. Mounted at root so the focus
+          trap and backdrop sit above the result panel correctly. */}
+      {results && (() => {
+        // Recompute the 5-pillar sub-scores here (cheap pure fn) so the
+        // Incentives + Policy & Timing detail tabs get the same score +
+        // policyDetail the §04 cards show — one source of truth.
+        const pSub = computeSubScores(
+          results.stateProgram, results.countyData, results.form.stage,
+          results.form.technology, results.ixQueueSummary, results.policyEvents, effectiveMw,
+          {
+            incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda },
+            codYear: results.form.codYear ? Number(results.form.codYear) : null,
+          },
+        )
+        return (
         <PillarDetailModal
           activePillar={activePillar}
           onClose={() => setActivePillar(null)}
@@ -1311,9 +1320,14 @@ function SearchContent() {
             queueSummary:    results.ixQueueSummary,
             hostingCapacity: results.hostingCapacity,
             policyEvents:    results.policyEvents || [],
+            // 5-pillar signal detail
+            incentivesScore:  pSub.incentives,
+            policyTimingScore: pSub.policyTiming,
+            policyDetail:     pSub.policyDetail,
           }}
         />
-      )}
+        )
+      })()}
 
       {/* Save modal — sign-in prompt if not authed, name input if authed */}
       {saveModal && (
