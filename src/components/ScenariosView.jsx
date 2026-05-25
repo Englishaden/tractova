@@ -65,11 +65,11 @@ export default function ScenariosView({ scenariosMap, orphanScenarios, projects,
     return (
       <div className="rounded-xl px-8 py-10 mt-2 text-center" style={{ background: 'rgba(20,184,166,0.04)', border: '1px solid rgba(20,184,166,0.20)' }}>
         <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold mb-2" style={{ color: '#0F766E' }}>
-          ◆ No scenarios saved yet
+          ◆ Scenario archive
         </p>
-        <h2 className="font-serif text-xl font-semibold text-ink mb-2">Run a Lens query and save your first scenario</h2>
+        <h2 className="font-serif text-xl font-semibold text-ink mb-2">No saved scenarios</h2>
         <p className="text-[13px] text-gray-500 max-w-md mx-auto leading-relaxed mb-4">
-          Each Lens result has a Scenario Studio. Drag sliders or hit ◆ Best case to model alternative deal envelopes; saved scenarios show up here.
+          Saved scenarios were part of Tractova's financial-sensitivity layer, retired in the 2026-05 signal pivot. The Lens now scores feasibility on signal-based pillars (Dev Feasibility). Any scenarios you saved earlier appear here.
         </p>
         <Link
           to="/search"

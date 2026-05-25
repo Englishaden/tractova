@@ -163,7 +163,7 @@ export default function MemoView() {
                 <MemoSection eyebrow="Interconnection" body={memo.ixSummary} accent="#D97706" />
               )}
               {memo.revenueSummary && (
-                <MemoSection eyebrow="Revenue Outlook" body={memo.revenueSummary} accent="#0F766E" />
+                <MemoSection eyebrow="Offtake & Incentives" body={memo.revenueSummary} accent="#0F766E" />
               )}
             </div>
           )}

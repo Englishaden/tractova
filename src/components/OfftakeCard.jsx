@@ -1,12 +1,5 @@
-import { computeCIRevenueProjection, computeBESSProjection, computeHybridProjection, SOLAR_RATES_AS_OF, CI_RATES_AS_OF, BESS_RATES_AS_OF } from '../lib/revenueEngine'
-import { computeBaseline } from '../lib/scenarioEngine'
-import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import LoadingDot from './ui/LoadingDot'
 import CardDrilldown from './CardDrilldown'
-import RevenueStackBar from './RevenueStackBar'
-import RevenueProjectionSection from './RevenueProjectionSection'
-import SolarCostLineagePanel from './SolarCostLineagePanel'
-import LeveragedReturnsRow from './LeveragedReturnsRow'
 import {
   SectionLabel,
   DataRow,
@@ -14,34 +7,19 @@ import {
   RunwayBadge,
 } from '../lib/searchShared.jsx'
 
-export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, rates, energyCommunity, nmtcLic, hudQctDda, county }) {
+// Offtake pillar detail (opened from the §04 Offtake summary card). Post the
+// 2026-05 signal pivot this is a QUALITATIVE monetization read — program
+// status, the ITC adder eligibility stack (Energy Community / §48(e) / HUD),
+// and the structure's offtake mechanism. No synthesized dollars: the revenue/
+// payback projections + $/W cost lineage retired with the $ layer.
+export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, energyCommunity, nmtcLic, hudQctDda, county }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
 
-  // Compute project-finance metrics (IRR project, IRR equity, DSCR) once
-  // so we can render LeveragedReturnsRow inside each tech panel without
-  // duplicating the work. computeBaseline returns null if state+tech has
-  // no curated revenue data — the row hides cleanly in that case.
-  const lifecycleBaseline = stateProgram?.id && mw
-    ? computeBaseline({ stateId: stateProgram.id, technology, mw, rates })
-    : null
-  const lifecycleOutputs = lifecycleBaseline?.outputs ?? null
-
-  // Outer chrome is now provided by the consumer (PillarDetailModal renders
-  // this card inside the modal body; standalone usage gets the body alone).
-  // Header content (eyebrow + title + caption) moved into PillarDetailModal's
-  // tab strip — eliminates the prior CollapsibleCard wrapper + its
-  // height-auto motion (OOM landmine per BUILD_LOG 2026-05-11).
   return (
     <div className="space-y-4">
       <div className="px-5 py-4 space-y-4">
-
-        {/* Per-state $/W data lineage panel — promoted out of the methodology
-            dropdown 2026-05-05 so the Tier A/B confidence is visible at first
-            glance, not buried behind a click-to-expand. Self-hides when no
-            rates row exists (non-CS-active states). */}
-        <SolarCostLineagePanel rates={rates} stateName={stateProgram?.name} />
 
         {isCS ? (
           <>
@@ -100,11 +78,11 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
               )}
             </div>
 
-            {/* Revenue stack — only for Community Solar */}
+            {/* Incentive stack — qualitative eligibility (ITC base + adders + REC
+                + net-metering posture). No dollars. */}
             {revenueStack ? (
               <div>
-                <SectionLabel>Revenue Stack</SectionLabel>
-                <RevenueStackBar revenueStack={revenueStack} />
+                <SectionLabel>Incentive Stack</SectionLabel>
                 <div className="bg-surface rounded-md px-3 py-2 space-y-0.5">
                   <DataRow label="ITC base" value={revenueStack.itcBase} highlight />
                   <DataRow label="ITC adders" value={revenueStack.itcAdder} />
@@ -251,11 +229,11 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>
+                {revenueStack.summary && <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>}
               </div>
             ) : (
               <div>
-                <SectionLabel>Revenue Stack</SectionLabel>
+                <SectionLabel>Incentive Stack</SectionLabel>
                 <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5 space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-500">ITC base (federal)</span>
@@ -265,253 +243,17 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                 </div>
               </div>
             )}
-
-            {/* Revenue Projection — quantitative $/MW estimate */}
-            <RevenueProjectionSection stateId={stateProgram?.id} mw={mw} rates={rates} lifecycleOutputs={lifecycleOutputs} />
           </>
         ) : (
-          /* Non-CS technology — structured analysis per tech type */
-          <div className="space-y-4">
+          /* Non-CS structure — qualitative offtake read (no $ projection) */
+          <div className="space-y-3">
             <SectionLabel>{technology} Offtake</SectionLabel>
-
-            {technology === 'C&I Solar' && (() => {
-              const proj = computeCIRevenueProjection(stateProgram?.id, mw, rates)
-              const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
-              return (
-                <div className="space-y-3">
-                  {proj ? (
-                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(37,99,235,0.25)', borderLeft: '3px solid #2563EB' }}>
-                      {/* M1 fix 2026-05-05: surface CI rate vintage at top of
-                          card. PPA + retail rates anchor on EIA Form 861 +
-                          Lazard LCOE+ v18 — utility tariffs change quarterly,
-                          so the savings % can drift. Mirrors BESS pattern. */}
-                      <div className="px-4 pt-2.5 pb-1 flex items-center gap-2 flex-wrap" style={{ background: 'rgba(37,99,235,0.05)' }}>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span
-                              className="eyebrow-mono px-1.5 py-0.5 font-bold shrink-0 cursor-help"
-                              style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
-                            >
-                              ◆ Rates as of {CI_RATES_AS_OF.split('+')[0].trim()}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" align="start" className="text-[11px] max-w-xs leading-relaxed">
-                            <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>C&amp;I rates lineage</p>
-                            <p className="mb-1.5">{CI_RATES_AS_OF}</p>
-                            <p className="text-gray-300">Utility tariffs change quarterly — verify current PUC tariff filings before committing.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                        <span className="text-[10px] text-gray-500 leading-tight">verify utility tariff before committing</span>
-                      </div>
-                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(37,99,235,0.05)' }}>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual PPA Revenue</p>
-                          <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Offtaker Savings</p>
-                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#2563EB' }}>{proj.savingsPercent}%</p>
-                        </div>
-                      </div>
-                      <div className="px-4 py-2.5 space-y-1.5 bg-white">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">PPA rate</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{proj.ppaRateCentsKwh}¢/kWh</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">vs. utility retail rate</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{proj.retailRateCentsKwh}¢/kWh</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Annual escalator</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{proj.escalatorPct}%</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">ITC (one-time)</span>
-                          <span className="font-semibold tabular-nums" style={{ color: '#2563EB' }}>{fmt(proj.itcValueOneTime)} <span className="font-normal text-gray-400">({proj.itcPct}%)</span></span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
-                          <span className="text-gray-500">25-year NPV <span className="text-gray-400">(8% discount)</span></span>
-                          <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv25)}</span>
-                        </div>
-                      </div>
-                      <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#2563EB" />
-                      <div className="px-4 py-2 border-t border-gray-100">
-                        <p className="text-[9px] text-gray-400">C&I success depends on anchor tenant credit quality and contract length. PPA rates are state-level estimates.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                      <p className="text-xs text-gray-500">
-                        {(parseFloat(mw) || 0) === 0
-                          ? 'Enter project MW above to see C&I PPA revenue projection.'
-                          : `C&I PPA revenue model not available for ${stateProgram?.name || 'this state'}. Tractova currently covers IL, NY, MA, MN, CO, NJ, ME, MD for C&I; coverage is expanding.`}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {technology === 'BESS' && (() => {
-              const proj = computeBESSProjection(stateProgram?.id, mw, 4, rates)
-              const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
-              return (
-                <div className="space-y-3">
-                  {proj ? (
-                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(124,58,237,0.25)', borderLeft: '3px solid #7C3AED' }}>
-                      {/* Vintage chip at the TOP of the BESS card — 2026-05-05
-                          C2 fix: the "as of" stamp used to live at the panel
-                          footer; users would read the headline number + payback
-                          first and miss the staleness disclosure. ISO capacity
-                          prices swing 2-9× YoY (per DataLimitationsModal §03),
-                          so the vintage IS the trust anchor. Surface it before
-                          the number, not after. */}
-                      {proj.ratesAsOf && (
-                        <div className="px-4 pt-2.5 pb-1 flex items-center gap-2 flex-wrap" style={{ background: 'rgba(124,58,237,0.05)' }}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span
-                                className="eyebrow-mono px-1.5 py-0.5 font-bold shrink-0 cursor-help"
-                                style={{ background: 'rgba(217,119,6,0.10)', color: '#92400E', border: '1px solid rgba(217,119,6,0.30)' }}
-                              >
-                                ◆ Rates as of {proj.ratesAsOf.split('+')[0].trim()}
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" align="start" className="text-[11px] max-w-sm leading-relaxed">
-                              <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>BESS rates lineage</p>
-                              <p className="mb-1.5">{proj.ratesAsOf}</p>
-                              <p className="text-gray-300">Capacity-market prices swing 2-9× YoY — verify your ISO's most recent clearing results before committing capital.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          <span className="text-[10px] text-gray-500 leading-tight">verify ISO clearing before committing</span>
-                        </div>
-                      )}
-                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(124,58,237,0.05)' }}>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Annual Revenue</p>
-                          <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Payback</p>
-                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#7C3AED' }}>{proj.paybackYears ? `${proj.paybackYears}yr` : '—'}</p>
-                        </div>
-                      </div>
-                      {/* Three revenue stream tiles */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-gray-100">
-                        {[
-                          { label: 'Capacity Market', value: fmt(proj.capacityRevenue), sub: `$${proj.capacityPerKwYear}/kW-yr`, color: '#7C3AED' },
-                          { label: 'Demand Charge', value: fmt(proj.demandChargeRevenue), sub: `$${proj.demandChargePerKwMonth}/kW-mo`, color: '#8B5CF6' },
-                          { label: 'Arbitrage', value: fmt(proj.arbitrageRevenue), sub: `$${proj.arbitragePerMwh}/MWh`, color: '#A78BFA' },
-                        ].map(s => (
-                          <div key={s.label} className="bg-white px-3 py-2.5 text-center">
-                            <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">{s.label}</p>
-                            <p className="text-sm font-bold tabular-nums" style={{ color: s.color }}>{s.value}</p>
-                            <p className="text-[9px] text-gray-400 mt-0.5 tabular-nums">{s.sub}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="px-4 py-2.5 space-y-1.5 bg-white">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">ISO/RTO region</span>
-                          <span className="font-semibold text-gray-700">{proj.isoRegion}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Duration</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{proj.durationHrs}-hour ({proj.mwh} MWh)</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Installed cost</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.installedCostTotal)} <span className="font-normal text-gray-400">@ ${proj.installedCostPerKwh}/kWh</span></span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">ITC (one-time)</span>
-                          <span className="font-semibold tabular-nums" style={{ color: '#2563EB' }}>{fmt(proj.itcValueOneTime)} <span className="font-normal text-gray-400">({proj.itcPct}%)</span></span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-gray-100">
-                          <span className="text-gray-500">15-year NPV <span className="text-gray-400">(8% discount)</span></span>
-                          <span className="font-bold text-gray-900 tabular-nums">{fmt(proj.npv15)}</span>
-                        </div>
-                      </div>
-                      <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#7C3AED" />
-                      <div className="px-4 py-2 border-t border-gray-100">
-                        <p className="text-[9px] text-gray-400">Revenue depends on {proj.isoRegion} capacity market pricing — historically volatile. 15-year NPV reflects battery lifecycle. (Rate vintage shown at top of card.)</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                      <p className="text-xs text-gray-500">
-                        {(parseFloat(mw) || 0) === 0
-                          ? 'Enter project MW above to see BESS revenue projection.'
-                          : `BESS revenue model not available for ${stateProgram?.name || 'this state'}. Tractova currently covers IL, NY, MA, MN, CO, NJ, ME, MD for BESS; coverage is expanding.`}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {technology === 'Hybrid' && (() => {
-              const mwNum = parseFloat(mw) || 0
-              const solarMW = mwNum
-              const storageMW = Math.round(mwNum * 0.5 * 10) / 10
-              const proj = computeHybridProjection(stateProgram?.id, solarMW, storageMW, 4, rates)
-              const fmt = (n) => n >= 1000000 ? `$${(n / 1000000).toFixed(2)}M` : `$${n.toLocaleString()}`
-              return (
-                <div className="space-y-3">
-                  {proj ? (
-                    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(5,150,105,0.25)', borderLeft: '3px solid #059669' }}>
-                      <div className="px-4 py-3 flex items-center justify-between" style={{ background: 'rgba(5,150,105,0.05)' }}>
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Est. Combined Revenue</p>
-                          <p className="text-xl font-bold text-gray-900 tabular-nums mt-0.5">{fmt(proj.annualGrossRevenue)}<span className="text-xs font-normal text-gray-400 ml-1">/ year</span></p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Revenue / MW</p>
-                          <p className="text-lg font-bold tabular-nums mt-0.5" style={{ color: '#059669' }}>{fmt(proj.revenuePerMW)}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-px bg-gray-100">
-                        <div className="bg-white px-3 py-2.5">
-                          <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Solar ({proj.solarMW} MW)</p>
-                          <p className="text-sm font-bold tabular-nums" style={{ color: '#059669' }}>{fmt(proj.solarAnnualRevenue)}<span className="text-[9px] font-normal text-gray-400 ml-1">/yr</span></p>
-                        </div>
-                        <div className="bg-white px-3 py-2.5">
-                          <p className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 mb-1">Storage ({proj.storageMW} MW / {proj.durationHrs}hr)</p>
-                          <p className="text-sm font-bold tabular-nums" style={{ color: '#7C3AED' }}>{fmt(proj.storageAnnualRevenue)}<span className="text-[9px] font-normal text-gray-400 ml-1">/yr</span></p>
-                        </div>
-                      </div>
-                      <div className="px-4 py-2.5 space-y-1.5 bg-white">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Total installed cost</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.totalInstalledCost)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Solar 25yr NPV</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.solarNpv25)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">Storage 15yr NPV</span>
-                          <span className="font-semibold text-gray-700 tabular-nums">{fmt(proj.storageNpv15)}</span>
-                        </div>
-                      </div>
-                      <LeveragedReturnsRow outputs={lifecycleOutputs} accentColor="#059669" />
-                      <div className="px-4 py-2 border-t border-gray-100">
-                        <p className="text-[9px] text-gray-400">Hybrid assumes {proj.storageMW}MW / {proj.durationHrs}hr co-located storage. ITC applied at 30% for both solar and storage components.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                      <p className="text-xs text-gray-500">
-                        {(parseFloat(mw) || 0) === 0
-                          ? 'Enter project MW above to see hybrid revenue projection.'
-                          : `Hybrid revenue model not available for ${stateProgram?.name || 'this state'}. Tractova currently covers IL, NY, MA, MN, CO, NJ, ME, MD for hybrid; coverage is expanding.`}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
+            <div className="bg-surface rounded-md px-3 py-3 space-y-2">
+              <p className="text-xs text-gray-700 leading-relaxed">{offtakeMechanismCopy(technology)}</p>
+              <p className="text-[10px] text-gray-500 leading-relaxed">
+                The Offtake sub-score (shown on the §04 card) reflects this structure's monetization strength for the state. Confirm the current tariff / PPA terms and program enrollment directly with the serving utility or program administrator before committing capital.
+              </p>
+            </div>
           </div>
         )}
 
@@ -525,13 +267,13 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
       </div>
 
       {/* Methodology drilldown — click to expand */}
-      <CardDrilldown accentColor="#0F766E" label="How we built this revenue stack — sources, ITC math, assumptions">
+      <CardDrilldown accentColor="#0F766E" label="How we built this incentive stack — sources, ITC math, assumptions">
         <div>
-          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>Revenue stack composition</p>
+          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>Incentive stack composition</p>
           <ul className="space-y-1 text-gray-700 list-none">
             <li><span className="font-semibold text-ink">ITC base</span> · 30% federal Investment Tax Credit (IRA §48) — requires prevailing-wage + apprenticeship compliance. Projects that don't meet PW&amp;A drop to a 6% base credit. Verify labor compliance with tax counsel before assuming the 30% figure.</li>
             <li><span className="font-semibold text-ink">ITC adders</span> · stack on the 30% base — Energy Community (+10%), §48(e) Cat 1 LIC (+10%, ≤5MW). Combined ceiling reaches 50% effective ITC for projects qualifying for both.</li>
-            <li><span className="font-semibold text-ink">IREC / SREC market</span> · state-level renewable energy certificates. Tradable, $/MWh varies wildly by state (NJ $250, MA $30, IL $80 typical 2024).</li>
+            <li><span className="font-semibold text-ink">IREC / SREC market</span> · state-level renewable energy certificates. Tradable; value varies widely by state and market cycle.</li>
             <li><span className="font-semibold text-ink">Net metering / bill credit</span> · the per-kWh value of generation injected into the grid. Subject to NEM tariff rules — see precedent: CA NEM 3.0 cut bill credits 57% in Apr 2023.</li>
           </ul>
         </div>
@@ -561,26 +303,6 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
             <a href="https://www.irs.gov/forms-pubs/about-form-3468" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-teal-200 text-teal-700 hover:bg-teal-50 transition-colors">IRS §48 ITC ↗</a>
           </div>
         </div>
-        {/* SolarCostLineagePanel was hosted here pre-2026-05-05; promoted to
-            OfftakeCard body so the tier disclosure is visible without an
-            expander click. The methodology dropdown keeps the broader citation
-            paragraph below for context. */}
-        <div className="pt-2 border-t border-gray-100">
-          <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#0F766E' }}>Rate vintage &amp; sources</p>
-          <ul className="space-y-1.5 text-[10px] text-gray-700 list-none">
-            <li>
-              <span className="font-semibold text-ink">Solar capex $/W national anchor</span> · {SOLAR_RATES_AS_OF} · <span className="text-gray-700">Anchored on NREL Q1 2023 CS-specific Modeled Market Price ($1.76/Wdc PV-only / $2.94/Wdc PV+storage). National TTS reference: $1.91/W median (n=839, 0.5-5 MW large non-res, install years 2022-2024). Forward-extrapolated 2023→2026 (+$0.40-$0.70/W cumulative) with explicit driver layers: NREL Spring 2025 observed +22% YoY 2023→2024 (+$0.20-$0.30), FEOC restrictions (+$0.05-$0.10), reshoring + IRA bonus credit threshold 40%→55% (+$0.03-$0.05), Iran-Israel oil/logistics pass-through (+$0.02-$0.05). National 2026 PV-only anchor $2.45/W; PV+storage hybrid $3.15/W.</span> Forward magnitudes + Tier B regional multipliers are Tractova editorial judgment, not LBNL/NREL-published. Refreshes when new annual TTS / NREL data lands.
-            </li>
-            <li>
-              <span className="font-semibold text-ink">Independent benchmarks (cross-check)</span> · <span className="text-gray-700">NREL ATB 2024 Solar - PV Distributed Commercial CAPEX $2,058/kW = $2.06/W (Advanced scenario, Class 1, 2022 base; falls to $1,845/kW next year per NREL forward modeling). NREL ATB 2024 Solar - Utility PV CAPEX $1,483/kW = $1.48/W (Class 1, 2022 base). LBNL TTS observed national median $1.91/W (n=839) for 2022-2024 install years. Tractova's $2.45/W national 2026 anchor sits ~$0.40-$0.50 above ATB's modeled forward — that delta is the FEOC + tariff + reshoring shock layer that ATB's moderate-scenario projection doesn't include.</span> ATB refreshes annually each Q1.
-            </li>
-            <li><span className="font-semibold text-ink">Bill credits + REC pricing</span> · State-specific from state PUC tariff filings + program-administrator portals + NEPOOL GIS / PJM-EIS GATS / WREGIS / M-RETS depending on REC market. Tractova-curated.</li>
-            <li><span className="font-semibold text-ink">Capacity factors</span> · NREL PVWatts API v8 state averages (more granular than Lazard's 15–20% national range). Where a Nexamp / SR Energy / Catalyze operating-fleet sample exists for the state, the observed AC capacity factor is shown alongside PVWatts modeled in the lens for cross-check. Single-developer / three-source bias disclosed in the Privacy Policy; not engine input.</li>
-            <li><span className="font-semibold text-ink">C&amp;I PPA + retail</span> · {CI_RATES_AS_OF} · Lazard LCOE+ v18 commercial range + EIA Form 861 commercial retail tariffs 2024.</li>
-            <li><span className="font-semibold text-ink">BESS capacity + arbitrage</span> · {BESS_RATES_AS_OF} · ISO/RTO clearing prices (PJM RPM, NYISO ICAP, ISO-NE FCM, CAISO RA) + NREL ATB 2024 Commercial Battery Storage CAPEX $1,450/kWh + Utility-Scale Battery Storage CAPEX $1,290/kWh (2022 base, Advanced scenario).</li>
-            <li className="text-gray-500 italic">All three datasets are seeded constants. Refresh cadence: NREL ATB 2025 expected Q1 2026 (annual cycle); Lazard v19 expected April–June 2026; BESS rates re-anchored against ISO/RTO auctions as cycles complete. Automated refresh cron is on the backlog.</li>
-          </ul>
-        </div>
         {/* A.5 fix 2026-05-05: surface how feasibility freshness flows so users
             know the score they see is live, not a cached snapshot. */}
         <div className="pt-2 border-t border-gray-100">
@@ -599,4 +321,20 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
       </CardDrilldown>
     </div>
   )
+}
+
+// Qualitative offtake mechanism copy per monetization structure (no $).
+function offtakeMechanismCopy(technology) {
+  switch (technology) {
+    case 'C&I Solar':
+      return 'Behind-the-meter / PPA structure: value comes from displacing the offtaker\'s retail rate. Strength tracks the state\'s commercial retail rate and market depth — high-retail markets (CA, ISO-NE, NY) monetize best. Success hinges on anchor-tenant credit quality and contract length.'
+    case 'Net Metering':
+      return 'Exports credited at (or near) the full retail rate, so offtake value tracks the state\'s retail-rate tier — the same signal as C&I. Confirm the current NEM tariff: successor tariffs (e.g. CA NEM 3.0) can cut export credit sharply.'
+    case 'Net Billing':
+      return 'Exports credited at avoided cost (below retail). Tractova does not model net-billing economics yet — there is no clean per-state export-credit dataset, so the offtake signal is held at a directional baseline rather than fabricated.'
+    case 'BESS':
+      return 'Merchant capacity-market / ancillary-services revenue (legacy standalone storage). Highly ISO-dependent and volatile; verify the serving ISO\'s most recent capacity-auction clearing before relying on this structure.'
+    default:
+      return 'Monetization structure offtake reflects the state\'s program / tariff posture. Confirm enrollment terms and current rates with the program administrator.'
+  }
 }

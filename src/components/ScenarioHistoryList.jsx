@@ -61,6 +61,11 @@ export default function ScenarioHistoryList({
       const json = await res.json().catch(() => ({}))
       if (json.commentary) {
         setCommentaries((c) => ({ ...c, [snap.id]: { commentary: json.commentary } }))
+      } else if (json.fallback) {
+        // Scenario commentary was retired with the $ layer (2026-05 signal
+        // pivot). The handler returns a clean message — show it as commentary,
+        // not an error, so the legacy viewer reads gracefully.
+        setCommentaries((c) => ({ ...c, [snap.id]: { commentary: json.message || 'AI scenario commentary was retired with the financial-sensitivity layer. This saved scenario is a historical record.' } }))
       } else {
         // Surface whichever signal the server provided. `error` is the
         // human-readable message (400 paths), `reason` is the short code

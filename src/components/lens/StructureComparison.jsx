@@ -1,21 +1,16 @@
-// "Which structure pays best here" — cross-structure economics comparison for a
-// fixed site + MW. Sits in the Lens results next to Scenario Studio.
+// "Which structure monetizes best here" — cross-structure offtake comparison
+// for a fixed site + MW. Sits in the Lens results after Dev Feasibility.
 //
-// v1 scope: compares the four monetization structures at STANDALONE PV. CS / Net
-// Metering / C&I have real revenue models; Net Billing is honestly gated (no
-// per-state export-credit data). PV+Storage per-structure economics are a
-// follow-up — when the user's project is PV+Storage we compute at Standalone PV
-// and say so.
-//
-// Numbers come from the SAME engines the rest of the Lens uses — computeBaseline
-// (powers Scenario Studio) for Year-1 revenue + payback, computeSubScores for
-// offtake — so this never shows a parallel/divergent figure. IX & Site sub-scores
-// are identical across structures for one site (they're driven by architecture +
-// county, not by how you monetize), so the differentiator is offtake + revenue.
+// Post the 2026-05 signal pivot this ranks the four monetization structures by
+// their OFFTAKE signal (0-100) — no synthesized dollars. Numbers come from the
+// SAME engine the rest of the Lens uses (computeSubScores), so this never shows
+// a parallel/divergent figure. IX & Site sub-scores are identical across
+// structures for one site (they're driven by architecture + county, not by how
+// you monetize), so offtake is the differentiator. Net Billing is honestly
+// gated (no per-state export-credit data) and sinks to the bottom.
 
 import { useMemo } from 'react'
 import { computeSubScores } from '../../lib/scoreEngine'
-import { computeBaseline } from '../../lib/scenarioEngine'
 import { STRUCTURE_OPTIONS, normalizeStructure } from '../../lib/lensFormConstants'
 import { rankStructureRows } from '../../lib/structureCompare'
 import GlossaryLabel from '../ui/GlossaryLabel'
@@ -23,7 +18,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/
 
 const COMPARE_ARCH = 'Standalone PV'
 
-// Why a structure has no modeled revenue — surfaced verbatim so the gate reads
+// Why a structure has no modeled offtake — surfaced verbatim so the gate reads
 // as a deliberate honesty stance, not a missing number.
 const GATE_REASON = {
   'Net Billing': 'no per-state export-credit data',
@@ -31,16 +26,8 @@ const GATE_REASON = {
 
 const offtakeTone = (v) => v == null ? '#475569' : v >= 70 ? '#0F766E' : v >= 50 ? '#92400E' : '#991B1B'
 
-const fmtUSD = (n) => {
-  if (n == null || !Number.isFinite(n)) return '—'
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`
-  if (n >= 10_000)    return `$${Math.round(n / 1000)}k`
-  if (n >= 1000)      return `$${(n / 1000).toFixed(1)}k`
-  return `$${Math.round(n)}`
-}
-
 export default function StructureComparison({
-  stateProgram, countyData, stage, mw, rates,
+  stateProgram, countyData, stage, mw,
   selectedStructure, ixQueueSummary, policyEvents,
   userArchitecture, stateName,
 }) {
@@ -50,22 +37,19 @@ export default function StructureComparison({
     const rows = STRUCTURE_OPTIONS.map((structure) => {
       const axes = { architecture: COMPARE_ARCH, structure }
       const sub = computeSubScores(stateProgram, countyData, stage || '', axes, ixQueueSummary, policyEvents, size)
-      // Pre-policy structural revenue — clean apples-to-apples across structures
-      // (policy applicability is tech-specific and would distort the ranking).
-      const baseline = computeBaseline({ stateId: stateProgram.id, technology: axes, mw: size, rates })
       return {
         structure,
         offtake: sub.offtake != null ? Math.round(sub.offtake) : null,
-        year1:   baseline?.outputs?.year1Revenue ?? null,
-        payback: baseline?.outputs?.paybackYears ?? null,
-        modeled: !!baseline && Number.isFinite(baseline?.outputs?.year1Revenue),
+        // 'fallback' coverage = no curated monetization model for this state
+        // (or a deliberately-gated structure like Net Billing).
+        available: sub.coverage?.offtake !== 'fallback',
       }
     })
     return rankStructureRows(rows)
-  }, [stateProgram, countyData, stage, size, rates, ixQueueSummary, policyEvents])
+  }, [stateProgram, countyData, stage, size, ixQueueSummary, policyEvents])
 
   if (!result) return null
-  const { ranked, bestKey, bestBy } = result
+  const { ranked, bestKey } = result
   const selected = normalizeStructure(selectedStructure)
   const isStorage = userArchitecture === 'PV + Storage'
 
@@ -74,18 +58,17 @@ export default function StructureComparison({
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid rgba(15,26,46,0.10)', borderLeft: '3px solid #0F766E' }}>
         {/* Header strip — research-panel chrome */}
         <div className="px-4 py-2.5 flex items-center justify-between gap-2 border-b" style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}>
-          <span className="eyebrow-mono font-bold text-teal-800">Which structure pays best here</span>
+          <span className="eyebrow-mono font-bold text-teal-800">Which structure monetizes best here</span>
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] tabular-nums text-gray-500">
             {stateProgram.id} · {size % 1 === 0 ? size : size.toFixed(1)} MW · Standalone PV
           </span>
         </div>
 
         {/* Column header row */}
-        <div className="px-4 py-1.5 grid grid-cols-[1.6fr_0.7fr_1fr_0.8fr] gap-2 bg-white border-b border-gray-100">
+        <div className="px-4 py-1.5 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 bg-white border-b border-gray-100">
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">Structure</span>
           <GlossaryLabel term="Offtake" displayAs="Offtake" className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 text-right justify-self-end" />
-          <GlossaryLabel term="Year 1 Revenue" displayAs="Yr-1 Revenue" className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 text-right justify-self-end" />
-          <GlossaryLabel term="Simple Payback" displayAs="Payback" className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 text-right justify-self-end" />
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 text-right justify-self-end">Coverage</span>
         </div>
 
         {/* Rows */}
@@ -93,19 +76,19 @@ export default function StructureComparison({
           {ranked.map((r) => {
             const isBest = r.structure === bestKey
             const isSelected = r.structure === selected
-            const gated = !r.modeled
+            const gated = !r.available || r.offtake == null
             return (
               <div
                 key={r.structure}
-                className="px-4 py-2.5 grid grid-cols-[1.6fr_0.7fr_1fr_0.8fr] gap-2 items-center border-b border-gray-50 last:border-b-0"
+                className="px-4 py-2.5 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 items-center border-b border-gray-50 last:border-b-0"
                 style={isBest ? { background: 'rgba(20,184,166,0.06)' } : undefined}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${gated ? '' : ''}`} style={{ background: gated ? '#CBD5E1' : offtakeTone(r.offtake) }} />
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: gated ? '#CBD5E1' : offtakeTone(r.offtake) }} />
                   <span className={`text-[12px] font-semibold truncate ${gated ? 'text-gray-400' : 'text-ink'}`}>{r.structure}</span>
                   {isBest && (
                     <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm shrink-0" style={{ background: 'rgba(20,184,166,0.14)', color: '#0F766E' }}>
-                      best{bestBy === 'offtake' ? ' offtake' : ''}
+                      best offtake
                     </span>
                   )}
                   {isSelected && (
@@ -125,19 +108,16 @@ export default function StructureComparison({
                     <TooltipContent side="top" className="!max-w-[260px]">
                       <p className="leading-relaxed">
                         {GATE_REASON[r.structure]
-                          ? `No revenue model — ${GATE_REASON[r.structure]}. Showing offtake only rather than fabricate a number.`
-                          : `No revenue-rate data for ${stateName || stateProgram.id} — offtake shown, revenue not modeled.`}
+                          ? `No curated offtake model — ${GATE_REASON[r.structure]}. Shown as not-modeled rather than fabricate a signal.`
+                          : `No curated offtake coverage for ${stateName || stateProgram.id} yet — directional baseline only.`}
                       </p>
                     </TooltipContent>
                   </Tooltip>
                 ) : (
-                  <span className="text-[13px] font-bold tabular-nums text-right justify-self-end" style={{ color: '#0F766E' }}>
-                    {fmtUSD(r.year1)}
+                  <span className="text-[11px] tabular-nums text-right justify-self-end text-teal-700 font-medium">
+                    curated
                   </span>
                 )}
-                <span className="text-[12px] tabular-nums text-right justify-self-end text-gray-600">
-                  {r.payback != null ? `${r.payback} yr` : '—'}
-                </span>
               </div>
             )
           })}
@@ -146,8 +126,8 @@ export default function StructureComparison({
         {/* Footnote — methodology + honesty disclosures */}
         <div className="px-4 py-2 border-t border-gray-100" style={{ background: 'rgba(15,26,46,0.02)' }}>
           <p className="text-[10px] text-gray-500 leading-relaxed">
-            Ranked by structural Year-1 revenue (pre-policy), from the same engine as Scenario Studio. <span className="text-gray-600 font-medium">Interconnection &amp; Site sub-scores are identical across structures for this site</span> — they're driven by architecture + county, not by how you monetize, so offtake + revenue are the differentiators.
-            {isStorage && <> Your project is PV&nbsp;+&nbsp;Storage; comparison shown at Standalone PV (per-structure storage economics are a follow-up).</>}
+            Ranked by the <span className="text-gray-600 font-medium">offtake signal</span> (0-100), from the same engine as the Feasibility Index. Interconnection &amp; Site sub-scores are identical across structures for this site — they're driven by architecture + county, not by how you monetize — so offtake is the differentiator.
+            {isStorage && <> Your project is PV&nbsp;+&nbsp;Storage; comparison shown at Standalone PV (offtake is architecture-agnostic for this read).</>}
           </p>
         </div>
       </div>

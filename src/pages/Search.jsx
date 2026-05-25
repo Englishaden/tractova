@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { getStateProgramMap, getCountyData, getRevenueStack, getRevenueRates, getEnergyCommunity, getHudQctDda, getNmtcLic, getPolicyImpactEvents } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getRevenueStack, getEnergyCommunity, getHudQctDda, getNmtcLic, getPolicyImpactEvents } from '../lib/programData'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useSubscription } from '../hooks/useSubscription'
@@ -24,10 +24,10 @@ import { useToast } from '../components/ui/Toast'
 // Kept only the helpers Search.jsx itself still references.
 
 import { getIXQueueSummary, getHostingCapacity } from '../lib/programData'
-import ScenarioStudio from '../components/ScenarioStudio'
+import DevFeasibilityView from '../components/scenario/DevFeasibilityView'
 import StructureComparison from '../components/lens/StructureComparison'
 import ReRunDriftCallout from '../components/lens/ReRunDriftCallout'
-import { computeBaseline as computeScenarioBaseline, denormalizeTech } from '../lib/scenarioEngine'
+import { denormalizeTech } from '../lib/scenarioEngine'
 import { computeSubScores } from '../lib/scoreEngine'
 import LensTour from '../components/LensTour'
 import DataLimitationsModal from '../components/DataLimitationsModal'
@@ -368,7 +368,6 @@ function SearchContent() {
   // context (state + county + tech). When found, scenarios saved from
   // the Studio attach to that project_id so the Library card can show
   // the "Scenarios: N" chip. Falls back to null = ad-hoc scenario.
-  const [matchingProjectId, setMatchingProjectId] = useState(null)
   const toast = useToast()
   const [saveModal, setSaveModal] = useState(null) // { defaultName } | null
   const [dataLimitationsOpen, setDataLimitationsOpen] = useState(false)
@@ -413,31 +412,6 @@ function SearchContent() {
   useEffect(() => {
     getStateProgramMap().then(setProgramMap).catch(console.error)
   }, [])
-
-  // Match Lens results → existing saved project so saved scenarios
-  // attach to the project_id (Library chip flow). Re-runs each time
-  // the Lens context changes. Most-recent match wins.
-  useEffect(() => {
-    if (!user || !results?.form?.state || !results?.form?.county) {
-      setMatchingProjectId(null)
-      return
-    }
-    let cancelled = false
-    ;(async () => {
-      const { data } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('state', results.form.state)
-        .eq('county', results.form.county)
-        .eq('technology', results.form.technology || '')
-        .order('saved_at', { ascending: false })
-        .limit(1)
-      if (cancelled) return
-      setMatchingProjectId(data?.[0]?.id ?? null)
-    })()
-    return () => { cancelled = true }
-  }, [user, results?.form?.state, results?.form?.county, results?.form?.technology])
 
   // Restore from sessionStorage on mount (URL param takes priority)
   useEffect(() => {
@@ -548,13 +522,12 @@ function SearchContent() {
       const { data: { session } } = await supabase.auth.getSession()
       const accessToken = session?.access_token ?? ''
 
-      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity] = await Promise.all([
+      const [stateProgram, countyData, revenueStack, ixQueueSummary, substations, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity] = await Promise.all([
         programMap?.[form.state] ?? getStateProgramMap().then(m => m[form.state] ?? null),
         getCountyData(form.state, form.county),
         getRevenueStack(form.state),
         getIXQueueSummary(form.state, form.mw, STRUCTURE_TO_TAG[form.structure] ?? 'all'),
         getNearestSubstations(form.state, form.county),
-        getRevenueRates(form.state),
         getEnergyCommunity(form.state, form.county),
         getHudQctDda(form.state, form.county),
         getNmtcLic(form.state, form.county),
@@ -577,7 +550,7 @@ function SearchContent() {
         // analysis is still useful without the AI verdict.
       }
 
-      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, revenueRates, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity, aiInsight })
+      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity, aiInsight })
     } catch (err) {
       // Any uncaught error in data fetching used to leave analyzing=true forever
       // (the white-screen loading hang). Surface it to the user instead.
@@ -1104,27 +1077,16 @@ function SearchContent() {
             />
             </div>
 
-            {/* §2.5: Scenario Studio — interactive sensitivity layer over an
-                "achievable baseline." Phase 2 launch feature. Sits between
-                Analyst Brief (qualitative) and Pillar Diagnostics (atomized
-                signals) so the user moves: AI narrative → quantitative
-                sensitivity → component scores. Pre-computed baseline reuses
-                revenueEngine via scenarioEngine.computeBaseline. */}
+            {/* §03 Dev Feasibility — the go/no-go scorecard. The 5-pillar
+                verdict + pillar cards + Feasibility Levers (Project Size / COD
+                year / Subscription / IX assumption) that let the user see
+                "what moves the score." Replaced the old Scenario Studio (the
+                synthesized $ revenue/payback sensitivity) in the 2026-05
+                signal pivot — no dollars; this is signal sensitivity. */}
             <div className="lens-reveal">
-            <SectionMarker index={3} label="Scenario Studio" sublabel="sensitivity · year-1 revenue + payback" />
-            <div data-tour-id="scenario">
-              <ScenarioStudio
-                baseline={computeScenarioBaseline({
-                  stateId: results.stateProgram?.id || results.form.state,
-                  technology: results.form.technology,
-                  mw: results.form.mw,
-                  rates: results.revenueRates,
-                  policies: results.policyEvents || [],
-                  stage: results.form.stage || null,
-                })}
-                user={user}
-                projectId={matchingProjectId}
-                countyName={results.form.county || ''}
+            <SectionMarker index={3} label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" />
+            <div data-tour-id="scenario" className="bg-white rounded-lg overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
+              <DevFeasibilityView
                 stateProgram={results.stateProgram}
                 countyData={results.countyData}
                 ixQueueSummary={results.ixQueueSummary}
@@ -1133,6 +1095,7 @@ function SearchContent() {
                 technology={results.form.technology}
                 stage={results.form.stage || null}
                 stateName={results.stateProgram?.name || results.form.state}
+                countyName={results.form.county || ''}
                 mw={effectiveMw}
                 searchMw={searchMw}
                 onMwChange={setLiveMw}
@@ -1140,18 +1103,17 @@ function SearchContent() {
             </div>
             </div>
 
-            {/* §3.5: Structure Comparison — "which monetization structure pays
-                best for this site + MW." Sits right after Scenario Studio (the
-                other revenue surface) and reuses computeBaseline so the selected
-                structure's number matches. v1 = Standalone PV. */}
+            {/* §04: Structure Comparison — "which monetization structure
+                monetizes best for this site." Ranks the structures by their
+                offtake signal (no $) from the same engine as the Feasibility
+                Index. Compared at Standalone PV. */}
             <div className="lens-reveal">
-            <SectionMarker index={4} label="Structure Comparison" sublabel="which monetization pays best · year-1 revenue" />
+            <SectionMarker index={4} label="Structure Comparison" sublabel="which structure monetizes best · offtake signal" />
             <StructureComparison
               stateProgram={results.stateProgram}
               countyData={results.countyData}
               stage={results.form.stage || ''}
               mw={effectiveMw}
-              rates={results.revenueRates}
               selectedStructure={results.form.structure}
               ixQueueSummary={results.ixQueueSummary}
               policyEvents={results.policyEvents || []}
@@ -1336,7 +1298,6 @@ function SearchContent() {
             revenueStack:    results.revenueStack,
             technology:      results.form.technology,
             mw:              effectiveMw,
-            rates:           results.revenueRates,
             energyCommunity: results.energyCommunity,
             nmtcLic:         results.nmtcLic,
             hudQctDda:       results.hudQctDda,

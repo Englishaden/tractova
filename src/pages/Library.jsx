@@ -123,7 +123,7 @@ const EXPORT_HEADERS = [
   // Site (Path B geospatial — NWI + SSURGO)
   'Wetland-richness Index (%)', 'Prime Farmland (%)',
   // Operations
-  'Serving Utility', 'Est. Annual Revenue ($/MW/yr)',
+  'Serving Utility',
   // Meta
   'Risk Flags', 'Saved Date',
 ]

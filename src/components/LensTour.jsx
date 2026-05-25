@@ -11,7 +11,7 @@ import * as RadixDialog from '@radix-ui/react-dialog'
 //
 //   1. Composite Feasibility Index gauge (MarketPositionPanel)
 //   2. Pillar Diagnostics navy band (Offtake / IX / Site Control)
-//   3. Scenario Studio (the killer differentiator)
+//   3. Dev Feasibility (the go/no-go scorecard + pillar levers)
 //   4. Save as Project button (pipeline + alerts)
 //
 // Persistence is localStorage-only — re-doing a 30-second tour on a new
@@ -42,8 +42,8 @@ const STEPS = [
   },
   {
     id: 'scenario',
-    title: 'Stress-test the deal',
-    body: 'Flex 9 inputs — capex, capacity factor, REC price, opex, discount rate — and watch IRR, payback, NPV, and DSCR move live. Save scenarios to attach to the project.',
+    title: 'Pressure-test feasibility',
+    body: 'Dev Feasibility turns the 5 pillars into a go/no-go verdict. Flex the levers — project size, target COD year, subscription, interconnection assumption — and watch the pillar sub-scores + verdict move live. Signal sensitivity, not a financial pro-forma.',
     placement: 'top',
   },
   {

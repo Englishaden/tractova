@@ -185,31 +185,27 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
     const newLevel = IX_LEVELS[ixIdx + 1]
     const timelineMap = { moderate: '12–18 months', hard: '18–30 months', very_hard: '30–48+ months' }
     const costMap = { moderate: '$500K–$1.5M', hard: '$1–3M', very_hard: '$3–6M+' }
-    const upgradeCostMap = { moderate: 85000, hard: 150000, very_hard: 350000 }
-    const estUpgrade = Math.round((upgradeCostMap[newLevel] ?? 150000) * mwNum)
     scenarios.push({
       id: 'ix_harder',
       label: 'IX cost shock',
       override: { ixDifficulty: newLevel },
       precedent: 'PJM 2024 cluster: $1.5M/MW avg upgrade · 30 mo avg study',
-      detail: `Queue conditions deteriorate to ${newLevel.replace('_', ' ')} — same trajectory PJM's 2024 cluster studies showed (avg 30 mo, $1.5M/MW upgrades, ~28% withdrawal rate). Add ${timelineMap[newLevel] ?? '18–30 months'} to your IX study timeline and budget ${costMap[newLevel] ?? '$1–3M'} in potential upgrade costs. At ${mwNum}MW, IX cost exposure could consume a significant portion of program enrollment value.`,
-      revenueImpact: `Est. cost: +$${estUpgrade.toLocaleString()} in IX upgrades`,
+      detail: `Queue conditions deteriorate to ${newLevel.replace('_', ' ')} — same trajectory PJM's 2024 cluster studies showed (avg 30 mo, $1.5M/MW upgrades, ~28% withdrawal rate). Add ${timelineMap[newLevel] ?? '18–30 months'} to your IX study timeline and budget ${costMap[newLevel] ?? '$1–3M'} in potential upgrade costs (cited PJM precedent, not your project's number).`,
+      revenueImpact: `Interconnection sub-score drops — upgrade-cost + withdrawal risk rises`,
       timelineImpact: `Study timeline extends to ~${timelineMap[newLevel] ?? '18–30 months'}`,
       tone: 'negative',
     })
   }
   if (ixIdx > 0) {
     const newLevel = IX_LEVELS[ixIdx - 1]
-    const savingsMap = { easy: 350000, moderate: 150000, hard: 85000 }
-    const estSavings = Math.round((savingsMap[newLevel] ?? 150000) * mwNum)
     const timelineSavingsMap = { easy: '6–9 months', moderate: '9–14 months', hard: '14–20 months' }
     scenarios.push({
       id: 'ix_easier',
       label: 'IX fast-track',
       override: { ixDifficulty: newLevel },
       precedent: 'MISO 2023 fast-track: 12 mo studies · sub-$500K/MW',
-      detail: `Queue conditions ease to ${newLevel.replace('_', ' ')} — what MISO showed in 2023 with their fast-track cluster reform: 12 mo studies, sub-$500K/MW upgrades. Interconnection timelines compress and upgrade cost risk drops sharply. This is the upside case — valuable for sensitivity modeling but don't underwrite to it without a confirmed study result.`,
-      revenueImpact: `Est. savings: $${estSavings.toLocaleString()} on IX upgrades`,
+      detail: `Queue conditions ease to ${newLevel.replace('_', ' ')} — what MISO showed in 2023 with their fast-track cluster reform: 12 mo studies, sub-$500K/MW upgrades. Interconnection timelines compress and upgrade-cost risk drops sharply. This is the upside case — valuable for sensitivity modeling but don't underwrite to it without a confirmed study result.`,
+      revenueImpact: `Interconnection sub-score rises — lower upgrade-cost risk`,
       timelineImpact: `Study timeline compresses to ~${timelineSavingsMap[newLevel] ?? '12–18 months'}`,
       tone: 'positive',
     })
@@ -247,20 +243,13 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
   if (technology === 'Community Solar') {
     if (!lmiRequired || lmiPercent < 50) {
       const lmiSubs = Math.round(mwNum * 250)
-      // Bill credit revenue: MW × 8760 hr × CF = annual MWh; × 1000 → kWh;
-      // × $/kWh bill credit. The earlier expression dropped the MWh→kWh
-      // conversion and rendered a $79/yr haircut for a 5MW project.
-      // Aden flagged 2026-05-04: this should be ~$79K/yr, not $79/yr.
-      const annualMWh = mwNum * 8760 * 0.17
-      const billCreditRevenue = annualMWh * 1000 * 0.085 // $0.085/kWh blended bill credit
-      const revenueHaircut = Math.round(billCreditRevenue * 0.125) // ~12.5% of bill credit revenue
       scenarios.push({
         id: 'lmi_rises',
         label: 'LMI carveout raised to 50%',
         override: { lmiRequired: true, lmiPercent: 50 },
         precedent: 'NY VDER 2023: 50% LMI carveout · 9 mo aggregator ramp',
-        detail: `A 50% LMI requirement means sourcing ~${lmiSubs.toLocaleString()} low-income subscriber households for a ${mwNum}MW project — same shift NY VDER saw in 2023 when carveouts were raised. Budget 6–9 months for aggregator contracting and expect a 10–15% revenue haircut to attract compliant subscribers.`,
-        revenueImpact: `Est. revenue haircut: ~$${revenueHaircut.toLocaleString()}/yr`,
+        detail: `A 50% LMI requirement means sourcing ~${lmiSubs.toLocaleString()} low-income subscriber households for a ${mwNum}MW project — same shift NY VDER saw in 2023 when carveouts were raised. Budget 6–9 months for aggregator contracting and expect a 10–15% subscriber-credit concession to fill the floor.`,
+        revenueImpact: `Offtake softens — ~10–15% concession to fill the LMI carve-out`,
         timelineImpact: `Adds 6–9 months for aggregator contracting`,
         tone: 'negative',
       })
@@ -282,15 +271,14 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
   // C&I Solar scenarios
   if (technology === 'C&I Solar') {
     const ciAnnualMWh = mwNum * 8760 * 0.17
-    const ciDropRevenue = Math.round(ciAnnualMWh * 1000 * 0.07 * 0.15)
     scenarios.push({
       id: 'ci_ppa_drop',
       label: 'PPA rate −15%',
       override: { ixDifficulty: ixDifficulty },
       precedent: 'CA NEM 3.0 (Apr 2023): −57% bill credit reset',
-      detail: `A 15% PPA rate reduction compresses annual revenue and weakens the 25-year NPV substantially — small relative to CA's NEM 3.0 reset (Apr 2023, −57% bill credit) but illustrative of the same regulatory pressure on offtaker demand for below-market rates. Below 5.5¢/kWh is typically uneconomic in most markets.`,
-      revenueImpact: `Annual revenue: -$${ciDropRevenue.toLocaleString()}`,
-      timelineImpact: `25-year NPV impact: significant downside`,
+      detail: `A 15% PPA rate reduction compresses the offtaker's displacement value — small relative to CA's NEM 3.0 reset (Apr 2023, −57% bill credit) but illustrative of the same regulatory pressure on demand for below-market rates. Below 5.5¢/kWh is typically uneconomic in most markets.`,
+      revenueImpact: `Offtake weakens — retail-rate displacement compresses ~15%`,
+      timelineImpact: `Re-contracting pressure rises at term`,
       tone: 'negative',
     })
     scenarios.push({
@@ -318,14 +306,13 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
 
   // BESS scenarios
   if (technology === 'BESS') {
-    const bessCapDropPerYear = Math.round(mwNum * 1000 * 65 * 0.30) // 30% of $65/kW-yr
     scenarios.push({
       id: 'bess_cap_drop',
       label: 'Capacity prices −30%',
       override: { ixDifficulty: ixDifficulty },
       precedent: 'PJM 2024 BRA: capacity prices swung 30–60% between cycles',
-      detail: `A 30% capacity market decline reduces the largest BESS revenue stream significantly. PJM's 2024 base residual auction showed capacity prices can swing 40–60% between cycles, and ISO-NE has seen similar volatility. If capacity revenue drops, demand charge reduction and arbitrage must carry the project — stress-test your pro forma with floor-case capacity pricing.`,
-      revenueImpact: `Capacity revenue: -$${bessCapDropPerYear.toLocaleString()}/yr`,
+      detail: `A 30% capacity-market decline compresses the largest BESS offtake stream. PJM's 2024 base residual auction showed capacity prices can swing 40–60% between cycles, and ISO-NE has seen similar volatility. If capacity offtake drops, demand-charge reduction and arbitrage must carry the project — verify against your ISO's latest clearing.`,
+      revenueImpact: `Offtake weakens — capacity-market stream compresses ~30%`,
       timelineImpact: `Persists through next ISO auction cycle (3 years)`,
       tone: 'negative',
     })
@@ -339,14 +326,13 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
       timelineImpact: `Warranty risk inflection: years 8–10`,
       tone: 'negative',
     })
-    const bessDemandUpside = Math.round(mwNum * 1000 * 12)
     scenarios.push({
       id: 'bess_demand_up',
       label: 'Demand charges rise',
       override: { ixDifficulty: ixDifficulty },
       precedent: 'CA IOUs 2020–2023: 3–8% annual demand charge increase',
-      detail: `Rising demand charges are the BESS upside case. CA IOUs (PG&E, SCE, SDG&E) have raised commercial demand charges 3–8% annually from 2020–2023. This trend favors behind-the-meter BESS economics.`,
-      revenueImpact: `Upside: +$${bessDemandUpside.toLocaleString()}/yr per $1/kW-mo increase`,
+      detail: `Rising demand charges are the BESS upside case. CA IOUs (PG&E, SCE, SDG&E) have raised commercial demand charges 3–8% annually from 2020–2023. This trend strengthens behind-the-meter BESS offtake.`,
+      revenueImpact: `Offtake strengthens as demand charges rise`,
       timelineImpact: `Compounds over 25-year asset life`,
       tone: 'positive',
     })
@@ -354,13 +340,12 @@ export function buildSensitivityScenarios(stateProgram, technology, mw) {
 
   // Hybrid scenarios
   if (technology === 'Hybrid') {
-    const hybridITCLoss = Math.round(mwNum * 0.5 * 4 * 1000 * 380 * 0.10)
     scenarios.push({
       id: 'hybrid_itc_drop',
       label: 'What if storage ITC drops to 30%?',
       override: { ixDifficulty: ixDifficulty },
-      detail: `Losing the 10% co-location bonus reduces ITC value on the storage component. The co-location bonus under IRA Section 48 requires the storage to be placed in service with the solar facility — timeline delays that decouple the assets risk this adder.`,
-      revenueImpact: `One-time ITC loss: -$${hybridITCLoss.toLocaleString()}`,
+      detail: `Losing the 10% co-location bonus reduces the ITC adder on the storage component. The co-location bonus under IRA Section 48 requires the storage to be placed in service with the solar facility — timeline delays that decouple the assets risk this adder.`,
+      revenueImpact: `Incentives weaken — storage ITC adder (+10%) at risk if COD decouples`,
       timelineImpact: `Risk window: any decoupling of solar/storage COD`,
       tone: 'negative',
     })

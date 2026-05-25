@@ -186,7 +186,6 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                           revenueStack={pillarProps.revenueStack}
                           technology={pillarProps.technology}
                           mw={pillarProps.mw}
-                          rates={pillarProps.rates}
                           energyCommunity={pillarProps.energyCommunity}
                           nmtcLic={pillarProps.nmtcLic}
                           hudQctDda={pillarProps.hudQctDda}

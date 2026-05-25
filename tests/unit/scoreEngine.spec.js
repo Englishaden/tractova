@@ -99,8 +99,7 @@ describe('computeSubScores — main entry', () => {
       site: 0,
       incentives: null,
       policyTiming: null,
-      policyClimate: 50,
-      coverage: { offtake: 'researched', ix: 'curated', site: 'researched', incentives: 'none', policyTiming: 'none', policy: 'none' },
+      coverage: { offtake: 'researched', ix: 'curated', site: 'researched', incentives: 'none', policyTiming: 'none' },
     })
   })
 

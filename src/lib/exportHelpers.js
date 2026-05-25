@@ -1,5 +1,4 @@
 import { computeSubScores } from './scoreEngine'
-import { computeRevenueProjection, hasRevenueData } from './revenueEngine'
 import { GLOSSARY_DEFINITIONS } from './glossaryDefinitions'
 import { getAlerts } from './alertHelpers'
 import { IX_LABEL } from './statusMaps.js'
@@ -21,14 +20,6 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
   return projects.map(p => {
     const sp = stateProgramMap[p.state] || {}
     const cd = countyDataMap[`${p.state}::${p.county}`] || null
-    let revPerMWperYear = ''
-    try {
-      const mwNum = parseFloat(p.mw) || 0
-      if (mwNum > 0 && p.technology === 'Community Solar' && hasRevenueData(p.state)) {
-        const proj = computeRevenueProjection(p.state, mwNum)
-        if (proj?.year1Revenue) revPerMWperYear = Math.round(proj.year1Revenue / mwNum)
-      }
-    } catch {}
     const alerts = getAlerts(p, stateProgramMap, countyDataMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
     const ixNotes = (sp.ixNotes || '').replace(/\s+/g, ' ').slice(0, 200)
     // Sub-scores: same engine the Lens result panel uses, so export numbers
@@ -65,7 +56,6 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
       typeof farmlandPct === 'number' ? Math.round(farmlandPct * 10) / 10 : '',
       // Operations
       p.servingUtility || '',
-      revPerMWperYear,
       // Meta
       alerts,
       p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
@@ -79,7 +69,7 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
 // When sources change, update this constant — the exported workbook stays
 // synced because nothing else in the codebase needs to know about it.
 const METHODOLOGY_ROWS = [
-  ['Composite (Feasibility Index)', 'Tractova scoreEngine', 'https://www.tractova.com/glossary#feasibility-index', 'Weighted blend: Offtake 40% + IX 35% + Site 25%; per-pillar stage modifiers'],
+  ['Composite (Feasibility Index)', 'Tractova scoreEngine', 'https://www.tractova.com/glossary#feasibility-index', '5-pillar weighted blend: Offtake 25% + IX 25% + Incentives 20% + Site 20% + Policy & Timing 10%; rebalanced over pillars with data; per-pillar stage modifiers'],
   ['Offtake — CS programs (50 states)', 'State PUC program-administrator portals (Tractova-curated)', '', 'Program status, capacity remaining, LMI carveout, REC pricing — curated manually from each state\'s primary source'],
   ['Offtake — REC pricing', 'State regulatory program filings', '', 'Illinois Shines, NJ SREC, MA SMART, MD CS, NY VDER, ME NEB'],
   ['Offtake — C&I (32 states)', 'EIA Form 861 — Commercial Retail Rates', 'https://www.eia.gov/electricity/sales_revenue_price/', 'Calibrated against 2024 commercial retail rates plus market-depth qualitative weights'],

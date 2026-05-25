@@ -1,4 +1,4 @@
-import { computePolicyClimateScore, computeStatePolicyRiskScore } from './policyAdjustments'
+import { computeStatePolicyRiskScore } from './policyAdjustments'
 import { assessFederalTiming } from './federalTimeline'
 import { axesFromTechnology, composeTechnology, normalizeStructure } from './lensFormConstants'
 
@@ -220,7 +220,7 @@ function computeSiteSubScore(architecture, availableLand, wetlandWarning) {
  * @returns {{offtake:number, ix:number, site:number, coverage:{offtake:'researched'|'fallback', ix:'live'|'curated', site:'live'|'researched'|'fallback'}}}
  */
 export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null, policyEvents = null, mw = null, opts = {}) {
-  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, incentives: null, policyTiming: null, policyClimate: 50, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', incentives: 'none', policyTiming: 'none', policy: 'none' } }
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, incentives: null, policyTiming: null, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', incentives: 'none', policyTiming: 'none' } }
 
   // Two-axis model: accept {architecture, structure} or a legacy technology string.
   // normalizeStructure maps the pre-2026-05-24 'C&I behind-the-meter' label that
@@ -376,25 +376,15 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   const policyTiming = parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null
   const policyTimingCoverage = policyTiming != null ? 'live' : 'none'
 
-  // Back-compat: legacy `policyClimate` (the old bps-based signal) is retained
-  // until the $ layer + legacy policy UI retire in Phase 2.
-  let policyClimate = null
-  let policyCoverage = 'none'
-  if (Array.isArray(policyEvents)) {
-    const project = (mw || stage || techLabel) ? { mw, stage, technology: techLabel } : null
-    policyClimate = computePolicyClimateScore(policyEvents, project)
-    policyCoverage = policyEvents.length > 0 ? 'live' : 'none'
-  }
-
   return {
-    offtake, ix, site, incentives, policyTiming, policyClimate,
+    offtake, ix, site, incentives, policyTiming,
     // Rich detail for the new pillar cards (federal timing tier + reasons,
     // applicable state policy events with severity).
     incentiveDetail: inc.adders,
     policyDetail: { federal, statePolicy },
     coverage: {
       offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage,
-      incentives: incentivesCoverage, policyTiming: policyTimingCoverage, policy: policyCoverage,
+      incentives: incentivesCoverage, policyTiming: policyTimingCoverage,
     },
   }
 }

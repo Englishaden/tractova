@@ -1,6 +1,11 @@
 import { Document, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer'
-import { SCENARIO_DISCLAIMER, formatScenarioSummary } from '../lib/scenarioEngine'
+import { formatScenarioSummary } from '../lib/scenarioEngine'
 import { IX_LABEL } from '../lib/statusMaps.js'
+
+// Legacy saved-scenario PDFs (the frozen Scenarios viewer) still render their
+// stored economics. The synthesized-$ model that produced them was retired in
+// the 2026-05 signal pivot, so the export discloses that explicitly.
+const SCENARIO_DISCLAIMER = 'Legacy figures from Tractova\'s retired financial-sensitivity model (pre-2026-05). Directional only — never investment-grade. Tractova now scores feasibility on signal-based pillars (no synthesized dollars); these saved scenario economics are kept for historical reference.'
 
 // ── V3 Brand tokens ───────────────────────────────────────────────────────────
 // PDF-native fonts only (Times/Courier/Helvetica) so we avoid Font.register
@@ -230,7 +235,7 @@ function AIMemoSection({ memo }) {
   const cards = [
     { label: 'Site Control Assessment', text: memo.siteControlSummary },
     { label: 'Interconnection Outlook', text: memo.ixSummary },
-    { label: 'Revenue Positioning',     text: memo.revenueSummary },
+    { label: 'Offtake & Incentives',    text: memo.revenueSummary },
   ].filter(c => c.text)
   return (
     <View style={{ marginBottom: 14 }}>
@@ -271,7 +276,7 @@ function ScenarioSection({ scenario }) {
     : ''
   return (
     <View>
-      <Text style={s.sectionLabel}>Selected Scenario · {scenario.name}</Text>
+      <Text style={s.sectionLabel}>Selected Scenario (legacy) · {scenario.name}</Text>
       {/* 2x4 metric grid mirrors the Studio output card. Each cell is a
           tile with a label + bold mono numeric — matches the data-density
           aesthetic used elsewhere in the PDF. */}

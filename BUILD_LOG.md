@@ -4,9 +4,30 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-25 (latest) SHIPPED 5-pillar Phase 1 POLISH — full pillar cards + AI-proposed severity; Phase 2 ($-removal) next
+## 🟢 Pickup — 2026-05-25 (latest) SHIPPED Phase 2 — the synthesized $ layer is GONE. Lens is now 100% signal-based.
 
-Migration 070 applied (Aden). Phase 1 polish complete + verified (lint + 226 unit + build + 7/7 smoke green). Next session continues into **Phase 2 — remove the $ layer** (Scenario Studio Financial tab + revenueEngine/scenarioEngine $ math + PDF economics + StructureComparison re-orient; **Aden's call: REMOVE Scenario Studio entirely** — DevFeasibilityView promoted to its own §03 section). Authoritative removal map captured this session.
+The 5-pillar signal pivot is complete: no synthesized dollars anywhere in the Lens. Verified (lint:api + 172 unit + build + 7/7 smoke green). **Aden's two Phase-2 calls:** (1) REMOVE Scenario Studio entirely (DevFeasibilityView promoted to its own §03 section — the go/no-go scorecard + pillar levers ARE the "what moves the score" interactivity); (2) FREEZE the saved-scenarios subsystem as a legacy viewer (Library Scenarios tab + scenario_snapshots reads kept; the save entry point died with Scenario Studio; no NEW scenarios can be saved).
+
+### ✅ Shipped (Phase 2 — $-layer removal)
+- **Lens §03**: Scenario Studio (Financial Sensitivity $ sliders + IRR/NPV/payback grid + scenario-save) → **DevFeasibilityView promoted** to a first-class §03 "Dev Feasibility" section (go/no-go verdict + 5 pillar cards + Feasibility Levers). `ScenarioStudio.jsx` deleted; the matching-project effect (linked saves to project_id) removed.
+- **Deleted**: `revenueEngine.js`, `RevenueProjectionSection`, `RevenueStackBar`, `LeveragedReturnsRow`, `SolarCostLineagePanel` (the $/W cost lineage — retired with the $ layer per plan). `scenarioEngine.js` slimmed 500→~80 LOC (only `denormalizeTech` + `formatScenarioSummary` survive for the legacy scenarios viewer).
+- **OfftakeCard** rewritten: dropped all $ revenue projections (CS RevenueProjectionSection + C&I/BESS/Hybrid $ panels + $/W vintage methodology); kept program status + the ITC adder eligibility stack (Energy Community / §48(e) / HUD — non-$). Non-CS path → qualitative offtake-mechanism copy.
+- **StructureComparison re-oriented**: ranks structures by the **offtake signal** (0-100), not $ Year-1 revenue. `structureCompare.rankStructureRows` rewritten (offtake-rank, gated rows last). Removed the `revenue_rates` (`getRevenueRates`) fetch + `rates` threading from Search → PillarDetailModal → OfftakeCard.
+- **policyAdjustments** gutted: removed the 4 $-delta functions + legacy `computePolicyClimateScore`; scoreEngine drops the `policyClimate` output (Policy & Timing pillar is the canonical policy signal now).
+- **AI prompts re-aimed** (subagent): `sensitivity` + `deal-memo` reframed from $ to the 5 pillars; `scenario-commentary` reduced to a not-available stub (legacy viewer degrades gracefully). PDF deal-memo label "Revenue Positioning" → "Offtake & Incentives".
+- **searchShared.buildSensitivityScenarios** ("what-if" LensScenarioRow cards): all $ `revenueImpact` strings reframed to pillar-signal language; $ computations removed.
+- **Legacy-viewer honesty**: PDF saved-scenario section + Library Scenarios empty-state + ScenarioHistoryList commentary now disclose they're retired-financial-model historical records. xlsx export dropped the "Est. Annual Revenue" column; methodology row updated to 5-pillar weights. LensTour §03 step re-aimed.
+- **Left intact (no destructive migration)**: `revenue_rates` + `scenario_snapshots` tables + admin RevenueRatesTab; `getRevenueStack` (qualitative incentive stack, NOT $).
+
+### ⏭ DO NEXT
+1. **Browser-verify on prod** (Aden's loop): §03 Dev Feasibility renders (verdict + 5 pillar cards + levers); §04 5-pillar diagnostics row; OfftakeCard modal (no $); StructureComparison offtake ranking; PDF/Deal-Memo (no $); Lens "what-if" cards read as signals. Confirm no $ figure surfaces anywhere in the Lens.
+2. Optional follow-ups: rename the internal `revenueImpact` field → `signalImpact`; trim stale "Scenario Studio" mentions in Terms/Privacy/glossary (legal copy left untouched this pass).
+
+---
+
+## 🟢 Pickup — 2026-05-25 SHIPPED 5-pillar Phase 1 POLISH — full pillar cards + AI-proposed severity
+
+Migration 070 applied (Aden). Phase 1 polish complete + verified (lint + 226 unit + build + 7/7 smoke green). Authoritative $-layer removal map captured + executed in Phase 2 (above).
 
 ### ✅ Shipped (Phase 1 polish)
 - **Policy-event shape fix (correctness)** — `policyAdjustments.filterApplicablePolicies` now normalizes camelCase (client `getPolicyImpactEvents`) → snake_case at the choke point. Before this, state-policy events were silently filtered out client-side, so the Policy & Timing pillar was *federal-timing-only* in practice. Now state policy actually scores. camelCase regression test added. `getPolicyImpactEvents` maps `impactSeverity`/`impactProbability`.
