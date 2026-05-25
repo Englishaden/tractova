@@ -120,6 +120,51 @@ export function computePolicyClimateScore(policyEvents, project = null) {
   return Math.round(50 + shift)
 }
 
+// ── Severity-based policy RISK score (Pillar 5 — Policy & Timing) ────────────
+// The 5-pillar pivot moves policy off synthesized IRR-bps onto SEVERITY tiers
+// (Severe / Medium / Small) × PROBABILITY of hitting the project. Returns a
+// 0-100 RISK score where 100 = no policy headwind. Uses impact_severity when
+// the admin has set it; until events are re-classified it BRIDGES from the
+// legacy |irr_impact_bps| magnitude so the pillar produces sensible values
+// immediately. No dollars leave this function.
+const SEVERITY_PENALTY = { severe: 30, medium: 15, small: 6 }
+const PROBABILITY_FACTOR = { high: 1.0, medium: 0.6, low: 0.3 }
+
+export function policySeverityTier(p) {
+  if (!p) return null
+  if (p.impact_severity && SEVERITY_PENALTY[p.impact_severity]) return p.impact_severity
+  // Transitional bridge from the legacy synthesized bps until severity is set.
+  // Only headwinds (negative bps) count as risk; tailwinds/neutral → no penalty.
+  const bps = Number(p.irr_impact_bps) || 0
+  if (bps >= 0) return null
+  const mag = Math.abs(bps)
+  if (mag >= 300) return 'severe'
+  if (mag >= 100) return 'medium'
+  return 'small'
+}
+
+/**
+ * @param {Array} policyEvents
+ * @param {{mw, stage, technology}|null} project
+ * @returns {{score:number, applicableCount:number, events:Array}} 100 = clean
+ */
+export function computeStatePolicyRiskScore(policyEvents, project = null) {
+  if (!Array.isArray(policyEvents) || policyEvents.length === 0) return { score: 100, applicableCount: 0, events: [] }
+  const applicable = filterApplicablePolicies(policyEvents, project || {})
+  if (applicable.length === 0) return { score: 100, applicableCount: 0, events: [] }
+
+  let penalty = 0
+  const events = []
+  for (const p of applicable) {
+    const tier = policySeverityTier(p)
+    if (!tier) continue
+    const prob = PROBABILITY_FACTOR[p.impact_probability] ?? 0.7  // assume likely when unset
+    penalty += SEVERITY_PENALTY[tier] * prob
+    events.push({ id: p.id, event_name: p.event_name, severity: tier, probability: p.impact_probability || 'assumed', pillar: p.pillar, source_url: p.source_url })
+  }
+  return { score: Math.max(0, Math.round(100 - penalty)), applicableCount: applicable.length, events }
+}
+
 /**
  * Compute input-side deltas from a single policy row, given the project's
  * MW (used to convert per-MW dollar amounts to total-system or per-watt

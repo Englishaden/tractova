@@ -114,12 +114,12 @@ export default function DevFeasibilityView({
   const subScores = leverResult.adjusted
 
   const composite = useMemo(
-    () => safeScore(subScores.offtake, subScores.ix, subScores.site),
+    () => safeScore(subScores),
     [subScores]
   )
 
   const structuralComposite = useMemo(
-    () => safeScore(structuralSubScores.offtake, structuralSubScores.ix, structuralSubScores.site),
+    () => safeScore(structuralSubScores),
     [structuralSubScores]
   )
 

@@ -40,7 +40,7 @@ export async function convertOrphanGroupToProject({ group, userId, stateProgram,
   let liveScore = null
   if (stateProgram) {
     const subs = computeSubScores(stateProgram, countyData, 'Prospecting', techLabel)
-    liveScore = safeScore(subs.offtake, subs.ix, subs.site)
+    liveScore = safeScore(subs)
   }
 
   const payload = {

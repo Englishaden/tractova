@@ -89,8 +89,8 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
       // mismatch the user reported.
       let liveScore = null
       if (current) {
-        const subs = computeSubScores(current, countyData, stage, project.technology)
-        liveScore = safeScore(subs.offtake, subs.ix, subs.site)
+        const subs = computeSubScores(current, countyData, stage, project.technology, null, null, project.mw, { codYear: project.cod_target_year })
+        liveScore = safeScore(subs)
       }
       const stateOverride = current ? { ...current, feasibilityScore: liveScore } : current
 
@@ -158,10 +158,11 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
     }
   }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { offtake, ix, site } = current
-    ? computeSubScores(current, countyData, stage, project.technology)
+  const subs = current
+    ? computeSubScores(current, countyData, stage, project.technology, null, null, project.mw, { codYear: project.cod_target_year })
     : { offtake: 0, ix: 0, site: 0 }
-  const liveScore = current ? safeScore(offtake, ix, site) : null
+  const { offtake, ix, site } = subs
+  const liveScore = current ? safeScore(subs) : null
 
   // V3.1 color audit: consolidated all score-color triples (accent / bg /
   // text) to the canonical Tailwind v4 palette. Previously the bg used

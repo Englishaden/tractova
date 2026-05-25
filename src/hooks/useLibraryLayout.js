@@ -106,7 +106,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     if (!sp) return -1
     const cd = countyDataMap[`${p.state}::${p.county}`] || null
     const subs = computeSubScores(sp, cd, p.stage, p.technology)
-    return safeScore(subs.offtake, subs.ix, subs.site)
+    return safeScore(subs)
   }, [stateProgramMap, countyDataMap])
 
   const displayProjects = useMemo(() => {

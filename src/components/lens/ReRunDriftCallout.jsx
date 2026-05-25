@@ -21,7 +21,7 @@ export default function ReRunDriftCallout({ reRunOf, setReRunOf, results, user }
   if (!reRunOf || !results) return null
 
   const sub = computeSubScores(results.stateProgram, results.countyData, results.form.stage, results.form.technology)
-  const newScore = safeScore(sub.offtake, sub.ix, sub.site)
+  const newScore = safeScore(sub)
   const baseline = reRunOf.baselineScore
   const delta = (newScore != null && baseline != null) ? newScore - baseline : null
   const drift = delta != null && Math.abs(delta) >= 2

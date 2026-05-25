@@ -1,4 +1,5 @@
-import { computePolicyClimateScore } from './policyAdjustments'
+import { computePolicyClimateScore, computeStatePolicyRiskScore } from './policyAdjustments'
+import { assessFederalTiming } from './federalTimeline'
 import { axesFromTechnology, composeTechnology, normalizeStructure } from './lensFormConstants'
 
 export const STAGE_MODIFIERS = {
@@ -86,6 +87,36 @@ export function getOfftakeCoverageStates(technology) {
   if (structure === 'Net Metering') return CI_OFFTAKE_COVERAGE  // retail-rate anchor
   if (structure === 'Net Billing') return []                    // no curated model yet
   return null
+}
+
+// ── Incentives pillar (Pillar 4 — ITC step-up eligibility) ───────────────────
+// "Can we get ITC step-ups in this county?" Scored from REAL, observed,
+// county-level federal eligibility — EPA Energy Communities, Census/CDFI NMTC
+// Low-Income Communities, HUD QCT/DDA. NO dollars: this measures how rich the
+// ITC ADDER STACK is at this location. The §48E base 30% (with prevailing-wage
+// + apprenticeship) is available nationwide; the location bonus stack
+// (+10% Energy Community, +10% Low-Income Community) is what varies by county.
+//
+// Input is the raw getter results { energyCommunity, nmtcLic, hudQctDda } (from
+// programData.getEnergyCommunity / getNmtcLic / getHudQctDda). A null getter
+// result means "no qualifying row for this county" → treated as not-eligible
+// for that pathway. When ALL three are null we have no coverage → score null
+// (excluded from the composite via rebalance) rather than fabricate a baseline.
+export function computeIncentiveScore(incentives) {
+  if (!incentives) return { score: null, coverage: 'none', adders: {} }
+  const { energyCommunity, nmtcLic, hudQctDda } = incentives
+  const hasCoverage = energyCommunity != null || nmtcLic != null || hudQctDda != null
+  if (!hasCoverage) return { score: null, coverage: 'none', adders: {} }
+
+  const ec = !!(energyCommunity && energyCommunity.isEnergyCommunity)
+  const nmtc = !!(nmtcLic && nmtcLic.isEligible)
+  const hud = !!(hudQctDda && (hudQctDda.qctCount > 0 || hudQctDda.isNonMetroDda))
+  const lic = nmtc || hud   // §48(e) Low-Income Community bonus via either pathway
+
+  // 50 = base §48E (30% with PW&A), no location bonus. +25 Energy Community,
+  // +25 Low-Income Community → up to 100 (full adder stack, potential ~50% ITC).
+  const score = 50 + (ec ? 25 : 0) + (lic ? 25 : 0)
+  return { score, coverage: 'live', adders: { energyCommunity: ec, lowIncomeCommunity: lic, nmtc, hudQctDda: hud } }
 }
 
 // ── IX live-blend thresholds ─────────────────────────────────────────────────
@@ -188,8 +219,8 @@ function computeSiteSubScore(architecture, availableLand, wetlandWarning) {
  * @param {{totalProjects:number, totalMW:number, avgStudyMonths:number}|null} [ixQueueSummary] — when present, blends ±10 pts onto the curated IX baseline
  * @returns {{offtake:number, ix:number, site:number, coverage:{offtake:'researched'|'fallback', ix:'live'|'curated', site:'live'|'researched'|'fallback'}}}
  */
-export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null, policyEvents = null, mw = null) {
-  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, policyClimate: 50, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', policy: 'none' } }
+export function computeSubScores(stateProgram, countyData, stage = '', technology = 'Community Solar', ixQueueSummary = null, policyEvents = null, mw = null, opts = {}) {
+  if (!stateProgram) return { offtake: 0, ix: 0, site: 0, incentives: null, policyTiming: null, policyClimate: 50, coverage: { offtake: 'researched', ix: 'curated', site: 'researched', incentives: 'none', policyTiming: 'none', policy: 'none' } }
 
   // Two-axis model: accept {architecture, structure} or a legacy technology string.
   // normalizeStructure maps the pre-2026-05-24 'C&I behind-the-meter' label that
@@ -316,23 +347,56 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix      = Math.max(0, Math.min(100, ix      + dIX))
   site    = Math.max(0, Math.min(100, site    + dSite))
 
-  // ── Policy climate (new dimension — PIE-001 Phase C) ──
-  // Aggregates active high-confidence policy_impact_events for this state.
-  // Returns 50 (neutral) when events exist but no impact. Returns null
-  // when no policy data was passed in — signal to computeDisplayScore to
-  // rebalance composite weights and skip the policy contribution (preserves
-  // legacy score values for Library/Portfolio surfaces that don't have
-  // policy data plumbed yet).
+  const techLabel = typeof technology === 'string' ? technology : composeTechnology(architecture, structure)
+
+  // ── Incentives (Pillar 4 — ITC step-up eligibility) ──
+  // opts.incentives = raw { energyCommunity, nmtcLic, hudQctDda } getter results.
+  // Absent → score null → excluded from the composite (weights rebalance), so
+  // surfaces that don't fetch county incentive data (Library/Compare) aren't
+  // penalized with a fabricated baseline.
+  const inc = computeIncentiveScore(opts.incentives)
+  const incentives = inc.score
+  const incentivesCoverage = inc.coverage
+
+  // ── Policy & Timing (Pillar 5) ──
+  // Federal tax-credit TIMING risk (OBBBA §48E/§45Y · FEOC · safe harbor — a
+  // pure rules engine over published law, keyed to stage + target COD) blended
+  // with STATE policy headwind risk (severity × probability). No dollars. Each
+  // component is included only when we have a basis for it; the pillar is null
+  // (excluded) when we know neither timing nor any applicable policy.
+  const federal = assessFederalTiming({ codYear: opts.codYear, stage, mwAc: mw })
+  const haveTimingBasis = !!stage || opts.codYear != null
+  const parts = []
+  if (haveTimingBasis) parts.push(federal.score)
+  let statePolicy = null
+  if (Array.isArray(policyEvents) && policyEvents.length > 0) {
+    statePolicy = computeStatePolicyRiskScore(policyEvents, { mw, stage, technology: techLabel, codYear: opts.codYear })
+    if (statePolicy.applicableCount > 0) parts.push(statePolicy.score)
+  }
+  const policyTiming = parts.length ? Math.round(parts.reduce((a, b) => a + b, 0) / parts.length) : null
+  const policyTimingCoverage = policyTiming != null ? 'live' : 'none'
+
+  // Back-compat: legacy `policyClimate` (the old bps-based signal) is retained
+  // until the $ layer + legacy policy UI retire in Phase 2.
   let policyClimate = null
   let policyCoverage = 'none'
   if (Array.isArray(policyEvents)) {
-    const techLabel = typeof technology === 'string' ? technology : composeTechnology(architecture, structure)
     const project = (mw || stage || techLabel) ? { mw, stage, technology: techLabel } : null
     policyClimate = computePolicyClimateScore(policyEvents, project)
     policyCoverage = policyEvents.length > 0 ? 'live' : 'none'
   }
 
-  return { offtake, ix, site, policyClimate, coverage: { offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage, policy: policyCoverage } }
+  return {
+    offtake, ix, site, incentives, policyTiming, policyClimate,
+    // Rich detail for the new pillar cards (federal timing tier + reasons,
+    // applicable state policy events with severity).
+    incentiveDetail: inc.adders,
+    policyDetail: { federal, statePolicy },
+    coverage: {
+      offtake: offtakeCoverage, ix: ixCoverage, site: siteCoverage,
+      incentives: incentivesCoverage, policyTiming: policyTimingCoverage, policy: policyCoverage,
+    },
+  }
 }
 
 // ── Composite weights ────────────────────────────────────────────────────────
@@ -354,89 +418,102 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
 //
 // If/when we get developer-survey or empirical IRR-vs-pillar data that would
 // anchor these weights, replace WEIGHT_SCENARIOS with the empirical values.
-// Three-pillar weights — the Feasibility Index blends offtake / IX / site only.
-// Policy is a SIGNAL (surfaced as Regulatory Watch + the §04 policy-climate
-// tile + verdict-rationale headwinds), NOT a scored prong, so the headline
-// number is one consistent value across Lens / Library / Compare / saved
-// scores. (The PIE-001 4th prong was reverted to a signal on 2026-05-22 — it
-// had been wired into the Lens gauge but not Library/Compare, so the same
-// project showed a different Feasibility Index on different screens.)
+// Five-pillar weights (2026-05 pivot). Tractova-editorial (Tier C — no primary
+// anchor for "how much should each pillar count"); surfaced transparently via
+// the weight-sensitivity range below. computeDisplayScore REBALANCES over
+// whichever pillars are present + finite, so a surface that hasn't fetched a
+// pillar (e.g. Library lacks county incentive data) isn't penalized with a
+// fabricated baseline — it scores on the pillars it has.
+//   Offtake (25) — revenue mechanism / program gate.
+//   Interconnection (25) — the classic binary go/no-go (queue / cost / timeline).
+//   Incentives (20) — post-OBBBA the ITC adder stack is make-or-break; real,
+//     county-level eligibility (EPA energy community / Census-CDFI NMTC / HUD).
+//   Site (15) — the most solvable friction (land / wetland / farmland / zoning).
+//   Policy & Timing (15) — federal tax-credit cliffs (§48E/§45Y, FEOC, safe
+//     harbor) keyed to COD/NTP + state policy headwind risk (severity tiers).
 export const WEIGHT_SCENARIOS = {
-  default: { offtake: 0.40, ix: 0.35, site: 0.25, label: 'Default (offtake-led)',
-             rationale: 'Tractova default — offtake gets highest weight as the revenue mechanism, IX second as the binary go/no-go gate, site third as the most solvable.' },
-  revenue: { offtake: 0.50, ix: 0.30, site: 0.20, label: 'Revenue-tilt',
-             rationale: 'For developers who view CS programs (REC value, capacity availability) as the dominant project-success predictor.' },
-  ix:      { offtake: 0.30, ix: 0.40, site: 0.30, label: 'IX-tilt',
-             rationale: 'For developers in long-queue ISO regions (PJM, MISO) where interconnection delays are the project killer.' },
-  permit:  { offtake: 0.30, ix: 0.30, site: 0.40, label: 'Permit-tilt',
-             rationale: 'For developers in permit-heavy markets (NJ farmland, MA wetlands) where site control is the dominant friction.' },
+  default:   { offtake: 0.25, ix: 0.25, incentives: 0.20, site: 0.15, policyTiming: 0.15, label: 'Default (balanced go/no-go)',
+               rationale: 'Tractova default — offtake + interconnection lead as the classic gates, incentives weighted high post-OBBBA, site most solvable, policy & timing the acute regulatory risk.' },
+  revenue:   { offtake: 0.35, ix: 0.20, incentives: 0.20, site: 0.10, policyTiming: 0.15, label: 'Offtake-tilt',
+               rationale: 'For developers who view the monetization structure (program / PPA) as the dominant success predictor.' },
+  ix:        { offtake: 0.20, ix: 0.35, incentives: 0.15, site: 0.15, policyTiming: 0.15, label: 'Interconnection-tilt',
+               rationale: 'For long-queue ISO regions (PJM, MISO) where interconnection is the project killer.' },
+  permit:    { offtake: 0.20, ix: 0.20, incentives: 0.15, site: 0.30, policyTiming: 0.15, label: 'Site / Permit-tilt',
+               rationale: 'For permit-heavy markets (NJ farmland, MA wetlands) where site control dominates.' },
+  incentive: { offtake: 0.20, ix: 0.20, incentives: 0.35, site: 0.10, policyTiming: 0.15, label: 'Incentive-tilt',
+               rationale: 'For tax-equity-driven developers where ITC adder eligibility + federal timing make or break the deal.' },
 }
 
 const DEFAULT_WEIGHTS = WEIGHT_SCENARIOS.default
+const PILLAR_KEYS = ['offtake', 'ix', 'site', 'incentives', 'policyTiming']
 
-/**
- * Weighted feasibility score from three sub-scores. Internal — assumes
- * all three inputs are finite. Use safeScore at consumer boundaries.
- *
- * @param {number} offtake — 0-100 sub-score
- * @param {number} ix — 0-100 sub-score
- * @param {number} site — 0-100 sub-score
- * @param {{offtake:number, ix:number, site:number}} [weights] — defaults to WEIGHT_SCENARIOS.default
- * @returns {number} rounded weighted average
- */
-export function computeDisplayScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
-  // Three-pillar weighted blend. Policy is a signal, not a scored prong.
-  return Math.round(offtake * weights.offtake + ix * weights.ix + site * weights.site)
+// Accept either a subs object {offtake,ix,site,incentives,policyTiming} (new)
+// or legacy positional (offtake, ix, site). Returns { subs, weights }.
+function resolveScoreArgs(a, b, c, d) {
+  if (a && typeof a === 'object') {
+    const w = b === undefined ? DEFAULT_WEIGHTS : b
+    return { subs: a, weights: w }
+  }
+  const w = d === undefined ? DEFAULT_WEIGHTS : d
+  return { subs: { offtake: a, ix: b, site: c }, weights: w }
 }
 
 /**
- * Defensive wrapper around computeDisplayScore. Returns null when any
- * sub-score or weight component is non-finite. Use this in EVERY
- * consumer that renders the result so a partial-data shape can't
- * poison downstream aggregates.
+ * Weighted feasibility score. Blends whichever of the 5 pillars are present +
+ * finite, REBALANCING the weights over them (a surface missing incentives /
+ * policyTiming scores on the pillars it has — no fabricated baseline). Accepts
+ * a subs object (preferred) or legacy positional (offtake, ix, site).
  *
- * Background: an earlier Library.jsx bug spread `coverage` (a
- * string-keyed object) as `weights`, producing NaN that propagated
- * through Portfolio Health + Geographic Spread. The bug was fixed at
- * source but this wrapper means the same shape can't re-bite.
+ * @returns {number|null} rounded rebalanced weighted average (null if no pillars)
+ */
+export function computeDisplayScore(a, b, c, d) {
+  const { subs, weights } = resolveScoreArgs(a, b, c, d)
+  if (!weights || typeof weights !== 'object') return null
+  let acc = 0, wsum = 0
+  for (const k of PILLAR_KEYS) {
+    if (Number.isFinite(subs?.[k]) && Number.isFinite(weights[k])) { acc += subs[k] * weights[k]; wsum += weights[k] }
+  }
+  if (wsum === 0) return null
+  return Math.round(acc / wsum)
+}
+
+/**
+ * Defensive boundary wrapper. Requires the three CORE pillars (offtake/ix/site)
+ * finite; incentives + policyTiming are optional (rebalanced when absent).
+ * Returns null on a broken weights object so a malformed shape can't NaN-poison
+ * downstream aggregates (Portfolio Health etc.).
  *
- * @param {number|null|undefined} offtake
- * @param {number|null|undefined} ix
- * @param {number|null|undefined} site
- * @param {object} [weights]
  * @returns {number|null}
  */
-export function safeScore(offtake, ix, site, weights = DEFAULT_WEIGHTS) {
-  if (!Number.isFinite(offtake) || !Number.isFinite(ix) || !Number.isFinite(site)) return null
-  if (!weights || !Number.isFinite(weights.offtake) || !Number.isFinite(weights.ix) || !Number.isFinite(weights.site)) return null
-  const result = computeDisplayScore(offtake, ix, site, weights)
+export function safeScore(a, b, c, d) {
+  const { subs, weights } = resolveScoreArgs(a, b, c, d)
+  if (!weights || typeof weights !== 'object'
+      || !Number.isFinite(weights.offtake) || !Number.isFinite(weights.ix) || !Number.isFinite(weights.site)) return null
+  if (!Number.isFinite(subs?.offtake) || !Number.isFinite(subs?.ix) || !Number.isFinite(subs?.site)) return null
+  const result = computeDisplayScore(subs, weights)
   return Number.isFinite(result) ? result : null
 }
 
 /**
- * Computes the score under each of the four WEIGHT_SCENARIOS so the UI
- * can show methodology sensitivity. A wide spread (15+ pts) = the
- * verdict is sensitive to weight choice and worth flagging.
- *
- * @param {number} offtake
- * @param {number} ix
- * @param {number} site
- * @returns {{default:number, min:number, max:number, spread:number, scenarios:object}}
+ * Score under each WEIGHT_SCENARIOS so the UI can show methodology sensitivity.
+ * A wide spread = the verdict depends on weight choice. Accepts a subs object
+ * or legacy positional (offtake, ix, site).
  */
-export function computeDisplayScoreRange(offtake, ix, site) {
+export function computeDisplayScoreRange(a, b, c) {
+  const subs = (a && typeof a === 'object') ? a : { offtake: a, ix: b, site: c }
   const scenarios = {}
   let min = Infinity, max = -Infinity
   for (const [k, w] of Object.entries(WEIGHT_SCENARIOS)) {
-    const s = computeDisplayScore(offtake, ix, site, w)
-    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site } }
-    if (s < min) min = s
-    if (s > max) max = s
+    const s = computeDisplayScore(subs, w)
+    scenarios[k] = { score: s, label: w.label, rationale: w.rationale, weights: { offtake: w.offtake, ix: w.ix, site: w.site, incentives: w.incentives, policyTiming: w.policyTiming } }
+    if (s != null && s < min) min = s
+    if (s != null && s > max) max = s
   }
   return {
     default: scenarios.default.score,
-    min,
-    max,
-    spread: max - min,
+    min: Number.isFinite(min) ? min : null,
+    max: Number.isFinite(max) ? max : null,
+    spread: (Number.isFinite(min) && Number.isFinite(max)) ? max - min : 0,
     scenarios,
   }
 }
@@ -466,8 +543,11 @@ export function scoreProjects(projects, stateProgramMap, policyEventsByState = n
     const sp = stateProgramMap?.[p.state]
     if (!sp) return { ...p, score: 0 }
     const policies = policyEventsByState?.[p.state] || null
-    const subs = computeSubScores(sp, null, p.stage, p.technology, null, policies, p.mw)
-    return { ...p, score: safeScore(subs.offtake, subs.ix, subs.site) }
+    // Pass codYear so the Policy & Timing pillar (federal tax-credit cliff) is
+    // included for saved projects. Incentives stays excluded here (no county
+    // incentive fetch in the portfolio path) → rebalanced out of the composite.
+    const subs = computeSubScores(sp, null, p.stage, p.technology, null, policies, p.mw, { codYear: p.cod_target_year })
+    return { ...p, score: safeScore(subs) }
   })
 }
 

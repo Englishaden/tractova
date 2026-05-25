@@ -10,17 +10,18 @@ import { STATUS_CFG, getMarketRank } from '../lib/searchShared.jsx'
 // then asymmetric two-column body: tachometer left, identity + sub-scores right.
 // §7.4: accepts activeScenario prop. When active, gauge renders the override score
 // with a delta indicator. Toggle row renders below this panel via the parent.
-export default function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, activeScenario, ixQueueSummary, policyEvents = [], mw = null }) {
+export default function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, activeScenario, ixQueueSummary, policyEvents = [], mw = null, incentives = null, codYear = null }) {
   if (!stateProgram) return null
   // Apply scenario override if active — recompute sub-scores from the override state
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const { offtake, ix, site, coverage } = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw)
+  const subs = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
+  const { offtake, ix, site, coverage } = subs
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
-  const score = safeScore(offtake, ix, site)
+  const score = safeScore(subs)
   // Base-case score for delta calculation
-  const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw)
-  const baseScore = safeScore(baseSubs.offtake, baseSubs.ix, baseSubs.site)
+  const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
+  const baseScore = safeScore(baseSubs)
   // Guard delta math against null scores (safeScore returns null when any
   // sub-score isn't finite — e.g. partial data + edge-case state programs).
   const delta = (activeScenario && score != null && baseScore != null) ? score - baseScore : 0
@@ -38,7 +39,7 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
   // whether the project's verdict is robust to methodology choice.
   // Surfaced when spread > 4 (meaningful sensitivity); suppressed otherwise
   // so it doesn't add noise to clearly-strong / clearly-weak projects.
-  const scoreRange = computeDisplayScoreRange(offtake, ix, site)
+  const scoreRange = computeDisplayScoreRange(subs)
   // When state/county is outside our curated coverage, surface that to match
   // the honesty already in the revenue panel ("model not available"). Without
   // this, the user sees a feasibility number that looks researched but is

@@ -16,7 +16,7 @@ import {
 export default function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, activeScenario, scenarioRationale, setScenarioRationale, rationaleLoading, setRationaleLoading, ixQueueSummary }) {
   const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
   const effectiveSub = computeSubScores(effectiveProgram, countyData, form.stage, form.technology, ixQueueSummary)
-  effectiveProgram.feasibilityScore = safeScore(effectiveSub.offtake, effectiveSub.ix, effectiveSub.site)
+  effectiveProgram.feasibilityScore = safeScore(effectiveSub)
   const data = generateMarketSummary({ stateProgram: effectiveProgram, countyData, form })
 
   // Brief feedback loop: when a scenario toggles, pulse a "Brief Updated"

@@ -4,6 +4,7 @@ import {
   computeDisplayScore,
   computeDisplayScoreRange,
   computeSubScores,
+  computeIncentiveScore,
   getOfftakeCoverageStates,
   WEIGHT_SCENARIOS,
   STAGE_MODIFIERS,
@@ -56,9 +57,17 @@ describe('computeDisplayScore — basic weighted sum', () => {
     expect(computeDisplayScore(80, 70, 60)).toBe(72)
   })
 
-  it('honors custom weights', () => {
-    // revenue tilt: 80 * .50 + 70 * .30 + 60 * .20 = 40 + 21 + 12 = 73
-    expect(computeDisplayScore(80, 70, 60, WEIGHT_SCENARIOS.revenue)).toBe(73)
+  it('honors custom weights, rebalanced over the present pillars', () => {
+    // revenue tilt over offtake/ix/site only (incentives+policyTiming absent):
+    // (80*.35 + 70*.20 + 60*.10) / (.35+.20+.10) = 48 / .65 ≈ 73.8 → 74
+    expect(computeDisplayScore(80, 70, 60, WEIGHT_SCENARIOS.revenue)).toBe(74)
+  })
+
+  it('includes incentives + policyTiming when passed a 5-pillar subs object', () => {
+    const three = computeDisplayScore({ offtake: 80, ix: 70, site: 60 })
+    const five = computeDisplayScore({ offtake: 80, ix: 70, site: 60, incentives: 100, policyTiming: 100 })
+    // Adding two high pillars lifts the composite vs the 3-pillar rebalance.
+    expect(five).toBeGreaterThan(three)
   })
 })
 
@@ -70,7 +79,7 @@ describe('computeDisplayScoreRange — methodology sensitivity', () => {
     expect(r).toHaveProperty('max')
     expect(r).toHaveProperty('spread')
     expect(r.spread).toBe(r.max - r.min)
-    expect(Object.keys(r.scenarios).sort()).toEqual(['default', 'ix', 'permit', 'revenue'])
+    expect(Object.keys(r.scenarios).sort()).toEqual(['default', 'incentive', 'ix', 'permit', 'revenue'])
   })
 
   it('spread is zero when all sub-scores are equal (any weights yield same)', () => {
@@ -86,8 +95,10 @@ describe('computeSubScores — main entry', () => {
       offtake: 0,
       ix: 0,
       site: 0,
+      incentives: null,
+      policyTiming: null,
       policyClimate: 50,
-      coverage: { offtake: 'researched', ix: 'curated', site: 'researched', policy: 'none' },
+      coverage: { offtake: 'researched', ix: 'curated', site: 'researched', incentives: 'none', policyTiming: 'none', policy: 'none' },
     })
   })
 
@@ -313,5 +324,54 @@ describe('computeSubScores — two-axis model (architecture × structure)', () =
     const pv = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Community Solar' })
     expect(bess.ix - pv.ix).toBe(5)
     expect(bess.offtake).toBeGreaterThan(0)
+  })
+})
+
+describe('computeIncentiveScore — Pillar 4 (ITC step-up eligibility)', () => {
+  it('returns null/none when no county incentive data is provided', () => {
+    expect(computeIncentiveScore(undefined).score).toBeNull()
+    expect(computeIncentiveScore({ energyCommunity: null, nmtcLic: null, hudQctDda: null }).coverage).toBe('none')
+  })
+
+  it('base §48E only (covered county, no adders) → 50', () => {
+    const r = computeIncentiveScore({ energyCommunity: { isEnergyCommunity: false }, nmtcLic: { isEligible: false }, hudQctDda: { qctCount: 0, isNonMetroDda: false } })
+    expect(r.coverage).toBe('live')
+    expect(r.score).toBe(50)
+  })
+
+  it('full adder stack (Energy Community + Low-Income Community) → 100', () => {
+    const r = computeIncentiveScore({ energyCommunity: { isEnergyCommunity: true }, nmtcLic: { isEligible: true }, hudQctDda: null })
+    expect(r.score).toBe(100)
+    expect(r.adders.energyCommunity).toBe(true)
+    expect(r.adders.lowIncomeCommunity).toBe(true)
+  })
+
+  it('HUD QCT/DDA alone qualifies the Low-Income Community adder', () => {
+    const r = computeIncentiveScore({ energyCommunity: null, nmtcLic: { isEligible: false }, hudQctDda: { qctCount: 3, isNonMetroDda: false } })
+    expect(r.adders.lowIncomeCommunity).toBe(true)
+    expect(r.score).toBe(75)
+  })
+})
+
+describe('computeSubScores — Pillar 4/5 (incentives + policy & timing)', () => {
+  const NY = { id: 'NY', csStatus: 'active', capacityMW: 600, ixDifficulty: 'moderate' }
+
+  it('incentives pillar is null (excluded) when no stack passed; live when passed', () => {
+    const noInc = computeSubScores(NY, null, 'Development', 'Community Solar')
+    expect(noInc.incentives).toBeNull()
+    expect(noInc.coverage.incentives).toBe('none')
+
+    const withInc = computeSubScores(NY, null, 'Development', 'Community Solar', null, null, 5, {
+      incentives: { energyCommunity: { isEnergyCommunity: true }, nmtcLic: { isEligible: true }, hudQctDda: null },
+    })
+    expect(withInc.incentives).toBe(100)
+    expect(withInc.coverage.incentives).toBe('live')
+  })
+
+  it('policyTiming reflects federal timing from stage (early-stage at-risk < late-stage)', () => {
+    const early = computeSubScores(NY, null, 'Prospecting', 'Community Solar', null, null, 5, { codYear: 2029 })
+    const late = computeSubScores(NY, null, 'Operational', 'Community Solar', null, null, 5, { codYear: 2029 })
+    expect(late.policyTiming).toBeGreaterThan(early.policyTiming)
+    expect(late.coverage.policyTiming).toBe('live')
   })
 })

@@ -17,7 +17,39 @@ import {
   applyDeltasToInputs,
   computePolicyAdjustments,
   computePolicyClimateScore,
+  computeStatePolicyRiskScore,
+  policySeverityTier,
 } from '../../src/lib/policyAdjustments.js'
+
+describe('computeStatePolicyRiskScore — severity-based Policy & Timing input', () => {
+  const hi = (over = {}) => ({ impact_confidence: 'high', is_active: true, review_status: 'published', applies_to_new_applications: true, ...over })
+
+  it('returns 100 (clean) when no events or none applicable', () => {
+    expect(computeStatePolicyRiskScore([]).score).toBe(100)
+    expect(computeStatePolicyRiskScore(null).score).toBe(100)
+  })
+
+  it('uses explicit impact_severity when set; severe drops the score more than small', () => {
+    const severe = computeStatePolicyRiskScore([hi({ event_name: 'X', impact_severity: 'severe', impact_probability: 'high' })], { stage: 'Prospecting' })
+    const small = computeStatePolicyRiskScore([hi({ event_name: 'Y', impact_severity: 'small', impact_probability: 'high' })], { stage: 'Prospecting' })
+    expect(severe.score).toBeLessThan(small.score)
+    expect(severe.score).toBe(70)   // 100 - 30*1.0
+    expect(small.score).toBe(94)    // 100 - 6*1.0
+  })
+
+  it('probability scales the penalty', () => {
+    const high = computeStatePolicyRiskScore([hi({ event_name: 'X', impact_severity: 'severe', impact_probability: 'high' })], { stage: 'Prospecting' })
+    const low = computeStatePolicyRiskScore([hi({ event_name: 'X', impact_severity: 'severe', impact_probability: 'low' })], { stage: 'Prospecting' })
+    expect(low.score).toBeGreaterThan(high.score)  // 100 - 30*0.3 = 91 > 70
+  })
+
+  it('bridges from legacy irr_impact_bps magnitude when severity unset; tailwinds add no risk', () => {
+    expect(policySeverityTier({ irr_impact_bps: -476 })).toBe('severe')
+    expect(policySeverityTier({ irr_impact_bps: -150 })).toBe('medium')
+    expect(policySeverityTier({ irr_impact_bps: -40 })).toBe('small')
+    expect(policySeverityTier({ irr_impact_bps: 200 })).toBeNull()  // tailwind → no penalty
+  })
+})
 
 // Test-fixture factory — produces a policy row with sensible defaults.
 // Tests override only the field they're exercising.

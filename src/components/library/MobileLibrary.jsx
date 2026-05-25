@@ -104,8 +104,8 @@ export default function MobileLibrary() {
     const sorted = [...rows]
     if (sortBy === 'score') {
       sorted.sort((a, b) => {
-        const sa = safeScore(computeSubScores(a, stateProgramMap[a.state], countyDataMap[`${a.state}::${a.county}`]).composite)
-        const sb = safeScore(computeSubScores(b, stateProgramMap[b.state], countyDataMap[`${b.state}::${b.county}`]).composite)
+        const sa = safeScore(computeSubScores(stateProgramMap[a.state], countyDataMap[`${a.state}::${a.county}`], a.stage, a.technology, null, null, a.mw, { codYear: a.cod_target_year }))
+        const sb = safeScore(computeSubScores(stateProgramMap[b.state], countyDataMap[`${b.state}::${b.county}`], b.stage, b.technology, null, null, b.mw, { codYear: b.cod_target_year }))
         return (sb ?? -1) - (sa ?? -1)
       })
     } else if (sortBy === 'mw') {

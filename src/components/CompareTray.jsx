@@ -103,7 +103,7 @@ function CompareModal({ onClose }) {
         ])
         if (!sp) return [it.id, null]
         const sub = computeSubScores(sp, cd, it.stage, it.technology)
-        const score = safeScore(sub.offtake, sub.ix, sub.site)
+        const score = safeScore(sub)
         return [it.id, {
           subOfftake: sub.offtake, subIx: sub.ix, subSite: sub.site,
           score, csStatus: sp.csStatus, capacityMW: sp.capacityMW,

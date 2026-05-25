@@ -92,7 +92,7 @@ export default function LibraryMap({
       stateSet.add(p.state)
       const cd = countyDataMap?.[`${p.state}::${p.county}`] || null
       const subs = computeSubScores(sp, cd, p.stage, p.technology)
-      const score = safeScore(subs.offtake, subs.ix, subs.site)
+      const score = safeScore(subs)
       const mw = parseFloat(p.mw) || 0
       const w = mw > 0 ? mw : 1
       if (score != null) {
@@ -117,7 +117,7 @@ export default function LibraryMap({
       if (!sp) continue
       const cd = countyDataMap?.[`${p.state}::${p.county}`] || null
       const subs = computeSubScores(sp, cd, p.stage, p.technology)
-      const score = safeScore(subs.offtake, subs.ix, subs.site)
+      const score = safeScore(subs)
       if (score == null) continue
       const mw = parseFloat(p.mw) || 0
       if (!agg[p.state]) agg[p.state] = { mwSum: 0, weighted: 0, count: 0 }
@@ -140,7 +140,7 @@ export default function LibraryMap({
       if (!centroid) return null
       const cd = countyDataMap?.[`${p.state}::${p.county}`] || null
       const subs = computeSubScores(sp, cd, p.stage, p.technology)
-      const score = safeScore(subs.offtake, subs.ix, subs.site)
+      const score = safeScore(subs)
       const mw = parseFloat(p.mw) || 0
       return { id: p.id, name: p.name, state: p.state, county: p.county, mw, score, centroid, project: p }
     }).filter(Boolean)

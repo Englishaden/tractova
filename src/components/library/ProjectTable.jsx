@@ -164,7 +164,7 @@ export default function ProjectTable({
     const sp = stateProgramMap[p.state]
     const cd = countyDataMap[`${p.state}::${p.county}`] || null
     const subs = sp ? computeSubScores(sp, cd, p.stage, p.technology) : null
-    const score = subs ? safeScore(subs.offtake, subs.ix, subs.site) : null
+    const score = subs ? safeScore(subs) : null
     const alerts = sp ? getAlerts(p, stateProgramMap, countyDataMap) : []
     return { p, score, alerts }
   }), [projects, stateProgramMap, countyDataMap])

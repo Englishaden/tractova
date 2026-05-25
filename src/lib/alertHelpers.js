@@ -70,7 +70,7 @@ export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
   // the score will refine as countyDataMap populates and the alert re-renders.
   const cd = countyDataMap[`${project.state}::${project.county}`] || null
   const currentSubs = computeSubScores(current, cd, project.stage, project.technology)
-  const currentLiveScore = safeScore(currentSubs.offtake, currentSubs.ix, currentSubs.site)
+  const currentLiveScore = safeScore(currentSubs)
   if (project.feasibilityScore != null && currentLiveScore < project.feasibilityScore - 10) {
     alerts.push({
       level: 'warning', kind: 'concern', pillar: 'Market',

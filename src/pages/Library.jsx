@@ -436,7 +436,7 @@ function LibraryContent() {
         try {
           const cd = countyDataMap[`${p.state}::${p.county}`] || null
           const subs = computeSubScores(sp, cd, p.stage, p.technology)
-          const liveScore = safeScore(subs.offtake, subs.ix, subs.site)
+          const liveScore = safeScore(subs)
           const previous = p.lastObservedScore
           if (previous == null) {
             // First observation -- just seed the column, don't log an event.
@@ -494,7 +494,7 @@ function LibraryContent() {
     try {
       const cd = countyDataMap[`${project.state}::${project.county}`] || null
       const subs = computeSubScores(sp, cd, newStage, project.technology)
-      const newScore = safeScore(subs.offtake, subs.ix, subs.site)
+      const newScore = safeScore(subs)
       const previous = project.lastObservedScore
       if (previous == null) {
         await supabase.from('projects').update({ last_observed_score: newScore }).eq('id', id)
