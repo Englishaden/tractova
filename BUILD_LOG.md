@@ -17,14 +17,13 @@ Aden picked this as the next arc (designed together first: placement = section i
 ### Verified (lint + 203 unit + build + 7/7 smoke green; headless render confirmed)
 Drove a real Lens headless (NY · Albany · 5 MW · Standalone PV, AI call route-blocked = no paid request): section renders with **real numbers** — Net Metering $1.79M (full retail, BEST) > Community Solar $1.32M > C&I Solar $988k (discounted PPA), Net Billing gated. Confirms the design thesis (full-retail NM out-earns discounted-PPA C&I). Commit **`<pending>`**.
 
-### Debt logged
-`src/pages/Search.jsx` crossed the 1500-LOC budget (1515) → allowlisted at 1550 with a decomposition target (extract the `{results && …}` panel into `<LensResults>`). Tracked as a follow-up.
+### Debt cleared (same session)
+`src/pages/Search.jsx` briefly crossed 1500 LOC (1515) when the comparison section landed. Rather than carry an arbitrary allowlist bump (Aden: the 1500 line is a proxy for "keep it condensed," not a number to game), extracted the gnarliest chunk — the ~110-line Re-run drift IIFE (embedded async save handler inside the results JSX) — into **`components/lens/ReRunDriftCallout.jsx`** (owns its own save state; 4-prop interface). Search.jsx back to ~1405 LOC; **allowlist entry removed** (no exception). Verified zero behavior change via headless render (results panel mounts, no page errors). Picked the surgical extraction over a 25-prop `<LensResults>` mega-component (that wide seam would be worse, not better).
 
 ### ⏭ DO NEXT (Aden's call)
 1. **Net-billing economics** — source per-state export-credit data (CA NEM 3.0 ACC + others); the last gated structure (also unlocks its row in this comparison).
 2. **Manual-data IX ingest pipeline** for the 7 gated states (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS).
-3. **Search.jsx decomposition** (extract `<LensResults>`) — clears the LOC debt above.
-4. **Hygiene:** allowlist/genericize the glossary p50/p90 `$1.32–1.78/W` / `$0.60/W` example numbers so the citation linter stops flagging commits.
+3. **Hygiene:** allowlist/genericize the glossary p50/p90 `$1.32–1.78/W` / `$0.60/W` example numbers so the citation linter stops flagging commits.
 
 ---
 
