@@ -16,14 +16,8 @@ const TIER = {
 export default function PolicyTimingCardSummary({ score, coverage, policyDetail, onOpen }) {
   const noData = coverage === 'none' || score == null
   const federal = policyDetail?.federal
-  const events = policyDetail?.statePolicy?.events || []
   const tier = federal?.tier && TIER[federal.tier] ? federal.tier : null
   const t = tier ? TIER[tier] : null
-
-  let caption
-  if (noData) caption = 'Set a stage + target COD to assess federal timing + state policy risk.'
-  else if (events.length > 0) caption = `${events.length} applicable state polic${events.length === 1 ? 'y' : 'ies'} · top: ${events[0].event_name} (${events[0].severity}).`
-  else caption = federal?.reasons?.[0] || 'Federal tax-credit window assessed; no applicable state headwinds.'
 
   const statusChip = (noData || !t) ? null : (
     <span
@@ -36,12 +30,11 @@ export default function PolicyTimingCardSummary({ score, coverage, policyDetail,
 
   return (
     <SummaryShell
-      pillarLabel="05 / Policy & Timing"
+      pillarLabel="05 / Policy"
       pillarAccent={PILLAR_ACCENT}
       title={federal?.headline || 'Federal + State Risk'}
       score={noData ? null : score}
       coverage={coverage}
-      caption={caption}
       statusChip={statusChip}
       onOpen={onOpen}
     />

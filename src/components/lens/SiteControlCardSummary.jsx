@@ -5,30 +5,12 @@ import { SummaryShell } from './OfftakeCardSummary'
 
 const PILLAR_ACCENT = '#2563EB'
 
-export default function SiteControlCardSummary({ siteControl, geospatial, county, stateName, score, coverage, onOpen }) {
+export default function SiteControlCardSummary({ geospatial, county, stateName, score, coverage, onOpen }) {
   const title = county ? `${county} County` : (stateName || 'Site')
 
-  // Caption prefers live geospatial coverage (NWI wetlands + SSURGO
-  // farmland, all 3,142 counties) over curated booleans. When neither
-  // is available, surface the empty-state honestly.
+  // Status chip: tone derives from live wetland coverage when present
+  // (>=25% = permit risk). Detailed geospatial breakdown lives in the modal.
   const wet = geospatial?.wetlandCoveragePct
-  const farm = geospatial?.primeFarmlandPct
-  let caption = null
-  if (wet != null || farm != null) {
-    const parts = []
-    if (wet != null) parts.push(`Wetlands ${wet.toFixed(1)}%`)
-    if (farm != null) parts.push(`Prime farmland ${farm.toFixed(1)}%`)
-    caption = parts.join(' · ')
-  } else if (siteControl?.availableLand != null) {
-    caption = siteControl.availableLand
-      ? 'Curated: developable land identified'
-      : 'Curated: limited developable land'
-  } else {
-    caption = 'No site signal yet for this county'
-  }
-
-  // Status chip: tone derives from wetland coverage if present (>=25% =
-  // permit risk), or curated availableLand if not.
   let statusChip = null
   if (wet != null) {
     const constrained = wet >= 25
@@ -53,7 +35,6 @@ export default function SiteControlCardSummary({ siteControl, geospatial, county
       title={title}
       score={score}
       coverage={coverage}
-      caption={caption}
       statusChip={statusChip}
       onOpen={onOpen}
     />

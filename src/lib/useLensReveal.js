@@ -44,14 +44,25 @@ export function useLensReveal(active) {
         el.style.transform = ty ? `translateY(${ty.toFixed(1)}px)` : 'none'
       }
     }
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
+    const schedule = () => { if (!raf) raf = requestAnimationFrame(update) }
+
+    // A collapsible section opening/closing changes el heights without a
+    // scroll, so the scroll-derived opacity/transform would otherwise stay
+    // stale — leaving a just-toggled section invisible or vertically offset
+    // until the next scroll. A ResizeObserver re-runs the same pass whenever
+    // any section's box changes (rAF-coalesced, so a height transition's
+    // per-frame resizes collapse to one update/frame). Callback only writes
+    // compositor props (no layout), so no RO feedback loop.
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
+    if (ro) els.forEach((el) => ro.observe(el))
 
     update()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
     return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+      ro?.disconnect()
       cancelAnimationFrame(raf)
       els.forEach((el) => { el.style.opacity = ''; el.style.transform = ''; el.style.willChange = '' })
     }

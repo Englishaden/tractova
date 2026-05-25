@@ -1,25 +1,55 @@
 import { useState } from 'react'
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 
 const MONO = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
+const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 
 // Collapsible Lens result section. The header mirrors SectionMarker (mono
-// "§ NN · Label" + hairline rule + optional sublabel) with a chevron toggle;
-// the body is CONDITIONALLY RENDERED (never height-auto — that animation is the
-// OOM landmine flagged in BUILD_LOG 2026-05-11) and fades in/out on toggle.
+// "§ NN · Label" + hairline rule + optional sublabel) with a chevron toggle.
 //
-// On a fresh Lens run every section is collapsed except the headline Market
-// Position (defaultOpen). Collapsing unmounts the body, so heavy sections
-// (maps, comparable-deal tables) don't pay their render cost until opened.
+// The body height animates via the CSS grid-template-rows 0fr↔1fr technique —
+// NOT framer-motion height:auto. That distinction matters: the OOM landmine
+// flagged in BUILD_LOG 2026-05-11 was framer's height:auto, which re-measures
+// the subtree in a JS loop every frame. grid-rows is pure CSS — the compositor
+// interpolates the track, no measurement, no re-render — so it animates open/
+// close smoothly without the memory blowup.
+//
+// Body content stays mount-gated: it mounts on open and unmounts after the
+// close transition finishes, so heavy sections (comparable-deal tables) don't
+// pay their render cost while collapsed. On a fresh Lens run every section is
+// collapsed except the headline Market Position (defaultOpen).
 export default function CollapsibleSection({ index, label, sublabel, defaultOpen = false, dataTourId, children }) {
-  const [open, setOpen] = useState(defaultOpen)
+  const [open, setOpen] = useState(defaultOpen)         // intent — drives chevron + aria
+  const [expanded, setExpanded] = useState(defaultOpen) // visual grid state (0fr/1fr)
+  const [render, setRender] = useState(defaultOpen)     // body present in the DOM
   const reduced = useReducedMotion()
+
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    if (next) {
+      setRender(true)
+      if (reduced) setExpanded(true)
+      // Two rAFs so the browser paints the 0fr state before we flip to 1fr —
+      // otherwise it mounts already-expanded and there's no transition.
+      else requestAnimationFrame(() => requestAnimationFrame(() => setExpanded(true)))
+    } else {
+      setExpanded(false)        // animate 1fr→0fr; unmount onTransitionEnd
+      if (reduced) setRender(false)
+    }
+  }
+
+  const handleTransitionEnd = (e) => {
+    if (e.target === e.currentTarget && e.propertyName === 'grid-template-rows' && !expanded) {
+      setRender(false)
+    }
+  }
 
   return (
     <section className="mt-8" data-tour-id={dataTourId}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-expanded={open}
         className="w-full flex items-center gap-3 mb-4 text-left group/sec cursor-pointer focus-visible:outline-none"
       >
@@ -42,7 +72,7 @@ export default function CollapsibleSection({ index, label, sublabel, defaultOpen
           className="shrink-0 inline-flex items-center justify-center w-6 h-6 rounded-md border transition-colors group-hover/sec:border-teal-300 group-hover/sec:text-teal-700"
           style={{ borderColor: '#E2E8F0', color: '#5A6B7A' }}
           animate={{ rotate: open ? 180 : 0 }}
-          transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           aria-hidden="true"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -51,19 +81,24 @@ export default function CollapsibleSection({ index, label, sublabel, defaultOpen
         </motion.span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            key="body"
-            initial={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div
+        className="grid"
+        style={{
+          gridTemplateRows: expanded ? '1fr' : '0fr',
+          transition: reduced ? 'none' : `grid-template-rows 0.34s ${EASE}`,
+        }}
+        onTransitionEnd={handleTransitionEnd}
+      >
+        <div
+          className="overflow-hidden"
+          style={{
+            opacity: expanded ? 1 : 0,
+            transition: reduced ? 'none' : `opacity 0.28s ${EASE}`,
+          }}
+        >
+          {render && children}
+        </div>
+      </div>
     </section>
   )
 }

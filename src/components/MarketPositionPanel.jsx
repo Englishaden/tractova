@@ -8,23 +8,13 @@ import { STATUS_CFG, getMarketRank } from '../lib/searchShared.jsx'
 // V3 redesign: editorial-intelligence "research note" hero block.
 // Drops the dark gradient banner. Mono eyebrow strip up top with metadata,
 // then asymmetric two-column body: tachometer left, identity + sub-scores right.
-// §7.4: accepts activeScenario prop. When active, gauge renders the override score
-// with a delta indicator. Toggle row renders below this panel via the parent.
-export default function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, activeScenario, ixQueueSummary, policyEvents = [], mw = null, incentives = null, codYear = null }) {
+export default function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, ixQueueSummary, policyEvents = [], mw = null, incentives = null, codYear = null }) {
   if (!stateProgram) return null
-  // Apply scenario override if active — recompute sub-scores from the override state
-  const effectiveProgram = activeScenario ? { ...stateProgram, ...activeScenario.override } : stateProgram
-  const subs = computeSubScores(effectiveProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
+  const subs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
   const { offtake, ix, site, incentives: incentivesScore, policyTiming, coverage, incentiveDetail, policyDetail } = subs
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
-  const status = STATUS_CFG[effectiveProgram.csStatus] || STATUS_CFG.none
+  const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
   const score = safeScore(subs)
-  // Base-case score for delta calculation
-  const baseSubs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
-  const baseScore = safeScore(baseSubs)
-  // Guard delta math against null scores (safeScore returns null when any
-  // sub-score isn't finite — e.g. partial data + edge-case state programs).
-  const delta = (activeScenario && score != null && baseScore != null) ? score - baseScore : 0
   // State-level baseline: stage-agnostic + county-agnostic. This is the
   // "MN market = 81" number the Analyst Brief uses, distinct from the
   // gauge's project-adjusted score (which applies stage modifiers + the
@@ -208,16 +198,6 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
               </Tooltip>
             </>
           )}
-          {/* §7.4: scenario indicator in the eyebrow when active */}
-          {activeScenario && (
-            <>
-              <span className="text-gray-300 text-[9px]">/</span>
-              <span className="eyebrow-mono px-1.5 py-0.5 font-bold"
-                style={{ background: 'rgba(245,158,11,0.12)', color: '#92400E', border: '1px solid rgba(245,158,11,0.40)' }}>
-                ◆ Scenario · {activeScenario.label.replace('What if ', '').replace('?', '')}
-              </span>
-            </>
-          )}
         </div>
         <span
           className="eyebrow-mono px-2 py-0.5"
@@ -235,15 +215,6 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
             Feasibility Index
           </p>
           <ArcGauge score={score} />
-          {/* §7.4: delta indicator when a scenario is active */}
-          {activeScenario && delta !== 0 && (
-            <span
-              className="mt-1 font-mono text-[12px] font-bold tabular-nums"
-              style={{ color: delta > 0 ? '#0F766E' : '#DC2626' }}
-            >
-              {delta > 0 ? '↑' : '↓'} {delta > 0 ? '+' : ''}{delta} vs base ({baseScore})
-            </span>
-          )}
           {/* State baseline reference — surfaces the unadjusted state-level
               composite (the same number the Analyst Brief cites as "the
               market is X/100") so users can read the gauge as a delta from
@@ -358,14 +329,14 @@ export default function MarketPositionPanel({ stateProgram, countyData, programM
                 </TooltipContent>
               </Tooltip>
             </div>
-            <SubScoreBar label="Offtake"         weight="25%" value={offtake} baseValue={baseSubs.offtake} color="#0F766E" />
-            <SubScoreBar label="Interconnection" weight="25%" value={ix}      baseValue={baseSubs.ix}      color="#D97706" />
+            <SubScoreBar label="Offtake"         weight="25%" value={offtake} color="#0F766E" />
+            <SubScoreBar label="Interconnection" weight="25%" value={ix}      color="#D97706" />
             {incentivesScore != null && (
-              <SubScoreBar label="Incentives"    weight="20%" value={incentivesScore} baseValue={baseSubs.incentives} color="#15803D" />
+              <SubScoreBar label="Incentives"    weight="20%" value={incentivesScore} color="#15803D" />
             )}
-            <SubScoreBar label="Site Control"    weight="20%" value={site}    baseValue={baseSubs.site}    color="#2563EB" />
+            <SubScoreBar label="Site Control"    weight="20%" value={site}    color="#2563EB" />
             {policyTiming != null && (
-              <SubScoreBar label="Policy & Timing" weight="10%" value={policyTiming} baseValue={baseSubs.policyTiming} color="#475569" />
+              <SubScoreBar label="Policy & Timing" weight="10%" value={policyTiming} color="#475569" />
             )}
             {hasCoverageNote && (
               <div

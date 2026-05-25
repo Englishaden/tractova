@@ -33,9 +33,7 @@ import LensTour from '../components/LensTour'
 import DataLimitationsModal from '../components/DataLimitationsModal'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import RunIdMasthead from '../components/RunIdMasthead'
-import SectionMarker from '../components/SectionMarker'
 import CollapsibleSection from '../components/CollapsibleSection'
-import LensScenarioRow from '../components/LensScenarioRow'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
@@ -45,9 +43,9 @@ import LensRegulatoryWatchSection from '../components/LensRegulatoryWatchSection
 import { getNearestSubstations } from '../lib/substationEngine'
 
 // Sprint F.2 — helpers (getMarketRank, STATUS_CFG, sanitizeBrief, presentational
-// primitives, computeScoreDelta, buildSensitivityScenarios, CHIP_COLORS)
-// moved to src/lib/searchShared.jsx to break the import cycle with child
-// components that previously re-imported these from this page.
+// primitives, CHIP_COLORS) moved to src/lib/searchShared.jsx to break the
+// import cycle with child components that previously re-imported these from
+// this page.
 //
 // Search.jsx defines them no longer; both the page and the child components
 // now import from the shared module. Re-exported below as a kindness to any
@@ -64,8 +62,6 @@ export {
   QueueBadge,
   RunwayBadge,
   CSStatusBadge,
-  computeScoreDelta,
-  buildSensitivityScenarios,
   CHIP_COLORS,
 } from '../lib/searchShared.jsx'
 
@@ -128,19 +124,14 @@ function PillarIcon({ type }) {
 
 // generateMarketSummary moved to src/lib/lensHelpers.js (Sprint 2.3).
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Sensitivity analysis — score delta + scenario builder
-// computeScoreDelta + buildSensitivityScenarios moved to src/lib/searchShared.jsx
-// (Sprint F.2). Re-exported at the top of this file for back-compat.
-// ─────────────────────────────────────────────────────────────────────────────
 // BriefDrilldown moved to src/components/BriefDrilldown.jsx (Sprint E.3).
 
 // MarketIntelligenceSummary moved to src/components/MarketIntelligenceSummary.jsx (Sprint 2.3).
 
-// LensScenarioRow moved to src/components/LensScenarioRow.jsx (Sprint E.3).
-
-// CustomScenarioInline moved to src/components/CustomScenarioInline.jsx (Sprint E.3).
-// CustomScenarioBuilder moved to src/components/CustomScenarioBuilder.jsx (Sprint E.3).
+// What-If sensitivity scenarios (LensScenarioRow + CustomScenario* + the
+// buildSensitivityScenarios/computeScoreDelta helpers) were removed in the
+// 2026-05 wave-3 cleanup — §03 Dev Feasibility's signal levers are now the
+// sole sensitivity surface (no synthesized $).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LENS_OVERLAY_STYLES + LensOverlay moved to src/components/LensOverlay.jsx (Sprint E.3).
@@ -390,14 +381,6 @@ function SearchContent() {
     document.addEventListener('keydown', handleEsc)
     return () => document.removeEventListener('keydown', handleEsc)
   }, [saveModal, confirmClear])
-  // V3 §7.4: lift sensitivity scenario state to SearchContent so both
-  // MarketPositionPanel (gauge) and MarketIntelligenceSummary (rationale) read the same live state.
-  // Toggling a scenario re-renders the gauge in place — no scroll-up needed.
-  const [activeScenario, setActiveScenario] = useState(null)
-  const [scenarioRationale, setScenarioRationale] = useState(null)
-  const [rationaleLoading, setRationaleLoading] = useState(false)
-  // Reset scenario on a new analysis
-  useEffect(() => { setActiveScenario(null); setScenarioRationale(null) }, [results?.form?.state, results?.form?.county, results?.form?.mw, results?.form?.stage, results?.form?.technology])
   const resultsRef = useRef(null)
   const abortRef = useRef(null)
 
@@ -1030,8 +1013,9 @@ function SearchContent() {
               </div>
             </div>
 
-            <SectionMarker index={1} label="Market Position" sublabel="composite feasibility · sensitivity scenarios" />
-
+            {/* §01 Market Position — the composite feasibility gauge. Collapsible
+                like every other section but defaultOpen (it's the headline read). */}
+            <CollapsibleSection index={1} label="Market Position" sublabel="composite feasibility index" defaultOpen>
             <div data-tour-id="composite">
               <MarketPositionPanel
                 stateProgram={results.stateProgram}
@@ -1039,7 +1023,6 @@ function SearchContent() {
                 programMap={programMap}
                 stage={results.form.stage}
                 technology={results.form.technology}
-                activeScenario={activeScenario}
                 ixQueueSummary={results.ixQueueSummary}
                 policyEvents={results.policyEvents || []}
                 mw={results.form.mw}
@@ -1047,18 +1030,7 @@ function SearchContent() {
                 codYear={results.form.codYear ? Number(results.form.codYear) : null}
               />
             </div>
-
-            {/* §7.4: Scenario toggle row — sits with the gauge so toggling updates the gauge in place */}
-            <LensScenarioRow
-              stateProgram={results.stateProgram}
-              technology={results.form.technology}
-              mw={results.form.mw}
-              activeScenario={activeScenario}
-              setActiveScenario={setActiveScenario}
-              countyData={results.countyData}
-              formForApi={results.form}
-              programMap={programMap}
-            />
+            </CollapsibleSection>
             </div>
 
             {/* Market Intelligence Summary */}
@@ -1069,11 +1041,6 @@ function SearchContent() {
               countyData={results.countyData}
               form={results.form}
               aiInsight={results.aiInsight ?? null}
-              activeScenario={activeScenario}
-              scenarioRationale={scenarioRationale}
-              setScenarioRationale={setScenarioRationale}
-              rationaleLoading={rationaleLoading}
-              setRationaleLoading={setRationaleLoading}
               ixQueueSummary={results.ixQueueSummary}
             />
             </CollapsibleSection>
@@ -1129,7 +1096,8 @@ function SearchContent() {
             {/* Pillar Diagnostics — same SectionMarker treatment as the other
                 § sections (Market Position / Analyst Brief / Scenario Studio)
                 so the sections read as a single typographic family on a
-                consistent white surface. items-start: cards size independently. */}
+                consistent white surface. items-stretch: every card in a row
+                shares the tallest card's height (footers align). */}
             <div className="lens-reveal">
             <CollapsibleSection index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" dataTourId="pillars">
             <div className="space-y-5">
@@ -1152,19 +1120,16 @@ function SearchContent() {
                 },
               )
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-stretch">
                   <OfftakeCardSummary
                     stateProgram={results.stateProgram}
                     score={sub.offtake}
                     coverage={sub.coverage?.offtake}
                     technology={results.form.technology}
-                    mw={effectiveMw}
                     onOpen={() => setActivePillar('offtake')}
                   />
                   <InterconnectionCardSummary
                     interconnection={results.countyData?.interconnection}
-                    queueSummary={results.ixQueueSummary}
-                    hostingCapacity={results.hostingCapacity}
                     score={sub.ix}
                     coverage={sub.coverage?.ix}
                     onOpen={() => setActivePillar('ix')}
@@ -1176,7 +1141,6 @@ function SearchContent() {
                     onOpen={() => setActivePillar('incentives')}
                   />
                   <SiteControlCardSummary
-                    siteControl={results.countyData?.siteControl}
                     geospatial={results.countyData?.geospatial}
                     county={results.form.county}
                     stateName={results.stateProgram?.name || results.form.state}

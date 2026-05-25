@@ -13,13 +13,6 @@ export default function IncentivesCardSummary({ score, coverage, adders, onOpen 
   const lic = !!adders?.lowIncomeCommunity
   const ceiling = 30 + (ec ? 10 : 0) + (lic ? 10 : 0)
 
-  let caption
-  if (noData) caption = 'County ITC-adder eligibility not resolved for this geography.'
-  else if (ec && lic) caption = 'Energy Community + §48(e) Low-Income adders qualify — full location stack.'
-  else if (ec) caption = 'Energy Community adder qualifies; no §48(e) Low-Income tract.'
-  else if (lic) caption = '§48(e) Low-Income adder qualifies; no Energy Community designation.'
-  else caption = 'Base §48E only — no location adder resolves at this county.'
-
   const statusChip = noData ? null : (
     <span
       className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold px-1.5 py-0.5 rounded-sm"
@@ -38,7 +31,6 @@ export default function IncentivesCardSummary({ score, coverage, adders, onOpen 
       title="ITC Adder Stack"
       score={noData ? null : score}
       coverage={coverage}
-      caption={caption}
       statusChip={statusChip}
       onOpen={onOpen}
     />

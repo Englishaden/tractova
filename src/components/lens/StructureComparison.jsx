@@ -77,6 +77,7 @@ export default function StructureComparison({
             const isBest = r.structure === bestKey
             const isSelected = r.structure === selected
             const gated = !r.available || r.offtake == null
+            const tone = offtakeTone(r.offtake)
             return (
               <div
                 key={r.structure}
@@ -84,7 +85,7 @@ export default function StructureComparison({
                 style={isBest ? { background: 'rgba(20,184,166,0.06)' } : undefined}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: gated ? '#CBD5E1' : offtakeTone(r.offtake) }} />
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: gated ? '#CBD5E1' : tone }} />
                   <span className={`text-[12px] font-semibold truncate ${gated ? 'text-gray-400' : 'text-ink'}`}>{r.structure}</span>
                   {isBest && (
                     <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm shrink-0" style={{ background: 'rgba(20,184,166,0.14)', color: '#0F766E' }}>
@@ -97,9 +98,35 @@ export default function StructureComparison({
                     </span>
                   )}
                 </div>
-                <span className="text-[13px] font-bold tabular-nums text-right justify-self-end" style={{ color: offtakeTone(r.offtake) }}>
-                  {r.offtake ?? '—'}
-                </span>
+                {/* Score chip — the focal data point. Tinted to the score tone
+                    with a base fill-bar (0-100 fraction) reading the signal at
+                    a glance; the winning row's chip carries an emphasis ring. */}
+                <div className="justify-self-end">
+                  {gated ? (
+                    <span
+                      className="inline-block rounded-md px-2.5 py-1 font-mono text-[13px] font-bold tabular-nums text-gray-400 leading-none"
+                      style={{ border: '1px dashed rgba(148,163,184,0.55)' }}
+                    >
+                      —
+                    </span>
+                  ) : (
+                    <span
+                      className="relative inline-block rounded-md px-2.5 pt-1.5 pb-2 overflow-hidden font-mono text-[14px] font-bold tabular-nums leading-none"
+                      style={{
+                        color: tone,
+                        background: `${tone}14`,
+                        border: `1px solid ${tone}3D`,
+                        ...(isBest ? { boxShadow: `0 0 0 1.5px ${tone}40, 0 1px 3px ${tone}26` } : {}),
+                      }}
+                    >
+                      {r.offtake}
+                      <span
+                        className="absolute left-0 bottom-0 h-[2px]"
+                        style={{ width: `${r.offtake}%`, background: tone, opacity: 0.85 }}
+                      />
+                    </span>
+                  )}
+                </div>
                 {gated ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
