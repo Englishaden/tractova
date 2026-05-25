@@ -49,11 +49,18 @@ export function useLensReveal(active) {
     // A collapsible section opening/closing changes el heights without a
     // scroll, so the scroll-derived opacity/transform would otherwise stay
     // stale — leaving a just-toggled section invisible or vertically offset
-    // until the next scroll. A ResizeObserver re-runs the same pass whenever
-    // any section's box changes (rAF-coalesced, so a height transition's
-    // per-frame resizes collapse to one update/frame). Callback only writes
-    // compositor props (no layout), so no RO feedback loop.
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null
+    // until the next scroll. A ResizeObserver re-runs the pass when any
+    // section's box changes. It's TRAILING-DEBOUNCED (not per-frame): a
+    // collapse animates grid-template-rows for ~340ms, firing the observer
+    // every frame; recomputing on each would force a synchronous layout read
+    // per frame (getBoundingClientRect) and make the toggle janky. Debouncing
+    // recomputes once after the height settles — the sections being pushed
+    // sit mid-viewport at full opacity during the animation, so there's no
+    // visible staleness, and the post-settle pass fixes any edge-of-viewport
+    // section. Scroll stays on the immediate (rAF) path above.
+    let roTimer = 0
+    const onBoxChange = () => { clearTimeout(roTimer); roTimer = setTimeout(schedule, 80) }
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onBoxChange) : null
     if (ro) els.forEach((el) => ro.observe(el))
 
     update()
@@ -63,6 +70,7 @@ export function useLensReveal(active) {
       window.removeEventListener('scroll', schedule)
       window.removeEventListener('resize', schedule)
       ro?.disconnect()
+      clearTimeout(roTimer)
       cancelAnimationFrame(raf)
       els.forEach((el) => { el.style.opacity = ''; el.style.transform = ''; el.style.willChange = '' })
     }

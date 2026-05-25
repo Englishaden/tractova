@@ -28,7 +28,7 @@ import DevFeasibilityView from '../components/scenario/DevFeasibilityView'
 import StructureComparison from '../components/lens/StructureComparison'
 import ReRunDriftCallout from '../components/lens/ReRunDriftCallout'
 import { denormalizeTech } from '../lib/scenarioEngine'
-import { computeSubScores } from '../lib/scoreEngine'
+import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import LensTour from '../components/LensTour'
 import DataLimitationsModal from '../components/DataLimitationsModal'
 import IntelligenceBackground from '../components/IntelligenceBackground'
@@ -353,6 +353,24 @@ function SearchContent() {
   const searchMw = Number.isFinite(searchMwRaw) && searchMwRaw > 0 ? searchMwRaw : null
   const effectiveMw = Number.isFinite(liveMw) && liveMw > 0 ? liveMw : searchMw
   const mwDiverged = effectiveMw != null && searchMw != null && Math.abs(effectiveMw - searchMw) > 0.01
+
+  // Canonical 5-pillar composite — ONE computation feeding the §01 gauge, the
+  // §02 Analyst Brief verdict, the §05 pillar cards, and the pillar detail
+  // modal. Previously each recomputed independently (the brief used a partial
+  // 3-pillar call, so its verdict could disagree with the gauge); this is the
+  // single source of truth. Recomputes when the live MW lever or inputs change.
+  // computeSubScores is a cheap pure fn, so an inline compute per render is fine.
+  const lensSubs = results
+    ? computeSubScores(
+        results.stateProgram, results.countyData, results.form.stage, results.form.technology,
+        results.ixQueueSummary, results.policyEvents, effectiveMw,
+        {
+          incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda },
+          codYear: results.form.codYear ? Number(results.form.codYear) : null,
+        },
+      )
+    : null
+  const lensScore = lensSubs ? safeScore(lensSubs) : null
   // §04 Pillar Detail Modal — single mount, active pillar drives which tab
   // body renders. null = modal closed.
   const [activePillar, setActivePillar] = useState(null)
@@ -1014,20 +1032,18 @@ function SearchContent() {
             </div>
 
             {/* §01 Market Position — the composite feasibility gauge. Collapsible
-                like every other section but defaultOpen (it's the headline read). */}
-            <CollapsibleSection index={1} label="Market Position" sublabel="composite feasibility index" defaultOpen>
+                like every other section but defaultOpen (it's the headline read).
+                keepMounted: the gauge + sub-score bars are animation-heavy, so we
+                keep them in the DOM across collapse rather than re-mounting (and
+                re-firing every entrance animation) on each re-open. */}
+            <CollapsibleSection index={1} label="Market Position" sublabel="composite feasibility index" defaultOpen keepMounted>
             <div data-tour-id="composite">
               <MarketPositionPanel
                 stateProgram={results.stateProgram}
-                countyData={results.countyData}
                 programMap={programMap}
-                stage={results.form.stage}
                 technology={results.form.technology}
                 ixQueueSummary={results.ixQueueSummary}
-                policyEvents={results.policyEvents || []}
-                mw={results.form.mw}
-                incentives={{ energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda }}
-                codYear={results.form.codYear ? Number(results.form.codYear) : null}
+                subs={lensSubs}
               />
             </div>
             </CollapsibleSection>
@@ -1041,7 +1057,7 @@ function SearchContent() {
               countyData={results.countyData}
               form={results.form}
               aiInsight={results.aiInsight ?? null}
-              ixQueueSummary={results.ixQueueSummary}
+              score={lensScore}
             />
             </CollapsibleSection>
             </div>
@@ -1102,23 +1118,9 @@ function SearchContent() {
             <CollapsibleSection index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" dataTourId="pillars">
             <div className="space-y-5">
             {(() => {
-              // Structural sub-scores drive the §04 summary card gauges.
-              // Same math as the Lens header Feasibility Index — single
-              // source of truth across the result panel. Dev Feasibility
-              // tab (§03) layers lever adjustments on top of this baseline.
-              const sub = computeSubScores(
-                results.stateProgram,
-                results.countyData,
-                results.form.stage,
-                results.form.technology,
-                results.ixQueueSummary,
-                results.policyEvents,
-                effectiveMw,
-                {
-                  incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda },
-                  codYear: results.form.codYear ? Number(results.form.codYear) : null,
-                },
-              )
+              // §05 pillar cards read the canonical composite computed once
+              // above (lensSubs) — same object the §01 gauge + Analyst Brief use.
+              const sub = lensSubs
               return (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-stretch">
                   <OfftakeCardSummary
@@ -1252,17 +1254,9 @@ function SearchContent() {
           Site → Policy & Timing without closing. Mounted at root so the focus
           trap and backdrop sit above the result panel correctly. */}
       {results && (() => {
-        // Recompute the 5-pillar sub-scores here (cheap pure fn) so the
-        // Incentives + Policy & Timing detail tabs get the same score +
-        // policyDetail the §04 cards show — one source of truth.
-        const pSub = computeSubScores(
-          results.stateProgram, results.countyData, results.form.stage,
-          results.form.technology, results.ixQueueSummary, results.policyEvents, effectiveMw,
-          {
-            incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda },
-            codYear: results.form.codYear ? Number(results.form.codYear) : null,
-          },
-        )
+        // Pillar detail modal reads the same canonical composite (lensSubs) as
+        // the §04/§05 cards + §01 gauge — one source of truth.
+        const pSub = lensSubs
         return (
         <PillarDetailModal
           activePillar={activePillar}

@@ -104,14 +104,14 @@ export default function StructureComparison({
                 <div className="justify-self-end">
                   {gated ? (
                     <span
-                      className="inline-block rounded-md px-2.5 py-1 font-mono text-[13px] font-bold tabular-nums text-gray-400 leading-none"
+                      className="inline-block min-w-[2.75rem] text-center rounded-md px-2.5 pt-1.5 pb-2 font-mono text-[14px] font-bold tabular-nums text-gray-400 leading-none"
                       style={{ border: '1px dashed rgba(148,163,184,0.55)' }}
                     >
                       —
                     </span>
                   ) : (
                     <span
-                      className="relative inline-block rounded-md px-2.5 pt-1.5 pb-2 overflow-hidden font-mono text-[14px] font-bold tabular-nums leading-none"
+                      className="relative inline-block min-w-[2.75rem] text-center rounded-md px-2.5 pt-1.5 pb-2 overflow-hidden font-mono text-[14px] font-bold tabular-nums leading-none"
                       style={{
                         color: tone,
                         background: `${tone}14`,

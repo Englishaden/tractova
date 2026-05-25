@@ -1,4 +1,3 @@
-import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { generateMarketSummary } from '../lib/lensHelpers.js'
 import BriefDrilldown from './BriefDrilldown'
 import { sanitizeBrief, CHIP_COLORS } from '../lib/searchShared.jsx'
@@ -7,13 +6,14 @@ import { sanitizeBrief, CHIP_COLORS } from '../lib/searchShared.jsx'
 // What-If sensitivity scenarios (and their $ precedents) were removed in the
 // 2026-05 wave-3 cleanup; sensitivity now lives entirely in §03 Dev Feasibility
 // (signal levers, no dollars), so this brief carries no synthesized numbers.
-export default function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, ixQueueSummary }) {
-  // Verdict is keyed to feasibilityScore inside generateMarketSummary, so feed
-  // it a copy carrying the computed score rather than mutating the shared
-  // stateProgram object.
-  const sub = computeSubScores(stateProgram, countyData, form.stage, form.technology, ixQueueSummary)
+//
+// `score` is the canonical 5-pillar composite computed once in Search.jsx (the
+// same number the §01 gauge shows). The brief used to recompute a partial
+// 3-pillar score, so its verdict could disagree with the gauge — now they're
+// keyed to one source.
+export default function MarketIntelligenceSummary({ stateProgram, countyData, form, aiInsight, score }) {
   const data = generateMarketSummary({
-    stateProgram: { ...stateProgram, feasibilityScore: safeScore(sub) },
+    stateProgram: { ...stateProgram, feasibilityScore: score },
     countyData,
     form,
   })

@@ -14,32 +14,41 @@ const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 // interpolates the track, no measurement, no re-render — so it animates open/
 // close smoothly without the memory blowup.
 //
-// Body content stays mount-gated: it mounts on open and unmounts after the
-// close transition finishes, so heavy sections (comparable-deal tables) don't
-// pay their render cost while collapsed. On a fresh Lens run every section is
-// collapsed except the headline Market Position (defaultOpen).
-export default function CollapsibleSection({ index, label, sublabel, defaultOpen = false, dataTourId, children }) {
-  const [open, setOpen] = useState(defaultOpen)         // intent — drives chevron + aria
-  const [expanded, setExpanded] = useState(defaultOpen) // visual grid state (0fr/1fr)
-  const [render, setRender] = useState(defaultOpen)     // body present in the DOM
+// Body content is mount-gated by default: it mounts on open and unmounts after
+// the close transition finishes, so heavy sections (comparable-deal tables)
+// don't pay their render cost while collapsed. On a fresh Lens run every section
+// is collapsed except the headline Market Position (defaultOpen).
+//
+// `keepMounted` opts a section OUT of unmount-on-collapse: the body stays in the
+// DOM and only the grid collapses to 0fr. Use it for heavy, animation-rich
+// sections that are open by default (e.g. Market Position) — re-opening them
+// then doesn't re-mount the subtree and re-fire every entrance animation at
+// once, which is what made the re-open feel laggy.
+export default function CollapsibleSection({ index, label, sublabel, defaultOpen = false, keepMounted = false, dataTourId, children }) {
+  const [open, setOpen] = useState(defaultOpen)                    // intent — drives chevron + aria
+  const [expanded, setExpanded] = useState(defaultOpen)           // visual grid state (0fr/1fr)
+  const [render, setRender] = useState(defaultOpen || keepMounted) // body present in the DOM
   const reduced = useReducedMotion()
 
   const toggle = () => {
     const next = !open
     setOpen(next)
     if (next) {
+      // keepMounted: body is already in the DOM, so flip straight to 1fr.
+      if (keepMounted) { setExpanded(true); return }
       setRender(true)
       if (reduced) setExpanded(true)
       // Two rAFs so the browser paints the 0fr state before we flip to 1fr —
       // otherwise it mounts already-expanded and there's no transition.
       else requestAnimationFrame(() => requestAnimationFrame(() => setExpanded(true)))
     } else {
-      setExpanded(false)        // animate 1fr→0fr; unmount onTransitionEnd
-      if (reduced) setRender(false)
+      setExpanded(false)        // animate 1fr→0fr; unmount onTransitionEnd (unless keepMounted)
+      if (!keepMounted && reduced) setRender(false)
     }
   }
 
   const handleTransitionEnd = (e) => {
+    if (keepMounted) return
     if (e.target === e.currentTarget && e.propertyName === 'grid-template-rows' && !expanded) {
       setRender(false)
     }

@@ -115,4 +115,51 @@ test.describe('Tractova Pro smoke', () => {
     await page.waitForSelector('svg', { timeout: 10_000 })
     expect(errors, errors.join('\n\n')).toHaveLength(0)
   })
+
+  // Regression guard: changing the Monetization Structure must NOT wipe the
+  // other form fields. This was reported (and "fixed") before — the prior
+  // root cause was a layout reflow that *read* as a reset; the field state
+  // was always preserved. This test pins the actual behavior so a real reset
+  // can never slip in unnoticed. Interacts with the form but never submits
+  // (no Anthropic round-trip), so it stays within the read-only budget.
+  test('form preserves State/County/MW/Stage when Monetization Structure changes', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    await page.goto('/search')
+    await expect(page.getByText('Run a targeted intelligence report')).toBeVisible({ timeout: 10_000 })
+
+    // Each FieldSelect renders an sr-only <input aria-label={label}> mirroring
+    // its value — the cleanest hook for both driving + asserting. xpath=.. is
+    // the FieldSelect root div (the click target that opens the dropdown).
+    const pickField = async (label, optionText) => {
+      await page.getByLabel(label, { exact: true }).locator('xpath=..').click()
+      await page.getByText(optionText, { exact: true }).click()
+    }
+
+    await pickField('State', 'New York')
+    await pickField('Development Stage', 'Site Control')
+
+    // County is a combobox: typing sets the value on each keystroke.
+    await page.getByLabel('County', { exact: true }).locator('xpath=..').click()
+    await page.getByPlaceholder('Search counties…').fill('Bronx')
+
+    await page.getByPlaceholder('e.g. 5').fill('5')
+
+    // Baseline — all four set before we touch Structure.
+    await expect(page.getByLabel('State', { exact: true })).toHaveValue('New York')
+    await expect(page.getByLabel('County', { exact: true })).toHaveValue('Bronx')
+    await expect(page.getByPlaceholder('e.g. 5')).toHaveValue('5')
+    await expect(page.getByLabel('Development Stage', { exact: true })).toHaveValue('Site Control')
+
+    // ACT + ASSERT: switch to the two structures the report flagged.
+    for (const structure of ['Net Billing', 'Net Metering']) {
+      await pickField('Monetization Structure', structure)
+      await expect(page.getByLabel('Monetization Structure', { exact: true })).toHaveValue(structure)
+      await expect(page.getByLabel('State', { exact: true })).toHaveValue('New York')
+      await expect(page.getByLabel('County', { exact: true })).toHaveValue('Bronx')
+      await expect(page.getByPlaceholder('e.g. 5')).toHaveValue('5')
+      await expect(page.getByLabel('Development Stage', { exact: true })).toHaveValue('Site Control')
+    }
+
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
 })

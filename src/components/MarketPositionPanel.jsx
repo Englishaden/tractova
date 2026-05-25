@@ -1,4 +1,4 @@
-import { computeSubScores, computeDisplayScoreRange, getOfftakeCoverageStates, safeScore } from '../lib/scoreEngine'
+import { computeDisplayScoreRange, getOfftakeCoverageStates, safeScore } from '../lib/scoreEngine'
 import ArcGauge from './ArcGauge.jsx'
 import CoverageBadge from './CoverageBadge'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
@@ -8,10 +8,12 @@ import { STATUS_CFG, getMarketRank } from '../lib/searchShared.jsx'
 // V3 redesign: editorial-intelligence "research note" hero block.
 // Drops the dark gradient banner. Mono eyebrow strip up top with metadata,
 // then asymmetric two-column body: tachometer left, identity + sub-scores right.
-export default function MarketPositionPanel({ stateProgram, countyData, programMap, stage, technology, ixQueueSummary, policyEvents = [], mw = null, incentives = null, codYear = null }) {
-  if (!stateProgram) return null
-  const subs = computeSubScores(stateProgram, countyData, stage, technology, ixQueueSummary, policyEvents, mw, { incentives, codYear })
-  const { offtake, ix, site, incentives: incentivesScore, policyTiming, coverage, incentiveDetail, policyDetail } = subs
+// `subs` is the canonical 5-pillar composite computed once in Search.jsx and
+// shared with the Analyst Brief, the §05 pillar cards, and the pillar detail
+// modal — so the gauge here never diverges from the brief's verdict.
+export default function MarketPositionPanel({ stateProgram, programMap, technology, ixQueueSummary, subs }) {
+  if (!stateProgram || !subs) return null
+  const { offtake, ix, site, incentives: incentivesScore, policyTiming, coverage, policyDetail } = subs
   const { rank, total } = getMarketRank(stateProgram.id, programMap)
   const status = STATUS_CFG[stateProgram.csStatus] || STATUS_CFG.none
   const score = safeScore(subs)
