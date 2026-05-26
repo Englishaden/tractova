@@ -89,12 +89,10 @@ const BESS_OFFTAKE_SCORES = {
 // transition; MS has a sourced export rate but no cleanly-sourced retail.
 const NET_BILLING_EXPORT_RATIO = {
   // AZ — APS export compensation under the ACC-approved rate (phasing down to
-  //   avoided cost via the RCP framework — steps down ≤10%/yr, locked 10yr at
-  //   interconnection): 6.171¢/kWh as of Feb 25 2026 (DSIRE, current) vs APS
-  //   residential retail ~12.8¢/kWh avg (2026) → 0.482 ≈ 0.48. TEP 5.13¢ and
-  //   UNS 6.12¢ are slightly lower; APS dominates load so this anchors the
-  //   state signal. Sources: DSIRE AZ net-metering program (Feb 25 2026 update,
-  //   surfaced by Aden 2026-05-26) · ElectricChoice/UtilityCheck (APS avg 12.8¢).
+  //   avoided cost via the RCP framework): 6.171¢/kWh as of Feb 25 2026 vs APS
+  //   residential ~12.8¢/kWh retail → 0.482 ≈ 0.48. TEP 5.13¢ and UNS 6.12¢ are
+  //   slightly lower; APS dominates state load so it anchors the signal.
+  //   Source on disk: docs/dsire-net-billing/AZ.txt (DSIRE paste, fetched 2026-05-26).
   AZ: 0.48,
   // CA — Net Billing Tariff (NEM 3.0), eff. 2023-04-15: exports at the CPUC
   //   Avoided Cost Calculator, ~8-9¢/kWh vs ~30-44¢ retail → ~0.20-0.27. Using

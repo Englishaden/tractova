@@ -1,0 +1,22 @@
+STATE: Arizona
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/3093
+FETCHED: 2026-05-26
+
+--- DSIRE BLOCK ---
+Residential (APS, TEP, UNS) & Small Commercial (TEP, UNS): Excess generation
+credited at an ACC-approved rate, phasing down to an avoided cost rate.
+As of February 25, 2026, current export compensation rates are 6.171 cents/kWh
+(APS), 5.13 cents/kWh (TEP), and 6.12 cents/kWh (UNS). NEG is carried forward
+and paid out at the end of the annual period if the credit balance exceeds a
+certain amount.
+
+--- RETAIL CONTEXT ---
+APS residential average rate ~12.8¢/kWh (2026, ElectricChoice / UtilityCheck).
+Standard R-1 plan effective ~14.1¢/kWh. AZ statewide residential avg ~15.5¢.
+
+--- NOTES ---
+- BTM customer-generator tariff only — residential + small commercial (size-capped).
+- Flat annual rate, no TOU structure on the export side.
+- RCP framework: step-down ≤10%/yr, locked 10yr at each customer's interconnection date.
+- APS dominates AZ load → APS rate anchors the state signal; TEP/UNS slightly lower.
+- Ratio used in NET_BILLING_EXPORT_RATIO: 6.171 / 12.8 = 0.482 → encoded 0.48.
