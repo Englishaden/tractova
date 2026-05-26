@@ -88,11 +88,14 @@ const BESS_OFFTAKE_SCORES = {
 // avoided-cost net billing); HI's Smart DER export is per-island TOU mid-
 // transition; MS has a sourced export rate but no cleanly-sourced retail.
 const NET_BILLING_EXPORT_RATIO = {
-  // AZ — APS Resource Comparison Proxy (RCP) export rate ~7¢/kWh vs ~14-15¢
-  //   retail → "roughly half". Steps down ≤10%/yr, locked 10yr at interconnection.
-  //   Sources: solar.com AZ net-billing (RCP 7.6¢ vs 15.1¢ Phoenix-metro avg,
-  //   "roughly half") · Solar Topps (2025 RCP 6.85¢ ≈ half of ~12¢).
-  AZ: 0.50,
+  // AZ — APS export compensation under the ACC-approved rate (phasing down to
+  //   avoided cost via the RCP framework — steps down ≤10%/yr, locked 10yr at
+  //   interconnection): 6.171¢/kWh as of Feb 25 2026 (DSIRE, current) vs APS
+  //   residential retail ~12.8¢/kWh avg (2026) → 0.482 ≈ 0.48. TEP 5.13¢ and
+  //   UNS 6.12¢ are slightly lower; APS dominates load so this anchors the
+  //   state signal. Sources: DSIRE AZ net-metering program (Feb 25 2026 update,
+  //   surfaced by Aden 2026-05-26) · ElectricChoice/UtilityCheck (APS avg 12.8¢).
+  AZ: 0.48,
   // CA — Net Billing Tariff (NEM 3.0), eff. 2023-04-15: exports at the CPUC
   //   Avoided Cost Calculator, ~8-9¢/kWh vs ~30-44¢ retail → ~0.20-0.27. Using
   //   0.23. Sources: Aurora Solar NBT (SDG&E Aug: 8.8¢ vs 44¢) · PV Magazine
