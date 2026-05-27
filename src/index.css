@@ -225,52 +225,76 @@
   .animate-\[skeleton-shimmer_1\.6s_ease-in-out_infinite\] { animation: none !important; }
 }
 
-/* Nixtio-style display type scale — used by the redesigned Landing.
-   Heavy negative letter-spacing + 110% line-height is the single move
-   that makes the type read intentional rather than browser-default.
-   Sourced from research/2026-05-27-nixtio-teardown.md (§ Typography).
-   Mapped to Geist (already loaded) instead of Nixtio's Inter. */
+/* Six-size type scale — strict. Sized in px per the design-system
+   reference image (64 / 42 / 32 / 20 / 16 / 14). Mobile downsizes
+   proportionally via clamp() so headings stay readable < 768px.
+   Geist is the family (already loaded). Heavy negative letter-spacing
+   + tight line-heights make the display type read intentional. */
 .lp-h1 {
   font-family: 'Geist', system-ui, sans-serif;
-  font-size: clamp(2.75rem, 8vw, 5.5rem);
+  font-size: clamp(2.5rem, 5.5vw, 4rem);   /* 40px → 64px */
   font-weight: 600;
-  letter-spacing: -0.045em;
-  line-height: 1.02;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
 }
 .lp-h2 {
   font-family: 'Geist', system-ui, sans-serif;
-  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-size: clamp(1.75rem, 4vw, 2.625rem); /* 28px → 42px */
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
-}
-.lp-h2-big {
-  font-family: 'Geist', system-ui, sans-serif;
-  font-size: clamp(3rem, 11vw, 8rem);
-  font-weight: 600;
-  letter-spacing: -0.05em;
-  line-height: 0.95;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 .lp-h3 {
   font-family: 'Geist', system-ui, sans-serif;
-  font-size: clamp(1.5rem, 2.2vw, 1.875rem);
-  font-weight: 500;
+  font-size: clamp(1.375rem, 3vw, 2rem);    /* 22px → 32px */
+  font-weight: 600;
   letter-spacing: -0.025em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 .lp-h4 {
   font-family: 'Geist', system-ui, sans-serif;
-  font-size: 1.375rem;
+  font-size: 1.25rem;                       /* 20px */
   font-weight: 600;
-  letter-spacing: -0.022em;
-  line-height: 1.2;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
 }
 .lp-h5 {
   font-family: 'Geist', system-ui, sans-serif;
-  font-size: 1.125rem;
+  font-size: 1rem;                          /* 16px */
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+.lp-h6 {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 0.875rem;                      /* 14px */
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+/* Text shadow utilities for dark sections — subtle depth, not glow. */
+.lp-text-shadow-soft { text-shadow: 0 1px 24px rgba(0, 0, 0, 0.35); }
+.lp-text-shadow-glow { text-shadow: 0 0 32px rgba(94, 234, 212, 0.18), 0 1px 16px rgba(0, 0, 0, 0.4); }
+
+/* Word reveal — split a heading into <span class="lp-word"> per word,
+   stagger transition-delay via inline style. Mounts hidden, observed
+   by useRevealOnScroll, which adds .is-revealed on enter viewport. */
+.lp-word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.6em);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+.is-revealed > .lp-word,
+.lp-text-reveal.is-revealed .lp-word {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-word { opacity: 1; transform: none; transition: none; }
 }
 
 /* Reveal-on-scroll — IntersectionObserver hook adds .is-revealed when
@@ -363,9 +387,9 @@
   display: flex;
   width: max-content;
   animation: lp-marquee-scroll var(--marquee-duration, 40s) linear infinite;
-}
-.lp-marquee:hover .lp-marquee__track {
-  animation-play-state: paused;
+  /* Per session-2 user request: marquee never pauses on hover — keeps
+     flowing regardless of cursor position. The hover-pause rule was
+     removed deliberately. */
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-marquee__track { animation: none; }
@@ -396,21 +420,150 @@
 .lp-spotlight:hover::before { --spot-opacity: 1; }
 .lp-spotlight > * { position: relative; z-index: 1; }
 
-/* Subtle animated grid behind the hero. Tractova-brand teal lines on
-   brand-navy. Drifts diagonally so the page feels live without being
-   distracting. Builds on the existing tractova-health-grid-drift keyframe
-   (defined above) but at hero scale + teal lines. */
+/* Cursor-following infinite grid — TWO layers per the Infinite-Grid skill:
+   1) Faint always-drifting grid (the base).
+   2) A brighter "spotlight" grid only revealed where the cursor is, via
+      a radial-gradient mask anchored at --cursor-x / --cursor-y. The
+      parent React element sets those CSS vars on mousemove. When the
+      cursor leaves, --grid-spotlight-opacity fades to 0.
+   Both layers share the same drift keyframe so they appear as one
+   pattern that brightens under the cursor. */
 .lp-hero-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(to right, rgba(94, 234, 212, 0.06) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(94, 234, 212, 0.06) 1px, transparent 1px);
+    linear-gradient(to right, rgba(94, 234, 212, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(94, 234, 212, 0.05) 1px, transparent 1px);
   background-size: 48px 48px;
   animation: tractova-health-grid-drift 22s linear infinite;
   -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
           mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
   pointer-events: none;
+}
+.lp-hero-grid--cursor {
+  -webkit-mask-image: none;
+          mask-image: none;
+  background-image:
+    linear-gradient(to right, rgba(94, 234, 212, 0.32) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(94, 234, 212, 0.32) 1px, transparent 1px);
+  background-size: 48px 48px;
+  /* Mask the bright layer to a circle that follows the cursor. The
+     parent element exposes --cursor-x / --cursor-y in px from its
+     top-left corner; --grid-spotlight-opacity fades the layer when
+     the cursor leaves the section. */
+  -webkit-mask-image: radial-gradient(
+    300px circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
+    #000, transparent 70%
+  );
+          mask-image: radial-gradient(
+    300px circle at var(--cursor-x, 50%) var(--cursor-y, 50%),
+    #000, transparent 70%
+  );
+  opacity: var(--grid-spotlight-opacity, 0);
+  transition: opacity 0.3s ease-out;
+  animation: tractova-health-grid-drift 22s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-hero-grid, .lp-hero-grid--cursor { animation: none; }
+}
+
+/* Light-bg interactive card — alternative to .lp-spotlight whose teal
+   glow vanishes on white. This card has:
+   - a subtle teal sheen sweeping from the top-left (the "premium" feel
+     in the reference image)
+   - a hover state that brightens the sheen + raises a soft shadow
+   - the border slightly intensifies and a thin teal hairline appears
+     across the top edge on hover */
+.lp-light-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid rgb(229 231 235);  /* gray-200 */
+  border-radius: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+.lp-light-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    520px circle at 0% 0%,
+    rgba(20, 184, 166, 0.10),
+    transparent 55%
+  );
+  opacity: 0.65;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.lp-light-card::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(20, 184, 166, 0.55) 50%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.lp-light-card:hover {
+  border-color: rgba(20, 184, 166, 0.35);
+  box-shadow: 0 12px 32px -16px rgba(15, 118, 110, 0.18), 0 2px 8px -2px rgba(15, 26, 46, 0.06);
+  transform: translateY(-2px);
+}
+.lp-light-card:hover::before { opacity: 1; }
+.lp-light-card:hover::after  { opacity: 1; }
+.lp-light-card > * { position: relative; z-index: 2; }
+@media (prefers-reduced-motion: reduce) {
+  .lp-light-card, .lp-light-card::before, .lp-light-card::after {
+    transition: none;
+  }
+}
+
+/* Sparkle dots — used inside the Net-Effect 120× card to give the
+   bland brand-navy bg some "live" feel. Pure CSS, ~10 dots with
+   randomized animation-delay; no JS, no tsparticles. */
+@keyframes lp-sparkle-twinkle {
+  0%, 100% { opacity: 0;   transform: scale(0.4); }
+  50%      { opacity: 0.9; transform: scale(1); }
+}
+.lp-sparkles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.lp-sparkle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #5EEAD4;
+  box-shadow: 0 0 8px rgba(94, 234, 212, 0.6);
+  opacity: 0;
+  animation: lp-sparkle-twinkle 3.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-sparkle { animation: none; opacity: 0.6; }
+}
+
+/* Comparison bar — used inside the Net-Effect card. Stacked horizontal
+   bars showing 4hr (long) vs 2min (tiny) with width animated from 0
+   on enter viewport. */
+.lp-cmp-bar {
+  display: block;
+  height: 6px;
+  border-radius: 9999px;
+  transform-origin: left;
+  transform: scaleX(0);
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.is-revealed .lp-cmp-bar { transform: scaleX(1); }
+@media (prefers-reduced-motion: reduce) {
+  .lp-cmp-bar { transform: scaleX(1); transition: none; }
 }
 
 /* Tab trigger — pillar swap in §5-pillar. Radix UI handles state via

@@ -49,14 +49,6 @@ export default function Footer() {
           >
             Data refreshed: {relativeLabel ?? '—'}
           </span>
-          <a
-            href="https://theadder.substack.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            The Adder Newsletter ↗
-          </a>
           <Link to="/about" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
             About
           </Link>

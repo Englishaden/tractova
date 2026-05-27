@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, cloneElement } from 'react'
 import { Link } from 'react-router-dom'
 import * as RadixTabs from '@radix-ui/react-tabs'
 import { getStatePrograms, getDashboardMetrics } from '../lib/programData'
@@ -100,7 +100,7 @@ function DashboardPreview({ activeCount, metrics }) {
   )
 }
 
-// ── small layout primitives ──────────────────────────────────────────────────
+// ── primitives ───────────────────────────────────────────────────────────────
 function Eyebrow({ children, dark = false }) {
   return (
     <div className="inline-flex items-center gap-2">
@@ -130,10 +130,70 @@ function ButtonPrimary({ to, children, className = '' }) {
   )
 }
 
-// Spotlight card — cursor-tracking gradient. Sets CSS vars --mx, --my on
-// the card; the gradient is rendered via the .lp-spotlight ::before in
-// index.css. Doesn't require framer-motion or any external dep.
-function SpotlightCard({ className = '', children, dark = false }) {
+// TextReveal — word-by-word fade-up on enter viewport. Lightweight version
+// of the Text Reveal skill: each word has its own CSS transition delay;
+// the wrapper element gets .is-revealed from useRevealOnScroll once it
+// intersects. No framer-motion, no 200vh scroll-scrubbed container — page
+// stays dense.
+//
+// Handles nested React children (e.g. a coloured <span> for the accent
+// portion of the headline, an inline <br /> for the line break) by
+// cloning each non-text node with its children processed in place. A
+// closure counter (wordIndex) gives every word a sequential delay
+// regardless of how deeply nested it is.
+function TextReveal({ as: Tag = 'h1', className = '', children, baseDelay = 55, style }) {
+  const ref = useRevealOnScroll()
+  let wordIndex = 0
+
+  const process = (node, keyBase) => {
+    if (node == null || typeof node === 'boolean') return null
+    if (typeof node === 'string' || typeof node === 'number') {
+      const parts = String(node).split(/(\s+)/)
+      return parts.map((part, i) => {
+        if (!part) return null
+        if (/^\s+$/.test(part)) return <span key={`${keyBase}-ws-${i}`}>{part}</span>
+        const delay = wordIndex * baseDelay
+        wordIndex += 1
+        return (
+          <span key={`${keyBase}-w-${i}`} className="lp-word" style={{ transitionDelay: `${delay}ms` }}>
+            {part}
+          </span>
+        )
+      })
+    }
+    if (Array.isArray(node)) {
+      return node.map((c, i) => process(c, `${keyBase}-${i}`))
+    }
+    // React element. If it has children, recurse; otherwise clone as-is
+    // (handles void elements like <br />).
+    if (node.props) {
+      const kids = node.props.children
+      if (kids == null) return cloneElement(node, { key: keyBase })
+      return cloneElement(node, { key: keyBase }, process(kids, `${keyBase}-c`))
+    }
+    return null
+  }
+
+  return (
+    <Tag ref={ref} className={`lp-text-reveal ${className}`} style={style}>
+      {process(children, 'r')}
+    </Tag>
+  )
+}
+
+// LightCard — interactive card optimized for light backgrounds. Uses
+// `.lp-light-card` from index.css which combines: a soft teal sheen
+// from the top-left + hover-lift + a hairline teal edge that appears
+// on hover. The user noted SpotlightCard's teal glow disappears on
+// white — this is the alternative.
+function LightCard({ className = '', children }) {
+  return <div className={`lp-light-card p-7 ${className}`}>{children}</div>
+}
+
+// SpotlightCard — cursor-tracking gradient. KEPT for dark-bg surfaces
+// (the teal glow reads against navy). Sets --mx / --my on mousemove;
+// rendered via the .lp-spotlight ::before in index.css.
+function SpotlightCard({ className = '', children }) {
   const ref = useRef(null)
   const onMove = (e) => {
     const el = ref.current
@@ -142,12 +202,9 @@ function SpotlightCard({ className = '', children, dark = false }) {
     el.style.setProperty('--mx', `${e.clientX - rect.left}px`)
     el.style.setProperty('--my', `${e.clientY - rect.top}px`)
   }
-  const base = dark
-    ? 'bg-white/[0.03] border-white/10 hover:border-white/25 text-white'
-    : 'bg-white border-gray-200 hover:border-gray-300'
   return (
     <div ref={ref} onMouseMove={onMove}
-         className={`lp-spotlight rounded-2xl border p-7 transition-colors ${base} ${className}`}>
+         className={`lp-spotlight rounded-2xl border p-7 transition-colors bg-white/[0.03] border-white/10 hover:border-white/25 text-white ${className}`}>
       {children}
     </div>
   )
@@ -157,18 +214,17 @@ function CounterBlock({ target, suffix = '', label, sub, dark = false }) {
   const [value, ref] = useCountUp(target)
   return (
     <div ref={ref} className="reveal-on-scroll">
-      <div className={`text-4xl lg:text-5xl font-bold tabular-nums ${dark ? 'text-white' : ''}`}
-           style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.035em', color: dark ? undefined : '#0F1A2E' }}>
-        {value}{suffix && <span className={`text-2xl ${dark ? 'text-white/40' : 'text-gray-400'}`}>{suffix}</span>}
+      <div className={`lp-h2 tabular-nums ${dark ? 'text-white' : ''}`}
+           style={dark ? { textShadow: '0 1px 24px rgba(0,0,0,0.4)' } : { color: '#0F1A2E' }}>
+        {value}{suffix && <span className={`${dark ? 'text-white/40' : 'text-gray-400'}`}>{suffix}</span>}
       </div>
-      <div className={`text-sm font-semibold mt-1.5 ${dark ? 'text-white/85' : 'text-gray-800'}`}>{label}</div>
+      <div className={`lp-h6 mt-1.5 ${dark ? 'text-white/85' : 'text-gray-800'}`}>{label}</div>
       {sub && <div className={`text-xs mt-0.5 ${dark ? 'text-white/40' : 'text-gray-400'}`}>{sub}</div>}
     </div>
   )
 }
 
-// ── Data sources for the marquee. Wordmark-only ("logo" lookalikes built
-// in JetBrains Mono — clean, brand-appropriate, no licensing concerns). ─────
+// ── Data sources marquee ────────────────────────────────────────────────────
 const DATA_SOURCES = [
   { label: 'DSIRE',          sub: 'incentives' },
   { label: 'EIA',            sub: 'retail rates' },
@@ -185,15 +241,14 @@ const DATA_SOURCES = [
 ]
 
 function SourcesMarquee() {
-  // Duplicate the list so the -50% translate wraps seamlessly.
   const doubled = [...DATA_SOURCES, ...DATA_SOURCES]
   return (
     <div className="lp-marquee" style={{ '--marquee-duration': '45s' }}>
       <div className="lp-marquee__track py-2">
         {doubled.map((s, i) => (
           <div key={`${s.label}-${i}`} className="flex items-center gap-3 px-6 lg:px-9 shrink-0">
-            <span className="font-mono text-base lg:text-lg font-semibold tracking-tight" style={{ color: '#0F1A2E' }}>{s.label}</span>
-            <span className="text-[11px] text-gray-400 leading-tight max-w-[7rem]">{s.sub}</span>
+            <span className="lp-h4 tabular-nums" style={{ color: '#0F1A2E' }}>{s.label}</span>
+            <span className="text-xs text-gray-400 leading-tight max-w-[7rem]">{s.sub}</span>
             <span className="w-1 h-1 rounded-full bg-gray-300 ml-3" />
           </div>
         ))}
@@ -202,7 +257,7 @@ function SourcesMarquee() {
   )
 }
 
-// ── 5-pillar tabs (Radix). Pill-style triggers, denser than the accordion. ─
+// ── 5-pillar tabs ────────────────────────────────────────────────────────────
 const PILLARS = [
   { id: 'offtake',    title: 'Offtake',         weight: '25%',
     description: 'Where the revenue actually comes from. Program capacity remaining, monetization structure (NM / NB / Community Solar / C&I), and the full export-rate haircut for every active state.',
@@ -233,20 +288,20 @@ function PillarTabs() {
         {PILLARS.map(p => (
           <RadixTabs.Trigger key={p.id} value={p.id} className="lp-tab-trigger">
             {p.title}
-            <span className="text-[10px] font-mono opacity-60">{p.weight}</span>
+            <span className="text-[11px] font-mono opacity-60">{p.weight}</span>
           </RadixTabs.Trigger>
         ))}
       </RadixTabs.List>
 
       {PILLARS.map(p => (
         <RadixTabs.Content key={p.id} value={p.id} className="outline-hidden">
-          <SpotlightCard dark className="!p-8 lg:!p-10">
+          <SpotlightCard className="!p-8 lg:!p-10">
             <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 lg:gap-12">
               <div>
-                <p className="text-lg lg:text-xl text-white/75 leading-relaxed">{p.description}</p>
+                <p className="text-base lg:text-lg text-white/75 leading-relaxed" style={{ textShadow: '0 1px 12px rgba(0,0,0,0.3)' }}>{p.description}</p>
 
                 <div className="mt-7">
-                  <div className="text-xs font-mono uppercase tracking-[0.18em] text-white/40 mb-3">Data sources</div>
+                  <div className="eyebrow-mono mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>Data sources</div>
                   <div className="flex flex-wrap gap-2">
                     {p.sources.map(s => (
                       <span key={s} className="text-xs px-3 py-1.5 rounded-full text-white/75 border border-white/15 bg-white/[0.03]">{s}</span>
@@ -260,8 +315,8 @@ function PillarTabs() {
                   <div key={i}>
                     {lbl
                       ? <>
-                          <div className="font-bold tabular-nums" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.035em', fontSize: 'clamp(2rem, 4vw, 3rem)', color: '#5EEAD4', lineHeight: 1.02 }}>{val}</div>
-                          <div className="text-xs text-white/55 mt-1.5">{lbl}</div>
+                          <div className="lp-h2 tabular-nums" style={{ color: '#5EEAD4', textShadow: '0 0 32px rgba(94,234,212,0.25)' }}>{val}</div>
+                          <div className="lp-h6 text-white/60 mt-1.5">{lbl}</div>
                         </>
                       : <div className="text-xs font-mono text-white/45 leading-relaxed">{val}</div>}
                   </div>
@@ -272,6 +327,88 @@ function PillarTabs() {
         </RadixTabs.Content>
       ))}
     </RadixTabs.Root>
+  )
+}
+
+// ── Net Effect card — 120× w/ count-up + bar comparison + sparkle dots ──────
+function NetEffectCard() {
+  // Trigger reveal + count-up on enter viewport. useCountUp returns its own
+  // ref; the same ref controls the bar-fill animation via `.is-revealed`,
+  // so we reveal the whole card together by re-using useRevealOnScroll on a
+  // wrapper that contains everything.
+  const wrapperRef = useRevealOnScroll()
+  const [value, counterRef] = useCountUp(120, 1800)
+
+  // Combine refs — useCountUp manages an IntersectionObserver internally,
+  // so we attach its ref to the inner number element and useRevealOnScroll
+  // separately to the wrapper for the bars + sparkles.
+  const sparkles = [
+    { top: '12%', left: '18%', delay: '0s'   },
+    { top: '24%', left: '74%', delay: '0.6s' },
+    { top: '46%', left: '88%', delay: '1.2s' },
+    { top: '62%', left: '8%',  delay: '0.4s' },
+    { top: '78%', left: '32%', delay: '1.8s' },
+    { top: '32%', left: '52%', delay: '2.4s' },
+    { top: '8%',  left: '60%', delay: '1.0s' },
+    { top: '88%', left: '70%', delay: '2.0s' },
+  ]
+
+  return (
+    <div
+      ref={wrapperRef}
+      className="reveal-on-scroll rounded-2xl p-7 relative overflow-hidden h-full flex flex-col"
+      style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
+    >
+      {/* teal hairline top */}
+      <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(94,234,212,0.85) 50%, transparent 100%)' }} />
+
+      {/* sparkle layer */}
+      <div className="lp-sparkles">
+        {sparkles.map((s, i) => (
+          <span key={i} className="lp-sparkle" style={{ top: s.top, left: s.left, animationDelay: s.delay }} />
+        ))}
+      </div>
+
+      {/* content */}
+      <span className="eyebrow-mono mb-3" style={{ color: '#5EEAD4' }}>● Net effect</span>
+
+      <div ref={counterRef} className="flex items-baseline gap-1 mb-1">
+        <span
+          className="tabular-nums text-white"
+          style={{
+            fontFamily: 'Geist, system-ui, sans-serif',
+            fontSize: 'clamp(3rem, 6vw, 4.5rem)',
+            fontWeight: 600,
+            letterSpacing: '-0.04em',
+            lineHeight: 1,
+            textShadow: '0 0 40px rgba(94,234,212,0.32), 0 1px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          {value}
+        </span>
+        <span className="lp-h3 text-white/40">×</span>
+      </div>
+      <div className="lp-h6 text-white/55 mb-5">faster per county research</div>
+
+      {/* Comparison bars */}
+      <div className="mt-auto space-y-3">
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="eyebrow-mono text-white/40">Manual</span>
+            <span className="text-xs font-mono text-white/65 tabular-nums">~4 hrs</span>
+          </div>
+          <span className="lp-cmp-bar" style={{ background: 'linear-gradient(90deg, #B45309 0%, #EA580C 100%)' }} />
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="eyebrow-mono" style={{ color: '#5EEAD4' }}>Tractova</span>
+            <span className="text-xs font-mono tabular-nums" style={{ color: '#5EEAD4' }}>~2 min</span>
+          </div>
+          {/* Width ratio: 2 min / 240 min ≈ 0.83% → use 1.5% so it's visible. */}
+          <span className="lp-cmp-bar block" style={{ background: '#5EEAD4', width: '2.5%' }} />
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -317,7 +454,7 @@ function FaqAccordion() {
               className="w-full text-left py-4 lg:py-5 flex items-center justify-between gap-6"
               aria-expanded={isOpen}
             >
-              <span className="text-base font-semibold" style={{ color: '#0F1A2E', fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.02em' }}>{item.q}</span>
+              <span className="lp-h5" style={{ color: '#0F1A2E' }}>{item.q}</span>
               <IconFaqPlusMinus open={isOpen} />
             </button>
             <div className="lp-accordion-body">
@@ -337,6 +474,33 @@ function Reveal({ delay = 0, className = '', children, as: Tag = 'div' }) {
   const ref = useRevealOnScroll()
   const delayCls = delay ? ` reveal-delay-${delay}` : ''
   return <Tag ref={ref} className={`reveal-on-scroll${delayCls} ${className}`}>{children}</Tag>
+}
+
+// ── Cursor-grid section wrapper. Tracks the cursor inside the dark section
+// and exposes --cursor-x / --cursor-y CSS vars + --grid-spotlight-opacity.
+// The .lp-hero-grid--cursor layer masks itself to a circle around those
+// coordinates. ─────────────────────────────────────────────────────────────
+function CursorGridSection({ children, className = '', style }) {
+  const ref = useRef(null)
+  const onMove = (e) => {
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    el.style.setProperty('--cursor-x', `${e.clientX - rect.left}px`)
+    el.style.setProperty('--cursor-y', `${e.clientY - rect.top}px`)
+    el.style.setProperty('--grid-spotlight-opacity', '1')
+  }
+  const onLeave = () => {
+    const el = ref.current
+    if (!el) return
+    el.style.setProperty('--grid-spotlight-opacity', '0')
+  }
+  return (
+    <section ref={ref} onMouseMove={onMove} onMouseLeave={onLeave}
+             className={`text-white relative overflow-hidden ${className}`} style={style}>
+      {children}
+    </section>
+  )
 }
 
 // ── main component ───────────────────────────────────────────────────────────
@@ -374,28 +538,28 @@ export default function Landing() {
   return (
     <div className="pt-14">
 
-      {/* ── 1. Hero (dark) — denser, no marketing pill ────────────────────── */}
-      <section className="text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+      {/* ── 1. Hero — dark, cursor-following grid ──────────────────────── */}
+      <CursorGridSection style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
         <div className="lp-accent-rail" />
         <div className="lp-hero-grid" />
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-14 lg:py-24 relative grid lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-16 items-center">
+        <div className="lp-hero-grid lp-hero-grid--cursor" />
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-14 lg:py-20 relative grid lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-16 items-center">
 
           <div>
-            <Reveal>
-              <h1 className="lp-h1 text-white mb-6">
-                The intelligence edge<br />
-                small developers{' '}
-                <span style={{ color: '#5EEAD4' }}>don't have.</span>
-              </h1>
-            </Reveal>
+            <TextReveal as="h1"
+                        className="lp-h1 text-white mb-6 lp-text-shadow-glow"
+                        baseDelay={55}>
+              The intelligence edge<br />
+              small developers <span style={{ color: '#5EEAD4' }}>don&apos;t have.</span>
+            </TextReveal>
 
-            <Reveal delay={100}>
-              <p className="text-lg text-white/65 leading-relaxed mb-8 max-w-xl">
+            <Reveal delay={300}>
+              <p className="lp-h5 text-white/65 leading-relaxed mb-8 max-w-xl" style={{ fontWeight: 400 }}>
                 Site, interconnection, incentives, offtake, policy — one platform, five pillars, refreshed weekly. Built for shops competing against teams with dedicated research staff.
               </p>
             </Reveal>
 
-            <Reveal delay={200}>
+            <Reveal delay={400}>
               <div className="flex flex-wrap items-center gap-5 mb-5">
                 <ButtonPrimary to="/signup">Get started free</ButtonPrimary>
                 <Link to="/preview" className="text-sm font-medium text-white/65 hover:text-white transition-colors">
@@ -415,13 +579,13 @@ export default function Landing() {
             </Reveal>
           </div>
 
-          <Reveal delay={200}>
+          <Reveal delay={350}>
             <DashboardPreview activeCount={activeCount} metrics={metrics} />
           </Reveal>
         </div>
-      </section>
+      </CursorGridSection>
 
-      {/* ── 2. Data sources — infinite-scroll marquee ─────────────────────── */}
+      {/* ── 2. Data sources marquee ─────────────────────────────────────── */}
       <section className="bg-white border-y border-gray-200 py-8 lg:py-10">
         <div className="max-w-[95rem] mx-auto">
           {fetchError && (
@@ -441,7 +605,7 @@ export default function Landing() {
                 <Eyebrow>Our data sources</Eyebrow>
                 <span className="text-xs text-gray-400 hidden sm:inline">Every score traces to a verified .gov source.</span>
               </div>
-              <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-400">Refreshed weekly</span>
+              <span className="eyebrow-mono text-gray-400">Refreshed weekly</span>
             </div>
           </div>
 
@@ -449,21 +613,20 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── 3. Five-pillar tabs + stats counters — combined dense section ── */}
+      {/* ── 3. Five-pillar tabs + stats counters ───────────────────────── */}
       <section className="text-white relative" style={{ background: '#0A132A' }}>
         <div className="lp-accent-rail" />
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-16 lg:py-24">
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-16 lg:py-20">
 
-          {/* Top: section intro + 4 stat counters on the right */}
           <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 mb-12 items-end">
             <Reveal>
               <Eyebrow dark>What we cover · The platform, in numbers</Eyebrow>
-              <h2 className="lp-h2 mt-4 text-white">
+              <h2 className="lp-h2 mt-4 text-white lp-text-shadow-soft">
                 Five pillars.<br/>
                 <span className="text-white/55">Every signal traceable.</span>
               </h2>
-              <p className="mt-5 text-base lg:text-lg text-white/65 leading-relaxed max-w-lg">
-                Community solar lives or dies on five questions. Tractova scores each one independently — when a state's signal moves, you know which pillar moved it.
+              <p className="mt-5 lp-h5 text-white/65 leading-relaxed max-w-lg" style={{ fontWeight: 400 }}>
+                Community solar lives or dies on five questions. Tractova scores each one independently — when a state&apos;s signal moves, you know which pillar moved it.
               </p>
             </Reveal>
 
@@ -475,20 +638,19 @@ export default function Landing() {
             </Reveal>
           </div>
 
-          {/* Pillar tabs */}
           <Reveal delay={200}>
             <PillarTabs />
           </Reveal>
         </div>
       </section>
 
-      {/* ── 4. Bento — who-for + how-it-works + time-saved (3 sections → 1) ─ */}
-      <section className="bg-paper py-16 lg:py-24 border-b border-gray-200">
+      {/* ── 4. Bento — who-for + how-it-works + 120× ───────────────────── */}
+      <section className="bg-paper py-16 lg:py-20 border-b border-gray-200">
         <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9">
 
-          <div className="text-center mb-10 lg:mb-14">
+          <div className="text-center mb-10 lg:mb-12">
             <Reveal>
-              <Eyebrow>How it works · Who it's for · What you get back</Eyebrow>
+              <Eyebrow>How it works · Who it&apos;s for · What you get back</Eyebrow>
             </Reveal>
             <Reveal delay={100}>
               <h2 className="lp-h2 mt-4 max-w-3xl mx-auto" style={{ color: '#0F1A2E' }}>
@@ -498,24 +660,21 @@ export default function Landing() {
             </Reveal>
           </div>
 
-          {/* Bento grid — 6 cells, 3-column layout. Top row: built-for (2-wide)
-              + 120× callout (1). Middle row: 3 step cells. Bottom row: not-for
-              (1) + final CTA pair (2-wide). */}
           <div className="grid md:grid-cols-3 gap-4 lg:gap-5">
 
-            {/* "Tractova is for" — 2-column span, top-left */}
+            {/* "Tractova is for" — 2-col, top-left */}
             <Reveal className="md:col-span-2">
-              <SpotlightCard className="h-full !bg-white">
+              <LightCard className="h-full">
                 <div className="flex items-center justify-between mb-5">
                   <Eyebrow>Built for who, exactly</Eyebrow>
-                  <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: '#0F766E' }}>Tractova is for</span>
+                  <span className="eyebrow-mono" style={{ color: '#0F766E' }}>Tractova is for</span>
                 </div>
                 <h3 className="lp-h3 mb-4" style={{ color: '#0F1A2E' }}>
                   The under-100-person shop. Real projects.<br/>
                   <span className="text-gray-500">No research team.</span>
                 </h3>
                 <p className="text-sm text-gray-600 leading-relaxed mb-5 max-w-2xl">
-                  Large IPPs have entire teams pulling queue data, monitoring program capacity, and flagging policy changes. You don't. <strong className="text-gray-900">Tractova is the team you can't afford to hire.</strong>
+                  Large IPPs have entire teams pulling queue data, monitoring program capacity, and flagging policy changes. You don&apos;t. <strong className="text-gray-900">Tractova is the team you can&apos;t afford to hire.</strong>
                 </p>
                 <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
                   {[
@@ -530,19 +689,12 @@ export default function Landing() {
                     </li>
                   ))}
                 </ul>
-              </SpotlightCard>
+              </LightCard>
             </Reveal>
 
-            {/* 120× callout — top-right */}
+            {/* Net Effect 120× — top-right */}
             <Reveal delay={100}>
-              <div className="rounded-2xl p-7 flex flex-col justify-center text-center h-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
-                <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.85) 50%, transparent 100%)' }} />
-                <span className="font-mono text-[10px] uppercase tracking-[0.20em] mb-3" style={{ color: '#5EEAD4' }}>Net effect</span>
-                <div className="text-6xl lg:text-7xl font-bold tabular-nums text-white" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.045em', lineHeight: 1 }}>
-                  120<span className="text-3xl text-white/40">×</span>
-                </div>
-                <p className="text-xs text-white/55 mt-3 leading-snug">faster per county.<br/>50 counties in the time it took to research one.</p>
-              </div>
+              <NetEffectCard />
             </Reveal>
 
             {/* 3 step cells — middle row */}
@@ -552,18 +704,18 @@ export default function Landing() {
               { step: '03', title: 'Track your pipeline', body: 'Save projects to your library. Get alerts when capacity drops, queue status changes, or policy shifts.' },
             ].map((s, i) => (
               <Reveal key={s.step} delay={i * 100}>
-                <SpotlightCard className="h-full !bg-white">
+                <LightCard className="h-full">
                   <div className="font-mono text-sm tabular-nums mb-3" style={{ color: '#0F766E' }}>{s.step}</div>
-                  <h3 className="lp-h5 mb-2.5" style={{ color: '#0F1A2E' }}>{s.title}</h3>
+                  <h3 className="lp-h4 mb-2.5" style={{ color: '#0F1A2E' }}>{s.title}</h3>
                   <p className="text-sm text-gray-600 leading-relaxed">{s.body}</p>
-                </SpotlightCard>
+                </LightCard>
               </Reveal>
             ))}
 
             {/* "Not designed for" — bottom-left */}
             <Reveal>
               <div className="rounded-2xl bg-gray-50 border border-gray-200 p-7 h-full">
-                <div className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500 mb-4">Not designed for</div>
+                <div className="eyebrow-mono mb-4 text-gray-500">Not designed for</div>
                 <ul className="space-y-2.5">
                   {[
                     'Large IPPs w/ intelligence teams',
@@ -584,77 +736,70 @@ export default function Landing() {
               </div>
             </Reveal>
 
-            {/* Mid-page CTA cell — bottom-right, spans 2 cols */}
+            {/* Mid-page CTA — bottom-right, 2-col */}
             <Reveal delay={100} className="md:col-span-2">
-              <div className="rounded-2xl border border-gray-200 bg-white p-7 h-full flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <LightCard className="h-full flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                 <div>
-                  <h3 className="lp-h5 mb-1" style={{ color: '#0F1A2E' }}>Try it on one of your projects.</h3>
+                  <h3 className="lp-h4 mb-1" style={{ color: '#0F1A2E' }}>Try it on one of your projects.</h3>
                   <p className="text-sm text-gray-500">14-day Pro trial. No card required. The first Lens run tells you if this fits your workflow.</p>
                 </div>
                 <ButtonPrimary to="/signup">Get started free</ButtonPrimary>
-              </div>
+              </LightCard>
             </Reveal>
 
           </div>
         </div>
       </section>
 
-      {/* ── 5. FAQ + Adder callout combined — 2-column ────────────────────── */}
-      <section className="bg-white py-16 lg:py-24">
+      {/* ── 5. FAQ + sidebar ───────────────────────────────────────────── */}
+      <section className="bg-white py-16 lg:py-20">
         <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 grid lg:grid-cols-[1.4fr_1fr] gap-12 lg:gap-16">
 
           <Reveal>
             <Eyebrow>FAQ</Eyebrow>
             <h2 className="lp-h2 mt-3 mb-2" style={{ color: '#0F1A2E' }}>Common questions.</h2>
             <p className="text-sm text-gray-500 mb-6 max-w-lg">
-              The questions developers actually ask before signing up. If yours isn't here, the form below goes straight to the founder.
+              The questions developers actually ask before signing up. If yours isn&apos;t here, sign up free and message the founder directly.
             </p>
             <FaqAccordion />
           </Reveal>
 
           <Reveal delay={100} className="lg:sticky lg:top-24 self-start space-y-4">
-            <SpotlightCard className="!bg-paper">
-              <Eyebrow>From the same team</Eyebrow>
-              <h3 className="lp-h4 mt-3 mb-2" style={{ color: '#0F1A2E' }}>The Adder Newsletter</h3>
-              <p className="text-sm text-gray-500 leading-relaxed mb-5">
-                Bi-weekly newsletter on community-solar policy, IX trends, and market moves for independent developers. Free and opinionated.
-              </p>
-              <a
-                href="https://theadder.substack.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
-                style={{ border: '1px solid #14B8A6', color: '#0F766E' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#14B8A6'; e.currentTarget.style.color = '#FFFFFF' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';  e.currentTarget.style.color = '#0F766E' }}
-              >
-                Read The Adder ↗
-              </a>
-            </SpotlightCard>
-
-            <SpotlightCard className="!bg-paper">
+            <LightCard>
               <Eyebrow>Why now</Eyebrow>
-              <h3 className="lp-h5 mt-3 mb-3" style={{ color: '#0F1A2E' }}>The window is open — briefly.</h3>
+              <h3 className="lp-h4 mt-3 mb-3" style={{ color: '#0F1A2E' }}>The window is open — briefly.</h3>
               <p className="text-sm text-gray-500 leading-relaxed">
                 IRA bonus tiers are still being claimed. State CS programs are still opening blocks. Queue reform is reshaping which utilities are buildable. <strong className="text-gray-900">The next 24 months are when small developers either gain market share or get crowded out.</strong>
               </p>
-            </SpotlightCard>
+            </LightCard>
+
+            <LightCard>
+              <Eyebrow>Methodology</Eyebrow>
+              <h3 className="lp-h4 mt-3 mb-3" style={{ color: '#0F1A2E' }}>Every score is decomposable.</h3>
+              <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                Click any state on the dashboard, expand any pillar, and you&apos;ll see the inputs. No black box. No proprietary "AI score" — just sourced data with a transparent weighting.
+              </p>
+              <Link to="/glossary" className="text-xs font-semibold inline-flex items-center gap-1" style={{ color: '#0F766E' }}>
+                Read the glossary →
+              </Link>
+            </LightCard>
           </Reveal>
         </div>
       </section>
 
-      {/* ── 6. Final CTA (dark) — tightened ───────────────────────────────── */}
-      <section className="text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #050A1A 100%)' }}>
+      {/* ── 6. Final CTA — dark, cursor-following grid ─────────────────── */}
+      <CursorGridSection style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #050A1A 100%)' }}>
         <div className="lp-accent-rail" />
         <div className="lp-hero-grid" />
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-16 lg:py-24 relative grid lg:grid-cols-[1.2fr_1fr] gap-10 lg:gap-16 items-center">
+        <div className="lp-hero-grid lp-hero-grid--cursor" />
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-16 lg:py-20 relative grid lg:grid-cols-[1.2fr_1fr] gap-10 lg:gap-16 items-center">
 
           <Reveal>
-            <h2 className="lp-h2-big text-white mb-6">
+            <h2 className="lp-h1 text-white mb-6 lp-text-shadow-glow">
               Start building<br/>smarter.
             </h2>
-            <p className="text-lg text-white/65 leading-relaxed mb-8 max-w-lg">
-              <strong className="text-white">Free dashboard access</strong> — see every active CS program in the country, no card required. Upgrade to Pro when you're ready to run real projects through the Lens.
+            <p className="lp-h5 text-white/65 leading-relaxed mb-8 max-w-lg" style={{ fontWeight: 400 }}>
+              <strong className="text-white">Free dashboard access</strong> — see every active CS program in the country, no card required. Upgrade to Pro when you&apos;re ready to run real projects through the Lens.
             </p>
             <div className="flex flex-wrap gap-4">
               <ButtonPrimary to="/signup">Create your free account</ButtonPrimary>
@@ -676,15 +821,15 @@ export default function Landing() {
               { kpi: '2 min',    title: 'Per Lens run',    body: '4-hour county research, condensed.' },
               { kpi: '$29.99',   title: 'Pro / month',     body: 'Full Lens, Library, policy alerts. 14-day trial.' },
             ].map(f => (
-              <SpotlightCard key={f.title} dark className="!p-5">
-                <div className="font-mono text-xs uppercase tracking-[0.18em] mb-3" style={{ color: '#5EEAD4' }}>{f.kpi}</div>
-                <h3 className="text-base font-semibold text-white mb-1.5" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.02em' }}>{f.title}</h3>
+              <SpotlightCard key={f.title} className="!p-5">
+                <div className="eyebrow-mono mb-3" style={{ color: '#5EEAD4' }}>{f.kpi}</div>
+                <h3 className="lp-h5 text-white mb-1.5">{f.title}</h3>
                 <p className="text-xs text-white/55 leading-relaxed">{f.body}</p>
               </SpotlightCard>
             ))}
           </Reveal>
         </div>
-      </section>
+      </CursorGridSection>
 
     </div>
   )

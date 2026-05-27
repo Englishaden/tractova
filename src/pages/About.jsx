@@ -177,42 +177,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── Field notes — The Adder ──────────────────────────────────────── */}
-      <section className="bg-white border-b border-gray-200 py-14">
-        <div className="max-w-dashboard mx-auto px-6 flex flex-col lg:flex-row items-center justify-between gap-8">
-          <div>
-            <div
-              className="text-xs font-mono font-semibold uppercase tracking-[0.24em] mb-2"
-              style={{ color: TEAL }}
-            >
-              ◆ From the same desk
-            </div>
-            <h3
-              className="text-xl lg:text-2xl font-serif font-semibold text-ink mb-2"
-              style={{ letterSpacing: '-0.02em' }}
-            >
-              The Adder Newsletter
-            </h3>
-            <p className="text-sm text-gray-500 max-w-lg leading-relaxed">
-              Notes on community solar policy and the market forces that move it — built
-              so developers can stay ahead of the regulation that decides their projects.
-              Free, and opinionated.
-            </p>
-          </div>
-          <a
-            href="https://theadder.substack.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-colors"
-            style={{ border: `1px solid ${TEAL_BRIGHT}`, color: TEAL }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = TEAL_BRIGHT; e.currentTarget.style.color = '#FFFFFF' }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = TEAL }}
-          >
-            Read The Adder ↗
-          </a>
-        </div>
-      </section>
-
       {/* ── Final CTA ────────────────────────────────────────────────────── */}
       <section className="text-white py-20 relative" style={{ background: NAVY_GRADIENT }}>
         <div className="absolute top-0 left-0 right-0 h-px" style={{ background: TEAL_RAIL }} />
