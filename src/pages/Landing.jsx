@@ -7,7 +7,9 @@ import { useAuth } from '../context/AuthContext'
 import { useRevealOnScroll } from '../hooks/useLandingMotion'
 
 import { NumberTicker }        from '../components/ui/landing/NumberTicker'
-import { HoverBorderGradient } from '../components/ui/landing/HoverBorderGradient'
+// HoverBorderGradient — kept on disk but no longer wired here; the
+// rotating conic-border read as visually noisy alongside the button's
+// text-swap animation. Available for future surfaces.
 import { MagicCard }           from '../components/ui/landing/MagicCard'
 import { AnimatedTooltip }     from '../components/ui/landing/AnimatedTooltip'
 import { Compare }             from '../components/ui/landing/Compare'
@@ -36,14 +38,36 @@ function IconFaqPlusMinus({ open }) {
   )
 }
 
-// ── hero preview card — simulated dashboard snapshot (preserved) ─────────────
-function DashboardPreview({ activeCount, metrics }) {
-  const sampleStates = [
-    { id: 'IL', score: 78, status: 'active'  },
-    { id: 'CO', score: 75, status: 'active'  },
-    { id: 'MN', score: 72, status: 'active'  },
-    { id: 'MD', score: 70, status: 'active'  },
-    { id: 'VA', score: 67, status: 'active'  },
+// ── hero preview card — driven by LIVE Supabase data ─────────────────────────
+// Top 3 stats (Active CS Programs / IX Headroom / Policy Alerts) come from
+// the same getDashboardMetrics() + getStatePrograms() calls the in-app
+// dashboard uses. Top Opportunity States now also pulls live — sorted by
+// computed feasibilityScore, top 6 by csStatus = active/limited. The only
+// hardcoded surface left is the two-row "Recent Policy Alerts" feed,
+// which requires a dedicated alerts table (not yet wired — see programData.js
+// — the placeholder text matches the actual current state of CEJA + Xcel
+// Solar Garden so it's accurate, just not auto-refreshing).
+function DashboardPreview({ activeCount, metrics, programs }) {
+  const topStates = (programs ?? [])
+    .filter(s => s.csStatus === 'active' || s.csStatus === 'limited')
+    .map(s => ({
+      id: s.id,
+      score: typeof s.feasibilityScore === 'number' ? Math.round(s.feasibilityScore) : 0,
+      status: s.csStatus,
+    }))
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+
+  // Render a small fallback only while the live data is still loading
+  // (programs prop empty on first paint). Avoids a flash of 0/empty rows
+  // before the Supabase fetch returns.
+  const sampleStates = topStates.length > 0 ? topStates : [
+    { id: 'IL', score: 78, status: 'active' },
+    { id: 'CO', score: 75, status: 'active' },
+    { id: 'MN', score: 72, status: 'active' },
+    { id: 'MD', score: 70, status: 'active' },
+    { id: 'VA', score: 67, status: 'active' },
     { id: 'MA', score: 45, status: 'limited' },
   ]
 
@@ -121,27 +145,27 @@ function Eyebrow({ children, dark = false }) {
   )
 }
 
-// Primary CTA — now wrapped in HoverBorderGradient so the conic-gradient
-// border spins around the button. Keeps the text-swap on hover from the
-// previous design (the two-stacked spans). Renders as a Link via the
-// outer wrapper.
+// Primary CTA — text-swap on hover only. We tried wrapping in
+// HoverBorderGradient (rotating conic border) too, but the combination
+// read as visually noisy alongside the spinning text. Keeping just the
+// text flip gives a cleaner moment of interactivity that matches the
+// rest of the page's restraint.
 function CtaPrimary({ to, children, className = '' }) {
   return (
-    <Link to={to} className="inline-flex">
-      <HoverBorderGradient
-        as="span"
-        containerClassName="rounded-lg"
-        className={`lp-btn-swap inline-flex items-center gap-2 px-6 py-3 text-sm font-semibold text-white ${className}`}
-        style={{ background: '#14B8A6' }}
-      >
-        <span className="lp-btn-swap__stack">
-          <span className="lp-btn-swap__text">{children}</span>
-          <span className="lp-btn-swap__text" aria-hidden="true">{children}</span>
-        </span>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-        </svg>
-      </HoverBorderGradient>
+    <Link
+      to={to}
+      className={`lp-btn-swap inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors ${className}`}
+      style={{ background: '#14B8A6', boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
+    >
+      <span className="lp-btn-swap__stack">
+        <span className="lp-btn-swap__text">{children}</span>
+        <span className="lp-btn-swap__text" aria-hidden="true">{children}</span>
+      </span>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+      </svg>
     </Link>
   )
 }
@@ -395,7 +419,14 @@ function ManualResearchPanel() {
     <div className="h-full p-5 lg:p-7 flex flex-col" style={{ background: '#F4F2EC' }}>
       <div className="flex items-baseline justify-between mb-3 lg:mb-4">
         <div className="eyebrow-mono text-gray-400">Manual research</div>
-        <div className="text-xs font-mono text-gray-500 tabular-nums">~4 hrs / county</div>
+        {/* Header changed from "~4 hrs" to "~½ day" per the
+            2026-05-27 research pass: no published industry benchmark
+            exists for per-county manual time. "Half a day" is the most
+            defensible framing — the timestamp workflow below sums to
+            roughly that range. The 120× claim downstream is anchored
+            on this number and labelled as a Tractova internal estimate
+            in the caption row footnote. */}
+        <div className="text-xs font-mono text-gray-500 tabular-nums">~½ day / county</div>
       </div>
       <h3 className="lp-h5 lg:lp-h4 text-gray-900 mb-3 lg:mb-4">Spreadsheet workflow</h3>
       <ul className="text-[11px] lg:text-sm text-gray-500 space-y-1.5 lg:space-y-2 flex-1 min-h-0 overflow-hidden">
@@ -593,7 +624,7 @@ export default function Landing() {
           </div>
 
           <Reveal delay={350}>
-            <DashboardPreview activeCount={activeCount} metrics={metrics} />
+            <DashboardPreview activeCount={activeCount} metrics={metrics} programs={programs} />
           </Reveal>
         </div>
       </CursorGridSection>
@@ -692,27 +723,69 @@ export default function Landing() {
             </div>
           </Reveal>
 
-          {/* 120× caption row */}
+          {/* 120× headline card — replaces the prior "look way right"
+              inline row. Centered, big-number-first composition so the
+              stat is the visual centerpiece. MagicCard backs it with
+              the cursor-tracked teal sheen; the number itself gets
+              the .lp-text-shadow-glow + a stronger inline teal-glow
+              text-shadow. Honest footnote at the bottom labels the
+              claim as a Tractova internal estimate (no published
+              industry per-county benchmark exists). */}
           <Reveal delay={100}>
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 mb-10 lg:mb-12">
-              <div className="flex items-baseline gap-3">
-                <NumberTicker
-                  value={120}
-                  className="tabular-nums"
-                  style={{
-                    fontFamily: 'Geist, system-ui, sans-serif',
-                    fontSize: 'clamp(2.5rem, 5vw, 3.5rem)',
-                    fontWeight: 600,
-                    letterSpacing: '-0.04em',
-                    color: '#0F1A2E',
-                    lineHeight: 1,
-                  }}
-                />
-                <span className="lp-h3 text-gray-400">× faster</span>
-                <span className="text-sm text-gray-500 ml-2">per county. 50 counties in the time it took to research one.</span>
+            <MagicCard gradientColor="#5EEAD4" gradientOpacity={0.20} className="lp-light-card mb-10 lg:mb-12">
+              <div className="px-6 py-10 lg:px-10 lg:py-14 text-center">
+                <div className="flex items-center justify-center mb-5">
+                  <Eyebrow>Net effect · Tractova internal estimate</Eyebrow>
+                </div>
+
+                <div className="flex items-baseline justify-center gap-2 mb-3">
+                  <NumberTicker
+                    value={120}
+                    className="tabular-nums lp-text-shadow-glow"
+                    style={{
+                      fontFamily: 'Geist, system-ui, sans-serif',
+                      fontSize: 'clamp(4.5rem, 12vw, 8rem)',
+                      fontWeight: 600,
+                      letterSpacing: '-0.05em',
+                      color: '#0F766E',
+                      lineHeight: 0.95,
+                      textShadow: '0 0 48px rgba(20,184,166,0.35), 0 1px 24px rgba(15,118,110,0.18)',
+                    }}
+                  />
+                  <span
+                    className="tabular-nums"
+                    style={{
+                      fontFamily: 'Geist, system-ui, sans-serif',
+                      fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                      fontWeight: 500,
+                      letterSpacing: '-0.03em',
+                      color: '#9CA3AF',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ×
+                  </span>
+                </div>
+
+                <p className="lp-h4 mb-2" style={{ color: '#0F1A2E' }}>
+                  faster per county research
+                </p>
+                <p className="text-sm text-gray-500 max-w-md mx-auto mb-6">
+                  50 counties in the time it used to take to research one.
+                </p>
+
+                <div className="flex justify-center">
+                  <CtaPrimary to={user ? '/search' : '/signup'}>Run a Lens</CtaPrimary>
+                </div>
+
+                <p className="mt-6 text-[11px] text-gray-400 max-w-lg mx-auto leading-relaxed">
+                  Tractova internal estimate: half a day of manual research
+                  (state CS portal · IX queue · ACS LMI · USFWS / USDA constraints
+                  · one-pager) vs. ~2 minute Lens run. No published industry
+                  per-county benchmark exists.
+                </p>
               </div>
-              <CtaPrimary to={user ? '/search' : '/signup'}>Run a Lens</CtaPrimary>
-            </div>
+            </MagicCard>
           </Reveal>
 
           {/* Bento row 2: built-for (2-col) + not-for (1-col) */}

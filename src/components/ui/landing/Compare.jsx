@@ -41,6 +41,22 @@ export function Compare({
     setPos(next)
   }
 
+  // Auto-reset when the slider leaves the viewport — so when the user
+  // scrolls back to it, it sits at the initial position (50/50 by
+  // default) instead of wherever the cursor was last. Prevents the
+  // "looks weird mid-scroll" issue the user flagged. Resets only when
+  // FULLY out of view (intersectionRatio === 0) so a partially-visible
+  // slider doesn't jitter while you're scrolling through it.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const io = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) setPos(initial)
+    }, { threshold: 0 })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [initial])
+
   // Drag handlers
   useEffect(() => {
     if (slideMode !== 'drag') return
