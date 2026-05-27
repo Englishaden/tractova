@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
+import { useAuth } from '../context/AuthContext'
 
 // About Tractova — "Surveyor's Field Notes" walkthrough.
 //
@@ -98,6 +99,10 @@ export default function About() {
   const [paused, setPaused] = useState(false)
   const [autoPlay, setAutoPlay] = useState(true)
   const reduce = useReducedMotion()
+  // Auth state drives the final-CTA copy + destinations. A signed-in
+  // visitor (especially Pro) seeing "Create Free Account" on their own
+  // About page is a glaring trust break — fix is to branch the CTA.
+  const { user, loading: authLoading } = useAuth()
 
   // Manual interaction (clicking a station node or the Next button) takes
   // over: auto-advance stops for the rest of the visit so the walkthrough
@@ -177,33 +182,64 @@ export default function About() {
         </div>
       </section>
 
-      {/* ── Final CTA ────────────────────────────────────────────────────── */}
+      {/* ── Final CTA — auth-aware ──────────────────────────────────────── */}
+      {/* Signed-out visitors: marketing CTA (signup + preview).
+          Signed-in visitors: in-app CTA (dashboard + Lens).
+          During the brief auth-loading window we render nothing on the
+          buttons (skeleton-equivalent) so the page never flashes the
+          wrong copy. */}
       <section className="text-white py-20 relative" style={{ background: NAVY_GRADIENT }}>
         <div className="absolute top-0 left-0 right-0 h-px" style={{ background: TEAL_RAIL }} />
         <div className="max-w-dashboard mx-auto px-6 text-center">
           <h2 className="text-3xl lg:text-4xl font-serif font-semibold mb-4" style={{ letterSpacing: '-0.02em' }}>
-            See it before you commit a dollar.
+            {user ? 'Welcome back — pick up where you left off.' : 'See it before you commit a dollar.'}
           </h2>
           <p className="text-white/60 text-lg mb-8 max-w-md mx-auto">
-            Free access to the market dashboard. No credit card required.
+            {user
+              ? 'Your market dashboard and saved projects are one click away.'
+              : 'Free access to the market dashboard. No credit card required.'}
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link
-              to="/signup"
-              className="px-8 py-3 text-white font-semibold rounded-lg transition-colors"
-              style={{ background: TEAL_BRIGHT, boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = TEAL }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = TEAL_BRIGHT }}
-            >
-              Create Free Account
-            </Link>
-            <Link
-              to="/preview"
-              className="px-8 py-3 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-semibold rounded-lg transition-colors"
-            >
-              Preview the platform →
-            </Link>
-          </div>
+          {!authLoading && (
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              {user ? (
+                <>
+                  <Link
+                    to="/"
+                    className="px-8 py-3 text-white font-semibold rounded-lg transition-colors"
+                    style={{ background: TEAL_BRIGHT, boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = TEAL }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = TEAL_BRIGHT }}
+                  >
+                    Open dashboard
+                  </Link>
+                  <Link
+                    to="/search"
+                    className="px-8 py-3 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Run a Lens →
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/signup"
+                    className="px-8 py-3 text-white font-semibold rounded-lg transition-colors"
+                    style={{ background: TEAL_BRIGHT, boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = TEAL }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = TEAL_BRIGHT }}
+                  >
+                    Create Free Account
+                  </Link>
+                  <Link
+                    to="/preview"
+                    className="px-8 py-3 border border-white/20 hover:border-white/40 text-white/70 hover:text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Preview the platform →
+                  </Link>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </section>
 

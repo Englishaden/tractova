@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as RadixTabs from '@radix-ui/react-tabs'
 import { getStatePrograms, getDashboardMetrics } from '../lib/programData'
 import ApiErrorBanner from '../components/ApiErrorBanner'
+import { useAuth } from '../context/AuthContext'
 import { useRevealOnScroll } from '../hooks/useLandingMotion'
 
 import { NumberTicker }        from '../components/ui/landing/NumberTicker'
@@ -493,6 +494,12 @@ function CursorGridSection({ children, className = '', style, as: Tag = 'section
 
 // ── main component ───────────────────────────────────────────────────────────
 export default function Landing() {
+  // Auth-aware CTAs — signed-in visitors (Pro or Free) shouldn't see
+  // "Create Free Account" copy. Logged-in branch points at /dashboard
+  // + /search instead of /signup + /preview. HomeRoute redirects logged-
+  // in users to Dashboard at "/", so landing.jsx is normally only seen
+  // signed-out — this branch is defensive (direct nav, future routing).
+  const { user } = useAuth()
   const [programs, setPrograms]     = useState([])
   const [metrics, setMetrics]       = useState(null)
   const [fetchError, setFetchError] = useState(null)
@@ -549,15 +556,33 @@ export default function Landing() {
 
             <Reveal delay={400}>
               <div className="flex flex-wrap items-center gap-5 mb-5">
-                <CtaPrimary to="/signup">Get started free</CtaPrimary>
-                <Link to="/preview" className="text-sm font-medium text-white/65 hover:text-white transition-colors">
-                  Preview live data →
-                </Link>
+                {user ? (
+                  <>
+                    <CtaPrimary to="/">Open dashboard</CtaPrimary>
+                    <Link to="/search" className="text-sm font-medium text-white/65 hover:text-white transition-colors">
+                      Run a Lens →
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <CtaPrimary to="/signup">Get started free</CtaPrimary>
+                    <Link to="/preview" className="text-sm font-medium text-white/65 hover:text-white transition-colors">
+                      Preview live data →
+                    </Link>
+                  </>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/45">
-                <span className="font-mono">Pro $29.99/mo · 14-day trial</span>
-                <span className="text-white/20">·</span>
-                {['Free dashboard', 'No card required', 'Live federal data'].map(t => (
+                {!user && (
+                  <>
+                    <span className="font-mono">Pro $29.99/mo · 14-day trial</span>
+                    <span className="text-white/20">·</span>
+                  </>
+                )}
+                {(user
+                  ? ['Live federal data', 'Refreshed weekly', 'Every signal traceable']
+                  : ['Free dashboard', 'No card required', 'Live federal data']
+                ).map(t => (
                   <span key={t} className="flex items-center gap-1.5">
                     <span style={{ color: '#5EEAD4' }}><IconCheck /></span>
                     {t}
@@ -686,7 +711,7 @@ export default function Landing() {
                 <span className="lp-h3 text-gray-400">× faster</span>
                 <span className="text-sm text-gray-500 ml-2">per county. 50 counties in the time it took to research one.</span>
               </div>
-              <CtaPrimary to="/signup">Run a Lens</CtaPrimary>
+              <CtaPrimary to={user ? '/search' : '/signup'}>Run a Lens</CtaPrimary>
             </div>
           </Reveal>
 
@@ -771,10 +796,18 @@ export default function Landing() {
             <MagicCard gradientColor="#5EEAD4" gradientOpacity={0.20} className="lp-light-card">
               <div className="p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-5">
                 <div>
-                  <h3 className="lp-h4 mb-1" style={{ color: '#0F1A2E' }}>Try it on one of your projects.</h3>
-                  <p className="text-sm text-gray-500">14-day Pro trial. No card required. The first Lens run tells you if this fits your workflow.</p>
+                  <h3 className="lp-h4 mb-1" style={{ color: '#0F1A2E' }}>
+                    {user ? 'Pick up where you left off.' : 'Try it on one of your projects.'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {user
+                      ? 'Your saved projects, alerts, and last Lens runs are waiting on the dashboard.'
+                      : '14-day Pro trial. No card required. The first Lens run tells you if this fits your workflow.'}
+                  </p>
                 </div>
-                <CtaPrimary to="/signup">Get started free</CtaPrimary>
+                <CtaPrimary to={user ? '/' : '/signup'}>
+                  {user ? 'Open dashboard' : 'Get started free'}
+                </CtaPrimary>
               </div>
             </MagicCard>
           </Reveal>
@@ -829,22 +862,45 @@ export default function Landing() {
 
             <Reveal>
               <h2 className="lp-h1 text-white mb-6 lp-text-shadow-glow">
-                Start building<br/>smarter.
+                {user ? <>Welcome back,<br/>let&apos;s ship.</> : <>Start building<br/>smarter.</>}
               </h2>
               <p className="lp-h5 text-white/65 leading-relaxed mb-8 max-w-lg" style={{ fontWeight: 400 }}>
-                <strong className="text-white">Free dashboard access</strong> — see every active CS program in the country, no card required. Upgrade to Pro when you&apos;re ready to run real projects through the Lens.
+                {user ? (
+                  <>
+                    <strong className="text-white">Your dashboard and saved projects are one click away.</strong> Run a fresh Lens on any new state, county, or project size you&apos;re considering.
+                  </>
+                ) : (
+                  <>
+                    <strong className="text-white">Free dashboard access</strong> — see every active CS program in the country, no card required. Upgrade to Pro when you&apos;re ready to run real projects through the Lens.
+                  </>
+                )}
               </p>
               <div className="flex flex-wrap gap-4">
-                <CtaPrimary to="/signup">Create your free account</CtaPrimary>
-                <Link to="/preview" className="px-6 py-3 rounded-lg text-sm font-semibold border text-white/85 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.18)' }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}>
-                  Preview live data →
-                </Link>
+                {user ? (
+                  <>
+                    <CtaPrimary to="/">Open dashboard</CtaPrimary>
+                    <Link to="/search" className="px-6 py-3 rounded-lg text-sm font-semibold border text-white/85 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.18)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}>
+                      Run a Lens →
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <CtaPrimary to="/signup">Create your free account</CtaPrimary>
+                    <Link to="/preview" className="px-6 py-3 rounded-lg text-sm font-semibold border text-white/85 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.18)' }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)' }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}>
+                      Preview live data →
+                    </Link>
+                  </>
+                )}
               </div>
-              <p className="text-xs text-white/40 mt-6">
-                Existing user? <Link to="/signin" className="underline hover:text-white">Sign in</Link>
-              </p>
+              {!user && (
+                <p className="text-xs text-white/40 mt-6">
+                  Existing user? <Link to="/signin" className="underline hover:text-white">Sign in</Link>
+                </p>
+              )}
             </Reveal>
 
             <Reveal delay={150} className="grid sm:grid-cols-2 gap-4">
