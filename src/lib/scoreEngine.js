@@ -251,12 +251,56 @@ const NET_BILLING_EXPORT_RATIO = {
 //   sourced Xcel QF1 figure or a separate hybrid-tier treatment lands.
 //   Source on disk: docs/dsire-net-billing/MN.txt.
 
+// Net Metering export-credit basis. Under traditional NM, exports are
+// credited at the FULL retail rate, so the offtake signal tracks the
+// state's retail-rate tier (CI_OFFTAKE_SCORES) — that's the default
+// behavior in the Net Metering branch of computeSubScores. A small number
+// of states have moved to a PER-KWH-NET-EXPORT haircut while still calling
+// it "net metering" — these have an entry here. Same two-layer pattern as
+// NET_BILLING_EXPORT_RATIO: the ratio is sourced/real; the 0-100 signal is
+// disclosed synthesis (anchor × (0.35 + 0.65·ratio); 0.35 floor = residual
+// self-consumption value, identical formula as NB for cross-structure
+// consistency). Add a state ONLY with a citable per-kWh haircut.
+//
+// Deliberately NOT in this map (conditional/year-end-only haircuts; the
+// state-level signal stays at the NM full-retail anchor):
+//   MT — annual surrender of unused credits at each customer-elected anchor
+//        month. Only haircuts oversized systems; load-matched systems take
+//        no haircut. State-level signal stays at NM anchor; project-level
+//        sizing belongs to §03 Dev Feasibility, not §04 monetization signal.
+//   IA — within-year credits at full retail; year-end residual cashed out
+//        at avoided cost. Same logic as MT — only oversized systems lose
+//        meaningful value. Stay on NM anchor.
+//   VA — 12-month carryover with customer-OPT-IN cash-out (or indefinite
+//        roll-forward). The default-savvy choice is indefinite roll-forward
+//        (no haircut). 2025 SCC Appalachian Power NMS II order rejected the
+//        utility's NB proposal — NM regime retained.
+//   HI — Smart Export per-island TOU; can't be reduced to single dominant
+//        rate (per the TOU methodology call, dominant-rate doesn't apply
+//        where the export rate itself is per-interval). Stays gated.
+const NET_METERING_EXPORT_RATIO = {
+  // NV — NV Energy NMR-405 Tier 4 (current tier for new applicants since
+  //   Tier 3 capacity benchmark filled in June 2019): excess export
+  //   credited at 75% of NV Energy's then-effective retail rate, per
+  //   AB-405's tiered net-metering schedule (Tier 1 95% → 2 88% → 3 81%
+  //   → 4 75%, each tier closing when 80 MW of new capacity hits). Earlier-
+  //   tier customers keep their rate for 20 years (grandfathered). 0.75
+  //   confirmed by Solar United Neighbors NV resource page + NV Energy
+  //   NMR-405 rate schedule (2025-11-15 effective). Source: WebFetch
+  //   solarunitedneighbors.org/resources/net-metering-in-nevada/.
+  NV: 0.75,
+}
+
 // Sorted state lists for user-facing "coverage" messaging. Kept here so the
 // scoring engine is a single source of truth — the Lens UI reads these via
 // getOfftakeCoverageStates() to render the "limited coverage" caption.
 export const CI_OFFTAKE_COVERAGE = Object.keys(CI_OFFTAKE_SCORES).sort()
 export const BESS_OFFTAKE_COVERAGE = Object.keys(BESS_OFFTAKE_SCORES).sort()
 export const NET_BILLING_OFFTAKE_COVERAGE = Object.keys(NET_BILLING_EXPORT_RATIO).sort()
+// States where Net Metering ≠ full retail (per-kWh-net-export haircut).
+// Distinct from NB coverage: these are still full-retail in structure for
+// self-consumption, with a defined export-credit reduction on top.
+export const NET_METERING_HAIRCUT_STATES = Object.keys(NET_METERING_EXPORT_RATIO).sort()
 
 // Curated offtake coverage for a project's monetization structure (accepts a
 // legacy technology string or an {architecture, structure} axes object).
@@ -455,12 +499,26 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
     offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
   } else if (structure === 'Net Metering') {
-    // Net metering credits exports at the FULL retail rate, so its offtake value
-    // tracks the same retail-rate signal as C&I — reuse that curated anchor (EIA
-    // Form 861). 'researched' where curated; the UI discloses net_metering_status
-    // (expose + disclose) rather than gating on per-state NM availability.
+    // Net metering credits exports at the FULL retail rate by default, so its
+    // offtake value tracks the same retail-rate signal as C&I — reuse that
+    // curated anchor (EIA Form 861). 'researched' where curated; the UI
+    // discloses net_metering_status (expose + disclose) rather than gating on
+    // per-state NM availability.
+    //
+    // EXCEPTION: states that still call it "net metering" but apply a
+    // per-kWh-net-export haircut (NV NMR-405 Tier 4 at 75% of retail).
+    // Same two-layer formula as Net Billing — anchor × (0.35 + 0.65·ratio),
+    // floor captures self-consumption value retained at retail. At ratio=1.0
+    // the formula degenerates to anchor exactly, so unsourced NM states are
+    // unaffected.
     if (CI_OFFTAKE_SCORES[stateProgram.id] == null) offtakeCoverage = 'fallback'
-    offtake = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
+    const nmAnchor = CI_OFFTAKE_SCORES[stateProgram.id] ?? 55
+    const nmRatio = NET_METERING_EXPORT_RATIO[stateProgram.id]
+    if (nmRatio != null) {
+      offtake = Math.round(nmAnchor * (0.35 + 0.65 * nmRatio))
+    } else {
+      offtake = nmAnchor
+    }
   } else if (structure === 'Net Billing') {
     // Exports credited at avoided cost (below retail). Where the export-credit
     // ratio is sourced (NET_BILLING_EXPORT_RATIO), score it for real: anchor to

@@ -342,6 +342,31 @@ describe('computeSubScores — two-axis model (architecture × structure)', () =
     expect(bess.ix - pv.ix).toBe(5)
     expect(bess.offtake).toBeGreaterThan(0)
   })
+
+  it('Net Metering applies the sourced per-kWh haircut where one exists (NV Tier 4 at 75% of retail)', () => {
+    // NV Energy NMR-405 Tier 4 — new applicants since June 2019 get 75% of retail
+    // for net exports. This is a per-kWh-net-export haircut while still being NM
+    // in structure (full retail offset for self-consumption). Same two-layer
+    // formula as Net Billing.
+    const NV = { id: 'NV', csStatus: 'none', ixDifficulty: 'moderate' }
+    const nv = computeSubScores(NV, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
+    const ci = computeSubScores(NV, null, '', { architecture: 'Standalone PV', structure: 'C&I Solar' })
+    // NV NM under Tier 4 should score BELOW the full-retail C&I anchor (which is
+    // what NM would be without the haircut). C&I has no haircut.
+    expect(nv.offtake).toBeLessThan(ci.offtake)
+    // Coverage stays 'researched' — we have the curated retail anchor; the
+    // haircut is sourced on top, not a gating condition.
+    expect(nv.coverage.offtake).toBe('researched')
+  })
+
+  it('Unsourced Net Metering states are unaffected by the haircut map (no regression)', () => {
+    // For states without an entry in NET_METERING_EXPORT_RATIO, NM should still
+    // equal the full C&I retail-rate anchor (formula degenerates at ratio=1.0).
+    // Use a state we know is NOT in the haircut map (NY).
+    const nm = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'Net Metering' })
+    const ci = computeSubScores(NY, null, '', { architecture: 'Standalone PV', structure: 'C&I Solar' })
+    expect(nm.offtake).toBe(ci.offtake)
+  })
 })
 
 describe('computeIncentiveScore — Pillar 4 (ITC step-up eligibility)', () => {
