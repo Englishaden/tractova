@@ -379,9 +379,35 @@
 }
 .lp-marquee {
   position: relative;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
-          mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+  /* overflow-x: clip prevents the duplicated track from causing
+     horizontal scroll; overflow-y: visible lets tooltips on
+     individual items extend above/below the track without being
+     clipped. Both supported in Chrome 90+ / Safari 15.4+ / Firefox 81+. */
+  overflow-x: clip;
+  overflow-y: visible;
+  /* Edge fades — was a mask-image previously, but mask-image creates a
+     stacking-clip that also chopped tooltip pop-ups extending above the
+     marquee. Now done via two pseudo-elements that paint a left→right
+     and right→left white-to-transparent gradient sitting above the
+     marquee items (z-index: 5) but below the tooltips (z-index: 50). */
+}
+.lp-marquee::before,
+.lp-marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8%;
+  z-index: 5;
+  pointer-events: none;
+}
+.lp-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--lp-marquee-bg, #ffffff) 0%, transparent 100%);
+}
+.lp-marquee::after {
+  right: 0;
+  background: linear-gradient(-90deg, var(--lp-marquee-bg, #ffffff) 0%, transparent 100%);
 }
 .lp-marquee__track {
   display: flex;

@@ -76,11 +76,18 @@ function DashboardPreview({ activeCount, metrics, programs }) {
       <div className="absolute -inset-1 rounded-xl blur-xl" style={{ background: 'rgba(20,184,166,0.25)' }} />
       <div className="relative border rounded-xl overflow-hidden shadow-2xl" style={{ background: '#0F1A2E', borderColor: 'rgba(20,184,166,0.15)' }}>
         <div className="absolute top-0 left-0 right-0 h-px z-10" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
-        <div className="flex items-center gap-1.5 px-4 py-3 border-b border-white/10 bg-white/5">
-          <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-          <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-          <span className="w-2.5 h-2.5 rounded-full bg-white/20" />
-          <span className="ml-3 text-xs text-white/30 font-mono">tractova.com</span>
+        {/* Chrome bar — was 3 decorative macOS-style traffic-light dots
+            (left over from the original mock). The dots were never
+            interactive and looked vestigial; replaced with a single
+            pulsing teal LIVE indicator that communicates the dashboard
+            below is real platform data, plus the URL on the right. */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-white/5">
+          <span className="relative inline-flex w-2 h-2">
+            <span className="absolute inset-0 rounded-full animate-ping" style={{ background: '#14B8A6', opacity: 0.6 }} />
+            <span className="relative w-2 h-2 rounded-full" style={{ background: '#5EEAD4' }} />
+          </span>
+          <span className="text-[10px] font-mono font-semibold tracking-[0.18em]" style={{ color: '#5EEAD4' }}>LIVE</span>
+          <span className="ml-auto text-xs text-white/30 font-mono">tractova.com</span>
         </div>
         <div className="grid grid-cols-3 gap-px bg-white/5 border-b border-white/10">
           {[
@@ -263,22 +270,25 @@ const DATA_SOURCES = [
 function SourcesMarquee() {
   const doubled = [...DATA_SOURCES, ...DATA_SOURCES]
   return (
-    // Native `title` attributes for the per-item hover affordance — the
-    // marquee's overflow:hidden would clip a real Tooltip pop-up. The
-    // AnimatedTooltip primitive is reserved for the pillar weight chips
-    // (in PillarTabs) where overflow isn't constrained.
-    <div className="lp-marquee" style={{ '--marquee-duration': '45s' }}>
-      <div className="lp-marquee__track py-2">
+    // Marquee now allows vertical overflow via overflow-x:clip +
+    // overflow-y:visible (see .lp-marquee in index.css), so each
+    // item can host a real AnimatedTooltip that pops above the
+    // track without being clipped. Duration slowed from 45s → 70s
+    // so users can comfortably read items as they flow past.
+    <div className="lp-marquee py-3 lg:py-4" style={{ '--marquee-duration': '70s' }}>
+      <div className="lp-marquee__track">
         {doubled.map((s, i) => (
-          <div
+          <AnimatedTooltip
             key={`${s.label}-${i}`}
-            title={`${s.name} — ${s.sub}`}
-            className="flex items-center gap-3 px-6 lg:px-9 shrink-0"
+            label={s.name}
+            sublabel={`${s.sub} · sourced directly from the agency feed`}
           >
-            <span className="lp-h4 tabular-nums" style={{ color: '#0F1A2E' }}>{s.label}</span>
-            <span className="text-xs text-gray-400 leading-tight max-w-[7rem]">{s.sub}</span>
-            <span className="w-1 h-1 rounded-full bg-gray-300 ml-3" />
-          </div>
+            <div className="flex items-center gap-3 px-6 lg:px-9 shrink-0 cursor-default">
+              <span className="lp-h4 tabular-nums" style={{ color: '#0F1A2E' }}>{s.label}</span>
+              <span className="text-xs text-gray-400 leading-tight max-w-[7rem]">{s.sub}</span>
+              <span className="w-1 h-1 rounded-full bg-gray-300 ml-3" />
+            </div>
+          </AnimatedTooltip>
         ))}
       </div>
     </div>
@@ -311,7 +321,7 @@ const PILLARS = [
     description: "What's about to change. Comment deadlines, rate cases, program rule revisions, queue reform rulings. The signal that catches a developer before the rules shift, not after.",
     sources: ['PUC dockets', 'FERC rulemakings', 'State legislation', 'ISO queue reforms'],
     primary: { value: null, label: 'Refresh cadence' },
-    secondary: 'Surface alerts in-app' },
+    secondary: 'Surface alerts in-platform' },
 ]
 
 function PillarTabs() {
@@ -337,9 +347,17 @@ function PillarTabs() {
 
                 <div className="mt-7">
                   <div className="eyebrow-mono mb-3" style={{ color: 'rgba(255,255,255,0.45)' }}>Data sources</div>
-                  <div className="flex flex-wrap gap-2">
-                    {p.sources.map(s => (
-                      <span key={s} className="text-xs px-3 py-1.5 rounded-full text-white/75 border border-white/15 bg-white/[0.03]">{s}</span>
+                  {/* Source list — visually passive (no border, no rounded-full
+                      pill, no hover state). The pillar tab triggers above are
+                      THE interactive elements; these are labels listing what
+                      feeds the pillar. Inline · separators read as a citation
+                      list, not a button group. */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/55">
+                    {p.sources.map((s, i, arr) => (
+                      <span key={s} className="inline-flex items-center gap-2">
+                        <span className="font-mono">{s}</span>
+                        {i < arr.length - 1 && <span className="text-white/20">·</span>}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -744,19 +762,21 @@ export default function Landing() {
                     className="tabular-nums lp-text-shadow-glow"
                     style={{
                       fontFamily: 'Geist, system-ui, sans-serif',
-                      fontSize: 'clamp(4.5rem, 12vw, 8rem)',
+                      // Trimmed from clamp(4.5rem, 12vw, 8rem) to keep the
+                      // number bold but stop it overwhelming the card.
+                      fontSize: 'clamp(3.25rem, 8vw, 5.5rem)',
                       fontWeight: 600,
                       letterSpacing: '-0.05em',
                       color: '#0F766E',
                       lineHeight: 0.95,
-                      textShadow: '0 0 48px rgba(20,184,166,0.35), 0 1px 24px rgba(15,118,110,0.18)',
+                      textShadow: '0 0 36px rgba(20,184,166,0.32), 0 1px 18px rgba(15,118,110,0.15)',
                     }}
                   />
                   <span
                     className="tabular-nums"
                     style={{
                       fontFamily: 'Geist, system-ui, sans-serif',
-                      fontSize: 'clamp(2rem, 5vw, 3.5rem)',
+                      fontSize: 'clamp(1.5rem, 3.5vw, 2.5rem)',
                       fontWeight: 500,
                       letterSpacing: '-0.03em',
                       color: '#9CA3AF',
