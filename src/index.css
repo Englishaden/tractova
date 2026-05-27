@@ -246,7 +246,13 @@
 
 @layer base {
   html {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    /* Geist (Vercel, variable 100-900) is the primary UI sans — see index.html
+       for brand-direction rationale. system-ui chain is the fallback before
+       Geist hydrates (or if the Google Fonts CDN ever fails). Previously this
+       was system-ui-first, which silently overrode the loaded Inter — Geist
+       is now the actual rendered face on every OS, fixing per-OS visual
+       inconsistency (SF Pro vs Segoe UI vs Roboto). */
+    font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

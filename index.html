@@ -33,9 +33,18 @@
     <meta name="twitter:title" content="Tractova" />
     <meta name="twitter:description" content="Community solar and renewable energy market intelligence for independent developers." />
     <meta name="twitter:image" content="https://www.tractova.com/og-image.png" />
+    <!-- Geist (Vercel, variable 100-900) is the primary UI sans — chosen for
+         the "renewable-energy market intelligence" brand (Linear / Vercel
+         visual neighborhood: geometric, technical, modern, distinctly *not*
+         consumer-y). JetBrains Mono stays for §-markers, data labels, gauge
+         readouts. Source Serif 4 was previously loaded for PDF reports but
+         the PDF uses @react-pdf/renderer's built-in Times-Roman, so it was
+         dead bytes — removed. Inter was loaded but overridden by system-ui
+         in index.css — also removed (the bug fix is now picking up Geist
+         instead). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>
