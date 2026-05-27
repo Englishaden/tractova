@@ -1,0 +1,40 @@
+STATE: Kentucky
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/1081
+FETCHED: 2026-05-27
+
+Paste:
+Net Metering / Net Billing
+Last Updated March 3, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Kentucky
+Incentive Type:Net Metering
+Web Site:http://www.psc.ky.gov/Home/Utilities#Electric
+Eligible Renewable/Other Technologies:Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Wind (Small), Hydroelectric (Small)
+Applicable Sectors:Commercial, Local Government, Nonprofit, Residential, Schools, State Government, Agricultural, Institutional
+Applicable Utilities:Investor-owned utilities, electric cooperatives (except TVA distribution utilities)
+System Capacity Limit:45 kW
+Aggregate Capacity Limit:Net Metering (Cooperatives): 1% of utility's single-hour peak load during previous year
+Net Billing (IOUs): No limit
+Net Excess Generation:Net Metering (Cooperatives): Monthly net excess generation rolls over as a kWh credit on the next monthly bill
+Net Billing (IOUs): Production and consumption are netted instantaneously and any excess kWh is credited to customer's next bill at a utility-specific dollar-denominated credit rate
+Ownership of Renewable Energy Credits:Customer owns RECs
+Meter Aggregation:Not addressed
+Summary
+In April 2008, Kentucky enacted legislation that expanded its net metering law by requiring utilities to offer net metering to customers that generate electricity with photovoltaic (PV), wind, biomass, biogas or hydroelectric systems up to 30 kilowatts (kW) in capacity. The Kentucky Public Service Commission (PSC) issued rules on January 8, 2009. Utilities had 90 days from that date to file tariffs that include all terms and conditions of their net metering programs, including interconnection. Kentucky enacted legislation again in 2019 (S.B. 100), which began the transition from net metering to et billing for the investor-owned utilities (IOUs). Each IOU then triggered their own transition during the next rate case. Customers taking service under previous net metering rules (including customers that begin service before the new crediting rules for each utility are developed) will be grandfathered in for 25 years.
+
+Electric Cooperative Except for TVA Distribution Utilities
+
+Net metering is available to all customers of rural electric cooperatives, exempting TVA utilities. Production and consumption are netted on a monthly basis and any excess production during a month rolls over to the customers next monthly bill as a kilowatt-hour (kWh) credit. Kentucky requires the use of a single, bi-directional meter for net metering. Any additional meter, meters or distribution upgrades needed to monitor electricity flow in each direction will be installed at the customer's expense. The customer retains ownership of any Renewable Energy Credits.
+
+If the cumulative generating capacity of net-metered systems reaches 1.0% of a utility's single-hour peak load during the previous year, the PSC may limit the utility's obligation to offer net metering. When time-of-day or time-of-use metering is used, the electricity fed back to the grid by customers is net-metered and accounted for at the specific time it is fed back to the grid in accordance with the time-of-day or time-of-use billing agreement currently in place.
+
+IOUs
+
+In the 2019 legislative session, Kentucky passed a bill (S.B. 100) which made several changes to net metering. Most significantly, the bill allowed the IOUs to transition to net billing. Under the new net billing rules, production and consumption are netted instantaneously and any excess kWh's exported to the grid are credited at a utility-specific rate. Bill credits for net exports can only offset per-kWh electricity charges. Any excess bill credits are carried forward to the next billing period.
+
+Authorities
+Name:KRS § 278.465 et seq.
+Date Enacted:4/22/2004 (amended 2008)
+Effective Date:7/13/2004 (amendments effective 07/15/2008)

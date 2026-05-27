@@ -136,6 +136,21 @@ const NET_BILLING_EXPORT_RATIO = {
   //   EPM Mar-2026 commercial) → 0.370 ≈ 0.37. Source on disk:
   //   docs/dsire-net-billing/IN.txt.
   IN: 0.37,
+  // KY — S.B. 100 (2019) moved IOUs from net metering to net billing; each IOU
+  //   triggered transition in its next rate case. Post-Sep 24 2021 customers
+  //   take service under NMS-2 (dollar-denominated bill credits). KPSC 2021
+  //   order set LG&E 6.9¢ + KU 7.4¢ as the export credit rate, distinct from
+  //   the full retail rate; KPSC rejected utilities' proposed 2.3¢ floor. LG&E
+  //   and KU are sister utilities (PPL Corp) and split ~all KY IOU load
+  //   between them — avg 7.15¢ vs 13.20¢ retail (EIA EPM Mar-2026 commercial)
+  //   → 0.542 ≈ 0.54. Pre-Sep 24 2021 customers grandfathered at full retail
+  //   for 25 years (covered by NM list, not NB). Electric cooperatives stay
+  //   on full-retail net metering (not in scope for this NB list). Duke KY +
+  //   Kentucky Power transition at each IOU's next rate case but are smaller
+  //   share — rate not separately wired. Source on disk:
+  //   docs/dsire-net-billing/KY.txt; rate cite: Mountain Association article
+  //   on 2021 KPSC order (NMS-2 export rates).
+  KY: 0.54,
   // LA — Post-Dec 31 2019 systems: exports at the utility's avoided cost rate,
   //   instantaneous netting (Rider Schedule DG, two-channel billing). Entergy
   //   LA publishes 2.59331¢/kWh eff. Apr 1 2025 — dominant utility by load,
@@ -165,6 +180,21 @@ const NET_BILLING_EXPORT_RATIO = {
   //   directly. Source on disk: docs/dsire-net-billing/NC.txt; rate cites:
   //   solarreviews + energysage (Duke NEEC ~$0.034).
   NC: 0.32,
+  // OH — Net metering credits excess at the "energy-only component of the
+  //   utility's Standard Service Offer" — the unbundled GENERATION rate, not
+  //   the full bundled retail (which adds distribution + transmission charges
+  //   + riders). This is a net-billing structure even though Ohio calls it
+  //   "net metering." AEP Ohio Generation Energy Rider (GENE) 11.0¢/kWh as of
+  //   2025 — dominant IOU by load, anchors the signal. Duke OH + FirstEnergy
+  //   (AEP, Cleveland Illuminating, Toledo Edison) follow the same structure
+  //   with their own SSO generation rates; not separately wired here. 11.0¢
+  //   vs 14.03¢ retail (EIA EPM Mar-2026 commercial) → 0.784 ≈ 0.78. Highest
+  //   ratio in the sourced cohort — reflects OH's competitive-retail market
+  //   structure where generation is a substantial share of the bundled rate
+  //   even when unbundled at the GENE. Source on disk:
+  //   docs/dsire-net-billing/OH.txt; rate cite: solarreviews.com
+  //   /blog/going-solar-with-aep-ohio (2025 GENE 11.0¢).
+  OH: 0.78,
   // UT — Rocky Mountain Power net billing Export Credit Rate 5.636¢ (summer) /
   //   4.745¢ (winter) vs ~10.2¢ retail → "roughly half". Recalculated each Mar 1.
   //   Sources: PUCN/RMP ECR figures · EnergySage ("~6¢, roughly half of retail").
