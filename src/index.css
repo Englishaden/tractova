@@ -225,6 +225,135 @@
   .animate-\[skeleton-shimmer_1\.6s_ease-in-out_infinite\] { animation: none !important; }
 }
 
+/* Nixtio-style display type scale — used by the redesigned Landing.
+   Heavy negative letter-spacing + 110% line-height is the single move
+   that makes the type read intentional rather than browser-default.
+   Sourced from research/2026-05-27-nixtio-teardown.md (§ Typography).
+   Mapped to Geist (already loaded) instead of Nixtio's Inter. */
+.lp-h1 {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: clamp(2.75rem, 8vw, 5.5rem);
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+.lp-h2 {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: clamp(2rem, 4.5vw, 3.25rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+.lp-h2-big {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: clamp(3rem, 11vw, 8rem);
+  font-weight: 600;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+}
+.lp-h3 {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: clamp(1.5rem, 2.2vw, 1.875rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+.lp-h4 {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.2;
+}
+.lp-h5 {
+  font-family: 'Geist', system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* Reveal-on-scroll — IntersectionObserver hook adds .is-revealed when
+   the element enters the viewport. Three delay steps stagger siblings
+   (e.g. the four feature cards). Respects prefers-reduced-motion. */
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-100 { transition-delay: 100ms; }
+.reveal-delay-200 { transition-delay: 200ms; }
+.reveal-delay-300 { transition-delay: 300ms; }
+.reveal-delay-400 { transition-delay: 400ms; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
+/* Accordion expand — grid-template-rows 0fr → 1fr trick. Avoids
+   measuring content height in JS; works in all evergreen browsers
+   that support grid (everything we care about). */
+.lp-accordion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.25s ease-in-out;
+  opacity: 0;
+}
+.lp-accordion-body > .lp-accordion-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+.lp-accordion-row.is-open .lp-accordion-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+/* Button text-swap — the two stacked spans slide up together so the
+   duplicate replaces the original on hover. Distinctive without
+   being expensive. */
+.lp-btn-swap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+}
+.lp-btn-swap__stack {
+  display: inline-flex;
+  flex-direction: column;
+  height: 1.25em;
+  overflow: hidden;
+}
+.lp-btn-swap__text {
+  display: block;
+  transition: transform 0.35s cubic-bezier(0.65, 0, 0.35, 1);
+  line-height: 1.25em;
+}
+.lp-btn-swap:hover .lp-btn-swap__text,
+.lp-btn-swap:focus-visible .lp-btn-swap__text {
+  transform: translateY(-100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-btn-swap__text { transition: none; transform: none !important; }
+}
+
+/* Hairline accent rail — used at top of dark sections to echo
+   Tractova's brand-navy / teal continuity from the existing app. */
+.lp-accent-rail {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.6) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.6) 70%, transparent 100%);
+}
+
 /* Phase 0 — Responsive mono-eyebrow utility. Used app-wide for §
    markers, card headers, panel labels. Drops slightly tighter on
    mobile so very-wide tracking doesn't break readability at small

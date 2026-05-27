@@ -50,167 +50,110 @@ export default function SignUp() {
       return
     }
 
-    // If email confirmation is disabled in Supabase, session is returned immediately
     if (data.session) {
       navigate('/')
     } else {
-      // Email confirmation required — show success screen
       setSuccess(true)
       setLoading(false)
     }
   }
 
-  // ── Success / email confirmation screen ──────────────────────────────────────
   if (success) {
     return <CheckYourEmailScreen email={email} />
   }
 
-  // ── Sign up form ─────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center px-4 pt-14">
-      <div className="w-full max-w-sm">
+    <AuthShell
+      eyebrow="Create account"
+      title="Start building smarter."
+      subtitle="Free dashboard access. No credit card. The full five-pillar Lens unlocks on Pro — try free for 14 days."
+    >
+      <h1 className="lp-h4 mb-1" style={{ color: '#0F1A2E' }}>Create your account</h1>
+      <p className="text-xs text-gray-500 mb-6">Dashboard access is free, no credit card required.</p>
 
-        {/* Wordmark — V3 serif */}
-        <div className="flex flex-col items-center gap-2 mb-8">
-          <TractovaMark />
-          <span className="text-2xl font-serif font-semibold tracking-tight text-ink" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
+      {error && (
+        <div className="mb-5 px-3 py-2.5 bg-red-50 border border-red-200 rounded-md">
+          <p className="text-xs text-red-600">{error}</p>
         </div>
+      )}
 
-        {/* Card */}
-        <div className="bg-white border border-gray-200 rounded-xl px-8 py-8 shadow-xs">
-          <h1 className="text-base font-bold text-gray-900">Create your account</h1>
-          <p className="text-xs text-gray-500 mt-1 mb-6">
-            Dashboard access is free, no credit card required.
-          </p>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Field label="Full name">
+          <input
+            type="text" required autoComplete="name" autoFocus
+            value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="Your full name"
+            className={INPUT_CLASS}
+          />
+        </Field>
 
-          {error && (
-            <div className="mb-5 px-3 py-2.5 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-xs text-red-600">{error}</p>
-            </div>
-          )}
+        <Field label="Email address">
+          <input
+            type="email" required autoComplete="email"
+            value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className={INPUT_CLASS}
+          />
+        </Field>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Full name
-              </label>
-              <input
-                type="text"
-                required
-                autoComplete="name"
-                autoFocus
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your full name"
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
-                           transition-colors"
-              />
-            </div>
+        <Field label="Password">
+          <input
+            type="password" required autoComplete="new-password"
+            value={password} onChange={(e) => setPassword(e.target.value)}
+            placeholder="Min. 6 characters"
+            className={INPUT_CLASS}
+          />
+        </Field>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Email address
-              </label>
-              <input
-                type="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
-                           transition-colors"
-              />
-            </div>
+        <Field label="Confirm password">
+          <input
+            type="password" required autoComplete="new-password"
+            value={confirm} onChange={(e) => setConfirm(e.target.value)}
+            placeholder="••••••••"
+            className={INPUT_CLASS}
+          />
+        </Field>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Min. 6 characters"
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
-                           transition-colors"
-              />
-            </div>
+        <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+          <input
+            type="checkbox" required
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 shrink-0 w-4 h-4 rounded-sm border-gray-300 text-teal-600 focus:ring-2 focus:ring-teal-500/30 cursor-pointer"
+          />
+          <span className="text-[11px] text-gray-600 leading-relaxed">
+            I am at least 18 years old and have read the{' '}
+            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Privacy Policy</Link>.
+          </span>
+        </label>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1.5">
-                Confirm password
-              </label>
-              <input
-                type="password"
-                required
-                autoComplete="new-password"
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="••••••••"
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
-                           focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15
-                           transition-colors"
-              />
-            </div>
+        <button
+          type="submit"
+          disabled={loading || !agreed}
+          className="w-full text-white text-sm font-semibold py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{ background: '#14B8A6', boxShadow: '0 8px 24px rgba(20,184,166,0.18)' }}
+          onMouseEnter={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#0F766E' }}
+          onMouseLeave={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#14B8A6' }}
+        >
+          {loading ? 'Creating account…' : 'Get started free'}
+        </button>
+      </form>
 
-            <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
-              <input
-                type="checkbox"
-                required
-                checked={agreed}
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="mt-0.5 shrink-0 w-4 h-4 rounded-sm border-gray-300 text-teal-600 focus:ring-2 focus:ring-teal-500/30 cursor-pointer"
-              />
-              <span className="text-[11px] text-gray-600 leading-relaxed">
-                I am at least 18 years old and have read the{' '}
-                <Link to="/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Terms of Service</Link>
-                {' '}and{' '}
-                <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Privacy Policy</Link>.
-              </span>
-            </label>
-
-            <button
-              type="submit"
-              disabled={loading || !agreed}
-              className="w-full text-white text-sm font-medium py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: '#14B8A6' }}
-              onMouseEnter={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#0F766E' }}
-              onMouseLeave={(e) => { if (!loading && agreed) e.currentTarget.style.background = '#14B8A6' }}
-            >
-              {loading ? 'Creating account…' : 'Get started'}
-            </button>
-          </form>
-        </div>
-
-        <p className="text-center text-xs text-gray-500 mt-5">
-          Already have an account?{' '}
-          <Link to="/signin" className="font-medium hover:underline" style={{ color: '#0F766E' }}>
-            Sign in →
-          </Link>
-        </p>
-
-        <p className="text-center text-xs text-gray-400 mt-3">
-          <Link to="/" className="hover:text-gray-600 transition-colors">
-            ← Back to dashboard
-          </Link>
-        </p>
-      </div>
-    </div>
+      <p className="text-center text-xs text-gray-500 mt-6">
+        Already have an account?{' '}
+        <Link to="/signin" className="font-medium hover:underline" style={{ color: '#0F766E' }}>
+          Sign in →
+        </Link>
+      </p>
+    </AuthShell>
   )
 }
 
-// Post-signup confirmation screen with a Resend link. Address the audit gap:
-// previously this screen had no recovery path if the email was slow / lost
-// in spam / typo'd. The user just sat staring at "Check your email" with
-// no obvious next step. Now: 60s rate-limited Resend button + Back to Sign In.
+// ── Post-signup confirmation with rate-limited Resend (preserved logic) ──────
 function CheckYourEmailScreen({ email }) {
-  const [resendState, setResendState] = useState('idle')  // idle | sending | sent | error | cooldown
+  const [resendState, setResendState] = useState('idle')
   const [cooldown, setCooldown] = useState(0)
   const [resendError, setResendError] = useState(null)
 
@@ -231,19 +174,23 @@ function CheckYourEmailScreen({ email }) {
       return
     }
     setResendState('sent')
-    setCooldown(60)  // Supabase rate-limits ~1/min for resend
+    setCooldown(60)
   }
 
   return (
-    <div className="min-h-screen bg-paper flex items-center justify-center px-4 pt-14">
-      <div className="w-full max-w-sm text-center">
+    <AuthShell
+      eyebrow="Almost there"
+      title="Check your email."
+      subtitle="We sent a confirmation link to your inbox. Click it to activate your account — you'll land on the dashboard."
+    >
+      <div className="text-center">
         <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: 'rgba(20,184,166,0.10)' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
             <polyline points="22,6 12,13 2,6"/>
           </svg>
         </div>
-        <h2 className="text-lg font-bold text-gray-900 mb-2">Check your email</h2>
+        <h2 className="lp-h4 mb-2" style={{ color: '#0F1A2E' }}>Check your email</h2>
         <p className="text-sm text-gray-500 leading-relaxed">
           We sent a confirmation link to{' '}
           <span className="font-medium text-gray-700">{email}</span>.
@@ -261,7 +208,7 @@ function CheckYourEmailScreen({ email }) {
           </div>
         )}
 
-        <p className="mt-5 text-xs text-gray-500">
+        <p className="mt-6 text-xs text-gray-500">
           Didn't get it?{' '}
           <button
             type="button"
@@ -284,9 +231,86 @@ function CheckYourEmailScreen({ email }) {
           ← Back to Sign In
         </Link>
       </div>
+    </AuthShell>
+  )
+}
+
+// ── Shared two-column auth shell (dark left / form right) ────────────────────
+// Exported so SignIn / future password reset surfaces can use the identical
+// frame — same brand promise, same visual language, no drift between flows.
+export function AuthShell({ eyebrow, title, subtitle, children }) {
+  return (
+    <div className="min-h-screen grid lg:grid-cols-[1.05fr_1fr] pt-14">
+
+      {/* Dark left panel — brand + value prop. Mobile: collapses to a thin
+          banner above the form. */}
+      <aside className="relative overflow-hidden text-white p-8 lg:p-16 flex flex-col justify-between" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #050A1A 100%)' }}>
+        <div className="lp-accent-rail" />
+
+        <div className="flex items-center gap-3">
+          <TractovaMark />
+          <span className="text-xl font-semibold tracking-tight" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.025em' }}>Tractova</span>
+        </div>
+
+        <div className="hidden lg:block">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="w-1 h-1 rounded-full" style={{ background: '#5EEAD4' }} />
+            <span className="eyebrow-mono" style={{ color: '#5EEAD4' }}>{eyebrow}</span>
+            <span className="w-1 h-1 rounded-full" style={{ background: '#5EEAD4' }} />
+          </div>
+          <h2 className="lp-h2 mb-5 text-white">{title}</h2>
+          <p className="text-base text-white/65 leading-relaxed max-w-md">{subtitle}</p>
+
+          <ul className="mt-10 space-y-3 max-w-md">
+            {[
+              'Live federal + state data, refreshed weekly',
+              'Five-pillar signal model — every score traceable',
+              '14-day Pro trial, cancel anytime',
+            ].map(t => (
+              <li key={t} className="flex items-center gap-3 text-sm text-white/70">
+                <span style={{ color: '#5EEAD4' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+                {t}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="hidden lg:block">
+          <Link to="/" className="text-xs text-white/40 hover:text-white/70 transition-colors">
+            ← Back to dashboard
+          </Link>
+        </div>
+      </aside>
+
+      {/* Right form panel */}
+      <main className="flex items-center justify-center px-6 lg:px-12 py-10 lg:py-16" style={{ background: '#FAFAF7' }}>
+        <div className="w-full max-w-md">
+          <div className="bg-white border border-gray-200 rounded-2xl p-8 lg:p-10 shadow-sm">
+            {children}
+          </div>
+          <p className="lg:hidden text-center text-xs text-gray-400 mt-5">
+            <Link to="/" className="hover:text-gray-600 transition-colors">← Back to dashboard</Link>
+          </p>
+        </div>
+      </main>
     </div>
   )
 }
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-gray-700 mb-1.5 tracking-wide">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+const INPUT_CLASS = "w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400 focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
 
 function humanizeError(msg) {
   if (!msg) return 'Something went wrong. Try again.'
@@ -297,8 +321,8 @@ function humanizeError(msg) {
 
 function TractovaMark() {
   return (
-    <svg width="40" height="40" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="26" height="26" rx="5" fill="#0F1A2E" />
+    <svg width="36" height="36" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="26" height="26" rx="5" fill="#0F1A2E" stroke="rgba(255,255,255,0.1)" />
       <rect x="5" y="7" width="16" height="2.5" rx="1.25" fill="#14B8A6" />
       <rect x="11.75" y="9.5" width="2.5" height="10" rx="1.25" fill="#14B8A6" />
       <rect x="6" y="10" width="0.8" height="2" rx="0.4" fill="#14B8A6" opacity="0.6" />
