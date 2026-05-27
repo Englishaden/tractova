@@ -195,12 +195,31 @@ const NET_BILLING_EXPORT_RATIO = {
   //   docs/dsire-net-billing/OH.txt; rate cite: solarreviews.com
   //   /blog/going-solar-with-aep-ohio (2025 GENE 11.0¢).
   OH: 0.78,
+  // SC — Solar Choice Permanent Tariffs (post Jan 1 2022) per PSC Orders
+  //   2021-390 + 2021-391: monthly TOU self-netting; any excess kWh at end of
+  //   month credited at a utility-specific avoided-cost rate (NEEC). DSIRE-
+  //   quoted 2023 rates (most recently verifiable single-source figures):
+  //   Duke Energy Carolinas 2.70¢, Duke Energy Progress 2.30¢, Dominion
+  //   Energy SC 3.36¢. Simple 3-IOU avg 2.79¢ (≈ the three serve roughly
+  //   comparable SC loads, with DEC largest in upstate, Dominion in midlands,
+  //   DEP in coastal areas) vs 11.70¢ retail (EIA EPM Mar-2026 commercial)
+  //   → 0.239 ≈ 0.24. Pre-Jan 2022 customers grandfathered on a prior
+  //   net-metering tariff through 2025-2029 (covered by NM list, not NB).
+  //   Like NC, TOU self-netting → flat avoided-cost export credit (dominant-
+  //   rate applies cleanly). Note: 2023 rates may have been refreshed since;
+  //   tariff revisions roll through the PSC eTariff system roughly annually.
+  //   Source on disk: docs/dsire-net-billing/SC.txt (DSIRE 2026-03-02 last-
+  //   updated, but DSIRE itself only cites the 2023 figures).
+  SC: 0.24,
   // UT — Rocky Mountain Power net billing Export Credit Rate 5.636¢ (summer) /
   //   4.745¢ (winter) vs ~10.2¢ retail → "roughly half". Recalculated each Mar 1.
   //   Sources: PUCN/RMP ECR figures · EnergySage ("~6¢, roughly half of retail").
   UT: 0.49,
 }
 
+// Deliberately NOT in the NB list — each is documented here so the absence
+// is recorded as a deliberate scope decision, not a missing TODO:
+//
 // MT — Net METERING (not net billing): full-retail crediting with annual
 //   surrender of unused credits at each customer-elected anchor month
 //   (Jan/Apr/Jul/Oct). Use-it-or-lose-it reset doesn't fit the net-billing
@@ -208,6 +227,29 @@ const NET_BILLING_EXPORT_RATIO = {
 //   the unused-balance haircut kicks in). Belongs to the NET_METERING_HAIRCUT
 //   roadmap (BUILD_LOG DO NEXT #2), not this list. Source on disk:
 //   docs/dsire-net-billing/MT.txt.
+//
+// VA — Net METERING: monthly netting at full retail rate; 12-month carry-
+//   forward with customer's choice between rolling credit forward indefinitely
+//   OR cashing out at avoided cost. A savvy operator sized for annual self-
+//   consumption clears at full retail; only the year-end residual is cashed
+//   out (small haircut). 2025 Appalachian Power transition to NMS II RETAINED
+//   monthly netting (SCC explicitly rejected utility's NB proposal). Stays on
+//   the NM full-retail anchor (CI_OFFTAKE_SCORES VA). Source on disk:
+//   docs/dsire-net-billing/VA.txt.
+//
+// MN — HYBRID NM/NB tiered by size: <40 kW = full retail (NM); 40 kW – 1 MW
+//   (the Tractova-scale band) = avoided cost DEFAULT, with customer-opt-in
+//   kWh-credit alternative (year-end residual cash at avoided cost). For a
+//   typical commercial system sized to self-consume, the kWh-credit option
+//   dominates economically (≈ NM), but the regulatory DEFAULT is avoided
+//   cost (≈ NB). Treating MN as pure NB would overstate the haircut for
+//   savvy developers; treating as pure NM understates it for export-sized
+//   projects. Additionally, Xcel's Rider QF1 avoided-cost rate isn't
+//   WebFetch-accessible (sits inside Xcel's tariff-book PDFs); the
+//   community-solar VOS rate is published but is a different tariff
+//   (~9-11¢ vs ~3-4¢ pure avoided cost). Stays gated until either a
+//   sourced Xcel QF1 figure or a separate hybrid-tier treatment lands.
+//   Source on disk: docs/dsire-net-billing/MN.txt.
 
 // Sorted state lists for user-facing "coverage" messaging. Kept here so the
 // scoring engine is a single source of truth — the Lens UI reads these via

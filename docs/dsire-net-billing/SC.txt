@@ -1,0 +1,41 @@
+STATE: South Carolina
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/3041
+FETCHED: 2026-05-27
+
+Paste:
+Net Metering
+Last Updated March 2, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:South Carolina
+Incentive Type:Net Metering
+Web Site:https://solar.sc.gov/financing-system/tax-credits-incentives-and-net-metering
+Eligible Renewable/Other Technologies:Geothermal Electric, Solar Thermal Electric, Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Hydrogen, Combined Heat & Power, Tidal, Wave, Wind (Small), Hydroelectric (Small), Fuel Cells using Renewable Fuels
+Eligible Storage Technologies:Lithium-ion
+Applicable Sectors:Commercial, Investor-Owned Utility, Nonprofit, Municipal Utilities, Residential, Cooperative Utilities, Schools, Institutional
+Applicable Utilities:Duke Energy Progress
+Duke Energy Carolinas
+Dominion Energy South Carolina
+System Capacity Limit:Residential: 20 kW
+Non-residential: 1 MW or 100% of the customer's contract demand, whichever is less
+Aggregate Capacity Limit:No limit specified
+Net Excess Generation:Credited to customer's next bill on a monthly basis at a rate based on the avoided cost.
+Ownership of Renewable Energy Credits:Not addressed
+Meter Aggregation:Explicitly prohibited
+Summary
+The South Carolina Public Service Commission (PSC) issued two orders in May 2021 adopting new Solar Choice Tariffs for Duke Energy Progress, Duke Energy Carolinas, and Dominion Energy South Carolina. Customers who installed their systems on or after January 1, 2022 must take service under the Solar Choice Tariffs described below. Customer-generators who applied for net metering prior to January 1, 2022 may remain on a prior tariff for a period of time: December 31, 2025 for customers who applied for net metering before May 16, 2019, and May 31, 2029 for customer-generators who applied for net metering between May 16, 2019 and May 31, 2021. Customers who interconnected their systems between June 1, 2021 and December 31, 2021 may take service under an interim solar choice tariff for a period of time. 
+
+Eligibility and Availability
+
+Despite the tariffs being called Solar Choice, all forms of renewable energy are eligible to participate, including photovoltaics, solar thermal, wind, small hydroelectric, geothermal, tidal or wave energy, hydrogen fueled or combined heat and power derived from renewable resources, or biomass fueled generation. Energy storage systems can also be paired with renewable energy systems as long as they are configured to receive electrical charge solely from the renewable energy resource. The system size limit is 20 kW AC for residential systems and the lesser of 1,000 kW AC or 100% of the customer’s contract demand for non-residential systems. These systems must be owned, leased, or operated by the customer-generator and must meet all interconnection, performance, safety, and reliability standards established by relevant authorities. Residential customers must also take service under a time-of-use tariff
+
+Net Excess Generation
+
+For residential customers, production and consumption of electricity will be netted on a monthly basis within each time-of-use period. However, any electricity exported to the grid by the customer during critical peak pricing hours will be netted against energy supplied to the customer during on-peak hours, rather than critical peak hours. Any excess kilowatt-hours (kWh) remaining at the end of the month, regardless of time of delivery, will be credited at a utility-specific rate. For 2023, those rates are: $0.0270 per kWh for Duke Energy Carolinas, $0.0230 per kWh for Duke Energy Progress, and $0.03363 per kWh for Dominion Energy South Carolina.
+
+Authorities
+Name:Order No. 2021-390
+Date Enacted:05/30/2021
+Name:Order No. 2021-391
+Date Enacted:05/29/2021

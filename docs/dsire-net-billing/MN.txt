@@ -1,0 +1,82 @@
+STATE: Minnesota
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/282
+FETCHED: 2026-05-27
+
+Paste:
+Net Metering
+Last Updated March 31, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Minnesota
+Incentive Type:Net Metering
+Web Site:https://mn.gov/puc/activities/economic-analysis/distributed-energy/net-metering/
+Eligible Renewable/Other Technologies:Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Municipal Solid Waste, Combined Heat & Power, Landfill Gas, Wind (Small), Hydroelectric (Small), Anaerobic Digestion, Other Distributed Generation Technologies
+Applicable Sectors:Commercial, Industrial, Local Government, Nonprofit, Residential, Schools, State Government, Federal Government, Tribal Government, Agricultural, Multifamily Residential, Institutional
+Applicable Utilities:All utilities
+System Capacity Limit:1 MW
+Aggregate Capacity Limit:No limit
+The Minnesota Public Utilities Commission *may* limit cumulative net metering generation once generation has reached 4% of annual retail electricity sales
+Net Excess Generation:Systems under 40 kW: Reconciled monthly; customer may opt to receive payment or credit on next bill at the retail utility energy rate
+For systems 40 kW -1 MW, NEG is credited at the avoided cost rate, or customers may elect to be compensated in the form of a kWh credit. Excess credit will be reimbursed at the end of the calendar year at the avoided cost rate.
+Ownership of Renewable Energy Credits:Customer owns RECs
+Meter Aggregation:IOU customers may aggregate meters for net metering
+Summary
+Minnesota's net metering law, enacted in 1983, applies to all investor-owned utilities, municipal utilities, and electric cooperatives. 
+
+Minnesota has also finalized a methodology for a value of solar tariff in lieu of a net metering billing mechanism; however, no utility has elected to implement such an alternative tariff as of November 2015.
+
+System Size
+
+Customers with "qualifying facilities"* less than 1,000 kilowatts (kW) in capacity at investor-owned utilities and less than 40 kW in capacity at municipal utilities and electric cooperatives are eligible for net metering. 
+
+Investor-owned utilities may require customers with a net-metered facility of 40 kW or greater to limit total generation capacity to 120% of the customer's on-site annual electric consumption for solar PV and other distributed generation systems, and to 120% of customer's on-site maximum electric demand for wind generation systems.
+
+Aggregate Cap
+
+There is no aggregate cap limiting the total amount of systems eligible for net metering. However, an investor-owned utility may request the Minnesota Public Utilities Commission (MPUC) limit net metering once net-metered generation has reached 4% of the utility's annual retail electricity sales. The MPUC has authority to limit the cumulative generation of net metered facilities "only if it determines that additional net metering obligations would cause significant rate impact, require significant measures to address reliability, or raise significant technical issues."
+
+Additional Fees and Charges
+
+Investor-owned utilities are not permitted to impose a standby charge on net-metered facilities with a capacity of 100 kW or less. 
+
+A cooperative electric association or municipal utility may charge an additional fee to recover the fixed costs not already paid for by the customer through the customer's existing billing arrangement.
+
+Net Excess Generation
+
+Each utility must compensate customers with systems less than 40 kW in size for net excess generation (NEG) at the "average retail utility energy rate," defined as "the total annual class revenue from sales of electricity minus the annual revenue resulting from fixed charges, divided by the annual class kilowatt-hour sales." Compensation may take the form of an actual payment (i.e., check for purchase) for NEG or as a credit on the customer's bill. 
+
+For systems sized 40 kW or greater but less than 1,000 kW in size, NEG will be credited at the avoided cost rate. Alternatively, a customer may elect to be compensated in the form of a kWh credit. 
+
+NEG credits will be reimbursed at the end of the calendar year at the avoided cost rate for customers of investor-owned utilities. NEG credits expire at the end of the year for customers of municipal utilities and electric cooperatives. 
+
+Meter Aggregation
+
+Investor-owned utilities are required to offer meter aggregation for customers that request it. The meter must be owned or leased by the customer requesting aggregation, and must be located on contiguous property owned by the same customer. The total aggregate of all meters is subject to the same net metering size limitations described above. Utilities must comply with aggregation requests within 90 days. The aggregation of meters only applies to charges that use kWhs as the billing determinant. NEG is credited to the next monthly bill in the form of kWh credits. Utilities may request permission from the MPUC to charge administrative fees for meter aggregation.
+
+Renewable Energy Credits
+
+The customer-generator retains ownership of any RECs associated with the energy generated by a qualifying facility.
+
+Community Solar Gardens
+
+On December 12, 2014, Xcel Energy launched its Solar Rewards Community program pursuant to community solar legislation enacted in Minnesota. Subscribers can purchase subscriptions to a solar garden system developed by a Garden Operator who must have a state certificate of good standing. A garden must always have at least 5 subscribers, of which no single subscriber may have more than a 40% interest, and each subscription must be no less than 200 watts of the system’s generating capacity. Subscribers must be retail customers of the utility and located in the same county or a county contiguous to where the facility is located. There is no limit to the number of solar gardens which can be placed on a property, but no single garden can exceed 1 megawatt. 
+
+In August 2015, the MPUC approved a settlement agreement between Xcel Energy and a group of solar developers, placing an initial 5-MW cap on co-location for existing solar-garden applications. For applications submitted from September 25, 2015, through September 15, 2016, community solar gardens will be limited to 1 MW at a given site.
+
+Subscribers will receive a credit on their electric bill for the energy produced by the garden. Subscribers are compensated at the applicable retail rate. The utility that offers the program may own the PV system, or another entity may own the project. Systems may be ground- or roof-mounted, must be located within the utility service territory, and may not exceed system capacity and generation limits that apply to all net-metered systems.
+
+
+
+* The term "qualifying facility" is defined in the federal Public Utility Regulatory Policies Act of 1978 (PURPA). It generally includes most renewable energy systems and combined heat and power (CHP) systems.
+
+Authorities
+Name:Minn. Stat. § 216B.164
+Date Enacted:1983
+Effective Date:1983
+Name:Minn. R. 7835.4017
+Effective Date:2000
+Name:Final Order, Docket No. CI-13-720
+Date Enacted:07/22/2014
+Effective Date:07/22/2014
+Name:Docket No. E002/M-13-867

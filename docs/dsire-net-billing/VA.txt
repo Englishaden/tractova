@@ -1,0 +1,77 @@
+STATE: Virginia
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/40
+FETCHED: 2026-05-27
+
+Paste:
+Net Metering
+Last Updated March 23, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Virginia
+Incentive Type:Net Metering
+Web Site:https://www.scc.virginia.gov/regulated-industries/utility-regulation/energy-regulation/net-metering/
+Eligible Renewable/Other Technologies:Geothermal Electric, Solar Thermal Electric, Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Municipal Solid Waste, Tidal, Wave, Wind (Small), Hydroelectric (Small)
+Applicable Sectors:Commercial, Industrial, Local Government, Nonprofit, Residential, State Government, Agricultural, Multifamily Residential, Low Income Residential, Institutional
+Applicable Utilities:Investor-owned utilities, electric cooperatives
+System Capacity Limit:Residential : 25 kW
+Non-Residentail : 3,000 kW
+Agricultural: 500 kW (aggregated capacity)
+Systems must be sized not to exceed customers annual load.
+Aggregate Capacity Limit:1% of utility's adjusted Virginia peak-load forecast for the previous year
+Net Excess Generation:Production and consumption are netted on a monthly basis. Excess generation is credited to customer's next bill at retail rate. After 12-month cycle, customer may opt to roll over credit indefinitely or to receive payment at avoided-cost rate.
+Schools may receive additional compensation for excess generation.
+Ownership of Renewable Energy Credits:Customer owns RECs
+Meter Aggregation:Allowed for agricultural customers for contiguous sites; allowed for school districts up to 10 MW
+Summary
+Note: The Virginia State Corporation Commission issued an order in August 2025, transitioning Appalachian Power to a new net metering tariff, NMS II. While the utility had requested shifting from net metering to net billing, the Commission's order retains monthly netting of production and consumption.  
+
+Net metering in Virginia is available on a first-come, first-served basis until the rated generating capacity owned and operated by customer-generators reaches 1% of an electric distribution company's adjusted Virginia peak-load forecast for the previous year. Net metering is available to customers of investor-owned utilities (including competitive suppliers) and electric cooperatives, but not to customers of municipal utilities. 
+
+Eligibility:
+
+Virginia's net-metering law applies to electric customers who generate electricity from renewable fuel sources* that are up to 25 kilowatts (kW) capacity for residential customers and 3,000 kW in capacity for non-residential customers. The generation systems must be located on the customer’s property and must be sized to primarily offset the customer’s electricity requirements. Systems installed after July 1, 2015 shall not exceed the expected annual energy consumption based on 12 month of billing history or annualized calculation if the billing history is not available.  
+
+After July 2019, all eligible agricultural, distilling, and brewing customer-generators will be able to interconnect  as “small agricultural generators”. Small agricultural generators will be credited through a buy-all, sell-all arrangement at a non-retail rate. 
+
+Prospective net metering customers must receive approval to interconnect from their electric supplier prior to installation of the generation system. The electric distribution company must notify within 30 days if the customer meets the requirements for net metering. The net metering application is considered automatically approved if the electric company fails to notify within 30 days for residential customers and 60 days for non-residential customers. 
+
+Standby Charges:
+
+HB 1983 that was passed in March 2011, requires that residential facilities with an AC capacity of greater than 10kW must pay a monthly standby charge. The amount of standby charge will be developed by the electric supplier and be approved by the Commission after it determines that the charge is reasonable to allow the supplier to recover portion of the infrastructure cost. The customers must also pay inspection fee of $50 for inverter based systems greater than 10 kW. 
+
+Any residential net-metering customer of Dominion Virginia Power who owns and operates, or contracts to own and operate, an electric generation system with a capacity greater than 10kW and less than 20kW is required to pay transmission and distribution standby charges. Customers will be required to pay $2.79 per kW in monthly distribution standby charges and $1.40 kW in monthly transmission standby charges. The SCC denied Dominion's proposal for generation standby charges, but Dominion may reapply for approval for these charges in the future.
+
+Net Excess Generation:
+
+Net-metered energy is measured by a meter capable of gauging electricity flow in both directions. Monthly net excess generation (NEG) is carried forward to the next month. At the end of each 12-month period, the customer has the option of carrying forward eligible excess NEG to the next net metering 12-month period or selling the NEG to the utility. The amount of credit to be carried forward to a subsequent net metering period may not exceed the amount of energy purchased during the previous annual period.** In the case of selling the NEG to the utility, the customer must submit a written request to establish a power purchase agreement with the utility prior to the beginning of the net metering period to be covered by the power purchase agreement. The investor-owned utility must pay avoided cost (or higher if agreed upon). Net metering is also available to customers on time-of-use tariffs (with time-of-use applicable NEG calculations).
+
+Legislation adopted in 2018 requires Dominion to conduct a pilot program to provide compensation to any school that generates excess electricity from wind or solar on an annual basis. As of Q4 2018, Commission is reviewing the draft guidelines filed by Dominion. 
+
+Meter aggregation
+
+In 2013, HB 1695 created net metering programs for agricultural customers of investor-owned utilities and electric cooperatives. Agricultural customers are allowed to aggregate their electric meters in a single account such that they are located at contiguous sites and served under an appropriate tariff. The aggregated generation capacity is limited to 500 kW for agricultural businesses. 
+
+HB. 1451 enacted in March 2018, directs Dominion Energy to conduct a pilot program under which a public school that generates more electricity from a wind-powered or solar-powered renewable energy generation facility than it consumes at the option of the school board may either credit the excess electricity to one or more other schools in the school division or be paid for the excess electricity at the contractually negotiated rate. The duration of the pilot program shall be six years.
+
+H.B. 396, enacted in April 2022, increases system capacity limit from 2 MW to 3 MW. For Appalachian Power Company's meter aggregation pilot, municipal customer-generators may have aggregate capacity up to 5 MW. For Dominion Energy's aggregation pilot, municipal customer-generators may have aggregate up to 25 MW in capacity. 
+
+Renewable Attributes:
+
+Customer-generators own all of the renewable energy credits (RECs) their system generates. Virginia's net metering law states that at the time a customer enters into a power purchase agreement with the utility for net excess generation, the customer has a one-time option to sell RECs to the utility. This provision does not preclude the customer and utility (or other entity) from voluntarily entering into an agreement for the sale and purchase of RECs at any other time.
+
+*According to the VA statutes § 56-576 renewable energy includes energy derived from sunlight, wind, falling water, biomass, sustainable or otherwise, energy from waste, landfill gas, municipal solid waste, wave motion, tides, and geothermal power. It also includes proportion of thermal or electric energy from a facility that results from co-firing of biomass 
+
+ **For example, if a customer-generator bought 1,500 kilowatt-hours (kWh) from a utility during the first 11 months of the annual period, and then generated 2,000 kWh of excess electricity in the12th month, the customer could carry forward 1,500 kWh to the following month, and the remaining 500 kWh would be granted to the utility.
+
+
+
+
+
+Authorities
+Name:Va. Code § 56-594
+Date Enacted:1999 (subsequently amended)
+Effective Date:7/1/2000
+Name:20 VAC 5-315-10 et seq.
+Date Enacted:2000 (subsequently amended)
+Effective Date:5/25/2000
