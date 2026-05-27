@@ -206,7 +206,7 @@ function offtakeMechanismCopy(technology, stateId) {
       return 'Exports credited at (or near) the full retail rate, so offtake value tracks the state\'s retail-rate tier — the same signal as C&I. Confirm the current NEM tariff: successor tariffs (e.g. CA NEM 3.0) can cut export credit sharply.'
     case 'Net Billing':
       return NET_BILLING_OFFTAKE_COVERAGE.includes(stateId)
-        ? 'Exports credited at avoided cost (below retail), sourced from the state\'s export-credit basis (CA: NEM 3.0 / Net Billing Tariff, valued at the CPUC Avoided Cost Calculator). The offtake signal scales the state retail anchor by that sourced export-credit ratio; self-consumption still retains full retail value. Verify the current ACC vintage with the utility.'
+        ? 'Exports credited at avoided cost (below retail), sourced from the state\'s published export-credit basis (e.g. CA NEM 3.0 ACC, AZ APS RCP, IN 1.25× LMP, NC Duke NEEC, MI Inflow-Outflow power-supply component). The offtake signal scales the state retail anchor by that sourced export-credit ratio; self-consumption still retains full retail value. Verify the current rate vintage with the utility.'
         : 'Exports credited at avoided cost (below retail). The per-state export-credit basis isn\'t sourced for this state yet, so the offtake signal is held at a directional baseline rather than fabricated.'
     default:
       return 'Monetization structure offtake reflects the state\'s program / tariff posture. Confirm enrollment terms and current rates with the program administrator.'

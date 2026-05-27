@@ -1,0 +1,50 @@
+STATE: Indiana 
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/342
+FETCHED: 2026-05-26
+
+Paste: 
+Net Billing
+Last Updated March 3, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Indiana
+Incentive Type:Net Metering
+Web Site:https://www.in.gov/iurc/research-policy-and-planning-division/
+Start Date:09/01/2004
+Utilities:Indianapolis Power & Light Co, Indiana Michigan Power Co, Northern Indiana Pub Serv Co, Southern Indiana Gas & Elec Co
+Eligible Renewable/Other Technologies:Solar Thermal Electric, Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Hydrogen, Fuel Cells using Non-Renewable Fuels, Wind (Small), Hydroelectric (Small), Fuel Cells using Renewable Fuels
+Applicable Sectors:Commercial, Industrial, Local Government, Nonprofit, Residential, Schools, State Government, Federal Government, Agricultural, Multifamily Residential, Institutional
+Applicable Utilities:Investor-owned utilities
+System Capacity Limit:1 MW, not to exceed customer's 12-month usage
+Aggregate Capacity Limit:None
+Net Excess Generation:Determined by instantaneous comparison of generation and consumption. Excess kWh credited at 125% of avoided cost.
+Ownership of Renewable Energy Credits:Not addressed
+Meter Aggregation:Not addressed
+Summary
+The Indiana Utility Regulatory Commission (IURC) adopted rules for net metering in September 2004, requiring the state's investor-owned utilities (IOUs) to offer net metering to all electric customers. Senate Bill 309, signed into law in May 2017, changed Indiana's compensation system for distributed generation, including an eventual phaseout of retail rate net metering. Each investor-owned utility went through a regulatory process with the Indiana Utility Regulatory Commission to establish revised rules.
+
+Eligible Resources and System Size
+
+Facilities with a maximum capacity of 1 megawatt (MW) are eligible for net metering. Eligible net metering energy resources include wind, solar, hydro, fuel cells, hydrogen, organic waste biomass and dedicated crops powered generation.
+
+Aggregate Cap
+
+The previous net metering rules had an aggregate capacity limit of 1.5% of each utility's most recent summer peak load, but the new rules do not have an aggregate capacity limit. 
+
+Net Excess Generation (NEG)
+
+Production and consumption of electricity are netter instantaneously, and any excess electricity exported to the grid will be credited to the customer's next monthly bill based on 1.25 * the locational marginal price (LMP) for the applicable utility. NEG credits rollover indefinitely. If a customer elects to cease net metering, any unused credit will revert to the utility.
+
+Interconnection
+
+An interconnection agreement between the utility and the customer must be executed before the facility may be interconnected. Net-metered systems must comply with Indiana's interconnection standards (170 IAC 4-4.3).
+
+Metering
+
+Either a single meter or a dual-meter arrangement may be used. Utilities may not charge customers any fees for additional metering for single-phase configurations installed by the utility, for customers' requests to net meter, or for an initial net-metering facility inspection.
+
+Authorities
+Name:Ind. Code § 8-1-40-1, et seq.
+Date Enacted:05/02/2017
+Effective Date:07/01/2017

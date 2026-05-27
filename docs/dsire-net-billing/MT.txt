@@ -1,0 +1,43 @@
+STATE: Montana
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/22506/net-metering
+FETCHED: 2026-05-26
+
+Paste:
+Net Metering
+Last Updated March 30, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Montana
+Incentive Type:Net Metering
+Web Site:https://deq.mt.gov/energy/Programs/renewable
+Eligible Renewable/Other Technologies:Solar Photovoltaics, Wind (All), Wind (Small), Hydroelectric (Small)
+Applicable Sectors:Commercial, Industrial, Local Government, Nonprofit, Residential, Schools, State Government, Federal Government, Agricultural, Multifamily Residential, Low Income Residential
+Applicable Utilities:Investor-owned Utilities
+System Capacity Limit:50 kW
+Aggregate Capacity Limit:No limit specificed
+Net Excess Generation:Credited to customer's next bill at retail rate; granted to utility at end of 12-month period
+Ownership of Renewable Energy Credits:Not addressed
+Meter Aggregation:Not addressed
+Summary
+Eligibility and Applicability
+
+Montana's net-metering law, enacted in July 1999, applies to all customers of investor-owned utilities. Systems up to 50 kilowatts (kW) in capacity that generate electricity using solar, wind or hydropower are eligible. No limit on enrollment or statewide installed capacity is specified. Utilities may not require customer-generators to comply with any additional standards or requirements beyond those established by the National Electric Code, National Electrical Safety Code, Institute of Electrical and Electronic Engineers (IEEE), and Underwriters Laboratories (UL).
+
+Net Excess Generation
+
+Net excess generation (NEG) is credited to the customer's next monthly bill. The customer may choose to start the net metering period at the beginning of January, April, July or October to match seasonal farming cycles. At the beginning of the year -- either in January, April, July or October, depending on the customer's choice -- any remaining unused kilowatt-hour (kWh) credits accumulated during the previous year are granted to the utility.
+
+Electric Cooperatives
+
+Montana's electric cooperative utilities developed a draft net-metering agreement in 2001; this agreement has been adopted by most of the state's cooperatives. According to Montana's DEQ, all electric co-ops in the state have voluntarily adopted net-metering policies, contact your electric cooperative to find out if net metering is available.
+
+Studies and Successor Tariff
+
+The Legislature passed a joint resolution in April 2015 to conduct a study on the costs and benefits of net metering, noting it is necessary to determine such impacts before moving forward with changes to the state net metering program. The Energy and Telecommunications Interim Committee reviewed net metering issues, prepared a draft report to the legislature, and has drafted several proposed bills to implement changes to the state's net metering policy to be reviewed by the full legislature in the next session. Committee materials may be found here. 
+
+In May 2017, H.B. 219 was signed into law, directing the state's public utilities to study the costs and benefits of customer-generators. After submission of these studies, the Public Service Commission may make a determination as part of a utility's general rate case that customer-generators should be served under a separate class of service with separate rates. Should the Commission make such a determination, existing net metering customers will be grandfathered under current rates for a certain length of time.
+
+Authorities
+Name:Mont. Code § 69-8-601 et seq.
+Date Enacted:03/06/2023

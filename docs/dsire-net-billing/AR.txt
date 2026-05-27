@@ -1,0 +1,68 @@
+STATE: Arkansas
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/536
+FETCHED: 2026-05-26
+
+Paste:
+Implementing Sector:State
+Category:Regulatory Policy
+State:Arkansas
+Incentive Type:Net Metering
+Web Site:https://apsc.arkansas.gov/
+Start Date:07/03/2002
+Eligible Renewable/Other Technologies:Geothermal Electric, Solar Thermal Electric, Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Wind (Small), Hydroelectric (Small), Fuel Cells using Renewable Fuels, Microturbines
+Eligible Storage Technologies:Lithium-ion
+Applicable Sectors:Commercial, Industrial, Local Government, Nonprofit, Residential, Schools, State Government, Federal Government, Agricultural, Institutional
+Applicable Utilities:Investor-owned utilities and electric cooperatives
+System Capacity Limit:Residential: lesser of 25 kW or 100% of the customer's highest monthly usage in the previous 12 months (unless greater capacity is approved by the Commission before 12/31/2022)
+Commercial: lesser of 5 MW or 100% of the customer's highest monthly usage in the previous 12 months
+
+Municipal utilities are allowed to limit capacity to less than 25 kW or 300 kW for residential and nonresidential customers, respectively
+Aggregate Capacity Limit:No limit specified
+Net Excess Generation:Non-Legacy: credited to customer's next bill at avoided cost rate, netted monthly
+Legacy/Legacy Transitional: credited to customer's next bill at retail rate as of December 31, 2022, netted monthly, and can be carried forward to subsequent billing cycles indefinitely
+Ownership of Renewable Energy Credits:RECs may be retained, retired, or sold for the customer's sole benefit
+Meter Aggregation:Allowed
+Summary
+In April 2001, Arkansas enacted legislation (H.B. 2325) directing the Arkansas Public Service Commission (PSC) to establish net-metering rules for certain renewable-energy systems.* The PSC approved final rules for net metering in July 2002. Net metering rules and related state statutes have been amended several times afterward, including through H.B. 2334 (April 2007; expanding net metering availability), H.B. 1004 (March 2015; revised rule provisions related to excess generation, increasing non-residential customer system capacity options, among others), S.B. 145 (March 2019; allowed third-party leasing, allowed third party PPAs for tax-exempt entities, and added energy storage eligibility, just to name a few), and most recently via S.B. 295 (March 2023; revised system capacity limits, net excess generation credit calculations, allowed a monthly grid charge that utilities may apply, amended REC ownership language, etc.).
+
+Eligibility and Availability
+
+A residential renewable energy system’s generating capacity cannot be greater than 25 kW in capacity, or 100% of the net-metering customer’s highest monthly usage in the previous 12 months, whichever is lesser. Non-residential systems can be sized up to 5,000 kW, or 100% of the net-metering customer’s highest monthly usage in the previous 12 months, whichever is lesser. Residential systems are allowed to be greater than the system capacity limit provided if approved by December 31, 2022.
+
+Municipal utilities are allowed to limit system capacity to less than 25 kW or 300 kW for residential and nonresidential customers, respectively.
+
+Eligible technologies include solar, wind, hydroelectric, energy storage, geothermal, and biomass systems, as well as fuel cells and microturbines using renewable fuels. There is no limit specified for the aggregate capacity of all net-metered systems.
+
+Customers that are taking interruptible service are not eligible for net-metering unless they were issued an order by the PSC by the end of 2022 for approval of a net-metering facility with a capacity of more than 10 MW.
+
+Net Excess Generation / Net Metering Surplus
+
+Net excess generation or net metering surplus is credited to the customer's next bill and can be carried forward to subsequent billing cycles indefinitely. Non-legacy customers (i.e. those that file an interconnection agreement, facilities agreement, or complaint after September 30, 2024) receive a credit calculated by multiplying the avoided cost rate (defined as MISO or Southwest Power Pool's Locational Marginal Price from the previous year's 12-month average that is associated with the utility load zone) by the kWh supplied to the utility by the customer during the billing period.
+
+Net metering customers are grandfathered under rate structures in effect before December 31, 2022, until June 1, 2040, if one of the following has been completed before September 30, 2024: 
+
+Submitted a standard interconnection agreement to the utility;
+Submitted a facilities agreement (or equivalent document) to establish a utility account and paid all estimated make-ready costs necessary for interconnection; or
+Filed a complaint with the Public Service Commission addressing a disputed facilities agreement (or equivalent document) to establish a utility account.
+Customers who submitted one of these documents between March 12, 2023, and September 30, 2024, are known as legacy transitional net metering customers, while customers that submitted before March 12, 2023, are known as legacy net metering customers. Legacy transitional and legacy customers are grandfathered until June 1, 2040, receiving the full retail credit as in effect before December 31, 2022. These customers can sell credits older than 24 months to their utility.
+
+Renewable Energy Credits (RECs)
+
+RECs may be retained, retired, or sold for the customer's sole benefit
+
+Meter Aggregation
+
+The PSC ruled in favor of meter aggregation in September 2013 with Order No. 7 in Docket No. 12-060-R. Any customer with multiple meters within a single utility's service territory may designate multiple meters to be offset by a single net metering system or multiple systems. The net metering customer must give the utility at least 30 days of notice. The additional meter or meters must be identified at the time of the request and must be in the net metering customer's name. The net metering customer must also designate the rank order for the additional meters to which the excess kWh will be credited.
+
+Interconnection
+
+The PSC is authorized to allow utilities to charge net-metered customers a standard one-time fee to recover administrative and related interconnection review costs.
+
+* Municipal utilities do not fall under the PSC's jurisdiction and are not required to follow the PSC's rules. The PSC regulates investor-owned and cooperative utilities.
+
+Authorities
+Name:Arkansas Code § 23-18-601 et seq.
+Date Enacted:04/19/2001
+Effective Date:10/01/2001
+Name:Arkansas Net Metering Rules (pg. 267)
+Date Enacted:09/29/2023

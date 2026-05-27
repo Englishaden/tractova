@@ -1,0 +1,80 @@
+STATE: North Carolina
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/1246
+FETCHED: 2026-05-26
+
+Paste:
+Net Metering
+Last Updated February 27, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:North Carolina
+Incentive Type:Net Metering
+Eligible Renewable/Other Technologies:Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Hydrogen, Landfill Gas, Tidal, Wave, Wind (Small), Hydroelectric (Small), Anaerobic Digestion, Fuel Cells using Renewable Fuels
+Eligible Storage Technologies:Lithium-ion
+Applicable Sectors:Commercial, Industrial, Local Government, Nonprofit, Residential, Schools, State Government, Federal Government, Tribal Government, Agricultural, Institutional
+Applicable Utilities:Investor-owned utilities
+System Capacity Limit:Customer-owned systems: 5 MW or 100% of customer's contract demand
+Leased Photovoltaic Systems (Residential): Lesser of 20 kW or 100% of estimated demand
+Leased Photovoltaic Systems (Nonresidential) Lesser of 1,000 kW or 100% of contract demand
+Aggregate Capacity Limit:Customer-owned Systems: No limit specified
+Leased Photovoltaic Systems: 1% of the utility's previous five-year average coincident retail peak demand
+Net Excess Generation:Systems installed prior to October 1, 2023: Credited to customer's next bill at retail rate; granted to utility at beginning of summer billing season
+
+Systems installed on or after October 1, 2023: Monthly net excess generation credited at the avoided cost rate
+Ownership of Renewable Energy Credits:Systems installed prior to October 1, 2023: Utility owns RECs (unless customer chooses to net meter under a time of use tariff with demand charges)
+
+Systems installed on or after October 1, 2023: Customer retains RECs
+Meter Aggregation:Community Solar authorized for Duke Energy Carolinas and Duke Energy Progress
+Summary
+Note: The NC Utilities Commission issued an order modifying Duke Energy's net metering rules for residential systems in March 2023. The summary below begins with a description of the new rules and the Proposed Bridge Rate, followed by a description of the historical net metering rules. 
+
+
+
+
+New Net Metering Rules and Transitional Bridge Rate (Systems Interconnected on or After  October 1, 2023)
+Eligibility and Availability 
+
+The revised net metering rules apply to all customers who own or lease systems that generate electricity using solar energy, wind energy, hydropower, ocean or wave energy, biomass resources, combined heat and power (CHP) which uses waste heat derived from eligible renewable resources, or hydrogen derived from eligible renewable resources.* The new net metering rules require a customer to be on a time-of-use tariff, however the Proposed Bridge Rate does not require a time-of-use tariff. 
+
+Net Excess Generation
+
+Production and consumption are netted on a monthly basis. For customers on a time-of-use tariff, netting will occur separately within each time period. Any excess generation remaining within any time period at the end of the month will be credited at the Net Excess Energy Credit, which is based the avoided cost rate. 
+
+Other Provisions
+
+Residential customers with a solar system with a capacity greater than 15 kW-DC must pay a monthly Grid Access Fee of $1.50 per kW per month for Duke Energy Progress and $2.05 per kW per month for Duke Energy Carolinas. Customers with system of any size must also pay non-bypassable charges associated with cost recovery for Duke's demand-side management programs. The non-bypassable charges are $0.44 per kW per month for Duke Energy Progress and $0.36 per kW per month for Duke Energy Carolinas. Net metering customers are also subject to a monthly minimum bill of $28 for Duke Energy Progress and $22 for Duke Energy Carolinas. Customers taking service under the Transitional Bridge Rate do not have to pay the Grid Access Fee, but they do have to pay the non-bypassable charges and minimum bill. 
+
+
+
+Traditional Net Metering (Systems Interconnected Prior to October 1, 2023)
+Eligibility and Availability 
+
+Net metering is available to all customers who own or lease systems that generate electricity using solar energy, wind energy, hydropower, ocean or wave energy, biomass resources, combined heat and power (CHP) which uses waste heat derived from eligible renewable resources, or hydrogen derived from eligible renewable resources.* Customers may net meter under any available rate schedule. However, customers that choose to take service under any tariff other than a time-of-use demand (TOUD) tariff must surrender to the utility all renewable energy credits (RECs) associated with the customer’s generation – with no compensation for the customer.
+
+The individual system capacity limit is one megawatt (MW). There is no aggregate capacity limit on net-metered systems. For residential systems up to 20 kilowatts (kW) and non-residential systems up to 100 kW in capacity, utilities may not charge any standby charges or any additional metering charges other than those charged to customers who do not net meter under the applicable rate schedule. For larger systems, utilities are allowed to impose standby charges consistent with approved standby rates applicable to other customer-owned generation.
+
+Net Excess Generation
+
+In general, any customer net excess generation (NEG) during a billing period is carried forward to the following billing period at the utility’s full retail rate, and then surrendered to the utility – with no compensation for the customer – at the beginning of each summer billing season. However, the treatment of generation and NEG for customers on TOU-demand tariffs is more complicated. For these customers, on-peak generation is used to offset on-peak consumption, and off-peak generation is used to offset off-peak consumption. Any remaining on-peak generation is then used to offset off-peak consumption. Off-peak generation may only be used to offset off-peak consumption.
+
+Utilities must file with the NCUC annual reports indicating the number of net-metering applicants and customer-generators, the aggregate capacity of net-metered generation, the size and types of renewable-energy systems, the amounts of on-peak and off-peak generation credited and ultimately granted to the utility, and the reasons for any rejections or removals of customer-generators from a net-metering arrangement.
+
+
+* In July 2006, the NCUC extended net metering to eligible systems with battery storage. "Gaming” a net-metering arrangement by using battery storage to manipulate a TOU tariff is not allowed.
+
+Authorities
+Name:NCUC Order, Docket No. E-100, Sub 83
+Date Enacted:10/20/2005
+Name:NCUC Order, Docket No. E-100, Sub 83
+Date Enacted:12/27/2005
+Name:NCUC Order, Docket No. E-100, Sub 83
+Date Enacted:7/6/2006
+Name:NCUC Order, Docket No. E-100, Sub 83
+Date Enacted:03/31/2009
+Effective Date:06/01/2009
+Name:HB 589
+Date Enacted:07/27/2017
+Effective Date:07/27/2017
+Name:NCUC Order, Docket No. E-100, Sub 180
+Date Enacted:03/23/2023

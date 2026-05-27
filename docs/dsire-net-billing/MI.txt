@@ -1,0 +1,102 @@
+STATE: Michigan
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/5773
+FETCHED: 2026-05-26
+
+Paste:
+Net Metering
+Last Updated April 14, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Michigan
+Incentive Type:Net Metering
+Web Site:https://www.michigan.gov/mpsc/consumer/electricity/distributed-generation
+Start Date:05/26/2009
+Eligible Renewable/Other Technologies:Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Municipal Solid Waste, Landfill Gas, Tidal, Wave, Hydroelectric (Small), Anaerobic Digestion
+Applicable Sectors:Commercial, Industrial, Investor-Owned Utility, Local Government, Nonprofit, Municipal Utilities, Residential, Cooperative Utilities, Schools, State Government, Federal Government, Agricultural
+Applicable Utilities:Investor-owned utilities, MPSC rate-regulated electric cooperatives, all alternative electric suppliers
+System Capacity Limit:550 kW, or 110% of customer's electricity usage.
+Aggregate Capacity Limit:10% of utility's peak load during previous year
+Net Excess Generation:Credited to customer's next bill at outflow compensation rate. Carries over indefinitely.
+Ownership of Renewable Energy Credits:Customer owns RECs
+Meter Aggregation:Not addressed
+Summary
+Note: Public Act 235 of 2023 made several changes to Michigan's distributed generation compensation rules. The aggregate cap for DG capacity will now be 10% of average in-state peak load. Within that 10%, 50% of capacity will be available for projects of more than 20 kW but less than 550 kW. The new individual system size cap is 550 kW, or 110% of a customer's energy consumption. The inflow-outflow methodology remains in effect.
+
+Note: After June 1, 2018, utilities had to file new distributed generation tariffs following the "inflow-outflow" methodology approved by the MPSC as part of their general rate cases. Customers that began or begin net metering service before the new tariff for their utility was approved are able to continue taking service under the old net metering tariff for 10 years following the date of their enrollment, after which they will move to the new tariff. 
+
+In October 2008, Michigan enacted P.A. 295, requiring the Michigan Public Service Commission (MPSC) to establish a statewide net metering program for renewable energy systems. On May 26, 2009 the MPSC issued an order formally adopting revised net metering and interconnection rules to implement P.A. 295 of 2008. 
+
+Availability
+
+Michigan's net metering law applies only to rate-regulated utilities and alternative electric suppliers. The designation "rate-regulated utility" presently includes investor-owned utilities and rural electric distribution cooperatives that have not opted for member regulation. As of April 2011, only Cherryland, Alger Delta, and Tri County electric cooperatives have opted for member regulation. Municipal utility rates are not regulated by the MPSC. 
+
+Eligible Technologies and System Size
+
+Renewable energy systems using solar, wind, biomass, geothermal, anaerobic digester gas, landfill gas, municipal solid waste, and moving water are eligible for net metering. The definition of biomass is very broad and includes agricultural crops and crop wastes; energy crops; animal wastes; paper and pulp products; and a variety wood waste materials. Moving water technologies include those using waves, tides, and currents as well as traditional hydropower using water released through a dam. 
+
+Net metering billing practices are split into two distinct categories. All qualifying customer generators up to 20 kilowatts (kW) are eligible for "true" net metering, while most systems between 20 kW and 150 kW are eligible for "modified" net metering.* 
+
+In general, the capacity of an individual system is limited to that which will meet their own needs. The rules describe several options a customer can use to arrive at this value.
+
+Aggregate Cap
+
+The total cap on the distributed generation program, including both net metering and inflow-outflow customers, is 10% of average in-state peak load for the previous five years. Of this 10% limit, 5% is allocated to systems of 20 kW or less, and 5% is allocated to systems of 20-550 kW.
+
+Nondiscriminatory Rates Requirement
+
+Utilities must provide net metering customers with electric service at nondiscriminatory rates that are identical to those that would be charged if the customer were not participating in net metering.
+
+Net Excess Generation
+
+Legacy Net Metering: For systems of 20 kW or less, net excess generation (NEG) during a billing period may be carried forward to the next billing period at the retail rate. 
+
+Modified net metering (facilities up to 550 kW) allows NEG carry over at the power supply component of the retail rate (i.e., energy avoided cost) or the monthly average real-time locational marginal price for energy at the commercial pricing node within the electric provider’s distribution service territory each billing period. 
+
+Inflow-Outflow System:
+
+NEG is determined in real time using a net billing system. NEG is credited at the outflow compensation rate, which differs slightly for each utility but generally includes power supply charges. Outflow compensation can only be used to offset charges that are compensated through outflow crediting.
+
+Customers on time-of-use rates may carry forward NEG at the applicable retail rate for each time-of-use pricing period within a billing period. 
+
+NEG can be carried forward indefinitely. 
+
+Credits associated with modified net metering may not be applied against distribution charges. 
+
+Systems larger than 550 kW must pay standby charges. This practice does not meet the definition of net metering as it is generally understood, thus this summary considers only systems up to 550 kW as eligible for net metering.
+
+Renewable Energy Credit Ownership
+
+Customer-generators own the renewable energy credits (RECs) associated with electricity generated under the program. 
+
+Metering
+
+Utilities serving more than 1 million customers (i.e., Consumers Energy & DTE Electric) are required, if necessary, to supply true net metering customers with a net metering compatible meter or meters at no cost to the customer. Utilities with fewer than 1 million customers must supply the appropriate meter or meters to the customer at cost, not to exceed the incremental cost above that for meters provided by the utility to similarly situated non-net metering customers. Metering configurations and cost allocations for modified net metering customers are slightly different (see R 460.648 for details).
+
+Net metering application fees may not exceed $25 and the combined total of net metering application and interconnection review fees may not exceed $100. 
+
+Reporting
+
+Annual net metering reports from individual utilities and alternative electricity suppliers are contained in Case U-15787.
+
+Interconnection
+
+Interconnection standards for systems up to 2 megawatts (MW) were adopted by the MPSC as part of the same administrative proceeding that addressed net metering.
+
+
+
+* Methane digesters up to 550 kW are eligible for "true" net metering or "modified" net metering, depending on its size. 
+
+
+Authorities
+Name:Mich. Comp. Laws § 460.1171, et seq.
+Date Enacted:10/06/2008
+Effective Date:10/06/2008
+Name:MPSC Order, Docket U-15787
+Date Enacted:05/26/2009
+Effective Date:05/27/2009
+Name:MPSC Order, Docket U-15919
+Date Enacted:12/20/2012
+Name:Public Act 235
+Date Enacted:11/28/2023
+Effective Date:02/27/2024

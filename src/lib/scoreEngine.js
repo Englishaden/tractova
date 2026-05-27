@@ -81,13 +81,35 @@ const BESS_OFFTAKE_SCORES = {
 // residual self-consumption value retained when exports ≈ worthless. See the
 // Net Billing branch in computeSubScores.
 //
-// Each ratio below is sourced + WebFetch-verified (2026-05-25); states whose
-// export tariff is time-of-use or otherwise can't be reduced to one honest
-// ratio are intentionally LEFT OUT (gated) rather than approximated loosely —
-// e.g. NV credits exports at 75% of retail but calls it net METERING (not
-// avoided-cost net billing); HI's Smart DER export is per-island TOU mid-
-// transition; MS has a sourced export rate but no cleanly-sourced retail.
+// TOU methodology call (2026-05-27): when an export tariff is time-of-use, we
+// use the DOMINANT-RATE APPROXIMATION — the rate that applies to most kWh of
+// solar export across the year (typically the off-peak / non-summer band). This
+// is what ID already does. The alternative — production-weighting by an
+// assumed solar generation shape — would introduce internal synthesis (which
+// shape? which lat/orientation?) on top of the export rate, breaking the
+// two-layer pattern (ratio sourced, signal disclosed). Dominant-rate is the
+// honest, conservative call: in states with strong summer on-peak premiums and
+// summer-peaking solar, the real-world export value may be HIGHER than this
+// signal reflects. Per-state override only when the utility/PUC itself
+// publishes a production-weighted "effective" rate we can cite.
+//
+// Each ratio below is sourced + WebFetch-verified; states whose export tariff
+// is per-interval time-varying (HI Smart DER, NY VDER value-stack) and where
+// no single dominant rate applies are intentionally LEFT OUT (gated) rather
+// than approximated loosely. NV credits exports at 75% of retail but calls it
+// net METERING (not avoided-cost net billing) — fits NET_METERING_HAIRCUT
+// roadmap (#2 in BUILD_LOG), not this list.
 const NET_BILLING_EXPORT_RATIO = {
+  // AR — Non-legacy net metering (after Sep 30 2024): avoided cost = MISO/SPP
+  //   prior 12-month LMP avg for the utility load zone (per Ark. Code § 23-18-
+  //   604 / S.B. 295, 2023). Entergy AR ~4¢/kWh; SWEPCO AR ~4-6¢ → ~4.0¢ vs
+  //   11.50¢ retail (EIA EPM Mar-2026 commercial) → 0.348 ≈ 0.35. Legacy
+  //   customers (interconnected by Sep 30 2024) are grandfathered at full
+  //   retail through 2040 — we score the non-legacy regime that applies to NEW
+  //   builds. Source on disk: docs/dsire-net-billing/AR.txt; rate cross-refs:
+  //   Wattbuild AR + Daily Energy Insider ("around $0.04/kWh") + Arkansas
+  //   Advanced Energy Association (SWEPCO 4-6¢).
+  AR: 0.35,
   // AZ — APS export compensation under the ACC-approved rate (phasing down to
   //   avoided cost via the RCP framework): 6.171¢/kWh as of Feb 25 2026 vs APS
   //   residential ~12.8¢/kWh retail → 0.482 ≈ 0.48. TEP 5.13¢ and UNS 6.12¢ are
@@ -106,11 +128,56 @@ const NET_BILLING_EXPORT_RATIO = {
   //   summer-peaking solar.) Source: pv-magazine-usa (Idaho PUC 2025-09-30 order
   //   2.9¢/3.4¢/15.7¢; "pays 3¢, sells 8-10¢").
   ID: 0.33,
+  // IN — S.B. 309 (2017) Excess Distributed Generation: exports credited at
+  //   1.25 × prior-year avg wholesale LMP, updated annually per IOU. 2026 EDG
+  //   rates (Solar United Neighbors, sourced from IURC orders): NIPSCO 4.97¢,
+  //   AES Indiana 5.43¢, Indiana Michigan Power 5.47¢, Duke Energy IN 5.51¢,
+  //   CenterPoint (Vectren) 5.56¢ — 5-utility avg ~5.30¢ vs 14.32¢ retail (EIA
+  //   EPM Mar-2026 commercial) → 0.370 ≈ 0.37. Source on disk:
+  //   docs/dsire-net-billing/IN.txt.
+  IN: 0.37,
+  // LA — Post-Dec 31 2019 systems: exports at the utility's avoided cost rate,
+  //   instantaneous netting (Rider Schedule DG, two-channel billing). Entergy
+  //   LA publishes 2.59331¢/kWh eff. Apr 1 2025 — dominant utility by load,
+  //   anchors the signal. Pre-2020 systems are grandfathered at full retail
+  //   through 2034 (covered by NM list, not NB). 2.59¢ vs 12.93¢ retail (EIA
+  //   EPM Mar-2026 commercial) → 0.200 ≈ 0.20. Source on disk:
+  //   docs/dsire-net-billing/LA.txt; rate cite: entergylouisiana.com/net-metering.
+  LA: 0.20,
+  // MI — Inflow-Outflow tariff (post-2018, applies to all DG up to 550 kW —
+  //   Tractova's distribution-scale band): outflow credited at power-supply
+  //   component of retail. DTE Rider 18 D1.2 ~6.89-7.02¢/kWh; Consumers Energy
+  //   RSP-DG off-peak ~7.89¢ (on-peak 11.78¢ — dominant rate methodology uses
+  //   off-peak as the majority-of-kWh credit). 2-utility avg ~7.8¢ vs 15.66¢
+  //   retail (EIA EPM Mar-2026 commercial) → 0.499 ≈ 0.50. Modified-NM
+  //   crediting basis ("power supply component of retail OR monthly avg LMP")
+  //   yields the same ratio. Source on disk: docs/dsire-net-billing/MI.txt;
+  //   rate cites: aurorasolar.com/blog/dte-net-metering + solarreviews
+  //   michigan-net-metering.
+  MI: 0.50,
+  // NC — Post-Oct 1 2023 systems: monthly netting (TOU self-netting within
+  //   each period), any excess credited at the Net Excess Energy Credit (NEEC)
+  //   avoided-cost rate. Duke Energy Carolinas + Duke Energy Progress (~95%
+  //   of NC IOU load) publish a single NEEC rate ~3.4¢/kWh (reviewed every two
+  //   years). 3.4¢ vs 10.63¢ retail (EIA EPM Mar-2026 commercial) → 0.320 ≈
+  //   0.32. The TOU element is internal self-netting only; the export credit
+  //   itself is a flat avoided-cost rate, so dominant-rate methodology applies
+  //   directly. Source on disk: docs/dsire-net-billing/NC.txt; rate cites:
+  //   solarreviews + energysage (Duke NEEC ~$0.034).
+  NC: 0.32,
   // UT — Rocky Mountain Power net billing Export Credit Rate 5.636¢ (summer) /
   //   4.745¢ (winter) vs ~10.2¢ retail → "roughly half". Recalculated each Mar 1.
   //   Sources: PUCN/RMP ECR figures · EnergySage ("~6¢, roughly half of retail").
   UT: 0.49,
 }
+
+// MT — Net METERING (not net billing): full-retail crediting with annual
+//   surrender of unused credits at each customer-elected anchor month
+//   (Jan/Apr/Jul/Oct). Use-it-or-lose-it reset doesn't fit the net-billing
+//   export-ratio model (the ratio is 1.0 until the year-end surrender, then
+//   the unused-balance haircut kicks in). Belongs to the NET_METERING_HAIRCUT
+//   roadmap (BUILD_LOG DO NEXT #2), not this list. Source on disk:
+//   docs/dsire-net-billing/MT.txt.
 
 // Sorted state lists for user-facing "coverage" messaging. Kept here so the
 // scoring engine is a single source of truth — the Lens UI reads these via

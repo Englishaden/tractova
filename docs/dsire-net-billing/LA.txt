@@ -1,0 +1,48 @@
+STATE: Louisiana
+DSIRE URL: https://programs.dsireusa.org/system/program/detail/983
+FETCHED: 2026-05-26
+
+Paste: 
+Net Billing
+Last Updated February 25, 2026
+Program Overview
+Implementing Sector:State
+Category:Regulatory Policy
+State:Louisiana
+Incentive Type:Net Metering
+Web Site:https://www.lpsc.louisiana.gov/Utilities_NetMetering
+Utilities:City of Abbeville, City of Alexandria, Ashley Chicot Elec Coop, Inc, Beauregard Electric Coop, Inc, Town of Boyce, Cleco Power LLC, Claiborne Electric Coop, Inc, Concordia Electric Coop, Inc, Dixie Electric Membership Corp, City of Erath, Town of Gueydan, Terrebonne Parish Consol Gov't, City of Lafayette, Jefferson Davis Elec Coop, Inc, Jonesville City of, City of Kaplan, Entergy Louisiana Inc, City of Minden, City of Natchitoches, City of New Roads, Northeast Louisiana Power Coop Inc., Panola-Harrison Elec Coop, Inc, Plaquemine City of, Pointe Coupee Elec Member Corp, City of Rayne, City of Ruston, South Louisiana Elec Coop Assn, Southwest Louisiana E M C, Southwestern Electric Power Co, Valley Electric Member Corp, Town of Vidalia, Town of Vinton, Vinton Public Power Auth, Town of Welsh, Washington-St Tammany E C, Inc, City of Winnfield, Entergy Gulf States, Inc., Elizabeth Gas & Electric
+Eligible Renewable/Other Technologies:Geothermal Electric, Solar Photovoltaics, Wind (All), Biomass, Hydroelectric, Wind (Small), Hydroelectric (Small), Fuel Cells using Renewable Fuels, Microturbines
+Applicable Sectors:Commercial, Residential, Agricultural
+Applicable Utilities:All investor-owned utilities and electric cooperatives, except Entergy New Orleans.
+System Capacity Limit:Commercial and agricultural: 300 kW
+Residential: 25 kW
+Systems larger than 300 kW will be evaluated by the Public Service Commission on a case-by-case basis.
+Aggregate Capacity Limit:None
+Net Excess Generation:Energy exported to the grid, measured instantaneously, will be credited at the utility's avoided cost rate (Net Billing). Existing net metering customers are grandfathered for 15 years and will receive credit at full retail rates, netted monthly.
+Ownership of Renewable Energy Credits:Any RECs owned by the customer will be retained and can be transferred upon selling the associated property.
+Meter Aggregation:Community-distributed generation systems up to 300 kW are allowed.
+Summary
+Louisiana enacted legislation in June 2003 establishing net metering.
+
+Eligibility and Availability
+
+Modeled on Arkansas’s law, Louisiana's law requires investor-owned utilities, municipal utilities and electric cooperatives to offer net metering to customers that generate electricity using solar, wind, hydropower, geothermal or biomass resources. Fuel cells and microturbines that generate electricity entirely derived from renewable resources are also eligible.
+
+Per state law, net metering is available for residential systems up to 25 kilowatts (kW) in capacity, and commercial and agricultural systems up to 300 kW that are located in the state. Systems larger than 300 kW will be considered by the Public Service Commission (PSC) on an individual basis.
+
+By the end of each calendar year, utilities must file with the PSC a report listing all existing net-metered systems and their capacities, and, where applicable, the inverter rating for each facility. The ownership of renewable-energy credits (RECs) associated with net metering has not been addressed.
+
+Interconnection
+
+Utilities must provide customer-generators with a meter capable of measuring the flow of electricity in both directions. Utilities must pay for the cost of the meter itself, but customer-generators must pay a one-time charge to cover the installation cost of the meter. Customers are responsible for all interconnection costs.
+
+Net Excess Generation
+
+Systems that were interconnected before December 31, 2019, will have their monthly net excess generation credited at the full retail rate to the customer's next billing period through December 31, 2034 (15 years). Systems that were interconnected after December 31, 2019, will be credited at the utility's avoided cost rate, with instantaneous netting. For the final month in which the customer takes service from the utility, the utility will pay the customer for the balance of any credit at the utility's avoided-cost rate. Current avoided-cost rates can be found here.
+
+Additional Resources:
+
+Entergy's net-metering webpage
+Cleco Power's net-metering webpage
+
