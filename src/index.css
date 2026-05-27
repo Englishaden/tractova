@@ -345,6 +345,98 @@
   .lp-btn-swap__text { transition: none; transform: none !important; }
 }
 
+/* Marquee — infinite-loop horizontal scroll for the data-source carousel.
+   Two copies of the same row sit side-by-side; the wrapper translates by
+   -50% over `--marquee-duration` so the seam is invisible and the loop
+   never appears to restart. Pauses on hover. Respects reduced-motion. */
+@keyframes lp-marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.lp-marquee {
+  position: relative;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+          mask-image: linear-gradient(90deg, transparent 0, #000 8%, #000 92%, transparent 100%);
+}
+.lp-marquee__track {
+  display: flex;
+  width: max-content;
+  animation: lp-marquee-scroll var(--marquee-duration, 40s) linear infinite;
+}
+.lp-marquee:hover .lp-marquee__track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-marquee__track { animation: none; }
+}
+
+/* Spotlight card — the radial-gradient follows the cursor inside the card,
+   gated on `--mx` / `--my` CSS variables set by an inline onMouseMove
+   handler in the React component. Fades out when the cursor leaves. */
+.lp-spotlight {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.lp-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    400px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(94, 234, 212, 0.18),
+    transparent 60%
+  );
+  opacity: var(--spot-opacity, 0);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+.lp-spotlight:hover::before { --spot-opacity: 1; }
+.lp-spotlight > * { position: relative; z-index: 1; }
+
+/* Subtle animated grid behind the hero. Tractova-brand teal lines on
+   brand-navy. Drifts diagonally so the page feels live without being
+   distracting. Builds on the existing tractova-health-grid-drift keyframe
+   (defined above) but at hero scale + teal lines. */
+.lp-hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(94, 234, 212, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(94, 234, 212, 0.06) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: tractova-health-grid-drift 22s linear infinite;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+          mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
+  pointer-events: none;
+}
+
+/* Tab trigger — pillar swap in §5-pillar. Radix UI handles state via
+   `data-state="active"`; these styles render the active vs inactive look. */
+.lp-tab-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lp-tab-trigger:hover { color: rgba(255, 255, 255, 0.85); border-color: rgba(255, 255, 255, 0.18); }
+.lp-tab-trigger[data-state="active"] {
+  color: #0F1A2E;
+  background: #5EEAD4;
+  border-color: #5EEAD4;
+}
+
 /* Hairline accent rail — used at top of dark sections to echo
    Tractova's brand-navy / teal continuity from the existing app. */
 .lp-accent-rail {

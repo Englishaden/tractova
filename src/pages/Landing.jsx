@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
+import * as RadixTabs from '@radix-ui/react-tabs'
 import { getStatePrograms, getDashboardMetrics } from '../lib/programData'
 import ApiErrorBanner from '../components/ApiErrorBanner'
 import { useRevealOnScroll, useCountUp } from '../hooks/useLandingMotion'
@@ -10,18 +11,6 @@ function IconCheck() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12"/>
     </svg>
-  )
-}
-
-function IconPlusMinus({ open }) {
-  return (
-    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border border-white/15 shrink-0 transition-colors" style={{ background: open ? 'rgba(20,184,166,0.18)' : 'transparent' }}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/80">
-        {open
-          ? <line x1="5" y1="12" x2="19" y2="12"/>
-          : <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}
-      </svg>
-    </span>
   )
 }
 
@@ -37,15 +26,15 @@ function IconFaqPlusMinus({ open }) {
   )
 }
 
-// ── hero preview card — simulated dashboard snapshot (preserved from V3) ─────
+// ── hero preview card — simulated dashboard snapshot (preserved) ─────────────
 function DashboardPreview({ activeCount, metrics }) {
   const sampleStates = [
-    { id: 'IL', name: 'Illinois',      score: 78, status: 'active'  },
-    { id: 'CO', name: 'Colorado',      score: 75, status: 'active'  },
-    { id: 'MN', name: 'Minnesota',     score: 72, status: 'active'  },
-    { id: 'MD', name: 'Maryland',      score: 70, status: 'active'  },
-    { id: 'VA', name: 'Virginia',      score: 67, status: 'active'  },
-    { id: 'MA', name: 'Massachusetts', score: 45, status: 'limited' },
+    { id: 'IL', score: 78, status: 'active'  },
+    { id: 'CO', score: 75, status: 'active'  },
+    { id: 'MN', score: 72, status: 'active'  },
+    { id: 'MD', score: 70, status: 'active'  },
+    { id: 'VA', score: 67, status: 'active'  },
+    { id: 'MA', score: 45, status: 'limited' },
   ]
 
   return (
@@ -114,7 +103,7 @@ function DashboardPreview({ activeCount, metrics }) {
 // ── small layout primitives ──────────────────────────────────────────────────
 function Eyebrow({ children, dark = false }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="inline-flex items-center gap-2">
       <span className="w-1 h-1 rounded-full" style={{ background: dark ? '#5EEAD4' : '#14B8A6' }} />
       <span className="eyebrow-mono" style={{ color: dark ? '#5EEAD4' : '#0F766E' }}>{children}</span>
       <span className="w-1 h-1 rounded-full" style={{ background: dark ? '#5EEAD4' : '#14B8A6' }} />
@@ -122,121 +111,167 @@ function Eyebrow({ children, dark = false }) {
   )
 }
 
-function ButtonPrimary({ to, href, children, className = '' }) {
-  const inner = (
-    <span className={`lp-btn-swap inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors ${className}`}
-          style={{ background: '#14B8A6', boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}>
-      <span className="lp-btn-swap__stack">
-        <span className="lp-btn-swap__text">{children}</span>
-        <span className="lp-btn-swap__text" aria-hidden="true">{children}</span>
+function ButtonPrimary({ to, children, className = '' }) {
+  return (
+    <Link to={to}>
+      <span className={`lp-btn-swap inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors ${className}`}
+            style={{ background: '#14B8A6', boxShadow: '0 8px 24px rgba(20,184,166,0.25)' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}>
+        <span className="lp-btn-swap__stack">
+          <span className="lp-btn-swap__text">{children}</span>
+          <span className="lp-btn-swap__text" aria-hidden="true">{children}</span>
+        </span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
       </span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-      </svg>
-    </span>
+    </Link>
   )
-  if (to) return <Link to={to}>{inner}</Link>
-  return <a href={href}>{inner}</a>
 }
 
-function CounterBlock({ target, suffix = '', label, sub, delay = 0 }) {
+// Spotlight card — cursor-tracking gradient. Sets CSS vars --mx, --my on
+// the card; the gradient is rendered via the .lp-spotlight ::before in
+// index.css. Doesn't require framer-motion or any external dep.
+function SpotlightCard({ className = '', children, dark = false }) {
+  const ref = useRef(null)
+  const onMove = (e) => {
+    const el = ref.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    el.style.setProperty('--mx', `${e.clientX - rect.left}px`)
+    el.style.setProperty('--my', `${e.clientY - rect.top}px`)
+  }
+  const base = dark
+    ? 'bg-white/[0.03] border-white/10 hover:border-white/25 text-white'
+    : 'bg-white border-gray-200 hover:border-gray-300'
+  return (
+    <div ref={ref} onMouseMove={onMove}
+         className={`lp-spotlight rounded-2xl border p-7 transition-colors ${base} ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+function CounterBlock({ target, suffix = '', label, sub, dark = false }) {
   const [value, ref] = useCountUp(target)
   return (
-    <div ref={ref} className={`reveal-on-scroll reveal-delay-${delay}`}>
-      <div className="text-5xl lg:text-6xl font-bold tabular-nums" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.035em', color: '#0F1A2E' }}>
-        {value}{suffix && <span className="text-3xl text-gray-400">{suffix}</span>}
+    <div ref={ref} className="reveal-on-scroll">
+      <div className={`text-4xl lg:text-5xl font-bold tabular-nums ${dark ? 'text-white' : ''}`}
+           style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.035em', color: dark ? undefined : '#0F1A2E' }}>
+        {value}{suffix && <span className={`text-2xl ${dark ? 'text-white/40' : 'text-gray-400'}`}>{suffix}</span>}
       </div>
-      <div className="text-sm font-semibold text-gray-800 mt-2">{label}</div>
-      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+      <div className={`text-sm font-semibold mt-1.5 ${dark ? 'text-white/85' : 'text-gray-800'}`}>{label}</div>
+      {sub && <div className={`text-xs mt-0.5 ${dark ? 'text-white/40' : 'text-gray-400'}`}>{sub}</div>}
     </div>
   )
 }
 
-// ── 5-pillar accordion ───────────────────────────────────────────────────────
-const PILLARS = [
-  {
-    id: 'offtake',
-    number: '001',
-    title: 'Offtake',
-    weight: '25%',
-    description: 'Where the revenue actually comes from. Program capacity remaining, monetization structure (Net Metering / Net Billing / Community Solar / C&I), and the full export-rate haircut for every active state. Sourced from DSIRE + state PUC orders.',
-    tags: ['Program capacity', 'NM / NB export rates', 'LMI subscriber rules', 'CS / C&I structure'],
-  },
-  {
-    id: 'ix',
-    number: '002',
-    title: 'Interconnection',
-    weight: '25%',
-    description: 'The most differentiated layer in the platform. Distribution-DG queue saturation, utility ease scores, average study timelines, and ISA withdrawal rates — built per-state because nobody else has done this cleanly for sub-20MW developers.',
-    tags: ['Distribution-DG queues', 'Utility ease score', 'Study timelines', 'Queue saturation'],
-  },
-  {
-    id: 'incentives',
-    number: '003',
-    title: 'Incentives',
-    weight: '20%',
-    description: 'The IRA bonus stack. ITC adders, energy community designation, low-income community premiums, domestic content. Combined with state-level REC / SREC market rates into one revenue ladder.',
-    tags: ['IRA ITC adders', 'Energy community', 'LIC bonus', 'REC / SREC rates'],
-  },
-  {
-    id: 'site',
-    number: '004',
-    title: 'Site',
-    weight: '20%',
-    description: 'What land is actually buildable. USDA prime-farmland classification, USFWS wetlands, county-level land-use restrictions. Know if a site is developable before you spend a dollar on site control.',
-    tags: ['USDA farmland', 'USFWS wetlands', 'Brownfields / landfills', 'County land use'],
-  },
-  {
-    id: 'policy',
-    number: '005',
-    title: 'Policy & Timing',
-    weight: '10%',
-    description: "What's about to change. Comment deadlines, rate cases, program rule revisions, queue reform rulings. The signal that catches a developer before the rules shift, not after.",
-    tags: ['Comment windows', 'Rate cases', 'Program revisions', 'Queue reform'],
-  },
+// ── Data sources for the marquee. Wordmark-only ("logo" lookalikes built
+// in JetBrains Mono — clean, brand-appropriate, no licensing concerns). ─────
+const DATA_SOURCES = [
+  { label: 'DSIRE',          sub: 'incentives' },
+  { label: 'EIA',            sub: 'retail rates' },
+  { label: 'NREL',           sub: 'PVWatts · cost' },
+  { label: 'LBNL',           sub: 'spec yield' },
+  { label: 'USFWS NWI',      sub: 'wetlands' },
+  { label: 'USDA SSURGO',    sub: 'farmland' },
+  { label: 'HUD QCT / DDA',  sub: 'IRA bonus' },
+  { label: 'FERC',           sub: 'IX queues' },
+  { label: 'EPA',            sub: 'brownfields' },
+  { label: 'NOAA',           sub: 'climate' },
+  { label: 'Census ACS',     sub: 'demographics · LMI' },
+  { label: 'ISO / RTO',      sub: 'distribution-DG' },
 ]
 
-function PillarAccordion() {
-  const [openIdx, setOpenIdx] = useState(0)
+function SourcesMarquee() {
+  // Duplicate the list so the -50% translate wraps seamlessly.
+  const doubled = [...DATA_SOURCES, ...DATA_SOURCES]
   return (
-    <div className="border-t border-white/10">
-      {PILLARS.map((p, i) => {
-        const isOpen = openIdx === i
-        return (
-          <div key={p.id} className={`lp-accordion-row border-b border-white/10 ${isOpen ? 'is-open' : ''}`}>
-            <button
-              type="button"
-              onClick={() => setOpenIdx(isOpen ? -1 : i)}
-              className="w-full text-left py-7 grid grid-cols-[6rem_1fr_auto] items-center gap-6 group"
-              aria-expanded={isOpen}
-            >
-              <span className="text-sm font-mono text-white/40 tabular-nums">{p.number}</span>
-              <h4 className="lp-h4 text-white">{p.title}</h4>
-              <IconPlusMinus open={isOpen} />
-            </button>
-            <div className="lp-accordion-body">
-              <div className="lp-accordion-inner pl-[6rem] pr-12 pb-8">
-                <div className="grid lg:grid-cols-[1fr_auto] gap-8 items-start">
-                  <p className="text-base lg:text-lg text-white/65 leading-relaxed max-w-xl">{p.description}</p>
-                  <div className="lg:text-right">
-                    <div className="text-xs font-mono uppercase tracking-[0.18em] text-white/40 mb-2">Signal weight</div>
-                    <div className="lp-h3 text-white" style={{ color: '#5EEAD4' }}>{p.weight}</div>
+    <div className="lp-marquee" style={{ '--marquee-duration': '45s' }}>
+      <div className="lp-marquee__track py-2">
+        {doubled.map((s, i) => (
+          <div key={`${s.label}-${i}`} className="flex items-center gap-3 px-6 lg:px-9 shrink-0">
+            <span className="font-mono text-base lg:text-lg font-semibold tracking-tight" style={{ color: '#0F1A2E' }}>{s.label}</span>
+            <span className="text-[11px] text-gray-400 leading-tight max-w-[7rem]">{s.sub}</span>
+            <span className="w-1 h-1 rounded-full bg-gray-300 ml-3" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── 5-pillar tabs (Radix). Pill-style triggers, denser than the accordion. ─
+const PILLARS = [
+  { id: 'offtake',    title: 'Offtake',         weight: '25%',
+    description: 'Where the revenue actually comes from. Program capacity remaining, monetization structure (NM / NB / Community Solar / C&I), and the full export-rate haircut for every active state.',
+    sources: ['DSIRE', 'State PUC orders', 'Utility tariff books', 'NEEC export rates'],
+    metrics: [['12', 'NB states sourced'], ['CA · AZ · UT · ID · AR · IN · LA · MI · NC · OH · KY · SC', null]] },
+  { id: 'ix',         title: 'Interconnection', weight: '25%',
+    description: 'The most differentiated layer in the platform. Distribution-DG queue saturation, utility ease scores, average study timelines, and ISA withdrawal rates — built per-state because nobody else has done this cleanly for sub-20MW developers.',
+    sources: ['ISO/RTO queues', 'State distribution dockets', 'FERC Form 1', 'Utility IRPs'],
+    metrics: [['7', 'States with distribution-DG feeds'], ['NY · NJ · MA · VA · WI · CA · MD', null]] },
+  { id: 'incentives', title: 'Incentives',      weight: '20%',
+    description: 'The IRA bonus stack. ITC adders, energy-community designation, low-income community premiums, domestic content. Combined with state-level REC / SREC market rates into one revenue ladder.',
+    sources: ['IRS § 48 / 48E', 'HUD QCT / DDA', 'Treasury energy-community', 'State REC markets'],
+    metrics: [['4', 'IRA bonus zones tracked'], ['Energy community · LIC · Domestic content · QCT / DDA', null]] },
+  { id: 'site',       title: 'Site',            weight: '20%',
+    description: "What land is actually buildable. USDA prime-farmland classification, USFWS wetlands, county-level land-use restrictions. Know if a site is developable before you spend a dollar on site control.",
+    sources: ['USDA SSURGO', 'USFWS NWI', 'EPA brownfields', 'County land use'],
+    metrics: [['3,143', 'U.S. counties indexed'], ['Path B — complete', null]] },
+  { id: 'policy',     title: 'Policy & Timing', weight: '10%',
+    description: "What's about to change. Comment deadlines, rate cases, program rule revisions, queue reform rulings. The signal that catches a developer before the rules shift, not after.",
+    sources: ['PUC dockets', 'FERC rulemakings', 'State legislation', 'ISO queue reforms'],
+    metrics: [['Weekly', 'Refresh cadence'], ['Surface alerts in-app', null]] },
+]
+
+function PillarTabs() {
+  return (
+    <RadixTabs.Root defaultValue={PILLARS[0].id} className="w-full">
+      <RadixTabs.List className="flex flex-wrap gap-2 mb-8">
+        {PILLARS.map(p => (
+          <RadixTabs.Trigger key={p.id} value={p.id} className="lp-tab-trigger">
+            {p.title}
+            <span className="text-[10px] font-mono opacity-60">{p.weight}</span>
+          </RadixTabs.Trigger>
+        ))}
+      </RadixTabs.List>
+
+      {PILLARS.map(p => (
+        <RadixTabs.Content key={p.id} value={p.id} className="outline-hidden">
+          <SpotlightCard dark className="!p-8 lg:!p-10">
+            <div className="grid lg:grid-cols-[1.4fr_1fr] gap-8 lg:gap-12">
+              <div>
+                <p className="text-lg lg:text-xl text-white/75 leading-relaxed">{p.description}</p>
+
+                <div className="mt-7">
+                  <div className="text-xs font-mono uppercase tracking-[0.18em] text-white/40 mb-3">Data sources</div>
+                  <div className="flex flex-wrap gap-2">
+                    {p.sources.map(s => (
+                      <span key={s} className="text-xs px-3 py-1.5 rounded-full text-white/75 border border-white/15 bg-white/[0.03]">{s}</span>
+                    ))}
                   </div>
                 </div>
-                <div className="mt-6 flex flex-wrap gap-2">
-                  <span className="text-xs font-mono uppercase tracking-[0.18em] text-white/40 mr-2 self-center">Data sources</span>
-                  {p.tags.map(t => (
-                    <span key={t} className="text-xs px-3 py-1.5 rounded-full text-white/70 border border-white/15 bg-white/[0.03]">{t}</span>
-                  ))}
-                </div>
+              </div>
+
+              <div className="lg:border-l lg:border-white/10 lg:pl-12 space-y-6">
+                {p.metrics.map(([val, lbl], i) => (
+                  <div key={i}>
+                    {lbl
+                      ? <>
+                          <div className="font-bold tabular-nums" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.035em', fontSize: 'clamp(2rem, 4vw, 3rem)', color: '#5EEAD4', lineHeight: 1.02 }}>{val}</div>
+                          <div className="text-xs text-white/55 mt-1.5">{lbl}</div>
+                        </>
+                      : <div className="text-xs font-mono text-white/45 leading-relaxed">{val}</div>}
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        )
-      })}
-    </div>
+          </SpotlightCard>
+        </RadixTabs.Content>
+      ))}
+    </RadixTabs.Root>
   )
 }
 
@@ -244,15 +279,15 @@ function PillarAccordion() {
 const FAQ = [
   {
     q: 'Who is Tractova actually for?',
-    a: "Independent community-solar developers — typically 1 to 100-person shops — who have real projects but no in-house policy, interconnection, or incentive-research staff. If you're a 5-person developer trying to cover 12 states with one analyst, Tractova is the team you can't afford to hire.",
+    a: "Independent community-solar developers — 1 to 100-person shops — with real projects but no in-house policy, interconnection, or incentive-research staff. If you're a 5-person developer covering 12 states with one analyst, Tractova is the team you can't afford to hire.",
   },
   {
-    q: 'How is this different from spreadsheet research or PowerLot / EnergyAcuity?',
-    a: "The big platforms are priced for IPPs with $100k+ data budgets. Spreadsheets get stale the day you save them. Tractova sits in between: live federal + state data refreshed weekly, opinionated scoring for the sub-20MW distribution-DG market, $29.99/mo. Built specifically for the developer who is simultaneously in site control, queue applications, and a program-window race.",
+    q: 'How is this different from EnergyAcuity or spreadsheet research?',
+    a: 'The big platforms are priced for IPPs with $100k+ data budgets. Spreadsheets get stale the day you save them. Tractova sits in between: live federal + state data refreshed weekly, opinionated scoring for the sub-20MW market, $29.99/mo.',
   },
   {
     q: 'Where does the data come from?',
-    a: 'Every score traces back to a .gov source: DSIRE for incentives, EIA for retail rates, NREL for solar resource, USFWS for wetlands, USDA for farmland, HUD for IRA bonus zones, the relevant ISO/RTO for IX queues, and state PUC dockets for program orders. We do not fabricate. We do not extrapolate without disclosure.',
+    a: 'Every score traces back to a .gov source: DSIRE for incentives, EIA for retail rates, NREL for solar resource, USFWS for wetlands, USDA for farmland, HUD for IRA bonus zones, the relevant ISO/RTO for IX queues, and state PUC dockets for program orders.',
   },
   {
     q: 'How often is the data refreshed?',
@@ -260,11 +295,11 @@ const FAQ = [
   },
   {
     q: 'What does the platform cost?',
-    a: 'Free dashboard access — see every active CS program in the country, no card required. Pro is $29.99/mo for the full Lens (per-project intelligence runs), Library (project pipeline tracking), and policy alerts. 14-day free trial on Pro.',
+    a: 'Free dashboard access — see every active CS program in the country, no card required. Pro is $29.99/mo for the full Lens, Library, and policy alerts. 14-day free trial on Pro.',
   },
   {
     q: 'How do I get started?',
-    a: "Create a free account. You get the market dashboard immediately. Run one Lens on a real project of yours — that's the moment you'll know if the time-savings claim is real for your workflow.",
+    a: "Create a free account. The market dashboard is yours immediately. Run one Lens on a real project of yours — that's the moment you'll know if the time-savings claim is real for your workflow.",
   },
 ]
 
@@ -279,15 +314,15 @@ function FaqAccordion() {
             <button
               type="button"
               onClick={() => setOpenIdx(isOpen ? -1 : i)}
-              className="w-full text-left py-5 flex items-center justify-between gap-6"
+              className="w-full text-left py-4 lg:py-5 flex items-center justify-between gap-6"
               aria-expanded={isOpen}
             >
-              <span className="text-base lg:text-lg font-semibold" style={{ color: '#0F1A2E', fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.02em' }}>{item.q}</span>
+              <span className="text-base font-semibold" style={{ color: '#0F1A2E', fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.02em' }}>{item.q}</span>
               <IconFaqPlusMinus open={isOpen} />
             </button>
             <div className="lp-accordion-body">
-              <div className="lp-accordion-inner pb-6 pr-12">
-                <p className="text-sm lg:text-base text-gray-600 leading-relaxed max-w-2xl">{item.a}</p>
+              <div className="lp-accordion-inner pb-5 pr-8">
+                <p className="text-sm text-gray-600 leading-relaxed max-w-2xl">{item.a}</p>
               </div>
             </div>
           </div>
@@ -297,7 +332,7 @@ function FaqAccordion() {
   )
 }
 
-// ── reveal helper component ──────────────────────────────────────────────────
+// ── reveal helper ────────────────────────────────────────────────────────────
 function Reveal({ delay = 0, className = '', children, as: Tag = 'div' }) {
   const ref = useRevealOnScroll()
   const delayCls = delay ? ` reveal-delay-${delay}` : ''
@@ -339,46 +374,38 @@ export default function Landing() {
   return (
     <div className="pt-14">
 
-      {/* ── 1. Hero (dark) ─────────────────────────────────────────────── */}
+      {/* ── 1. Hero (dark) — denser, no marketing pill ────────────────────── */}
       <section className="text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
         <div className="lp-accent-rail" />
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-20 lg:py-32 grid lg:grid-cols-2 gap-16 items-center">
+        <div className="lp-hero-grid" />
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-14 lg:py-24 relative grid lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-16 items-center">
 
           <div>
             <Reveal>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-8" style={{ background: 'rgba(20,184,166,0.10)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(20,184,166,0.25)' }}>
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
-                Community Solar Market Intelligence · v1.0
-              </div>
-            </Reveal>
-
-            <Reveal delay={100}>
-              <h1 className="lp-h1 text-white mb-7">
+              <h1 className="lp-h1 text-white mb-6">
                 The intelligence edge<br />
-                most small developers{' '}
+                small developers{' '}
                 <span style={{ color: '#5EEAD4' }}>don't have.</span>
               </h1>
             </Reveal>
 
-            <Reveal delay={200}>
-              <p className="text-lg lg:text-xl text-white/65 leading-relaxed mb-9 max-w-xl">
-                Site control constraints, interconnection queue status, incentive stack, and offtake program capacity — one platform, five pillars, refreshed weekly. Built for shops competing against teams with dedicated research staff.
+            <Reveal delay={100}>
+              <p className="text-lg text-white/65 leading-relaxed mb-8 max-w-xl">
+                Site, interconnection, incentives, offtake, policy — one platform, five pillars, refreshed weekly. Built for shops competing against teams with dedicated research staff.
               </p>
             </Reveal>
 
-            <Reveal delay={300}>
-              <div className="flex flex-wrap items-center gap-5 mb-10">
+            <Reveal delay={200}>
+              <div className="flex flex-wrap items-center gap-5 mb-5">
                 <ButtonPrimary to="/signup">Get started free</ButtonPrimary>
                 <Link to="/preview" className="text-sm font-medium text-white/65 hover:text-white transition-colors">
                   Preview live data →
                 </Link>
               </div>
-              <span className="text-xs font-mono text-white/30">Pro $29.99/mo · 14-day free trial · no card required</span>
-            </Reveal>
-
-            <Reveal delay={400}>
-              <div className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/50">
-                {['Free dashboard', 'No credit card', 'Live federal data'].map(t => (
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-white/45">
+                <span className="font-mono">Pro $29.99/mo · 14-day trial</span>
+                <span className="text-white/20">·</span>
+                {['Free dashboard', 'No card required', 'Live federal data'].map(t => (
                   <span key={t} className="flex items-center gap-1.5">
                     <span style={{ color: '#5EEAD4' }}><IconCheck /></span>
                     {t}
@@ -394,11 +421,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── 2. Data sources strip — Nixtio "Our Clients" pattern ────────── */}
-      <section className="bg-white border-b border-gray-200 py-14 lg:py-20">
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9">
+      {/* ── 2. Data sources — infinite-scroll marquee ─────────────────────── */}
+      <section className="bg-white border-y border-gray-200 py-8 lg:py-10">
+        <div className="max-w-[95rem] mx-auto">
           {fetchError && (
-            <div className="mb-6">
+            <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 mb-6">
               <ApiErrorBanner
                 message={fetchError.message}
                 detail={fetchError.detail}
@@ -407,357 +434,255 @@ export default function Landing() {
               />
             </div>
           )}
-          <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-4">
-            <Reveal className="lg:w-[17.4rem] shrink-0">
-              <h3 className="text-base font-medium" style={{ color: '#0F1A2E', fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.025em' }}>
-                Our data sources
-              </h3>
-              <p className="text-xs text-gray-500 mt-2 leading-relaxed max-w-[16rem]">
-                Every score traces to a verified .gov source. No black-box, no scraped consultant decks.
-              </p>
-            </Reveal>
-            <Reveal delay={100} className="flex-1">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-6">
-                {[
-                  { label: 'DSIRE',         sub: 'incentives · NM / NB' },
-                  { label: 'EIA',           sub: 'retail rates · capacity' },
-                  { label: 'NREL',          sub: 'PVWatts · cost index' },
-                  { label: 'LBNL',          sub: 'spec yield · IX studies' },
-                  { label: 'USFWS NWI',     sub: 'wetlands' },
-                  { label: 'USDA SSURGO',   sub: 'prime farmland' },
-                  { label: 'HUD QCT / DDA', sub: 'IRA bonus zones' },
-                  { label: 'ISO / RTO',     sub: 'distribution-DG queues' },
-                ].map(s => (
-                  <div key={s.label}>
-                    <div className="font-mono text-sm font-semibold tabular-nums" style={{ color: '#0F1A2E' }}>{s.label}</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">{s.sub}</div>
-                  </div>
-                ))}
+
+          <div className="px-6 lg:px-9 mb-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <Eyebrow>Our data sources</Eyebrow>
+                <span className="text-xs text-gray-400 hidden sm:inline">Every score traces to a verified .gov source.</span>
               </div>
-            </Reveal>
+              <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-400">Refreshed weekly</span>
+            </div>
           </div>
+
+          <SourcesMarquee />
         </div>
       </section>
 
-      {/* ── 3. Platform stats counters ──────────────────────────────────── */}
-      <section className="bg-paper border-b border-gray-200 py-20 lg:py-28">
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-10 mb-14">
-            <Reveal className="lg:w-[17.4rem] shrink-0">
-              <Eyebrow>The platform, in numbers</Eyebrow>
-              <h2 className="lp-h3 mt-4" style={{ color: '#0F1A2E' }}>What's live<br/>right now</h2>
-            </Reveal>
-            <Reveal delay={100} className="max-w-xl">
-              <p className="text-lg text-gray-600 leading-relaxed">
-                Not a roadmap. Not a pitch deck. These are the platform's current footprint — every count refreshes on the dashboard the moment a new state ships.
-              </p>
-            </Reveal>
-          </div>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-            <CounterBlock target={typeof activeCount === 'number' ? activeCount : 0} suffix="" label="Active CS Programs" sub="across the United States" />
-            <CounterBlock target={typeof metrics?.utilitiesWithIXHeadroom === 'number' ? metrics.utilitiesWithIXHeadroom : 0} suffix="+" label="Utilities with IX Headroom" sub="scored on the ease index" delay={100} />
-            <CounterBlock target={statesMapped || 0} suffix="" label="States Fully Mapped" sub="site · IX · offtake · incentives" delay={200} />
-            <CounterBlock target={5} suffix="" label="Intelligence Pillars" sub="every score is decomposable" delay={300} />
-          </div>
-        </div>
-      </section>
-
-      {/* ── 4. Five-pillar accordion (dark) — services-style Nixtio pattern */}
+      {/* ── 3. Five-pillar tabs + stats counters — combined dense section ── */}
       <section className="text-white relative" style={{ background: '#0A132A' }}>
         <div className="lp-accent-rail" />
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-20 lg:py-32">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-10 mb-14">
-            <Reveal className="lg:w-[17.4rem] shrink-0">
-              <Eyebrow dark>What we cover</Eyebrow>
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-16 lg:py-24">
+
+          {/* Top: section intro + 4 stat counters on the right */}
+          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-10 lg:gap-16 mb-12 items-end">
+            <Reveal>
+              <Eyebrow dark>What we cover · The platform, in numbers</Eyebrow>
               <h2 className="lp-h2 mt-4 text-white">
                 Five pillars.<br/>
-                <span className="text-white/60">Every signal traceable.</span>
+                <span className="text-white/55">Every signal traceable.</span>
               </h2>
-            </Reveal>
-            <Reveal delay={100} className="max-w-xl">
-              <p className="text-lg text-white/65 leading-relaxed">
-                Community solar lives or dies on five questions. Tractova scores each one independently — so when a state's signal moves, you know which pillar moved it.
+              <p className="mt-5 text-base lg:text-lg text-white/65 leading-relaxed max-w-lg">
+                Community solar lives or dies on five questions. Tractova scores each one independently — when a state's signal moves, you know which pillar moved it.
               </p>
+            </Reveal>
+
+            <Reveal delay={150} className="grid grid-cols-2 gap-8 lg:gap-10">
+              <CounterBlock dark target={typeof activeCount === 'number' ? activeCount : 0} label="Active CS Programs" sub="across the U.S." />
+              <CounterBlock dark target={typeof metrics?.utilitiesWithIXHeadroom === 'number' ? metrics.utilitiesWithIXHeadroom : 0} suffix="+" label="Utilities w/ IX Headroom" sub="scored on ease" />
+              <CounterBlock dark target={statesMapped || 0} label="States Fully Mapped" sub="site · IX · offtake" />
+              <CounterBlock dark target={5} label="Intelligence Pillars" sub="every score decomposable" />
             </Reveal>
           </div>
 
-          <Reveal delay={150}>
-            <PillarAccordion />
-          </Reveal>
-
-          <Reveal delay={200} className="mt-10">
-            <span className="text-xs font-mono text-white/40">Total composite signal: 100% · individual weights set by the 2026-05-25 5-pillar audit</span>
+          {/* Pillar tabs */}
+          <Reveal delay={200}>
+            <PillarTabs />
           </Reveal>
         </div>
       </section>
 
-      {/* ── 5. Time-saved comparison ────────────────────────────────────── */}
-      <section className="bg-paper border-b border-gray-200 py-20 lg:py-28">
+      {/* ── 4. Bento — who-for + how-it-works + time-saved (3 sections → 1) ─ */}
+      <section className="bg-paper py-16 lg:py-24 border-b border-gray-200">
         <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9">
-          <div className="text-center mb-14">
+
+          <div className="text-center mb-10 lg:mb-14">
             <Reveal>
-              <Eyebrow>Why developers switch</Eyebrow>
+              <Eyebrow>How it works · Who it's for · What you get back</Eyebrow>
             </Reveal>
             <Reveal delay={100}>
               <h2 className="lp-h2 mt-4 max-w-3xl mx-auto" style={{ color: '#0F1A2E' }}>
-                The same county research — in 2 minutes<br/>
-                instead of 4 hours.
+                The same county research,<br/>
+                in 2 minutes instead of 4 hours.
               </h2>
             </Reveal>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto items-stretch">
-            <Reveal className="rounded-xl border border-gray-200 bg-white p-6 flex flex-col">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold text-gray-400">Manual research</span>
-                <span className="text-gray-300">/</span>
-                <span className="text-[10px] text-gray-400">per county</span>
+          {/* Bento grid — 6 cells, 3-column layout. Top row: built-for (2-wide)
+              + 120× callout (1). Middle row: 3 step cells. Bottom row: not-for
+              (1) + final CTA pair (2-wide). */}
+          <div className="grid md:grid-cols-3 gap-4 lg:gap-5">
+
+            {/* "Tractova is for" — 2-column span, top-left */}
+            <Reveal className="md:col-span-2">
+              <SpotlightCard className="h-full !bg-white">
+                <div className="flex items-center justify-between mb-5">
+                  <Eyebrow>Built for who, exactly</Eyebrow>
+                  <span className="text-[10px] font-mono uppercase tracking-[0.18em]" style={{ color: '#0F766E' }}>Tractova is for</span>
+                </div>
+                <h3 className="lp-h3 mb-4" style={{ color: '#0F1A2E' }}>
+                  The under-100-person shop. Real projects.<br/>
+                  <span className="text-gray-500">No research team.</span>
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed mb-5 max-w-2xl">
+                  Large IPPs have entire teams pulling queue data, monitoring program capacity, and flagging policy changes. You don't. <strong className="text-gray-900">Tractova is the team you can't afford to hire.</strong>
+                </p>
+                <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
+                  {[
+                    'Independent solar devs (under 100ppl)',
+                    'C&I expanding into community solar',
+                    'Project-finance evaluating new markets',
+                    'Devs tracking multiple state projects',
+                  ].map(t => (
+                    <li key={t} className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="mt-0.5 shrink-0" style={{ color: '#0F766E' }}><IconCheck /></span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </SpotlightCard>
+            </Reveal>
+
+            {/* 120× callout — top-right */}
+            <Reveal delay={100}>
+              <div className="rounded-2xl p-7 flex flex-col justify-center text-center h-full relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+                <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.85) 50%, transparent 100%)' }} />
+                <span className="font-mono text-[10px] uppercase tracking-[0.20em] mb-3" style={{ color: '#5EEAD4' }}>Net effect</span>
+                <div className="text-6xl lg:text-7xl font-bold tabular-nums text-white" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.045em', lineHeight: 1 }}>
+                  120<span className="text-3xl text-white/40">×</span>
+                </div>
+                <p className="text-xs text-white/55 mt-3 leading-snug">faster per county.<br/>50 counties in the time it took to research one.</p>
               </div>
-              <div className="text-4xl font-bold font-mono tabular-nums mb-1" style={{ color: '#0F1A2E' }}>~4 hrs</div>
-              <ul className="text-[11px] text-gray-500 space-y-1.5 mt-3 flex-1">
-                <li>• State CS program portal navigation (15 min)</li>
-                <li>• ISO/RTO queue check + utility filings (90 min)</li>
-                <li>• Census ACS pull for LMI, parcel research (45 min)</li>
-                <li>• NWI wetland mapping (30 min)</li>
-                <li>• Stitch into a one-pager (45 min)</li>
-              </ul>
             </Reveal>
 
-            <Reveal delay={100} className="rounded-xl p-6 flex flex-col relative overflow-hidden" >
-              <div className="absolute inset-0 -z-10" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)', border: '1px solid rgba(20,184,166,0.30)', borderRadius: '0.75rem' }} />
-              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.85) 50%, transparent 100%)' }} />
-              <div className="flex items-center gap-2 mb-3">
-                <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-bold" style={{ color: '#5EEAD4' }}>Tractova Lens</span>
-                <span style={{ color: 'rgba(94,234,212,0.4)' }}>/</span>
-                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>per county</span>
-              </div>
-              <div className="text-4xl font-bold font-mono tabular-nums mb-1 text-white">~2 min</div>
-              <ul className="text-[11px] space-y-1.5 mt-3 flex-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> Pre-fetched program + IX + LMI + wetland data</li>
-                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> Live ISO queue signal where available</li>
-                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> AI brief with recommended next actions</li>
-                <li className="flex items-start gap-1.5"><span style={{ color: '#5EEAD4' }}>✓</span> Saves directly to your project pipeline</li>
-              </ul>
-            </Reveal>
-
-            <Reveal delay={200} className="rounded-xl border border-gray-200 bg-white p-6 flex flex-col items-center justify-center text-center">
-              <span className="font-mono text-[9px] uppercase tracking-[0.20em] font-semibold mb-3" style={{ color: '#0F766E' }}>Net effect</span>
-              <div className="text-6xl font-bold tabular-nums" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.04em', color: '#0F1A2E' }}>
-                120<span className="text-3xl text-gray-400">×</span>
-              </div>
-              <p className="text-xs text-gray-500 mt-3 leading-snug">faster per county.<br/>Run 50 counties in the time it took to research one.</p>
-            </Reveal>
-          </div>
-
-          <Reveal delay={250} className="mt-10 text-center">
-            <p className="text-xs text-gray-400 max-w-xl mx-auto">
-              One analyst on Tractova covers the same research surface area as a small team. For a 5-person shop, that's the labor cost of one FTE returned.
-            </p>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── 6. Who it's for (Nexamp/Ameresco mention removed) ───────────── */}
-      <section className="bg-white py-20 lg:py-28 border-b border-gray-100">
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 grid lg:grid-cols-2 gap-16 items-center">
-
-          <Reveal>
-            <Eyebrow>Built for who, exactly</Eyebrow>
-            <h2 className="lp-h2 mt-4 mb-6" style={{ color: '#0F1A2E' }}>
-              The under-100-person shop.<br />
-              <span className="text-gray-500">Real projects. No research team.</span>
-            </h2>
-            <p className="text-gray-600 leading-relaxed mb-5 text-base lg:text-lg">
-              Large IPPs have entire teams pulling interconnection queue data, monitoring state program capacity, and flagging policy changes. You don't. <strong className="text-gray-900">Tractova is the team you can't afford to hire.</strong>
-            </p>
-            <p className="text-gray-600 leading-relaxed mb-8 text-base">
-              Built for developers who are simultaneously in site-control negotiations, navigating a MISO interconnection application, and watching an ILSFA block fill — all without dedicated policy or finance staff.
-            </p>
-            <ButtonPrimary to="/signup">Create a free account</ButtonPrimary>
-          </Reveal>
-
-          <Reveal delay={150} className="space-y-4">
-            <div className="rounded-xl border p-7" style={{ background: 'rgba(20,184,166,0.04)', borderColor: 'rgba(20,184,166,0.2)' }}>
-              <div className="text-xs font-semibold uppercase tracking-[0.15em] mb-4" style={{ color: '#0F766E' }}>Tractova is for</div>
-              <ul className="space-y-3">
-                {[
-                  'Independent and mid-sized solar developers (under 100 people)',
-                  'C&I solar developers expanding into community solar',
-                  'Project finance professionals evaluating new state markets',
-                  'Developers tracking multiple projects across states',
-                ].map(t => (
-                  <li key={t} className="flex items-start gap-3 text-sm text-gray-700">
-                    <span className="mt-0.5 shrink-0" style={{ color: '#0F766E' }}><IconCheck /></span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="rounded-xl bg-gray-50 border border-gray-200 p-7">
-              <div className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500 mb-4">Not designed for</div>
-              <ul className="space-y-3">
-                {[
-                  'Large IPPs with in-house intelligence teams',
-                  'Utility-scale developers (>50MW projects)',
-                  'Residential solar installers',
-                  'EPC or procurement teams',
-                ].map(t => (
-                  <li key={t} className="flex items-start gap-3 text-sm text-gray-500">
-                    <span className="mt-0.5 shrink-0 text-gray-300">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
-                    </span>
-                    {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── 7. How it works ─────────────────────────────────────────────── */}
-      <section className="bg-paper py-20 lg:py-28 border-b border-gray-100">
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-10 mb-14">
-            <Reveal className="lg:w-[17.4rem] shrink-0">
-              <Eyebrow>How it works</Eyebrow>
-              <h2 className="lp-h2 mt-4" style={{ color: '#0F1A2E' }}>From address<br/>to intelligence<br/>in two minutes.</h2>
-            </Reveal>
-            <Reveal delay={100} className="max-w-xl">
-              <p className="text-lg text-gray-600 leading-relaxed">
-                No setup. No connectors. Type a state + county, get a five-pillar signal report. Save the ones worth tracking.
-              </p>
-            </Reveal>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-6 lg:gap-10">
+            {/* 3 step cells — middle row */}
             {[
-              { step: '01', title: 'Search your project', body: 'Enter state, county, project size, development stage, and technology type. Tractova Lens pulls the relevant intelligence for that exact context — not a one-size dashboard.' },
-              { step: '02', title: 'Read the five-pillar report', body: 'Offtake, IX, Incentives, Site, Policy — each scored independently with the underlying data sources cited inline. AI brief surfaces the two or three signals that actually matter for this project.' },
-              { step: '03', title: 'Track your pipeline', body: "Save projects to your library. Get alerts when program capacity drops, queue status changes, or policy shifts in your project's state. Catch what changed; you don't have to watch it." },
+              { step: '01', title: 'Search your project', body: 'State, county, size, stage, technology. Tractova pulls the relevant intelligence for that exact context.' },
+              { step: '02', title: 'Read the five-pillar report', body: 'Each pillar scored independently with cited sources. AI brief surfaces the two or three signals that actually matter.' },
+              { step: '03', title: 'Track your pipeline', body: 'Save projects to your library. Get alerts when capacity drops, queue status changes, or policy shifts.' },
             ].map((s, i) => (
-              <Reveal key={s.step} delay={i * 100} className="rounded-xl border border-gray-200 bg-white p-7">
-                <div className="font-mono text-sm tabular-nums mb-5" style={{ color: '#0F766E' }}>{s.step}</div>
-                <h3 className="lp-h5 mb-3" style={{ color: '#0F1A2E' }}>{s.title}</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">{s.body}</p>
+              <Reveal key={s.step} delay={i * 100}>
+                <SpotlightCard className="h-full !bg-white">
+                  <div className="font-mono text-sm tabular-nums mb-3" style={{ color: '#0F766E' }}>{s.step}</div>
+                  <h3 className="lp-h5 mb-2.5" style={{ color: '#0F1A2E' }}>{s.title}</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">{s.body}</p>
+                </SpotlightCard>
               </Reveal>
             ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ── 8. FAQ ──────────────────────────────────────────────────────── */}
-      <section className="bg-white py-20 lg:py-28">
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9">
-          <div className="grid lg:grid-cols-[24rem_1fr] gap-12 lg:gap-20">
+            {/* "Not designed for" — bottom-left */}
             <Reveal>
-              <h2 className="lp-h2-big" style={{ color: '#0F1A2E' }}>FAQ</h2>
-              <p className="text-base lg:text-lg text-gray-500 mt-6 max-w-[24rem] leading-relaxed">
-                The questions developers actually ask before signing up. If yours isn't here, the contact form below goes straight to the founder.
-              </p>
+              <div className="rounded-2xl bg-gray-50 border border-gray-200 p-7 h-full">
+                <div className="text-xs font-semibold uppercase tracking-[0.15em] text-gray-500 mb-4">Not designed for</div>
+                <ul className="space-y-2.5">
+                  {[
+                    'Large IPPs w/ intelligence teams',
+                    'Utility-scale (>50MW)',
+                    'Residential installers',
+                    'EPC / procurement teams',
+                  ].map(t => (
+                    <li key={t} className="flex items-start gap-2.5 text-sm text-gray-500">
+                      <span className="mt-0.5 shrink-0 text-gray-300">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </span>
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </Reveal>
-            <Reveal delay={100}>
-              <FaqAccordion />
+
+            {/* Mid-page CTA cell — bottom-right, spans 2 cols */}
+            <Reveal delay={100} className="md:col-span-2">
+              <div className="rounded-2xl border border-gray-200 bg-white p-7 h-full flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+                <div>
+                  <h3 className="lp-h5 mb-1" style={{ color: '#0F1A2E' }}>Try it on one of your projects.</h3>
+                  <p className="text-sm text-gray-500">14-day Pro trial. No card required. The first Lens run tells you if this fits your workflow.</p>
+                </div>
+                <ButtonPrimary to="/signup">Get started free</ButtonPrimary>
+              </div>
             </Reveal>
+
           </div>
         </div>
       </section>
 
-      {/* ── 9. The Adder callout ────────────────────────────────────────── */}
-      <section className="bg-paper border-y border-gray-200 py-14 lg:py-16">
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+      {/* ── 5. FAQ + Adder callout combined — 2-column ────────────────────── */}
+      <section className="bg-white py-16 lg:py-24">
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 grid lg:grid-cols-[1.4fr_1fr] gap-12 lg:gap-16">
+
           <Reveal>
-            <Eyebrow>From the same team</Eyebrow>
-            <h3 className="lp-h3 mt-3 mb-2" style={{ color: '#0F1A2E' }}>The Adder Newsletter</h3>
-            <p className="text-sm text-gray-500 max-w-lg leading-relaxed">
-              A bi-weekly newsletter covering community solar policy, interconnection trends, and market moves for independent developers. Free and opinionated.
+            <Eyebrow>FAQ</Eyebrow>
+            <h2 className="lp-h2 mt-3 mb-2" style={{ color: '#0F1A2E' }}>Common questions.</h2>
+            <p className="text-sm text-gray-500 mb-6 max-w-lg">
+              The questions developers actually ask before signing up. If yours isn't here, the form below goes straight to the founder.
             </p>
+            <FaqAccordion />
           </Reveal>
-          <Reveal delay={100}>
-            <a
-              href="https://theadder.substack.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 inline-flex items-center gap-2 px-5 py-3 text-sm font-semibold rounded-lg transition-colors"
-              style={{ border: '1px solid #14B8A6', color: '#0F766E' }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = '#14B8A6'; e.currentTarget.style.color = '#FFFFFF' }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';  e.currentTarget.style.color = '#0F766E' }}
-            >
-              Read The Adder ↗
-            </a>
+
+          <Reveal delay={100} className="lg:sticky lg:top-24 self-start space-y-4">
+            <SpotlightCard className="!bg-paper">
+              <Eyebrow>From the same team</Eyebrow>
+              <h3 className="lp-h4 mt-3 mb-2" style={{ color: '#0F1A2E' }}>The Adder Newsletter</h3>
+              <p className="text-sm text-gray-500 leading-relaxed mb-5">
+                Bi-weekly newsletter on community-solar policy, IX trends, and market moves for independent developers. Free and opinionated.
+              </p>
+              <a
+                href="https://theadder.substack.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors"
+                style={{ border: '1px solid #14B8A6', color: '#0F766E' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = '#14B8A6'; e.currentTarget.style.color = '#FFFFFF' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent';  e.currentTarget.style.color = '#0F766E' }}
+              >
+                Read The Adder ↗
+              </a>
+            </SpotlightCard>
+
+            <SpotlightCard className="!bg-paper">
+              <Eyebrow>Why now</Eyebrow>
+              <h3 className="lp-h5 mt-3 mb-3" style={{ color: '#0F1A2E' }}>The window is open — briefly.</h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                IRA bonus tiers are still being claimed. State CS programs are still opening blocks. Queue reform is reshaping which utilities are buildable. <strong className="text-gray-900">The next 24 months are when small developers either gain market share or get crowded out.</strong>
+              </p>
+            </SpotlightCard>
           </Reveal>
         </div>
       </section>
 
-      {/* ── 10. Footer CTA (dark) ──────────────────────────────────────── */}
+      {/* ── 6. Final CTA (dark) — tightened ───────────────────────────────── */}
       <section className="text-white relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #050A1A 100%)' }}>
         <div className="lp-accent-rail" />
-        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-20 lg:py-32">
+        <div className="lp-hero-grid" />
+        <div className="max-w-[75.5rem] mx-auto px-6 lg:px-9 py-16 lg:py-24 relative grid lg:grid-cols-[1.2fr_1fr] gap-10 lg:gap-16 items-center">
 
-          <div className="grid lg:grid-cols-2 gap-16 lg:gap-20 mb-16">
-            <Reveal>
-              <h2 className="lp-h2-big text-white mb-8">
-                Start<br/>building<br/>smarter.
-              </h2>
-              <p className="text-lg lg:text-xl text-white/65 leading-relaxed mb-10 max-w-lg">
-                <strong className="text-white">Free dashboard access</strong> — see every active CS program in the country, no card required. Upgrade to Pro when you're ready to run real projects through the Lens.
-              </p>
-
-              <div className="h-px w-full mb-10" style={{ background: 'linear-gradient(90deg, rgba(255,255,255,0.18) 0%, transparent 100%)' }} />
-
-              <div className="grid sm:grid-cols-2 gap-8">
-                {[
-                  { title: 'Free to start', body: 'Dashboard + 50-state coverage out of the box. No credit card.', icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="9"/><polyline points="9 12 11 14 15 10"/>
-                    </svg>
-                  ) },
-                  { title: 'Live data', body: 'Federal + state sources refreshed weekly via scheduled jobs.', icon: (
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 4 3 10 9 10"/>
-                    </svg>
-                  ) },
-                ].map(f => (
-                  <div key={f.title}>
-                    <div className="mb-3" style={{ color: '#5EEAD4' }}>{f.icon}</div>
-                    <h3 className="lp-h5 text-white mb-2">{f.title}</h3>
-                    <p className="text-sm text-white/55 leading-relaxed">{f.body}</p>
-                  </div>
-                ))}
-              </div>
-            </Reveal>
-
-            <Reveal delay={150}>
-              <div className="rounded-2xl border p-8 lg:p-10" style={{ background: 'rgba(255,255,255,0.025)', borderColor: 'rgba(255,255,255,0.1)' }}>
-                <h3 className="lp-h3 text-white mb-2">Have a question <span className="text-white/40">in mind?</span></h3>
-                <p className="text-sm text-white/55 mb-8">The contact form goes straight to the founder. Replies within one business day.</p>
-
-                <div className="space-y-5">
-                  <ButtonPrimary to="/signup" className="w-full justify-center">Create your free account</ButtonPrimary>
-
-                  <div className="flex items-center gap-3 text-xs text-white/40">
-                    <span className="flex-1 h-px bg-white/10" />
-                    <span>or</span>
-                    <span className="flex-1 h-px bg-white/10" />
-                  </div>
-
-                  <Link to="/preview" className="block w-full text-center px-6 py-3 rounded-lg text-sm font-semibold border transition-colors text-white/85 hover:text-white" style={{ borderColor: 'rgba(255,255,255,0.18)' }}
+          <Reveal>
+            <h2 className="lp-h2-big text-white mb-6">
+              Start building<br/>smarter.
+            </h2>
+            <p className="text-lg text-white/65 leading-relaxed mb-8 max-w-lg">
+              <strong className="text-white">Free dashboard access</strong> — see every active CS program in the country, no card required. Upgrade to Pro when you're ready to run real projects through the Lens.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <ButtonPrimary to="/signup">Create your free account</ButtonPrimary>
+              <Link to="/preview" className="px-6 py-3 rounded-lg text-sm font-semibold border text-white/85 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.18)' }}
                     onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)' }}
                     onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}>
-                    Preview live data →
-                  </Link>
+                Preview live data →
+              </Link>
+            </div>
+            <p className="text-xs text-white/40 mt-6">
+              Existing user? <Link to="/signin" className="underline hover:text-white">Sign in</Link>
+            </p>
+          </Reveal>
 
-                  <p className="text-xs text-center text-white/40 pt-2">
-                    Existing user? <Link to="/signin" className="underline hover:text-white">Sign in</Link>
-                  </p>
-                </div>
-              </div>
-            </Reveal>
-          </div>
+          <Reveal delay={150} className="grid sm:grid-cols-2 gap-4">
+            {[
+              { kpi: 'Free',     title: 'Free to start',   body: 'Dashboard + 50-state coverage. No card.' },
+              { kpi: 'Weekly',   title: 'Live data',       body: 'Federal + state sources refreshed weekly.' },
+              { kpi: '2 min',    title: 'Per Lens run',    body: '4-hour county research, condensed.' },
+              { kpi: '$29.99',   title: 'Pro / month',     body: 'Full Lens, Library, policy alerts. 14-day trial.' },
+            ].map(f => (
+              <SpotlightCard key={f.title} dark className="!p-5">
+                <div className="font-mono text-xs uppercase tracking-[0.18em] mb-3" style={{ color: '#5EEAD4' }}>{f.kpi}</div>
+                <h3 className="text-base font-semibold text-white mb-1.5" style={{ fontFamily: 'Geist, system-ui, sans-serif', letterSpacing: '-0.02em' }}>{f.title}</h3>
+                <p className="text-xs text-white/55 leading-relaxed">{f.body}</p>
+              </SpotlightCard>
+            ))}
+          </Reveal>
         </div>
       </section>
 
