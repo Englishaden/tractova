@@ -391,18 +391,18 @@ function FaqAccordion() {
 // ── Compare panels — manual research mock vs Tractova Lens mock ─────────────
 function ManualResearchPanel() {
   return (
-    <div className="h-full p-6 lg:p-8 flex flex-col" style={{ background: '#F4F2EC' }}>
-      <div className="flex items-baseline justify-between mb-5">
+    <div className="h-full p-5 lg:p-7 flex flex-col" style={{ background: '#F4F2EC' }}>
+      <div className="flex items-baseline justify-between mb-3 lg:mb-4">
         <div className="eyebrow-mono text-gray-400">Manual research</div>
         <div className="text-xs font-mono text-gray-500 tabular-nums">~4 hrs / county</div>
       </div>
-      <h3 className="lp-h4 text-gray-900 mb-4">Spreadsheet workflow</h3>
-      <ul className="text-xs lg:text-sm text-gray-500 space-y-2.5 flex-1">
+      <h3 className="lp-h5 lg:lp-h4 text-gray-900 mb-3 lg:mb-4">Spreadsheet workflow</h3>
+      <ul className="text-[11px] lg:text-sm text-gray-500 space-y-1.5 lg:space-y-2 flex-1 min-h-0 overflow-hidden">
         {[
-          ['00:15', 'State CS portal navigation — find the right program docket'],
-          ['01:45', 'ISO/RTO queue check + utility filings — manual scrape'],
-          ['02:30', 'Census ACS pull for LMI thresholds + parcel research'],
-          ['03:00', 'NWI wetland mapping — USFWS viewer, screenshot, annotate'],
+          ['00:15', 'State CS portal — find the right program docket'],
+          ['01:45', 'ISO/RTO queue + utility filings — manual scrape'],
+          ['02:30', 'Census ACS pull for LMI thresholds + parcels'],
+          ['03:00', 'NWI wetland mapping — USFWS viewer screenshots'],
           ['03:45', 'Stitch into a one-pager — Excel, Word, copy-paste'],
         ].map(([t, line]) => (
           <li key={t} className="flex items-start gap-3">
@@ -411,10 +411,10 @@ function ManualResearchPanel() {
           </li>
         ))}
       </ul>
-      <div className="mt-6 pt-4 border-t border-gray-300/60">
-        <div className="flex items-baseline justify-between">
+      <div className="mt-3 lg:mt-4 pt-3 border-t border-gray-300/60">
+        <div className="flex items-baseline justify-between gap-3">
           <span className="eyebrow-mono text-gray-400">Result</span>
-          <span className="text-xs text-gray-500">Stale by next week. No alerts when it changes.</span>
+          <span className="text-[11px] text-gray-500 text-right">Stale by next week. No alerts when it changes.</span>
         </div>
       </div>
     </div>
@@ -423,14 +423,14 @@ function ManualResearchPanel() {
 
 function TractovaLensPanel() {
   return (
-    <div className="h-full p-6 lg:p-8 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
+    <div className="h-full p-5 lg:p-7 flex flex-col relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
       <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(94,234,212,0.85) 50%, transparent 100%)' }} />
-      <div className="flex items-baseline justify-between mb-5 relative">
+      <div className="flex items-baseline justify-between mb-3 lg:mb-4 relative">
         <div className="eyebrow-mono" style={{ color: '#5EEAD4' }}>Tractova Lens</div>
         <div className="text-xs font-mono tabular-nums" style={{ color: '#5EEAD4' }}>~2 min / county</div>
       </div>
-      <h3 className="lp-h4 text-white mb-4">5-pillar signal report</h3>
-      <div className="space-y-2.5 flex-1">
+      <h3 className="lp-h5 lg:lp-h4 text-white mb-3 lg:mb-4">5-pillar signal report</h3>
+      <div className="space-y-1.5 lg:space-y-2 flex-1 min-h-0 overflow-hidden">
         {[
           { name: 'Offtake',         pct: 78, weight: '25%' },
           { name: 'Interconnection', pct: 64, weight: '25%' },
@@ -439,19 +439,19 @@ function TractovaLensPanel() {
           { name: 'Policy & Timing', pct: 72, weight: '10%' },
         ].map(p => (
           <div key={p.name} className="flex items-center gap-3">
-            <span className="text-xs text-white/70 w-32">{p.name}</span>
+            <span className="text-[11px] lg:text-xs text-white/70 w-28 lg:w-32 shrink-0">{p.name}</span>
             <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div className="h-full rounded-full" style={{ width: `${p.pct}%`, background: 'linear-gradient(90deg, #14B8A6 0%, #5EEAD4 100%)' }} />
             </div>
-            <span className="text-xs font-mono text-white/70 tabular-nums w-7 text-right">{p.pct}</span>
-            <span className="text-[10px] font-mono text-white/30 w-9 text-right">{p.weight}</span>
+            <span className="text-[11px] lg:text-xs font-mono text-white/70 tabular-nums w-7 text-right">{p.pct}</span>
+            <span className="text-[10px] font-mono text-white/30 w-9 text-right hidden sm:inline-block">{p.weight}</span>
           </div>
         ))}
       </div>
-      <div className="mt-6 pt-4 border-t border-white/10">
-        <div className="flex items-baseline justify-between gap-4">
-          <span className="eyebrow-mono" style={{ color: '#5EEAD4' }}>AI brief</span>
-          <span className="text-xs text-white/55 text-right leading-snug">Strong incentive stack (91). Watch IX — Q3 queue reform pending.</span>
+      <div className="mt-3 lg:mt-4 pt-3 border-t border-white/10">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="eyebrow-mono shrink-0" style={{ color: '#5EEAD4' }}>AI brief</span>
+          <span className="text-[11px] text-white/55 text-right leading-snug">Strong incentive stack (91). Watch IX — Q3 queue reform pending.</span>
         </div>
       </div>
     </div>
@@ -651,7 +651,10 @@ export default function Landing() {
             </Reveal>
           </div>
 
-          {/* Compare slider — full bento width */}
+          {/* Compare slider — full bento width. Height is capped at
+              60vh so it always fits in one viewport regardless of zoom
+              level (the user's prior viewport was getting clipped at
+              the 480px fixed height on shorter screens / >100% zoom). */}
           <Reveal>
             <div className="rounded-2xl border border-gray-200 overflow-hidden shadow-sm mb-6">
               <Compare
@@ -659,7 +662,7 @@ export default function Landing() {
                 second={<TractovaLensPanel />}
                 slideMode="hover"
                 initial={48}
-                className="h-[420px] lg:h-[480px]"
+                className="h-[340px] lg:h-[400px] max-h-[60vh]"
               />
             </div>
           </Reveal>

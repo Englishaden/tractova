@@ -63,6 +63,11 @@ export function Compare({
     if (slideMode === 'hover') moveTo(e.clientX)
   }
 
+  // Deliberate: NO onMouseLeave snap-back. The user-reported issue was
+  // the divider jumping to center the moment the cursor exited — that's
+  // jarring, especially mid-drag. Leaving the divider at its last
+  // position is the expected behavior for a "scrub on hover" interaction.
+
   const renderPanel = (value, klass) => {
     if (typeof value === 'string') {
       return (
@@ -81,7 +86,6 @@ export function Compare({
     <div
       ref={containerRef}
       onMouseMove={onContainerMove}
-      onMouseLeave={() => slideMode === 'hover' && setPos(initial)}
       className={cn('relative overflow-hidden select-none', className)}
       style={{ touchAction: slideMode === 'drag' ? 'none' : undefined }}
     >
