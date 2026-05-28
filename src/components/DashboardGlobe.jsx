@@ -4,7 +4,7 @@ import { timer as d3Timer } from 'd3-timer'
 import { interpolate as d3Interpolate } from 'd3-interpolate'
 import { feature as topoFeature } from 'topojson-client'
 import { useAuth } from '../context/AuthContext'
-import { getLibraryProjectsByState, getTopCsStatesByActivity } from '../lib/programData'
+import { getLibraryProjectsByState } from '../lib/programData'
 
 // DashboardGlobe — UNIFIED d3-canvas globe.
 //
@@ -229,25 +229,32 @@ export default function DashboardGlobe({
   useEffect(() => {
     let cancelled = false
     ;(async () => {
+      // Aden 2026-05-28: "make it so the only dots that light up are the
+      // markets we're in." Scope strictly to the user's saved Library
+      // projects. NO LBNL fallback — if the user hasn't saved any
+      // projects yet, the live layer is empty (the idle top-15-by-
+      // feasibility ambient dots are still there as the baseline read).
+      // Signed-out / preview visitors also get no live layer.
+      if (!user) {
+        liveMarkersRef.current = []
+        setLiveMarkers([])
+        setLiveMarkersSource(null)
+        return
+      }
       try {
-        // Try the user's saved Library projects first when authed.
-        if (user) {
-          const lib = await getLibraryProjectsByState({ topN: 7 })
-          if (cancelled) return
-          if (Array.isArray(lib) && lib.length > 0) {
-            setLiveMarkers(lib)
-            setLiveMarkersSource('library')
-            liveMarkersRef.current = lib
-            return
-          }
-        }
-        // Fall back to public real-operating-CS-projects activity.
-        const cs = await getTopCsStatesByActivity({ topN: 7 })
+        const lib = await getLibraryProjectsByState({ topN: 7 })
         if (cancelled) return
-        if (Array.isArray(cs) && cs.length > 0) {
-          setLiveMarkers(cs)
-          setLiveMarkersSource('cs_projects')
-          liveMarkersRef.current = cs
+        if (Array.isArray(lib) && lib.length > 0) {
+          setLiveMarkers(lib)
+          setLiveMarkersSource('library')
+          liveMarkersRef.current = lib
+        } else {
+          // Authed but no saved projects yet — keep the live layer empty
+          // so the user isn't misled into thinking other states are
+          // somehow "theirs."
+          setLiveMarkers([])
+          setLiveMarkersSource(null)
+          liveMarkersRef.current = []
         }
       } catch (e) {
         console.warn('[DashboardGlobe] live markers fetch failed:', e?.message)
@@ -442,13 +449,15 @@ export default function DashboardGlobe({
         }
       }
 
-      // 6b) LIVE markers — sized by user's saved-project count (authed) or
-      //     LBNL real-operating-CS-project count (preview/unauth fallback).
-      //     Sits ON TOP of idle top-state markers with a brighter fill +
-      //     breathing pulse halo, so the user sees "this is my market intel"
-      //     (or "real-world activity") layered onto the ambient globe.
-      //     Stays visible across phases — even when zoomed in, the markers
-      //     project naturally onto the focused US sphere.
+      // 6b) LIVE markers — only for AUTHED users with ≥1 saved Library
+      //     project (Aden 2026-05-28: "only dots that light up are the
+      //     markets we're in"). NO public-data fallback; the unauth
+      //     visitor sees the idle ambient dots only.
+      //     Sits ON TOP of idle top-state markers with brighter fill +
+      //     breathing pulse halo. Stays visible across phases — when
+      //     zoomed in, markers project naturally onto the focused US sphere.
+      //     Sizes tightened per Aden's "slightly smaller" callout —
+      //     baseline 2px, up to ~4.5px for the biggest market in the set.
       if (liveMarkersRef.current.length > 0 && stateFeatures) {
         const live = liveMarkersRef.current
         const pulse = (Math.sin(pulsePhaseRef.current * 1.4) + 1) / 2 // 0..1
@@ -459,25 +468,24 @@ export default function DashboardGlobe({
           if (!f) continue
           const cent = path.centroid(f)
           if (!cent || isNaN(cent[0])) continue
-          // Size by count (relative within the visible set). Baseline 3px,
-          // up to ~7px for the biggest set.
-          const r = 3 + (m.count / maxCount) * 4
+          // Size by count (relative within the visible set). 2.0–4.5px.
+          const r = 2 + (m.count / maxCount) * 2.5
           // Outer halo — pulses
           ctx.beginPath()
-          ctx.arc(cent[0], cent[1], r + 4 + pulse * 5, 0, 2 * Math.PI)
-          ctx.fillStyle = `rgba(94, 234, 212, ${0.18 - pulse * 0.10})`
+          ctx.arc(cent[0], cent[1], r + 3 + pulse * 3.5, 0, 2 * Math.PI)
+          ctx.fillStyle = `rgba(94, 234, 212, ${0.16 - pulse * 0.08})`
           ctx.fill()
           // Mid halo
           ctx.beginPath()
-          ctx.arc(cent[0], cent[1], r + 2, 0, 2 * Math.PI)
-          ctx.fillStyle = 'rgba(94, 234, 212, 0.30)'
+          ctx.arc(cent[0], cent[1], r + 1.5, 0, 2 * Math.PI)
+          ctx.fillStyle = 'rgba(94, 234, 212, 0.28)'
           ctx.fill()
           // Core dot — bright + glow
           ctx.beginPath()
           ctx.arc(cent[0], cent[1], r, 0, 2 * Math.PI)
           ctx.fillStyle = '#5EEAD4'
           ctx.shadowColor = 'rgba(94, 234, 212, 0.95)'
-          ctx.shadowBlur = 12
+          ctx.shadowBlur = 9
           ctx.fill()
           ctx.shadowBlur = 0
         }
@@ -696,17 +704,17 @@ export default function DashboardGlobe({
           </div>
         )}
 
-        {/* Live-markers source label — bottom-left when markers are
-            loaded, so the user knows what the bright pulsing dots
-            represent (their saved Library projects, or LBNL real-ops). */}
-        {phase === 'idle' && liveMarkersSource && (
+        {/* Live-markers source label — bottom-left when the user has
+            saved Library projects loaded. Aden 2026-05-28: only the
+            user's saved markets light up; no public-data fallback. */}
+        {phase === 'idle' && liveMarkersSource === 'library' && (
           <div className="absolute bottom-4 left-4 pointer-events-none">
             <span
               className="inline-flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[0.22em]"
               style={{ color: 'var(--text-muted, #6C7A91)' }}
             >
               <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: '#5EEAD4', boxShadow: '0 0 6px rgba(94,234,212,0.6)' }} />
-              {liveMarkersSource === 'library' ? 'Your saved markets' : 'Live · top operating markets'}
+              Your saved markets
             </span>
           </div>
         )}

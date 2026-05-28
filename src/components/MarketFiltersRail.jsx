@@ -141,23 +141,30 @@ function UtilityCombobox({ value, onChange, options }) {
         </div>
       </Popover.Anchor>
       <Popover.Portal>
+        {/* Popover content — Aden 2026-05-28 callout: previous dark
+            cards-bg looked "literally black." Switched to a light-card-
+            on-dark-page pattern (matches the tooltip vocabulary already
+            used elsewhere on the Dashboard: bright surface with dark
+            text + teal accent border + soft shadow). Reads cleanly as
+            a floating dropdown above the dark dashboard. */}
         <Popover.Content
           align="start"
           sideOffset={4}
-          // onOpenAutoFocus / onCloseAutoFocus = preventDefault → keep input focus
           onOpenAutoFocus={(e) => e.preventDefault()}
           onCloseAutoFocus={(e) => e.preventDefault()}
-          className="rounded-md shadow-2xl z-[60] thin-scrollbar overflow-y-auto"
+          className="rounded-md z-[60] thin-scrollbar overflow-y-auto"
           style={{
-            background: 'var(--cards-bg, #131C2C)',
-            border: '1px solid var(--cards-border, #1F2A3D)',
+            background: '#FFFFFF',
+            border: '1px solid rgba(20,184,166,0.45)',
+            boxShadow: '0 12px 32px -8px rgba(0,0,0,0.55), 0 0 0 1px rgba(20,184,166,0.06)',
             width: 'var(--radix-popover-trigger-width)',
             maxHeight: '240px',
+            color: '#0A1828',
           }}
         >
           {filtered.length === 0 ? (
             <div className="px-2.5 py-3 text-center">
-              <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: '#5A6B7A' }}>
                 {options.length === 0 ? 'Loading sources…' : 'No matches'}
               </span>
             </div>
@@ -170,13 +177,13 @@ function UtilityCombobox({ value, onChange, options }) {
                     <button
                       type="button"
                       onClick={() => handleSelect(opt)}
-                      className="w-full text-left px-2.5 py-1.5 text-[11px] transition-colors"
+                      className="w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors"
                       style={{
                         background: isActive ? 'rgba(20,184,166,0.12)' : 'transparent',
-                        color: isActive ? 'var(--link, #5EEAD4)' : 'var(--text-secondary)',
+                        color: isActive ? '#0F766E' : '#0A1828',
                       }}
-                      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--text-primary)' } }}
-                      onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' } }}
+                      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = 'rgba(20,184,166,0.08)'; e.currentTarget.style.color = '#0F766E' } }}
+                      onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#0A1828' } }}
                     >
                       {opt}
                     </button>
