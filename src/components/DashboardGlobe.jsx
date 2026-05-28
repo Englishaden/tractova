@@ -56,11 +56,18 @@ function isWebGLAvailable() {
   }
 }
 
-// Phi/theta target for "US-facing." Phi=4.7 rad (~270°) rotates the globe
-// so North America faces the camera; theta=0.35 tilts slightly downward
-// so the northern half of the US is in the visual center.
-const PHI_US_FACING = 4.7
-const THETA_US_FACING = 0.35
+// Phi/theta target for "US-facing." Cobe's convention: phi=0 puts the
+// prime meridian (longitude 0, ≈ Africa/Europe) at the visible center.
+// Each radian of phi rotates the globe so eastern longitudes scroll past.
+// Central US sits around longitude -100°W — to bring that to center we
+// rotate the globe by +100° / -260° (cobe accepts either direction).
+// 1.85 rad ≈ 106° empirically lands central US slightly LEFT of center
+// with theta-tilt accounted for, leaving room for marker labels on the
+// right. theta=0.20 is a gentle northern-hemisphere tilt — high enough
+// that the contiguous US fills the visible disc without skewing Alaska
+// off-edge.
+const PHI_US_FACING = 1.85
+const THETA_US_FACING = 0.20
 
 export default function DashboardGlobe({
   onStateClick,
@@ -131,10 +138,11 @@ export default function DashboardGlobe({
       })
 
       const animate = () => {
-        // Very gentle auto-rotate (Defillama's animation timings inspired this —
-        // slow enough that it reads as ambient, not distracting). The rotation
-        // is around the US-facing position, so the US stays roughly centered.
-        phi += 0.0008
+        // Static US-facing — no continuous auto-rotation. Prior version
+        // drifted by 0.0008 rad/frame, which over a few seconds pulled
+        // the US off-center; on a focused intelligence terminal that
+        // read as distracting, not "live." Keep the rAF loop for future
+        // hover-driven parallax (e.g. cursor tilt) but no default drift.
         if (globeRef.current) {
           globeRef.current.update({
             phi,
@@ -224,49 +232,53 @@ export default function DashboardGlobe({
     )
   }
 
-  // Globe mode
+  // Globe mode — center a SQUARE container inside the parent column so
+  // the cobe canvas (which sizes from offsetWidth and renders square) is
+  // never stretched. Previous version used `aspectRatio: 1/1 +
+  // maxHeight: 520px`, which conflicted when the parent column was wider
+  // than 520px: height clamped to 520, width followed the column → the
+  // canvas read as an oval. Now: the inner div is `aspect-square` AND
+  // capped at 480px max-width, so it always renders square at any column
+  // width, centered horizontally.
   return (
-    <div
-      className="relative w-full select-none cursor-pointer"
-      style={{ aspectRatio: '1 / 1', maxHeight: '520px' }}
-      onClick={handleGlobeClick}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleGlobeClick() }}
-      role="button"
-      tabIndex={0}
-      aria-label="Open interactive US map"
-    >
-      <canvas
-        ref={canvasRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          opacity: 0,
-          transition: 'opacity 1.2s ease',
-          touchAction: 'none',
-        }}
-      />
-      {/* Floating CTA so the user knows the globe is clickable. Hidden
-          on tap (touch) since the whole canvas is tap-to-zoom. */}
+    <div className="flex items-center justify-center w-full h-full p-4">
       <div
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none"
-        style={{ display: 'none' }}
-      />
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-        <span
-          className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.20em] font-semibold"
+        className="relative aspect-square w-full max-w-[480px] select-none cursor-pointer"
+        onClick={handleGlobeClick}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleGlobeClick() }}
+        role="button"
+        tabIndex={0}
+        aria-label="Open interactive US map"
+      >
+        <canvas
+          ref={canvasRef}
           style={{
-            background: 'rgba(11,22,35,0.72)',
-            border: '1px solid var(--hairline-teal, rgba(20,184,166,0.45))',
-            color: 'var(--link, #5EEAD4)',
-            backdropFilter: 'blur(8px)',
+            width: '100%',
+            height: '100%',
+            opacity: 0,
+            transition: 'opacity 1.2s ease',
+            touchAction: 'none',
           }}
-        >
-          <span className="relative flex w-1.5 h-1.5">
-            <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: '#14B8A6' }} />
-            <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
+        />
+        {/* Click-affordance pill — bottom-center, hidden on touch (whole
+            canvas is tap-to-zoom on touch devices anyway). */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.20em] font-semibold"
+            style={{
+              background: 'rgba(11,22,35,0.72)',
+              border: '1px solid var(--hairline-teal, rgba(20,184,166,0.45))',
+              color: 'var(--link, #5EEAD4)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <span className="relative flex w-1.5 h-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: '#14B8A6' }} />
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
+            </span>
+            Click to explore US
           </span>
-          Click to explore US
-        </span>
+        </div>
       </div>
     </div>
   )

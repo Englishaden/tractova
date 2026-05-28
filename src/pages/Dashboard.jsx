@@ -1,12 +1,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import MetricsBar from '../components/MetricsBar'
-import NewsFeed from '../components/NewsFeed'
+import IntelligenceFeedCard from '../components/IntelligenceFeedCard'
 import StateDetailPanel from '../components/StateDetailPanel'
 import WelcomeCard from '../components/WelcomeCard'
 import ApiErrorBanner from '../components/ApiErrorBanner'
 import DashboardGlobe from '../components/DashboardGlobe'
 import MarketFiltersRail from '../components/MarketFiltersRail'
-import MarketBrief from '../components/MarketBrief'
+// MarketBrief temporarily hidden 2026-05-27 per Aden — likely returns
+// once the dashboard chrome is locked. Import kept commented for the
+// inevitable re-enable, not deleted.
+// import MarketBrief from '../components/MarketBrief'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
@@ -300,10 +303,14 @@ export default function Dashboard({ previewMode = false }) {
           retrying={retrying}
         />
 
-        {/* MarketBrief (Phase 1, preserved) */}
-        <MountReveal delay={0}>
+        {/* MarketBrief temporarily hidden 2026-05-27 per Aden. The slot
+            sat between the page header and the 3-col grid; left intentionally
+            empty for now (intelligence-terminal vibe doesn't need an
+            editorial preamble at every visit). Re-enable by uncommenting
+            the import + the MountReveal/MarketBrief block. */}
+        {/* <MountReveal delay={0}>
           <MarketBrief stateProgramMap={stateProgramMap} deltaMap={deltaMap} />
-        </MountReveal>
+        </MountReveal> */}
 
         {/* 3-col hero — Filters | Globe/Map | Intelligence Feed */}
         <MountReveal delay={0.04}>
@@ -328,7 +335,11 @@ export default function Dashboard({ previewMode = false }) {
               />
             </div>
 
-            {/* Intelligence feed — full width on mobile, 4/12 on lg+ */}
+            {/* Intelligence feed — full width on mobile, 4/12 on lg+.
+                Condensed IntelligenceFeedCard (top-5 items, dotted-underline
+                cells, hover-reveal "View all") replaces the verbose
+                NewsFeed per Aden 2026-05-27. State drill-in still opens
+                the full StateDetailPanel here. */}
             <div className="lg:col-span-4 order-3 flex flex-col" style={{ minHeight: '420px' }}>
               {selectedState ? (
                 <StateDetailPanel
@@ -339,7 +350,7 @@ export default function Dashboard({ previewMode = false }) {
                   delta={deltaMap?.get?.(selectedStateId)?.delta ?? null}
                 />
               ) : (
-                <NewsFeed news={filteredNews} previewMode={effectivePreviewMode} />
+                <IntelligenceFeedCard news={filteredNews} />
               )}
             </div>
           </div>
