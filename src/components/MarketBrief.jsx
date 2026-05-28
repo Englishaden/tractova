@@ -54,7 +54,14 @@ export default function MarketBrief({ stateProgramMap, deltaMap }) {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/market-brief')
+        // Routed through the lens-insight multiplexer (public action,
+        // before the Pro auth gate) so it doesn't consume a slot in the
+        // Hobby plan's 12-Serverless-Function cap.
+        const res = await fetch('/api/lens-insight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'market-brief' }),
+        })
         if (cancelled) return
         if (!res.ok) { setLoading(false); return }
         const json = await res.json()

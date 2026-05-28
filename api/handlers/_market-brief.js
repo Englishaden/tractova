@@ -1,23 +1,22 @@
 /**
- * Market Brief — weekly editorial paragraph on the dashboard above MetricsBar.
+ * Market Brief — weekly editorial paragraph for the Dashboard.
+ * Action: 'market-brief' (PUBLIC — routed before the auth gate in lens-insight.js)
  *
- * Public endpoint (no auth gate). Cached weekly so the brief stays consistent
- * across the cycle and Sonnet token cost stays near-zero: one call per ISO
- * week per data version, shared across every visitor (signed-in + /preview).
+ * Cached weekly so the brief stays consistent across the cycle and Sonnet
+ * token cost stays near-zero: one call per ISO week per data version, shared
+ * across every visitor (signed-in + /preview unauth).
  *
  * Always returns 200 JSON. Caller (MarketBrief.jsx) renders a hard static
  * fallback if `brief` is null, so the slot above MetricsBar never degrades.
  *
- * GET /api/market-brief
- *   → { brief, callouts, generatedAt, cached }    (success)
- *   → { brief: null, fallback: true, reason }     (api error / cold + no key)
+ * Note: lives here (vs. its own top-level api/market-brief.js) so it doesn't
+ * count against the Hobby plan's 12-Serverless-Function cap. Routed through
+ * the existing lens-insight multiplexer alongside the other handlers.
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { applyCors } from './_cors.js'
-import { buildCacheKey, cacheGet, cacheSet } from './lib/_aiCacheLayer.js'
-import { supabaseAdmin } from './lib/_supabaseAdmin.js'
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
+import { buildCacheKey, cacheGet, cacheSet } from '../lib/_aiCacheLayer.js'
+import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
+import { MARKET_BRIEF_PROMPT } from '../prompts/market-brief.js'
 
 // ISO week (1-53) — matches the plan's `market_brief::YYYY-WW` cache key.
 // Using ISO week (Mon-start) instead of calendar week so the brief rolls over
@@ -30,34 +29,6 @@ function isoWeekKey(d = new Date()) {
   const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
 }
-
-// ─── System prompt ──────────────────────────────────────────────────────────
-
-const MARKET_BRIEF_PROMPT = `You are a senior community-solar market intelligence analyst writing the weekly market brief for the Tractova Dashboard. Your reader is an experienced solar developer who has 15 seconds before they scroll. Deliver one decisive paragraph (~50 words, two to three sentences) summarizing what changed this week and what it means for someone evaluating where to develop next.
-
-VOICE: Bloomberg market wrap. Declarative. No hedging ("may", "could", "potentially"). No restating the data — interpret it. Name specific states when the data supports it. Connect a policy event to a market move, an enrollment number to a runway, a queue change to a developer decision.
-
-INPUTS YOU'LL RECEIVE:
-- Recent policy + market news items (last 14 days, pillar-tagged)
-- Score deltas (states whose feasibility score moved this week)
-- A coverage stat (# states with active programs, total MW pipeline)
-
-RULES:
-1. Lead with the week's defining signal — the biggest mover, the most material policy shift, or the most binding constraint.
-2. If two or three states clearly stand out (top movers, hottest news), name them.
-3. End with a "so what" — what should a developer do or watch next?
-4. Never reference price, IRR, payback, NPV, or $/MW figures. Tractova is signal-based, not financial.
-5. Never mention Tractova in third person. The brief IS Tractova's voice.
-
-OUTPUT: Respond ONLY with a valid JSON object. No preamble, no markdown fences. Exact schema:
-{
-  "brief": "the 2-3 sentence paragraph",
-  "callouts": ["State Name", "State Name"]
-}
-
-Callouts: 0-3 state names (full name, no abbrev) that the brief explicitly references. Used for inline chips. Omit the field or pass an empty array when the brief is structural rather than state-specific.`
-
-// ─── Context builder ────────────────────────────────────────────────────────
 
 async function buildBriefContext() {
   const ctx = { lines: [], hasNews: false, hasMovers: false }
@@ -153,8 +124,6 @@ async function buildBriefContext() {
   return ctx
 }
 
-// ─── Parser ─────────────────────────────────────────────────────────────────
-
 function parseBriefResponse(raw) {
   if (!raw) return null
   try {
@@ -175,30 +144,22 @@ function parseBriefResponse(raw) {
   return null
 }
 
-// ─── Handler ────────────────────────────────────────────────────────────────
-
-export default async function handler(req, res) {
-  if (applyCors(req, res)) return res.status(200).end()
-  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
-
+export default async function handleMarketBrief(_body, res) {
   const week = isoWeekKey()
 
-  // Cache check — weekly bucket. The cache key bakes the week in so a new
-  // week always re-fires; within a week, every visitor shares the same Sonnet
-  // call regardless of auth state. cacheSet TTL is 8 days (one-day overlap
-  // so the new week's call doesn't see an empty cache mid-rollover).
+  // Weekly cache bucket — first visitor of the week pays the Sonnet call;
+  // every other visitor (signed-in + /preview unauth) hits cache. TTL 8 days
+  // so a missed Mon-08:00 cron doesn't blank the brief mid-rollover.
   const cacheKey = buildCacheKey('market_brief', { week })
   const cached = await cacheGet(cacheKey)
   if (cached) {
     return res.status(200).json({ ...cached, cached: true })
   }
 
-  // No API key → return null brief; component renders static fallback.
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(200).json({ brief: null, fallback: true, reason: 'no_api_key' })
   }
 
-  // Build context from live data sources
   const ctx = await buildBriefContext()
   if (!ctx.hasNews && !ctx.hasMovers) {
     // Cold start — no signal to brief on. Static fallback is the right answer.
@@ -227,7 +188,6 @@ export default async function handler(req, res) {
     }
 
     const payload = { brief: parsed.brief, callouts: parsed.callouts, generatedAt: new Date().toISOString(), week }
-    // Cache 8 days so a missed cron doesn't blank the brief mid-rollover.
     cacheSet(cacheKey, 'market_brief', payload, 8 * 24 * 60 * 60)
     return res.status(200).json(payload)
   } catch (err) {

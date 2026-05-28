@@ -15,6 +15,7 @@ import handleClassifyDocket from './handlers/_lens-classify-docket.js'
 import handlePolicyClassify from './handlers/_lens-policy-classify.js'
 import handleMemoCreate from './handlers/_lens-memo-create.js'
 import handleMemoView from './handlers/_lens-memo-view.js'
+import handleMarketBrief from './handlers/_market-brief.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build structured context string from project data
@@ -311,6 +312,13 @@ export default async function handler(req, res) {
   // memo-view: token-gated read of a frozen memo snapshot. Token validation
   // + view-cap enforcement happens inside handleMemoView via service-role.
   if (body.action === 'memo-view') return handleMemoView(body, res)
+  // market-brief: weekly editorial paragraph for the Dashboard. Public so
+  // both /preview unauth visitors and authed users see the same brief; the
+  // weekly cache makes the Sonnet cost a single call per ISO week regardless
+  // of who's first through the door. Routed here (instead of its own
+  // top-level api/market-brief.js) so it doesn't push us past the Hobby
+  // plan's 12-Serverless-Function cap.
+  if (body.action === 'market-brief') return handleMarketBrief(body, res)
 
   // ── Auth gate — Pro subscribers only ──────────────────────────────────────
   const token = req.headers.authorization?.slice(7)
