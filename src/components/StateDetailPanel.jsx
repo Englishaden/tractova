@@ -71,7 +71,7 @@ function StatRow({ label, value, highlight }) {
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-[var(--cards-border)] last:border-0">
       <span className="text-xs text-[var(--text-label)]">{label}</span>
-      <span className={`text-xs font-semibold ${highlight ? 'text-primary' : 'text-[var(--text-primary)]'} font-mono tabular-nums`}>{value}</span>
+      <span className={`text-xs font-semibold font-mono tabular-nums`} style={{ color: highlight ? 'var(--link, #5EEAD4)' : 'var(--text-primary)' }}>{value}</span>
     </div>
   )
 }
@@ -235,7 +235,7 @@ function MarketTab({ state }) {
           <ScoreBar score={state.feasibilityScore} />
           <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">
             Composite of Offtake (40%), Interconnection (35%), and Site Control (25%).
-            Per-county breakdown available in <Link to={`/search?state=${state.id}`} className="text-primary hover:underline">Lens</Link>.
+            Per-county breakdown available in <Link to={`/search?state=${state.id}`} className="underline decoration-dotted underline-offset-2 hover:no-underline" style={{ color: 'var(--link, #5EEAD4)' }}>Lens</Link>.
           </p>
         </div>
       </div>
@@ -308,7 +308,7 @@ function SubscribersTab({ state }) {
             </div>
           </div>
         ) : !lmi ? (
-          <div className="bg-[var(--bg-surface)] rounded-md p-3 border border-dashed border-gray-300">
+          <div className="bg-[var(--bg-surface)] rounded-md p-3 border border-dashed border-[var(--cards-border)]">
             <p className="text-[11px] text-[var(--text-label)] leading-relaxed">
               Census ACS data not yet seeded for this state. State-program LMI requirements above still apply.
             </p>
@@ -341,7 +341,7 @@ function SubscribersTab({ state }) {
                     <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#0F766E] mb-0.5">
                       {mw} MW project
                     </p>
-                    <p className="font-mono text-base font-bold tabular-nums text-ink leading-none">
+                    <p className="font-mono text-base font-bold tabular-nums text-[var(--text-primary)] leading-none">
                       ~{fmtNum(lmiSubs)}
                     </p>
                     <p className="text-[10px] text-[var(--text-label)] mt-0.5">
@@ -489,7 +489,7 @@ function NewsTab({ state, news }) {
                   </p>
                 </div>
               ) : (
-                <p className="text-[12px] leading-relaxed text-ink">{summary}</p>
+                <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">{summary}</p>
               )}
             </div>
           )}
@@ -674,13 +674,19 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
         </div>
       </RadixTabs.Root>
 
-      {/* Footer */}
-      <div className="px-5 py-2.5 border-t border-[var(--cards-border)] bg-chrome rounded-b-lg flex items-center justify-between">
+      {/* Footer — dark-themed (was bg-chrome / legacy cream brand) */}
+      <div
+        className="px-4 py-2 border-t border-[var(--cards-border)] rounded-b-lg flex items-center justify-between shrink-0"
+        style={{ background: 'var(--bg-surface)' }}
+      >
         {lastUpdatedFmt && (
-          <p className="text-xs text-[var(--text-muted)] group relative cursor-default">
+          <p className="text-[10px] text-[var(--text-muted)] group relative cursor-default font-mono uppercase tracking-[0.16em]">
             {lastUpdatedFmt}
             {lastUpdatedFull && (
-              <span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">
+              <span
+                className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none"
+                style={{ background: 'var(--cards-bg)', color: 'var(--text-primary)', border: '1px solid var(--cards-border)' }}
+              >
                 {lastUpdatedFull}
               </span>
             )}
@@ -688,7 +694,8 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
         )}
         <Link
           to={`/search?state=${state.id}`}
-          className="text-xs font-medium text-primary hover:text-primary-700 transition-colors"
+          className="text-[11px] font-mono uppercase tracking-[0.18em] font-semibold transition-colors underline decoration-dotted underline-offset-2 hover:no-underline"
+          style={{ color: 'var(--link, #5EEAD4)' }}
         >
           Analyze in Lens →
         </Link>

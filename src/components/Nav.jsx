@@ -9,6 +9,61 @@ export default function Nav() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const navigate = useNavigate()
 
+  // Route-aware theming (2026-05-28 v2.5):
+  // Dashboard (`/`) is the dark "intelligence terminal" surface; every other
+  // page keeps the cream Tractova brand surface. Nav meets each page where
+  // it lives, instead of forcing the editorial pages into a dark frame they
+  // weren't designed for. Locked via AskUserQuestion 2026-05-28.
+  const isDashboardRoute = location.pathname === '/'
+
+  // Scope-aware token palette. Picked from index.css's dashboard-dark
+  // tokens so a future global var rename only has to update both places.
+  const scope = isDashboardRoute ? {
+    navBg:           '#0B1623',
+    navBorder:       '#1F2A3D',
+    linkInactive:    '#98A4B6',   // --text-label
+    linkHover:       '#F5F7FA',   // --text-primary
+    activeColor:     '#5EEAD4',   // brighter teal on dark
+    activeBorder:    '#5EEAD4',
+    cmdkBg:          'rgba(20,184,166,0.10)',
+    cmdkBorder:      'rgba(20,184,166,0.30)',
+    cmdkText:        '#98A4B6',
+    cmdkHoverText:   '#F5F7FA',
+    dropdownBg:      '#131C2C',
+    dropdownBorder:  '#1F2A3D',
+    dropdownDivider: '#1F2A3D',
+    userPrimary:     '#F5F7FA',
+    userMeta:        '#6C7A91',
+    menuItemText:    '#C6CEDB',
+    menuItemHoverBg: 'rgba(20,184,166,0.10)',
+    menuItemHoverFg: '#5EEAD4',
+    signOutText:     '#C6CEDB',
+    signOutHoverBg:  'rgba(248,113,113,0.10)',
+    signOutHoverFg:  '#F87171',
+  } : {
+    navBg:           '#FFFFFF',
+    navBorder:       '#E5E7EB', // gray-200
+    linkInactive:    '#6B7280', // gray-500
+    linkHover:       '#111827', // gray-900
+    activeColor:     '#0F766E', // teal-700
+    activeBorder:    '#0F766E',
+    cmdkBg:          '#F9FAFB',
+    cmdkBorder:      '#E2E8F0',
+    cmdkText:        '#5A6B7A',
+    cmdkHoverText:   '#0A1828',
+    dropdownBg:      '#FFFFFF',
+    dropdownBorder:  '#E5E7EB',
+    dropdownDivider: '#F3F4F6',
+    userPrimary:     '#1F2937',
+    userMeta:        '#9CA3AF',
+    menuItemText:    '#374151',
+    menuItemHoverBg: '#F0FDFA', // primary-50
+    menuItemHoverFg: '#0F766E',
+    signOutText:     '#4B5563',
+    signOutHoverBg:  '#FEE2E2',
+    signOutHoverFg:  '#DC2626',
+  }
+
   const navLink = (to, label) => {
     const active = location.pathname === to
     if (active) {
@@ -16,7 +71,7 @@ export default function Nav() {
         <Link
           to={to}
           className="text-sm font-medium transition-colors px-1 pb-0.5"
-          style={{ color: '#0F766E', borderBottom: '2px solid #0F766E' }}
+          style={{ color: scope.activeColor, borderBottom: `2px solid ${scope.activeBorder}` }}
         >
           {label}
         </Link>
@@ -25,7 +80,10 @@ export default function Nav() {
     return (
       <Link
         to={to}
-        className="text-sm font-medium transition-colors px-1 pb-0.5 text-gray-500 hover:text-gray-900"
+        className="text-sm font-medium transition-colors px-1 pb-0.5"
+        style={{ color: scope.linkInactive }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = scope.linkHover }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = scope.linkInactive }}
       >
         {label}
       </Link>
@@ -43,13 +101,19 @@ export default function Nav() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-14">
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 h-14 transition-colors duration-200"
+      style={{ background: scope.navBg, borderBottom: `1px solid ${scope.navBorder}` }}
+    >
       <div className="max-w-dashboard mx-auto px-4 md:px-6 h-full flex items-center justify-between gap-3">
 
         {/* Logo — wordmark hides on phone (mark stays) for tighter nav */}
         <Link to="/" className="flex items-center gap-2 select-none shrink-0">
           <TractovaMark />
-          <span className="hidden sm:inline text-xl font-serif font-semibold tracking-tight text-ink leading-none" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
+          <span
+            className="hidden sm:inline text-xl font-serif font-semibold tracking-tight leading-none"
+            style={{ letterSpacing: '-0.02em', color: isDashboardRoute ? '#F5F7FA' : '#0A1828' }}
+          >Tractova</span>
         </Link>
 
         {/* Nav links — only shown to signed-in users. The wrapper is
@@ -74,8 +138,10 @@ export default function Nav() {
             <button
               type="button"
               onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true }))}
-              className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors text-ink-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2"
-              style={{ background: '#F9FAFB', border: '1px solid #E2E8F0' }}
+              className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2"
+              style={{ background: scope.cmdkBg, border: `1px solid ${scope.cmdkBorder}`, color: scope.cmdkText }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = scope.cmdkHoverText }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = scope.cmdkText }}
               title="Open command palette"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -98,7 +164,10 @@ export default function Nav() {
                 <button
                   type="button"
                   aria-label="Open account menu"
-                  className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors px-2 py-1.5 rounded-md hover:bg-gray-50 focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2"
+                  className="flex items-center gap-1.5 text-sm font-medium transition-colors px-2 py-1.5 rounded-md focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2"
+                  style={{ color: scope.menuItemText }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = scope.linkHover; e.currentTarget.style.background = scope.menuItemHoverBg }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = scope.menuItemText; e.currentTarget.style.background = 'transparent' }}
                 >
                   <span className="max-w-[120px] truncate">{displayName}</span>
                   <svg
@@ -115,18 +184,22 @@ export default function Nav() {
                   align="end"
                   sideOffset={6}
                   collisionPadding={8}
-                  className="w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50"
+                  className="w-48 rounded-lg shadow-lg py-1 z-50"
+                  style={{ background: scope.dropdownBg, border: `1px solid ${scope.dropdownBorder}` }}
                 >
                   {/* User info header */}
-                  <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{displayName}</p>
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{user.email}</p>
+                  <div className="px-3 py-2" style={{ borderBottom: `1px solid ${scope.dropdownDivider}` }}>
+                    <p className="text-xs font-semibold truncate" style={{ color: scope.userPrimary }}>{displayName}</p>
+                    <p className="text-xs truncate mt-0.5" style={{ color: scope.userMeta }}>{user.email}</p>
                   </div>
 
                   <DropdownMenu.Item asChild>
                     <Link
                       to="/profile"
-                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary transition-colors data-[highlighted]:bg-primary-50 data-[highlighted]:text-primary outline-none"
+                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-colors outline-none"
+                      style={{ color: scope.menuItemText }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = scope.menuItemHoverBg; e.currentTarget.style.color = scope.menuItemHoverFg }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = scope.menuItemText }}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -136,13 +209,16 @@ export default function Nav() {
                     </Link>
                   </DropdownMenu.Item>
 
-                  <DropdownMenu.Separator className="my-1 border-t border-gray-100" />
+                  <DropdownMenu.Separator className="my-1" style={{ borderTop: `1px solid ${scope.dropdownDivider}` }} />
 
                   <DropdownMenu.Item asChild>
                     <button
                       type="button"
                       onClick={handleSignOut}
-                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-gray-600 hover:bg-red-50 hover:text-red-600 transition-colors data-[highlighted]:bg-red-50 data-[highlighted]:text-red-600 outline-none"
+                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-colors outline-none"
+                      style={{ color: scope.signOutText }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = scope.signOutHoverBg; e.currentTarget.style.color = scope.signOutHoverFg }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = scope.signOutText }}
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -163,7 +239,10 @@ export default function Nav() {
             <>
               <Link
                 to="/signin"
-                className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors px-3 -mx-1 min-h-[44px] inline-flex items-center focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2 rounded-sm"
+                className="text-sm font-medium transition-colors px-3 -mx-1 min-h-[44px] inline-flex items-center focus-visible:outline-2 focus-visible:outline-teal-600 focus-visible:outline-offset-2 rounded-sm"
+                style={{ color: scope.linkInactive }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = scope.linkHover }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = scope.linkInactive }}
               >
                 Sign In
               </Link>

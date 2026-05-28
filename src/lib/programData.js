@@ -591,6 +591,80 @@ export async function getDashboardMetricsHistory({ weeks = 8 } = {}) {
   })
 }
 
+// ── getLibraryProjectsByState ─────────────────────────────────────────────────
+// 2026-05-28 Dashboard v2.5 — live globe markers (authed path). Queries the
+// `projects` table for the current user, groups by state, returns top-N states
+// by saved-project count.
+//
+// Returns: [{ stateId, count, totalMw, latestSavedAt }] sorted by count desc.
+// Empty array if the user has no saved projects or is signed-out (RLS gates
+// the query to the user's own rows).
+//
+// Used by DashboardGlobe to draw "your saved markets" pulsing markers on the
+// idle globe.
+export async function getLibraryProjectsByState({ topN = 7 } = {}) {
+  return withCache(`library_projects_by_state:${topN}`, async () => {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('state, mw, saved_at')
+    if (error) {
+      console.warn('[getLibraryProjectsByState] read failed:', error.message)
+      return []
+    }
+    if (!data || data.length === 0) return []
+
+    const byState = new Map()
+    for (const row of data) {
+      if (!row.state) continue
+      const cur = byState.get(row.state) || { stateId: row.state, count: 0, totalMw: 0, latestSavedAt: null }
+      cur.count += 1
+      cur.totalMw += Number(row.mw) || 0
+      const ts = row.saved_at ? new Date(row.saved_at).getTime() : 0
+      const latestTs = cur.latestSavedAt ? new Date(cur.latestSavedAt).getTime() : 0
+      if (ts > latestTs) cur.latestSavedAt = row.saved_at
+      byState.set(row.state, cur)
+    }
+    return Array.from(byState.values())
+      .sort((a, b) => b.count - a.count || b.totalMw - a.totalMw)
+      .slice(0, topN)
+  })
+}
+
+// ── getTopCsStatesByActivity ──────────────────────────────────────────────────
+// 2026-05-28 Dashboard v2.5 — live globe markers (signed-out / preview fallback).
+// Aggregates real operating CS projects from LBNL Sharing the Sun (`cs_projects`)
+// by state, returning the top-N states by project count. Public-data fallback
+// for visitors with no saved-library context.
+//
+// Returns: [{ stateId, count, totalMw }] sorted by count desc.
+export async function getTopCsStatesByActivity({ topN = 7 } = {}) {
+  return withCache(`top_cs_states:${topN}`, async () => {
+    // Pull a wide range (PostgREST default 1000; range to 4999 to be safe).
+    // We only need state + size_mw; minimal column set keeps payload tight.
+    const { data, error } = await supabase
+      .from('cs_projects')
+      .select('state, system_size_mw_ac')
+      .range(0, 4999)
+    if (error) {
+      console.warn('[getTopCsStatesByActivity] read failed:', error.message)
+      return []
+    }
+    if (!data || data.length === 0) return []
+
+    const byState = new Map()
+    for (const row of data) {
+      if (!row.state) continue
+      const cur = byState.get(row.state) || { stateId: row.state, count: 0, totalMw: 0 }
+      cur.count += 1
+      cur.totalMw += Number(row.system_size_mw_ac) || 0
+      byState.set(row.state, cur)
+    }
+    return Array.from(byState.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, topN)
+  })
+}
+
 // ── getNewsFeed ───────────────────────────────────────────────────────────────
 // Returns active news items sorted by published_at descending.
 export async function getNewsFeed() {

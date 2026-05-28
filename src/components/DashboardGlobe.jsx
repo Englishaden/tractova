@@ -3,6 +3,8 @@ import { geoOrthographic, geoPath, geoGraticule, geoBounds } from 'd3-geo'
 import { timer as d3Timer } from 'd3-timer'
 import { interpolate as d3Interpolate } from 'd3-interpolate'
 import { feature as topoFeature } from 'topojson-client'
+import { useAuth } from '../context/AuthContext'
+import { getLibraryProjectsByState, getTopCsStatesByActivity } from '../lib/programData'
 
 // DashboardGlobe — UNIFIED d3-canvas globe.
 //
@@ -158,6 +160,7 @@ export default function DashboardGlobe({
   stateProgramMap = {},
   deltaMap = null,
 }) {
+  const { user } = useAuth()
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
 
@@ -212,6 +215,46 @@ export default function DashboardGlobe({
     // here we just need the IDs and feasibility score for marker size.
     return arr.map((s) => ({ id: s.id, score: s.feasibilityScore || 0 }))
   }, [stateProgramMap])
+
+  // ── Live markers — Aden 2026-05-28 "make the globe icons live" ──────────
+  // Authed users see markers at the states where they have saved Library
+  // projects (their own market intel). Signed-out / preview visitors see
+  // markers at the top-7 states from LBNL Sharing the Sun (real operating
+  // CS projects — public ground truth). Source label exposed for the
+  // legend / tooltip so users know which read they're seeing.
+  const [liveMarkers, setLiveMarkers] = useState([])
+  const [liveMarkersSource, setLiveMarkersSource] = useState(null) // 'library' | 'cs_projects' | null
+  const liveMarkersRef = useRef([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        // Try the user's saved Library projects first when authed.
+        if (user) {
+          const lib = await getLibraryProjectsByState({ topN: 7 })
+          if (cancelled) return
+          if (Array.isArray(lib) && lib.length > 0) {
+            setLiveMarkers(lib)
+            setLiveMarkersSource('library')
+            liveMarkersRef.current = lib
+            return
+          }
+        }
+        // Fall back to public real-operating-CS-projects activity.
+        const cs = await getTopCsStatesByActivity({ topN: 7 })
+        if (cancelled) return
+        if (Array.isArray(cs) && cs.length > 0) {
+          setLiveMarkers(cs)
+          setLiveMarkersSource('cs_projects')
+          liveMarkersRef.current = cs
+        }
+      } catch (e) {
+        console.warn('[DashboardGlobe] live markers fetch failed:', e?.message)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [user])
 
   // ── Fetch topojson once on mount ──────────────────────────────────────
   useEffect(() => {
@@ -396,6 +439,47 @@ export default function DashboardGlobe({
           ctx.fill()
           ctx.shadowBlur = 0
           ctx.globalAlpha = 1
+        }
+      }
+
+      // 6b) LIVE markers — sized by user's saved-project count (authed) or
+      //     LBNL real-operating-CS-project count (preview/unauth fallback).
+      //     Sits ON TOP of idle top-state markers with a brighter fill +
+      //     breathing pulse halo, so the user sees "this is my market intel"
+      //     (or "real-world activity") layered onto the ambient globe.
+      //     Stays visible across phases — even when zoomed in, the markers
+      //     project naturally onto the focused US sphere.
+      if (liveMarkersRef.current.length > 0 && stateFeatures) {
+        const live = liveMarkersRef.current
+        const pulse = (Math.sin(pulsePhaseRef.current * 1.4) + 1) / 2 // 0..1
+        const maxCount = Math.max(...live.map((m) => m.count || 1), 1)
+        for (const m of live) {
+          // Lookup the state's centroid via the topojson feature.
+          const f = stateFeatures.find((sf) => FIPS[String(sf.id).padStart(2, '0')] === m.stateId)
+          if (!f) continue
+          const cent = path.centroid(f)
+          if (!cent || isNaN(cent[0])) continue
+          // Size by count (relative within the visible set). Baseline 3px,
+          // up to ~7px for the biggest set.
+          const r = 3 + (m.count / maxCount) * 4
+          // Outer halo — pulses
+          ctx.beginPath()
+          ctx.arc(cent[0], cent[1], r + 4 + pulse * 5, 0, 2 * Math.PI)
+          ctx.fillStyle = `rgba(94, 234, 212, ${0.18 - pulse * 0.10})`
+          ctx.fill()
+          // Mid halo
+          ctx.beginPath()
+          ctx.arc(cent[0], cent[1], r + 2, 0, 2 * Math.PI)
+          ctx.fillStyle = 'rgba(94, 234, 212, 0.30)'
+          ctx.fill()
+          // Core dot — bright + glow
+          ctx.beginPath()
+          ctx.arc(cent[0], cent[1], r, 0, 2 * Math.PI)
+          ctx.fillStyle = '#5EEAD4'
+          ctx.shadowColor = 'rgba(94, 234, 212, 0.95)'
+          ctx.shadowBlur = 12
+          ctx.fill()
+          ctx.shadowBlur = 0
         }
       }
 
@@ -608,6 +692,21 @@ export default function DashboardGlobe({
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
               </span>
               Click to explore US
+            </span>
+          </div>
+        )}
+
+        {/* Live-markers source label — bottom-left when markers are
+            loaded, so the user knows what the bright pulsing dots
+            represent (their saved Library projects, or LBNL real-ops). */}
+        {phase === 'idle' && liveMarkersSource && (
+          <div className="absolute bottom-4 left-4 pointer-events-none">
+            <span
+              className="inline-flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[0.22em]"
+              style={{ color: 'var(--text-muted, #6C7A91)' }}
+            >
+              <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: '#5EEAD4', boxShadow: '0 0 6px rgba(94,234,212,0.6)' }} />
+              {liveMarkersSource === 'library' ? 'Your saved markets' : 'Live · top operating markets'}
             </span>
           </div>
         )}

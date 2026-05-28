@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import * as Popover from '@radix-ui/react-popover'
 
 // MarketFiltersRail — left vertical rail on the revamped Dashboard.
 //
@@ -49,6 +50,144 @@ function ChevronDown({ open }) {
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
+  )
+}
+
+// UtilityCombobox — searchable typeahead dropdown for the Utility/Source
+// filter. Replaces the browser-native <datalist> which rendered OS-styled
+// (white-on-white) and ignored the dark scope. Built on @radix-ui/react-popover
+// so it inherits Radix's portal + focus-trap + outside-click + Esc handling.
+//
+// Behavior:
+//   - Input click → opens the dropdown (full list)
+//   - Typing → filters the list (case-insensitive substring)
+//   - Click an option → sets value, closes
+//   - Esc / outside click → closes
+//   - Empty list message when no matches
+function UtilityCombobox({ value, onChange, options }) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState(value || '')
+  const inputRef = useRef(null)
+
+  // Mirror external value (e.g. "Clear all" sets value='') back into the
+  // input. Skipped when the user is actively typing so we don't fight them.
+  const valueRef = useRef(value)
+  if (valueRef.current !== value && document.activeElement !== inputRef.current) {
+    valueRef.current = value
+    if (query !== value) setQuery(value || '')
+  }
+
+  const filtered = useMemo(() => {
+    const q = (query || '').trim().toLowerCase()
+    if (!q) return options.slice(0, 50) // cap for perf
+    return options.filter((o) => o.toLowerCase().includes(q)).slice(0, 50)
+  }, [options, query])
+
+  const handleSelect = (opt) => {
+    setQuery(opt)
+    onChange(opt)
+    setOpen(false)
+  }
+
+  const handleClear = (e) => {
+    e.stopPropagation()
+    setQuery('')
+    onChange('')
+    setOpen(false)
+  }
+
+  return (
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Anchor asChild>
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              // Live-filter the consumer (Intelligence Feed) — substring match
+              onChange(e.target.value)
+              if (!open) setOpen(true)
+            }}
+            onFocus={() => setOpen(true)}
+            placeholder="Type to filter…"
+            className="w-full rounded text-[11px] px-2 py-1.5 pr-6 focus:outline-none transition-colors"
+            style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--cards-border)',
+              color: 'var(--text-primary)',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--hairline-teal)' }}
+            onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--cards-border)' }}
+          />
+          {(query || value) && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded-sm"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
+              aria-label="Clear utility filter"
+              tabIndex={-1}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </Popover.Anchor>
+      <Popover.Portal>
+        <Popover.Content
+          align="start"
+          sideOffset={4}
+          // onOpenAutoFocus / onCloseAutoFocus = preventDefault → keep input focus
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          className="rounded-md shadow-2xl z-[60] thin-scrollbar overflow-y-auto"
+          style={{
+            background: 'var(--cards-bg, #131C2C)',
+            border: '1px solid var(--cards-border, #1F2A3D)',
+            width: 'var(--radix-popover-trigger-width)',
+            maxHeight: '240px',
+          }}
+        >
+          {filtered.length === 0 ? (
+            <div className="px-2.5 py-3 text-center">
+              <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
+                {options.length === 0 ? 'Loading sources…' : 'No matches'}
+              </span>
+            </div>
+          ) : (
+            <ul className="py-1">
+              {filtered.map((opt) => {
+                const isActive = opt === value
+                return (
+                  <li key={opt}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(opt)}
+                      className="w-full text-left px-2.5 py-1.5 text-[11px] transition-colors"
+                      style={{
+                        background: isActive ? 'rgba(20,184,166,0.12)' : 'transparent',
+                        color: isActive ? 'var(--link, #5EEAD4)' : 'var(--text-secondary)',
+                      }}
+                      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = 'var(--text-primary)' } }}
+                      onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)' } }}
+                    >
+                      {opt}
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 
@@ -216,31 +355,21 @@ export default function MarketFiltersRail({
           </div>
         </FilterGroup>
 
-        {/* Utility */}
+        {/* Utility — Radix Popover combobox (2026-05-28 v2.5).
+            Browser-native <datalist> rendered as a white-on-white dropdown
+            in dark scope (no OS-level theming control). Custom combobox
+            gives us full styling + keyboard nav + dark-themed list. */}
         <FilterGroup
           label="Utility / Source"
           count={f.utility ? 1 : 0}
           open={openGroups.utility}
           onToggle={() => toggle('utility')}
         >
-          <input
-            type="search"
+          <UtilityCombobox
             value={f.utility}
-            onChange={(e) => setUtility(e.target.value)}
-            placeholder="Type to filter…"
-            list="market-utility-list"
-            className="w-full rounded text-[11px] px-2 py-1.5 focus:outline-none transition-colors"
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--cards-border)',
-              color: 'var(--text-primary)',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = 'var(--hairline-teal)' }}
-            onBlur={(e) => { e.target.style.borderColor = 'var(--cards-border)' }}
+            onChange={setUtility}
+            options={sourceOptions}
           />
-          <datalist id="market-utility-list">
-            {sourceOptions.map((src) => <option key={src} value={src} />)}
-          </datalist>
           <p className="mt-1.5 text-[9px] leading-tight" style={{ color: 'var(--text-muted)' }}>
             Filters the Intelligence Feed by source name.
           </p>
