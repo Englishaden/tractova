@@ -258,12 +258,12 @@ export default function Dashboard({ previewMode = false }) {
         </div>
       )}
 
-      <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-10">
+      <main className="relative max-w-dashboard mx-auto px-6 pt-16 pb-6">
         {user && !effectivePreviewMode && <WelcomeCard />}
 
         {/* Page header */}
-        <div className="mt-4 mb-3">
-          <h1 className="text-2xl font-serif font-semibold" style={{ letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+        <div className="mt-2 mb-2">
+          <h1 className="text-xl font-serif font-semibold" style={{ letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
             Market Dashboard
           </h1>
           <div className="mt-1 flex items-baseline gap-2 flex-wrap">
@@ -312,9 +312,13 @@ export default function Dashboard({ previewMode = false }) {
           <MarketBrief stateProgramMap={stateProgramMap} deltaMap={deltaMap} />
         </MountReveal> */}
 
-        {/* 3-col hero — Filters | Globe/Map | Intelligence Feed */}
+        {/* 3-col hero — Filters | Globe/Map | Intelligence Feed.
+            Heights tuned so the hero + KPI strip + Markets-on-the-Move
+            all fit above the fold on a ~900px viewport (Aden 2026-05-27:
+            "A dashboard shouldnt be 'scrollable' it should be a single
+            interactive page that you can navigate."). */}
         <MountReveal delay={0.04}>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-2 mb-2">
             {/* Filters rail — full width on mobile, 2/12 on lg+ */}
             <div className="lg:col-span-2 order-1">
               <MarketFiltersRail
@@ -325,14 +329,33 @@ export default function Dashboard({ previewMode = false }) {
               />
             </div>
 
-            {/* Map area — full width on mobile, 6/12 on lg+ */}
-            <div className="lg:col-span-6 order-2 rounded-md overflow-hidden" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '420px' }}>
-              <DashboardGlobe
-                onStateClick={handleStateClick}
-                selectedStateId={selectedStateId}
-                stateProgramMap={stateProgramMap}
-                deltaMap={deltaMap}
+            {/* Map area — full width on mobile, 6/12 on lg+.
+                Ambient background layers (.lp-hero-grid + radial wash)
+                fill the negative space around the globe per Aden's note
+                "use some of our background skill files too to fill in
+                the empty space behind the map. very bland." */}
+            <div className="lg:col-span-6 order-2 relative rounded-md overflow-hidden" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '440px', maxHeight: '560px' }}>
+              {/* Slow-drifting teal grid — already-defined CSS utility
+                  from src/index.css (used on the landing page hero).
+                  Animates at 22s/cycle, respects prefers-reduced-motion. */}
+              <div className="lp-hero-grid" aria-hidden="true" />
+              {/* Radial wash — softens the corners, draws the eye to
+                  the globe sitting at the visual center. */}
+              <div
+                aria-hidden="true"
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(circle at 50% 50%, rgba(20,184,166,0.10) 0%, rgba(11,22,35,0.65) 75%)',
+                }}
               />
+              <div className="relative z-10 w-full h-full">
+                <DashboardGlobe
+                  onStateClick={handleStateClick}
+                  selectedStateId={selectedStateId}
+                  stateProgramMap={stateProgramMap}
+                  deltaMap={deltaMap}
+                />
+              </div>
             </div>
 
             {/* Intelligence feed — full width on mobile, 4/12 on lg+.
@@ -340,7 +363,7 @@ export default function Dashboard({ previewMode = false }) {
                 cells, hover-reveal "View all") replaces the verbose
                 NewsFeed per Aden 2026-05-27. State drill-in still opens
                 the full StateDetailPanel here. */}
-            <div className="lg:col-span-4 order-3 flex flex-col" style={{ minHeight: '420px' }}>
+            <div className="lg:col-span-4 order-3 flex flex-col" style={{ minHeight: '440px', maxHeight: '560px' }}>
               {selectedState ? (
                 <StateDetailPanel
                   state={selectedState}
@@ -358,7 +381,7 @@ export default function Dashboard({ previewMode = false }) {
 
         {/* KPI strip — full-width below the map hero */}
         <MountReveal delay={0.08}>
-          <div className="mb-3">
+          <div className="mb-2">
             <MetricsBar previewMode={effectivePreviewMode} />
           </div>
         </MountReveal>

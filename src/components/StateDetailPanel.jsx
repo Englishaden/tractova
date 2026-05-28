@@ -27,18 +27,21 @@ function formatRelativeDate(date) {
   return `Updated ${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) > 1 ? 's' : ''} ago`
 }
 
+// Dark-surface chip palette (2026-05-27 dashboard revamp). Teal/amber/red
+// transparency-on-dark instead of the light pastels — reads on the
+// #131C2C cards-bg without the "light pill on dark panel" mismatch.
 const STATUS_CONFIG = {
-  active:  { label: 'Active Program',   cls: 'bg-primary-50 text-primary-700 border border-primary-300 ring-1 ring-primary-200' },
-  limited: { label: 'Limited Capacity', cls: 'bg-amber-50 text-amber-700 border border-amber-300' },
-  pending: { label: 'Pending Launch',   cls: 'bg-yellow-50 text-yellow-700 border border-yellow-300' },
-  none:    { label: 'No Program',       cls: 'bg-gray-100 text-gray-500 border border-gray-200' },
+  active:  { label: 'Active Program',   cls: 'bg-[rgba(20,184,166,0.15)] text-[#5EEAD4] border border-[rgba(20,184,166,0.35)]' },
+  limited: { label: 'Limited Capacity', cls: 'bg-[rgba(251,191,36,0.12)] text-[#FBBF24] border border-[rgba(251,191,36,0.32)]' },
+  pending: { label: 'Pending Launch',   cls: 'bg-[rgba(251,191,36,0.08)] text-[#FBBF24] border border-[rgba(251,191,36,0.25)]' },
+  none:    { label: 'No Program',       cls: 'bg-[var(--bg-surface)] text-[var(--text-label)] border border-[var(--cards-border)]' },
 }
 
 const IX_CONFIG = {
-  easy:      { label: 'Easy',      cls: 'text-primary-700 bg-primary-50 border-primary-200' },
-  moderate:  { label: 'Moderate',  cls: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
-  hard:      { label: 'Hard',      cls: 'text-orange-700 bg-orange-50 border-orange-200' },
-  very_hard: { label: 'Very Hard', cls: 'text-red-700 bg-red-50 border-red-200' },
+  easy:      { label: 'Easy',      cls: 'text-[#5EEAD4] bg-[rgba(20,184,166,0.12)] border-[rgba(20,184,166,0.30)]' },
+  moderate:  { label: 'Moderate',  cls: 'text-[#FBBF24] bg-[rgba(251,191,36,0.10)] border-[rgba(251,191,36,0.28)]' },
+  hard:      { label: 'Hard',      cls: 'text-[#FB923C] bg-[rgba(251,146,60,0.10)] border-[rgba(251,146,60,0.28)]' },
+  very_hard: { label: 'Very Hard', cls: 'text-[#F87171] bg-[rgba(248,113,113,0.10)] border-[rgba(248,113,113,0.28)]' },
 }
 
 function ScoreBar({ score }) {
@@ -53,11 +56,11 @@ function ScoreBar({ score }) {
   return (
     <div>
       <div className="flex items-end gap-2 mb-1">
-        <span className="text-3xl font-bold font-mono text-gray-900 tabular-nums">{pct}</span>
-        <span className="text-sm text-gray-400 mb-1">/ 100</span>
-        <span className="text-xs text-gray-400 mb-1 ml-1">feasibility index</span>
+        <span className="text-3xl font-bold font-mono text-[var(--text-primary)] tabular-nums">{pct}</span>
+        <span className="text-sm text-[var(--text-muted)] mb-1">/ 100</span>
+        <span className="text-xs text-[var(--text-muted)] mb-1 ml-1">feasibility index</span>
       </div>
-      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-[var(--bg-surface)] rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
       </div>
     </div>
@@ -66,9 +69,9 @@ function ScoreBar({ score }) {
 
 function StatRow({ label, value, highlight }) {
   return (
-    <div className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
-      <span className="text-xs text-gray-500">{label}</span>
-      <span className={`text-xs font-semibold ${highlight ? 'text-primary' : 'text-gray-800'} font-mono tabular-nums`}>{value}</span>
+    <div className="flex items-center justify-between py-1.5 border-b border-[var(--cards-border)] last:border-0">
+      <span className="text-xs text-[var(--text-label)]">{label}</span>
+      <span className={`text-xs font-semibold ${highlight ? 'text-primary' : 'text-[var(--text-primary)]'} font-mono tabular-nums`}>{value}</span>
     </div>
   )
 }
@@ -105,11 +108,11 @@ function StateTabTrigger({ value, label, count }) {
   return (
     <RadixTabs.Trigger
       value={value}
-      className="relative px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted transition-colors hover:text-ink data-[state=active]:text-ink data-[state=active]:after:absolute data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:rounded-t data-[state=active]:after:bg-[#0F766E] outline-hidden focus-visible:bg-gray-100"
+      className="relative px-3 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-label)] transition-colors hover:text-[var(--text-primary)] data-[state=active]:text-[var(--text-primary)] data-[state=active]:after:absolute data-[state=active]:after:left-2 data-[state=active]:after:right-2 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:rounded-t data-[state=active]:after:bg-[#0F766E] outline-hidden focus-visible:bg-[var(--bg-surface)]"
     >
       <span>{label}</span>
       {count != null && count > 0 && (
-        <span className="ml-1.5 text-[9px] text-gray-400 font-mono normal-case tracking-normal">({count})</span>
+        <span className="ml-1.5 text-[9px] text-[var(--text-muted)] font-mono normal-case tracking-normal">({count})</span>
       )}
     </RadixTabs.Trigger>
   )
@@ -134,29 +137,29 @@ function ProgramTab({ state, runway }) {
   if (state.csStatus === 'none') {
     return (
       <div className="px-5 py-6 text-center">
-        <p className="text-xs text-gray-500">No community solar program in {state.name}.</p>
-        <p className="text-[11px] text-gray-400 mt-1">Monitor for legislative activity or pivot to C&I/PPA structures.</p>
+        <p className="text-xs text-[var(--text-label)]">No community solar program in {state.name}.</p>
+        <p className="text-[11px] text-[var(--text-muted)] mt-1">Monitor for legislative activity or pivot to C&I/PPA structures.</p>
       </div>
     )
   }
   return (
     <div className="px-5 py-4 space-y-4">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Program Identity</h3>
-        <div className="bg-surface rounded-md p-3 space-y-0.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Program Identity</h3>
+        <div className="bg-[var(--bg-surface)] rounded-md p-3 space-y-0.5">
           <StatRow label="Program name" value={state.csProgram || '—'} />
           <StatRow label="Status" value={STATUS_CONFIG[state.csStatus]?.label || '—'} />
         </div>
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Capacity</h3>
-        <div className="bg-surface rounded-md p-3 space-y-0.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Capacity</h3>
+        <div className="bg-[var(--bg-surface)] rounded-md p-3 space-y-0.5">
           <StatRow label="Remaining capacity" value={state.capacityMW > 0 ? `${state.capacityMW.toLocaleString()} MW` : '—'} highlight />
           {runway && (
-            <div className="py-1.5 border-b border-gray-100 last:border-0">
+            <div className="py-1.5 border-b border-[var(--cards-border)] last:border-0">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs text-gray-500">Est. program runway</span>
+                <span className="text-xs text-[var(--text-label)]">Est. program runway</span>
                 <span
                   className="text-xs font-semibold px-2 py-0.5 rounded-sm font-mono tabular-nums"
                   style={{ background: RUNWAY_COLORS[runway.urgency].bg, color: RUNWAY_COLORS[runway.urgency].text }}
@@ -185,17 +188,17 @@ function ProgramTab({ state, runway }) {
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Eligibility</h3>
-        <div className="bg-surface rounded-md p-3 space-y-0.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Eligibility</h3>
+        <div className="bg-[var(--bg-surface)] rounded-md p-3 space-y-0.5">
           <StatRow label="LMI allocation required" value={state.lmiRequired ? `Yes — ${state.lmiPercent}%` : 'No'} />
         </div>
       </div>
 
       {state.programNotes && (
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Notes</h3>
-          <div className="bg-surface rounded-md p-3">
-            <p className="text-xs text-gray-600 leading-relaxed">{state.programNotes}</p>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Notes</h3>
+          <div className="bg-[var(--bg-surface)] rounded-md p-3">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{state.programNotes}</p>
           </div>
         </div>
       )}
@@ -214,23 +217,23 @@ function MarketTab({ state }) {
   return (
     <div className="px-5 py-4 space-y-4">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Interconnection</h3>
-        <div className="bg-surface rounded-md p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Interconnection</h3>
+        <div className="bg-[var(--bg-surface)] rounded-md p-3">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs text-gray-500">Difficulty rating:</span>
+            <span className="text-xs text-[var(--text-label)]">Difficulty rating:</span>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-sm border ${ixCfg.cls}`}>
               {ixCfg.label}
             </span>
           </div>
-          {state.ixNotes && <p className="text-xs text-gray-600 leading-relaxed">{state.ixNotes}</p>}
+          {state.ixNotes && <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{state.ixNotes}</p>}
         </div>
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Feasibility Index</h3>
-        <div className="bg-surface rounded-md p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Feasibility Index</h3>
+        <div className="bg-[var(--bg-surface)] rounded-md p-3">
           <ScoreBar score={state.feasibilityScore} />
-          <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
+          <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">
             Composite of Offtake (40%), Interconnection (35%), and Site Control (25%).
             Per-county breakdown available in <Link to={`/search?state=${state.id}`} className="text-primary hover:underline">Lens</Link>.
           </p>
@@ -276,42 +279,42 @@ function SubscribersTab({ state }) {
     <div className="px-5 py-4 space-y-4">
       {/* LMI carve-out requirement */}
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Carve-out Requirement</h3>
-        <div className="bg-surface rounded-md p-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">LMI Carve-out Requirement</h3>
+        <div className="bg-[var(--bg-surface)] rounded-md p-3">
           {state.lmiRequired ? (
             <div className="space-y-1">
-              <p className="text-sm font-semibold text-gray-800 font-mono tabular-nums">
+              <p className="text-sm font-semibold text-[var(--text-primary)] font-mono tabular-nums">
                 {state.lmiPercent}% of subscriber capacity
               </p>
-              <p className="text-[11px] text-gray-500 leading-relaxed">
+              <p className="text-[11px] text-[var(--text-label)] leading-relaxed">
                 Every project must allocate {state.lmiPercent}% of its capacity to qualifying low-to-moderate income households.
                 Plan for 6–9 months of LMI subscriber sourcing through CBO partnerships and aggregator contracts.
               </p>
             </div>
           ) : (
-            <p className="text-xs text-gray-600">No LMI carve-out requirement — full residential and commercial subscriber market is available.</p>
+            <p className="text-xs text-[var(--text-secondary)]">No LMI carve-out requirement — full residential and commercial subscriber market is available.</p>
           )}
         </div>
       </div>
 
       {/* LMI eligibility — population context */}
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Eligibility · {state.name}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">LMI Eligibility · {state.name}</h3>
         {loading ? (
-          <div className="bg-surface rounded-md p-3">
-            <div className="flex items-center gap-2 text-[11px] text-gray-500">
+          <div className="bg-[var(--bg-surface)] rounded-md p-3">
+            <div className="flex items-center gap-2 text-[11px] text-[var(--text-label)]">
               <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#14B8A6' }} />
               Loading Census data…
             </div>
           </div>
         ) : !lmi ? (
-          <div className="bg-surface rounded-md p-3 border border-dashed border-gray-300">
-            <p className="text-[11px] text-gray-500 leading-relaxed">
+          <div className="bg-[var(--bg-surface)] rounded-md p-3 border border-dashed border-gray-300">
+            <p className="text-[11px] text-[var(--text-label)] leading-relaxed">
               Census ACS data not yet seeded for this state. State-program LMI requirements above still apply.
             </p>
           </div>
         ) : (
-          <div className="bg-surface rounded-md p-3 space-y-2.5">
+          <div className="bg-[var(--bg-surface)] rounded-md p-3 space-y-2.5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <SubStat label="LMI households (≤80% AMI)" value={fmtNum(lmi.lmiHouseholds)} sub={`${lmi.lmiPct.toFixed(0)}% of all ${state.name} households`} />
               <SubStat label="Total households (statewide)" value={fmtNum(lmi.totalHouseholds)} sub="2018-2022 ACS 5-yr estimate" />
@@ -325,23 +328,23 @@ function SubscribersTab({ state }) {
       {/* Subscriber-count calculator — only when there's a carve-out to plan around */}
       {state.lmiRequired && state.lmiPercent > 0 && (
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">LMI Subscribers per Project Size</h3>
-          <div className="bg-surface rounded-md p-3">
-            <p className="text-[11px] text-gray-500 leading-relaxed mb-2.5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">LMI Subscribers per Project Size</h3>
+          <div className="bg-[var(--bg-surface)] rounded-md p-3">
+            <p className="text-[11px] text-[var(--text-label)] leading-relaxed mb-2.5">
               Approximate LMI households you'd need to enroll, assuming ~2 kW residential subscriptions and the {state.lmiPercent}% carve-out:
             </p>
             <div className="grid grid-cols-3 gap-3">
               {DEMO_MW.map(mw => {
                 const { lmiSubs, totalSubs } = subscribersForMW(mw)
                 return (
-                  <div key={mw} className="rounded-md px-3 py-2.5 bg-white border border-gray-200">
+                  <div key={mw} className="rounded-md px-3 py-2.5 bg-[var(--cards-bg)] border border-[var(--cards-border)]">
                     <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#0F766E] mb-0.5">
                       {mw} MW project
                     </p>
                     <p className="font-mono text-base font-bold tabular-nums text-ink leading-none">
                       ~{fmtNum(lmiSubs)}
                     </p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">
+                    <p className="text-[10px] text-[var(--text-label)] mt-0.5">
                       LMI households (of ~{fmtNum(totalSubs)} total subscribers)
                     </p>
                   </div>
@@ -349,7 +352,7 @@ function SubscribersTab({ state }) {
               })}
             </div>
             {lmi && (
-              <p className="text-[10px] text-gray-400 mt-2.5 leading-relaxed">
+              <p className="text-[10px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
                 {state.name} has ~{fmtNum(lmi.lmiHouseholds)} LMI households statewide, so subscriber sourcing volume is generally not the bottleneck — channel access (CBO partners, aggregator agreements) typically is.
               </p>
             )}
@@ -366,8 +369,8 @@ function SubStat({ label, value, sub, mono = true }) {
   return (
     <div>
       <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#0F766E] mb-0.5">{label}</p>
-      <p className={`text-sm font-semibold text-gray-800 ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</p>
-      {sub && <p className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">{sub}</p>}
+      <p className={`text-sm font-semibold text-[var(--text-primary)] ${mono ? 'font-mono tabular-nums' : ''}`}>{value}</p>
+      {sub && <p className="text-[10px] text-[var(--text-label)] mt-0.5 leading-relaxed">{sub}</p>}
     </div>
   )
 }
@@ -431,7 +434,7 @@ function NewsTab({ state, news }) {
   if (news.length === 0) {
     return (
       <div className="px-5 py-6 text-center">
-        <p className="text-xs text-gray-400">No recent activity for {state.name}.</p>
+        <p className="text-xs text-[var(--text-muted)]">No recent activity for {state.name}.</p>
         <p className="text-[11px] text-gray-300 mt-1">Check back as policy developments are tracked.</p>
       </div>
     )
@@ -459,12 +462,12 @@ function NewsTab({ state, news }) {
             </span>
             {/* Inline preview when collapsed */}
             {!pulseOpen && summary && (
-              <span className="flex-1 min-w-0 text-[11px] text-gray-500 truncate">{summary}</span>
+              <span className="flex-1 min-w-0 text-[11px] text-[var(--text-label)] truncate">{summary}</span>
             )}
             {!pulseOpen && summaryLoading && !summary && (
               <span className="flex-1 min-w-0 flex items-center gap-2">
                 <TractovaLoader size={14} />
-                <span className="text-[11px] text-ink-muted">Synthesizing recent activity…</span>
+                <span className="text-[11px] text-[var(--text-label)]">Synthesizing recent activity…</span>
               </span>
             )}
             <svg
@@ -481,7 +484,7 @@ function NewsTab({ state, news }) {
               {summaryLoading && !summary ? (
                 <div className="flex items-center gap-3 py-1">
                   <TractovaLoader size={32} />
-                  <p className="text-[11px] text-ink-muted leading-tight">
+                  <p className="text-[11px] text-[var(--text-label)] leading-tight">
                     Synthesizing recent activity…
                   </p>
                 </div>
@@ -500,10 +503,10 @@ function NewsTab({ state, news }) {
             href={item.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="block bg-surface rounded-md p-3 hover:bg-gray-100 transition-colors"
+            className="block bg-[var(--bg-surface)] rounded-md p-3 hover:bg-[var(--bg-surface)] transition-colors"
           >
-            <p className="text-xs font-medium text-gray-800 leading-snug">{item.headline}</p>
-            <p className="text-[11px] text-gray-400 mt-1 font-mono">
+            <p className="text-xs font-medium text-[var(--text-primary)] leading-snug">{item.headline}</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-1 font-mono">
               {item.source} · {new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </p>
           </a>
@@ -551,13 +554,13 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
     : null
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg flex flex-col h-full">
+    <div className="bg-[var(--cards-bg)] border border-[var(--cards-border)] rounded-lg flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-gray-100">
+      <div className="px-4 py-3 border-b border-[var(--cards-border)] shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-lg font-bold text-gray-900">{state.name}</h2>
+              <h2 className="text-lg font-bold text-[var(--text-primary)]">{state.name}</h2>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.cls}`}>
                 {status.label}
               </span>
@@ -579,33 +582,49 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
               )}
             </div>
             {state.csProgram && (
-              <p className="text-xs text-gray-500 mt-0.5">{state.csProgram}</p>
+              <p className="text-xs text-[var(--text-label)] mt-0.5">{state.csProgram}</p>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link
-              to={`/search?state=${state.id}`}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-primary hover:bg-primary-700 px-2.5 py-1.5 rounded-lg transition-colors"
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              Search in Lens
-            </Link>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-700 transition-colors p-1 -m-1 rounded-sm"
-              aria-label="Close state panel"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/>
-              </svg>
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1 -m-1 rounded-sm shrink-0"
+            aria-label="Close state panel"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M4.293 4.293a1 1 0 011.414 0L8 6.586l2.293-2.293a1 1 0 111.414 1.414L9.414 8l2.293 2.293a1 1 0 01-1.414 1.414L8 9.414l-2.293 2.293a1 1 0 01-1.414-1.414L6.586 8 4.293 5.707a1 1 0 010-1.414z"/>
+            </svg>
+          </button>
         </div>
 
         {/* Score header */}
         <div className="mt-4">
           <ScoreBar score={state.feasibilityScore} />
         </div>
+
+        {/* BIG Run a Lens CTA — Aden 2026-05-27: "Run lens should be bigger
+            as its a centerpiece to the next phase of our product." Promoted
+            from a small top-right pill to a full-width gradient button below
+            the score; takes the user from "this market's vital signs" to
+            "deep-dive analysis for a specific project in this state." */}
+        <Link
+          to={`/search?state=${state.id}`}
+          className="dash-ai-glow mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-md font-bold text-sm transition-all hover:brightness-110 group"
+          style={{
+            background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
+            color: '#FFFFFF',
+            boxShadow: '0 6px 20px -6px rgba(20,184,166,0.55)',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7"/>
+            <line x1="20" y1="20" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Run a Lens on {state.id}</span>
+          <span className="ml-1 text-base leading-none transition-transform group-hover:translate-x-0.5">→</span>
+        </Link>
+        <p className="mt-1.5 text-[10px] text-center" style={{ color: 'var(--text-muted)' }}>
+          Single-project deep-dive · 60 sec to a feasibility verdict
+        </p>
       </div>
 
       {/* V3: Radix-driven tabs — replaces hand-rolled TabBar. Adds keyboard
@@ -615,7 +634,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
             curates ≥1 docket for the state, so we don't show an empty tab
             users can click into and find nothing. Admin tab in /admin
             remains available regardless. */}
-        <RadixTabs.List className="flex border-b border-gray-200 px-3 bg-gray-50 shrink-0">
+        <RadixTabs.List className="flex border-b border-[var(--cards-border)] px-3 bg-[var(--bg-surface)] shrink-0">
           <StateTabTrigger value="program"     label="Program" />
           <StateTabTrigger value="market"      label="Market" />
           <StateTabTrigger value="subscribers" label="Subscribers" />
@@ -656,9 +675,9 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
       </RadixTabs.Root>
 
       {/* Footer */}
-      <div className="px-5 py-2.5 border-t border-gray-100 bg-chrome rounded-b-lg flex items-center justify-between">
+      <div className="px-5 py-2.5 border-t border-[var(--cards-border)] bg-chrome rounded-b-lg flex items-center justify-between">
         {lastUpdatedFmt && (
-          <p className="text-xs text-gray-400 group relative cursor-default">
+          <p className="text-xs text-[var(--text-muted)] group relative cursor-default">
             {lastUpdatedFmt}
             {lastUpdatedFull && (
               <span className="absolute bottom-full left-0 mb-1 px-2 py-1 text-[10px] bg-gray-800 text-white rounded-sm opacity-0 group-hover:opacity-100 transition-opacity duration-75 whitespace-nowrap pointer-events-none">

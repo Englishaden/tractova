@@ -138,8 +138,17 @@ function generateDotsForFeatures(features, dotSpacing = 2.4) {
 // Focused: zoomed onto US. State choropleth at full opacity. Dots faded.
 const IDLE_ROTATION   = [0, 0]
 const FOCUS_ROTATION  = [98, -38]  // [longitude, latitude] of central US (~Kansas)
-const IDLE_SCALE_FRAC = 0.42        // fraction of (canvasSize / 2) for sphere radius
-const FOCUS_SCALE_FRAC = 1.0        // larger than 0.5 — sphere overflows the disc, US fills the view
+// Idle scale bumped 0.42 → 0.66 per Aden 2026-05-27: "just increase the
+// size of the globe too, way too much empty space there." The earlier
+// 0.42 left ~half the container as dead negative space; 0.66 fills most
+// of the disc with the globe while keeping a small rim margin.
+const IDLE_SCALE_FRAC = 0.66
+// Focus scale bumped 1.0 → 1.6 per Aden: "the map of the US is too
+// zoomed out, so increase the size to fit the screen more." At 1.6× the
+// sphere radius exceeds the container by 60%, which means the visible
+// disc is a slice — the US fills it edge-to-edge while the Canadian
+// and Mexican rim still hint at globe curvature.
+const FOCUS_SCALE_FRAC = 1.6
 const TRANSITION_MS   = 1600        // total interpolation duration
 
 // ─── Component ───────────────────────────────────────────────────────────
@@ -556,15 +565,18 @@ export default function DashboardGlobe({
 
   // ── Render JSX shell ──────────────────────────────────────────────────
   const hoverState = hover?.stateId ? stateProgramMap[hover.stateId] : null
-  const cursorClass = phase === 'animating' ? 'cursor-wait'
-                    : phase === 'idle'      ? 'cursor-pointer'
-                                            : 'cursor-default'
+  // Cursor: pointer when something is clickable (idle to zoom in, focused
+  // to click a state); default otherwise. Previously used cursor-wait
+  // during the rotate+zoom transition, which rendered as a system loading
+  // spinner — Aden flagged it as visually noisy ("the blue loading thing
+  // on my cursor when I click it, it should never show that").
+  const cursorClass = phase === 'animating' ? 'cursor-default' : 'cursor-pointer'
 
   return (
-    <div className="flex items-center justify-center w-full h-full p-4">
+    <div className="flex items-center justify-center w-full h-full p-2">
       <div
         ref={containerRef}
-        className="relative aspect-square w-full max-w-[520px] mx-auto"
+        className="relative aspect-square w-full max-w-[560px] mx-auto"
       >
         <canvas
           ref={canvasRef}

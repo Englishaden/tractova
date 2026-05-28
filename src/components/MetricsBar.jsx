@@ -31,7 +31,7 @@ function IconTrendingUp() { return (<svg width="20" height="20" viewBox="0 0 24 
 // Loading shimmer — 5 cards matching the new short shape.
 function MetricsSkeleton() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
       {Array.from({ length: 5 }).map((_, i) => (
         <div
           key={i}
@@ -146,7 +146,7 @@ export default function MetricsBar({ previewMode = false }) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
       {CARDS.map((c) => {
         const expanded = expandedKey === c.key
         const hasSeries = Array.isArray(c.series) && c.series.length > 0
@@ -160,7 +160,7 @@ export default function MetricsBar({ previewMode = false }) {
                 style={{
                   background: CARD_BG,
                   border: `1px solid ${expanded ? 'var(--hairline-teal, rgba(20,184,166,0.45))' : 'var(--cards-border, #1F2A3D)'}`,
-                  minHeight: expanded ? '212px' : '108px',
+                  minHeight: expanded ? '200px' : '94px',
                 }}
                 aria-expanded={expanded}
               >
