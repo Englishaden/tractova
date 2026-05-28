@@ -8,6 +8,7 @@ import WelcomeCard from '../components/WelcomeCard'
 import ApiErrorBanner from '../components/ApiErrorBanner'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
+import MarketBrief from '../components/MarketBrief'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
@@ -231,6 +232,9 @@ export default function Dashboard({ previewMode = false }) {
       <IntelligenceBackground />
       <WalkingTractovaMark triggerProbability={0.25} sessionGate={true} />
 
+      {/* Note: CmdKHint floating chip is mounted globally in App.jsx (renders
+          on every page for authed users) — no per-Dashboard mount needed. */}
+
       {effectivePreviewMode && (
         <div
           className="sticky top-14 z-30 flex items-center justify-between px-6 py-2.5"
@@ -305,8 +309,16 @@ export default function Dashboard({ previewMode = false }) {
 
         <SectionDivider />
 
-        {/* Metrics bar */}
+        {/* Market Brief — the "what's the story" moment above the metric grid.
+            Sonnet 4.6 paragraph weekly-cached server-side; static fallback
+            synthesized from props if the API has no signal yet, so the slot
+            always renders something. Public to /preview + authed users alike. */}
         <MountReveal delay={0}>
+          <MarketBrief stateProgramMap={stateProgramMap} deltaMap={deltaMap} />
+        </MountReveal>
+
+        {/* Metrics bar */}
+        <MountReveal delay={0.04}>
           <MetricsBar previewMode={effectivePreviewMode} />
         </MountReveal>
 

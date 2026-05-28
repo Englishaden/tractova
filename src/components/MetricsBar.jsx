@@ -64,7 +64,7 @@ function IXCapacityDetail({ previewMode = false }) {
   return (
     <div>
       <p className="text-xs text-white/45 mb-3">
-        Utilities estimated to have meaningful interconnection queue capacity based on FERC Form 1 data, ISO/RTO queue reports, and recent ISA withdrawal activity. Per-utility detail data available on request.
+        Utilities estimated to have meaningful interconnection queue capacity based on FERC Form 1 data, ISO/RTO queue reports, and recent ISA withdrawal activity.
       </p>
       <div className="rounded-md px-3 py-2.5 mb-4" style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)' }}>
         <p className="eyebrow-mono text-amber-400/80">Methodology note</p>

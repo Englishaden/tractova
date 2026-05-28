@@ -357,13 +357,6 @@ function SubscribersTab({ state }) {
         </div>
       )}
 
-      {/* Phase 2 placeholder — what's still coming */}
-      <div className="bg-surface rounded-md p-3 border border-dashed border-gray-300">
-        <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-gray-400 mb-1">Coming next</p>
-        <p className="text-[11px] text-gray-500 leading-relaxed">
-          Per-county LMI density (Census ACS county-level) · CCA enrollment penetration · CBO partner directory.
-        </p>
-      </div>
     </div>
   )
 }
