@@ -567,17 +567,29 @@ export async function getDashboardMetricsHistory({ weeks = 8 } = {}) {
     }
 
     // ── policyPulse — count news items per ISO week. Counts ALL pillars
-    //    (matches the live `policyAlertsThisWeek` aggregator's definition). ──
+    //    (matches the live `policyAlertsThisWeek` aggregator's definition).
+    //    Ship 2.1 extension: also return `policyPulseByPillar` — a list of
+    //    weeks where each row is { week, offtake, ix, site, policy } counts.
+    //    Used by Analytics tab Chart 5 (stacked area). Keeps the simple
+    //    `policyPulse` total for the existing MetricsBar sparkline. ──
     const policyPulse = []
+    const policyPulseByPillar = []
     if (newsRes.status === 'fulfilled' && Array.isArray(newsRes.value.data)) {
+      // Bucket: week -> { offtake, ix, site, policy, total }
       const byWeek = new Map()
       for (const row of newsRes.value.data) {
         const wk = toIsoWeek(row.published_at)
-        byWeek.set(wk, (byWeek.get(wk) || 0) + 1)
+        const cur = byWeek.get(wk) || { offtake: 0, ix: 0, site: 0, policy: 0, total: 0 }
+        cur.total += 1
+        const p = row.pillar
+        if (p === 'offtake' || p === 'ix' || p === 'site' || p === 'policy') cur[p] += 1
+        byWeek.set(wk, cur)
       }
       const sortedWeeks = Array.from(byWeek.keys()).sort()
       for (const wk of sortedWeeks) {
-        policyPulse.push({ week: wk, value: byWeek.get(wk) })
+        const b = byWeek.get(wk)
+        policyPulse.push({ week: wk, value: b.total })
+        policyPulseByPillar.push({ week: wk, offtake: b.offtake, ix: b.ix, site: b.site, policy: b.policy })
       }
     }
 
@@ -586,6 +598,7 @@ export async function getDashboardMetricsHistory({ weeks = 8 } = {}) {
       pipelineLoad,
       avgCapacity,
       policyPulse,
+      policyPulseByPillar,
       ixHeadroom: null, // No history source yet — see plan `warm-foraging-charm.md`.
     }
   })
@@ -662,6 +675,46 @@ export async function getTopCsStatesByActivity({ topN = 7 } = {}) {
     return Array.from(byState.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, topN)
+  })
+}
+
+// ── getCsProjectsAggByState ───────────────────────────────────────────────────
+// 2026-05-28 Analytics tab — Chart 7: "Operating CS Projects per State"
+// (LBNL Sharing the Sun ground truth). Aggregates `cs_projects` by state,
+// returning count + total MW AC + median MW per state. Cached 1h via withCache.
+//
+// Distinct from `getTopCsStatesByActivity` (which returns top-N only) — this
+// one returns ALL states so the Analytics chart can sort/filter as needed.
+export async function getCsProjectsAggByState() {
+  return withCache('cs_projects_agg_by_state', async () => {
+    const { data, error } = await supabase
+      .from('cs_projects')
+      .select('state, system_size_mw_ac')
+      .range(0, 4999)
+    if (error) {
+      console.warn('[getCsProjectsAggByState] read failed:', error.message)
+      return []
+    }
+    if (!data || data.length === 0) return []
+
+    // Group by state, collect sizes for median calc
+    const byState = new Map()
+    for (const row of data) {
+      if (!row.state) continue
+      const cur = byState.get(row.state) || { stateId: row.state, count: 0, totalMw: 0, sizes: [] }
+      cur.count += 1
+      const mw = Number(row.system_size_mw_ac) || 0
+      cur.totalMw += mw
+      if (mw > 0) cur.sizes.push(mw)
+      byState.set(row.state, cur)
+    }
+    return Array.from(byState.values())
+      .map((r) => {
+        const sorted = r.sizes.slice().sort((a, b) => a - b)
+        const median = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)] : 0
+        return { stateId: r.stateId, count: r.count, totalMw: Math.round(r.totalMw * 10) / 10, median: Math.round(median * 100) / 100 }
+      })
+      .sort((a, b) => b.count - a.count)
   })
 }
 

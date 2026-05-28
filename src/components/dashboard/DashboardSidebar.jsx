@@ -1,0 +1,175 @@
+import { useSearchParams, useNavigate } from 'react-router-dom'
+
+// DashboardSidebar — left-rail tab navigation for the Dashboard.
+//
+// Three tabs (Home / Analytics / Markets & Policy). Active tab is read
+// from + written to the `?tab=` querystring so refresh/share/back-button
+// all work. Default (no querystring) = Home.
+//
+// On mobile (<md), the sidebar collapses to a horizontal top strip so
+// it doesn't steal width from the content. Same buttons, same routing —
+// just horizontal layout.
+//
+// Bottom of the sidebar carries a "Run a Lens" CTA — the destination
+// action that lives across all tabs (matches the previous MarketFiltersRail
+// CTA position). Links to /search.
+
+const TABS = [
+  {
+    id: 'home',
+    label: 'Home',
+    description: 'Map + filters + intel feed',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    ),
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    description: 'Charts + state-by-state',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="18" y1="20" x2="18" y2="10" />
+        <line x1="12" y1="20" x2="12" y2="4" />
+        <line x1="6" y1="20" x2="6" y2="14" />
+      </svg>
+    ),
+  },
+  {
+    id: 'markets',
+    label: 'Markets & Policy',
+    description: 'Programs · subscribers · policy',
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 2 14 8 20 8" />
+        <line x1="9" y1="13" x2="15" y2="13" />
+        <line x1="9" y1="17" x2="13" y2="17" />
+      </svg>
+    ),
+  },
+]
+
+export default function DashboardSidebar() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const activeTab = searchParams.get('tab') || 'home'
+
+  const handleTabClick = (id) => {
+    const next = new URLSearchParams(searchParams)
+    if (id === 'home') next.delete('tab')
+    else next.set('tab', id)
+    setSearchParams(next, { replace: false })
+  }
+
+  const handleRunLens = () => navigate('/search')
+
+  return (
+    <>
+      {/* Desktop: vertical rail on lg+ */}
+      <aside
+        className="hidden lg:flex lg:flex-col rounded-md h-full thin-scrollbar overflow-y-auto"
+        style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)' }}
+        aria-label="Dashboard sections"
+      >
+        <div className="px-3 pt-3 pb-2 shrink-0">
+          <p className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: 'var(--text-primary)' }}>
+            Dashboard
+          </p>
+        </div>
+        <nav className="flex-1 px-2 pb-2 flex flex-col gap-0.5">
+          {TABS.map((t) => {
+            const active = activeTab === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => handleTabClick(t.id)}
+                className="group text-left rounded px-2.5 py-2 transition-all"
+                style={{
+                  background: active ? 'rgba(20,184,166,0.10)' : 'transparent',
+                  border: `1px solid ${active ? 'rgba(20,184,166,0.40)' : 'transparent'}`,
+                  color: active ? 'var(--link, #5EEAD4)' : 'var(--text-label)',
+                }}
+                onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = 'var(--text-primary)' } }}
+                onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-label)' } }}
+                data-active={active ? 'true' : 'false'}
+                aria-current={active ? 'page' : undefined}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="shrink-0">{t.icon}</span>
+                  <span className="text-[12px] font-semibold leading-none">{t.label}</span>
+                </div>
+                <p className="mt-0.5 ml-6 text-[10px] leading-snug" style={{ color: active ? 'var(--link, #5EEAD4)' : 'var(--text-muted)', opacity: active ? 0.85 : 1 }}>
+                  {t.description}
+                </p>
+              </button>
+            )
+          })}
+        </nav>
+
+        {/* Run a Lens CTA — anchored at the bottom of the rail */}
+        <div className="px-2 pt-2 pb-3 border-t shrink-0" style={{ borderColor: 'var(--cards-border)' }}>
+          <button
+            type="button"
+            onClick={handleRunLens}
+            className="dash-ai-glow w-full inline-flex items-center justify-center gap-2 rounded-md py-2 font-bold text-[12px] transition-all hover:brightness-110"
+            style={{
+              background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
+              color: '#FFFFFF',
+              boxShadow: '0 4px 16px -4px rgba(20,184,166,0.55)',
+            }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <line x1="20" y1="20" x2="16.65" y2="16.65" />
+            </svg>
+            Run a Lens
+          </button>
+          <p className="mt-1.5 text-[9px] leading-tight text-center" style={{ color: 'var(--text-muted)' }}>
+            Single-project deep-dive
+          </p>
+        </div>
+      </aside>
+
+      {/* Mobile: horizontal scroll strip on <lg */}
+      <nav
+        className="lg:hidden flex items-center gap-2 overflow-x-auto thin-scrollbar p-2 rounded-md"
+        style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)' }}
+        aria-label="Dashboard sections"
+      >
+        {TABS.map((t) => {
+          const active = activeTab === t.id
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => handleTabClick(t.id)}
+              className="shrink-0 inline-flex items-center gap-1.5 rounded px-2.5 py-1.5 transition-all"
+              style={{
+                background: active ? 'rgba(20,184,166,0.10)' : 'transparent',
+                border: `1px solid ${active ? 'rgba(20,184,166,0.40)' : 'var(--cards-border)'}`,
+                color: active ? 'var(--link, #5EEAD4)' : 'var(--text-label)',
+              }}
+              data-active={active ? 'true' : 'false'}
+            >
+              <span className="shrink-0">{t.icon}</span>
+              <span className="text-[12px] font-semibold whitespace-nowrap">{t.label}</span>
+            </button>
+          )
+        })}
+        <button
+          type="button"
+          onClick={handleRunLens}
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-bold text-[11px]"
+          style={{ background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)', color: '#FFFFFF', boxShadow: '0 4px 12px -4px rgba(20,184,166,0.50)' }}
+        >
+          Run a Lens
+        </button>
+      </nav>
+    </>
+  )
+}
