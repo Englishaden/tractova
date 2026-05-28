@@ -1012,6 +1012,63 @@ body:has(.dashboard-dark) {
 .dash-pulse-dot { animation: dash-pulse-dot 1.8s ease-in-out infinite; }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   Animated border gradient — Aceternity-style "hover border gradient"
+   pattern adapted for the dashboard sidebar tabs. A conic-gradient
+   rotates around the perimeter via CSS animation; the inner content
+   sits on top via z-index + a solid background, leaving only the
+   rotating ring visible at the edges. Active state: ring rotates
+   continuously. Hover state: ring fades in on a non-rotating gradient.
+   Reduced-motion: ring becomes a static solid teal border.
+   ───────────────────────────────────────────────────────────────────────── */
+@keyframes dash-border-rotate {
+  to { --dash-border-angle: 360deg; }
+}
+@property --dash-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+.dash-border-gradient {
+  position: relative;
+  isolation: isolate;
+}
+.dash-border-gradient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--dash-border-angle),
+    transparent 0deg,
+    transparent 240deg,
+    rgba(20, 184, 166, 0.85) 285deg,
+    rgba(94, 234, 212, 0.95) 320deg,
+    rgba(20, 184, 166, 0.85) 355deg,
+    transparent 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.dash-border-gradient:hover::before,
+.dash-border-gradient[data-active="true"]::before {
+  opacity: 1;
+  animation: dash-border-rotate 4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-border-gradient::before {
+    animation: none;
+    background: conic-gradient(from 0deg, rgba(20,184,166,0.7), rgba(20,184,166,0.7));
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    Thin scrollbar (Defillama pattern). Distinct from existing
    `.scrollbar-dark` (used in Compare modal) — this one is narrower (6px
    vs 8px) and uses --cards-border so it auto-adapts to the dashboard

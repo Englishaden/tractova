@@ -80,7 +80,7 @@ export default function DashboardSidebar() {
             Dashboard
           </p>
         </div>
-        <nav className="flex-1 px-2 pb-2 flex flex-col gap-0.5">
+        <nav className="flex-1 px-2 pb-2 flex flex-col gap-1.5">
           {TABS.map((t) => {
             const active = activeTab === t.id
             return (
@@ -88,24 +88,57 @@ export default function DashboardSidebar() {
                 key={t.id}
                 type="button"
                 onClick={() => handleTabClick(t.id)}
-                className="group text-left rounded px-2.5 py-2 transition-all"
+                className="dash-border-gradient group relative text-left rounded-md px-3 py-2.5 transition-all overflow-hidden"
                 style={{
-                  background: active ? 'rgba(20,184,166,0.10)' : 'transparent',
-                  border: `1px solid ${active ? 'rgba(20,184,166,0.40)' : 'transparent'}`,
+                  background: active
+                    ? 'linear-gradient(135deg, rgba(20,184,166,0.14) 0%, rgba(20,184,166,0.04) 100%)'
+                    : 'rgba(255,255,255,0.02)',
                   color: active ? 'var(--link, #5EEAD4)' : 'var(--text-label)',
                 }}
-                onMouseEnter={(e) => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.color = 'var(--text-primary)' } }}
-                onMouseLeave={(e) => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-label)' } }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-primary)' }}
+                onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-label)' }}
                 data-active={active ? 'true' : 'false'}
                 aria-current={active ? 'page' : undefined}
               >
-                <div className="flex items-center gap-2">
-                  <span className="shrink-0">{t.icon}</span>
-                  <span className="text-[12px] font-semibold leading-none">{t.label}</span>
+                {/* Top hairline accent — visible only on the active tab */}
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute top-0 left-2 right-2 h-px"
+                    style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(94,234,212,0.85) 50%, transparent 100%)' }}
+                  />
+                )}
+
+                <div className="relative z-10 flex items-center gap-2">
+                  <span
+                    className="shrink-0 transition-colors"
+                    style={{ color: active ? 'var(--link, #5EEAD4)' : 'inherit' }}
+                  >
+                    {t.icon}
+                  </span>
+                  <span className="text-[13px] font-semibold leading-none">{t.label}</span>
                 </div>
-                <p className="mt-0.5 ml-6 text-[10px] leading-snug" style={{ color: active ? 'var(--link, #5EEAD4)' : 'var(--text-muted)', opacity: active ? 0.85 : 1 }}>
+                <p
+                  className="relative z-10 mt-1 ml-6 text-[10px] leading-snug"
+                  style={{
+                    color: active ? 'var(--link, #5EEAD4)' : 'var(--text-muted)',
+                    opacity: active ? 0.78 : 1,
+                  }}
+                >
                   {t.description}
                 </p>
+
+                {/* Soft teal radial glow behind the active tab — sits
+                    UNDER the content, sells the "this tab is hot" feel */}
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: 'radial-gradient(circle at 0% 50%, rgba(20,184,166,0.18) 0%, transparent 60%)',
+                    }}
+                  />
+                )}
               </button>
             )
           })}

@@ -207,13 +207,13 @@ function FilterGroup({ label, count, open, onToggle, children }) {
         className="w-full flex items-center justify-between py-2.5 px-1 text-left transition-colors hover:bg-white/[0.02]"
         aria-expanded={open}
       >
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold" style={{ color: 'var(--text-secondary)' }}>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] font-semibold whitespace-nowrap" style={{ color: 'var(--text-secondary)' }}>
             {label}
           </span>
           {count > 0 && (
             <span
-              className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full font-mono text-[9px] font-bold tabular-nums"
+              className="inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full font-mono text-[9px] font-bold tabular-nums shrink-0"
               style={{ background: 'var(--link-active-bg)', color: '#FFFFFF' }}
             >
               {count}
@@ -298,15 +298,18 @@ export default function MarketFiltersRail({
       className="rounded-md border border-[var(--cards-border)] flex flex-col h-full thin-scrollbar"
       style={{ background: 'var(--cards-bg)' }}
     >
-      {/* Rail header */}
-      <div className="px-3 pt-3 pb-2 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: 'var(--text-primary)' }}>
+      {/* Rail header — two-row layout when filters are active, so the
+          count chip + Clear link don't collide with the wrapping label
+          on a 200px-wide rail (Aden 2026-05-28: "1 next to clear overlaps
+          and looks ugly"). When no filters are active, single row. */}
+      <div className="px-3 pt-3 pb-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
             Market Filters
           </span>
           {activeCount > 0 && (
             <span
-              className="inline-flex items-center justify-center min-w-[18px] h-[16px] px-1 rounded-full font-mono text-[9px] font-bold tabular-nums"
+              className="inline-flex items-center justify-center min-w-[18px] h-[16px] px-1 rounded-full font-mono text-[9px] font-bold tabular-nums shrink-0"
               style={{ background: 'var(--link-active-bg)', color: '#FFFFFF' }}
             >
               {activeCount}
@@ -317,10 +320,10 @@ export default function MarketFiltersRail({
           <button
             type="button"
             onClick={clearAll}
-            className="font-mono text-[9px] uppercase tracking-[0.18em] underline decoration-dotted hover:no-underline transition-colors"
+            className="mt-1 font-mono text-[9px] uppercase tracking-[0.18em] underline decoration-dotted hover:no-underline transition-colors whitespace-nowrap"
             style={{ color: 'var(--text-muted)' }}
           >
-            Clear
+            Clear all
           </button>
         )}
       </div>

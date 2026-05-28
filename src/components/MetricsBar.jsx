@@ -1,23 +1,29 @@
-import { useState, useEffect } from 'react'
-import { getDashboardMetrics, getDashboardMetricsHistory } from '../lib/programData'
+import { useState, useEffect, useMemo } from 'react'
+import { getDashboardMetrics, getDashboardMetricsHistory, getStatePrograms, getNewsFeed } from '../lib/programData'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import CountUp from './ui/CountUp'
 import KPISparkline from './charts/KPISparkline'
 
 // MetricsBar — Dashboard revamp v2.
 //
-// Replaces the previous 5× 196px modal-opening cards with 5× ~120px cards
-// in the disclosure-metric pattern (Defillama-derived; see
-// research/2026-05-27-defillama-teardown.md §Layout & Interaction
-// Patterns #1). Each card carries an area-chart sparkline (8-week trend).
-// Click a card → expands inline to a bigger sparkline with axis labels.
-// No more modals.
+// 5 KPI cards in the disclosure-metric pattern (Defillama-derived). Each
+// card has a compact resting state (big number + label + small sparkline)
+// and an expanded state that reveals BOTH a bigger sparkline AND
+// card-specific intel (Aden 2026-05-28 callout: "not sure what clicking
+// the cards at the bottom does. Confusing and doesn't seem to reveal
+// anything. Please rework to actually add value").
 //
-// Data-honesty: 4 of 5 cards ship with REAL derived history (csCoverage,
-// pipelineLoad, avgCapacity, policyPulse) from getDashboardMetricsHistory().
-// The 5th (IX Headroom) has no history source yet and renders without a
-// sparkline + an honest "Trend tracking coming online" footer chip. We
-// don't fake the trend with random-walk noise (data-honesty memory).
+// Per card, the reveal is:
+//   • CS Coverage  → top 4 active states by remaining capacity
+//   • IX Headroom  → breakdown by IX difficulty tier (easy/moderate/hard)
+//   • Policy Pulse → 3 most-recent news items with pillar + source
+//   • Avg Capacity → top 4 states by remaining capacity (active+limited)
+//   • Pipeline Load→ active vs limited MW split + top 4 states by MW
+//
+// Data-honesty: sparkline history is 4 of 5 real (csCoverage/pipelineLoad/
+// avgCapacity/policyPulse derived from snapshots+news_feed; IX Headroom
+// has no history source yet — renders "trend tracking coming online"
+// without a fake sparkline).
 
 const CARD_BG = 'var(--cards-bg, #131C2C)'
 
@@ -28,7 +34,7 @@ function IconBell()       { return (<svg width="20" height="20" viewBox="0 0 24 
 function IconGauge()      { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10"/><path d="M12 6v6l4 2"/></svg>) }
 function IconTrendingUp() { return (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>) }
 
-// Loading shimmer — 5 cards matching the new short shape.
+// ── Loading shimmer — 5 cards matching the new short shape ────────────────
 function MetricsSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
@@ -45,21 +51,192 @@ function MetricsSkeleton() {
   )
 }
 
+// ── Reveal sub-components — render inside the expanded card body ──────────
+
+// Top-N state row list — generic. Used by activeCS, avgCapacity, mwPipeline.
+function StateRowsReveal({ rows, valueFormatter, sub }) {
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="text-center py-2">
+        <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
+          No states match
+        </span>
+      </div>
+    )
+  }
+  return (
+    <ul className="space-y-1">
+      {rows.map((r, i) => (
+        <li key={r.id} className="flex items-center justify-between gap-2 py-0.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="font-mono text-[9px] tabular-nums shrink-0" style={{ color: 'var(--text-muted)' }}>
+              {String(i + 1).padStart(2, '0')}
+            </span>
+            <span className="text-[11px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+              {r.name}
+            </span>
+          </div>
+          <span className="font-mono text-[11px] tabular-nums font-bold shrink-0" style={{ color: 'var(--link, #5EEAD4)' }}>
+            {valueFormatter(r)}
+          </span>
+        </li>
+      ))}
+      {sub && (
+        <li className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
+          <span className="text-[9px] font-mono uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+            {sub}
+          </span>
+        </li>
+      )}
+    </ul>
+  )
+}
+
+// IX difficulty breakdown — small bar split by tier
+function IxDifficultyReveal({ programs }) {
+  const counts = useMemo(() => {
+    const c = { easy: 0, moderate: 0, hard: 0, very_hard: 0 }
+    for (const p of programs || []) {
+      if (p.ixDifficulty in c) c[p.ixDifficulty] += 1
+    }
+    return c
+  }, [programs])
+
+  const tiers = [
+    { key: 'easy',      label: 'Easy',      color: '#14B8A6', count: counts.easy },
+    { key: 'moderate',  label: 'Moderate',  color: '#5EEAD4', count: counts.moderate },
+    { key: 'hard',      label: 'Hard',      color: '#FBBF24', count: counts.hard },
+    { key: 'very_hard', label: 'Very Hard', color: '#F87171', count: counts.very_hard },
+  ]
+  const total = tiers.reduce((s, t) => s + t.count, 0)
+  if (total === 0) return <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>No IX data.</p>
+
+  return (
+    <div>
+      {/* Stacked bar */}
+      <div className="flex w-full h-2 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+        {tiers.map((t) => (
+          t.count > 0 && (
+            <div
+              key={t.key}
+              style={{ width: `${(t.count / total) * 100}%`, background: t.color }}
+              title={`${t.label}: ${t.count}`}
+            />
+          )
+        ))}
+      </div>
+      {/* Legend rows */}
+      <ul className="space-y-1 mt-2">
+        {tiers.map((t) => (
+          <li key={t.key} className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: t.color }} />
+              <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>{t.label}</span>
+            </div>
+            <span className="font-mono text-[10px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
+              {t.count} <span style={{ color: 'var(--text-muted)' }}>· {Math.round((t.count / total) * 100)}%</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// Recent news items reveal — pillar dot + headline + source/date
+function RecentNewsReveal({ news }) {
+  const recent = useMemo(() => {
+    return (news || []).slice(0, 3)
+  }, [news])
+  if (recent.length === 0) return <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>No recent items.</p>
+  const PILLAR_COLOR = { offtake: '#14B8A6', ix: '#FBBF24', site: '#60A5FA', policy: '#A78BFA' }
+  return (
+    <ul className="space-y-1.5">
+      {recent.map((n) => {
+        const dot = PILLAR_COLOR[n.pillar] || '#14B8A6'
+        const date = n.date ? new Date(n.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+        return (
+          <li key={n.id} className="flex items-start gap-1.5">
+            <span className="mt-1 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dot, boxShadow: `0 0 5px ${dot}` }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] leading-snug line-clamp-2 font-medium" style={{ color: 'var(--text-primary)' }}>
+                {n.headline}
+              </p>
+              <p className="text-[9px] font-mono mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>
+                {n.source}{date ? ` · ${date}` : ''}
+              </p>
+            </div>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+// Active vs Limited MW split — small horizontal bar + caption
+function PipelineSplitReveal({ programs }) {
+  const split = useMemo(() => {
+    let active = 0, limited = 0
+    for (const p of programs || []) {
+      const mw = p.capacityMW || 0
+      if (p.csStatus === 'active')  active  += mw
+      if (p.csStatus === 'limited') limited += mw
+    }
+    return { active, limited, total: active + limited }
+  }, [programs])
+
+  if (split.total === 0) return <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>No pipeline data.</p>
+
+  const topStates = (programs || [])
+    .filter((p) => p.csStatus === 'active' || p.csStatus === 'limited')
+    .sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
+    .slice(0, 3)
+
+  return (
+    <div className="space-y-2">
+      <div className="flex w-full h-2 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+        <div style={{ width: `${(split.active / split.total) * 100}%`, background: '#14B8A6' }} />
+        <div style={{ width: `${(split.limited / split.total) * 100}%`, background: '#5EEAD4' }} />
+      </div>
+      <div className="flex justify-between text-[10px] font-mono tabular-nums">
+        <span><span style={{ color: '#14B8A6' }}>●</span> Active <span style={{ color: 'var(--text-primary)' }}>{split.active.toLocaleString()} MW</span></span>
+        <span><span style={{ color: '#5EEAD4' }}>●</span> Limited <span style={{ color: 'var(--text-primary)' }}>{split.limited.toLocaleString()} MW</span></span>
+      </div>
+      <ul className="space-y-0.5 pt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
+        {topStates.map((s, i) => (
+          <li key={s.id} className="flex items-center justify-between gap-2">
+            <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>
+              <span className="font-mono mr-1" style={{ color: 'var(--text-muted)' }}>{String(i + 1).padStart(2, '0')}</span>
+              {s.name}
+            </span>
+            <span className="font-mono text-[10px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
+              {(s.capacityMW || 0).toLocaleString()} MW
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────
+
 export default function MetricsBar({ previewMode = false }) {
-  // previewMode kept in the signature for API compatibility with the Dashboard
-  // call site, but the new MetricsBar has no preview-specific behavior — the
-  // breakdown modals (which previously rendered the preview gate) are retired.
   void previewMode
 
   const [expandedKey, setExpandedKey] = useState(null)
   const [liveMetrics, setLiveMetrics] = useState(null)
   const [history, setHistory] = useState(null)
+  const [programs, setPrograms] = useState([])
+  const [news, setNews] = useState([])
 
   useEffect(() => {
     getDashboardMetrics().then(setLiveMetrics).catch((e) => console.warn('[MetricsBar] live metrics failed:', e?.message))
     getDashboardMetricsHistory({ weeks: 8 })
       .then(setHistory)
       .catch((e) => console.warn('[MetricsBar] history failed:', e?.message))
+    getStatePrograms().then(setPrograms).catch((e) => console.warn('[MetricsBar] programs failed:', e?.message))
+    getNewsFeed().then(setNews).catch((e) => console.warn('[MetricsBar] news failed:', e?.message))
   }, [])
 
   // Live values from Supabase with graceful defaults while loading
@@ -72,6 +249,21 @@ export default function MetricsBar({ previewMode = false }) {
     totalMWInPipeline:       liveMetrics?.totalMWInPipeline       ?? '—',
   }
 
+  // Reveal rows — top N states for the activeCS / avgCapacity / mwPipeline cards
+  const topActiveStates = useMemo(() => (
+    programs
+      .filter((p) => p.csStatus === 'active' && (p.capacityMW || 0) > 0)
+      .sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
+      .slice(0, 4)
+  ), [programs])
+
+  const topRemainingStates = useMemo(() => (
+    programs
+      .filter((p) => (p.csStatus === 'active' || p.csStatus === 'limited') && (p.capacityMW || 0) > 0)
+      .sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
+      .slice(0, 4)
+  ), [programs])
+
   const CARDS = [
     {
       key: 'activeCS',
@@ -83,6 +275,13 @@ export default function MetricsBar({ previewMode = false }) {
       series: history?.csCoverage || [],
       sparkColor: '#14B8A6',
       tooltip: 'States with funded community-solar programs accepting new project applications.',
+      reveal: (
+        <StateRowsReveal
+          rows={topActiveStates}
+          valueFormatter={(s) => `${(s.capacityMW || 0).toLocaleString()} MW`}
+          sub={`Showing top 4 of ${m.statesWithActiveCS} active`}
+        />
+      ),
     },
     {
       key: 'ixCapacity',
@@ -91,10 +290,11 @@ export default function MetricsBar({ previewMode = false }) {
       rawValue: liveMetrics?.utilitiesWithIXHeadroom,
       sub: 'open queue capacity',
       icon: <IconZap />,
-      series: history?.ixHeadroom, // null — graceful no-sparkline
+      series: history?.ixHeadroom,
       sparkColor: '#FBBF24',
       tooltip: 'Utilities estimated to have meaningful interconnection queue capacity for ≤5 MW projects.',
       noTrendNote: 'Weekly trend tracking coming online',
+      reveal: <IxDifficultyReveal programs={programs} />,
     },
     {
       key: 'policyAlerts',
@@ -106,6 +306,7 @@ export default function MetricsBar({ previewMode = false }) {
       series: history?.policyPulse || [],
       sparkColor: '#F87171',
       tooltip: 'Policy + market signals published in the last 7 days across all pillars.',
+      reveal: <RecentNewsReveal news={news} />,
     },
     {
       key: 'avgCapacity',
@@ -122,6 +323,13 @@ export default function MetricsBar({ previewMode = false }) {
       series: history?.avgCapacity || [],
       sparkColor: '#34D399',
       tooltip: 'Mean MW of program capacity still open across active and limited states.',
+      reveal: (
+        <StateRowsReveal
+          rows={topRemainingStates}
+          valueFormatter={(s) => `${(s.capacityMW || 0).toLocaleString()} MW`}
+          sub="Top 4 by remaining capacity"
+        />
+      ),
     },
     {
       key: 'mwPipeline',
@@ -133,12 +341,10 @@ export default function MetricsBar({ previewMode = false }) {
       series: history?.pipelineLoad || [],
       sparkColor: '#5EEAD4',
       tooltip: 'Total MW of remaining capacity across all active + limited CS programs.',
+      reveal: <PipelineSplitReveal programs={programs} />,
     },
   ]
 
-  // Until live metrics resolve, show shimmer. History can still be loading
-  // when live metrics land — that's fine, the sparkline slot renders empty
-  // until it arrives. Live numbers don't wait on history.
   if (!liveMetrics) return <MetricsSkeleton />
 
   const handleToggle = (key) => {
@@ -146,7 +352,7 @@ export default function MetricsBar({ previewMode = false }) {
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 items-start">
       {CARDS.map((c) => {
         const expanded = expandedKey === c.key
         const hasSeries = Array.isArray(c.series) && c.series.length > 0
@@ -156,11 +362,12 @@ export default function MetricsBar({ previewMode = false }) {
               <button
                 type="button"
                 onClick={() => handleToggle(c.key)}
-                className="group relative overflow-hidden rounded-md text-left transition-all duration-200 hover:-translate-y-0.5"
+                className="group relative overflow-hidden rounded-md text-left transition-all duration-200 hover:-translate-y-0.5 w-full"
                 style={{
                   background: CARD_BG,
                   border: `1px solid ${expanded ? 'var(--hairline-teal, rgba(20,184,166,0.45))' : 'var(--cards-border, #1F2A3D)'}`,
-                  minHeight: expanded ? '200px' : '94px',
+                  minHeight: expanded ? '280px' : '94px',
+                  boxShadow: expanded ? '0 8px 32px -12px rgba(20,184,166,0.45)' : 'none',
                 }}
                 aria-expanded={expanded}
               >
@@ -208,13 +415,14 @@ export default function MetricsBar({ previewMode = false }) {
                     {c.sub}
                   </p>
 
-                  {/* Sparkline (compact mode by default, full mode when expanded) */}
-                  <div className="mt-auto pt-1">
+                  {/* Sparkline — smaller in expanded mode now, since the
+                      reveal block takes the bulk of the real estate */}
+                  <div className="pt-1">
                     {hasSeries ? (
                       <KPISparkline
                         data={c.series}
                         color={c.sparkColor}
-                        height={expanded ? 120 : 28}
+                        height={expanded ? 56 : 28}
                         compact={!expanded}
                         ariaLabel={`${c.label} 8-week trend`}
                       />
@@ -233,11 +441,17 @@ export default function MetricsBar({ previewMode = false }) {
                     )}
                   </div>
 
-                  {/* Expanded footer caption */}
+                  {/* CARD-SPECIFIC REVEAL — only when expanded. This is the
+                      real intel each card surfaces (top states, IX
+                      breakdown, recent news, MW split). Replaces the
+                      previous "just bigger sparkline" expansion. */}
                   {expanded && (
-                    <p className="text-[10px] mt-1 leading-tight" style={{ color: 'var(--text-label, #98A4B6)' }}>
-                      8-week trailing · refreshed weekly
-                    </p>
+                    <div
+                      className="mt-2 pt-2"
+                      style={{ borderTop: '1px solid var(--cards-border)' }}
+                    >
+                      {c.reveal}
+                    </div>
                   )}
                 </div>
               </button>

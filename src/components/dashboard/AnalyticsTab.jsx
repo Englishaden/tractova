@@ -18,10 +18,34 @@ import OperatingCsProjectsBar from './charts/OperatingCsProjectsBar'
 // Charts 4 + 5 are time-series and reflect the full national pulse
 // regardless of selection.
 
+// Skeleton shimmer for the chart grid — shown until the first data
+// resolves so the tab doesn't flash a frame of empty Recharts.
+function AnalyticsSkeleton() {
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Filter strip skeleton */}
+      <div className="rounded-md p-3 dash-shimmer" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '120px' }} />
+      {/* Chart card skeletons */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="relative overflow-hidden rounded-md dash-shimmer"
+            style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '300px' }}
+          >
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, var(--hairline-teal) 50%, transparent 100%)' }} />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default function AnalyticsTab() {
   const [programs, setPrograms] = useState([])
   const [history, setHistory] = useState(null)
   const [filterStates, setFilterStates] = useState([])
+  const [ready, setReady] = useState(false)
 
   // Fetch both data sources in parallel on mount
   useEffect(() => {
@@ -33,6 +57,7 @@ export default function AnalyticsTab() {
       if (cancelled) return
       setPrograms(progs || [])
       setHistory(hist)
+      setReady(true)
     })
     return () => { cancelled = true }
   }, [])
@@ -49,6 +74,10 @@ export default function AnalyticsTab() {
     setFilterStates((cur) => cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id])
   }
   const clearAll = () => setFilterStates([])
+
+  // Show skeleton until first data resolves (Aden 2026-05-28: smooth
+  // loading transitions for the high-usage charts).
+  if (!ready) return <AnalyticsSkeleton />
 
   return (
     <div className="flex flex-col gap-3">

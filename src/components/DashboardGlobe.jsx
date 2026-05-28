@@ -772,11 +772,38 @@ export default function DashboardGlobe({
           </div>
         )}
 
-        {/* Loading shimmer — fades out once topojson resolves */}
+        {/* Loading skeleton — a shimmering circular wireframe that
+            previews the globe shape, plus a centered status label.
+            Replaces the previous bare "Loading globe…" text per Aden's
+            2026-05-28 note on loading-state polish. */}
         {!ready && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="font-mono text-[10px] uppercase tracking-[0.20em]" style={{ color: 'var(--text-muted, #6C7A91)' }}>
-              Loading globe…
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              aria-hidden="true"
+            >
+              {/* Three concentric pulsing rings — sells the "earth booting up" feel */}
+              <div className="absolute rounded-full dash-pulse-dot" style={{ width: '60%', height: '60%', border: '1px solid rgba(94,234,212,0.35)', animationDuration: '2.4s' }} />
+              <div className="absolute rounded-full dash-pulse-dot" style={{ width: '75%', height: '75%', border: '1px solid rgba(94,234,212,0.20)', animationDuration: '3.2s', animationDelay: '0.4s' }} />
+              <div className="absolute rounded-full dash-pulse-dot" style={{ width: '90%', height: '90%', border: '1px solid rgba(94,234,212,0.10)', animationDuration: '4.0s', animationDelay: '0.8s' }} />
+              {/* Shimmer band sweeping across the sphere area */}
+              <div className="absolute rounded-full overflow-hidden" style={{ width: '60%', height: '60%' }}>
+                <div className="absolute inset-0 dash-shimmer" />
+              </div>
+            </div>
+            <div className="relative z-10 flex flex-col items-center gap-2">
+              <div className="flex items-center gap-2">
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: '#14B8A6' }} />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold" style={{ color: 'var(--link, #5EEAD4)' }}>
+                  Building globe
+                </span>
+              </div>
+              <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
+                Fetching world + state topology…
+              </span>
             </div>
           </div>
         )}

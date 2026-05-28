@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useDataRefresh } from '../lib/useDataRefresh'
 
 // Relative-time formatter for the "Data refreshed" caption. Resolves to:
@@ -32,35 +32,75 @@ export default function Footer() {
   const ageMs         = refreshAt ? Date.now() - new Date(refreshAt).getTime() : null
   const isStale       = ageMs != null && ageMs > 7 * 86400000
 
+  // Route-aware theming — mirrors Nav.jsx. The Dashboard route (`/`) renders
+  // on the dark `dashboard-dark` scope, so the footer needs to match or the
+  // cream footer reads as a giant white slab beneath a dark page (Aden
+  // 2026-05-28: "the bottom of the dashboard tab is white and contrasts too
+  // much"). Every other page stays on the cream brand surface.
+  const location = useLocation()
+  const isDashboardRoute = location.pathname === '/'
+
+  const scope = isDashboardRoute ? {
+    bg:         '#0B1623',
+    border:     '#1F2A3D',
+    brand:      '#F5F7FA',  // --text-primary
+    tagline:    '#6C7A91',  // --text-muted
+    refreshFg:  isStale ? '#FBBF24' : '#98A4B6',
+    linkBase:   '#98A4B6',  // --text-label
+    linkHover:  '#5EEAD4',
+    copyright:  '#4A5468',  // --text-disabled
+  } : {
+    bg:         '#FFFFFF',
+    border:     '#E5E7EB',
+    brand:      '#0A1828',
+    tagline:    '#9CA3AF',
+    refreshFg:  isStale ? '#B45309' : '#9CA3AF',
+    linkBase:   '#9CA3AF',
+    linkHover:  '#374151',
+    copyright:  '#D1D5DB',
+  }
+
   return (
-    <footer className="border-t border-gray-200 bg-white mt-10 relative z-10">
+    <footer
+      className="border-t mt-10 relative z-10 transition-colors"
+      style={{ background: scope.bg, borderColor: scope.border }}
+    >
       <div className="max-w-dashboard mx-auto px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-6">
         <div className="flex items-center gap-3 md:gap-6 flex-wrap">
-          <span className="text-base font-serif font-semibold tracking-tight text-ink" style={{ letterSpacing: '-0.02em' }}>Tractova</span>
-          <span className="text-xs text-gray-400">
+          <span className="text-base font-serif font-semibold tracking-tight" style={{ letterSpacing: '-0.02em', color: scope.brand }}>Tractova</span>
+          <span className="text-xs" style={{ color: scope.tagline }}>
             Intelligence for the moment that matters.
           </span>
         </div>
         <div className="flex items-center gap-3 md:gap-6 flex-wrap">
           <span
-            className="text-xs font-mono tabular-nums"
-            style={{ color: isStale ? '#B45309' : '#9CA3AF' }}
+            className="text-xs font-mono tabular-nums transition-colors"
+            style={{ color: scope.refreshFg }}
             title={absoluteIso ? `Data refreshed: ${absoluteIso}` : undefined}
           >
             Data refreshed: {relativeLabel ?? '—'}
           </span>
-          <Link to="/about" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
-            About
-          </Link>
-          <Link to="/privacy" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
-            Privacy
-          </Link>
-          <Link to="/terms" className="text-xs text-gray-400 hover:text-gray-700 transition-colors">
-            Terms
-          </Link>
-          <span className="text-xs font-mono text-gray-300">© {new Date().getFullYear()} Tractova</span>
+          <FooterLink to="/about"   scope={scope}>About</FooterLink>
+          <FooterLink to="/privacy" scope={scope}>Privacy</FooterLink>
+          <FooterLink to="/terms"   scope={scope}>Terms</FooterLink>
+          <span className="text-xs font-mono" style={{ color: scope.copyright }}>© {new Date().getFullYear()} Tractova</span>
         </div>
       </div>
     </footer>
+  )
+}
+
+// Small helper — inline-styled link with hover transition driven by scope.
+function FooterLink({ to, scope, children }) {
+  return (
+    <Link
+      to={to}
+      className="text-xs transition-colors"
+      style={{ color: scope.linkBase }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = scope.linkHover }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = scope.linkBase }}
+    >
+      {children}
+    </Link>
   )
 }
