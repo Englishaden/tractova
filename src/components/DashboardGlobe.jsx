@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import createGlobe from 'cobe'
 import USMap from './USMap'
+import USOrthographicGlobe from './USOrthographicGlobe'
 
 // DashboardGlobe — the page-hero map for the revamped Dashboard.
 //
@@ -75,9 +76,15 @@ export default function DashboardGlobe({
   stateProgramMap = {},
   deltaMap = null,
 }) {
-  // Initial mode: globe if WebGL available, map otherwise.
-  // useState init function runs once at mount so we don't re-check on every render.
-  const [mode, setMode] = useState(() => (isWebGLAvailable() ? 'globe' : 'map'))
+  // WebGL detection is locked at first paint. On devices that support it
+  // (most), the surface alternates between 'globe' (rotating cobe canvas)
+  // and 'map' (zoomed orthographic US view). On devices without WebGL
+  // (~5%: corp laptops, accessibility tools), neither cobe nor the
+  // "zoom into the orthographic sphere" effect makes sense without the
+  // rotating-globe entry — those devices skip the globe theatre and
+  // render the flat <USMap> directly from first paint.
+  const hasWebGL = useMemo(() => isWebGLAvailable(), [])
+  const [mode, setMode] = useState(() => (hasWebGL ? 'globe' : 'fallback'))
   const canvasRef = useRef(null)
   const globeRef = useRef(null)
 
@@ -138,11 +145,15 @@ export default function DashboardGlobe({
       })
 
       const animate = () => {
-        // Static US-facing — no continuous auto-rotation. Prior version
-        // drifted by 0.0008 rad/frame, which over a few seconds pulled
-        // the US off-center; on a focused intelligence terminal that
-        // read as distracting, not "live." Keep the rAF loop for future
-        // hover-driven parallax (e.g. cursor tilt) but no default drift.
+        // Slow auto-rotation per Aden's 2026-05-27 follow-up — the globe
+        // should read as "live," not frozen. 0.0007 rad/frame ≈ a full
+        // revolution every ~150 seconds at 60fps. Gentle enough that the
+        // US stays in the visible hemisphere long enough to admire, but
+        // enough motion that the surface clearly reads as alive. When
+        // the user clicks to zoom (mode flips to 'map'), this loop
+        // tears down on unmount so the orthographic US view is static
+        // and tappable.
+        phi += 0.0007
         if (globeRef.current) {
           globeRef.current.update({
             phi,
@@ -199,35 +210,52 @@ export default function DashboardGlobe({
   }, [])
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (mode === 'map') {
+  // 'fallback' — no WebGL. Show the flat USMap directly with no globe
+  // theatre. Same legibility, no spinning sphere they couldn't see anyway.
+  if (mode === 'fallback') {
     return (
-      <div className="relative dash-spotlight-enter">
+      <div className="relative w-full h-full p-3">
         <USMap
           onStateClick={onStateClick}
           selectedStateId={selectedStateId}
           stateProgramMap={stateProgramMap}
           deltaMap={deltaMap}
         />
-        {isWebGLAvailable() && (
-          <button
-            type="button"
-            onClick={handleBackToGlobe}
-            className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-colors"
-            style={{
-              background: 'rgba(11,22,35,0.72)',
-              border: '1px solid var(--cards-border, rgba(255,255,255,0.10))',
-              color: 'var(--text-label, #98A4B6)',
-              backdropFilter: 'blur(8px)',
-            }}
-            aria-label="Return to globe view"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="9" />
-              <path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" />
-            </svg>
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold">Globe</span>
-          </button>
-        )}
+      </div>
+    )
+  }
+
+  // 'map' — the "zoomed sphere with state outlines" Aden asked for on
+  // 2026-05-27. Orthographic projection of the same state geometry,
+  // rotated to US-center, inside a circular sphere rim. Paired with the
+  // cobe → orthographic transition (only reachable from globe mode).
+  if (mode === 'map') {
+    return (
+      <div className="relative w-full h-full dash-spotlight-enter">
+        <USOrthographicGlobe
+          onStateClick={onStateClick}
+          selectedStateId={selectedStateId}
+          stateProgramMap={stateProgramMap}
+          deltaMap={deltaMap}
+        />
+        <button
+          type="button"
+          onClick={handleBackToGlobe}
+          className="absolute top-3 right-3 z-10 inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 transition-colors"
+          style={{
+            background: 'rgba(11,22,35,0.85)',
+            border: '1px solid var(--cards-border, rgba(255,255,255,0.10))',
+            color: 'var(--text-label, #98A4B6)',
+            backdropFilter: 'blur(8px)',
+          }}
+          aria-label="Return to rotating globe"
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" />
+          </svg>
+          <span className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold">Zoom out</span>
+        </button>
       </div>
     )
   }
