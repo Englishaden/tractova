@@ -840,3 +840,198 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Dashboard Intelligence Terminal — DARK surface scope
+   ─────────────────────────────────────────────────────────────────────────
+
+   Applied to the <main> of src/pages/Dashboard.jsx via the
+   `dashboard-dark` class. Scoped (NOT global) so the rest of Tractova
+   (Library, Lens, About, Glossary, Profile) keeps the cream brand
+   surface. The Dashboard becomes the "control room"; everything else
+   stays editorial.
+
+   Token names + values modeled on the Defillama dark theme catalogued
+   in research/2026-05-27-defillama-teardown.md, then tinted slightly
+   bluer to match Tractova's existing brand-navy (-brand-600 = #0f1a2e).
+   See `research/2026-05-27-dashboard-revamp-plan.md` / approved plan
+   `warm-foraging-charm.md` for the full direction. */
+.dashboard-dark {
+  /* Surface */
+  --app-bg:          #0B1623;
+  --cards-bg:        #131C2C;
+  --cards-border:    #1F2A3D;
+  --bg-surface:      #182336;
+  --bg-input:        #1E2A40;
+
+  /* Text */
+  --text-primary:    #F5F7FA;
+  --text-secondary:  #C6CEDB;
+  --text-label:      #98A4B6;
+  --text-muted:      #6C7A91;
+  --text-disabled:   #4A5468;
+
+  /* Brand (teal, NOT Defillama blue — keeps Tractova identity) */
+  --link:            #5EEAD4;
+  --link-bg:         #0E2A2A;
+  --link-hover-bg:   #143E3A;
+  --link-active-bg:  #14B8A6;
+  --primary-teal:    #14B8A6;
+  --primary-teal-deep: #0F766E;
+
+  /* Signal colors */
+  --success:         #34D399;
+  --error:           #F87171;
+  --warning:         #FBBF24;
+
+  /* Hairline accents */
+  --divider:         rgba(255, 255, 255, 0.06);
+  --hairline-teal:   rgba(20, 184, 166, 0.45);
+
+  /* Background of the body for the dashboard surface */
+  background-color:  var(--app-bg);
+  color:             var(--text-primary);
+}
+
+/* When dashboard-dark is the body chrome, paint the body the same so
+   no cream peeks through during route transitions or scroll over-bounce. */
+body:has(.dashboard-dark) {
+  background-color: #0B1623;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Animation library (Defillama-derived, recolored to Tractova teal)
+   Prefixed `dash-` to avoid name-collision with existing `lp-*` (landing)
+   and `tractova-*` (app-wide) keyframes.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Subtle 3deg attention-grab — for the "Run a Lens" CTA in the filter rail */
+@keyframes dash-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(-2.5deg); }
+  75%      { transform: rotate(2.5deg); }
+}
+.dash-wiggle { animation: dash-wiggle 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-wiggle { animation: none; }
+}
+
+/* Vertical-bar pulse for the "live data" eyebrow strip */
+@keyframes dash-linebeat {
+  0%, 100% { height: 100%; }
+  50%      { height: 35%; }
+}
+.dash-linebeat { animation: dash-linebeat 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-linebeat { animation: none; height: 60%; }
+}
+
+/* Teal radial glow halo — replaces Defillama's `ai-glow` blue with teal */
+@keyframes dash-ai-glow {
+  0%, 100% { box-shadow: 0 0 18px rgba(20, 184, 166, 0.40); }
+  50%      { box-shadow: 0 0 36px rgba(20, 184, 166, 0.75); }
+}
+.dash-ai-glow { animation: dash-ai-glow 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-ai-glow { animation: none; box-shadow: 0 0 24px rgba(20, 184, 166, 0.55); }
+}
+
+/* Loading skeleton shimmer — wider sweep than the existing
+   `tractova-shimmer-flow` (which is gauge-bound) */
+@keyframes dash-shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position:  1000px 0; }
+}
+.dash-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(94, 234, 212, 0.10) 50%,
+    rgba(255, 255, 255, 0.04) 100%
+  );
+  background-size: 2000px 100%;
+  animation: dash-shimmer 2.4s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-shimmer { animation: none; }
+}
+
+/* Spotlight reveal — clip-path polygon uncover from centre. Used for
+   the globe-to-USMap transition + the StateDetailPanel mount */
+@keyframes dash-spotlight-enter {
+  from { opacity: 0; clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%); }
+  to   { opacity: 1; clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%); }
+}
+.dash-spotlight-enter { animation: dash-spotlight-enter 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-spotlight-enter { animation: none; opacity: 1; clip-path: none; }
+}
+
+/* Marquee — CSS-vars-as-props pattern (Defillama). Distinct from the
+   existing `.lp-marquee` (landing page, animates via translateX -50%
+   on a duplicated track). This one is simpler: 100% translate on a
+   single track for the "Markets on the Move" strip. */
+@keyframes dash-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+.dash-marquee {
+  --dash-marquee-gap: 20px;
+  --dash-marquee-speed: 28s;
+  --dash-marquee-direction: forwards;
+  display: flex;
+  width: max-content;
+  gap: var(--dash-marquee-gap);
+  padding-left: var(--dash-marquee-gap);
+  animation: dash-marquee var(--dash-marquee-speed) linear infinite;
+  animation-direction: var(--dash-marquee-direction);
+}
+.dash-marquee-container { overflow: clip; }
+.dash-marquee-container:hover .dash-marquee {
+  /* Hover REVERSES direction (Defillama trick) instead of pause —
+     keeps the "live" feel without dead stops. */
+  --dash-marquee-direction: reverse;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-marquee { animation: none; }
+}
+@media (hover: none) {
+  /* Touch devices: never reverse on touchend; just keep flowing. */
+  .dash-marquee-container:hover .dash-marquee {
+    --dash-marquee-direction: forwards;
+  }
+}
+
+/* Live-pulse dot — paired with text in eyebrow strips ("This Week" /
+   "Live") to signal active data. Same shape as the existing breath dot
+   in MarketsOnTheMove but smaller + teal-locked. */
+@keyframes dash-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.5); opacity: 0.6; }
+}
+.dash-pulse-dot { animation: dash-pulse-dot 1.8s ease-in-out infinite; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Thin scrollbar (Defillama pattern). Distinct from existing
+   `.scrollbar-dark` (used in Compare modal) — this one is narrower (6px
+   vs 8px) and uses --cards-border so it auto-adapts to the dashboard
+   surface scope.
+   ───────────────────────────────────────────────────────────────────────── */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cards-border, rgba(255,255,255,0.10)) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--cards-border, rgba(255,255,255,0.10));
+  border-radius: 3px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--hairline-teal, rgba(20,184,166,0.45));
+}

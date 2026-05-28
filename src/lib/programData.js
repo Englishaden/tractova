@@ -478,6 +478,119 @@ export async function getStateProgramDeltas({ minDaysApart = 4 } = {}) {
   })
 }
 
+// ── getDashboardMetricsHistory ────────────────────────────────────────────────
+// 2026-05-27 Dashboard revamp v2: 8-week trailing history for the MetricsBar
+// KPI cards. Derived from EXISTING tables, no new schema:
+//   • csCoverage / pipelineLoad / avgCapacity — from `state_programs_snapshots`
+//     (the same table getStateProgramDeltas reads from)
+//   • policyPulse — from `news_feed` (counts per ISO week)
+//   • ixHeadroom — returns null (no per-week IX-utility history source yet;
+//     card renders the live value without sparkline + a graceful footer note)
+//
+// Per data-honesty memory: derived series only — if the underlying
+// snapshots have <4 weeks of pairs available, the returned arrays are
+// shorter (or empty). The MetricsBar then renders the live value
+// without a sparkline — never fabricates frames.
+//
+// Returns:
+//   {
+//     csCoverage:    [{ week: 'YYYY-Www', value: number }, ...],
+//     pipelineLoad:  [{ week, value }, ...],
+//     avgCapacity:   [{ week, value }, ...],
+//     policyPulse:   [{ week, value }, ...],
+//     ixHeadroom:    null,
+//   }
+export async function getDashboardMetricsHistory({ weeks = 8 } = {}) {
+  return withCache(`dashboard_metrics_history:${weeks}w`, async () => {
+    // Compute the cutoff: weeks * 7 days back, plus a small slop so the
+    // earliest snapshot week has a clean week-bucket.
+    const cutoffMs = Date.now() - (weeks + 1) * 7 * 86400 * 1000
+    const cutoffISO = new Date(cutoffMs).toISOString()
+
+    // ── Pull snapshots + news in parallel ────────────────────────────────
+    const [snapsRes, newsRes] = await Promise.allSettled([
+      supabase
+        .from('state_programs_snapshots')
+        .select('state_id, cs_status, capacity_mw, snapshot_at')
+        .gte('snapshot_at', cutoffISO)
+        .order('snapshot_at', { ascending: true }),
+      supabase
+        .from('news_feed')
+        .select('pillar, published_at')
+        .eq('is_active', true)
+        .gte('published_at', cutoffISO.slice(0, 10))
+        .order('published_at', { ascending: true }),
+    ])
+
+    // ── ISO-week bucketing helper. We bucket snapshot rows + news rows
+    // into the same canonical "YYYY-Www" keys so the sparklines align. ──
+    const toIsoWeek = (dateLike) => {
+      const d = new Date(dateLike)
+      const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+      const dayNum = date.getUTCDay() || 7
+      date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+      const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+      const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7)
+      return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
+    }
+
+    // ── csCoverage / pipelineLoad / avgCapacity — group snapshots by
+    //    (state_id, week), keep the latest snapshot per state per week
+    //    (a state could be re-snapshotted same week if a refresh re-fires;
+    //    we want the snapshot-of-record per week). Then aggregate. ──
+    const csCoverage   = []
+    const pipelineLoad = []
+    const avgCapacity  = []
+
+    if (snapsRes.status === 'fulfilled' && Array.isArray(snapsRes.value.data)) {
+      // Map<weekKey, Map<state_id, lastRow>>
+      const byWeek = new Map()
+      for (const row of snapsRes.value.data) {
+        const wk = toIsoWeek(row.snapshot_at)
+        if (!byWeek.has(wk)) byWeek.set(wk, new Map())
+        // Last-write-wins (input is ordered ascending, so we keep the
+        // latest row per state per week).
+        byWeek.get(wk).set(row.state_id, row)
+      }
+      // Iterate weeks in order, derive the 3 series.
+      const sortedWeeks = Array.from(byWeek.keys()).sort()
+      for (const wk of sortedWeeks) {
+        const states = Array.from(byWeek.get(wk).values())
+        const activeCount = states.filter((r) => r.cs_status === 'active').length
+        const liveStates  = states.filter((r) => r.cs_status === 'active' || r.cs_status === 'limited')
+        const totalMW     = liveStates.reduce((s, r) => s + (Number(r.capacity_mw) || 0), 0)
+        const avgMW       = liveStates.length > 0 ? Math.round(totalMW / liveStates.length) : 0
+        csCoverage  .push({ week: wk, value: activeCount })
+        pipelineLoad.push({ week: wk, value: Math.round(totalMW) })
+        avgCapacity .push({ week: wk, value: avgMW })
+      }
+    }
+
+    // ── policyPulse — count news items per ISO week. Counts ALL pillars
+    //    (matches the live `policyAlertsThisWeek` aggregator's definition). ──
+    const policyPulse = []
+    if (newsRes.status === 'fulfilled' && Array.isArray(newsRes.value.data)) {
+      const byWeek = new Map()
+      for (const row of newsRes.value.data) {
+        const wk = toIsoWeek(row.published_at)
+        byWeek.set(wk, (byWeek.get(wk) || 0) + 1)
+      }
+      const sortedWeeks = Array.from(byWeek.keys()).sort()
+      for (const wk of sortedWeeks) {
+        policyPulse.push({ week: wk, value: byWeek.get(wk) })
+      }
+    }
+
+    return {
+      csCoverage,
+      pipelineLoad,
+      avgCapacity,
+      policyPulse,
+      ixHeadroom: null, // No history source yet — see plan `warm-foraging-charm.md`.
+    }
+  })
+}
+
 // ── getNewsFeed ───────────────────────────────────────────────────────────────
 // Returns active news items sorted by published_at descending.
 export async function getNewsFeed() {

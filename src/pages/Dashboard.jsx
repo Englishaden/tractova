@@ -1,23 +1,43 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import MetricsBar from '../components/MetricsBar'
-import USMap from '../components/USMap'
 import NewsFeed from '../components/NewsFeed'
 import StateDetailPanel from '../components/StateDetailPanel'
-import SectionDivider from '../components/SectionDivider'
 import WelcomeCard from '../components/WelcomeCard'
 import ApiErrorBanner from '../components/ApiErrorBanner'
-import IntelligenceBackground from '../components/IntelligenceBackground'
-import WalkingTractovaMark from '../components/WalkingTractovaMark'
+import DashboardGlobe from '../components/DashboardGlobe'
+import MarketFiltersRail from '../components/MarketFiltersRail'
 import MarketBrief from '../components/MarketBrief'
 import { useAuth } from '../context/AuthContext'
 import { getStateProgramMap, getNewsFeed, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
 import MountReveal from '../components/ui/MountReveal'
 
+// Dashboard revamp v2 — Intelligence Terminal (plan: warm-foraging-charm.md).
+//
+// Layout (lg+):
+//   ┌──────────────────────────────────────────────────────────────┐
+//   │ Header + freshness pill                                      │
+//   │ MarketBrief                                                  │
+//   ├──────────┬──────────────────────────────────┬────────────────┤
+//   │  Market  │  DashboardGlobe / USMap          │  Intelligence  │
+//   │  Filters │  (click globe → zoom to map)     │  Feed          │
+//   │  Rail    │                                  │  (NewsFeed)    │
+//   ├──────────┴──────────────────────────────────┴────────────────┤
+//   │ MetricsBar (5 KPI cards + sparklines)                        │
+//   │ MarketsOnTheMove (inline; extracted+marqueed in Ship 2)      │
+//   └──────────────────────────────────────────────────────────────┘
+//
+// Mobile: single-col stack. Filter rail collapses to a horizontal scroll
+// chip strip above the map.
+//
+// Dark surface via the `dashboard-dark` scope class on <main>. CSS vars
+// (--app-bg, --cards-bg, --cards-border, --text-primary, etc.) live in
+// src/index.css and are scoped to this surface only — other pages stay
+// on the Tractova cream brand surface.
+
 // V3 §4.1: top-of-dashboard strip surfacing recently-active states.
-// Pragmatic v1 -- ranks by max(lastVerified, updatedAt). When weekly
-// `dashboard_metrics` history accumulates, swap to true score-delta deltas
-// (this hook just needs to start consuming a deltas-aware payload).
+// Inline here in Ship 1; Ship 2 extracts to MarketsOnTheMoveMarquee.jsx
+// and adds the `.dash-marquee` infinite-scroll behavior.
 function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
   const { displayed, overflowCount, hasDeltas } = useMemo(() => {
     const states = Object.values(stateProgramMap || {})
@@ -33,10 +53,6 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
       })
       .filter(s => s.recencyTs > 0 && (now - s.recencyTs) < 1000 * 60 * 60 * 24 * 30)
 
-    // V3 Wave 1.4: when score-deltas exist, sort by |delta| desc -- "Markets
-    // on the Move" then literally means score-movers. Falls back to recency
-    // sort when no deltas (typical for the first ~2 weeks after migration
-    // 038 lands until weekly snapshot history accrues).
     const deltasPresent = recent.some(s => s.delta !== null && s.delta !== 0)
     const sorted = deltasPresent
       ? recent.slice().sort((a, b) => {
@@ -49,7 +65,7 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
         })
       : recent.slice().sort((a, b) => b.recencyTs - a.recencyTs)
 
-    const top = sorted.slice(0, 3)
+    const top = sorted.slice(0, 5)
     return {
       displayed:    top,
       overflowCount: Math.max(0, sorted.length - top.length),
@@ -66,66 +82,52 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
     if (days < 7)   return `${days}d ago`
     return `${Math.floor(days / 7)}w ago`
   }
-  const formatFullDate = (ts) =>
-    new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   return (
-    <div className="rounded-xl px-5 py-3.5 mb-4" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
+    <div className="rounded-md px-4 py-2.5" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)' }}>
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 shrink-0">
-          {/* Live-pulse indicator -- previously a static teal dot. Now
-              breathes via CSS ping/pulse layered atop a solid core, signaling
-              the panel reflects current data and isn't just a snapshot. */}
           <span className="relative flex w-1.5 h-1.5 shrink-0">
             <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: '#14B8A6' }} />
             <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: '#14B8A6', boxShadow: '0 0 6px rgba(20,184,166,0.6)' }} />
           </span>
-          <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: '#0F766E' }}>
+          <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-semibold" style={{ color: 'var(--link, #5EEAD4)' }}>
             Markets on the Move
           </p>
-          <span className="font-mono text-[10px] text-ink-muted hidden sm:inline">
+          <span className="font-mono text-[10px] hidden sm:inline" style={{ color: 'var(--text-muted)' }}>
             · {hasDeltas ? 'WoW score deltas' : 'past 30 days'}
           </span>
         </div>
-        <span className="hidden sm:inline-block w-px h-4" style={{ background: '#E2E8F0' }} />
+        <span className="hidden sm:inline-block w-px h-4" style={{ background: 'var(--cards-border)' }} />
         <div className="flex items-center gap-2 flex-wrap">
           {displayed.map((s) => {
             const score = s.feasibilityScore ?? 0
-            const tooltip = s.delta !== null
-              ? `${s.name}: ${s.delta > 0 ? '+' : ''}${s.delta} pt${Math.abs(s.delta) === 1 ? '' : 's'} WoW · ${formatFullDate(s.recencyTs)}${s.csProgram ? ` · ${s.csProgram}` : ''}`
-              : `${s.name}: data verified ${formatFullDate(s.recencyTs)}${s.csProgram ? ` · ${s.csProgram}` : ''}`
-            const deltaColor = s.delta > 0 ? '#0F766E' : s.delta < 0 ? '#DC2626' : '#5A6B7A'
+            const deltaColor = s.delta > 0 ? '#34D399' : s.delta < 0 ? '#F87171' : 'var(--text-muted)'
             return (
               <button
                 key={s.id}
                 onClick={() => onStateClick(s.id)}
-                title={tooltip}
-                className="group flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all"
-                style={{ background: '#F9FAFB', border: '1px solid #E2E8F0' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(15,118,110,0.06)'; e.currentTarget.style.borderColor = 'rgba(15,118,110,0.30)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#F9FAFB'; e.currentTarget.style.borderColor = '#E2E8F0' }}
+                className="group flex items-center gap-2 px-2.5 py-1 rounded-md transition-all"
+                style={{ background: 'transparent', border: '1px solid var(--cards-border)' }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.06)'; e.currentTarget.style.borderColor = 'var(--hairline-teal)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--cards-border)' }}
               >
-                <span className="font-serif text-sm font-semibold text-ink leading-none">{s.name}</span>
-                <span className="font-mono text-[11px] font-bold tabular-nums leading-none" style={{ color: score >= 60 ? '#0F766E' : '#5A6B7A' }}>
+                <span className="text-sm font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
+                <span className="font-mono text-[11px] font-bold tabular-nums leading-none" style={{ color: score >= 60 ? '#34D399' : 'var(--text-label)' }}>
                   {score}
                 </span>
                 {s.delta !== null && s.delta !== 0 ? (
-                  <span className="font-mono text-[10px] font-bold tabular-nums leading-none flex items-center gap-0.5" style={{ color: deltaColor }}>
+                  <span className="font-mono text-[10px] font-bold tabular-nums leading-none" style={{ color: deltaColor }}>
                     {s.delta > 0 ? '↑' : '↓'}{Math.abs(s.delta)}
                   </span>
                 ) : (
-                  <span className="font-mono text-[9px] text-ink-muted leading-none">{formatAgo(s.recencyTs)}</span>
+                  <span className="font-mono text-[9px] leading-none" style={{ color: 'var(--text-muted)' }}>{formatAgo(s.recencyTs)}</span>
                 )}
               </button>
             )
           })}
-          {/* Overflow indicator -- surfaces total mover count when there
-              are more updated states than fit in the visible top-3. */}
           {overflowCount > 0 && (
-            <span
-              className="font-mono text-[10px] text-ink-muted px-2 py-1 leading-none"
-              title={`${overflowCount} more state${overflowCount === 1 ? '' : 's'} updated in the past 30 days`}
-            >
+            <span className="font-mono text-[10px] px-2 py-1 leading-none" style={{ color: 'var(--text-muted)' }}>
               +{overflowCount} more
             </span>
           )}
@@ -136,26 +138,21 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
 }
 
 export default function Dashboard({ previewMode = false }) {
-  const [selectedStateId,  setSelectedStateId]  = useState(null)
-  const [stateProgramMap,  setStateProgramMap]  = useState({})
-  const [news,             setNews]             = useState([])
-  const { user } = useAuth()
-  // Effective preview mode: only ON if route is /preview AND visitor is
-  // unauth. Authed users who navigate to /preview manually see the real
-  // Dashboard (no banner, no gates) since marketing UX is irrelevant
-  // to them.
-  const effectivePreviewMode = previewMode && !user
-
-  // Track which fetches failed so we can surface a single banner with retry.
-  // Previously these used `.catch(console.error)` and the user was stuck
-  // staring at a frozen MetricsBar / empty NewsFeed with no recovery path.
+  const [selectedStateId, setSelectedStateId] = useState(null)
+  const [stateProgramMap, setStateProgramMap] = useState({})
+  const [news, setNews] = useState([])
+  const [deltaMap, setDeltaMap] = useState(new Map())
   const [dashboardError, setDashboardError] = useState(null)
   const [retrying, setRetrying] = useState(false)
-  // V3 Wave 1.4: WoW score deltas for Markets on the Move. Empty Map until
-  // state_programs_snapshots accumulates ≥2 weekly entries per state
-  // (~2 weeks after migration 038 lands). Failure is non-fatal -- panel
-  // gracefully falls back to recency-only sort.
-  const [deltaMap, setDeltaMap] = useState(new Map())
+
+  // Filter state — emitted by MarketFiltersRail; consumed by USMap (via the
+  // filtered stateProgramMap below) and NewsFeed (via the filtered news
+  // array). Ship 1 wires state + utility filters; stage + sizeBucket pass
+  // through to /search via the rail's "Run a Lens" CTA.
+  const [filters, setFilters] = useState({ states: [], utility: '', stage: null, sizeBucket: null })
+
+  const { user } = useAuth()
+  const effectivePreviewMode = previewMode && !user
 
   const loadDashboardData = useCallback(async (isRetry = false) => {
     if (isRetry) setRetrying(true)
@@ -169,9 +166,6 @@ export default function Dashboard({ previewMode = false }) {
     else                                failedSources.push('market data')
     if (newsRes.status === 'fulfilled') setNews(newsRes.value)
     else                                failedSources.push('news')
-    // Deltas are best-effort -- never surface in the error banner. Hardened:
-    // the value MUST be a Map regardless of what the helper returned (a
-    // non-Map value would crash the MarketsOnTheMove render via .get()).
     if (deltasRes.status === 'fulfilled') {
       const v = deltasRes.value
       setDeltaMap(v instanceof Map ? v : new Map())
@@ -186,7 +180,7 @@ export default function Dashboard({ previewMode = false }) {
 
   useEffect(() => { loadDashboardData() }, [loadDashboardData])
 
-  // ESC key closes the state detail panel
+  // ESC closes the state detail panel
   useEffect(() => {
     if (!selectedStateId) return
     const handle = (e) => { if (e.key === 'Escape') setSelectedStateId(null) }
@@ -196,11 +190,7 @@ export default function Dashboard({ previewMode = false }) {
 
   const selectedState = selectedStateId ? stateProgramMap[selectedStateId] : null
 
-  // Surface data freshness on the dashboard hero so the "live-updated weekly"
-  // promise is provable to the user, not just claimed. Shared signal
-  // (max(cron_runs.finished_at WHERE status='success')) via useDataRefresh —
-  // re-fetches on the admin Refresh broadcast / window focus / poll so the
-  // caption tracks a refresh across the platform, not only on a hard reload.
+  // Freshness pill (preserved from Phase 1)
   const refreshAt = useDataRefresh()
   const lastRefresh = useMemo(() => {
     if (!refreshAt) return null
@@ -212,6 +202,27 @@ export default function Dashboard({ previewMode = false }) {
     }
   }, [refreshAt])
 
+  // Unique news sources for the MarketFiltersRail utility datalist
+  const newsSources = useMemo(() => {
+    return Array.from(new Set(news.map((n) => n.source).filter(Boolean)))
+  }, [news])
+
+  // Filter wiring: apply state + utility filters to the data that flows
+  // into USMap and NewsFeed. Other filters (stage, sizeBucket) pass through
+  // to /search via the rail's "Run a Lens" CTA (no Dashboard effect — see
+  // MarketFiltersRail.jsx comment for the data-honesty rationale).
+  const filteredNews = useMemo(() => {
+    const stateSet = new Set(filters.states || [])
+    const utilLC = (filters.utility || '').trim().toLowerCase()
+    return news.filter((n) => {
+      if (stateSet.size > 0) {
+        const itemStates = Array.isArray(n.stateIds) ? n.stateIds : []
+        if (!itemStates.some((s) => stateSet.has(s))) return false
+      }
+      if (utilLC && !(n.source || '').toLowerCase().includes(utilLC)) return false
+      return true
+    })
+  }, [news, filters.states, filters.utility])
 
   const handleStateClick = (stateId) => {
     setSelectedStateId((prev) => (prev === stateId ? null : stateId))
@@ -222,19 +233,7 @@ export default function Dashboard({ previewMode = false }) {
   }
 
   return (
-    <div className="min-h-screen bg-paper relative">
-      {/* Ambient intelligence layer + Tractova mark cameo — matches the
-          treatment now live on Profile, Glossary, Library, and the Lens
-          result page (cameo skipped on Lens for content-density reasons).
-          Dashboard is the daily-driver entry point, so we use the same
-          conservative settings as Library: low triggerProbability +
-          sessionGate so the cameo fires at most once per session. */}
-      <IntelligenceBackground />
-      <WalkingTractovaMark triggerProbability={0.25} sessionGate={true} />
-
-      {/* Note: CmdKHint floating chip is mounted globally in App.jsx (renders
-          on every page for authed users) — no per-Dashboard mount needed. */}
-
+    <div className="min-h-screen relative dashboard-dark">
       {effectivePreviewMode && (
         <div
           className="sticky top-14 z-30 flex items-center justify-between px-6 py-2.5"
@@ -255,40 +254,36 @@ export default function Dashboard({ previewMode = false }) {
           </a>
         </div>
       )}
+
       <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-10">
-        {/* V3-extension — first-run welcome card. Renders ONCE per
-            user (DB-backed dismissal) for authed users on Dashboard.
-            Shown above page header to be the first thing a new user
-            sees. Skipped on /preview unauth surface. */}
         {user && !effectivePreviewMode && <WelcomeCard />}
 
         {/* Page header */}
-        <div className="mt-4 mb-1">
-          <h1 className="text-2xl font-serif font-semibold text-ink" style={{ letterSpacing: '-0.02em' }}>Market Dashboard</h1>
-          <div className="mt-0.5 flex items-baseline gap-2 flex-wrap">
-            <p className="text-sm text-gray-500">
+        <div className="mt-4 mb-3">
+          <h1 className="text-2xl font-serif font-semibold" style={{ letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            Market Dashboard
+          </h1>
+          <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               Community solar program status, interconnection conditions, and policy alerts — refreshed weekly.
             </p>
             {lastRefresh && (
               <span
                 className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em]"
-                style={{ color: lastRefresh.isStale ? '#92400E' : '#0F766E' }}
+                style={{ color: lastRefresh.isStale ? '#FBBF24' : '#5EEAD4' }}
                 title={lastRefresh.isStale
-                  ? `Data is ${lastRefresh.ageDays} days old — last refresh missed at least one weekly cycle. Most analyses still valid; verify program details before committing capital.`
-                  : `Last weekly refresh completed ${lastRefresh.ageDays === 0 ? 'today' : `${lastRefresh.ageDays} day${lastRefresh.ageDays === 1 ? '' : 's'} ago`}.`}
+                  ? `Data is ${lastRefresh.ageDays} days old — last refresh missed at least one weekly cycle.`
+                  : `Last weekly refresh ${lastRefresh.ageDays === 0 ? 'today' : `${lastRefresh.ageDays} day${lastRefresh.ageDays === 1 ? '' : 's'} ago`}.`}
               >
-                <span
-                  className="relative flex w-1.5 h-1.5 shrink-0"
-                  aria-hidden="true"
-                >
+                <span className="relative flex w-1.5 h-1.5 shrink-0" aria-hidden="true">
                   {!lastRefresh.isStale && (
                     <span className="absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping" style={{ background: '#14B8A6' }} />
                   )}
                   <span
                     className="relative inline-flex rounded-full h-1.5 w-1.5"
                     style={{
-                      background: lastRefresh.isStale ? '#D97706' : '#14B8A6',
-                      boxShadow: lastRefresh.isStale ? '0 0 6px rgba(217,119,6,0.5)' : '0 0 6px rgba(20,184,166,0.6)',
+                      background: lastRefresh.isStale ? '#FBBF24' : '#14B8A6',
+                      boxShadow: lastRefresh.isStale ? '0 0 6px rgba(251,191,36,0.5)' : '0 0 6px rgba(20,184,166,0.6)',
                     }}
                   />
                 </span>
@@ -298,8 +293,6 @@ export default function Dashboard({ previewMode = false }) {
           </div>
         </div>
 
-        {/* Surface failures from getStateProgramMap / getNewsFeed (previously
-            silently caught) so users have a recovery path. */}
         <ApiErrorBanner
           message={dashboardError}
           onRetry={() => loadDashboardData(true)}
@@ -307,59 +300,66 @@ export default function Dashboard({ previewMode = false }) {
           retrying={retrying}
         />
 
-        <SectionDivider />
-
-        {/* Market Brief — the "what's the story" moment above the metric grid.
-            Sonnet 4.6 paragraph weekly-cached server-side; static fallback
-            synthesized from props if the API has no signal yet, so the slot
-            always renders something. Public to /preview + authed users alike. */}
+        {/* MarketBrief (Phase 1, preserved) */}
         <MountReveal delay={0}>
           <MarketBrief stateProgramMap={stateProgramMap} deltaMap={deltaMap} />
         </MountReveal>
 
-        {/* Metrics bar */}
+        {/* 3-col hero — Filters | Globe/Map | Intelligence Feed */}
         <MountReveal delay={0.04}>
-          <MetricsBar previewMode={effectivePreviewMode} />
-        </MountReveal>
-
-        <SectionDivider />
-
-        {/* V3 §4.1: Markets on the Move — surfaces WoW score deltas when
-            state_programs_snapshots history exists, else recency-sorted. */}
-        <MountReveal delay={0.08}>
-          <MarketsOnTheMove stateProgramMap={stateProgramMap} deltaMap={deltaMap} onStateClick={handleStateClick} />
-        </MountReveal>
-
-        {/* Main two-panel layout — stacks on mobile/tablet, side-by-side at lg+ */}
-        <MountReveal delay={0.16}>
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-          {/* Map — full-width on mobile, 60% on lg+ */}
-          <div className="lg:col-span-3">
-            <USMap
-              onStateClick={handleStateClick}
-              selectedStateId={selectedStateId}
-              stateProgramMap={stateProgramMap}
-              deltaMap={deltaMap}
-            />
-          </div>
-
-          {/* Side panel — full-width on mobile, 40% on lg+ */}
-          <div className="lg:col-span-2 flex flex-col" style={{ minHeight: '400px' }}>
-            {selectedState ? (
-              <StateDetailPanel
-                state={selectedState}
-                news={news}
-                onClose={handleClosePanel}
-                previewMode={effectivePreviewMode}
-                delta={deltaMap?.get?.(selectedStateId)?.delta ?? null}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 mb-3">
+            {/* Filters rail — full width on mobile, 2/12 on lg+ */}
+            <div className="lg:col-span-2 order-1">
+              <MarketFiltersRail
+                stateProgramMap={stateProgramMap}
+                newsSources={newsSources}
+                filters={filters}
+                onChange={setFilters}
               />
-            ) : (
-              <NewsFeed news={news} previewMode={effectivePreviewMode} />
-            )}
+            </div>
+
+            {/* Map area — full width on mobile, 6/12 on lg+ */}
+            <div className="lg:col-span-6 order-2 rounded-md overflow-hidden" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '420px' }}>
+              <DashboardGlobe
+                onStateClick={handleStateClick}
+                selectedStateId={selectedStateId}
+                stateProgramMap={stateProgramMap}
+                deltaMap={deltaMap}
+              />
+            </div>
+
+            {/* Intelligence feed — full width on mobile, 4/12 on lg+ */}
+            <div className="lg:col-span-4 order-3 flex flex-col" style={{ minHeight: '420px' }}>
+              {selectedState ? (
+                <StateDetailPanel
+                  state={selectedState}
+                  news={filteredNews}
+                  onClose={handleClosePanel}
+                  previewMode={effectivePreviewMode}
+                  delta={deltaMap?.get?.(selectedStateId)?.delta ?? null}
+                />
+              ) : (
+                <NewsFeed news={filteredNews} previewMode={effectivePreviewMode} />
+              )}
+            </div>
           </div>
-        </div>
         </MountReveal>
 
+        {/* KPI strip — full-width below the map hero */}
+        <MountReveal delay={0.08}>
+          <div className="mb-3">
+            <MetricsBar previewMode={effectivePreviewMode} />
+          </div>
+        </MountReveal>
+
+        {/* Markets on the Move — inline; Ship 2 extracts + marquees */}
+        <MountReveal delay={0.12}>
+          <MarketsOnTheMove
+            stateProgramMap={stateProgramMap}
+            deltaMap={deltaMap}
+            onStateClick={handleStateClick}
+          />
+        </MountReveal>
       </main>
     </div>
   )
