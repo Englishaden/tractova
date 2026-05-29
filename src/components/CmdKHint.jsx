@@ -105,7 +105,11 @@ export default function CmdKHint() {
       aria-label="Open command palette"
       // Hide on small screens — the Nav already exposes a Cmd-K button on
       // mobile and the chip would crowd the footer. md+ only.
-      className="hidden md:flex fixed right-4 z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-all duration-300 ease-out group"
+      // transition-OPACITY only (not transition-all): `bottom` is updated
+      // per-scroll-frame to track above the footer, and animating it via a
+      // CSS transition made the chip stutter/"jump" as new values arrived
+      // mid-animation (Aden 2026-05-29). Opacity still eases for the idle fade.
+      className="hidden md:flex fixed right-4 z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity duration-300 ease-out group"
       style={{
         // Solid white background — no glassmorphism (design-vocab
         // anti-pattern). The chip is chrome, not a translucent layer.

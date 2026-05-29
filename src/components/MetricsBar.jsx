@@ -1,8 +1,50 @@
 import { useState, useEffect, useMemo } from 'react'
+import { LineChart, Line, ResponsiveContainer, YAxis, Tooltip as RTooltip, Legend } from 'recharts'
 import { getDashboardMetrics, getDashboardMetricsHistory, getStatePrograms, getNewsFeed } from '../lib/programData'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import CountUp from './ui/CountUp'
 import KPISparkline from './charts/KPISparkline'
+
+// PolicyDualSparkline — two-line trend for the Policy Pulse card. Plots the
+// Policy pillar against all other signals (offtake + IX + site) per ISO week
+// from the real `policyPulseByPillar` series (news_feed grouped by week +
+// pillar). Aden 2026-05-29: the single sparkline read as possibly-fake; this
+// shows the actual policy-vs-market split, both grounded in live data.
+function PolicyDualSparkline({ series, height = 32, compact = true }) {
+  const data = useMemo(() => (series || []).map((w) => ({
+    week:   w.week,
+    policy: w.policy || 0,
+    market: (w.offtake || 0) + (w.ix || 0) + (w.site || 0),
+  })), [series])
+
+  if (data.length === 0) return <div style={{ height, width: '100%' }} />
+
+  return (
+    <div style={{ width: '100%', height }} aria-label="Policy vs market signal trend">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 4, right: 4, bottom: 2, left: 2 }}>
+          {!compact && (
+            <YAxis hide={false} tickLine={false} axisLine={false} width={24} allowDecimals={false}
+              tick={{ fill: 'var(--text-muted, #6C7A91)', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }} />
+          )}
+          {!compact && (
+            <RTooltip
+              cursor={{ stroke: 'var(--hairline-teal, rgba(20,184,166,0.45))', strokeWidth: 1 }}
+              contentStyle={{ background: 'var(--bg-surface, #182336)', border: '1px solid var(--cards-border)', borderRadius: 4, padding: '4px 8px', fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 10, color: 'var(--text-primary)' }}
+              labelStyle={{ color: 'var(--text-label)', fontSize: 9, textTransform: 'uppercase', letterSpacing: '0.12em' }}
+              labelFormatter={(v) => String(v).replace(/^\d{4}-W/, 'W')}
+            />
+          )}
+          {!compact && (
+            <Legend iconType="plainline" iconSize={10} wrapperStyle={{ fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 9, paddingTop: 4, color: 'var(--text-label)' }} />
+          )}
+          <Line type="monotone" dataKey="market" name="All signals" stroke="#14B8A6" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="policy" name="Policy" stroke="#A78BFA" strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 
 // MetricsBar — Dashboard revamp v2.
 //
@@ -325,9 +367,10 @@ export default function MetricsBar({ previewMode = false }) {
       rawValue: liveMetrics?.policyAlertsThisWeek,
       sub: 'this week · all pillars',
       icon: <IconBell />,
-      series: history?.policyPulse || [],
-      sparkColor: '#F87171',
-      tooltip: 'Policy + market signals published in the last 7 days across all pillars.',
+      dual: true,
+      dualSeries: history?.policyPulseByPillar || [],
+      sparkColor: '#A78BFA',
+      tooltip: 'Policy + market signals published in the last 7 days across all pillars. Trend splits Policy-pillar volume from all other signals.',
       reveal: <RecentNewsReveal news={news} />,
     },
     {
@@ -382,7 +425,8 @@ export default function MetricsBar({ previewMode = false }) {
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 items-start">
       {CARDS.map((c) => {
         const expanded = expandedKeys.has(c.key)
-        const hasSeries = Array.isArray(c.series) && c.series.length > 0
+        const chartData = c.dual ? c.dualSeries : c.series
+        const hasSeries = Array.isArray(chartData) && chartData.length > 0
         return (
           <Tooltip key={c.key}>
             <TooltipTrigger asChild>
@@ -446,13 +490,21 @@ export default function MetricsBar({ previewMode = false }) {
                       reveal block takes the bulk of the real estate */}
                   <div className="pt-1">
                     {hasSeries ? (
-                      <KPISparkline
-                        data={c.series}
-                        color={c.sparkColor}
-                        height={expanded ? 56 : 28}
-                        compact={!expanded}
-                        ariaLabel={`${c.label} 8-week trend`}
-                      />
+                      c.dual ? (
+                        <PolicyDualSparkline
+                          series={chartData}
+                          height={expanded ? 64 : 28}
+                          compact={!expanded}
+                        />
+                      ) : (
+                        <KPISparkline
+                          data={chartData}
+                          color={c.sparkColor}
+                          height={expanded ? 56 : 28}
+                          compact={!expanded}
+                          ariaLabel={`${c.label} 8-week trend`}
+                        />
+                      )
                     ) : (
                       <div
                         className="flex items-center gap-1.5 h-[28px] px-1"

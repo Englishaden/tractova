@@ -184,15 +184,18 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
 
       {/* 3-col hero — Filters | Globe/Map | Intelligence Feed (or StateDetailPanel) */}
       <MountReveal delay={0.04}>
-        {/* Hero grid resizes when a state is selected: globe track shrinks
-            (6fr→5fr), detail track grows (4fr→5fr). The globe re-projects in
-            step via its ResizeObserver, so it reads as a graceful shift. */}
+        {/* Hero grid resizes when a state is selected: the FILTERS rail
+            collapses (2fr→0) and the detail panel grows (4fr→6fr) — the globe
+            track stays 6fr of an unchanged total, so the map does NOT shrink
+            (Aden 2026-05-29: "without overly shrinking the map in the center").
+            The collapse animates via grid-template-columns. */}
         <div
           className="dash-hero-grid gap-2"
-          style={{ '--hero-cols': selectedState ? '2fr 5fr 5fr' : '2fr 6fr 4fr' }}
+          style={{ '--hero-cols': selectedState ? '0fr 6fr 6fr' : '2fr 6fr 4fr' }}
         >
-          {/* Filters rail — full width on mobile, first track on lg+ */}
-          <div>
+          {/* Filters rail — full width on mobile, first track on lg+.
+              min-w-0 + overflow-hidden let the track collapse fully to 0. */}
+          <div className="min-w-0 overflow-hidden">
             <MarketFiltersRail
               stateProgramMap={stateProgramMap}
               newsSources={newsSources}

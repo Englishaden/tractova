@@ -381,10 +381,16 @@ export default function DashboardGlobe({
 
       ctx.clearRect(0, 0, width, height)
 
-      // 1) Sphere fill (the ocean disc)
+      // 1) Sphere fill (the ocean disc). In the idle GLOBE view it's a solid
+      //    navy sphere (0.85). As we zoom into the focused MAP view it fades
+      //    toward transparent so the CSS aurora behind the canvas reads
+      //    through the map background (Aden 2026-05-29: the map portion was a
+      //    flat navy slab; globe view stays as-is). stateOpacity goes 0→1
+      //    across the zoom, so alpha goes 0.85→~0.12.
+      const oceanAlpha = 0.85 - stateOpacityRef.current * 0.73
       ctx.beginPath()
       ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI)
-      ctx.fillStyle = 'rgba(11, 22, 35, 0.85)'
+      ctx.fillStyle = `rgba(11, 22, 35, ${oceanAlpha})`
       ctx.fill()
 
       // 2) Graticule — very subtle teal lines, only above some min radius
@@ -819,8 +825,10 @@ export default function DashboardGlobe({
           }}
         />
 
-        {/* Idle CTA pill — bottom-center, only while idle/animating-in */}
-        {phase === 'idle' && (
+        {/* Idle CTA pill — bottom-center, only while idle and no state is
+            selected (hidden when a Markets-on-the-Move pick opens the detail
+            panel, so it can't collide with the saved-markets label). */}
+        {phase === 'idle' && !selectedStateId && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
             <span
               className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.20em] font-semibold"
@@ -843,7 +851,7 @@ export default function DashboardGlobe({
         {/* Live-markers source label — bottom-left when the user has
             saved Library projects loaded. Aden 2026-05-28: only the
             user's saved markets light up; no public-data fallback. */}
-        {phase === 'idle' && liveMarkersSource === 'library' && (
+        {phase === 'idle' && liveMarkersSource === 'library' && !selectedStateId && (
           <div className="absolute bottom-4 left-4 pointer-events-none">
             <span
               className="inline-flex items-center gap-1.5 font-mono text-[8px] uppercase tracking-[0.22em]"
