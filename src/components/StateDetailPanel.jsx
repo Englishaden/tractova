@@ -517,7 +517,7 @@ function NewsTab({ state, news }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function StateDetailPanel({ state, news = [], onClose, previewMode = false, delta = null }) {
+export default function StateDetailPanel({ state, news = [], onClose, previewMode = false, delta = null, lensFilters = null }) {
   // V3 Wave 2 — fetch live PUC docket count for the regulatory tab badge
   // and the panel content. Cached at the data-layer (1h TTL) so flipping
   // states + back is free.
@@ -537,6 +537,17 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
 
   const status = STATUS_CONFIG[state.csStatus] || STATUS_CONFIG.none
   const runway = state.runway ?? null
+
+  // Run-a-Lens href — carries the dashboard's active Size (MW) + Stage
+  // filters into /search alongside this state (the rail's own Run-a-Lens
+  // CTA was removed as duplicative, 2026-05-29).
+  const lensHref = (() => {
+    const params = new URLSearchParams()
+    params.set('state', state.id)
+    if (lensFilters?.stage) params.set('stage', lensFilters.stage)
+    if (lensFilters?.mw) params.set('mw', String(lensFilters.mw))
+    return `/search?${params.toString()}`
+  })()
 
   const relatedNews = news.filter(
     (item) => (item.stateIds ?? item.tags ?? []).includes(state.id)
@@ -607,7 +618,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
             the score; takes the user from "this market's vital signs" to
             "deep-dive analysis for a specific project in this state." */}
         <Link
-          to={`/search?state=${state.id}`}
+          to={lensHref}
           className="dash-ai-glow mt-4 w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-md font-bold text-sm transition-all hover:brightness-110 group"
           style={{
             background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',

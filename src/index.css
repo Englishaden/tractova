@@ -977,31 +977,24 @@ body:has(.dashboard-dark) {
 }
 .dash-marquee {
   --dash-marquee-gap: 20px;
-  --dash-marquee-speed: 28s;
-  --dash-marquee-direction: forwards;
+  --dash-marquee-speed: 38s;
   display: flex;
   width: max-content;
+  /* Always one constant direction (content scrolls left → news-ticker
+     convention). Aden 2026-05-29: the old hover-REVERSE caused a visible
+     jump/clip when the cursor entered — direction flips mid-animation and
+     the keyframe restarts. Constant direction + no hover interaction = no
+     jump. We don't pause on hover either; the chips stay clickable while
+     flowing. */
   animation: dash-marquee var(--dash-marquee-speed) linear infinite;
-  animation-direction: var(--dash-marquee-direction);
 }
 /* Per-item trailing margin (not flex `gap`) so EVERY item — including the
    last of each copy — carries uniform spacing. That makes the repeating
    unit exactly (item + gap), so the -50% shift lands seamlessly. */
 .dash-marquee > * { margin-right: var(--dash-marquee-gap); }
 .dash-marquee-container { overflow: clip; }
-.dash-marquee-container:hover .dash-marquee {
-  /* Hover REVERSES direction (Defillama trick) instead of pause —
-     keeps the "live" feel without dead stops. */
-  --dash-marquee-direction: reverse;
-}
 @media (prefers-reduced-motion: reduce) {
   .dash-marquee { animation: none; }
-}
-@media (hover: none) {
-  /* Touch devices: never reverse on touchend; just keep flowing. */
-  .dash-marquee-container:hover .dash-marquee {
-    --dash-marquee-direction: forwards;
-  }
 }
 
 /* Dashboard hero grid — Filters | Globe | Feed/Detail. Mobile stacks to a

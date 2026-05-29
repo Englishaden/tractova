@@ -34,6 +34,34 @@ export default function CmdKHint() {
   const { user } = useAuth()
   const [idle, setIdle] = useState(false)
   const [platform] = useState(detectPlatform)
+  // Distance from the viewport bottom. Normally 16px (bottom-4), but when
+  // the site footer scrolls into view we lift the chip so it parks just
+  // above the footer instead of overlapping About/Privacy/Terms/©
+  // (Aden 2026-05-29).
+  const [bottomPx, setBottomPx] = useState(16)
+
+  useEffect(() => {
+    const GAP = 16
+    let raf = 0
+    const update = () => {
+      raf = 0
+      const footer = document.querySelector('footer')
+      const vh = window.innerHeight
+      if (!footer) { setBottomPx(16); return }
+      const top = footer.getBoundingClientRect().top
+      // Park GAP above the footer once it's on screen; otherwise rest at 16.
+      setBottomPx(Math.max(16, Math.round(vh - top + GAP)))
+    }
+    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
+    update()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+      if (raf) cancelAnimationFrame(raf)
+    }
+  }, [user])
 
   // Idle fade — reset on any user motion, fade after 5s of stillness. The
   // chip is a calm reminder, not a hover trap; fading it keeps the corner
@@ -77,7 +105,7 @@ export default function CmdKHint() {
       aria-label="Open command palette"
       // Hide on small screens — the Nav already exposes a Cmd-K button on
       // mobile and the chip would crowd the footer. md+ only.
-      className="hidden md:flex fixed bottom-4 right-4 z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-all duration-300 ease-out group"
+      className="hidden md:flex fixed right-4 z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-all duration-300 ease-out group"
       style={{
         // Solid white background — no glassmorphism (design-vocab
         // anti-pattern). The chip is chrome, not a translucent layer.
@@ -85,6 +113,7 @@ export default function CmdKHint() {
         border: '1px solid #14B8A6',
         boxShadow: '0 1px 0 rgba(15,118,110,0.08), 0 4px 12px rgba(10,24,40,0.06)',
         opacity: idle ? 0.32 : 1,
+        bottom: bottomPx,
       }}
     >
       <span

@@ -194,13 +194,33 @@ function PipelineSplitReveal({ programs }) {
 
   return (
     <div className="space-y-2">
+      {/* Active = teal, Limited = amber — distinct hues so the split reads at
+          a glance (Aden 2026-05-29: the two teals were too close). */}
       <div className="flex w-full h-2 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
         <div style={{ width: `${(split.active / split.total) * 100}%`, background: '#14B8A6' }} />
-        <div style={{ width: `${(split.limited / split.total) * 100}%`, background: '#5EEAD4' }} />
+        <div style={{ width: `${(split.limited / split.total) * 100}%`, background: '#FBBF24' }} />
       </div>
-      <div className="flex justify-between text-[10px] font-mono tabular-nums">
-        <span><span style={{ color: '#14B8A6' }}>●</span> Active <span style={{ color: 'var(--text-primary)' }}>{split.active.toLocaleString()} MW</span></span>
-        <span><span style={{ color: '#5EEAD4' }}>●</span> Limited <span style={{ color: 'var(--text-primary)' }}>{split.limited.toLocaleString()} MW</span></span>
+      {/* Two columns, each stacking label over value — keeps the MW unit on
+          the same line as the number instead of wrapping it. */}
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: '#14B8A6' }} />
+            <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>Active</span>
+          </div>
+          <p className="font-mono text-[12px] tabular-nums font-bold mt-0.5 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+            {split.active.toLocaleString()} MW
+          </p>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: '#FBBF24' }} />
+            <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>Limited</span>
+          </div>
+          <p className="font-mono text-[12px] tabular-nums font-bold mt-0.5 whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>
+            {split.limited.toLocaleString()} MW
+          </p>
+        </div>
       </div>
       <ul className="space-y-0.5 pt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
         {topStates.map((s, i) => (
@@ -224,7 +244,9 @@ function PipelineSplitReveal({ programs }) {
 export default function MetricsBar({ previewMode = false }) {
   void previewMode
 
-  const [expandedKey, setExpandedKey] = useState(null)
+  // Multiple cards can be open at once (Aden 2026-05-29: "any card can be
+  // opened or closed at the same time"). Track a Set of expanded keys.
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set())
   const [liveMetrics, setLiveMetrics] = useState(null)
   const [history, setHistory] = useState(null)
   const [programs, setPrograms] = useState([])
@@ -348,13 +370,18 @@ export default function MetricsBar({ previewMode = false }) {
   if (!liveMetrics) return <MetricsSkeleton />
 
   const handleToggle = (key) => {
-    setExpandedKey((curr) => (curr === key ? null : key))
+    setExpandedKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 items-start">
       {CARDS.map((c) => {
-        const expanded = expandedKey === c.key
+        const expanded = expandedKeys.has(c.key)
         const hasSeries = Array.isArray(c.series) && c.series.length > 0
         return (
           <Tooltip key={c.key}>

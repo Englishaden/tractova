@@ -125,7 +125,7 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
   const [stateProgramMap, setStateProgramMap] = useState({})
   const [news, setNews] = useState([])
   const [deltaMap, setDeltaMap] = useState(new Map())
-  const [filters, setFilters] = useState({ states: [], utility: '', stage: null, sizeBucket: null })
+  const [filters, setFilters] = useState({ states: [], utility: '', stage: null, mw: null })
 
   const loadDashboardData = useCallback(async () => {
     let failed = []
@@ -231,6 +231,7 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
                 onClose={handleClosePanel}
                 previewMode={effectivePreviewMode}
                 delta={deltaMap?.get?.(selectedStateId)?.delta ?? null}
+                lensFilters={{ stage: filters.stage, mw: filters.mw }}
               />
             ) : (
               <IntelligenceFeedCard news={filteredNews} />

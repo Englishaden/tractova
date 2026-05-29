@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import * as Popover from '@radix-ui/react-popover'
 
 // MarketFiltersRail — left vertical rail on the revamped Dashboard.
@@ -33,12 +32,10 @@ const POLICY_STAGES = [
   { id: 'construction',    label: 'Construction' },
 ]
 
-const SIZE_BUCKETS = [
-  { id: '0-2',   label: '0–2 MW',   min: 0, max: 2 },
-  { id: '2-5',   label: '2–5 MW',   min: 2, max: 5 },
-  { id: '5-10',  label: '5–10 MW',  min: 5, max: 10 },
-  { id: '10-20', label: '10–20 MW', min: 10, max: 20 },
-]
+// Discrete project sizes (MW). Aden 2026-05-29: the old 0–2 / 2–5 buckets
+// only handed the Lens a bucket midpoint (1, 3.5, …) which felt arbitrary.
+// Pick an exact MW (1–10) and that exact value flows into /search?mw=.
+const SIZE_MW_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 function ChevronDown({ open }) {
   return (
@@ -53,145 +50,158 @@ function ChevronDown({ open }) {
   )
 }
 
-// UtilityCombobox — searchable typeahead dropdown for the Utility/Source
-// filter. Replaces the browser-native <datalist> which rendered OS-styled
-// (white-on-white) and ignored the dark scope. Built on @radix-ui/react-popover
-// so it inherits Radix's portal + focus-trap + outside-click + Esc handling.
+// UtilityCombobox — click-to-open searchable dropdown for the Utility/Source
+// filter, modeled on the Lens tab's CountyCombobox (Aden 2026-05-29:
+// "should be a dropdown with search functionality like the county button on
+// the lens tab… the options come up when you click in, then you have the
+// option to type in the utility or scroll down").
 //
+// Built on @radix-ui/react-popover for portal + outside-click + Esc.
 // Behavior:
-//   - Input click → opens the dropdown (full list)
-//   - Typing → filters the list (case-insensitive substring)
-//   - Click an option → sets value, closes
-//   - Esc / outside click → closes
-//   - Empty list message when no matches
+//   - Closed state is a dropdown-looking button showing the current source
+//     (or "All sources") — NOT a bare text field, so it doesn't read as
+//     "type first."
+//   - Click → opens, full list visible immediately, search input autofocused.
+//   - Type → filters the list AND live-filters the Intelligence Feed
+//     (substring match, same as the Lens county field commits as you type).
+//   - Click an option → commits + closes.  Esc / outside click → closes.
+//
+// Dark theme (Aden 2026-05-29: "emulate the cards hover description whereby
+// the background is a nice dark blue… text is a nice white"). Matches the
+// TooltipContent vocabulary: #0A1828 navy surface, teal border, white ink.
 function UtilityCombobox({ value, onChange, options }) {
   const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState(value || '')
+  const [query, setQuery] = useState('')
   const inputRef = useRef(null)
-
-  // Mirror external value (e.g. "Clear all" sets value='') back into the
-  // input. Skipped when the user is actively typing so we don't fight them.
-  const valueRef = useRef(value)
-  if (valueRef.current !== value && document.activeElement !== inputRef.current) {
-    valueRef.current = value
-    if (query !== value) setQuery(value || '')
-  }
 
   const filtered = useMemo(() => {
     const q = (query || '').trim().toLowerCase()
-    if (!q) return options.slice(0, 50) // cap for perf
-    return options.filter((o) => o.toLowerCase().includes(q)).slice(0, 50)
+    if (!q) return options.slice(0, 120)
+    return options.filter((o) => o.toLowerCase().includes(q)).slice(0, 120)
   }, [options, query])
 
   const handleSelect = (opt) => {
-    setQuery(opt)
     onChange(opt)
+    setQuery('')
     setOpen(false)
   }
 
   const handleClear = (e) => {
     e.stopPropagation()
-    setQuery('')
     onChange('')
-    setOpen(false)
+    setQuery('')
   }
 
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Anchor asChild>
-        <div className="relative">
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              // Live-filter the consumer (Intelligence Feed) — substring match
-              onChange(e.target.value)
-              if (!open) setOpen(true)
-            }}
-            onFocus={() => setOpen(true)}
-            placeholder="Type to filter…"
-            className="w-full rounded text-[11px] px-2 py-1.5 pr-6 focus:outline-none transition-colors"
-            style={{
-              background: 'var(--bg-input)',
-              border: '1px solid var(--cards-border)',
-              color: 'var(--text-primary)',
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--hairline-teal)' }}
-            onMouseLeave={(e) => { if (document.activeElement !== e.currentTarget) e.currentTarget.style.borderColor = 'var(--cards-border)' }}
-          />
-          {(query || value) && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded-sm"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)' }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)' }}
-              aria-label="Clear utility filter"
-              tabIndex={-1}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          )}
-        </div>
-      </Popover.Anchor>
+    <Popover.Root open={open} onOpenChange={(o) => { setOpen(o); if (!o) setQuery('') }}>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center justify-between gap-1.5 rounded text-[11px] px-2 py-1.5 transition-colors"
+          style={{
+            background: 'var(--bg-input)',
+            border: `1px solid ${open ? 'var(--hairline-teal)' : 'var(--cards-border)'}`,
+            color: value ? 'var(--text-primary)' : 'var(--text-muted)',
+          }}
+        >
+          <span className="truncate text-left">{value || 'All sources'}</span>
+          <span className="flex items-center gap-0.5 shrink-0">
+            {value && (
+              <span
+                role="button"
+                tabIndex={-1}
+                onClick={handleClear}
+                className="p-0.5 rounded-sm"
+                style={{ color: 'var(--text-muted)' }}
+                aria-label="Clear utility filter"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </span>
+            )}
+            <ChevronDown open={open} />
+          </span>
+        </button>
+      </Popover.Trigger>
       <Popover.Portal>
-        {/* Popover content — Aden 2026-05-28 callout: previous dark
-            cards-bg looked "literally black." Switched to a light-card-
-            on-dark-page pattern (matches the tooltip vocabulary already
-            used elsewhere on the Dashboard: bright surface with dark
-            text + teal accent border + soft shadow). Reads cleanly as
-            a floating dropdown above the dark dashboard. */}
+        {/* Dark navy surface (#0A1828) + teal border + white ink — matches
+            the card-hover tooltip vocabulary Aden referenced. */}
         <Popover.Content
           align="start"
           sideOffset={4}
-          onOpenAutoFocus={(e) => e.preventDefault()}
+          onOpenAutoFocus={(e) => { e.preventDefault(); setTimeout(() => inputRef.current?.focus(), 0) }}
           onCloseAutoFocus={(e) => e.preventDefault()}
-          className="rounded-md z-[60] thin-scrollbar overflow-y-auto"
+          className="rounded-md z-[60] overflow-hidden"
           style={{
-            background: '#FFFFFF',
-            border: '1px solid rgba(20,184,166,0.45)',
-            boxShadow: '0 12px 32px -8px rgba(0,0,0,0.55), 0 0 0 1px rgba(20,184,166,0.06)',
+            background: '#0A1828',
+            border: '1px solid #14B8A6',
+            boxShadow: '0 12px 32px -8px rgba(0,0,0,0.6)',
             width: 'var(--radix-popover-trigger-width)',
-            maxHeight: '240px',
-            color: '#0A1828',
+            color: '#FFFFFF',
           }}
         >
-          {filtered.length === 0 ? (
-            <div className="px-2.5 py-3 text-center">
-              <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: '#5A6B7A' }}>
-                {options.length === 0 ? 'Loading sources…' : 'No matches'}
-              </span>
-            </div>
-          ) : (
-            <ul className="py-1">
-              {filtered.map((opt) => {
-                const isActive = opt === value
-                return (
-                  <li key={opt}>
-                    <button
-                      type="button"
-                      onClick={() => handleSelect(opt)}
-                      className="w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors"
-                      style={{
-                        background: isActive ? 'rgba(20,184,166,0.12)' : 'transparent',
-                        color: isActive ? '#0F766E' : '#0A1828',
-                      }}
-                      onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = 'rgba(20,184,166,0.08)'; e.currentTarget.style.color = '#0F766E' } }}
-                      onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#0A1828' } }}
-                    >
-                      {opt}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+          {/* Search input */}
+          <div className="p-1.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value)
+                onChange(e.target.value) // live-filter the Intelligence Feed (substring)
+              }}
+              placeholder="Search utilities…"
+              className="w-full rounded text-[11px] px-2 py-1.5 focus:outline-none"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.10)',
+                color: '#FFFFFF',
+              }}
+            />
+          </div>
+          <ul className="py-1 max-h-[220px] overflow-y-auto thin-scrollbar">
+            {/* All sources reset row */}
+            <li>
+              <button
+                type="button"
+                onClick={() => handleSelect('')}
+                className="w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                style={{ color: !value ? '#5EEAD4' : 'rgba(255,255,255,0.85)', background: !value ? 'rgba(20,184,166,0.14)' : 'transparent' }}
+                onMouseEnter={(e) => { if (value) e.currentTarget.style.background = 'rgba(20,184,166,0.12)' }}
+                onMouseLeave={(e) => { if (value) e.currentTarget.style.background = 'transparent' }}
+              >
+                All sources
+              </button>
+            </li>
+            {filtered.length === 0 ? (
+              <li className="px-2.5 py-3 text-center">
+                <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                  {options.length === 0 ? 'Loading sources…' : 'No matches'}
+                </span>
+              </li>
+            ) : filtered.map((opt) => {
+              const isActive = opt === value
+              return (
+                <li key={opt}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(opt)}
+                    className="w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors"
+                    style={{
+                      background: isActive ? 'rgba(20,184,166,0.18)' : 'transparent',
+                      color: isActive ? '#5EEAD4' : 'rgba(255,255,255,0.85)',
+                    }}
+                    onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.background = 'rgba(20,184,166,0.12)'; e.currentTarget.style.color = '#5EEAD4' } }}
+                    onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)' } }}
+                  >
+                    {opt}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>
@@ -240,8 +250,6 @@ export default function MarketFiltersRail({
   filters,
   onChange,
 }) {
-  const navigate = useNavigate()
-
   // Per-group disclosure. Default: State open (the most useful), others closed.
   const [openGroups, setOpenGroups] = useState({
     state:   true,
@@ -264,12 +272,12 @@ export default function MarketFiltersRail({
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   }, [newsSources])
 
-  const f = filters || { states: [], utility: '', stage: null, sizeBucket: null }
+  const f = filters || { states: [], utility: '', stage: null, mw: null }
 
-  const setStates    = (states)     => onChange({ ...f, states })
-  const setUtility   = (utility)    => onChange({ ...f, utility })
-  const setStage     = (stage)      => onChange({ ...f, stage })
-  const setSize      = (sizeBucket) => onChange({ ...f, sizeBucket })
+  const setStates    = (states)  => onChange({ ...f, states })
+  const setUtility   = (utility) => onChange({ ...f, utility })
+  const setStage     = (stage)   => onChange({ ...f, stage })
+  const setMw        = (mw)      => onChange({ ...f, mw })
 
   const toggleState = (id) => {
     const current = new Set(f.states)
@@ -278,20 +286,9 @@ export default function MarketFiltersRail({
     setStates(Array.from(current))
   }
 
-  const clearAll = () => onChange({ states: [], utility: '', stage: null, sizeBucket: null })
+  const clearAll = () => onChange({ states: [], utility: '', stage: null, mw: null })
 
-  const activeCount = (f.states.length > 0 ? 1 : 0) + (f.utility ? 1 : 0) + (f.stage ? 1 : 0) + (f.sizeBucket ? 1 : 0)
-
-  const handleRunLens = () => {
-    const params = new URLSearchParams()
-    if (f.states.length === 1) params.set('state', f.states[0])
-    if (f.stage) params.set('stage', f.stage)
-    if (f.sizeBucket) {
-      const bucket = SIZE_BUCKETS.find((b) => b.id === f.sizeBucket)
-      if (bucket) params.set('mw', String((bucket.min + bucket.max) / 2))
-    }
-    navigate(params.toString() ? `/search?${params.toString()}` : '/search')
-  }
+  const activeCount = (f.states.length > 0 ? 1 : 0) + (f.utility ? 1 : 0) + (f.stage ? 1 : 0) + (f.mw ? 1 : 0)
 
   return (
     <aside
@@ -423,22 +420,23 @@ export default function MarketFiltersRail({
           </p>
         </FilterGroup>
 
-        {/* Size (MW) */}
+        {/* Size (MW) — discrete 1–10; the exact value flows into the Lens
+            (via the state detail panel's Run-a-Lens) as ?mw=. */}
         <FilterGroup
           label="Size (MW)"
-          count={f.sizeBucket ? 1 : 0}
+          count={f.mw ? 1 : 0}
           open={openGroups.size}
           onToggle={() => toggle('size')}
         >
-          <div className="grid grid-cols-2 gap-1.5">
-            {SIZE_BUCKETS.map((b) => {
-              const active = f.sizeBucket === b.id
+          <div className="grid grid-cols-5 gap-1">
+            {SIZE_MW_OPTIONS.map((v) => {
+              const active = f.mw === v
               return (
                 <button
-                  key={b.id}
+                  key={v}
                   type="button"
-                  onClick={() => setSize(active ? null : b.id)}
-                  className="rounded text-[10px] font-mono font-semibold tabular-nums px-1.5 py-1 transition-all"
+                  onClick={() => setMw(active ? null : v)}
+                  className="rounded text-[11px] font-mono font-semibold tabular-nums py-1 transition-all"
                   style={{
                     background: active ? 'var(--link-active-bg)' : 'transparent',
                     border: `1px solid ${active ? 'var(--link-active-bg)' : 'var(--cards-border)'}`,
@@ -446,40 +444,15 @@ export default function MarketFiltersRail({
                   }}
                   data-active={active ? 'true' : 'false'}
                 >
-                  {b.label}
+                  {v}
                 </button>
               )
             })}
           </div>
           <p className="mt-1.5 text-[9px] leading-tight" style={{ color: 'var(--text-muted)' }}>
-            Carries into /search as project MW.
+            {f.mw ? `${f.mw} MW` : 'Project size (MW)'} · carries into the Lens when you open a state.
           </p>
         </FilterGroup>
-      </div>
-
-      {/* Run a Lens CTA pinned to bottom (Image 1 reference) */}
-      <div className="px-2 pt-2 pb-3 border-t border-[var(--cards-border)] shrink-0">
-        <button
-          type="button"
-          onClick={handleRunLens}
-          className="w-full inline-flex items-center justify-center gap-2 rounded-md py-2 font-semibold text-[12px] transition-all hover:brightness-110"
-          style={{
-            background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
-            color: '#FFFFFF',
-            boxShadow: '0 4px 16px -4px rgba(20,184,166,0.45)',
-          }}
-        >
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="7" />
-            <line x1="20" y1="20" x2="16.65" y2="16.65" />
-          </svg>
-          Run a Lens
-        </button>
-        <p className="mt-1.5 text-[9px] leading-tight text-center" style={{ color: 'var(--text-muted)' }}>
-          {activeCount > 0
-            ? `Opens /search with ${activeCount} filter${activeCount === 1 ? '' : 's'} pre-applied`
-            : 'Single-project deep-dive in the Lens'}
-        </p>
       </div>
     </aside>
   )
