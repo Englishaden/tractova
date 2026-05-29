@@ -655,7 +655,7 @@ export default function StateDetailPanel({ state, news = [], onClose, previewMod
           )}
         </RadixTabs.List>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto scrollbar-dark">
           <StateTabContent value="program"><ProgramTab state={state} runway={runway} /></StateTabContent>
           <StateTabContent value="market">
             {previewMode

@@ -185,6 +185,7 @@ export default function DashboardGlobe({
   selectedStateId,
   stateProgramMap = {},
   deltaMap = null,
+  onPhaseChange = null,
 }) {
   const { user } = useAuth()
   const canvasRef = useRef(null)
@@ -219,6 +220,11 @@ export default function DashboardGlobe({
   useEffect(() => { stateProgramMapRef.current = stateProgramMap }, [stateProgramMap])
   useEffect(() => { deltaMapRef.current = deltaMap }, [deltaMap])
   useEffect(() => { selectedIdRef.current = selectedStateId }, [selectedStateId])
+
+  // Report phase to the parent ('idle' | 'animating' | 'focused') so the
+  // HomeTab can swap the panel background — aurora behind the idle GLOBE,
+  // an infinite grid behind the focused MAP (Aden 2026-05-29).
+  useEffect(() => { onPhaseChange?.(phase) }, [phase, onPhaseChange])
 
   // Cached topojson data and projection — set once after fetch resolves.
   const dataRef = useRef({ worldFeatures: null, stateFeatures: null, dots: [] })
@@ -373,6 +379,13 @@ export default function DashboardGlobe({
       const { worldFeatures, stateFeatures, dots } = dataRef.current
       const stateMap = stateProgramMapRef.current
       const dMap = deltaMapRef.current
+      // Hover / selection ids hoisted to the whole frame — both the main
+      // choropleth (§5) and the AK/HI inset tiles (§8) read them. Previously
+      // `selId` was declared inside the §5 block, so the §8 reference threw a
+      // ReferenceError every frame *after* the inset box was drawn but before
+      // its shape — which is why AK/HI rendered as empty boxes (Aden 2026-05-29).
+      const hoverId = hoverIdRef.current
+      const selId = selectedIdRef.current
 
       // Re-sync projection on every frame (scale + rotation may be
       // mid-interpolation between phases).
@@ -446,8 +459,6 @@ export default function DashboardGlobe({
       // 5) US state choropleth — fade in as we zoom in (stateOpacity ref)
       if (stateOpacityRef.current > 0.01 && stateFeatures) {
         ctx.globalAlpha = stateOpacityRef.current
-        const hoverId = hoverIdRef.current
-        const selId = selectedIdRef.current
         for (const f of stateFeatures) {
           const fips = String(f.id).padStart(2, '0')
           if (INSET_FIPS.has(fips)) continue // AK/HI drawn as insets

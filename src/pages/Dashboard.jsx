@@ -34,6 +34,20 @@ export default function Dashboard({ previewMode = false }) {
 
   const [dashboardError, setDashboardError] = useState(null)
 
+  // Left-rail collapse — lets the user reclaim ~150px of width for the
+  // content (esp. when a StateDetailPanel is open and the hero feels tight).
+  // Persisted so the choice sticks across reloads (Aden 2026-05-29).
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('dash_sidebar_collapsed') === '1' } catch { return false }
+  })
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((c) => {
+      const next = !c
+      try { localStorage.setItem('dash_sidebar_collapsed', next ? '1' : '0') } catch { /* private mode */ }
+      return next
+    })
+  }, [])
+
   // Freshness pill (preserved from earlier ships)
   const refreshAt = useDataRefresh()
   const lastRefresh = useMemo(() => {
@@ -125,9 +139,12 @@ export default function Dashboard({ previewMode = false }) {
         {/* Sidebar + tab content layout. Sidebar is vertical on lg+,
             horizontal strip on mobile. Tab content takes the remaining
             width. */}
-        <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-3 mt-2">
-          <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-120px)]">
-            <DashboardSidebar />
+        <div
+          className="dash-shell-grid grid grid-cols-1 gap-3 mt-2"
+          style={{ '--shell-cols': sidebarCollapsed ? '56px 1fr' : '200px 1fr' }}
+        >
+          <div className="lg:sticky lg:top-20 lg:h-[calc(100vh-120px)] min-w-0">
+            <DashboardSidebar collapsed={sidebarCollapsed} onToggleCollapse={toggleSidebar} />
           </div>
           <div className="min-w-0">
             {tabContent}

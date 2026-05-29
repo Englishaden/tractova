@@ -126,6 +126,10 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
   const [news, setNews] = useState([])
   const [deltaMap, setDeltaMap] = useState(new Map())
   const [filters, setFilters] = useState({ states: [], utility: '', stage: null, mw: null })
+  // Globe phase drives the panel background: aurora behind the idle GLOBE,
+  // an infinite grid behind the focused MAP (Aden 2026-05-29 — aurora read
+  // fine on the globe but felt wrong flat behind the map).
+  const [globePhase, setGlobePhase] = useState('idle')
 
   const loadDashboardData = useCallback(async () => {
     let failed = []
@@ -210,16 +214,28 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
             style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '470px', maxHeight: '600px' }}
           >
             <div className="lp-hero-grid" aria-hidden="true" />
-            {/* Aurora — slow GPU-composited (transform-only) drifting blobs
-                behind the map so the panel isn't a flat navy slab. Sits above
-                the grid but below the vignette + globe; very low contrast so
-                it never fights the choropleth (Aden 2026-05-29: "add a cool
-                background … its very bland right now"). */}
-            <div className="dash-map-aurora" aria-hidden="true">
+            {/* Aurora — slow GPU-composited (transform-only) drifting blobs.
+                Reads well behind the idle GLOBE; crossfades OUT once the view
+                focuses into the flat MAP, where it felt wrong (Aden
+                2026-05-29). */}
+            <div
+              className="dash-map-aurora"
+              aria-hidden="true"
+              style={{ opacity: globePhase === 'idle' ? 1 : 0, transition: 'opacity 700ms ease' }}
+            >
               <span className="dash-map-aurora__blob dash-map-aurora__blob--1" />
               <span className="dash-map-aurora__blob dash-map-aurora__blob--2" />
               <span className="dash-map-aurora__blob dash-map-aurora__blob--3" />
             </div>
+            {/* Infinite grid — a slow-drifting, edge-masked tech grid that
+                gives the focused MAP a radar / command-surface feel without
+                fighting the choropleth. Crossfades IN as the globe focuses
+                (Aden 2026-05-29: grid background, not aurora, on the map). */}
+            <div
+              className="dash-map-grid"
+              aria-hidden="true"
+              style={{ opacity: globePhase === 'idle' ? 0 : 1, transition: 'opacity 700ms ease' }}
+            />
             <div
               aria-hidden="true"
               className="absolute inset-0 pointer-events-none"
@@ -231,6 +247,7 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
                 selectedStateId={selectedStateId}
                 stateProgramMap={stateProgramMap}
                 deltaMap={deltaMap}
+                onPhaseChange={setGlobePhase}
               />
             </div>
           </div>

@@ -1,14 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 
-// Fixed bottom-right floating ⌘K cue. Phase 1 of TRACTOVA-UX-001.
+// Static ⌘K cue. Phase 1 of TRACTOVA-UX-001.
 //
 // Not a button — chrome. A small mono chip that signals "this software
 // has keyboard shortcuts." Bloomberg-class restraint: 1px teal hairline,
-// navy ink, fades to ~30% opacity after a few seconds of inactivity.
-// Click dispatches the same hotkey CommandPalette listens for, so it
-// works as a tap-to-open affordance on touch devices where ⌘K isn't
+// navy ink. Click dispatches the same hotkey CommandPalette listens for,
+// so it works as a tap-to-open affordance on touch devices where ⌘K isn't
 // reachable. Label adapts: ⌘K on Mac, Ctrl K on PC, TAP on touch.
+//
+// Placement (Aden 2026-05-29): the chip used to float fixed bottom-right
+// and track the footer per scroll-frame, which read as "bouncing." It now
+// renders statically inside the footer — anchored just above the
+// "© <year> Tractova" line, in the margin gap above the footer's top
+// border so it never overlaps the links row. Mounted by Footer.jsx (not a
+// global fixed overlay anymore).
 
 function detectPlatform() {
   if (typeof navigator === 'undefined') return { isMac: false, showTap: false }
@@ -20,67 +26,14 @@ function detectPlatform() {
   // capability but still want the keyboard shortcut affordance. Only
   // phones + tablets running mobile browsers should get "TAP".
   const showTap = /Mobi|Android|iPhone|iPod/i.test(ua) ||
-                  // iPad on iPadOS 13+ reports as Mac in UA but is touch-only;
-                  // distinguish via the explicit iPad string or the
-                  // Mac+touch-only combination.
                   (/iPad/i.test(ua)) ||
                   (isMac && navigator.maxTouchPoints > 1)
   return { isMac, showTap }
 }
 
-const IDLE_MS = 5000
-
 export default function CmdKHint() {
   const { user } = useAuth()
-  const [idle, setIdle] = useState(false)
   const [platform] = useState(detectPlatform)
-  // Distance from the viewport bottom. Normally 16px (bottom-4), but when
-  // the site footer scrolls into view we lift the chip so it parks just
-  // above the footer instead of overlapping About/Privacy/Terms/©
-  // (Aden 2026-05-29).
-  const [bottomPx, setBottomPx] = useState(16)
-
-  useEffect(() => {
-    const GAP = 16
-    let raf = 0
-    const update = () => {
-      raf = 0
-      const footer = document.querySelector('footer')
-      const vh = window.innerHeight
-      if (!footer) { setBottomPx(16); return }
-      const top = footer.getBoundingClientRect().top
-      // Park GAP above the footer once it's on screen; otherwise rest at 16.
-      setBottomPx(Math.max(16, Math.round(vh - top + GAP)))
-    }
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
-    update()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-      if (raf) cancelAnimationFrame(raf)
-    }
-  }, [user])
-
-  // Idle fade — reset on any user motion, fade after 5s of stillness. The
-  // chip is a calm reminder, not a hover trap; fading it keeps the corner
-  // visually quiet during deep work.
-  useEffect(() => {
-    let timer
-    const armTimer = () => {
-      clearTimeout(timer)
-      setIdle(false)
-      timer = setTimeout(() => setIdle(true), IDLE_MS)
-    }
-    armTimer()
-    const events = ['mousemove', 'keydown', 'scroll', 'touchstart']
-    events.forEach(ev => window.addEventListener(ev, armTimer, { passive: true }))
-    return () => {
-      clearTimeout(timer)
-      events.forEach(ev => window.removeEventListener(ev, armTimer))
-    }
-  }, [])
 
   const openPalette = () => {
     // Mirror CommandPalette's hotkey listener so platform shortcut + click
@@ -103,21 +56,17 @@ export default function CmdKHint() {
       type="button"
       onClick={openPalette}
       aria-label="Open command palette"
-      // Hide on small screens — the Nav already exposes a Cmd-K button on
-      // mobile and the chip would crowd the footer. md+ only.
-      // transition-OPACITY only (not transition-all): `bottom` is updated
-      // per-scroll-frame to track above the footer, and animating it via a
-      // CSS transition made the chip stutter/"jump" as new values arrived
-      // mid-animation (Aden 2026-05-29). Opacity still eases for the idle fade.
-      className="hidden md:flex fixed right-4 z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity duration-300 ease-out group"
+      // Anchored to the footer (position: relative). Parks in the margin
+      // gap just above the footer's top border, right-aligned over the
+      // "© Tractova" cluster. md+ only — the Nav already exposes a Cmd-K
+      // button on mobile and the chip would crowd the stacked footer.
+      className="hidden md:flex absolute right-6 -top-6 z-20 items-center gap-2 rounded-md px-2.5 py-1.5 transition-shadow group"
       style={{
         // Solid white background — no glassmorphism (design-vocab
         // anti-pattern). The chip is chrome, not a translucent layer.
         background: '#FFFFFF',
         border: '1px solid #14B8A6',
-        boxShadow: '0 1px 0 rgba(15,118,110,0.08), 0 4px 12px rgba(10,24,40,0.06)',
-        opacity: idle ? 0.32 : 1,
-        bottom: bottomPx,
+        boxShadow: '0 1px 0 rgba(15,118,110,0.08), 0 4px 12px rgba(10,24,40,0.10)',
       }}
     >
       <span

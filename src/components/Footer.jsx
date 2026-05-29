@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useDataRefresh } from '../lib/useDataRefresh'
+import CmdKHint from './CmdKHint'
 
 // Relative-time formatter for the "Data refreshed" caption. Resolves to:
 //   <60s          → "just now"
@@ -65,6 +66,11 @@ export default function Footer() {
       className="border-t mt-10 relative z-10 transition-colors"
       style={{ background: scope.bg, borderColor: scope.border }}
     >
+      {/* ⌘K cue — static, parked in the margin gap just above the footer's
+          top border on the right, over the © cluster (Aden 2026-05-29). */}
+      <div className="max-w-dashboard mx-auto px-6 relative">
+        <CmdKHint />
+      </div>
       <div className="max-w-dashboard mx-auto px-6 py-5 flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-6">
         <div className="flex items-center gap-3 md:gap-6 flex-wrap">
           <span className="text-base font-serif font-semibold tracking-tight" style={{ letterSpacing: '-0.02em', color: scope.brand }}>Tractova</span>
