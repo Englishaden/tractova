@@ -18,12 +18,50 @@ import MountReveal from '../ui/MountReveal'
 // Mobile layout: stacks single-col; the MarketFiltersRail collapses to a
 // horizontal chip strip above the map (handled inside MarketFiltersRail).
 
-// V3 §4.1 inline component — Markets on the Move strip. Ship 2 will
-// extract + marquee-ify per the plan; for Ship 2.1 it stays inline here.
+// V3 §4.1 inline component — Markets on the Move ticker. Ship 2.2: now a
+// seamless dash-marquee of EVERY recent mover (was a static top-5 strip
+// with a "+N more" truncation). The track holds the chip list duplicated
+// so the -50% loop has no visible seam; hovering reverses direction
+// (Defillama trick) rather than pausing. CSS lives in index.css
+// (.dash-marquee / .dash-marquee-container).
+const formatAgo = (ts) => {
+  const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24))
+  if (days === 0) return 'today'
+  if (days === 1) return '1d ago'
+  if (days < 7)   return `${days}d ago`
+  return `${Math.floor(days / 7)}w ago`
+}
+
+function MoverChip({ s, onStateClick, ariaHidden }) {
+  const score = s.feasibilityScore ?? 0
+  const deltaColor = s.delta > 0 ? '#34D399' : s.delta < 0 ? '#F87171' : 'var(--text-muted)'
+  return (
+    <button
+      onClick={() => onStateClick(s.id)}
+      aria-hidden={ariaHidden ? 'true' : undefined}
+      tabIndex={ariaHidden ? -1 : 0}
+      className="group flex items-center gap-2 px-2.5 py-1 rounded-md transition-all shrink-0"
+      style={{ background: 'transparent', border: '1px solid var(--cards-border)' }}
+      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.06)'; e.currentTarget.style.borderColor = 'var(--hairline-teal)' }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--cards-border)' }}
+    >
+      <span className="text-sm font-semibold leading-none whitespace-nowrap" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
+      <span className="font-mono text-[11px] font-bold tabular-nums leading-none" style={{ color: score >= 60 ? '#34D399' : 'var(--text-label)' }}>{score}</span>
+      {s.delta !== null && s.delta !== 0 ? (
+        <span className="font-mono text-[10px] font-bold tabular-nums leading-none" style={{ color: deltaColor }}>
+          {s.delta > 0 ? '↑' : '↓'}{Math.abs(s.delta)}
+        </span>
+      ) : (
+        <span className="font-mono text-[9px] leading-none" style={{ color: 'var(--text-muted)' }}>{formatAgo(s.recencyTs)}</span>
+      )}
+    </button>
+  )
+}
+
 function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
-  const { displayed, overflowCount, hasDeltas } = useMemo(() => {
+  const { movers, hasDeltas } = useMemo(() => {
     const states = Object.values(stateProgramMap || {})
-    if (!states.length) return { displayed: [], overflowCount: 0, hasDeltas: false }
+    if (!states.length) return { movers: [], hasDeltas: false }
     const now = Date.now()
     const recent = states
       .filter(s => s.csStatus && s.csStatus !== 'none')
@@ -44,23 +82,14 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
           return b.recencyTs - a.recencyTs
         })
       : recent.slice().sort((a, b) => b.recencyTs - a.recencyTs)
-    const top = sorted.slice(0, 5)
-    return { displayed: top, overflowCount: Math.max(0, sorted.length - top.length), hasDeltas: deltasPresent }
+    return { movers: sorted, hasDeltas: deltasPresent }
   }, [stateProgramMap, deltaMap])
 
-  if (displayed.length === 0) return null
-
-  const formatAgo = (ts) => {
-    const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24))
-    if (days === 0) return 'today'
-    if (days === 1) return '1d ago'
-    if (days < 7)   return `${days}d ago`
-    return `${Math.floor(days / 7)}w ago`
-  }
+  if (movers.length === 0) return null
 
   return (
     <div className="rounded-md px-4 py-2.5" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)' }}>
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-2 shrink-0">
           <span className="relative flex w-1.5 h-1.5 shrink-0">
             <span className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping" style={{ background: '#14B8A6' }} />
@@ -73,37 +102,18 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
             · {hasDeltas ? 'WoW score deltas' : 'past 30 days'}
           </span>
         </div>
-        <span className="hidden sm:inline-block w-px h-4" style={{ background: 'var(--cards-border)' }} />
-        <div className="flex items-center gap-2 flex-wrap">
-          {displayed.map((s) => {
-            const score = s.feasibilityScore ?? 0
-            const deltaColor = s.delta > 0 ? '#34D399' : s.delta < 0 ? '#F87171' : 'var(--text-muted)'
-            return (
-              <button
-                key={s.id}
-                onClick={() => onStateClick(s.id)}
-                className="group flex items-center gap-2 px-2.5 py-1 rounded-md transition-all"
-                style={{ background: 'transparent', border: '1px solid var(--cards-border)' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.06)'; e.currentTarget.style.borderColor = 'var(--hairline-teal)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--cards-border)' }}
-              >
-                <span className="text-sm font-semibold leading-none" style={{ color: 'var(--text-primary)' }}>{s.name}</span>
-                <span className="font-mono text-[11px] font-bold tabular-nums leading-none" style={{ color: score >= 60 ? '#34D399' : 'var(--text-label)' }}>{score}</span>
-                {s.delta !== null && s.delta !== 0 ? (
-                  <span className="font-mono text-[10px] font-bold tabular-nums leading-none" style={{ color: deltaColor }}>
-                    {s.delta > 0 ? '↑' : '↓'}{Math.abs(s.delta)}
-                  </span>
-                ) : (
-                  <span className="font-mono text-[9px] leading-none" style={{ color: 'var(--text-muted)' }}>{formatAgo(s.recencyTs)}</span>
-                )}
-              </button>
-            )
-          })}
-          {overflowCount > 0 && (
-            <span className="font-mono text-[10px] px-2 py-1 leading-none" style={{ color: 'var(--text-muted)' }}>
-              +{overflowCount} more
-            </span>
-          )}
+        <span className="hidden sm:inline-block w-px h-4 shrink-0" style={{ background: 'var(--cards-border)' }} />
+        {/* Seamless ticker — chips duplicated so the -50% marquee loop has
+            no visible seam. Second copy is aria-hidden + untabbable. */}
+        <div className="dash-marquee-container flex-1 min-w-0">
+          <div className="dash-marquee">
+            {movers.map((s) => (
+              <MoverChip key={s.id} s={s} onStateClick={onStateClick} />
+            ))}
+            {movers.map((s) => (
+              <MoverChip key={`dup-${s.id}`} s={s} onStateClick={onStateClick} ariaHidden />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -174,9 +184,15 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
 
       {/* 3-col hero — Filters | Globe/Map | Intelligence Feed (or StateDetailPanel) */}
       <MountReveal delay={0.04}>
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
-          {/* Filters rail — full width on mobile, 2/12 on lg+ */}
-          <div className="lg:col-span-2 order-1">
+        {/* Hero grid resizes when a state is selected: globe track shrinks
+            (6fr→5fr), detail track grows (4fr→5fr). The globe re-projects in
+            step via its ResizeObserver, so it reads as a graceful shift. */}
+        <div
+          className="dash-hero-grid gap-2"
+          style={{ '--hero-cols': selectedState ? '2fr 5fr 5fr' : '2fr 6fr 4fr' }}
+        >
+          {/* Filters rail — full width on mobile, first track on lg+ */}
+          <div>
             <MarketFiltersRail
               stateProgramMap={stateProgramMap}
               newsSources={newsSources}
@@ -185,9 +201,9 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
             />
           </div>
 
-          {/* Map area — full width on mobile, 6/12 on lg+ */}
+          {/* Map area — full width on mobile, middle track on lg+ */}
           <div
-            className="lg:col-span-6 order-2 relative rounded-md overflow-hidden"
+            className="relative rounded-md overflow-hidden"
             style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '440px', maxHeight: '560px' }}
           >
             <div className="lp-hero-grid" aria-hidden="true" />
@@ -206,8 +222,8 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
             </div>
           </div>
 
-          {/* Intelligence feed / state detail — full width on mobile, 4/12 on lg+ */}
-          <div className="lg:col-span-4 order-3 flex flex-col" style={{ minHeight: '440px', maxHeight: '560px' }}>
+          {/* Intelligence feed / state detail — full width on mobile, last track on lg+ */}
+          <div className="flex flex-col" style={{ minHeight: '440px', maxHeight: '560px' }}>
             {selectedState ? (
               <StateDetailPanel
                 state={selectedState}

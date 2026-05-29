@@ -967,13 +967,13 @@ body:has(.dashboard-dark) {
   .dash-spotlight-enter { animation: none; opacity: 1; clip-path: none; }
 }
 
-/* Marquee — CSS-vars-as-props pattern (Defillama). Distinct from the
-   existing `.lp-marquee` (landing page, animates via translateX -50%
-   on a duplicated track). This one is simpler: 100% translate on a
-   single track for the "Markets on the Move" strip. */
+/* Marquee — CSS-vars-as-props pattern (Defillama). Drives the "Markets on
+   the Move" ticker. Like `.lp-marquee`, the track holds the items
+   DUPLICATED (two identical copies) and shifts by -50% so copy B lands
+   exactly where copy A began — the loop seam is invisible. */
 @keyframes dash-marquee {
   from { transform: translateX(0); }
-  to   { transform: translateX(-100%); }
+  to   { transform: translateX(-50%); }
 }
 .dash-marquee {
   --dash-marquee-gap: 20px;
@@ -981,11 +981,13 @@ body:has(.dashboard-dark) {
   --dash-marquee-direction: forwards;
   display: flex;
   width: max-content;
-  gap: var(--dash-marquee-gap);
-  padding-left: var(--dash-marquee-gap);
   animation: dash-marquee var(--dash-marquee-speed) linear infinite;
   animation-direction: var(--dash-marquee-direction);
 }
+/* Per-item trailing margin (not flex `gap`) so EVERY item — including the
+   last of each copy — carries uniform spacing. That makes the repeating
+   unit exactly (item + gap), so the -50% shift lands seamlessly. */
+.dash-marquee > * { margin-right: var(--dash-marquee-gap); }
 .dash-marquee-container { overflow: clip; }
 .dash-marquee-container:hover .dash-marquee {
   /* Hover REVERSES direction (Defillama trick) instead of pause —
@@ -1000,6 +1002,26 @@ body:has(.dashboard-dark) {
   .dash-marquee-container:hover .dash-marquee {
     --dash-marquee-direction: forwards;
   }
+}
+
+/* Dashboard hero grid — Filters | Globe | Feed/Detail. Mobile stacks to a
+   single column; at lg+ it becomes a 3-track grid whose proportions
+   animate. When the StateDetailPanel opens (--hero-cols flips), the globe
+   track shrinks and the detail track grows — the globe re-projects in step
+   via its ResizeObserver, so the resize reads as a graceful layout shift
+   rather than a hard swap. grid-template-columns is interpolable (fr→fr). */
+.dash-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1024px) {
+  .dash-hero-grid {
+    grid-template-columns: var(--hero-cols, 2fr 6fr 4fr);
+    transition: grid-template-columns 450ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-hero-grid { transition: none; }
 }
 
 /* Live-pulse dot — paired with text in eyebrow strips ("This Week" /
