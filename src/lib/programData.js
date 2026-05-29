@@ -718,6 +718,67 @@ export async function getCsProjectsAggByState() {
   })
 }
 
+// ── getCsSubscriptionMixByState ───────────────────────────────────────────────
+// 2026-05-28 Ship 2.2 (Markets & Policy tab) — operating CS capacity broken
+// out by SUBSCRIPTION CHANNEL per state, from LBNL/NREL Sharing the Sun
+// (`cs_projects.subscription_marketer`). This is the honest read of "who
+// subscribes / markets these projects": Utility-run, Third-party, or a
+// Combination. Source uses a handful of label variants ('Utility' vs
+// 'Utility-run', 'Third-party' vs 'Third Party', etc.) which we normalize
+// into four buckets; anything null / blank / unrecognized falls into
+// `unknown` (disclosed in the chart footer — NOT silently dropped).
+//
+// NB: Sharing the Sun does NOT publish a residential/commercial/municipal
+// subscriber split, so we don't fabricate one. MW sums use system_size_mw_ac.
+//
+// Returns: [{ stateId, total, utility, thirdParty, combination, unknown }]
+// (MW, rounded to 0.1) sorted by total MW desc. Cached 1h via withCache.
+export async function getCsSubscriptionMixByState() {
+  return withCache('cs_subscription_mix_by_state', async () => {
+    const { data, error } = await supabase
+      .from('cs_projects')
+      .select('state, subscription_marketer, system_size_mw_ac')
+      .range(0, 4999)
+    if (error) {
+      console.warn('[getCsSubscriptionMixByState] read failed:', error.message)
+      return []
+    }
+    if (!data || data.length === 0) return []
+
+    // Normalize the free-text marketer label into one of four buckets.
+    const bucketFor = (raw) => {
+      const s = String(raw || '').trim().toLowerCase()
+      if (!s) return 'unknown'
+      if (s.includes('combination') || s.includes('both') || s.includes('hybrid')) return 'combination'
+      if (s.includes('third') || s.includes('3rd') || s.includes('marketer')) return 'thirdParty'
+      if (s.includes('utility')) return 'utility'
+      return 'unknown'
+    }
+
+    const byState = new Map()
+    for (const row of data) {
+      if (!row.state) continue
+      const cur = byState.get(row.state) || { stateId: row.state, total: 0, utility: 0, thirdParty: 0, combination: 0, unknown: 0 }
+      const mw = Number(row.system_size_mw_ac) || 0
+      cur.total += mw
+      cur[bucketFor(row.subscription_marketer)] += mw
+      byState.set(row.state, cur)
+    }
+
+    const round1 = (n) => Math.round(n * 10) / 10
+    return Array.from(byState.values())
+      .map((r) => ({
+        stateId:     r.stateId,
+        total:       round1(r.total),
+        utility:     round1(r.utility),
+        thirdParty:  round1(r.thirdParty),
+        combination: round1(r.combination),
+        unknown:     round1(r.unknown),
+      }))
+      .sort((a, b) => b.total - a.total)
+  })
+}
+
 // ── getNewsFeed ───────────────────────────────────────────────────────────────
 // Returns active news items sorted by published_at descending.
 export async function getNewsFeed() {

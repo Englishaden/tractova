@@ -25,7 +25,7 @@ function toIsoWeek(d) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
 }
 
-export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8 }) {
+export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, label = 'Chart 04' }) {
   const [snaps, setSnaps] = useState(null)
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8 })
 
   return (
     <ChartCard
-      label="Chart 04"
+      label={label}
       title="Feasibility Score Movement"
       sub={hasData
         ? `8-week trailing scores for the ${topMovers.length} states with the largest score-range movement.`
