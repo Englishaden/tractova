@@ -595,18 +595,23 @@ export default function DashboardGlobe({
           const info = stateMap[tile.stateId]
           const isHover = hoverIdRef.current === tile.stateId
           const isSel = selId === tile.stateId
+          // No-program states (AK is csStatus 'none') fill near-identical to
+          // the tile bg, leaving the box looking empty (Aden 2026-05-29). Use
+          // a lighter slate fallback for those so the shape always reads, and
+          // always outline in teal.
+          const rawFill = fillForState(info, isHover, isSel)
           ctx.beginPath()
           ip(tile.f)
-          ctx.fillStyle = fillForState(info, isHover, isSel)
+          ctx.fillStyle = rawFill === '#1F2A3D' ? '#33445E' : rawFill
           ctx.fill()
-          ctx.strokeStyle = 'rgba(11,22,35,0.85)'
-          ctx.lineWidth = 0.5
+          ctx.strokeStyle = 'rgba(94,234,212,0.55)'
+          ctx.lineWidth = 0.8
           ctx.stroke()
           // Label
-          ctx.fillStyle = 'rgba(255,255,255,0.65)'
-          ctx.font = '700 8px JetBrains Mono, ui-monospace, monospace'
+          ctx.fillStyle = 'rgba(255,255,255,0.85)'
+          ctx.font = '700 9px JetBrains Mono, ui-monospace, monospace'
           ctx.textBaseline = 'alphabetic'
-          ctx.fillText(tile.stateId, box.x + 4, box.y + box.h - 3)
+          ctx.fillText(tile.stateId, box.x + 5, box.y + box.h - 4)
           regions.push({ stateId: tile.stateId, box, projection: proj, feature: tile.f })
         }
         ctx.globalAlpha = 1
