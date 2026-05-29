@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
-import { geoOrthographic, geoPath, geoGraticule, geoBounds } from 'd3-geo'
+import { geoOrthographic, geoPath, geoGraticule, geoBounds, geoMercator } from 'd3-geo'
 import { timer as d3Timer } from 'd3-timer'
 import { interpolate as d3Interpolate } from 'd3-interpolate'
 import { feature as topoFeature } from 'topojson-client'
@@ -50,6 +50,14 @@ const WORLD_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json'
 // US states (200KB at 10m — same topojson USMap uses).
 const STATES_URL = 'https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json'
 
+const DEG2RAD = Math.PI / 180
+
+// Alaska + Hawaii are drawn as bottom-left INSET tiles in the focused phase
+// (Aden 2026-05-29: "emulate those maps where alaska and HI are near
+// california and isolated"). They're skipped in the main orthographic
+// choropleth + hit-tests so they don't double-draw at distorted limb scale.
+const INSET_FIPS = new Set(['02', '15'])
+
 // FIPS → state-abbrev lookup (mirrors USMap.jsx)
 const FIPS = {
   "01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT",
@@ -93,6 +101,20 @@ function pointInPolygon(point, polygon) {
   }
   return inside
 }
+// Alaska's Aleutian chain wraps past the antimeridian (+170° lng) in the
+// raw us-atlas geometry. Left in, it makes geoBounds span nearly the whole
+// globe and fitExtent squishes the inset to a sliver. Drop the wrapped
+// (positive-longitude) polygons so the inset fits to mainland AK + the
+// negative-longitude Aleutians only.
+function sanitizeAlaska(feature) {
+  if (!feature || feature.geometry?.type !== 'MultiPolygon') return feature
+  const coords = feature.geometry.coordinates.filter((poly) => {
+    const ring = poly[0]
+    return ring && ring[0] && ring[0][0] < 0
+  })
+  return { ...feature, geometry: { ...feature.geometry, coordinates: coords } }
+}
+
 function pointInFeature(point, feature) {
   const geom = feature.geometry
   if (!geom) return false
@@ -121,13 +143,19 @@ function pointInFeature(point, feature) {
 // Same pattern as the Interactive Globe 1 skill: rasterize each land
 // feature into a lat/lng grid, keep points that fall inside. Done ONCE
 // at load time; dots are projected each frame.
-function generateDotsForFeatures(features, dotSpacing = 2.4) {
+// Each dot is a tuple [lng, lat, lngRad, sinLat, cosLat]; the trig is
+// precomputed once so the per-frame back-face cull is just a multiply-add
+// (no Math.sin/cos per dot per frame).
+function generateDotsForFeatures(features, dotSpacing = 2.6) {
   const dots = []
   for (const f of features) {
     const [[minLng, minLat], [maxLng, maxLat]] = geoBounds(f)
     for (let lng = minLng; lng <= maxLng; lng += dotSpacing) {
       for (let lat = minLat; lat <= maxLat; lat += dotSpacing) {
-        if (pointInFeature([lng, lat], f)) dots.push([lng, lat])
+        if (pointInFeature([lng, lat], f)) {
+          const latRad = lat * DEG2RAD
+          dots.push([lng, lat, lng * DEG2RAD, Math.sin(latRad), Math.cos(latRad)])
+        }
       }
     }
   }
@@ -145,12 +173,10 @@ const FOCUS_ROTATION  = [98, -38]  // [longitude, latitude] of central US (~Kans
 // 0.42 left ~half the container as dead negative space; 0.66 fills most
 // of the disc with the globe while keeping a small rim margin.
 const IDLE_SCALE_FRAC = 0.66
-// Focus scale bumped 1.0 → 1.6 per Aden: "the map of the US is too
-// zoomed out, so increase the size to fit the screen more." At 1.6× the
-// sphere radius exceeds the container by 60%, which means the visible
-// disc is a slice — the US fills it edge-to-edge while the Canadian
-// and Mexican rim still hint at globe curvature.
-const FOCUS_SCALE_FRAC = 1.6
+// Focus scale 1.6 → 1.9 (Aden 2026-05-29: "map needs to be ~20% larger to
+// fit the screen better and let them choose the states better"). At 1.9×
+// the US fills the disc edge-to-edge; states are larger + easier to click.
+const FOCUS_SCALE_FRAC = 1.9
 const TRANSITION_MS   = 1600        // total interpolation duration
 
 // ─── Component ───────────────────────────────────────────────────────────
@@ -199,6 +225,12 @@ export default function DashboardGlobe({
   const projectionRef = useRef(null)
   const pathRef = useRef(null)
   const containerSizeRef = useRef({ width: 0, height: 0 })
+  // stateId → topojson feature, built once after fetch so the render loop
+  // doesn't .find() through 51 features per marker per frame.
+  const stateFeatureByIdRef = useRef(new Map())
+  // Inset hit-test regions for AK/HI: [{ stateId, box, projection }] —
+  // rebuilt each focused frame so click/hover can map into the inset tiles.
+  const insetRegionsRef = useRef([])
 
   // Pulse phase for the delta-marker breathing animation (Phase 4 only).
   const pulsePhaseRef = useRef(0)
@@ -278,8 +310,15 @@ export default function DashboardGlobe({
         // Pre-generate dots ONCE — most expensive part. ~7000 dots at
         // dotSpacing=2.4 for the world's land mass; cheap to project + draw
         // each frame.
-        const dots = generateDotsForFeatures(worldFeatures, 2.4)
+        const dots = generateDotsForFeatures(worldFeatures, 2.6)
         dataRef.current = { worldFeatures, stateFeatures, dots }
+        // Build stateId → feature lookup once.
+        const byId = new Map()
+        for (const f of stateFeatures) {
+          const sid = FIPS[String(f.id).padStart(2, '0')]
+          if (sid) byId.set(sid, sid === 'AK' ? sanitizeAlaska(f) : f)
+        }
+        stateFeatureByIdRef.current = byId
         setReady(true)
       } catch (e) {
         console.warn('[DashboardGlobe] topojson fetch failed:', e?.message)
@@ -369,17 +408,32 @@ export default function DashboardGlobe({
         ctx.stroke()
       }
 
-      // 4) Halftone dots — fade out as we zoom in (dotOpacity ref)
+      // 4) Halftone dots — fade out as we zoom in (dotOpacity ref).
+      //    Perf (Aden 2026-05-29 "optimize FPS"): (a) back-face cull — skip
+      //    dots on the far hemisphere via a precomputed-trig dot product
+      //    against the projection center, which also kills the old
+      //    overdraw-through-the-sphere bug; (b) ONE batched path + a single
+      //    fill() instead of begin/arc/fill per dot (thousands of fills/frame
+      //    → one).
       if (dotOpacityRef.current > 0.01 && dots.length > 0) {
+        const rot = rotationRef.current
+        const cLng = -rot[0] * DEG2RAD
+        const cLat = -rot[1] * DEG2RAD
+        const sinCLat = Math.sin(cLat)
+        const cosCLat = Math.cos(cLat)
         ctx.globalAlpha = dotOpacityRef.current
         ctx.fillStyle = 'rgba(94, 234, 212, 0.55)'
-        for (const [lng, lat] of dots) {
-          const p = projection([lng, lat])
+        ctx.beginPath()
+        for (const d of dots) {
+          // d = [lng, lat, lngRad, sinLat, cosLat]
+          const cosC = sinCLat * d[3] + cosCLat * d[4] * Math.cos(d[2] - cLng)
+          if (cosC <= 0.03) continue // far hemisphere / limb
+          const p = projection([d[0], d[1]])
           if (!p) continue
-          ctx.beginPath()
+          ctx.moveTo(p[0] + 1.1, p[1])
           ctx.arc(p[0], p[1], 1.1, 0, 2 * Math.PI)
-          ctx.fill()
         }
+        ctx.fill()
         ctx.globalAlpha = 1
       }
 
@@ -390,6 +444,7 @@ export default function DashboardGlobe({
         const selId = selectedIdRef.current
         for (const f of stateFeatures) {
           const fips = String(f.id).padStart(2, '0')
+          if (INSET_FIPS.has(fips)) continue // AK/HI drawn as insets
           const stateId = FIPS[fips]
           const info = stateMap[stateId]
           // Draw fill (skip if no data row — e.g. DC)
@@ -463,8 +518,8 @@ export default function DashboardGlobe({
         const pulse = (Math.sin(pulsePhaseRef.current * 1.4) + 1) / 2 // 0..1
         const maxCount = Math.max(...live.map((m) => m.count || 1), 1)
         for (const m of live) {
-          // Lookup the state's centroid via the topojson feature.
-          const f = stateFeatures.find((sf) => FIPS[String(sf.id).padStart(2, '0')] === m.stateId)
+          // Lookup the state's feature via the precomputed map (no per-frame find).
+          const f = stateFeatureByIdRef.current.get(m.stateId)
           if (!f) continue
           const cent = path.centroid(f)
           if (!cent || isNaN(cent[0])) continue
@@ -497,6 +552,62 @@ export default function DashboardGlobe({
       ctx.strokeStyle = 'rgba(20, 184, 166, 0.35)'
       ctx.lineWidth = 1
       ctx.stroke()
+
+      // 8) AK / HI inset tiles — bottom-left, only in the focused phase.
+      //    Each is its own small Mercator fit so the two off-CONUS states
+      //    are visible + clickable instead of distorted on the limb (or off
+      //    screen entirely, as HI was). Hit-test regions stashed in a ref.
+      if (stateOpacityRef.current > 0.5) {
+        const tileW = Math.max(50, Math.round(width * 0.16))
+        const tileH = Math.round(tileW * 0.7)
+        const margin = 8
+        const gap = 6
+        const tiles = [
+          { stateId: 'AK', f: stateFeatureByIdRef.current.get('AK'), x: margin, y: height - margin - tileH * 2 - gap },
+          { stateId: 'HI', f: stateFeatureByIdRef.current.get('HI'), x: margin, y: height - margin - tileH },
+        ]
+        const regions = []
+        ctx.globalAlpha = stateOpacityRef.current
+        for (const tile of tiles) {
+          if (!tile.f) continue
+          const box = { x: tile.x, y: tile.y, w: tileW, h: tileH }
+          // Tile background + hairline
+          ctx.beginPath()
+          ctx.rect(box.x, box.y, box.w, box.h)
+          ctx.fillStyle = 'rgba(11,22,35,0.72)'
+          ctx.fill()
+          ctx.strokeStyle = 'rgba(20,184,166,0.30)'
+          ctx.lineWidth = 1
+          ctx.stroke()
+          // Fit the feature into the tile (leave room for the label band)
+          const labelH = 12
+          const proj = geoMercator().fitExtent(
+            [[box.x + 4, box.y + 4], [box.x + box.w - 4, box.y + box.h - labelH]],
+            tile.f,
+          )
+          const ip = geoPath(proj).context(ctx)
+          const info = stateMap[tile.stateId]
+          const isHover = hoverIdRef.current === tile.stateId
+          const isSel = selId === tile.stateId
+          ctx.beginPath()
+          ip(tile.f)
+          ctx.fillStyle = fillForState(info, isHover, isSel)
+          ctx.fill()
+          ctx.strokeStyle = 'rgba(11,22,35,0.85)'
+          ctx.lineWidth = 0.5
+          ctx.stroke()
+          // Label
+          ctx.fillStyle = 'rgba(255,255,255,0.65)'
+          ctx.font = '700 8px JetBrains Mono, ui-monospace, monospace'
+          ctx.textBaseline = 'alphabetic'
+          ctx.fillText(tile.stateId, box.x + 4, box.y + box.h - 3)
+          regions.push({ stateId: tile.stateId, box, projection: proj, feature: tile.f })
+        }
+        ctx.globalAlpha = 1
+        insetRegionsRef.current = regions
+      } else {
+        insetRegionsRef.current = []
+      }
     }
 
     // ── Animation timer ───────────────────────────────────────────────
@@ -583,7 +694,17 @@ export default function DashboardGlobe({
       canvas._startTransition?.('focus')
       return
     }
-    // Focused — hit-test
+    // Focused — first check the AK/HI inset tiles (a click anywhere in the
+    // tile selects that state; the polygons are too small to demand a
+    // pixel-perfect hit).
+    for (const region of insetRegionsRef.current) {
+      const b = region.box
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        if (onStateClick) onStateClick(region.stateId)
+        return
+      }
+    }
+    // Then the main orthographic hit-test (AK/HI excluded — they're insets)
     const proj = projectionRef.current
     if (!proj) return
     const lngLat = proj.invert?.([x, y])
@@ -591,8 +712,9 @@ export default function DashboardGlobe({
     const stateFeatures = dataRef.current.stateFeatures
     if (!stateFeatures) return
     for (const f of stateFeatures) {
+      const fips = String(f.id).padStart(2, '0')
+      if (INSET_FIPS.has(fips)) continue
       if (pointInFeature(lngLat, f)) {
-        const fips = String(f.id).padStart(2, '0')
         const stateId = FIPS[fips]
         if (stateId && onStateClick) onStateClick(stateId)
         return
@@ -614,6 +736,19 @@ export default function DashboardGlobe({
     const rect = canvas.getBoundingClientRect()
     const x = evt.clientX - rect.left
     const y = evt.clientY - rect.top
+    // AK/HI inset tiles first.
+    for (const region of insetRegionsRef.current) {
+      const b = region.box
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        if (region.stateId !== hoverIdRef.current) {
+          hoverIdRef.current = region.stateId
+          setHover({ stateId: region.stateId, x: evt.clientX, y: evt.clientY })
+        } else {
+          setHover((h) => h ? { ...h, x: evt.clientX, y: evt.clientY } : null)
+        }
+        return
+      }
+    }
     const proj = projectionRef.current
     if (!proj) return
     const lngLat = proj.invert?.([x, y])
@@ -624,8 +759,9 @@ export default function DashboardGlobe({
     const stateFeatures = dataRef.current.stateFeatures
     if (!stateFeatures) return
     for (const f of stateFeatures) {
+      const fips = String(f.id).padStart(2, '0')
+      if (INSET_FIPS.has(fips)) continue
       if (pointInFeature(lngLat, f)) {
-        const fips = String(f.id).padStart(2, '0')
         const stateId = FIPS[fips]
         if (stateId !== hoverIdRef.current) {
           hoverIdRef.current = stateId
@@ -668,7 +804,7 @@ export default function DashboardGlobe({
     <div className="flex items-center justify-center w-full h-full p-2">
       <div
         ref={containerRef}
-        className="relative aspect-square w-full max-w-[560px] mx-auto"
+        className="relative aspect-square w-full max-w-[660px] mx-auto"
       >
         <canvas
           ref={canvasRef}

@@ -204,13 +204,23 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
           {/* Map area — full width on mobile, middle track on lg+ */}
           <div
             className="relative rounded-md overflow-hidden"
-            style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '440px', maxHeight: '560px' }}
+            style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '470px', maxHeight: '600px' }}
           >
             <div className="lp-hero-grid" aria-hidden="true" />
+            {/* Aurora — slow GPU-composited (transform-only) drifting blobs
+                behind the map so the panel isn't a flat navy slab. Sits above
+                the grid but below the vignette + globe; very low contrast so
+                it never fights the choropleth (Aden 2026-05-29: "add a cool
+                background … its very bland right now"). */}
+            <div className="dash-map-aurora" aria-hidden="true">
+              <span className="dash-map-aurora__blob dash-map-aurora__blob--1" />
+              <span className="dash-map-aurora__blob dash-map-aurora__blob--2" />
+              <span className="dash-map-aurora__blob dash-map-aurora__blob--3" />
+            </div>
             <div
               aria-hidden="true"
               className="absolute inset-0 pointer-events-none"
-              style={{ background: 'radial-gradient(circle at 50% 50%, rgba(20,184,166,0.10) 0%, rgba(11,22,35,0.65) 75%)' }}
+              style={{ background: 'radial-gradient(circle at 50% 50%, rgba(20,184,166,0.08) 0%, rgba(11,22,35,0.55) 78%)' }}
             />
             <div className="relative z-10 w-full h-full">
               <DashboardGlobe
@@ -223,7 +233,7 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
           </div>
 
           {/* Intelligence feed / state detail — full width on mobile, last track on lg+ */}
-          <div className="flex flex-col" style={{ minHeight: '440px', maxHeight: '560px' }}>
+          <div className="flex flex-col" style={{ minHeight: '470px', maxHeight: '600px' }}>
             {selectedState ? (
               <StateDetailPanel
                 state={selectedState}

@@ -1017,6 +1017,58 @@ body:has(.dashboard-dark) {
   .dash-hero-grid { transition: none; }
 }
 
+/* Dashboard map aurora — three big blurred radial blobs drifting slowly
+   behind the globe. Animated via transform only (translate/scale) so it
+   stays on the compositor and never costs the globe's frame budget. Low
+   opacity + heavy blur = ambient depth, not a focal element. */
+.dash-map-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.dash-map-aurora__blob {
+  position: absolute;
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  filter: blur(46px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.dash-map-aurora__blob--1 {
+  top: -8%; left: -6%;
+  background: radial-gradient(circle, rgba(20,184,166,0.32) 0%, transparent 70%);
+  animation: dash-aurora-1 26s ease-in-out infinite;
+}
+.dash-map-aurora__blob--2 {
+  bottom: -12%; right: -8%;
+  background: radial-gradient(circle, rgba(94,234,212,0.22) 0%, transparent 70%);
+  animation: dash-aurora-2 32s ease-in-out infinite;
+}
+.dash-map-aurora__blob--3 {
+  top: 30%; left: 40%;
+  width: 38%;
+  background: radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%);
+  animation: dash-aurora-3 38s ease-in-out infinite;
+}
+@keyframes dash-aurora-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(18%, 12%) scale(1.18); }
+}
+@keyframes dash-aurora-2 {
+  0%, 100% { transform: translate(0, 0) scale(1.1); }
+  50%      { transform: translate(-16%, -10%) scale(0.9); }
+}
+@keyframes dash-aurora-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-14%, 14%) scale(1.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dash-map-aurora__blob { animation: none; }
+}
+
 /* Live-pulse dot — paired with text in eyebrow strips ("This Week" /
    "Live") to signal active data. Same shape as the existing breath dot
    in MarketsOnTheMove but smaller + teal-locked. */
