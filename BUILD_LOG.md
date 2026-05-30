@@ -6,9 +6,11 @@
 
 ## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.13: Analytics rd4 (LMI label fix · expand distortion fix · condense)
 
-**Product now.** Dashboard = tab terminal. Analytics rd4 = Aden's review of v2.12. Commit pending.
+**Product now.** Dashboard = tab terminal. Analytics rd4 = Aden's review of v2.12. Commit `3f39cd2` (charts) + animated-icons follow-up.
 
 **Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **Animated icons (native JSX wrapper, not the lucide-animated TSX registry)** — `src/components/ui/AnimatedIcon.jsx` wraps any `lucide-react` icon with `motion/react` hover variants (bob/nudge/spin/pulse/wiggle/pop), reduced-motion safe. Chosen over `npx shadcn add @lucide-animated/*` because the repo is JSX (`components.json` tsx:false) and that registry ships ~435 one-per-command TSX files. Documented in `Skills/Animated Icons.md`. Ready to apply across Lens/Glossary/Library; not yet wired into a surface (point me at where).
+- **Skills 2nd-wave sweep** running (Magic/Aceternity/Kibo/Tremor/Cult UI) — proposal incoming, add-on-approval.
 - **LMI "Natl ~38%" label overlap killed for good** — removed the on-chart ReferenceLine text label (it clipped the top row no matter the margin); the dashed amber line stays as the median marker and the subtitle now reads "Δ vs the ~38% national median (amber line)". `margin.top` reverted to 6.
 - **Expand/collapse distortion fixed** — the bento used framer `layout` (full), which applies a width/height SCALE transform during the spring → the chart SVG text stretched mid-animation. Switched to `layout="position"` (`LAYOUT` const) so only the TRANSLATE animates; size snaps, positions glide, no distortion. Reduced-motion still disables it.
 - **Condensed** — `TILE_H.feature 200→176`, `ribbon 88→84`, `expanded 320→300`, `hero 220→200`; header padding `pt-3 pb-2 → pt-2.5 pb-1.5`; grid gap `2.5→2`. Expandable headers get a faint teal hover tint as the click affordance.
