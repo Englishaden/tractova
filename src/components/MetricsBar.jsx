@@ -237,19 +237,15 @@ function PipelineSplitReveal({ programs }) {
           </p>
         </div>
       </div>
-      <ul className="space-y-0.5 pt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
-        {topStates.map((s, i) => (
-          <li key={s.id} className="flex items-center justify-between gap-2">
-            <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>
-              <span className="font-mono mr-1" style={{ color: 'var(--text-muted)' }}>{String(i + 1).padStart(2, '0')}</span>
-              {s.name}
-            </span>
-            <span className="font-mono text-[10px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
-              {(s.capacityMW || 0).toLocaleString()} MW
-            </span>
-          </li>
-        ))}
-      </ul>
+      {/* Top states as the same Bar List treatment used by CS Coverage /
+          Avg Capacity, so every state-ranking reveal reads consistently. */}
+      <div className="pt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
+        <BarListRows
+          rows={topStates.map((s) => ({ ...s, value: s.capacityMW || 0 }))}
+          valueFormatter={(s) => `${(s.capacityMW || 0).toLocaleString()} MW`}
+          sub="Top 3 by MW"
+        />
+      </div>
     </div>
   )
 }

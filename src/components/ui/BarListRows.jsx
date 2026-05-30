@@ -20,7 +20,9 @@ import AnimatedList from './AnimatedList'
 export default function BarListRows({
   rows = [],
   valueFormatter = (v) => v,
-  color = 'rgba(20,184,166,0.22)',   // bar fill (teal, low alpha)
+  // Bar fill — a teal gradient (bright leading edge → faded tail) so the bar
+  // reads as an obvious proportional bar against the dark card, not a hairline.
+  color = 'linear-gradient(90deg, rgba(20,184,166,0.42), rgba(20,184,166,0.10))',
   sub,
 }) {
   if (!rows || rows.length === 0) {
@@ -41,15 +43,16 @@ export default function BarListRows({
         {rows.map((r) => {
           const pct = Math.max(2, ((Number(r.value) || 0) / max) * 100)
           return (
-            <div key={r.id ?? r.name} className="relative overflow-hidden rounded-sm">
-              {/* proportional bar */}
+            <div key={r.id ?? r.name} className="relative overflow-hidden rounded-sm" style={{ background: 'rgba(255,255,255,0.03)' }}>
+              {/* proportional bar — bright teal left edge marks every row even
+                  when the value (and thus the bar) is tiny */}
               <div
                 className="absolute inset-y-0 left-0 rounded-sm"
-                style={{ width: `${pct}%`, background: color }}
+                style={{ width: `${pct}%`, background: color, borderLeft: '2px solid #2DD4BF' }}
                 aria-hidden="true"
               />
               {/* label + value sit on top of the bar */}
-              <div className="relative flex items-center justify-between gap-2 px-1.5 py-1">
+              <div className="relative flex items-center justify-between gap-2 px-2 py-1.5">
                 <span className="text-[11px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                   {r.name}
                 </span>
