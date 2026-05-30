@@ -50,8 +50,8 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     return () => { cancelled = true }
   }, [])
 
-  const { data, maxAbs, total } = useMemo(() => {
-    if (!rows) return { data: [], maxAbs: 5, total: 0 }
+  const { data, domain, total } = useMemo(() => {
+    if (!rows) return { data: [], domain: [-1, 5], total: 0 }
     const filterSet = new Set(filterStates)
     const all = rows
       .filter((r) => (filterSet.size === 0 || filterSet.has(r.state)) && r.lmi_pct != null)
@@ -60,18 +60,26 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
         return { name: r.state, pct, delta: Math.round((pct - NATL_MEDIAN) * 10) / 10, households: r.lmi_households }
       })
       .sort((a, b) => b.pct - a.pct)
-    const shown = isExpanded ? all : all.slice(0, 7)
-    const m = shown.reduce((mx, x) => Math.max(mx, Math.abs(x.delta)), 0)
-    return { data: shown, maxAbs: Math.ceil(m + 1), total: all.length }
+    // Cap expanded at top 20 (matches the projects chart) so the tile doesn't
+    // elongate to 50 rows tall (Aden 2026-05-30).
+    const shown = isExpanded ? all.slice(0, 20) : all.slice(0, 7)
+    // FIT the x-axis to the data spread. Nearly every seeded state sits ABOVE
+    // the ~38% median, so a symmetric [-max, max] domain wasted the whole left
+    // half and bunched every dot at the right edge ("too elongated"). Anchor at
+    // 0 (the median line) and run to the max with light padding.
+    let dmin = 0, dmax = 0
+    for (const d of shown) { if (d.delta < dmin) dmin = d.delta; if (d.delta > dmax) dmax = d.delta }
+    const pad = Math.max(0.5, (dmax - dmin) * 0.06)
+    return { data: shown, domain: [Math.floor(dmin - pad), Math.ceil(dmax + pad)], total: all.length }
   }, [rows, filterStates, isExpanded])
 
-  const chartH = isExpanded ? Math.max(TILE_H.expanded, data.length * 20) : TILE_H.feature
+  const chartH = isExpanded ? Math.max(TILE_H.expanded, data.length * 18) : TILE_H.feature
 
   return (
     <ChartCard
       label="EQUITY"
       title="LMI Penetration by State"
-      sub={`Δ vs the ~${NATL_MEDIAN}% national median (amber line) · ${isExpanded ? `all ${total} seeded states` : `top 7 of ${total}`} by LMI share (≤80% AMI).`}
+      sub={`Δ vs the ~${NATL_MEDIAN}% national median (amber line) · ${isExpanded ? `top 20 of ${total}` : `top 7 of ${total}`} seeded states by LMI share (≤80% AMI).`}
       footer="Source: US Census ACS 2018–2022 5-year estimates (api.census.gov). Seeded states only; non-seeded omitted rather than back-filled with the national median."
       className="h-full"
       expandable
@@ -83,7 +91,7 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
           <ComposedChart data={data} layout="vertical" margin={{ top: 6, right: 18, left: 4, bottom: 4 }}>
             <XAxis
               type="number"
-              domain={[-maxAbs, maxAbs]}
+              domain={domain}
               tick={CHART_AXIS.tick}
               axisLine={CHART_AXIS.axisLine}
               tickLine={false}

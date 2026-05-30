@@ -4,9 +4,18 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.13: Analytics rd4 (LMI label fix · expand distortion fix · condense)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.14: Analytics rd5 (LMI de-elongate · slower expand · meld-around reflow)
 
-**Product now.** Dashboard = tab terminal. Analytics rd4 = Aden's review of v2.12. Commit `3f39cd2` (charts) + animated-icons follow-up.
+**Product now.** Dashboard = tab terminal. Analytics rd5 = Aden's review of v2.13. Commit pending.
+
+**Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **LMI de-elongated (both axes)** — (a) horizontal: replaced the symmetric `[-maxAbs, maxAbs]` x-domain with a data-fitted `[floor(dmin-pad), ceil(dmax+pad)]`. Nearly every seeded state sits ABOVE the ~38% median, so the symmetric domain wasted the entire left half and bunched all dots at the right edge. Now the axis anchors at 0 (median line) and runs to the real max. (b) vertical: expanded view caps at **top 20** (was all 51), matching the projects chart; row pitch 20→18px.
+- **Expand transition slowed + smoothed** — `SPRING` stiffness 380→130, damping 38→24 (added mass:1). The reflow is now a clearly-visible, smooth settle instead of a snap.
+- **"Meld-around" reflow** — expanded tiles grow to **col-span-8** (not full 12). The clicked chart stays anchored in place and its neighbours flow around it (one tucks into the remaining 4 cols, the rest reflow below), instead of the tile jumping to its own full-width row ("chasing the chart you opened"). Still `layout="position"` so no SVG-text distortion.
+
+<details><summary>v2.13 (superseded same-day) — LMI label fix · expand distortion fix · condense</summary>
+
+**Commit `3f39cd2` (charts) + `af9cf35` (animated-icons + Skills).**
 
 **Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
 - **Animated icons (native JSX wrapper, not the lucide-animated TSX registry)** — `src/components/ui/AnimatedIcon.jsx` wraps any `lucide-react` icon with `motion/react` hover variants (bob/nudge/spin/pulse/wiggle/pop), reduced-motion safe. Chosen over `npx shadcn add @lucide-animated/*` because the repo is JSX (`components.json` tsx:false) and that registry ships ~435 one-per-command TSX files. Documented in `Skills/Animated Icons.md`. Ready to apply across Lens/Glossary/Library; not yet wired into a surface (point me at where).
@@ -14,12 +23,9 @@
 - **LMI "Natl ~38%" label overlap killed for good** — removed the on-chart ReferenceLine text label (it clipped the top row no matter the margin); the dashed amber line stays as the median marker and the subtitle now reads "Δ vs the ~38% national median (amber line)". `margin.top` reverted to 6.
 - **Expand/collapse distortion fixed** — the bento used framer `layout` (full), which applies a width/height SCALE transform during the spring → the chart SVG text stretched mid-animation. Switched to `layout="position"` (`LAYOUT` const) so only the TRANSLATE animates; size snaps, positions glide, no distortion. Reduced-motion still disables it.
 - **Condensed** — `TILE_H.feature 200→176`, `ribbon 88→84`, `expanded 320→300`, `hero 220→200`; header padding `pt-3 pb-2 → pt-2.5 pb-1.5`; grid gap `2.5→2`. Expandable headers get a faint teal hover tint as the click affordance.
+</details>
 
-
-
-**Product now.** Dashboard = tab terminal. Analytics rd3 = Aden's review of v2.11. Commit `4278d24`.
-
-<details><summary>v2.12 (superseded same-day) — globe live-only dots · header-click expand · KISS</summary>
+<details><summary>v2.12 (superseded same-day) — globe live-only dots · header-click expand · KISS — commit `4278d24`</summary>
 
 - **Globe: only LIVE library dots render** — removed the decorative halftone land-stipple dots (block 4) AND the idle feasibility-score markers (block 6) in `DashboardGlobe.jsx`. The only dots now are the pulsing LIVE markers from the user's saved library (block 6b). `dots`/`topStateCoords` retained but unused (no render).
 - **Sidebar hover tooltips removed** — dropped the native `title` tooltips on Expand-sidebar / Home / Analytics / Run-a-Lens (icons + `aria-label` kept for a11y). `DashboardSidebar.jsx`.

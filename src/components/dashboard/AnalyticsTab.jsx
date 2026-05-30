@@ -38,7 +38,9 @@ function ChartsSkeleton() {
   )
 }
 
-const SPRING = { type: 'spring', stiffness: 380, damping: 38 }
+// Slower, clearly-visible settle (Aden 2026-05-30 "slow it down so the
+// transition is viewable"). A gentle spring reads as smooth, not snappy.
+const SPRING = { type: 'spring', stiffness: 130, damping: 24, mass: 1 }
 
 export default function AnalyticsTab() {
   const [programs, setPrograms] = useState([])
@@ -90,8 +92,12 @@ export default function AnalyticsTab() {
       return next
     })
   }
-  // collapsed col-span per tile; expanded tiles go full-width so siblings reflow.
-  const span = (key, base) => (isOpen(key) ? 'lg:col-span-12' : base)
+  // Expanded tiles grow to 8/12 (NOT full 12) so the clicked chart stays in
+  // place and its neighbours MELD AROUND it — one sibling tucks into the
+  // remaining 4 cols, the rest reflow below. Full-width pushed the clicked
+  // tile onto its own row, which read as "the chart you opened moved away"
+  // (Aden 2026-05-30). col-span-8 keeps it anchored.
+  const span = (key, base) => (isOpen(key) ? 'lg:col-span-8' : base)
 
   return (
     <div className="relative">
