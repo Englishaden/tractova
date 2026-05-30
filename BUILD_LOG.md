@@ -4,11 +4,21 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.12: Analytics rd3 polish (globe live-only dots · header-click expand · KISS)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.13: Analytics rd4 (LMI label fix · expand distortion fix · condense)
 
-**Product now.** Dashboard = tab terminal. Analytics rd3 = Aden's review of v2.11. Commit pending.
+**Product now.** Dashboard = tab terminal. Analytics rd4 = Aden's review of v2.12. Commit pending.
 
 **Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **LMI "Natl ~38%" label overlap killed for good** — removed the on-chart ReferenceLine text label (it clipped the top row no matter the margin); the dashed amber line stays as the median marker and the subtitle now reads "Δ vs the ~38% national median (amber line)". `margin.top` reverted to 6.
+- **Expand/collapse distortion fixed** — the bento used framer `layout` (full), which applies a width/height SCALE transform during the spring → the chart SVG text stretched mid-animation. Switched to `layout="position"` (`LAYOUT` const) so only the TRANSLATE animates; size snaps, positions glide, no distortion. Reduced-motion still disables it.
+- **Condensed** — `TILE_H.feature 200→176`, `ribbon 88→84`, `expanded 320→300`, `hero 220→200`; header padding `pt-3 pb-2 → pt-2.5 pb-1.5`; grid gap `2.5→2`. Expandable headers get a faint teal hover tint as the click affordance.
+
+
+
+**Product now.** Dashboard = tab terminal. Analytics rd3 = Aden's review of v2.11. Commit `4278d24`.
+
+<details><summary>v2.12 (superseded same-day) — globe live-only dots · header-click expand · KISS</summary>
+
 - **Globe: only LIVE library dots render** — removed the decorative halftone land-stipple dots (block 4) AND the idle feasibility-score markers (block 6) in `DashboardGlobe.jsx`. The only dots now are the pulsing LIVE markers from the user's saved library (block 6b). `dots`/`topStateCoords` retained but unused (no render).
 - **Sidebar hover tooltips removed** — dropped the native `title` tooltips on Expand-sidebar / Home / Analytics / Run-a-Lens (icons + `aria-label` kept for a11y). `DashboardSidebar.jsx`.
 - **KPI card hover-tooltip shrunk ~35%** — `max-w-280→180`, `px-3 py-2→px-2 py-1.5`, body `12px→10px`, label `9px→8px`, terser copy ("Click to expand."). Per-instance override in `MetricsBar.jsx`; other tooltips unaffected.
@@ -16,6 +26,7 @@
 - **LMI label clipping fixed** — the "Natl ~38%" reference label was cut off at the top; chart `margin.top 6→22` + label `position top→insideTopLeft`.
 - **Header-click expand (KISS)** — charts now expand by clicking ANYWHERE in the header (like the KPI cards), not just the arrow; whole header is `role=button` + keyboard-accessible; the expand glyph is now a passive indicator. `headerRight` children stopPropagation.
 - **Removed the Lin/Log toggle** — confusing for non-analyst users (KISS); projects dot plot is linear-only now. Dropped `ChartToggle` usage.
+</details>
 
 
 

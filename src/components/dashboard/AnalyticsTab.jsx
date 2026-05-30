@@ -74,6 +74,13 @@ export default function AnalyticsTab() {
   }
   const clearAll = () => setFilterStates([])
 
+  // layout="position" (not full layout): animate only the TRANSLATE of
+  // reflowing tiles — never a width/height SCALE transform. The scale
+  // transform was what briefly distorted the chart SVG text on expand/
+  // collapse (Aden 2026-05-30). Size now snaps; positions glide. Reduced
+  // motion disables it entirely.
+  const LAYOUT = reduced ? false : 'position'
+
   const isOpen = (key) => expanded.has(key)
   const toggleExpand = (key) => {
     setExpanded((cur) => {
@@ -180,29 +187,29 @@ export default function AnalyticsTab() {
         {!ready ? (
           <ChartsSkeleton />
         ) : (
-          <motion.div layout={!reduced} transition={SPRING} className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
-            <motion.div layout={!reduced} transition={SPRING} className="lg:col-span-12">
+          <motion.div layout={LAYOUT} transition={SPRING} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch">
+            <motion.div layout={LAYOUT} transition={SPRING} className="lg:col-span-12">
               <CsProgramStatusBar programs={programs} filterStates={filterStates} />
             </motion.div>
 
-            <motion.div layout={!reduced} transition={SPRING} className={span('capacity', 'lg:col-span-4')}>
+            <motion.div layout={LAYOUT} transition={SPRING} className={span('capacity', 'lg:col-span-4')}>
               <CsCapacityLeaderboard programs={programs} filterStates={filterStates} isExpanded={isOpen('capacity')} onToggleExpand={() => toggleExpand('capacity')} />
             </motion.div>
-            <motion.div layout={!reduced} transition={SPRING} className={span('ix', 'lg:col-span-4')}>
+            <motion.div layout={LAYOUT} transition={SPRING} className={span('ix', 'lg:col-span-4')}>
               <IxDifficultyDonut programs={programs} filterStates={filterStates} isExpanded={isOpen('ix')} onToggleExpand={() => toggleExpand('ix')} />
             </motion.div>
-            <motion.div layout={!reduced} transition={SPRING} className={span('projects', 'lg:col-span-4')}>
+            <motion.div layout={LAYOUT} transition={SPRING} className={span('projects', 'lg:col-span-4')}>
               <OperatingCsProjectsDot filterStates={filterStates} isExpanded={isOpen('projects')} onToggleExpand={() => toggleExpand('projects')} />
             </motion.div>
 
-            <motion.div layout={!reduced} transition={SPRING} className={span('lmi', 'lg:col-span-6')}>
+            <motion.div layout={LAYOUT} transition={SPRING} className={span('lmi', 'lg:col-span-6')}>
               <LmiDivergingLollipop filterStates={filterStates} isExpanded={isOpen('lmi')} onToggleExpand={() => toggleExpand('lmi')} />
             </motion.div>
-            <motion.div layout={!reduced} transition={SPRING} className={span('trends', 'lg:col-span-6')}>
+            <motion.div layout={LAYOUT} transition={SPRING} className={span('trends', 'lg:col-span-6')}>
               <FeasibilityScoreDeltas filterStates={filterStates} weeks={8} label="TRENDS" expandable isExpanded={isOpen('trends')} onToggleExpand={() => toggleExpand('trends')} />
             </motion.div>
 
-            <motion.div layout={!reduced} transition={SPRING} className="lg:col-span-12">
+            <motion.div layout={LAYOUT} transition={SPRING} className="lg:col-span-12">
               <PolicyPulseStacked series={history?.policyPulseByPillar || []} isExpanded={isOpen('policy')} onToggleExpand={() => toggleExpand('policy')} />
             </motion.div>
           </motion.div>

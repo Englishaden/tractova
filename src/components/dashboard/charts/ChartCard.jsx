@@ -21,7 +21,7 @@ import { useState } from 'react'
 
 // Standard tile chart-body heights so bento rows line up. Compact by
 // default so the page nearly fits one screen; charts grow when expanded.
-export const TILE_H = { ribbon: 88, feature: 200, expanded: 320, hero: 220 }
+export const TILE_H = { ribbon: 84, feature: 176, expanded: 300, hero: 200 }
 
 export default function ChartCard({
   label,            // semantic category eyebrow (e.g. 'CAPACITY') — NOT "Chart 0X"
@@ -54,7 +54,7 @@ export default function ChartCard({
           click; interactive children stopPropagation. The expand glyph is
           a passive indicator, not the only hit area. */}
       <header
-        className={`group/hdr px-4 pt-3 pb-2 flex items-start justify-between gap-2 shrink-0 ${expandable ? 'cursor-pointer select-none' : ''}`}
+        className={`group/hdr px-4 pt-2.5 pb-1.5 flex items-start justify-between gap-2 shrink-0 ${expandable ? 'cursor-pointer select-none hover:bg-[rgba(94,234,212,0.03)] transition-colors' : ''}`}
         onClick={expandable ? onToggleExpand : undefined}
         role={expandable ? 'button' : undefined}
         tabIndex={expandable ? 0 : undefined}

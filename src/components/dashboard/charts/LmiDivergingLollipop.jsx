@@ -71,7 +71,7 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     <ChartCard
       label="EQUITY"
       title="LMI Penetration by State"
-      sub={`Deviation from the ~${NATL_MEDIAN}% national median · ${isExpanded ? `all ${total} seeded states` : `top 7 of ${total}`} by LMI share (≤80% AMI).`}
+      sub={`Δ vs the ~${NATL_MEDIAN}% national median (amber line) · ${isExpanded ? `all ${total} seeded states` : `top 7 of ${total}`} by LMI share (≤80% AMI).`}
       footer="Source: US Census ACS 2018–2022 5-year estimates (api.census.gov). Seeded states only; non-seeded omitted rather than back-filled with the national median."
       className="h-full"
       expandable
@@ -80,7 +80,7 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     >
       <div style={{ height: chartH, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} layout="vertical" margin={{ top: 22, right: 18, left: 4, bottom: 4 }}>
+          <ComposedChart data={data} layout="vertical" margin={{ top: 6, right: 18, left: 4, bottom: 4 }}>
             <XAxis
               type="number"
               domain={[-maxAbs, maxAbs]}
@@ -98,7 +98,10 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
               tickLine={false}
               width={30}
             />
-            <ReferenceLine x={0} stroke="rgba(251,191,36,0.45)" strokeDasharray="4 4" label={{ value: `Natl ~${NATL_MEDIAN}%`, position: 'insideTopLeft', fill: '#FBBF24', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }} />
+            {/* Median marker — dashed amber line at 0. No on-chart text
+                label (it clipped the top row); the subtitle states the
+                ~38% national median, and the axis 0 = median. */}
+            <ReferenceLine x={0} stroke="rgba(251,191,36,0.55)" strokeDasharray="4 4" />
             <Tooltip
               {...CHART_TOOLTIP}
               cursor={false}
