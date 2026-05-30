@@ -1,108 +1,42 @@
-npx shadcn@latest add @magicui/animated-list
+# Animated List (native JSX port)
 
-"use client"
+Staggered entrance for a list of items — each child fades/springs up once on
+mount, cascading by a per-item delay. JSX port of the Magic UI "Animated List"
+pattern, re-themed for our stack (Vite + JSX, `motion/react`, reduced-motion
+safe). The Magic UI original cycles a notification stream; we use it as a clean
+ENTRANCE cascade for feed/reveal lists.
 
-import { cn } from "@/lib/utils"
-import { AnimatedList } from "@/registry/magicui/animated-list"
+**Component:** `src/components/ui/AnimatedList.jsx`
+**Deps:** `motion/react` (already in the project).
 
-interface Item {
-  name: string
-  description: string
-  icon: string
-  color: string
-  time: string
-}
+## Usage
 
-let notifications = [
-  {
-    name: "Payment received",
-    description: "Magic UI",
-    time: "15m ago",
+```jsx
+import AnimatedList from '@/components/ui/AnimatedList'
 
-    icon: "💸",
-    color: "#00C9A7",
-  },
-  {
-    name: "User signed up",
-    description: "Magic UI",
-    time: "10m ago",
-    icon: "👤",
-    color: "#FFB800",
-  },
-  {
-    name: "New message",
-    description: "Magic UI",
-    time: "5m ago",
-    icon: "💬",
-    color: "#FF3D71",
-  },
-  {
-    name: "New event",
-    description: "Magic UI",
-    time: "2m ago",
-    icon: "🗞️",
-    color: "#1E86FF",
-  },
-]
+<AnimatedList className="divide-y divide-[var(--cards-border)]" delay={0.06}>
+  {items.map((it) => (
+    <li key={it.id}>{/* row content */}</li>
+  ))}
+</AnimatedList>
+```
 
-notifications = Array.from({ length: 10 }, () => notifications).flat()
+## Props
 
-const Notification = ({ name, description, icon, color, time }: Item) => {
-  return (
-    <figure
-      className={cn(
-        "relative mx-auto min-h-fit w-full max-w-[400px] cursor-pointer overflow-hidden rounded-2xl p-4",
-        // animation styles
-        "transition-all duration-200 ease-in-out hover:scale-[103%]",
-        // light styles
-        "bg-white [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)]",
-        // dark styles
-        "transform-gpu dark:bg-transparent dark:[box-shadow:0_-20px_80px_-20px_#ffffff1f_inset] dark:backdrop-blur-md dark:[border:1px_solid_rgba(255,255,255,.1)]"
-      )}
-    >
-      <div className="flex flex-row items-center gap-3">
-        <div
-          className="flex size-10 items-center justify-center rounded-2xl"
-          style={{
-            backgroundColor: color,
-          }}
-        >
-          <span className="text-lg">{icon}</span>
-        </div>
-        <div className="flex flex-col overflow-hidden">
-          <figcaption className="flex flex-row items-center text-lg font-medium whitespace-pre dark:text-white">
-            <span className="text-sm sm:text-lg">{name}</span>
-            <span className="mx-1">·</span>
-            <span className="text-xs text-gray-500">{time}</span>
-          </figcaption>
-          <p className="text-sm font-normal dark:text-white/60">
-            {description}
-          </p>
-        </div>
-      </div>
-    </figure>
-  )
-}
+| Prop | Default | Notes |
+|---|---|---|
+| `children` | — | List items (each gets the stagger variant) |
+| `className` | `''` | passed to the container |
+| `delay` | `0.07` | seconds between each item's entrance |
+| `as` | `'ul'` | container tag (`ul`/`ol`/`div`) |
 
-export function AnimatedListDemo({
-  className,
-}: {
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        "relative flex h-[500px] w-full flex-col overflow-hidden p-2",
-        className
-      )}
-    >
-      <AnimatedList>
-        {notifications.map((item, idx) => (
-          <Notification {...item} key={idx} />
-        ))}
-      </AnimatedList>
+## Notes
 
-      <div className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t"></div>
-    </div>
-  )
-}
+- Entrance-once on mount (container drives `staggerChildren`); does not re-fire
+  on data updates — avoids the "every row jumps" feel on live feeds.
+- `prefers-reduced-motion` → renders the plain list, no motion.
+- In use: `IntelligenceFeedCard` (feed rows cascade in).
+
+> The original Magic UI demo (looping notification stream with
+> `AnimatePresence`) is preserved conceptually here but adapted to an entrance
+> cascade — the use-case we actually have on the dashboard.

@@ -4,14 +4,22 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.14: Analytics rd5 (LMI de-elongate · slower expand · meld-around reflow)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.15: new-skills polish (Animated List · Bar List · Animated Icons)
 
-**Product now.** Dashboard = tab terminal. Analytics rd5 = Aden's review of v2.13. Commit pending.
+**Product now.** Dashboard = tab terminal. v2.15 = first application of the 2nd-wave Skills, ported to JSX + our teal/amber tokens (no new deps, no TSX). Each skill iteration was READ in full before porting (not picked by filename). Commit pending.
+
+**Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **Animated List → Intelligence Feed cascade** — new `src/components/ui/AnimatedList.jsx` (JSX port of Magic UI Animated List; entrance-cascade variant, `staggerChildren`, reduced-motion safe — NOT the looping-notification demo, which didn't fit a live feed). Feed rows now stagger in on mount. Skill doc rewritten: `Skills/Animated List.md`.
+- **Tremor Bar List → KPI-card reveals** — new `src/components/ui/BarListRows.jsx` (JSX port; adopted **Bar List iteration 1/5** = clean label-on-proportional-bar + value; rejected 2/3/4 = search-Dialog/show-more modal as overkill for a compact reveal). `MetricsBar` `StateRowsReveal` now renders the top-state lists (CS Coverage / Avg Capacity / Pipeline Load) as bar lists with width ∝ remaining MW. Port note: `Skills/Tremor/Bar List/_PORT.md`. (No `@tremor/react` dep added.)
+- **AnimatedIcon wired in** — Intelligence Feed "View all" arrow nudges (ArrowRight, hover); Run-a-Lens CTA search icon pulses on hover. Reduced-motion safe.
+
+<details><summary>v2.14 (superseded same-day) — LMI de-elongate · slower expand · meld-around reflow — commit `49adf30`</summary>
 
 **Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
 - **LMI de-elongated (both axes)** — (a) horizontal: replaced the symmetric `[-maxAbs, maxAbs]` x-domain with a data-fitted `[floor(dmin-pad), ceil(dmax+pad)]`. Nearly every seeded state sits ABOVE the ~38% median, so the symmetric domain wasted the entire left half and bunched all dots at the right edge. Now the axis anchors at 0 (median line) and runs to the real max. (b) vertical: expanded view caps at **top 20** (was all 51), matching the projects chart; row pitch 20→18px.
 - **Expand transition slowed + smoothed** — `SPRING` stiffness 380→130, damping 38→24 (added mass:1). The reflow is now a clearly-visible, smooth settle instead of a snap.
 - **"Meld-around" reflow** — expanded tiles grow to **col-span-8** (not full 12). The clicked chart stays anchored in place and its neighbours flow around it (one tucks into the remaining 4 cols, the rest reflow below), instead of the tile jumping to its own full-width row ("chasing the chart you opened"). Still `layout="position"` so no SVG-text distortion.
+</details>
 
 <details><summary>v2.13 (superseded same-day) — LMI label fix · expand distortion fix · condense</summary>
 

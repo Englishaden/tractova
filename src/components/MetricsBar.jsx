@@ -4,6 +4,7 @@ import { getDashboardMetrics, getDashboardMetricsHistory, getStatePrograms, getN
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import CountUp from './ui/CountUp'
 import KPISparkline from './charts/KPISparkline'
+import BarListRows from './ui/BarListRows'
 
 // PolicyDualSparkline — two-line trend for the Policy Pulse card. Plots the
 // Policy pillar against all other signals (offtake + IX + site) per ISO week
@@ -96,42 +97,14 @@ function MetricsSkeleton() {
 // ── Reveal sub-components — render inside the expanded card body ──────────
 
 // Top-N state row list — generic. Used by activeCS, avgCapacity, mwPipeline.
+// Now renders as a Tremor-style Bar List (label on a proportional value bar);
+// see src/components/ui/BarListRows.jsx + Skills/Tremor/Bar List/_PORT.md.
 function StateRowsReveal({ rows, valueFormatter, sub }) {
-  if (!rows || rows.length === 0) {
-    return (
-      <div className="text-center py-2">
-        <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
-          No states match
-        </span>
-      </div>
-    )
-  }
-  return (
-    <ul className="space-y-1">
-      {rows.map((r, i) => (
-        <li key={r.id} className="flex items-center justify-between gap-2 py-0.5">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <span className="font-mono text-[9px] tabular-nums shrink-0" style={{ color: 'var(--text-muted)' }}>
-              {String(i + 1).padStart(2, '0')}
-            </span>
-            <span className="text-[11px] font-medium truncate" style={{ color: 'var(--text-primary)' }}>
-              {r.name}
-            </span>
-          </div>
-          <span className="font-mono text-[11px] tabular-nums font-bold shrink-0" style={{ color: 'var(--link, #5EEAD4)' }}>
-            {valueFormatter(r)}
-          </span>
-        </li>
-      ))}
-      {sub && (
-        <li className="pt-1 mt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
-          <span className="text-[9px] font-mono uppercase tracking-[0.16em]" style={{ color: 'var(--text-muted)' }}>
-            {sub}
-          </span>
-        </li>
-      )}
-    </ul>
-  )
+  // Each reveal row is a state-program object; the bar length scales by its
+  // remaining capacity (the same number the formatter prints). Carry `value`
+  // for the bar width while keeping the original object for the formatter.
+  const barRows = (rows || []).map((r) => ({ ...r, value: r.capacityMW || 0 }))
+  return <BarListRows rows={barRows} valueFormatter={valueFormatter} sub={sub} />
 }
 
 // IX difficulty breakdown — small bar split by tier

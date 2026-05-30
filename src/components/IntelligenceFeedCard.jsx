@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import AnimatedList from './ui/AnimatedList'
+import AnimatedIcon from './ui/AnimatedIcon'
 
 // IntelligenceFeedCard — condensed replacement for the verbose NewsFeed
 // on the revamped Dashboard. Top-5 most-recent items in a tight card.
@@ -97,9 +99,9 @@ export default function IntelligenceFeedCard({ news = [], onSeeAll }) {
         </span>
       </header>
 
-      {/* Items */}
-      <ul className="flex-1 overflow-y-auto thin-scrollbar divide-y divide-[var(--cards-border)] min-h-0">
-        {items.length === 0 ? (
+      {/* Items — cascade in on mount (Skills/Animated List.md) */}
+      {items.length === 0 ? (
+        <ul className="flex-1 min-h-0">
           <li className="px-4 py-6 text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>
               No signals
@@ -108,16 +110,19 @@ export default function IntelligenceFeedCard({ news = [], onSeeAll }) {
               No policy or market signals match the active filters.
             </p>
           </li>
-        ) : items.map((item) => {
+        </ul>
+      ) : (
+        <AnimatedList className="flex-1 overflow-y-auto thin-scrollbar divide-y divide-[var(--cards-border)] min-h-0" delay={0.06}>
+          {items.map((item) => {
           const dot = PILLAR_DOT[item.pillar] || PILLAR_DOT.offtake
           const isAlert = item.type === 'policy-alert'
           return (
-            <li key={item.id} className="px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
               <a
+                key={item.id}
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block"
+                className="block px-4 py-2.5 transition-colors hover:bg-white/[0.02]"
                 title={item.summary}
               >
                 <div className="flex items-start gap-2">
@@ -145,10 +150,10 @@ export default function IntelligenceFeedCard({ news = [], onSeeAll }) {
                   </div>
                 </div>
               </a>
-            </li>
           )
         })}
-      </ul>
+        </AnimatedList>
+      )}
 
       {/* Hover-reveal "View all" CTA (Defillama group-hover trick) */}
       <footer
@@ -161,10 +166,10 @@ export default function IntelligenceFeedCard({ news = [], onSeeAll }) {
         <button
           type="button"
           onClick={() => onSeeAll?.()}
-          className="invisible group-hover:visible group-focus-within:visible font-mono text-[10px] uppercase tracking-[0.18em] font-semibold underline decoration-dotted underline-offset-2 transition-colors hover:no-underline"
+          className="invisible group-hover:visible group-focus-within:visible inline-flex items-center gap-1 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold transition-colors"
           style={{ color: 'var(--link, #5EEAD4)' }}
         >
-          View all →
+          View all <AnimatedIcon name="ArrowRight" animation="nudge" size={12} />
         </button>
       </footer>
     </article>
