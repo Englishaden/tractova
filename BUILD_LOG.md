@@ -4,22 +4,26 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.9: Home-tab review rd5 (⌘K fade-not-clamp · synthesis/map decouple · 2-D map color)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.10: Analytics tab full rework (bento + KPI strip · honest citations · LMI/Projects re-viz)
 
-**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`); Markets&Policy BUILT (v2.6). This round = Aden's 5th Home-tab review pass, 3 fixes. Globe still ONE d3-canvas artifact (idle GLOBE → focused MAP).
+**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`). This round = Aden's 1st Analytics review pass, executed as a full layout + data rework (acting lead UI/UX + data-analytics COO brief). Commit `56e1f4c`.
 
-**Shipped — one slice, `npm run verify` green (lints+citations+secrets+audit+locs+unit+build+7/7 smoke):**
-- **⌘K bounce KILLED (3rd attempt)** — the per-scroll-frame footer-CLAMP (v2.8) recomputed `bottom` and lifted the chip = the bounce. Now plain `position:fixed` at a CONSTANT bottom (CSS scroll-follow, zero per-frame JS) + **fade-out** as the footer enters view (IntersectionObserver, opacity only) so it never overlaps. Right offset aligns to the `max-w` container on resize only.
-- **Market Pulse expand no longer moves the map** — vertical twin of the v2.8 min-w-0 bug: the detail track's auto MIN-HEIGHT = content height, so expanding the synthesis grew the hero row and pushed the globe down. Fix: `min-h-0` + `minHeight:0` on the detail track → it stretches to the map-driven row height and scrolls internally. Expand/collapse is now independent.
-- **Map fill is now 2-D (status HUE × feasibility INTENSITY)** — pending states rendered solid amber, hiding feasibility (Michigan = 14 but full orange). `fillForState` refactored: HUE = status (teal=program[active/limited], amber=pending, slate=none), INTENSITY = feasibility (5 buckets). Ramps exported (`FEAS_RAMP`/`NONE_FILL`) as the single source of truth; the legend redrawn from the same arrays (status rows × Low→High). No-program stays one muted slate (formula clusters those low — honest, not a fake gradient). `computeFeasibilityScore` is real for every state incl. pending. Inset no-program fallback re-pointed to `NONE_FILL`.
+**Shipped — one slice, `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **Bento layout kills the whitespace** — `AnalyticsTab.jsx` rebuilt: Zone A KPI strip (`AnalyticsKpiStrip` — filter-aware mono numbers + inline `KPISparkline`/`CountUp`; sparkline only when unfiltered, no fake-trend-under-filter), Zone B collapsible filter (condenses to a one-line "N selected · chips" summary; full chip grid keeps Aden's liked UI), Zone C 12-col bento (status ribbon ×12 · capacity/IX/projects ×4 · LMI/trends ×6 · policy hero ×12) on **normalized 288px** feature heights via `ChartCard h-full` + fixed-height scroll bodies. Faint `.dash-map-grid` control-room backdrop.
+- **Citations now name the UPSTREAM source, not the table** — all 7 footers rewritten two-layer: DSIRE (NCSU/DOE) for program identity, status/MW **admin-curated** (honest); US Census ACS for LMI; LBNL "Sharing the Sun" Q4 2024 for operating projects; ISO/RTO queues for IX tier; PV Magazine/Utility Dive/Solar Power World/Solar Industry RSS for signals; scoreEngine.js for feasibility.
+- **LMI re-viz → diverging lollipop** (`LmiDivergingLollipop`, replaces `LmiPenetrationBar`) — Δ vs ~38% national median (custom stem+dot glyph), `interval={0}` ALL labels, teal-above/amber-below; honest deviation axis surfaces the clustered ~30–45% values. **Projects re-viz → dot plot + Lin/Log toggle** (`OperatingCsProjectsDot`, replaces `OperatingCsProjectsBar`) — sorted dots, `interval={0}`, log scale (ticks 1/10/100) resolves the MA/IL/CO/FL skew so small states stay legible.
+- **De-numbered eyebrows** — "Chart 0X" → semantic category tags (PROGRAMS / CAPACITY / EQUITY / TRENDS / SIGNALS / INTERCONNECTION / DEPLOYMENT). `ChartCard` gained `headerRight`/`badge`/`className` + a shared `ChartToggle` + `TILE_H`.
+- **CS capacity verified single-sourced** — Chart 2 + Home "CS Coverage" card both read `state_programs.capacity_mw` via `getStatePrograms()` (no duplicate compute). Kept current values; citation reframed honestly (see follow-up #1).
 
 ### ⏭ DO NEXT
-1. **Aden's notes on Analytics + Markets&Policy tabs** — he has "a ton" queued; Home-tab loop now 5 rounds deep.
-2. **Visual gut-check** (Aden reviews on prod per no-popup pref): ⌘K fade-near-footer feel, 2-D legend wording/placement, pending amber ramp readability.
-3. **MarketBrief re-enable** — still Aden's call; import + block commented in HomeTab.jsx.
-4. **Net Billing sourcing** (carried from 2026-05-25) — TX/NJ/MO/OK NB; CT/HI NM-haircut; TN TVA DPP; HI/NY TOU; MN. Methodology settled; straight data-honesty execution.
+1. **Verify `state_programs.capacity_mw` values** against DSIRE / state-PUC sources + add per-row `source`/`last_updated` (admin-curated today, no attribution — `DATA_SOURCES.md`). Citation is now honest about this; the numbers still need a verification pass.
+2. **Aden visual gut-check** on prod (no-popup pref): bento density/whitespace, LMI lollipop readability, projects Lin/Log toggle feel, KPI-strip filter-aware behavior, semantic eyebrows.
+3. **Markets & Policy tab notes** — still queued from Aden's "a ton" backlog.
+4. **MarketBrief re-enable** — Aden's call; import + block commented in HomeTab.jsx.
+5. **Net Billing sourcing** (carried from 2026-05-25) — TX/NJ/MO/OK NB; CT/HI NM-haircut; TN TVA DPP; HI/NY TOU; MN. Methodology settled; straight data-honesty execution.
 
 ### Prior recent arcs (full detail → `docs/archive/BUILD_LOG-history-2026-05-25.md`)
+- **2026-05-30 (dashboard v2.9)** — Home rd5: ⌘K bounce killed (constant `position:fixed` + IntersectionObserver fade vs per-frame clamp); Market Pulse expand decoupled from map (`min-h-0`); 2-D map fill (status HUE × feasibility INTENSITY, `FEAS_RAMP`/`NONE_FILL` single source). Commit `1816a86`.
 - **2026-05-30 (dashboard v2.8)** — Home rd4: globe-disappears-on-synthesis bug (grid `min-width:auto` overflow → `min-w-0`); Regulatory DocketCard dark-themed for the dashboard tab (light kept for Lens); focused-phase map legend; ⌘K fixed+footer-clamp (superseded by v2.9 fade). Commit `6005257`.
 - **2026-05-29 (dashboard v2.7)** — Home rd3: AK/HI box-only bug (a `selId` scope ReferenceError in the globe render loop, not geometry); ⌘K static-in-footer (later reversed); white→brand scrollbars via `html:has(.dashboard-dark)`; collapsible 200→56px icon rail (pulsing triple-chevron, `.dash-shell-grid`); map aurora→infinite grid (`.dash-map-grid`) via globe `onPhaseChange`. Commit `12b6162`.
 - **2026-05-29 (dashboard v2.6)** — Markets&Policy tab BUILT (StateProgramGrid · SubscriptionMixChart · FeasibilityScoreDeltas · DensePolicyFeed; `subscription_marketer` reframe for the no-split LBNL data); Home UX rds 1-2 (KPI multi-open, Pipeline Load teal/amber, dark utility dropdown, filters-collapse-on-select keeps globe constant, real Policy Pulse dual-line, CSS map aurora, AK/HI clickable insets). Commits `6b74e49`→`c9fb5f7`.
