@@ -70,20 +70,47 @@ const FIPS = {
   "55":"WI","56":"WY",
 }
 
-// ─── State-fill ramp (dark-surface palette) ──────────────────────────────
-// Same teal-700/500/400/300/200 buckets as USOrthographicGlobe, plus
-// muted slate for no-program states.
+// ─── State-fill: 2-D encoding (status HUE × feasibility INTENSITY) ─────────
+// Aden 2026-05-30: a pending state like Michigan rendered solid amber, which
+// "took over the whole state" and hid its feasibility (14, very low). So the
+// fill now carries BOTH dimensions a developer needs to navigate to optimal
+// markets:
+//   • HUE      = program status — teal (program: active/limited), amber
+//                (pending), slate (no program).
+//   • INTENSITY= feasibility score — darker/more-saturated within the hue as
+//                the score climbs (same 5 buckets the legend draws).
+// computeFeasibilityScore (programData.js) returns a real model score for
+// every state, so this is honest for pending too. No-program states cluster
+// low by formula (base 5) and stay a single muted slate — encoding a gradient
+// there would imply precision the model doesn't have.
+//
+// These ramps are the single source of truth; the on-map legend renders the
+// exact same arrays (see MapLegend below).
+export const FEAS_RAMP = {
+  // index 0 (<25) → 4 (≥75)
+  program: ['#99F6E4', '#5EEAD4', '#2DD4BF', '#14B8A6', '#0F766E'],
+  pending: ['#FEF08A', '#FDE047', '#FBBF24', '#F59E0B', '#D97706'],
+}
+export const NONE_FILL = '#2A3A4D'
+const HOVER_FILL = { program: '#A7F3E4', pending: '#FCD34D', none: '#3E5168' }
+
+function scoreBucket(score) {
+  return score >= 75 ? 4 : score >= 60 ? 3 : score >= 45 ? 2 : score >= 25 ? 1 : 0
+}
+// active + limited both read as "has a program" (teal); the score already
+// separates them (limited's base is lower). pending + none are their own hues.
+function statusKind(csStatus) {
+  if (csStatus === 'pending') return 'pending'
+  if (!csStatus || csStatus === 'none') return 'none'
+  return 'program'
+}
+
 function fillForState(stateInfo, isHovered, isSelected) {
   if (isSelected) return '#A78BFA'
-  if (isHovered)  return '#5EEAD4'
-  if (!stateInfo || stateInfo.csStatus === 'none') return '#1F2A3D'
-  if (stateInfo.csStatus === 'pending')            return '#FBBF24'
-  const score = stateInfo.feasibilityScore || 0
-  if (score >= 75) return '#0F766E'
-  if (score >= 60) return '#14B8A6'
-  if (score >= 45) return '#2DD4BF'
-  if (score >= 25) return '#5EEAD4'
-  return '#99F6E4'
+  const kind = statusKind(stateInfo?.csStatus)
+  if (kind === 'none') return isHovered ? HOVER_FILL.none : NONE_FILL
+  if (isHovered) return HOVER_FILL[kind]
+  return FEAS_RAMP[kind][scoreBucket(stateInfo?.feasibilityScore || 0)]
 }
 
 // ─── Point-in-polygon (for click detection) ──────────────────────────────
@@ -613,7 +640,7 @@ export default function DashboardGlobe({
           const rawFill = fillForState(info, isHover, isSel)
           ctx.beginPath()
           ip(tile.f)
-          ctx.fillStyle = rawFill === '#1F2A3D' ? '#33445E' : rawFill
+          ctx.fillStyle = rawFill === NONE_FILL ? '#3E5168' : rawFill
           ctx.fill()
           ctx.strokeStyle = 'rgba(94,234,212,0.55)'
           ctx.lineWidth = 0.8
@@ -901,40 +928,46 @@ export default function DashboardGlobe({
           </button>
         )}
 
-        {/* Choropleth legend — focused phase only (the only phase where the
-            state fills are visible). Bottom-right so it clears the zoom-out
-            pill (top-right) and the AK/HI insets (bottom-left). pointer-events
-            -none so it never blocks a state click beneath it (Aden 2026-05-30:
-            "build in any legend that's necessary for the map"). */}
+        {/* Choropleth legend — focused phase only. Encodes the 2-D fill so a
+            dev can read it: each row is a program STATUS (hue), the swatches
+            left→right are the feasibility INTENSITY ramp (Low→High). Bottom-
+            right so it clears the zoom-out pill (top-right) and the AK/HI
+            insets (bottom-left); pointer-events-none so it never blocks a
+            state click beneath it (Aden 2026-05-30). */}
         {phase === 'focused' && (
           <div
-            className="absolute bottom-3 right-3 z-10 rounded-md px-2.5 py-2 pointer-events-none"
+            className="absolute bottom-3 right-3 z-10 rounded-md px-3 py-2.5 pointer-events-none"
             style={{
-              background: 'rgba(11,22,35,0.85)',
+              background: 'rgba(11,22,35,0.88)',
               border: '1px solid rgba(20,184,166,0.30)',
               backdropFilter: 'blur(8px)',
             }}
           >
-            <p className="font-mono text-[8px] uppercase tracking-[0.22em] mb-1" style={{ color: '#98A4B6' }}>
-              Feasibility
-            </p>
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[8px]" style={{ color: '#6C7A91' }}>Low</span>
-              <span
-                className="h-1.5 w-20 rounded-full"
-                style={{ background: 'linear-gradient(90deg, #99F6E4 0%, #5EEAD4 28%, #2DD4BF 52%, #14B8A6 76%, #0F766E 100%)' }}
-              />
-              <span className="font-mono text-[8px]" style={{ color: '#6C7A91' }}>High</span>
+            <div className="flex items-center justify-between gap-4 mb-1.5">
+              <span className="font-mono text-[8px] uppercase tracking-[0.22em]" style={{ color: '#98A4B6' }}>
+                Feasibility
+              </span>
+              <span className="font-mono text-[7px] uppercase tracking-[0.14em]" style={{ color: '#6C7A91' }}>
+                Low → High
+              </span>
             </div>
-            <div className="flex items-center gap-3 mt-1.5">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm" style={{ background: '#FBBF24' }} />
-                <span className="font-mono text-[8px] uppercase tracking-[0.12em]" style={{ color: '#98A4B6' }}>Pending</span>
+            {[['Program', FEAS_RAMP.program], ['Pending', FEAS_RAMP.pending]].map(([label, ramp]) => (
+              <div key={label} className="flex items-center gap-2 mb-1">
+                <span className="font-mono text-[8px] uppercase tracking-[0.10em] shrink-0" style={{ color: '#98A4B6', width: '58px' }}>
+                  {label}
+                </span>
+                <span className="flex gap-px">
+                  {ramp.map((c, i) => (
+                    <span key={i} className="w-3 h-2" style={{ background: c }} />
+                  ))}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[8px] uppercase tracking-[0.10em] shrink-0" style={{ color: '#98A4B6', width: '58px' }}>
+                No program
               </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-2 h-2 rounded-sm" style={{ background: '#1F2A3D', border: '1px solid rgba(94,234,212,0.22)' }} />
-                <span className="font-mono text-[8px] uppercase tracking-[0.12em]" style={{ color: '#98A4B6' }}>No program</span>
-              </span>
+              <span className="w-3 h-2" style={{ background: NONE_FILL, border: '1px solid rgba(94,234,212,0.20)' }} />
             </div>
           </div>
         )}

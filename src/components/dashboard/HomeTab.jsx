@@ -253,13 +253,16 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
           </div>
 
           {/* Intelligence feed / state detail — full width on mobile, last track on lg+.
-              min-w-0 is load-bearing: without it the grid item's automatic min
-              size is its content's min-content width, so a wide child (e.g. the
-              expanded Market Pulse synthesis) grew this track and collapsed the
-              globe track to 0 ("state analysis takes the whole screen" — Aden
-              2026-05-30). With min-w-0 both tracks hold their 6fr share and the
-              content scrolls/wraps inside instead. */}
-          <div className="flex flex-col min-w-0 overflow-hidden" style={{ minHeight: '470px', maxHeight: '600px' }}>
+              min-w-0 + min-h-0 are both load-bearing. Without min-w-0 a wide
+              child (expanded synthesis) grew this track and collapsed the globe
+              to 0. Without min-h-0 the track's auto MIN HEIGHT = its content's
+              min-content height, so expanding the Market Pulse synthesis grew
+              the hero row and pushed the globe DOWN. With min-h-0 (+ minHeight
+              0) the track stretches to the map-driven row height and scrolls
+              its content internally instead — expand/collapse no longer moves
+              the map (Aden 2026-05-30). maxHeight keeps it bounded on very tall
+              viewports. */}
+          <div className="flex flex-col min-w-0 min-h-0 overflow-hidden" style={{ minHeight: 0, maxHeight: '600px' }}>
             {selectedState ? (
               <StateDetailPanel
                 state={selectedState}

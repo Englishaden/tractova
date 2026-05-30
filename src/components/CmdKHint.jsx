@@ -9,19 +9,20 @@ import { useAuth } from '../context/AuthContext'
 // so it works as a tap-to-open affordance on touch devices where ⌘K isn't
 // reachable. Label adapts: ⌘K on Mac, Ctrl K on PC, TAP on touch.
 //
-// Position (Aden 2026-05-30): position:fixed so it FOLLOWS the viewport as
-// you scroll (no per-content jumping), but its bottom is CLAMPED so it never
-// drops into / overlaps the footer — once the footer scrolls into view the
-// chip rests just above it. Right edge is aligned to the max-w content
-// container so at rest it sits above the "© Tractova" cluster. There is
-// deliberately NO CSS transition on `bottom`: the clamp tracks scroll 1:1,
-// which reads as the chip anchoring to the page near the bottom rather than
-// easing (an easing transition fought the per-frame updates = the old
-// "bounce"). Opacity is the only animated property.
+// Position (Aden 2026-05-30, third pass): it must "move with the scroll but
+// not jump around." The earlier footer-CLAMP recomputed `bottom` every
+// scroll frame and lifted the chip as the footer approached — that lift WAS
+// the bounce. So now the chip is a plain position:fixed element at a CONSTANT
+// bottom (CSS handles the scroll-follow — zero JS per frame, zero jitter).
+// To avoid sitting on top of the footer at the very bottom, it simply FADES
+// out (opacity, smooth) once the footer scrolls into view — detected with an
+// IntersectionObserver, so there's still no per-frame work. Its right edge is
+// aligned (on resize only) to the max-w content container so it rests above
+// the "© Tractova" cluster.
 
 const CONTAINER_MAX = 1440 // --container-dashboard
 const SIDE_PAD = 24        // px-6 on the content container
-const GAP = 16             // breathing room above the footer / viewport edge
+const BOTTOM = 16          // constant rest distance from the viewport bottom
 
 function detectPlatform() {
   if (typeof navigator === 'undefined') return { isMac: false, showTap: false }
@@ -41,38 +42,35 @@ function detectPlatform() {
 export default function CmdKHint() {
   const { user } = useAuth()
   const [platform] = useState(detectPlatform)
-  const [pos, setPos] = useState({ bottom: GAP, right: SIDE_PAD })
+  // Right offset only — recomputed on resize, never on scroll (so no
+  // per-frame React work, hence no bounce).
+  const [right, setRight] = useState(SIDE_PAD)
+  // Faded when the footer is in view, so the chip never overlaps it.
+  const [nearFooter, setNearFooter] = useState(false)
 
-  // Track position against scroll + resize. bottom lifts to clear the footer
-  // once it enters the viewport; right aligns to the centered content edge.
   useEffect(() => {
-    let raf = 0
-    const update = () => {
-      raf = 0
-      const vh = window.innerHeight
-      const vw = window.innerWidth
-      // Horizontal: sit above the content container's right padding edge.
-      const sideMargin = Math.max(0, (vw - CONTAINER_MAX) / 2)
-      const right = Math.round(sideMargin + SIDE_PAD)
-      // Vertical: rest at GAP from the viewport bottom; when the footer comes
-      // into view, lift so the chip parks GAP above the footer's top edge.
-      const footer = document.querySelector('footer')
-      let bottom = GAP
-      if (footer) {
-        const top = footer.getBoundingClientRect().top
-        bottom = Math.max(GAP, Math.round(vh - top + GAP))
-      }
-      setPos((prev) => (prev.bottom === bottom && prev.right === right ? prev : { bottom, right }))
+    const computeRight = () => {
+      const sideMargin = Math.max(0, (window.innerWidth - CONTAINER_MAX) / 2)
+      setRight(Math.round(sideMargin + SIDE_PAD))
     }
-    const onScroll = () => { if (!raf) raf = requestAnimationFrame(update) }
-    update()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-      if (raf) cancelAnimationFrame(raf)
-    }
+    computeRight()
+    window.addEventListener('resize', computeRight, { passive: true })
+    return () => window.removeEventListener('resize', computeRight)
+  }, [])
+
+  // Fade the chip out as the footer approaches — IntersectionObserver fires
+  // only on enter/leave, not every frame. rootMargin extends the root 24px
+  // past the viewport bottom so the fade gets a head start before overlap.
+  useEffect(() => {
+    if (!user) return
+    const footer = document.querySelector('footer')
+    if (!footer || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(
+      ([entry]) => setNearFooter(entry.isIntersecting),
+      { root: null, rootMargin: '0px 0px 24px 0px', threshold: 0 },
+    )
+    io.observe(footer)
+    return () => io.disconnect()
   }, [user])
 
   const openPalette = () => {
@@ -96,18 +94,21 @@ export default function CmdKHint() {
       type="button"
       onClick={openPalette}
       aria-label="Open command palette"
+      aria-hidden={nearFooter}
+      tabIndex={nearFooter ? -1 : 0}
       // md+ only — the Nav already exposes a Cmd-K button on mobile and the
-      // chip would crowd the stacked footer. No transition on `bottom`
-      // (see file header); the chip just re-renders per scroll frame.
-      className="hidden md:flex fixed z-40 items-center gap-2 rounded-md px-2.5 py-1.5 group"
+      // chip would crowd the stacked footer. Only `opacity` animates.
+      className="hidden md:flex fixed z-40 items-center gap-2 rounded-md px-2.5 py-1.5 transition-opacity duration-300 ease-out group"
       style={{
         // Solid white background — no glassmorphism (design-vocab
         // anti-pattern). The chip is chrome, not a translucent layer.
         background: '#FFFFFF',
         border: '1px solid #14B8A6',
         boxShadow: '0 1px 0 rgba(15,118,110,0.08), 0 4px 12px rgba(10,24,40,0.10)',
-        bottom: pos.bottom,
-        right: pos.right,
+        bottom: BOTTOM,
+        right,
+        opacity: nearFooter ? 0 : 1,
+        pointerEvents: nearFooter ? 'none' : 'auto',
       }}
     >
       <span className="eyebrow-mono" style={{ color: '#5A6B7A' }}>COMMAND</span>
