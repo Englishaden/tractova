@@ -4,24 +4,24 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-29 (latest) — Dashboard v2.7: Home-tab review rd3 (AK/HI fix · static ⌘K · brand scrollbars · collapsible rail · map grid)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.8: Home-tab review rd4 (globe-collapse bug · dark regulatory · map legend · ⌘K scroll-clamp)
 
-**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`); Markets&Policy BUILT (v2.6). This round = Aden's 3rd Home-tab review pass, 5 fixes. Globe still ONE d3-canvas artifact (idle GLOBE → focused MAP).
+**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`); Markets&Policy BUILT (v2.6). This round = Aden's 4th Home-tab review pass, 4 fixes. Globe still ONE d3-canvas artifact (idle GLOBE → focused MAP).
 
 **Shipped — one slice, `npm run verify` green (lints+citations+secrets+audit+locs+unit+build+7/7 smoke):**
-- **AK/HI box-only bug FIXED** — root cause was a scope bug, NOT geometry: `selId` was referenced in the inset block (`DashboardGlobe.jsx §8`) but `const`-declared inside the earlier choropleth block (§5), so §8 threw a ReferenceError every focused frame *after* the inset box drew but *before* its shape → only the box rendered. Fix: hoisted `hoverId`/`selId` to the top of `render()`. (The 2.5/2.6 "made visible" fills were never the issue.)
-- **⌘K chip now STATIC** — was a fixed bottom-right chip that tracked the footer per scroll-frame ("bounced"). Removed the scroll/idle logic + the global `<CmdKHint/>` in App.jsx; it now renders INSIDE `Footer.jsx` (`absolute right-6 -top-6`), parked in the `mt-10` margin gap just above the © Tractova cluster. No overlap, no motion.
-- **White scrollbars → brand** — global `html` scrollbar in index.css: muted teal thumb on light surfaces; navy gutter + teal thumb on dashboard via `html:has(.dashboard-dark)` (same `:has` trick body bg uses). StateDetailPanel scroller got `scrollbar-dark`.
-- **Left rail COLLAPSIBLE** — `DashboardSidebar` takes `collapsed`/`onToggleCollapse`; collapses 200px→56px icon rail via pulsing **triple-chevron** toggle (`.dash-collapse-toggle`, mirrors to point the fold direction). Persisted in `localStorage[dash_sidebar_collapsed]`. `Dashboard.jsx` animates `.dash-shell-grid` `grid-template-columns` (var `--shell-cols`).
-- **Map aurora → infinite grid** — aurora felt wrong flat behind the focused MAP (fine on the GLOBE). Globe now reports phase up via new `onPhaseChange`; HomeTab crossfades aurora (idle) ↔ `.dash-map-grid` (focused) — a dependency-free CSS "Infinite Grid Background" (40px teal gridlines, diagonal drift, radial edge-mask). Aurora untouched on the globe.
+- **Globe-disappears-on-synthesis-click bug FIXED** — classic grid `min-width:auto` overflow: the StateDetailPanel grid track in `HomeTab` had no `min-w-0`, while its sibling globe track had `overflow-hidden` (auto-min → 0). Expanding the News-tab Market Pulse synthesis grew the detail track's min-content width and collapsed the globe to 0 ("state analysis took the whole screen"). Fix: `min-w-0 overflow-hidden` on the detail track + `min-w-0` on the map track + `break-words` on the synthesis `<p>`.
+- **Regulatory tab dark theme** — `DocketCard` was `bg-white` + ink text (clashed on the navy dashboard). Now dark-aware: `mode==='tab'` → navy surface + light text matching the News cards (added `STATUS_CONFIG_DARK`/`PILLAR_COLOR_DARK`/`IMPACT_DOT_DARK`, dark `MetaItem`/`ExplorePucButton`/empty-state). `mode==='lens'` (Lens results, cream page) unchanged.
+- **Map legend** — compact focused-phase overlay bottom-right in `DashboardGlobe`: Low→High feasibility ramp + Pending (amber) + No-program swatches. `pointer-events-none` so it never blocks a state click; clears the zoom-out pill (top-right) + AK/HI insets (bottom-left).
+- **⌘K chip → fixed-follow + footer-clamp** (reversed v2.7's embed). Back to `position:fixed` so it follows the viewport while scrolling, but bottom is CLAMPED above the footer (rests just above it, never overlaps); right edge aligns to the `max-w` content container (above © Tractova). NO `bottom` transition → tracks scroll 1:1, no "bounce." Back in App.jsx; removed from Footer.
 
 ### ⏭ DO NEXT
-1. **Aden's notes on Analytics + Markets&Policy tabs** — he has "a ton" queued; Home-tab loop now 3 rounds deep.
-2. **Visual gut-check this round** (not browser-screenshotted — Aden reviews on prod per no-popup pref): ⌘K `-top-6` offset, grid mask intensity/drift speed, collapse rail width (56px) + chevron pulse, dashboard scrollbar contrast.
+1. **Aden's notes on Analytics + Markets&Policy tabs** — he has "a ton" queued; Home-tab loop now 4 rounds deep.
+2. **Visual gut-check** (Aden reviews on prod per no-popup pref): legend placement/wording, regulatory dark contrast, ⌘K resting spot above ©, grid background.
 3. **MarketBrief re-enable** — still Aden's call; import + block commented in HomeTab.jsx.
 4. **Net Billing sourcing** (carried from 2026-05-25) — TX/NJ/MO/OK NB; CT/HI NM-haircut; TN TVA DPP; HI/NY TOU; MN. Methodology settled; straight data-honesty execution.
 
 ### Prior recent arcs (full detail → `docs/archive/BUILD_LOG-history-2026-05-25.md`)
+- **2026-05-29 (dashboard v2.7)** — Home rd3: AK/HI box-only bug (a `selId` scope ReferenceError in the globe render loop, not geometry); ⌘K static-in-footer (later reversed in v2.8); white→brand scrollbars via `html:has(.dashboard-dark)`; collapsible 200→56px icon rail (pulsing triple-chevron, `.dash-shell-grid`); map aurora→infinite grid (`.dash-map-grid`) via globe `onPhaseChange`. Commit `12b6162`.
 - **2026-05-29 (dashboard v2.6)** — Markets&Policy tab BUILT (StateProgramGrid · SubscriptionMixChart · FeasibilityScoreDeltas · DensePolicyFeed; `subscription_marketer` reframe for the no-split LBNL data); Home UX rds 1-2 (KPI multi-open, Pipeline Load teal/amber, dark utility dropdown, filters-collapse-on-select keeps globe constant, real Policy Pulse dual-line, CSS map aurora, AK/HI clickable insets). Commits `6b74e49`→`c9fb5f7`.
 - **2026-05-28 (dashboard v2.5)** — tab IA (sidebar Home/Analytics/Markets, `?tab=`); thin Dashboard.jsx router; 7 Analytics charts + ChartCard; KPI card-specific reveals; footer/Nav route-aware; `.dash-border-gradient` sidebar; globe live markers + loader polish. Commits `7bfa841`→`3976e67`.
 - **2026-05-27 (dashboard revamp v1)** — MarketBrief + Hobby fn-cap fix (multiplexer); Defillama teardown; Ships 1–1.8 — dark scope + unified d3-canvas globe + filters + sparklines + IntelligenceFeedCard + dark StateDetailPanel + Run-a-Lens CTA. `a548d6a`→`dc07edb`.

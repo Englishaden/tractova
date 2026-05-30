@@ -489,7 +489,7 @@ function NewsTab({ state, news }) {
                   </p>
                 </div>
               ) : (
-                <p className="text-[12px] leading-relaxed text-[var(--text-primary)]">{summary}</p>
+                <p className="text-[12px] leading-relaxed text-[var(--text-primary)] break-words">{summary}</p>
               )}
             </div>
           )}

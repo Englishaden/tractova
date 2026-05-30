@@ -52,6 +52,19 @@ const STATUS_CONFIG = {
   },
 }
 
+// Dark-surface variants — used when this panel is embedded in the
+// dashboard StateDetailPanel "Regulatory" tab (mode="tab"), which sits on
+// the dark navy scope. The light palette above is for Lens results
+// (mode="lens") on the cream brand surface. Dark cards emulate the News
+// tab cards (Aden 2026-05-30: "regulatory section shouldn't have a white
+// background — emulate the news section").
+const STATUS_CONFIG_DARK = {
+  comment_open:     { label: 'Comment Open',     bg: 'rgba(20, 184, 166, 0.12)', color: '#5EEAD4', border: 'rgba(20, 184, 166, 0.36)' },
+  pending_decision: { label: 'Pending Decision', bg: 'rgba(245, 158, 11, 0.12)', color: '#FBBF24', border: 'rgba(245, 158, 11, 0.36)' },
+  filed:            { label: 'Filed',            bg: 'rgba(255, 255, 255, 0.04)', color: '#98A4B6', border: 'rgba(255, 255, 255, 0.14)' },
+  closed:           { label: 'Closed',           bg: 'rgba(148, 163, 184, 0.08)', color: '#6C7A91', border: 'rgba(148, 163, 184, 0.22)' },
+}
+
 const PILLAR_LABEL = {
   offtake:        'Offtake',
   ix:             'Interconnection',
@@ -66,10 +79,23 @@ const PILLAR_COLOR = {
   'cross-cutting': '#5A6B7A',
 }
 
+const PILLAR_COLOR_DARK = {
+  offtake:        '#2DD4BF',
+  ix:             '#FBBF24',
+  site:           '#60A5FA',
+  'cross-cutting': '#98A4B6',
+}
+
 const IMPACT_DOT = {
   high:   { color: '#DC2626', label: 'High impact' },
   medium: { color: '#D97706', label: 'Medium impact' },
   low:    { color: '#5A6B7A', label: 'Low impact' },
+}
+
+const IMPACT_DOT_DARK = {
+  high:   { color: '#F87171', label: 'High impact' },
+  medium: { color: '#FBBF24', label: 'Medium impact' },
+  low:    { color: '#6C7A91', label: 'Low impact' },
 }
 
 function fmtDate(dateStr) {
@@ -101,20 +127,35 @@ function sortDockets(rows) {
 }
 
 // ── Single docket card ──────────────────────────────────────────────────────
-function DocketCard({ docket }) {
-  const status = STATUS_CONFIG[docket.status] || STATUS_CONFIG.filed
+function DocketCard({ docket, dark = false }) {
+  const status = (dark ? STATUS_CONFIG_DARK : STATUS_CONFIG)[docket.status]
+    || (dark ? STATUS_CONFIG_DARK : STATUS_CONFIG).filed
   const pillar = PILLAR_LABEL[docket.pillar] || docket.pillar
-  const pillarCol = PILLAR_COLOR[docket.pillar] || '#5A6B7A'
-  const impact = IMPACT_DOT[docket.impactTier] || IMPACT_DOT.low
+  const pillarCol = (dark ? PILLAR_COLOR_DARK : PILLAR_COLOR)[docket.pillar] || (dark ? '#98A4B6' : '#5A6B7A')
+  const impact = (dark ? IMPACT_DOT_DARK : IMPACT_DOT)[docket.impactTier] || (dark ? IMPACT_DOT_DARK : IMPACT_DOT).low
 
   const filedFmt = fmtDate(docket.filedDate)
   const commentDays = daysUntil(docket.commentDeadline)
   const decisionFmt = fmtDate(docket.decisionTarget)
 
+  // Color tokens flip with the surface. Light = cream brand (Lens results);
+  // dark = the dashboard navy scope (Regulatory tab), matching the News tab.
+  const c = dark ? {
+    cardBg: 'var(--bg-surface)', cardBorder: 'var(--cards-border)',
+    title: 'var(--text-primary)', eyebrow: 'var(--text-muted)',
+    summary: 'var(--text-label)', metaSep: 'var(--text-muted)',
+    footerBorder: 'var(--cards-border)', link: '#5EEAD4', linkHover: '#99F6E4',
+  } : {
+    cardBg: '#FFFFFF', cardBorder: '#E2E8F0',
+    title: '#0A1828', eyebrow: '#5A6B7A',
+    summary: '#0A1828', metaSep: '#5A6B7A',
+    footerBorder: '#F1F5F9', link: '#0F766E', linkHover: '#115E59',
+  }
+
   return (
     <article
-      className="rounded-xl bg-white px-5 py-4 transition-shadow hover:shadow-xs"
-      style={{ border: '1px solid #E2E8F0' }}
+      className="rounded-xl px-5 py-4 transition-shadow hover:shadow-xs"
+      style={{ background: c.cardBg, border: `1px solid ${c.cardBorder}` }}
     >
       {/* Top strip: status + impact + pillar */}
       <div className="flex items-center gap-2 flex-wrap mb-2.5">
@@ -126,37 +167,37 @@ function DocketCard({ docket }) {
         </span>
         <span className="flex items-center gap-1" title={impact.label}>
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: impact.color }} />
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-muted">
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em]" style={{ color: c.eyebrow }}>
             {docket.impactTier}
           </span>
         </span>
-        <span className="text-ink-muted text-[10px]">·</span>
+        <span className="text-[10px]" style={{ color: c.metaSep }}>·</span>
         <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: pillarCol }}>
           {pillar}
         </span>
       </div>
 
       {/* Title */}
-      <h4 className="font-serif text-[15px] font-semibold text-ink leading-tight tracking-tight"
-        style={{ letterSpacing: '-0.01em' }}>
+      <h4 className="font-serif text-[15px] font-semibold leading-tight tracking-tight break-words"
+        style={{ letterSpacing: '-0.01em', color: c.title }}>
         {docket.title}
       </h4>
 
       {/* Docket number eyebrow */}
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-ink-muted mt-1.5">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] mt-1.5 break-words" style={{ color: c.eyebrow }}>
         {docket.pucName}
         {docket.docketNumber && <> · Docket {docket.docketNumber}</>}
       </p>
 
       {/* Summary */}
-      <p className="text-[13px] text-ink leading-relaxed mt-2.5">
+      <p className="text-[13px] leading-relaxed mt-2.5 break-words" style={{ color: c.summary }}>
         {docket.summary}
       </p>
 
       {/* Footer meta strip */}
-      <div className="flex items-center gap-3 flex-wrap mt-3 pt-3 border-t border-gray-100">
+      <div className="flex items-center gap-3 flex-wrap mt-3 pt-3" style={{ borderTop: `1px solid ${c.footerBorder}` }}>
         {filedFmt && (
-          <MetaItem label="Filed" value={filedFmt} />
+          <MetaItem label="Filed" value={filedFmt} dark={dark} />
         )}
         {docket.commentDeadline && (
           <MetaItem
@@ -168,10 +209,11 @@ function DocketCard({ docket }) {
                 ? 'today'
                 : `${commentDays}d left`) : null}
             urgent={commentDays != null && commentDays >= 0 && commentDays <= 14}
+            dark={dark}
           />
         )}
         {decisionFmt && (
-          <MetaItem label="Decision target" value={decisionFmt} />
+          <MetaItem label="Decision target" value={decisionFmt} dark={dark} />
         )}
         {/* Source link wrapped in MetaItem-shaped 2-row stack so its
             baseline aligns with the other meta cells (label + value),
@@ -179,12 +221,15 @@ function DocketCard({ docket }) {
             outlier. */}
         {docket.sourceUrl && (
           <div className="ml-auto flex flex-col items-end">
-            <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">Source</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: c.eyebrow }}>Source</span>
             <a
               href={docket.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-teal-700 hover:text-teal-900 transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold transition-colors"
+              style={{ color: c.link }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = c.linkHover }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = c.link }}
             >
               Open docket
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -204,14 +249,17 @@ function DocketCard({ docket }) {
 // Tractova's selective curation to the comprehensive long tail. Always
 // visible in both empty-state AND populated-state -- signals honestly
 // that we curate signal, the source has the universe.
-function ExplorePucButton({ state }) {
+function ExplorePucButton({ state, dark = false }) {
   const portal = getPucPortal(state)
   return (
     <a
       href={portal.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold text-teal-700 hover:text-teal-900 transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 rounded-sm"
+      className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.18em] font-semibold transition-colors focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 rounded-sm"
+      style={{ color: dark ? '#5EEAD4' : '#0F766E' }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = dark ? '#99F6E4' : '#115E59' }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = dark ? '#5EEAD4' : '#0F766E' }}
     >
       Explore {portal.name}
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -223,13 +271,16 @@ function ExplorePucButton({ state }) {
   )
 }
 
-function MetaItem({ label, value, hint, urgent }) {
+function MetaItem({ label, value, hint, urgent, dark = false }) {
+  const labelCol = dark ? 'var(--text-muted)' : '#5A6B7A'
+  const valueCol = urgent ? (dark ? '#FBBF24' : '#B45309') : (dark ? 'var(--text-primary)' : '#0A1828')
+  const hintCol  = urgent ? (dark ? '#FBBF24' : '#B45309') : (dark ? 'var(--text-muted)' : '#5A6B7A')
   return (
     <div className="flex flex-col">
-      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-ink-muted">{label}</span>
-      <span className="font-mono text-[11px] tabular-nums" style={{ color: urgent ? '#B45309' : '#0A1828' }}>
+      <span className="font-mono text-[9px] uppercase tracking-[0.18em]" style={{ color: labelCol }}>{label}</span>
+      <span className="font-mono text-[11px] tabular-nums" style={{ color: valueCol }}>
         {value}
-        {hint && <span className="ml-1.5 text-[10px]" style={{ color: urgent ? '#B45309' : '#5A6B7A' }}>· {hint}</span>}
+        {hint && <span className="ml-1.5 text-[10px]" style={{ color: hintCol }}>· {hint}</span>}
       </span>
     </div>
   )
@@ -318,6 +369,9 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
   }, [state, retryKey])
 
   const labelName = stateName || state || 'this state'
+  // Dashboard "Regulatory" tab sits on the dark navy scope; Lens results
+  // sit on the cream brand surface. Drive every surface/ text color off this.
+  const dark = mode === 'tab'
 
   // Loading state
   if (loading) {
@@ -380,14 +434,16 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
       <div className={mode === 'lens' ? '' : 'px-5 py-6'}>
         {mode === 'lens' && <PanelHeader stateName={labelName} count={0} />}
         <div className={`rounded-xl px-5 py-6 text-center ${mode === 'lens' ? 'mt-4' : ''}`}
-          style={{ background: '#FAFAF7', border: '1px dashed #E2E8F0' }}>
-          <p className="text-[13px] text-ink-muted leading-relaxed">
-            No Tractova-flagged proceedings in <span className="font-medium text-ink">{labelName}</span> right now.
+          style={dark
+            ? { background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--cards-border)' }
+            : { background: '#FAFAF7', border: '1px dashed #E2E8F0' }}>
+          <p className="text-[13px] leading-relaxed" style={{ color: dark ? 'var(--text-label)' : '#5A6B7A' }}>
+            No Tractova-flagged proceedings in <span className="font-medium" style={{ color: dark ? 'var(--text-primary)' : '#0A1828' }}>{labelName}</span> right now.
           </p>
-          <p className="text-[11px] text-ink-muted mt-1.5 mb-3">
+          <p className="text-[11px] mt-1.5 mb-3" style={{ color: dark ? 'var(--text-muted)' : '#5A6B7A' }}>
             We surface only the dockets we've assessed as material — drill into the state PUC e-filing portal directly for the comprehensive index.
           </p>
-          <ExplorePucButton state={state} />
+          <ExplorePucButton state={state} dark={dark} />
         </div>
       </div>
     )
@@ -404,13 +460,13 @@ export default function RegulatoryActivityPanel({ state, stateName, isPro = true
         transition={{ duration: 0.22, ease: 'easeOut' }}
         className={`grid grid-cols-1 ${mode === 'lens' ? 'lg:grid-cols-2 gap-4 mt-4' : 'gap-3'}`}
       >
-        {docketsArr.map(d => <DocketCard key={d.id} docket={d} />)}
+        {docketsArr.map(d => <DocketCard key={d.id} docket={d} dark={dark} />)}
       </motion.div>
-      <div className="mt-3 pt-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: '1px solid #E2E8F0' }}>
-        <p className="text-[11px] text-ink-muted leading-relaxed">
-          Tractova-flagged signal. <span className="text-ink-muted">For the full docket index:</span>
+      <div className="mt-3 pt-3 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: `1px solid ${dark ? 'var(--cards-border)' : '#E2E8F0'}` }}>
+        <p className="text-[11px] leading-relaxed" style={{ color: dark ? 'var(--text-muted)' : '#5A6B7A' }}>
+          Tractova-flagged signal. <span>For the full docket index:</span>
         </p>
-        <ExplorePucButton state={state} />
+        <ExplorePucButton state={state} dark={dark} />
       </div>
     </div>
   )

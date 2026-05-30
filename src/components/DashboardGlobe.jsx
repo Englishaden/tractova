@@ -901,6 +901,44 @@ export default function DashboardGlobe({
           </button>
         )}
 
+        {/* Choropleth legend — focused phase only (the only phase where the
+            state fills are visible). Bottom-right so it clears the zoom-out
+            pill (top-right) and the AK/HI insets (bottom-left). pointer-events
+            -none so it never blocks a state click beneath it (Aden 2026-05-30:
+            "build in any legend that's necessary for the map"). */}
+        {phase === 'focused' && (
+          <div
+            className="absolute bottom-3 right-3 z-10 rounded-md px-2.5 py-2 pointer-events-none"
+            style={{
+              background: 'rgba(11,22,35,0.85)',
+              border: '1px solid rgba(20,184,166,0.30)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            <p className="font-mono text-[8px] uppercase tracking-[0.22em] mb-1" style={{ color: '#98A4B6' }}>
+              Feasibility
+            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[8px]" style={{ color: '#6C7A91' }}>Low</span>
+              <span
+                className="h-1.5 w-20 rounded-full"
+                style={{ background: 'linear-gradient(90deg, #99F6E4 0%, #5EEAD4 28%, #2DD4BF 52%, #14B8A6 76%, #0F766E 100%)' }}
+              />
+              <span className="font-mono text-[8px]" style={{ color: '#6C7A91' }}>High</span>
+            </div>
+            <div className="flex items-center gap-3 mt-1.5">
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm" style={{ background: '#FBBF24' }} />
+                <span className="font-mono text-[8px] uppercase tracking-[0.12em]" style={{ color: '#98A4B6' }}>Pending</span>
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="w-2 h-2 rounded-sm" style={{ background: '#1F2A3D', border: '1px solid rgba(94,234,212,0.22)' }} />
+                <span className="font-mono text-[8px] uppercase tracking-[0.12em]" style={{ color: '#98A4B6' }}>No program</span>
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Hover tooltip — Focused phase, state hit-test */}
         {phase === 'focused' && hover && hoverState && (
           <div
