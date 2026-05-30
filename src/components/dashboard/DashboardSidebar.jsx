@@ -1,4 +1,5 @@
 import { useSearchParams, useNavigate } from 'react-router-dom'
+import AnimatedIcon from '../ui/AnimatedIcon'
 
 // DashboardSidebar — left-rail tab navigation for the Dashboard.
 //
@@ -205,10 +206,7 @@ export default function DashboardSidebar({ collapsed = false, onToggleCollapse }
             }}
             aria-label="Run a Lens"
           >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <line x1="20" y1="20" x2="16.65" y2="16.65" />
-            </svg>
+            <AnimatedIcon name="Search" animation="pulse" size={11} strokeWidth={2.5} />
             {!collapsed && 'Run a Lens'}
           </button>
           {!collapsed && (
