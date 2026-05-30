@@ -73,7 +73,7 @@ export default function CsCapacityLeaderboard({ programs = [], filterStates = []
             />
             <Tooltip
               {...CHART_TOOLTIP}
-              cursor={{ fill: 'rgba(94,234,212,0.06)' }}
+              cursor={false}
               formatter={(value, _name, props) => {
                 const status = props?.payload?.status || ''
                 const fullName = props?.payload?.fullName || ''

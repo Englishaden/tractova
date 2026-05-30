@@ -80,7 +80,7 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     >
       <div style={{ height: chartH, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} layout="vertical" margin={{ top: 6, right: 18, left: 4, bottom: 4 }}>
+          <ComposedChart data={data} layout="vertical" margin={{ top: 22, right: 18, left: 4, bottom: 4 }}>
             <XAxis
               type="number"
               domain={[-maxAbs, maxAbs]}
@@ -98,10 +98,10 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
               tickLine={false}
               width={30}
             />
-            <ReferenceLine x={0} stroke="rgba(251,191,36,0.45)" strokeDasharray="4 4" label={{ value: `Natl ~${NATL_MEDIAN}%`, position: 'top', fill: '#FBBF24', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }} />
+            <ReferenceLine x={0} stroke="rgba(251,191,36,0.45)" strokeDasharray="4 4" label={{ value: `Natl ~${NATL_MEDIAN}%`, position: 'insideTopLeft', fill: '#FBBF24', fontSize: 9, fontFamily: 'JetBrains Mono, ui-monospace, monospace' }} />
             <Tooltip
               {...CHART_TOOLTIP}
-              cursor={{ fill: 'rgba(94,234,212,0.06)' }}
+              cursor={false}
               formatter={(_v, _n, props) => {
                 const p = props?.payload || {}
                 const hh = p.households

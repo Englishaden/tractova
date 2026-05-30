@@ -49,8 +49,18 @@ export default function ChartCard({
       {/* Teal hairline accent */}
       <div className="h-px shrink-0" style={{ background: 'linear-gradient(90deg, transparent 0%, var(--hairline-teal, rgba(20,184,166,0.45)) 50%, transparent 100%)' }} />
 
-      {/* Eyebrow + title row */}
-      <header className="px-4 pt-3 pb-2 flex items-start justify-between gap-2 shrink-0">
+      {/* Eyebrow + title row. When `expandable`, the WHOLE header is the
+          click target (like the KPI cards) — onToggleExpand fires on header
+          click; interactive children stopPropagation. The expand glyph is
+          a passive indicator, not the only hit area. */}
+      <header
+        className={`group/hdr px-4 pt-3 pb-2 flex items-start justify-between gap-2 shrink-0 ${expandable ? 'cursor-pointer select-none' : ''}`}
+        onClick={expandable ? onToggleExpand : undefined}
+        role={expandable ? 'button' : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        aria-pressed={expandable ? isExpanded : undefined}
+        onKeyDown={expandable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggleExpand?.() } } : undefined}
+      >
         <div className="flex-1 min-w-0">
           {label && (
             <p className="font-mono text-[9px] uppercase tracking-[0.22em] font-bold leading-none mb-1.5" style={{ color: 'var(--link, #5EEAD4)' }}>
@@ -71,16 +81,12 @@ export default function ChartCard({
         </div>
         {(headerRight || collapsible || expandable) && (
           <div className="flex items-center gap-1.5 shrink-0">
-            {headerRight}
+            {headerRight && <span onClick={(e) => e.stopPropagation()}>{headerRight}</span>}
             {expandable && (
-              <button
-                type="button"
-                onClick={onToggleExpand}
-                className="p-1 transition-colors"
+              <span
+                className="p-1 transition-colors group-hover/hdr:opacity-100"
                 style={{ color: isExpanded ? 'var(--link, #5EEAD4)' : 'var(--text-muted)' }}
-                aria-pressed={isExpanded}
-                aria-label={isExpanded ? 'Collapse chart' : 'Expand chart'}
-                title={isExpanded ? 'Collapse' : 'Expand'}
+                aria-hidden="true"
               >
                 {isExpanded ? (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -93,7 +99,7 @@ export default function ChartCard({
                     <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
                   </svg>
                 )}
-              </button>
+              </span>
             )}
             {collapsible && (
               <button

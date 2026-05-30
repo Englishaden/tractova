@@ -4,15 +4,30 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.11: Analytics rd2 (live KPI bar moved from Home · click-to-expand bento · no in-chart scroll)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.12: Analytics rd3 polish (globe live-only dots · header-click expand · KISS)
 
-**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`). Analytics rd2 acts on Aden's review of v2.10. Commit pending.
+**Product now.** Dashboard = tab terminal. Analytics rd3 = Aden's review of v2.11. Commit pending.
 
 **Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **Globe: only LIVE library dots render** — removed the decorative halftone land-stipple dots (block 4) AND the idle feasibility-score markers (block 6) in `DashboardGlobe.jsx`. The only dots now are the pulsing LIVE markers from the user's saved library (block 6b). `dots`/`topStateCoords` retained but unused (no render).
+- **Sidebar hover tooltips removed** — dropped the native `title` tooltips on Expand-sidebar / Home / Analytics / Run-a-Lens (icons + `aria-label` kept for a11y). `DashboardSidebar.jsx`.
+- **KPI card hover-tooltip shrunk ~35%** — `max-w-280→180`, `px-3 py-2→px-2 py-1.5`, body `12px→10px`, label `9px→8px`, terser copy ("Click to expand."). Per-instance override in `MetricsBar.jsx`; other tooltips unaffected.
+- **Removed the bar "shadow box" hover cursor** — `cursor={false}` on the bar/lollipop/dot charts (status, capacity, LMI, projects). Line/area cursors (thin guide line) kept.
+- **LMI label clipping fixed** — the "Natl ~38%" reference label was cut off at the top; chart `margin.top 6→22` + label `position top→insideTopLeft`.
+- **Header-click expand (KISS)** — charts now expand by clicking ANYWHERE in the header (like the KPI cards), not just the arrow; whole header is `role=button` + keyboard-accessible; the expand glyph is now a passive indicator. `headerRight` children stopPropagation.
+- **Removed the Lin/Log toggle** — confusing for non-analyst users (KISS); projects dot plot is linear-only now. Dropped `ChartToggle` usage.
+
+
+
+**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`). Analytics rd2 acts on Aden's review of v2.10. Commit `60a22ff`.
+
+<details><summary>v2.11 (superseded same-day) — live KPI bar moved from Home · click-to-expand bento</summary>
+
 - **Live KPI MetricsBar MOVED Home → Analytics top** — the real 5-card KPI bar (CS Coverage / IX Headroom / Policy Pulse / Avg Capacity / Pipeline Load) now anchors Analytics, with its full functionality intact (CountUp tick-up, sparklines, per-card expand reveals, `items-start` so an open card doesn't stretch siblings). Removed from `HomeTab.jsx` (Home = pure command center: hero globe + Markets-on-the-Move). The v2.10 `AnalyticsKpiStrip` placeholder was deleted.
 - **Click-to-expand bento (no in-chart scroll)** — charts are now COMPACT by default (top 7, fit ~one screen, zero internal scroll). Click the new expand button → that tile spans full width and the siblings reflow around it via motion `layout` spring, exactly like the Home command center. Multiple tiles can be open at once; the grid re-packs. `ChartCard` gained `expandable`/`isExpanded`/`onToggleExpand` + an expand/minimize icon; `AnalyticsTab` owns the expanded-key Set + col-span reflow.
 - **CS Capacity Leaderboard legend added** — status legend (Active/Limited/Pending/No-program + counts) below the bars, matching the program-status chart.
 - **Removed all left/right + in-card scrolling** — the v2.10 fixed-height `overflow-y` scroll bodies are gone; compact mode shows top 7, expand shows the full board at a taller height.
+</details>
 
 <details><summary>v2.10 (superseded same-day) — bento + honest citations + LMI/Projects re-viz</summary>
 

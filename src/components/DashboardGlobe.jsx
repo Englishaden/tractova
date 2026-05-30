@@ -454,34 +454,12 @@ export default function DashboardGlobe({
         ctx.stroke()
       }
 
-      // 4) Halftone dots — fade out as we zoom in (dotOpacity ref).
-      //    Perf (Aden 2026-05-29 "optimize FPS"): (a) back-face cull — skip
-      //    dots on the far hemisphere via a precomputed-trig dot product
-      //    against the projection center, which also kills the old
-      //    overdraw-through-the-sphere bug; (b) ONE batched path + a single
-      //    fill() instead of begin/arc/fill per dot (thousands of fills/frame
-      //    → one).
-      if (dotOpacityRef.current > 0.01 && dots.length > 0) {
-        const rot = rotationRef.current
-        const cLng = -rot[0] * DEG2RAD
-        const cLat = -rot[1] * DEG2RAD
-        const sinCLat = Math.sin(cLat)
-        const cosCLat = Math.cos(cLat)
-        ctx.globalAlpha = dotOpacityRef.current
-        ctx.fillStyle = 'rgba(94, 234, 212, 0.55)'
-        ctx.beginPath()
-        for (const d of dots) {
-          // d = [lng, lat, lngRad, sinLat, cosLat]
-          const cosC = sinCLat * d[3] + cosCLat * d[4] * Math.cos(d[2] - cLng)
-          if (cosC <= 0.03) continue // far hemisphere / limb
-          const p = projection([d[0], d[1]])
-          if (!p) continue
-          ctx.moveTo(p[0] + 1.1, p[1])
-          ctx.arc(p[0], p[1], 1.1, 0, 2 * Math.PI)
-        }
-        ctx.fill()
-        ctx.globalAlpha = 1
-      }
+      // 4) Halftone land dots — REMOVED (Aden 2026-05-30: "the only viewing
+      //    dots are live from our library"). The decorative stipple land
+      //    texture and the idle feasibility markers (block 6) are gone; the
+      //    only dots that render are the LIVE library markers (block 6b).
+      //    `dots` is still generated for potential future use but never drawn.
+      void dots
 
       // 5) US state choropleth — fade in as we zoom in (stateOpacity ref)
       if (stateOpacityRef.current > 0.01 && stateFeatures) {
@@ -522,31 +500,8 @@ export default function DashboardGlobe({
         ctx.globalAlpha = 1
       }
 
-      // 6) Idle-phase top-state markers — bright teal dots at each top-15
-      //    state's centroid, sized by feasibility score. Visible only
-      //    when dots are visible (i.e. during idle/early transition).
-      if (dotOpacityRef.current > 0.3 && stateFeatures) {
-        const seenIds = new Set(topStateCoords.map((s) => s.id))
-        for (const f of stateFeatures) {
-          const fips = String(f.id).padStart(2, '0')
-          const stateId = FIPS[fips]
-          if (!seenIds.has(stateId)) continue
-          const cent = path.centroid(f)
-          if (!cent || isNaN(cent[0])) continue
-          const info = stateMap[stateId]
-          const score = info?.feasibilityScore || 0
-          const r = 1.5 + (score / 100) * 2.5
-          ctx.globalAlpha = dotOpacityRef.current
-          ctx.beginPath()
-          ctx.arc(cent[0], cent[1], r, 0, 2 * Math.PI)
-          ctx.fillStyle = '#14B8A6'
-          ctx.shadowColor = 'rgba(20, 184, 166, 0.7)'
-          ctx.shadowBlur = 8
-          ctx.fill()
-          ctx.shadowBlur = 0
-          ctx.globalAlpha = 1
-        }
-      }
+      // 6) Idle-phase top-state markers — REMOVED (Aden 2026-05-30: only
+      //    live library dots should render). See block 6b.
 
       // 6b) LIVE markers — only for AUTHED users with ≥1 saved Library
       //     project (Aden 2026-05-28: "only dots that light up are the

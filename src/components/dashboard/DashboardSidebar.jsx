@@ -113,7 +113,6 @@ export default function DashboardSidebar({ collapsed = false, onToggleCollapse }
             onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(20,184,166,0.08)' }}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             <TripleChevron expand={collapsed} />
           </button>
@@ -137,7 +136,6 @@ export default function DashboardSidebar({ collapsed = false, onToggleCollapse }
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = 'var(--text-label)' }}
                 data-active={active ? 'true' : 'false'}
                 aria-current={active ? 'page' : undefined}
-                title={collapsed ? t.label : undefined}
               >
                 {/* Top hairline accent — visible only on the active tab */}
                 {active && !collapsed && (
@@ -205,7 +203,6 @@ export default function DashboardSidebar({ collapsed = false, onToggleCollapse }
               color: '#FFFFFF',
               boxShadow: '0 4px 16px -4px rgba(20,184,166,0.55)',
             }}
-            title={collapsed ? 'Run a Lens' : undefined}
             aria-label="Run a Lens"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

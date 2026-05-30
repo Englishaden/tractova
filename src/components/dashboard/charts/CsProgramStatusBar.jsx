@@ -45,7 +45,7 @@ export default function CsProgramStatusBar({ programs = [], filterStates = [] })
           <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
             <XAxis type="number" hide />
             <YAxis type="category" dataKey="name" hide />
-            <Tooltip {...CHART_TOOLTIP} cursor={{ fill: 'rgba(94,234,212,0.08)' }} />
+            <Tooltip {...CHART_TOOLTIP} cursor={false} />
             {Object.entries(STATUS_COLORS).map(([key, cfg]) => (
               <Bar key={key} dataKey={key} stackId="status" fill={cfg.fill} name={cfg.label} radius={key === 'active' ? [4, 0, 0, 4] : key === 'none' ? [0, 4, 4, 0] : 0}>
                 <LabelList
