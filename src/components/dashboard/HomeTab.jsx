@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import MetricsBar from '../MetricsBar'
 import IntelligenceFeedCard from '../IntelligenceFeedCard'
 import StateDetailPanel from '../StateDetailPanel'
 import DashboardGlobe from '../DashboardGlobe'
@@ -11,9 +10,12 @@ import MountReveal from '../ui/MountReveal'
 
 // HomeTab — the Dashboard's primary surface. Absorbs the Ship 1.8 hero
 // (MarketFiltersRail | DashboardGlobe | IntelligenceFeedCard/StateDetailPanel)
-// plus the KPI strip + Markets on the Move row beneath. Owns its own data
-// fetching (state programs / news / deltas) because Analytics and
-// Markets&Policy tabs have different data shapes — no shared parent state.
+// plus the Markets on the Move row beneath. Owns its own data fetching
+// (state programs / news / deltas) because Analytics and Markets&Policy tabs
+// have different data shapes — no shared parent state.
+//
+// The live KPI MetricsBar moved to the Analytics tab (2026-05-30) so Home
+// stays a focused command center and the KPIs anchor the analytics surface.
 //
 // Mobile layout: stacks single-col; the MarketFiltersRail collapses to a
 // horizontal chip strip above the map (handled inside MarketFiltersRail).
@@ -279,13 +281,8 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
         </div>
       </MountReveal>
 
-      {/* KPI strip */}
-      <MountReveal delay={0.08}>
-        <MetricsBar previewMode={effectivePreviewMode} />
-      </MountReveal>
-
       {/* Markets on the Move */}
-      <MountReveal delay={0.12}>
+      <MountReveal delay={0.08}>
         <MarketsOnTheMove stateProgramMap={stateProgramMap} deltaMap={deltaMap} onStateClick={handleStateClick} />
       </MountReveal>
     </div>

@@ -25,7 +25,7 @@ function toIsoWeek(d) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
 }
 
-export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, label = 'Chart 04' }) {
+export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, label = 'Chart 04', expandable = false, isExpanded = false, onToggleExpand }) {
   const [snaps, setSnaps] = useState(null)
 
   useEffect(() => {
@@ -98,9 +98,12 @@ export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, l
         : 'Weekly history accruing — top-movers chart unlocks once each state has ≥2 weekly snapshots.'}
       footer="Source: Tractova feasibility model (scoreEngine.js) over weekly snapshots; inputs trace to DSIRE program data + US Census ACS + ISO/RTO queue reports."
       className="h-full"
+      expandable={expandable}
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
     >
       {hasData ? (
-        <div style={{ height: 288, width: '100%' }}>
+        <div style={{ height: expandable ? (isExpanded ? 320 : 200) : 288, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
               <CartesianGrid stroke={CHART_GRID_STROKE} strokeDasharray="3 3" vertical={false} />
@@ -141,7 +144,7 @@ export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, l
           </ResponsiveContainer>
         </div>
       ) : (
-        <div style={{ height: 288 }} className="flex items-center justify-center">
+        <div style={{ height: expandable ? (isExpanded ? 320 : 200) : 288 }} className="flex items-center justify-center">
           <div className="text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Trend Accruing</p>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Snapshot history fills weekly. Check back after the next refresh cycle.</p>

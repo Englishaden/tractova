@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { getStatePrograms, getDashboardMetricsHistory } from '../../lib/programData'
-import AnalyticsKpiStrip from './charts/AnalyticsKpiStrip'
+import MetricsBar from '../MetricsBar'
 import CsProgramStatusBar from './charts/CsProgramStatusBar'
 import CsCapacityLeaderboard from './charts/CsCapacityLeaderboard'
 import LmiDivergingLollipop from './charts/LmiDivergingLollipop'
@@ -9,49 +10,44 @@ import PolicyPulseStacked from './charts/PolicyPulseStacked'
 import IxDifficultyDonut from './charts/IxDifficultyDonut'
 import OperatingCsProjectsDot from './charts/OperatingCsProjectsDot'
 
-// AnalyticsTab — the dense, single-screen analytics surface for the Dashboard
-// (v2.10 rework). A "top-10 SaaS terminal" layout:
-//   • Zone A — KPI summary strip (overview always visible, filter-aware)
+// AnalyticsTab — the dense, single-screen analytics surface for the Dashboard.
+//   • Zone A — the live KPI MetricsBar (moved here from HomeTab; expand/collapse
+//     cards with CountUp + sparkline + per-card reveals, unchanged)
 //   • Zone B — collapsible state filter (condenses to reclaim vertical space)
-//   • Zone C — 12-col bento grid of charts on normalized, aligned heights
+//   • Zone C — a 12-col bento of charts that are COMPACT by default (fit ~one
+//     screen) and EXPAND on click — the expanded tile spans full width and the
+//     siblings reflow around it (motion layout), like the Home command center.
 // All wrapped in a faint .dash-map-grid backdrop for the control-room feel.
 //
-// Charts grounded in the audited data inventory; each cites its UPSTREAM
-// authority (DSIRE / Census ACS / LBNL / ISO-RTO / RSS), not the table name.
-// State filter drives the filter-aware charts (status, capacity, LMI, IX,
-// projects). Time-series (feasibility movement, policy pulse) show the
-// national pulse regardless of selection.
+// Each chart cites its UPSTREAM authority (DSIRE / Census ACS / LBNL / ISO-RTO
+// / RSS), not the table name. The state filter drives the filter-aware charts.
 
-function AnalyticsSkeleton() {
+function ChartsSkeleton() {
   return (
-    <div className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="rounded-md dash-shimmer" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '92px' }} />
-        ))}
-      </div>
-      <div className="rounded-md dash-shimmer" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: '52px' }} />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
-        {['lg:col-span-12', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-6', 'lg:col-span-6', 'lg:col-span-12'].map((span, i) => (
-          <div
-            key={i}
-            className={`relative overflow-hidden rounded-md dash-shimmer ${span}`}
-            style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: i === 0 ? '120px' : '340px' }}
-          >
-            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, var(--hairline-teal) 50%, transparent 100%)' }} />
-          </div>
-        ))}
-      </div>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5">
+      {['lg:col-span-12', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-4', 'lg:col-span-6', 'lg:col-span-6', 'lg:col-span-12'].map((span, i) => (
+        <div
+          key={i}
+          className={`relative overflow-hidden rounded-md dash-shimmer ${span}`}
+          style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)', minHeight: i === 0 ? '110px' : '300px' }}
+        >
+          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 0%, var(--hairline-teal) 50%, transparent 100%)' }} />
+        </div>
+      ))}
     </div>
   )
 }
+
+const SPRING = { type: 'spring', stiffness: 380, damping: 38 }
 
 export default function AnalyticsTab() {
   const [programs, setPrograms] = useState([])
   const [history, setHistory] = useState(null)
   const [filterStates, setFilterStates] = useState([])
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [expanded, setExpanded] = useState(() => new Set())
   const [ready, setReady] = useState(false)
+  const reduced = useReducedMotion()
 
   useEffect(() => {
     let cancelled = false
@@ -67,8 +63,6 @@ export default function AnalyticsTab() {
     return () => { cancelled = true }
   }, [])
 
-  // Filter-chip list — sorted by feasibility score so the "important" states
-  // are at the top of the chip grid.
   const filterableStates = useMemo(() => {
     return programs
       .filter((s) => s.csStatus && s.csStatus !== 'none')
@@ -80,7 +74,17 @@ export default function AnalyticsTab() {
   }
   const clearAll = () => setFilterStates([])
 
-  if (!ready) return <AnalyticsSkeleton />
+  const isOpen = (key) => expanded.has(key)
+  const toggleExpand = (key) => {
+    setExpanded((cur) => {
+      const next = new Set(cur)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+  // collapsed col-span per tile; expanded tiles go full-width so siblings reflow.
+  const span = (key, base) => (isOpen(key) ? 'lg:col-span-12' : base)
 
   return (
     <div className="relative">
@@ -88,8 +92,8 @@ export default function AnalyticsTab() {
       <div className="dash-map-grid" style={{ opacity: 0.4 }} aria-hidden="true" />
 
       <div className="relative z-10 flex flex-col gap-3">
-        {/* ── Zone A — KPI summary strip ─────────────────────────────── */}
-        <AnalyticsKpiStrip programs={programs} filterStates={filterStates} history={history} />
+        {/* ── Zone A — live KPI metrics (moved from Home) ────────────── */}
+        <MetricsBar />
 
         {/* ── Zone B — collapsible state filter ──────────────────────── */}
         <div className="rounded-md" style={{ background: 'var(--cards-bg)', border: '1px solid var(--cards-border)' }}>
@@ -172,37 +176,37 @@ export default function AnalyticsTab() {
           )}
         </div>
 
-        {/* ── Zone C — bento grid ────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
-          {/* Status ribbon — full width */}
-          <div className="lg:col-span-12">
-            <CsProgramStatusBar programs={programs} filterStates={filterStates} />
-          </div>
+        {/* ── Zone C — expandable bento grid ─────────────────────────── */}
+        {!ready ? (
+          <ChartsSkeleton />
+        ) : (
+          <motion.div layout={!reduced} transition={SPRING} className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-stretch">
+            <motion.div layout={!reduced} transition={SPRING} className="lg:col-span-12">
+              <CsProgramStatusBar programs={programs} filterStates={filterStates} />
+            </motion.div>
 
-          {/* Capacity · IX · Deployment — three feature tiles */}
-          <div className="lg:col-span-4">
-            <CsCapacityLeaderboard programs={programs} filterStates={filterStates} />
-          </div>
-          <div className="lg:col-span-4">
-            <IxDifficultyDonut programs={programs} filterStates={filterStates} />
-          </div>
-          <div className="lg:col-span-4">
-            <OperatingCsProjectsDot filterStates={filterStates} />
-          </div>
+            <motion.div layout={!reduced} transition={SPRING} className={span('capacity', 'lg:col-span-4')}>
+              <CsCapacityLeaderboard programs={programs} filterStates={filterStates} isExpanded={isOpen('capacity')} onToggleExpand={() => toggleExpand('capacity')} />
+            </motion.div>
+            <motion.div layout={!reduced} transition={SPRING} className={span('ix', 'lg:col-span-4')}>
+              <IxDifficultyDonut programs={programs} filterStates={filterStates} isExpanded={isOpen('ix')} onToggleExpand={() => toggleExpand('ix')} />
+            </motion.div>
+            <motion.div layout={!reduced} transition={SPRING} className={span('projects', 'lg:col-span-4')}>
+              <OperatingCsProjectsDot filterStates={filterStates} isExpanded={isOpen('projects')} onToggleExpand={() => toggleExpand('projects')} />
+            </motion.div>
 
-          {/* Equity · Trends — two wide tiles */}
-          <div className="lg:col-span-6">
-            <LmiDivergingLollipop filterStates={filterStates} />
-          </div>
-          <div className="lg:col-span-6">
-            <FeasibilityScoreDeltas filterStates={filterStates} weeks={8} label="TRENDS" />
-          </div>
+            <motion.div layout={!reduced} transition={SPRING} className={span('lmi', 'lg:col-span-6')}>
+              <LmiDivergingLollipop filterStates={filterStates} isExpanded={isOpen('lmi')} onToggleExpand={() => toggleExpand('lmi')} />
+            </motion.div>
+            <motion.div layout={!reduced} transition={SPRING} className={span('trends', 'lg:col-span-6')}>
+              <FeasibilityScoreDeltas filterStates={filterStates} weeks={8} label="TRENDS" expandable isExpanded={isOpen('trends')} onToggleExpand={() => toggleExpand('trends')} />
+            </motion.div>
 
-          {/* Signals hero — full width */}
-          <div className="lg:col-span-12">
-            <PolicyPulseStacked series={history?.policyPulseByPillar || []} />
-          </div>
-        </div>
+            <motion.div layout={!reduced} transition={SPRING} className="lg:col-span-12">
+              <PolicyPulseStacked series={history?.policyPulseByPillar || []} isExpanded={isOpen('policy')} onToggleExpand={() => toggleExpand('policy')} />
+            </motion.div>
+          </motion.div>
+        )}
       </div>
     </div>
   )

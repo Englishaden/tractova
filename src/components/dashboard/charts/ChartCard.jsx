@@ -19,8 +19,9 @@
 
 import { useState } from 'react'
 
-// Standard tile chart-body heights so bento rows line up.
-export const TILE_H = { ribbon: 92, feature: 248, hero: 300 }
+// Standard tile chart-body heights so bento rows line up. Compact by
+// default so the page nearly fits one screen; charts grow when expanded.
+export const TILE_H = { ribbon: 88, feature: 200, expanded: 320, hero: 220 }
 
 export default function ChartCard({
   label,            // semantic category eyebrow (e.g. 'CAPACITY') — NOT "Chart 0X"
@@ -32,6 +33,9 @@ export default function ChartCard({
   className = '',
   collapsible = false,
   defaultOpen = true,
+  expandable = false,   // show the expand/minimize button (bento reflow)
+  isExpanded = false,   // controlled expanded state (drives the icon)
+  onToggleExpand,       // () => void — parent owns the bento col-span reflow
   children,
 }) {
   const [open, setOpen] = useState(defaultOpen)
@@ -65,9 +69,32 @@ export default function ChartCard({
             </p>
           )}
         </div>
-        {(headerRight || collapsible) && (
+        {(headerRight || collapsible || expandable) && (
           <div className="flex items-center gap-1.5 shrink-0">
             {headerRight}
+            {expandable && (
+              <button
+                type="button"
+                onClick={onToggleExpand}
+                className="p-1 transition-colors"
+                style={{ color: isExpanded ? 'var(--link, #5EEAD4)' : 'var(--text-muted)' }}
+                aria-pressed={isExpanded}
+                aria-label={isExpanded ? 'Collapse chart' : 'Expand chart'}
+                title={isExpanded ? 'Collapse' : 'Expand'}
+              >
+                {isExpanded ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+                    <line x1="14" y1="10" x2="21" y2="3" /><line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                ) : (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                )}
+              </button>
+            )}
             {collapsible && (
               <button
                 type="button"

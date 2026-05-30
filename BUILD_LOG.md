@@ -4,16 +4,25 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.10: Analytics tab full rework (bento + KPI strip · honest citations · LMI/Projects re-viz)
+## 🟢 Pickup — 2026-05-30 (latest) — Dashboard v2.11: Analytics rd2 (live KPI bar moved from Home · click-to-expand bento · no in-chart scroll)
 
-**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`). This round = Aden's 1st Analytics review pass, executed as a full layout + data rework (acting lead UI/UX + data-analytics COO brief). Commit `56e1f4c`.
+**Product now.** Dashboard = tab terminal (Home / Analytics / Markets & Policy via `?tab=`). Analytics rd2 acts on Aden's review of v2.10. Commit pending.
 
-**Shipped — one slice, `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
-- **Bento layout kills the whitespace** — `AnalyticsTab.jsx` rebuilt: Zone A KPI strip (`AnalyticsKpiStrip` — filter-aware mono numbers + inline `KPISparkline`/`CountUp`; sparkline only when unfiltered, no fake-trend-under-filter), Zone B collapsible filter (condenses to a one-line "N selected · chips" summary; full chip grid keeps Aden's liked UI), Zone C 12-col bento (status ribbon ×12 · capacity/IX/projects ×4 · LMI/trends ×6 · policy hero ×12) on **normalized 288px** feature heights via `ChartCard h-full` + fixed-height scroll bodies. Faint `.dash-map-grid` control-room backdrop.
+**Shipped — `npm run verify` green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **Live KPI MetricsBar MOVED Home → Analytics top** — the real 5-card KPI bar (CS Coverage / IX Headroom / Policy Pulse / Avg Capacity / Pipeline Load) now anchors Analytics, with its full functionality intact (CountUp tick-up, sparklines, per-card expand reveals, `items-start` so an open card doesn't stretch siblings). Removed from `HomeTab.jsx` (Home = pure command center: hero globe + Markets-on-the-Move). The v2.10 `AnalyticsKpiStrip` placeholder was deleted.
+- **Click-to-expand bento (no in-chart scroll)** — charts are now COMPACT by default (top 7, fit ~one screen, zero internal scroll). Click the new expand button → that tile spans full width and the siblings reflow around it via motion `layout` spring, exactly like the Home command center. Multiple tiles can be open at once; the grid re-packs. `ChartCard` gained `expandable`/`isExpanded`/`onToggleExpand` + an expand/minimize icon; `AnalyticsTab` owns the expanded-key Set + col-span reflow.
+- **CS Capacity Leaderboard legend added** — status legend (Active/Limited/Pending/No-program + counts) below the bars, matching the program-status chart.
+- **Removed all left/right + in-card scrolling** — the v2.10 fixed-height `overflow-y` scroll bodies are gone; compact mode shows top 7, expand shows the full board at a taller height.
+
+<details><summary>v2.10 (superseded same-day) — bento + honest citations + LMI/Projects re-viz</summary>
+
+- **Bento layout kills the whitespace** — `AnalyticsTab.jsx` rebuilt: Zone A KPI strip, Zone B collapsible filter (condenses to a one-line "N selected · chips" summary; full chip grid keeps Aden's liked UI), Zone C 12-col bento (status ribbon ×12 · capacity/IX/projects ×4 · LMI/trends ×6 · policy hero ×12) via `ChartCard h-full`. Faint `.dash-map-grid` control-room backdrop.
 - **Citations now name the UPSTREAM source, not the table** — all 7 footers rewritten two-layer: DSIRE (NCSU/DOE) for program identity, status/MW **admin-curated** (honest); US Census ACS for LMI; LBNL "Sharing the Sun" Q4 2024 for operating projects; ISO/RTO queues for IX tier; PV Magazine/Utility Dive/Solar Power World/Solar Industry RSS for signals; scoreEngine.js for feasibility.
 - **LMI re-viz → diverging lollipop** (`LmiDivergingLollipop`, replaces `LmiPenetrationBar`) — Δ vs ~38% national median (custom stem+dot glyph), `interval={0}` ALL labels, teal-above/amber-below; honest deviation axis surfaces the clustered ~30–45% values. **Projects re-viz → dot plot + Lin/Log toggle** (`OperatingCsProjectsDot`, replaces `OperatingCsProjectsBar`) — sorted dots, `interval={0}`, log scale (ticks 1/10/100) resolves the MA/IL/CO/FL skew so small states stay legible.
 - **De-numbered eyebrows** — "Chart 0X" → semantic category tags (PROGRAMS / CAPACITY / EQUITY / TRENDS / SIGNALS / INTERCONNECTION / DEPLOYMENT). `ChartCard` gained `headerRight`/`badge`/`className` + a shared `ChartToggle` + `TILE_H`.
 - **CS capacity verified single-sourced** — Chart 2 + Home "CS Coverage" card both read `state_programs.capacity_mw` via `getStatePrograms()` (no duplicate compute). Kept current values; citation reframed honestly (see follow-up #1).
+- LMI → diverging lollipop (Δ vs ~38% median, all labels); Projects → dot plot + Lin/Log toggle; de-numbered eyebrows → semantic tags; honest upstream citations on all 7 (DSIRE/Census/LBNL/ISO-RTO/RSS).
+</details>
 
 ### ⏭ DO NEXT
 1. **Verify `state_programs.capacity_mw` values** against DSIRE / state-PUC sources + add per-row `source`/`last_updated` (admin-curated today, no attribution — `DATA_SOURCES.md`). Citation is now honest about this; the numbers still need a verification pass.

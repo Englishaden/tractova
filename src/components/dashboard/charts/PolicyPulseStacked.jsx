@@ -17,8 +17,9 @@ const PILLAR_CFG = [
   { key: 'policy',  label: 'Policy',          color: '#A78BFA' },
 ]
 
-export default function PolicyPulseStacked({ series = [] }) {
+export default function PolicyPulseStacked({ series = [], isExpanded = false, onToggleExpand }) {
   const hasData = Array.isArray(series) && series.length >= 2
+  const chartH = isExpanded ? 360 : 220
 
   return (
     <ChartCard
@@ -29,9 +30,12 @@ export default function PolicyPulseStacked({ series = [] }) {
         : 'Weekly news history accruing — chart unlocks at ≥2 weeks of pillar-tagged signals.'}
       footer="Source: PV Magazine, Utility Dive, Solar Power World & Solar Industry RSS, AI-classified (relevance ≥ 60) and grouped by ISO week."
       className="h-full"
+      expandable
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
     >
       {hasData ? (
-        <div style={{ height: 300, width: '100%' }}>
+        <div style={{ height: chartH, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
               <defs>
@@ -79,7 +83,7 @@ export default function PolicyPulseStacked({ series = [] }) {
           </ResponsiveContainer>
         </div>
       ) : (
-        <div style={{ height: 300 }} className="flex items-center justify-center">
+        <div style={{ height: chartH }} className="flex items-center justify-center">
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Weekly history accruing — needs ≥2 weeks of data.</p>
         </div>
       )}

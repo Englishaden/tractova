@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-import ChartCard, { CHART_TOOLTIP } from './ChartCard'
+import ChartCard, { CHART_TOOLTIP, TILE_H } from './ChartCard'
 
 // Chart 6: IX Difficulty Distribution.
 // Donut chart — distribution of state_programs.ix_difficulty across
@@ -17,7 +17,7 @@ const TIER_CFG = [
   { key: 'very_hard', label: 'Very Hard', color: '#F87171' },
 ]
 
-export default function IxDifficultyDonut({ programs = [], filterStates = [] }) {
+export default function IxDifficultyDonut({ programs = [], filterStates = [], isExpanded = false, onToggleExpand }) {
   const data = useMemo(() => {
     const filterSet = new Set(filterStates)
     const counts = { easy: 0, moderate: 0, hard: 0, very_hard: 0 }
@@ -38,8 +38,11 @@ export default function IxDifficultyDonut({ programs = [], filterStates = [] }) 
       sub={`${total} state${total === 1 ? '' : 's'} ${filterStates.length > 0 ? '(filtered)' : '(all)'} grouped by IX friction tier.`}
       footer="Source: IX-difficulty tier admin-curated from ISO/RTO public queue reports (MISO / PJM / NYISO / ISO-NE). State-level baseline; per-county precision lives in /search (Lens)."
       className="h-full"
+      expandable
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
     >
-      <div style={{ height: 288, width: '100%' }}>
+      <div style={{ height: isExpanded ? TILE_H.expanded : TILE_H.feature, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
