@@ -22,15 +22,16 @@ export default function PolicyPulseStacked({ series = [] }) {
 
   return (
     <ChartCard
-      label="Chart 05"
+      label="SIGNALS"
       title="Policy & Market Pulse"
       sub={hasData
         ? `8-week trailing news-feed volume by pillar.`
         : 'Weekly news history accruing — chart unlocks at ≥2 weeks of pillar-tagged signals.'}
-      footer="Source: news_feed.pillar grouped by ISO week. Per-pillar counts derived from manually-curated + RSS-ingested signals."
+      footer="Source: PV Magazine, Utility Dive, Solar Power World & Solar Industry RSS, AI-classified (relevance ≥ 60) and grouped by ISO week."
+      className="h-full"
     >
       {hasData ? (
-        <div style={{ height: 260, width: '100%' }}>
+        <div style={{ height: 300, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={series} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
               <defs>
@@ -78,7 +79,7 @@ export default function PolicyPulseStacked({ series = [] }) {
           </ResponsiveContainer>
         </div>
       ) : (
-        <div style={{ height: 260 }} className="flex items-center justify-center">
+        <div style={{ height: 300 }} className="flex items-center justify-center">
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Weekly history accruing — needs ≥2 weeks of data.</p>
         </div>
       )}

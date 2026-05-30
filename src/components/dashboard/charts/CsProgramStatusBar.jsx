@@ -34,12 +34,13 @@ export default function CsProgramStatusBar({ programs = [], filterStates = [] })
 
   return (
     <ChartCard
-      label="Chart 01"
+      label="PROGRAMS"
       title="CS Program Status — National Distribution"
       sub={`${total} state${total === 1 ? '' : 's'} ${filterStates.length > 0 ? '(filtered)' : '(all)'} grouped by community-solar program maturity.`}
-      footer="Source: state_programs. Active = enrollment open; Limited = capped capacity; Pending = legislation filed."
+      footer="Source: DSIRE (NCSU/DOE) program registry verifies program identity; status tier admin-curated from state PUC / program-enrollment filings. Active = enrollment open; Limited = capped capacity; Pending = legislation filed."
+      className="h-full"
     >
-      <div style={{ height: 80, width: '100%' }}>
+      <div style={{ height: 88, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
             <XAxis type="number" hide />

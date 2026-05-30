@@ -96,10 +96,11 @@ export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, l
       sub={hasData
         ? `8-week trailing scores for the ${topMovers.length} states with the largest score-range movement.`
         : 'Weekly history accruing — top-movers chart unlocks once each state has ≥2 weekly snapshots.'}
-      footer="Source: state_programs_snapshots. Computed from program status, capacity, IX difficulty, LMI requirements (see scoreEngine.js)."
+      footer="Source: Tractova feasibility model (scoreEngine.js) over weekly snapshots; inputs trace to DSIRE program data + US Census ACS + ISO/RTO queue reports."
+      className="h-full"
     >
       {hasData ? (
-        <div style={{ height: 260, width: '100%' }}>
+        <div style={{ height: 288, width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 8, right: 8, left: 4, bottom: 4 }}>
               <CartesianGrid stroke={CHART_GRID_STROKE} strokeDasharray="3 3" vertical={false} />
@@ -140,7 +141,7 @@ export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, l
           </ResponsiveContainer>
         </div>
       ) : (
-        <div style={{ height: 260 }} className="flex items-center justify-center">
+        <div style={{ height: 288 }} className="flex items-center justify-center">
           <div className="text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>Trend Accruing</p>
             <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Snapshot history fills weekly. Check back after the next refresh cycle.</p>

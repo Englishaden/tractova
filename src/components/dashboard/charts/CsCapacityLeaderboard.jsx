@@ -22,12 +22,14 @@ export default function CsCapacityLeaderboard({ programs = [], filterStates = []
 
   return (
     <ChartCard
-      label="Chart 02"
+      label="CAPACITY"
       title="CS Capacity Leaderboard"
       sub="Top 15 states by remaining authorized capacity (MW)."
-      footer="Source: state_programs.capacity_mw. Reflects program-administrator authorizations, not operating deployments."
+      footer="Source: DSIRE (NCSU/DOE) program registry verifies program identity; MW authorizations admin-curated from state PUC / program filings — program authorizations, not operating deployments."
+      className="h-full"
     >
-      <div style={{ height: Math.max(220, data.length * 22), width: '100%' }}>
+      <div style={{ height: 288, overflowY: 'auto', width: '100%' }} className="thin-scrollbar">
+       <div style={{ height: Math.max(248, data.length * 18), width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ top: 4, right: 32, left: 4, bottom: 4 }}>
             <XAxis
@@ -40,6 +42,7 @@ export default function CsCapacityLeaderboard({ programs = [], filterStates = []
             <YAxis
               type="category"
               dataKey="name"
+              interval={0}
               tick={CHART_AXIS.tick}
               axisLine={false}
               tickLine={false}
@@ -65,6 +68,7 @@ export default function CsCapacityLeaderboard({ programs = [], filterStates = []
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+       </div>
       </div>
     </ChartCard>
   )

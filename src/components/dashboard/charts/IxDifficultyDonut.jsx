@@ -33,12 +33,13 @@ export default function IxDifficultyDonut({ programs = [], filterStates = [] }) 
 
   return (
     <ChartCard
-      label="Chart 06"
+      label="INTERCONNECTION"
       title="Interconnection Difficulty Distribution"
       sub={`${total} state${total === 1 ? '' : 's'} ${filterStates.length > 0 ? '(filtered)' : '(all)'} grouped by IX friction tier.`}
-      footer="Source: state_programs.ix_difficulty. State-level baseline; per-county precision lives in /search (Lens)."
+      footer="Source: IX-difficulty tier admin-curated from ISO/RTO public queue reports (MISO / PJM / NYISO / ISO-NE). State-level baseline; per-county precision lives in /search (Lens)."
+      className="h-full"
     >
-      <div style={{ height: 240, width: '100%' }}>
+      <div style={{ height: 288, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
