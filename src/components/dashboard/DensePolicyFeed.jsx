@@ -11,7 +11,7 @@ import { useMemo, useState } from 'react'
 // Data: getNewsFeed() (passed down from MarketsPolicyTab). All four
 // pillars (offtake / ix / site / policy) are first-class tabs.
 
-const PER_PAGE = 50
+const PER_PAGE = 10
 
 const PILLARS = [
   { key: 'all',     label: 'All',            color: '#5EEAD4' },
@@ -41,7 +41,9 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-export default function DensePolicyFeed({ news = [] }) {
+export default function DensePolicyFeed({ news = [], hideTabs = false }) {
+  // `hideTabs` hides the pillar-tab bar and shows the passed `news` as-is —
+  // used by the M&P Policy section, which passes a pre-scoped policy-alert list.
   const [pillar, setPillar] = useState('all')
   const [page, setPage] = useState(0)
 
@@ -87,7 +89,7 @@ export default function DensePolicyFeed({ news = [] }) {
             {filtered.length} signal{filtered.length === 1 ? '' : 's'} · {pageCount} page{pageCount === 1 ? '' : 's'}
           </span>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        {!hideTabs && <div className="flex flex-wrap gap-1.5">
           {PILLARS.map((p) => {
             const active = pillar === p.key
             return (
@@ -109,7 +111,7 @@ export default function DensePolicyFeed({ news = [] }) {
               </button>
             )
           })}
-        </div>
+        </div>}
       </header>
 
       {/* Rows */}

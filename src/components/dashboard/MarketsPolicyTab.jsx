@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { getStatePrograms, getNewsFeed } from '../../lib/programData'
-import StateProgramGrid from './StateProgramGrid'
+import SectionHeader from '../ui/SectionHeader'
+import StateMarketTable from './StateMarketTable'
+import CsViabilityRadar from './charts/CsViabilityRadar'
 import SubscriptionMixChart from './charts/SubscriptionMixChart'
-import FeasibilityScoreDeltas from './charts/FeasibilityScoreDeltas'
+import PolicyTimeline from './PolicyTimeline'
 import DensePolicyFeed from './DensePolicyFeed'
 import StateDetailPanel from '../StateDetailPanel'
 
@@ -69,14 +71,20 @@ export default function MarketsPolicyTab() {
 
   return (
     <div className="flex flex-col gap-3">
-      <StateProgramGrid programs={programs} onSelectState={setSelectedStateId} />
-
+      {/* ── MARKETS ── program viability + who markets the deployed capacity */}
+      <SectionHeader label="Markets" hint="program viability · channel mix" />
+      <StateMarketTable programs={programs} onSelectState={setSelectedStateId} />
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <CsViabilityRadar programs={programs} />
         <SubscriptionMixChart />
-        <FeasibilityScoreDeltas weeks={8} label="Markets 02" />
       </div>
 
-      <DensePolicyFeed news={news} />
+      {/* ── POLICY ── regulatory milestones + the policy signal stream.
+          Scoped to policy-alert signals (type), distinct from Home's all-signal
+          glance — the news_feed pillar field is offtake/ix/site only. */}
+      <SectionHeader label="Policy" hint="milestones · regulatory signals" />
+      <PolicyTimeline />
+      <DensePolicyFeed news={news.filter((n) => n.type === 'policy-alert')} hideTabs />
 
       {/* State detail modal overlay */}
       {selectedState && (
