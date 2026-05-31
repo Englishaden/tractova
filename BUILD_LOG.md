@@ -4,18 +4,14 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-31 (latest) — Dashboard closeout: M&P rework + reworks-v2 + polish (v2.17→2.21)
+## 🟢 Pickup — 2026-05-31 (latest) — Dashboard CLOSEOUT (v2.16→2.25, commits `e4b4588`→`bb0b553`)
 
-**Dashboard phases ~DONE. NEXT MAJOR = Lens → Glossary → Library UI makeover** (carry the dashboard's skill/polish language across).
+**Dashboard phases DONE. NEXT MAJOR = Lens → Glossary → Library UI makeover** (carry the dashboard's polish/skill language across). Every push verify-green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke).
 
-**Shipped — `npm run verify` green on every push (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
-- **M&P reworks v2 + cross-tab polish (v2.20 `6027992` · v2.21 `9b95b60`)** — sub-mix → 100% share bar + right-edge MW labels (kills the FL-buries-HI/DE/KS slivers); `PolicyTimeline` → click-stepped (prev/next, no scrollbars) with a floating overlay detail card; Markets section → collapsible motion bento that melds like Analytics (State Programs table compact-8 → expand-19 + radar, col-span 6→8, SPRING + `layout="position"`); removed redundant "MARKETS"/"Markets 01" eyebrows; `cursor={false}` (no shadow-box) on radar/donut/sub-mix; radar selector white-focus-box fixed; SortableTable headers upgraded (gradient + sorted-col highlight + underline); new `HoverBorderGradient.jsx` sheen on the Run-a-Lens CTA (all tabs).
-  - **LIVE-DATA (Aden's #1 concern):** Policy FEED is fully scraper-live (`_refresh-news.js` → `news_feed` → instant). Policy TIMELINE is **publish-gated by design** — `_scan-policy-candidates.js` (weekly) drafts events from policy-alerts; timeline shows `review_status='published'` only (those rows carry $-impact fields AI must not set unverified). Data dump → Feed instant; Timeline draft → goes live on 1-click admin publish (`invalidateCache` fires). **Decision: keep the gate.** Optional later: admin "scan now" button to surface drafts without waiting for the weekly cron.
-- **Markets & Policy tab REWORKED (v2.19 · `c843879`)** — bifurcated into **MARKETS** + **POLICY** (new `SectionHeader` divider, not nested cards). Markets = `StateMarketTable` (sortable per-state table on new generic `SortableTable.jsx` — Kibo pattern ported, no `@tanstack` dep — **replaces + retires `StateProgramGrid`** box-of-cards) + `CsViabilityRadar` (recharts 3-state compare). Policy = `PolicyTimeline` (horizontal milestone rail from `policy_impact_events`, 27 rows/23 published probed live, severity-colored) + `DensePolicyFeed` now **10/page** & `hideTabs`. `SubscriptionMixChart` kept; `FeasibilityScoreDeltas` dropped from M&P (already on Analytics).
-  - **Data honesty:** radar axes are normalized 0–100 from REAL curated fields (program status · IX difficulty · capacity tier · runway) — **no fabricated "Site" axis** (state-level `computeSubScores` returns a flat fake 60); footer discloses. **Finding:** `news_feed.pillar` = offtake/ix/site only (0 'policy'); policy content = `type==='policy-alert'` (24 items) → that's the M&P feed scope, de-duped from Home's all-signal top-5.
-- **Analytics polish (v2.18 · `c8d96c4`)** — CS Coverage tracker shows legible blocks for program-states only + a "+N" no-program cap (was ~50 slivers); IX Headroom tiers are click-to-expand → the states in each tier (honest: `ix_difficulty` is per-state, no per-utility data); LMI + 3 other chart subtitles condensed to one-liners (pts / CS / Δ).
-- **KPI reveals made distinct (v2.17 · `555582a`)** — Coverage = status tracker · Avg Capacity = distribution-vs-avg (centered on the headline avg, unified) · Pipeline = composition/concentration. No card ranks by MW anymore. LMI axis: clean integer ticks + unit.
-- *(prior session, v2.16 `e4b4588`/`0fd75c3`)* — KPI Bar List visibility + sidebar Run-a-Lens AnimatedIcon.
+- **Markets & Policy** — bifurcated **MARKETS / POLICY** (lightweight `SectionHeader`, no nested cards). Markets = `StateMarketTable` (sortable; generic `SortableTable.jsx` w/ upgraded headers; retired `StateProgramGrid`) + `CsViabilityRadar` (4 honest normalized axes, **no fake "Site"**) + `SubscriptionMixChart` (now a **filterable donut** — "All"/per-state chips, teal·sky·amber·slate). Table+radar = collapsible 12-col motion bento that melds like Analytics. Policy = `PolicyTimeline` (click-stepped, site-Tooltip hover detail, no scrollbars, severity nodes) + `DensePolicyFeed` (policy-alerts only, 10/page).
+- **Analytics polish** — CS Coverage tracker de-densified (+N cap); IX Headroom tiers click→expand to states; verbose subtitles condensed; 3 KPI reveals made distinct (no MW-rank dupes); LMI axis ticks+unit.
+- **Cross-tab** — `HoverBorderGradient` sheen on Run-a-Lens CTA; no shadow-box cursors; no stop-sign (not-allowed) cursors.
+- **LIVE-DATA (Aden's #1):** Policy FEED fully scraper-live (`_refresh-news.js` → `news_feed`). Policy TIMELINE **publish-gated by design** — `_scan-policy-candidates.js` (weekly) drafts; timeline shows `review_status='published'` only ($-impact fields AI must not set unverified). Dump → Feed instant; Timeline → live on 1-click admin publish. **Decision: keep the gate.**
 
 ### ⏭ DO NEXT
 1. **Lens → Glossary → Library UI makeover** — the next major phase; apply the dashboard's polish/skill language (ChartCard meld, SortableTable, AnimatedList, CountUp, HoverBorderGradient, tasteful motion) across these surfaces.
@@ -25,18 +21,8 @@
 
 **Loose end (cosmetic):** an early commit `e4b4588` carries a stray `@` subject (here-string slip), now buried in history — harmless; force-push deny rule blocks an in-session squash.
 
-<details><summary>Analytics-tab arc v2.10→2.15 (all 2026-05-30, superseded by v2.16) — commits 60a22ff→b0117e9</summary>
-
-Dashboard = tab terminal (Home / Analytics / Markets via `?tab=`). Analytics tab built out + 5 review rounds:
-- **v2.10** — bento layout (12-col, KPI strip + collapsible filter + ChartCard `h-full`); honest two-layer citations on all 7 charts (DSIRE/Census/LBNL/ISO-RTO/RSS); LMI → diverging lollipop, Projects → dot plot; de-numbered eyebrows → semantic tags.
-- **v2.11** — live KPI `MetricsBar` moved Home→Analytics top; click-to-expand bento (compact top-7 default, motion `layout` reflow, multi-open); removed all in-card scroll.
-- **v2.12** — globe renders LIVE library dots only; sidebar hover-tooltips removed; header-click expand (whole header `role=button`); removed Lin/Log toggle (KISS).
-- **v2.13** — `AnimatedIcon.jsx` native JSX wrapper (motion hover variants, not the lucide-animated TSX registry); LMI label-overlap killed; expand distortion fixed (`layout="position"`); density condense.
-- **v2.14** — LMI de-elongated both axes (data-fitted x-domain, top-20 cap); expand spring slowed/smoothed; "meld-around" reflow (col-span-8, clicked chart stays anchored).
-- **v2.15** — first 2nd-wave Skills applied as JSX ports: `AnimatedList.jsx` (Intelligence Feed entrance cascade), `BarListRows.jsx` (Tremor Bar List iter 1/5 for KPI reveals), `AnimatedIcon` on feed "View all" ArrowRight. No new deps, no TSX.
-</details>
-
 ### Prior recent arcs (full detail → `docs/archive/BUILD_LOG-history-2026-05-25.md`)
+- **2026-05-30 (Analytics tab v2.10–2.15)** — bento (12-col, expandable meld) + honest two-layer citations; LMI diverging lollipop · Projects dot plot; KPI MetricsBar moved to Analytics; globe live-dots only; `AnimatedIcon`/`AnimatedList`/`BarListRows` JSX skill ports. Commits `60a22ff`→`b0117e9`.
 - **2026-05-30 (dashboard v2.6–2.9)** — Markets&Policy tab BUILT (StateProgramGrid · SubscriptionMixChart · FeasibilityScoreDeltas · DensePolicyFeed); Home UX rds 1–5 (KPI multi-open, real Policy Pulse dual-line, 2-D status×feasibility map fill, ⌘K bounce fix, globe-disappears + AK/HI bugs fixed, collapsible icon rail). Commits `6b74e49`→`1816a86`.
 - **2026-05-28 (dashboard v2.5)** — tab IA (sidebar Home/Analytics/Markets, `?tab=`); thin Dashboard.jsx router; 7 Analytics charts + ChartCard; KPI card-specific reveals; globe live markers. `7bfa841`→`3976e67`.
 - **2026-05-27 (dashboard v1)** — MarketBrief + Hobby fn-cap fix (multiplexer); dark scope + unified d3-canvas globe + filters + IntelligenceFeedCard + dark StateDetailPanel + Run-a-Lens CTA. `a548d6a`→`dc07edb`. Plus NB waves 2–4 data slice + Geist sans.
