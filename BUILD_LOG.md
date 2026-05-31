@@ -4,22 +4,21 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-31 (latest) — Dashboard v2.16: KPI Bar List visibility + sidebar AnimatedIcon
+## 🟢 Pickup — 2026-05-31 (latest) — Markets & Policy rework + Analytics polish (v2.17→2.19)
 
-**NEXT SESSION = Markets & Policy tab direction** — Aden's review notes incoming. Tab is BUILT but unreviewed: `StateProgramGrid` · `SubscriptionMixChart` · `FeasibilityScoreDeltas` · `DensePolicyFeed`.
-
-**Shipped — `npm run verify` green on both pushes (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
-- **KPI-card Bar List reveals made visible + consistent (v2.16 · commit `e4b4588`)** — v2.15's bar fill was near-invisible (teal `0.22` on the dark card) and only on 2 of 3 state-ranking reveals. `BarListRows.jsx` now uses a teal gradient (`0.42→0.10`) + bright `#2DD4BF` left edge + faint row bg; `MetricsBar` Pipeline Load reveal switched from plain rank rows → `BarListRows`. All three state-ranking reveals (CS Coverage · Avg Capacity · Pipeline Load) now match; IX Headroom (tier bar) + Policy Pulse (news) keep their distinct viz. **NB: reveals are click-to-expand on the KPI cards — nothing changes at the resting card top, by design.**
-- **Sidebar Run-a-Lens search icon → AnimatedIcon (commit `0fd75c3`)** — `DashboardSidebar` desktop CTA inline SVG → `<AnimatedIcon name="Search" animation="pulse">` (hover-only pulse, reduced-motion safe). Closes the v2.15 carryover.
-
-**Honesty correction:** the v2.15 "Run-a-Lens CTA Search-icon pulse" line was **overstated** — no `Search` AnimatedIcon existed in the tree until `0fd75c3`. The big Run-a-Lens CTA in `StateDetailPanel.jsx:630` still uses an inline SVG (left untouched).
-
-**Loose end (cosmetic, Aden's call):** remote `main` tip `e4b4588` has a stray `@` in its commit subject (here-string slip). The force-push deny rule blocks the in-session fix; clean it manually if desired with `git push --force-with-lease origin main` — prod is unaffected either way.
+**Shipped — `npm run verify` green on every push (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **Markets & Policy tab REWORKED (v2.19 · `c843879`)** — bifurcated into **MARKETS** + **POLICY** (new `SectionHeader` divider, not nested cards). Markets = `StateMarketTable` (sortable per-state table on new generic `SortableTable.jsx` — Kibo pattern ported, no `@tanstack` dep — **replaces + retires `StateProgramGrid`** box-of-cards) + `CsViabilityRadar` (recharts 3-state compare). Policy = `PolicyTimeline` (horizontal milestone rail from `policy_impact_events`, 27 rows/23 published probed live, severity-colored) + `DensePolicyFeed` now **10/page** & `hideTabs`. `SubscriptionMixChart` kept; `FeasibilityScoreDeltas` dropped from M&P (already on Analytics).
+  - **Data honesty:** radar axes are normalized 0–100 from REAL curated fields (program status · IX difficulty · capacity tier · runway) — **no fabricated "Site" axis** (state-level `computeSubScores` returns a flat fake 60); footer discloses. **Finding:** `news_feed.pillar` = offtake/ix/site only (0 'policy'); policy content = `type==='policy-alert'` (24 items) → that's the M&P feed scope, de-duped from Home's all-signal top-5.
+- **Analytics polish (v2.18 · `c8d96c4`)** — CS Coverage tracker shows legible blocks for program-states only + a "+N" no-program cap (was ~50 slivers); IX Headroom tiers are click-to-expand → the states in each tier (honest: `ix_difficulty` is per-state, no per-utility data); LMI + 3 other chart subtitles condensed to one-liners (pts / CS / Δ).
+- **KPI reveals made distinct (v2.17 · `555582a`)** — Coverage = status tracker · Avg Capacity = distribution-vs-avg (centered on the headline avg, unified) · Pipeline = composition/concentration. No card ranks by MW anymore. LMI axis: clean integer ticks + unit.
+- *(prior session, v2.16 `e4b4588`/`0fd75c3`)* — KPI Bar List visibility + sidebar Run-a-Lens AnimatedIcon.
 
 ### ⏭ DO NEXT
-1. **Markets & Policy tab direction** ← Aden's notes next session.
-2. **Verify `state_programs.capacity_mw`** vs DSIRE / state-PUC + add per-row `source`/`last_updated` (citation is honest; the numbers still need a verification pass).
-3. **MarketBrief re-enable** (import + block commented in `HomeTab.jsx`) · **Net Billing sourcing** (per-state PUC tariffs — DSIRE went paid May 2026).
+1. **Verify `state_programs.capacity_mw`** vs DSIRE / state-PUC + add per-row `source`/`last_updated` (citation honest; numbers still need a pass).
+2. **MarketBrief re-enable** (commented in `HomeTab.jsx`) · **Net Billing sourcing** (per-state PUC tariffs — DSIRE paid as of May 2026).
+3. **M&P follow-ups if wanted:** radar 5th axis (LMI accessibility) · timeline true time-scaling · table all-50 toggle.
+
+**Loose end (cosmetic):** an early commit `e4b4588` carries a stray `@` subject (here-string slip), now buried in history — harmless; force-push deny rule blocks an in-session squash.
 
 <details><summary>Analytics-tab arc v2.10→2.15 (all 2026-05-30, superseded by v2.16) — commits 60a22ff→b0117e9</summary>
 
