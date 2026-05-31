@@ -4,9 +4,13 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-31 (latest) — Markets & Policy rework + Analytics polish (v2.17→2.19)
+## 🟢 Pickup — 2026-05-31 (latest) — Dashboard closeout: M&P rework + reworks-v2 + polish (v2.17→2.21)
+
+**Dashboard phases ~DONE. NEXT MAJOR = Lens → Glossary → Library UI makeover** (carry the dashboard's skill/polish language across).
 
 **Shipped — `npm run verify` green on every push (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke):**
+- **M&P reworks v2 + cross-tab polish (v2.20 `6027992` · v2.21 `9b95b60`)** — sub-mix → 100% share bar + right-edge MW labels (kills the FL-buries-HI/DE/KS slivers); `PolicyTimeline` → click-stepped (prev/next, no scrollbars) with a floating overlay detail card; Markets section → collapsible motion bento that melds like Analytics (State Programs table compact-8 → expand-19 + radar, col-span 6→8, SPRING + `layout="position"`); removed redundant "MARKETS"/"Markets 01" eyebrows; `cursor={false}` (no shadow-box) on radar/donut/sub-mix; radar selector white-focus-box fixed; SortableTable headers upgraded (gradient + sorted-col highlight + underline); new `HoverBorderGradient.jsx` sheen on the Run-a-Lens CTA (all tabs).
+  - **LIVE-DATA (Aden's #1 concern):** Policy FEED is fully scraper-live (`_refresh-news.js` → `news_feed` → instant). Policy TIMELINE is **publish-gated by design** — `_scan-policy-candidates.js` (weekly) drafts events from policy-alerts; timeline shows `review_status='published'` only (those rows carry $-impact fields AI must not set unverified). Data dump → Feed instant; Timeline draft → goes live on 1-click admin publish (`invalidateCache` fires). **Decision: keep the gate.** Optional later: admin "scan now" button to surface drafts without waiting for the weekly cron.
 - **Markets & Policy tab REWORKED (v2.19 · `c843879`)** — bifurcated into **MARKETS** + **POLICY** (new `SectionHeader` divider, not nested cards). Markets = `StateMarketTable` (sortable per-state table on new generic `SortableTable.jsx` — Kibo pattern ported, no `@tanstack` dep — **replaces + retires `StateProgramGrid`** box-of-cards) + `CsViabilityRadar` (recharts 3-state compare). Policy = `PolicyTimeline` (horizontal milestone rail from `policy_impact_events`, 27 rows/23 published probed live, severity-colored) + `DensePolicyFeed` now **10/page** & `hideTabs`. `SubscriptionMixChart` kept; `FeasibilityScoreDeltas` dropped from M&P (already on Analytics).
   - **Data honesty:** radar axes are normalized 0–100 from REAL curated fields (program status · IX difficulty · capacity tier · runway) — **no fabricated "Site" axis** (state-level `computeSubScores` returns a flat fake 60); footer discloses. **Finding:** `news_feed.pillar` = offtake/ix/site only (0 'policy'); policy content = `type==='policy-alert'` (24 items) → that's the M&P feed scope, de-duped from Home's all-signal top-5.
 - **Analytics polish (v2.18 · `c8d96c4`)** — CS Coverage tracker shows legible blocks for program-states only + a "+N" no-program cap (was ~50 slivers); IX Headroom tiers are click-to-expand → the states in each tier (honest: `ix_difficulty` is per-state, no per-utility data); LMI + 3 other chart subtitles condensed to one-liners (pts / CS / Δ).
@@ -14,9 +18,10 @@
 - *(prior session, v2.16 `e4b4588`/`0fd75c3`)* — KPI Bar List visibility + sidebar Run-a-Lens AnimatedIcon.
 
 ### ⏭ DO NEXT
-1. **Verify `state_programs.capacity_mw`** vs DSIRE / state-PUC + add per-row `source`/`last_updated` (citation honest; numbers still need a pass).
-2. **MarketBrief re-enable** (commented in `HomeTab.jsx`) · **Net Billing sourcing** (per-state PUC tariffs — DSIRE paid as of May 2026).
-3. **M&P follow-ups if wanted:** radar 5th axis (LMI accessibility) · timeline true time-scaling · table all-50 toggle.
+1. **Lens → Glossary → Library UI makeover** — the next major phase; apply the dashboard's polish/skill language (ChartCard meld, SortableTable, AnimatedList, CountUp, HoverBorderGradient, tasteful motion) across these surfaces.
+2. **Verify `state_programs.capacity_mw`** vs DSIRE / state-PUC + add per-row `source`/`last_updated` (citation honest; numbers still need a pass).
+3. **MarketBrief re-enable** (commented in `HomeTab.jsx`) · **Net Billing sourcing** (per-state PUC tariffs — DSIRE paid as of May 2026).
+4. **Optional dashboard follow-ups:** admin "scan policy now" button · radar 5th axis (LMI) · timeline true time-scaling · table all-50 toggle · deeper Home/Analytics skill pass.
 
 **Loose end (cosmetic):** an early commit `e4b4588` carries a stray `@` subject (here-string slip), now buried in history — harmless; force-push deny rule blocks an in-session squash.
 
