@@ -50,8 +50,8 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     return () => { cancelled = true }
   }, [])
 
-  const { data, domain, total } = useMemo(() => {
-    if (!rows) return { data: [], domain: [-1, 5], total: 0 }
+  const { data, domain, ticks, total } = useMemo(() => {
+    if (!rows) return { data: [], domain: [0, 4], ticks: [0, 1, 2, 3, 4], total: 0 }
     const filterSet = new Set(filterStates)
     const all = rows
       .filter((r) => (filterSet.size === 0 || filterSet.has(r.state)) && r.lmi_pct != null)
@@ -69,8 +69,16 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     // 0 (the median line) and run to the max with light padding.
     let dmin = 0, dmax = 0
     for (const d of shown) { if (d.delta < dmin) dmin = d.delta; if (d.delta > dmax) dmax = d.delta }
-    const pad = Math.max(0.5, (dmax - dmin) * 0.06)
-    return { data: shown, domain: [Math.floor(dmin - pad), Math.ceil(dmax + pad)], total: all.length }
+    // Clean integer domain anchored at the 0 median. Only extend left of 0 when
+    // a shown state is actually BELOW the median — otherwise decimal padding
+    // floated the amber line off the left edge and Recharts emitted a stray
+    // "-1" tick. Generate the integer ticks ourselves so the spacing is even.
+    const lo = dmin < 0 ? Math.floor(dmin) : 0
+    const hi = Math.max(1, Math.ceil(dmax + 0.4))
+    const step = (hi - lo) > 8 ? 2 : 1
+    const ticks = []
+    for (let t = lo; t <= hi; t += step) ticks.push(t)
+    return { data: shown, domain: [lo, hi], ticks, total: all.length }
   }, [rows, filterStates, isExpanded])
 
   const chartH = isExpanded ? Math.max(TILE_H.expanded, data.length * 18) : TILE_H.feature
@@ -79,7 +87,7 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     <ChartCard
       label="EQUITY"
       title="LMI Penetration by State"
-      sub={`Δ vs the ~${NATL_MEDIAN}% national median (amber line) · ${isExpanded ? `top 20 of ${total}` : `top 7 of ${total}`} seeded states by LMI share (≤80% AMI).`}
+      sub={`X-axis = percentage points above/below the ~${NATL_MEDIAN}% national median (0 = amber line). ${isExpanded ? `Top 20` : `Top 7`} of ${total} seeded states by LMI share (≤80% AMI)${isExpanded ? '.' : ' — all sit above the median; expand for the full above/below spread.'}`}
       footer="Source: US Census ACS 2018–2022 5-year estimates (api.census.gov). Seeded states only; non-seeded omitted rather than back-filled with the national median."
       className="h-full"
       expandable
@@ -92,10 +100,11 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
             <XAxis
               type="number"
               domain={domain}
+              ticks={ticks}
               tick={CHART_AXIS.tick}
               axisLine={CHART_AXIS.axisLine}
               tickLine={false}
-              tickFormatter={(v) => `${v > 0 ? '+' : ''}${v}`}
+              tickFormatter={(v) => (v === 0 ? '0' : `${v > 0 ? '+' : ''}${v}`)}
             />
             <YAxis
               type="category"

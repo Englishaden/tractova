@@ -4,7 +4,7 @@ import { getDashboardMetrics, getDashboardMetricsHistory, getStatePrograms, getN
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import CountUp from './ui/CountUp'
 import KPISparkline from './charts/KPISparkline'
-import BarListRows from './ui/BarListRows'
+import CoverageTracker from './ui/CoverageTracker'
 
 // PolicyDualSparkline — two-line trend for the Policy Pulse card. Plots the
 // Policy pillar against all other signals (offtake + IX + site) per ISO week
@@ -96,15 +96,77 @@ function MetricsSkeleton() {
 
 // ── Reveal sub-components — render inside the expanded card body ──────────
 
-// Top-N state row list — generic. Used by activeCS, avgCapacity, mwPipeline.
-// Now renders as a Tremor-style Bar List (label on a proportional value bar);
-// see src/components/ui/BarListRows.jsx + Skills/Tremor/Bar List/_PORT.md.
-function StateRowsReveal({ rows, valueFormatter, sub }) {
-  // Each reveal row is a state-program object; the bar length scales by its
-  // remaining capacity (the same number the formatter prints). Carry `value`
-  // for the bar width while keeping the original object for the formatter.
-  const barRows = (rows || []).map((r) => ({ ...r, value: r.capacityMW || 0 }))
-  return <BarListRows rows={barRows} valueFormatter={valueFormatter} sub={sub} />
+// CS Coverage reveal — program-status BREADTH across all seeded states, as a
+// Tremor-style Tracker (one block per state, colored by status). Answers "how
+// wide is coverage" — deliberately NOT a capacity ranking (that would just
+// re-show the same NY/IL/CO leaders as the other cards). See CoverageTracker.
+function CoverageReveal({ programs }) {
+  return <CoverageTracker rows={programs || []} />
+}
+
+// Avg Capacity reveal — DISTRIBUTION of remaining capacity vs the live average,
+// as diverging bars (above-avg teal → right, below-avg amber → left). Answers
+// "is the average representative or skewed by a few big states" — a different
+// question (and shape) than a top-by-MW list.
+function DistributionReveal({ programs, avg: avgProp }) {
+  const { rows, avg, aboveN, belowN, total, maxAbs } = useMemo(() => {
+    const live = (programs || []).filter(
+      (p) => (p.csStatus === 'active' || p.csStatus === 'limited') && (p.capacityMW || 0) > 0
+    )
+    if (live.length === 0) return { rows: [], avg: 0, aboveN: 0, belowN: 0, total: 0, maxAbs: 1 }
+    // Center on the SAME average the card headline reports (passed in) so the
+    // two surfaces never disagree (unify-and-standardize); fall back to the
+    // live mean only if the headline value isn't available yet.
+    const mean = Number.isFinite(avgProp) ? avgProp : live.reduce((s, p) => s + (p.capacityMW || 0), 0) / live.length
+    const sorted = [...live].sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
+    const above = sorted.filter((p) => (p.capacityMW || 0) >= mean)
+    const below = sorted.filter((p) => (p.capacityMW || 0) < mean)
+    // Show the spread: top 3 above + bottom 2 below the mean.
+    const shown = [...above.slice(0, 3), ...below.slice(-2)].map((p) => ({
+      id: p.id, name: p.name, delta: (p.capacityMW || 0) - mean,
+    }))
+    const mx = Math.max(...shown.map((r) => Math.abs(r.delta)), 1)
+    return { rows: shown, avg: Math.round(mean), aboveN: above.length, belowN: below.length, total: live.length, maxAbs: mx }
+  }, [programs, avgProp])
+
+  if (rows.length === 0) return <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>No capacity data.</p>
+
+  return (
+    <div>
+      <ul className="space-y-1">
+        {rows.map((r) => {
+          const positive = r.delta >= 0
+          const pct = Math.min(50, (Math.abs(r.delta) / maxAbs) * 50)
+          const color = positive ? '#14B8A6' : '#FBBF24'
+          return (
+            <li key={r.id ?? r.name} className="flex items-center gap-1.5">
+              <span className="text-[10px] w-7 shrink-0 truncate" style={{ color: 'var(--text-label)' }}>{r.name}</span>
+              {/* diverging track — center = the average */}
+              <div className="relative flex-1 h-3 rounded-sm" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <span className="absolute inset-y-0 left-1/2 w-px" style={{ background: 'rgba(148,164,182,0.35)' }} aria-hidden="true" />
+                <span
+                  className="absolute inset-y-0 rounded-sm"
+                  style={{
+                    background: color,
+                    ...(positive
+                      ? { left: '50%', width: `${pct}%` }
+                      : { right: '50%', width: `${pct}%` }),
+                  }}
+                  aria-hidden="true"
+                />
+              </div>
+              <span className="font-mono text-[10px] tabular-nums font-bold w-12 text-right shrink-0" style={{ color }}>
+                {positive ? '+' : '−'}{Math.abs(Math.round(r.delta))}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      <p className="mt-1.5 pt-1 border-t text-[9px] font-mono uppercase tracking-[0.14em]" style={{ borderColor: 'var(--cards-border)', color: 'var(--text-muted)' }}>
+        {aboveN} above · {belowN} below the {avg} MW avg ({total} live)
+      </p>
+    </div>
+  )
 }
 
 // IX difficulty breakdown — small bar split by tier
@@ -202,10 +264,17 @@ function PipelineSplitReveal({ programs }) {
 
   if (split.total === 0) return <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>No pipeline data.</p>
 
-  const topStates = (programs || [])
+  // Concentration: how much of the total pipeline the top 3 states make up
+  // (composition / share-of-whole — NOT a ranked list, which the other cards
+  // already cover). Segments = top1·top2·top3·rest of the 100% bar.
+  const ranked = (programs || [])
     .filter((p) => p.csStatus === 'active' || p.csStatus === 'limited')
     .sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
-    .slice(0, 3)
+  const top3 = ranked.slice(0, 3)
+  const top3Sum = top3.reduce((s, p) => s + (p.capacityMW || 0), 0)
+  const top3Pct = Math.round((top3Sum / split.total) * 100)
+  const restMW = split.total - top3Sum
+  const TOP_FILLS = ['#14B8A6', '#2DD4BF', '#5EEAD4']
 
   return (
     <div className="space-y-2">
@@ -237,14 +306,22 @@ function PipelineSplitReveal({ programs }) {
           </p>
         </div>
       </div>
-      {/* Top states as the same Bar List treatment used by CS Coverage /
-          Avg Capacity, so every state-ranking reveal reads consistently. */}
-      <div className="pt-1 border-t" style={{ borderColor: 'var(--cards-border)' }}>
-        <BarListRows
-          rows={topStates.map((s) => ({ ...s, value: s.capacityMW || 0 }))}
-          valueFormatter={(s) => `${(s.capacityMW || 0).toLocaleString()} MW`}
-          sub="Top 3 by MW"
-        />
+      {/* Concentration — what share of the total pipeline the top 3 states hold */}
+      <div className="pt-1.5 border-t" style={{ borderColor: 'var(--cards-border)' }}>
+        <div className="flex w-full gap-px h-2.5 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+          {top3.map((s, i) => (
+            <div
+              key={s.id}
+              style={{ width: `${((s.capacityMW || 0) / split.total) * 100}%`, background: TOP_FILLS[i] }}
+              title={`${s.name}: ${(s.capacityMW || 0).toLocaleString()} MW`}
+            />
+          ))}
+          <div style={{ width: `${(restMW / split.total) * 100}%`, background: 'rgba(148,164,182,0.20)' }} title={`Rest: ${restMW.toLocaleString()} MW`} />
+        </div>
+        <p className="mt-1.5 text-[10px] leading-snug" style={{ color: 'var(--text-label)' }}>
+          Top 3{top3.length ? ` (${top3.map((s) => s.name).join(' · ')})` : ''} ={' '}
+          <span className="font-mono font-bold" style={{ color: 'var(--link, #5EEAD4)' }}>{top3Pct}%</span> of pipeline
+        </p>
       </div>
     </div>
   )
@@ -282,21 +359,8 @@ export default function MetricsBar({ previewMode = false }) {
     totalMWInPipeline:       liveMetrics?.totalMWInPipeline       ?? '—',
   }
 
-  // Reveal rows — top N states for the activeCS / avgCapacity / mwPipeline cards
-  const topActiveStates = useMemo(() => (
-    programs
-      .filter((p) => p.csStatus === 'active' && (p.capacityMW || 0) > 0)
-      .sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
-      .slice(0, 4)
-  ), [programs])
-
-  const topRemainingStates = useMemo(() => (
-    programs
-      .filter((p) => (p.csStatus === 'active' || p.csStatus === 'limited') && (p.capacityMW || 0) > 0)
-      .sort((a, b) => (b.capacityMW || 0) - (a.capacityMW || 0))
-      .slice(0, 4)
-  ), [programs])
-
+  // Each card's reveal computes its own cut from `programs` (status breadth /
+  // capacity distribution / pipeline composition) — see the reveal components.
   const CARDS = [
     {
       key: 'activeCS',
@@ -308,13 +372,7 @@ export default function MetricsBar({ previewMode = false }) {
       series: history?.csCoverage || [],
       sparkColor: '#14B8A6',
       tooltip: 'States with funded community-solar programs accepting new project applications.',
-      reveal: (
-        <StateRowsReveal
-          rows={topActiveStates}
-          valueFormatter={(s) => `${(s.capacityMW || 0).toLocaleString()} MW`}
-          sub={`Showing top 4 of ${m.statesWithActiveCS} active`}
-        />
-      ),
+      reveal: <CoverageReveal programs={programs} />,
     },
     {
       key: 'ixCapacity',
@@ -357,13 +415,7 @@ export default function MetricsBar({ previewMode = false }) {
       series: history?.avgCapacity || [],
       sparkColor: '#34D399',
       tooltip: 'Mean MW of program capacity still open across active and limited states.',
-      reveal: (
-        <StateRowsReveal
-          rows={topRemainingStates}
-          valueFormatter={(s) => `${(s.capacityMW || 0).toLocaleString()} MW`}
-          sub="Top 4 by remaining capacity"
-        />
-      ),
+      reveal: <DistributionReveal programs={programs} avg={parseInt(liveMetrics?.avgCSCapacityRemaining, 10)} />,
     },
     {
       key: 'mwPipeline',
