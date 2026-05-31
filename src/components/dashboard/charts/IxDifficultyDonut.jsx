@@ -62,6 +62,7 @@ export default function IxDifficultyDonut({ programs = [], filterStates = [], is
             </Pie>
             <Tooltip
               {...CHART_TOOLTIP}
+              cursor={false}
               formatter={(value) => [`${value} state${value === 1 ? '' : 's'} · ${total > 0 ? Math.round((value / total) * 100) : 0}%`, '']}
             />
             <Legend

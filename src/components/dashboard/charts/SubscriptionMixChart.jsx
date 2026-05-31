@@ -1,7 +1,23 @@
 import { useEffect, useState, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, LabelList } from 'recharts'
 import { getCsSubscriptionMixByState } from '../../../lib/programData'
 import ChartCard, { CHART_TOOLTIP, CHART_AXIS } from './ChartCard'
+
+// Total-MW label drawn just past each 100% bar's right edge (preserves the
+// absolute magnitude the normalized share view drops). `value` = row.total.
+function renderTotalLabel(props) {
+  const { x, y, width, height, value } = props
+  if (value == null) return null
+  return (
+    <text
+      x={x + width + 6} y={y + height / 2} dy={3.5} textAnchor="start"
+      fontFamily="JetBrains Mono, ui-monospace, monospace" fontSize={9}
+      fill="var(--text-muted, #6C7A91)"
+    >
+      {Number(value).toLocaleString()} MW
+    </text>
+  )
+}
 
 // Markets & Policy — Subscription Channel Mix.
 // Stacked horizontal bar: top 15 states by operating CS capacity (MW),
@@ -23,7 +39,7 @@ const CHANNELS = [
   { key: 'unknown',     label: 'Unspecified',  color: '#3F4E68' },
 ]
 
-export default function SubscriptionMixChart() {
+export default function SubscriptionMixChart({ expandable = false, isExpanded = false, onToggleExpand }) {
   const [rows, setRows] = useState(null)
 
   useEffect(() => {
@@ -39,14 +55,20 @@ export default function SubscriptionMixChart() {
     return rows
       .filter((r) => r.total > 0)
       .slice(0, 15)
-      .map((r) => ({
-        name:        r.stateId,
-        utility:     r.utility,
-        thirdParty:  r.thirdParty,
-        combination: r.combination,
-        unknown:     r.unknown,
-        total:       r.total,
-      }))
+      .map((r) => {
+        const t = r.total || 1
+        return {
+          name:        r.stateId,
+          // normalized to % share so a 4,000 MW state and a 5 MW state read
+          // their channel split equally — no slivers-vs-giant-bar.
+          utility:     (r.utility / t) * 100,
+          thirdParty:  (r.thirdParty / t) * 100,
+          combination: (r.combination / t) * 100,
+          unknown:     (r.unknown / t) * 100,
+          total:       r.total,
+          _raw: { utility: r.utility, thirdParty: r.thirdParty, combination: r.combination, unknown: r.unknown },
+        }
+      })
   }, [rows])
 
   const loading = rows === null
@@ -54,10 +76,13 @@ export default function SubscriptionMixChart() {
 
   return (
     <ChartCard
-      label="Markets 01"
       title="Subscription Channel Mix"
-      sub="Top 15 states by operating CS capacity, split by who markets the projects."
+      sub="Top 15 states by operating CS capacity · channel share of each state's MW"
       footer="Source: cs_projects.subscription_marketer (LBNL/NREL Sharing the Sun, Jan 2026). 'Unspecified' = projects the source left unlabeled — shown, not dropped. Sharing the Sun does not publish a residential/commercial subscriber breakdown."
+      className="h-full"
+      expandable={expandable}
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
     >
       {loading ? (
         <div style={{ height: 340 }} className="flex items-center justify-center">
@@ -68,19 +93,21 @@ export default function SubscriptionMixChart() {
           <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>No operating CS projects found in the dataset.</p>
         </div>
       ) : (
-        <div style={{ height: Math.max(300, data.length * 22), width: '100%' }}>
+        <div style={{ height: Math.max(300, data.length * 24), width: '100%' }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 32, left: 4, bottom: 4 }}>
+            <BarChart data={data} layout="vertical" margin={{ top: 4, right: 56, left: 4, bottom: 4 }}>
               <XAxis
                 type="number"
+                domain={[0, 100]}
                 tick={CHART_AXIS.tick}
                 axisLine={CHART_AXIS.axisLine}
                 tickLine={false}
-                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v}
+                tickFormatter={(v) => `${v}%`}
               />
               <YAxis
                 type="category"
                 dataKey="name"
+                interval={0}
                 tick={CHART_AXIS.tick}
                 axisLine={false}
                 tickLine={false}
@@ -88,10 +115,11 @@ export default function SubscriptionMixChart() {
               />
               <Tooltip
                 {...CHART_TOOLTIP}
-                cursor={{ fill: 'rgba(94,234,212,0.06)' }}
-                formatter={(value, name) => {
-                  const ch = CHANNELS.find((c) => c.label === name)
-                  return [`${Number(value).toLocaleString()} MW`, ch?.label || name]
+                cursor={false}
+                formatter={(value, name, entry) => {
+                  const key = entry?.dataKey
+                  const rawMW = entry?.payload?._raw?.[key] ?? 0
+                  return [`${Math.round(value)}% · ${Number(rawMW).toLocaleString()} MW`, name]
                 }}
               />
               <Legend
@@ -99,17 +127,22 @@ export default function SubscriptionMixChart() {
                 iconSize={8}
                 wrapperStyle={{ paddingTop: 8, fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 10, color: 'var(--text-label)' }}
               />
-              {CHANNELS.map((c, i) => (
-                <Bar
-                  key={c.key}
-                  dataKey={c.key}
-                  name={c.label}
-                  stackId="mix"
-                  fill={c.color}
-                  radius={i === CHANNELS.length - 1 ? [0, 3, 3, 0] : [0, 0, 0, 0]}
-                  isAnimationActive={false}
-                />
-              ))}
+              {CHANNELS.map((c, i) => {
+                const last = i === CHANNELS.length - 1
+                return (
+                  <Bar
+                    key={c.key}
+                    dataKey={c.key}
+                    name={c.label}
+                    stackId="mix"
+                    fill={c.color}
+                    radius={last ? [0, 3, 3, 0] : [0, 0, 0, 0]}
+                    isAnimationActive={false}
+                  >
+                    {last && <LabelList dataKey="total" content={renderTotalLabel} />}
+                  </Bar>
+                )
+              })}
             </BarChart>
           </ResponsiveContainer>
         </div>

@@ -37,7 +37,7 @@ function axisValues(p) {
   }
 }
 
-export default function CsViabilityRadar({ programs = [] }) {
+export default function CsViabilityRadar({ programs = [], expandable = false, isExpanded = false, onToggleExpand }) {
   // Selectable pool = states with a program, by score desc.
   const pool = useMemo(
     () => programs.filter((p) => p.csStatus && p.csStatus !== 'none').sort((a, b) => (b.feasibilityScore || 0) - (a.feasibilityScore || 0)),
@@ -71,7 +71,7 @@ export default function CsViabilityRadar({ programs = [] }) {
 
   if (pool.length === 0) {
     return (
-      <ChartCard label="MARKETS" title="CS Viability Comparison" sub="Loading state programs…">
+      <ChartCard title="CS Viability Comparison" sub="Loading state programs…" className="h-full">
         <div className="h-[260px]" />
       </ChartCard>
     )
@@ -79,11 +79,13 @@ export default function CsViabilityRadar({ programs = [] }) {
 
   return (
     <ChartCard
-      label="MARKETS"
       title="CS Viability Comparison"
       sub={`Compare up to 3 states across 4 dimensions · ${active.length} selected`}
       footer="Axes normalized 0–100 from curated state-program fields (program status · IX difficulty · capacity tier · runway) — comparative signals, not Lens per-county sub-scores. Runway = 0 where enrollment rate isn't seeded."
       className="h-full"
+      expandable={expandable}
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
     >
       {/* State picker */}
       <div className="flex flex-wrap gap-1 mb-2 max-h-16 overflow-y-auto thin-scrollbar">
@@ -96,7 +98,7 @@ export default function CsViabilityRadar({ programs = [] }) {
               key={p.id}
               type="button"
               onClick={() => toggle(p.id)}
-              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-all"
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-all outline-none focus:outline-none focus-visible:ring-1 focus-visible:ring-[var(--link,#5EEAD4)]"
               style={{
                 background: on ? `${color}22` : 'transparent',
                 border: `1px solid ${on ? color : 'var(--cards-border)'}`,
@@ -128,7 +130,7 @@ export default function CsViabilityRadar({ programs = [] }) {
                 isAnimationActive={false}
               />
             ))}
-            <Tooltip {...CHART_TOOLTIP} />
+            <Tooltip {...CHART_TOOLTIP} cursor={false} />
             <Legend iconType="plainline" iconSize={10} wrapperStyle={{ fontFamily: 'JetBrains Mono, ui-monospace, monospace', fontSize: 10, color: 'var(--text-label)' }} />
           </RadarChart>
         </ResponsiveContainer>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { getStatePrograms, getNewsFeed } from '../../lib/programData'
 import SectionHeader from '../ui/SectionHeader'
 import StateMarketTable from './StateMarketTable'
@@ -33,11 +34,25 @@ function MarketsPolicySkeleton() {
   )
 }
 
+// Expand/meld machinery — same pattern as AnalyticsTab's bento.
+const SPRING = { type: 'spring', stiffness: 130, damping: 24, mass: 1 }
+
 export default function MarketsPolicyTab() {
+  const reduced = useReducedMotion()
+  const LAYOUT = reduced ? false : 'position'
   const [programs, setPrograms] = useState([])
   const [news, setNews] = useState([])
   const [ready, setReady] = useState(false)
   const [selectedStateId, setSelectedStateId] = useState(null)
+  const [expandedKeys, setExpandedKeys] = useState(() => new Set())
+
+  const isOpen = (k) => expandedKeys.has(k)
+  const toggle = (k) => setExpandedKeys((prev) => {
+    const next = new Set(prev)
+    if (next.has(k)) next.delete(k); else next.add(k)
+    return next
+  })
+  const span = (k, base) => (isOpen(k) ? 'lg:col-span-8' : base)
 
   useEffect(() => {
     let cancelled = false
@@ -71,13 +86,28 @@ export default function MarketsPolicyTab() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ── MARKETS ── program viability + who markets the deployed capacity */}
+      {/* ── MARKETS ── program viability + who markets the deployed capacity.
+          12-col motion bento: table + radar share a row and meld on expand
+          (col-span 6→8, sibling reflows); sub-mix spans full width below. */}
       <SectionHeader label="Markets" hint="program viability · channel mix" />
-      <StateMarketTable programs={programs} onSelectState={setSelectedStateId} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <CsViabilityRadar programs={programs} />
-        <SubscriptionMixChart />
-      </div>
+      <motion.div layout={LAYOUT} transition={SPRING} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch">
+        <motion.div layout={LAYOUT} transition={SPRING} className={span('table', 'lg:col-span-6')}>
+          <StateMarketTable
+            programs={programs}
+            onSelectState={setSelectedStateId}
+            expandable isExpanded={isOpen('table')} onToggleExpand={() => toggle('table')}
+          />
+        </motion.div>
+        <motion.div layout={LAYOUT} transition={SPRING} className={span('radar', 'lg:col-span-6')}>
+          <CsViabilityRadar
+            programs={programs}
+            expandable isExpanded={isOpen('radar')} onToggleExpand={() => toggle('radar')}
+          />
+        </motion.div>
+        <motion.div layout={LAYOUT} transition={SPRING} className="lg:col-span-12">
+          <SubscriptionMixChart />
+        </motion.div>
+      </motion.div>
 
       {/* ── POLICY ── regulatory milestones + the policy signal stream.
           Scoped to policy-alert signals (type), distinct from Home's all-signal

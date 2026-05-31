@@ -31,6 +31,7 @@ export default function SortableTable({
   initialSort,
   getRowId = (r, i) => r.id ?? i,
   onRowClick,
+  maxRows,
 }) {
   const [sortKey, setSortKey] = useState(initialSort?.key ?? columns[0]?.key)
   const [sortDir, setSortDir] = useState(initialSort?.dir ?? 'asc')
@@ -77,7 +78,7 @@ export default function SortableTable({
           </tr>
         </thead>
         <tbody>
-          {sorted.map((row, i) => (
+          {(maxRows ? sorted.slice(0, maxRows) : sorted).map((row, i) => (
             <tr
               key={getRowId(row, i)}
               onClick={onRowClick ? () => onRowClick(row) : undefined}

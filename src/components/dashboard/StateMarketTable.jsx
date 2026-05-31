@@ -1,4 +1,5 @@
 import SortableTable from '../ui/SortableTable'
+import ChartCard from './charts/ChartCard'
 
 // StateMarketTable — Markets section. The per-state CS market at a glance as a
 // SORTABLE TABLE (replaces the old StateProgramGrid box-of-cards — moving away
@@ -23,7 +24,9 @@ function scoreColor(score) {
   return '#CCFBF1'
 }
 
-export default function StateMarketTable({ programs = [], onSelectState }) {
+const COMPACT_ROWS = 8
+
+export default function StateMarketTable({ programs = [], onSelectState, expandable = false, isExpanded = false, onToggleExpand }) {
   const rows = programs.filter((p) => p.csStatus && p.csStatus !== 'none')
 
   const columns = [
@@ -69,19 +72,33 @@ export default function StateMarketTable({ programs = [], onSelectState }) {
     },
   ]
 
-  if (rows.length === 0) {
-    return <p className="text-[11px] py-6 text-center" style={{ color: 'var(--text-muted)' }}>No state programs loaded.</p>
-  }
+  const sub = rows.length === 0
+    ? 'No state programs loaded'
+    : isExpanded || rows.length <= COMPACT_ROWS
+      ? `${rows.length} states · click a row for detail`
+      : `Top ${COMPACT_ROWS} of ${rows.length} · expand for all`
 
   return (
-    <div className="rounded-md overflow-hidden" style={{ border: '1px solid var(--cards-border)', background: 'var(--cards-bg)' }}>
-      <SortableTable
-        columns={columns}
-        rows={rows}
-        initialSort={{ key: 'score', dir: 'desc' }}
-        getRowId={(r) => r.id}
-        onRowClick={(r) => onSelectState?.(r.id)}
-      />
-    </div>
+    <ChartCard
+      title="State Programs"
+      sub={sub}
+      className="h-full"
+      expandable={expandable}
+      isExpanded={isExpanded}
+      onToggleExpand={onToggleExpand}
+    >
+      {rows.length === 0 ? (
+        <p className="text-[11px] py-6 text-center" style={{ color: 'var(--text-muted)' }}>No state programs loaded.</p>
+      ) : (
+        <SortableTable
+          columns={columns}
+          rows={rows}
+          initialSort={{ key: 'score', dir: 'desc' }}
+          getRowId={(r) => r.id}
+          onRowClick={(r) => onSelectState?.(r.id)}
+          maxRows={isExpanded ? undefined : COMPACT_ROWS}
+        />
+      )}
+    </ChartCard>
   )
 }
