@@ -26,8 +26,8 @@ export default function PolicyPulseStacked({ series = [], isExpanded = false, on
       label="SIGNALS"
       title="Policy & Market Pulse"
       sub={hasData
-        ? `8-week trailing news-feed volume by pillar.`
-        : 'Weekly news history accruing — chart unlocks at ≥2 weeks of pillar-tagged signals.'}
+        ? `8-wk signal volume by pillar`
+        : 'Accruing — needs ≥2 weeks of signals'}
       footer="Source: PV Magazine, Utility Dive, Solar Power World & Solar Industry RSS, AI-classified (relevance ≥ 60) and grouped by ISO week."
       className="h-full"
       expandable

@@ -94,8 +94,8 @@ export default function FeasibilityScoreDeltas({ filterStates = [], weeks = 8, l
       label={label}
       title="Feasibility Score Movement"
       sub={hasData
-        ? `8-week trailing scores for the ${topMovers.length} states with the largest score-range movement.`
-        : 'Weekly history accruing — top-movers chart unlocks once each state has ≥2 weekly snapshots.'}
+        ? `8-wk scores · ${topMovers.length} biggest movers`
+        : 'Accruing — needs ≥2 weekly snapshots'}
       footer="Source: Tractova feasibility model (scoreEngine.js) over weekly snapshots; inputs trace to DSIRE program data + US Census ACS + ISO/RTO queue reports."
       className="h-full"
       expandable={expandable}

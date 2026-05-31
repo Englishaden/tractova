@@ -171,12 +171,18 @@ function DistributionReveal({ programs, avg: avgProp }) {
 
 // IX difficulty breakdown — small bar split by tier
 function IxDifficultyReveal({ programs }) {
-  const counts = useMemo(() => {
+  // Click a tier to drill into the states in it. Difficulty is per-STATE
+  // (state_programs.ix_difficulty) — there is no per-utility difficulty, so the
+  // honest drill-down is tier → states (with their feasibility score).
+  const [openTier, setOpenTier] = useState(null)
+  const { counts, byTier } = useMemo(() => {
     const c = { easy: 0, moderate: 0, hard: 0, very_hard: 0 }
+    const by = { easy: [], moderate: [], hard: [], very_hard: [] }
     for (const p of programs || []) {
-      if (p.ixDifficulty in c) c[p.ixDifficulty] += 1
+      if (p.ixDifficulty in c) { c[p.ixDifficulty] += 1; by[p.ixDifficulty].push(p) }
     }
-    return c
+    for (const k in by) by[k].sort((a, b) => (b.feasibilityScore || 0) - (a.feasibilityScore || 0))
+    return { counts: c, byTier: by }
   }, [programs])
 
   const tiers = [
@@ -187,6 +193,8 @@ function IxDifficultyReveal({ programs }) {
   ]
   const total = tiers.reduce((s, t) => s + t.count, 0)
   if (total === 0) return <p className="text-[10px] text-center py-2" style={{ color: 'var(--text-muted)' }}>No IX data.</p>
+
+  const CAP = 8
 
   return (
     <div>
@@ -202,19 +210,55 @@ function IxDifficultyReveal({ programs }) {
           )
         ))}
       </div>
-      {/* Legend rows */}
-      <ul className="space-y-1 mt-2">
-        {tiers.map((t) => (
-          <li key={t.key} className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: t.color }} />
-              <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>{t.label}</span>
-            </div>
-            <span className="font-mono text-[10px] tabular-nums font-bold" style={{ color: 'var(--text-primary)' }}>
-              {t.count} <span style={{ color: 'var(--text-muted)' }}>· {Math.round((t.count / total) * 100)}%</span>
-            </span>
-          </li>
-        ))}
+      {/* Legend rows — click a tier to expand its states */}
+      <ul className="space-y-0.5 mt-2">
+        {tiers.map((t) => {
+          const open = openTier === t.key
+          const states = byTier[t.key] || []
+          return (
+            <li key={t.key}>
+              <div
+                role="button"
+                tabIndex={t.count === 0 ? -1 : 0}
+                onClick={(e) => { e.stopPropagation(); if (t.count > 0) setOpenTier(open ? null : t.key) }}
+                onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && t.count > 0) { e.preventDefault(); e.stopPropagation(); setOpenTier(open ? null : t.key) } }}
+                aria-expanded={open}
+                className={`w-full flex items-center justify-between gap-2 rounded px-1 py-0.5 transition-colors ${t.count > 0 ? 'cursor-pointer hover:bg-white/[0.04]' : 'cursor-default'}`}
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: t.color }} />
+                  <span className="text-[10px]" style={{ color: 'var(--text-label)' }}>{t.label}</span>
+                  {t.count > 0 && (
+                    <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
+                      strokeLinecap="round" strokeLinejoin="round"
+                      className="transition-transform duration-150 shrink-0"
+                      style={{ color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  )}
+                </div>
+                <span className="font-mono text-[10px] tabular-nums font-bold shrink-0" style={{ color: 'var(--text-primary)' }}>
+                  {t.count} <span style={{ color: 'var(--text-muted)' }}>· {Math.round((t.count / total) * 100)}%</span>
+                </span>
+              </div>
+              {open && t.count > 0 && (
+                <ul className="mt-0.5 mb-1 ml-3 pl-2 border-l space-y-0.5" style={{ borderColor: 'var(--cards-border)' }}>
+                  {states.slice(0, CAP).map((p) => (
+                    <li key={p.id ?? p.name} className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
+                      <span className="font-mono text-[9px] tabular-nums shrink-0" style={{ color: 'var(--text-muted)' }}>
+                        {Number.isFinite(p.feasibilityScore) ? p.feasibilityScore : '—'}
+                      </span>
+                    </li>
+                  ))}
+                  {states.length > CAP && (
+                    <li className="text-[9px] font-mono" style={{ color: 'var(--text-muted)' }}>+{states.length - CAP} more</li>
+                  )}
+                </ul>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

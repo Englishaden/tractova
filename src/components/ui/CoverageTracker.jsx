@@ -39,23 +39,39 @@ export default function CoverageTracker({ rows = [] }) {
   const counts = { active: 0, limited: 0, pending: 0, none: 0 }
   for (const r of rows) counts[r.csStatus in counts ? r.csStatus : 'none'] += 1
 
+  // Only states that actually HAVE a program get an individual block — at ~50
+  // states the old one-block-per-state strip rendered illegible 2px slivers.
+  // The (usually large) "no program" set collapses into one labeled cap.
+  const withProgram = sorted.filter((r) => (r.csStatus || 'none') !== 'none')
+
   const legend = ['active', 'limited', 'pending', 'none']
 
   return (
     <div>
-      {/* Tracker strip — one block per state, colored by status */}
+      {/* Tracker strip — a legible block per program-state + a "no program" cap */}
       <div className="flex w-full gap-px h-6 rounded-sm overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)' }}>
-        {sorted.map((r) => {
+        {withProgram.map((r) => {
           const s = STATUS[r.csStatus] || STATUS.none
           return (
             <div
               key={r.id ?? r.name}
-              className="flex-1 min-w-[2px] transition-opacity hover:opacity-70"
+              className="flex-1 min-w-[5px] transition-opacity hover:opacity-70"
               style={{ background: s.color }}
               title={`${r.name} · ${s.label}`}
             />
           )
         })}
+        {counts.none > 0 && (
+          <div
+            className="shrink-0 flex items-center justify-center px-1.5"
+            style={{ background: STATUS.none.color, minWidth: 32 }}
+            title={`${counts.none} states · ${STATUS.none.label}`}
+          >
+            <span className="font-mono text-[8px] font-bold tabular-nums leading-none" style={{ color: 'var(--text-muted)' }}>
+              +{counts.none}
+            </span>
+          </div>
+        )}
       </div>
       {/* Count legend — 2×2 */}
       <ul className="grid grid-cols-2 gap-x-2 gap-y-1 mt-2">

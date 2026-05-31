@@ -36,7 +36,7 @@ export default function CsProgramStatusBar({ programs = [], filterStates = [] })
     <ChartCard
       label="PROGRAMS"
       title="CS Program Status — National Distribution"
-      sub={`${total} state${total === 1 ? '' : 's'} ${filterStates.length > 0 ? '(filtered)' : '(all)'} grouped by community-solar program maturity.`}
+      sub={`${total} state${total === 1 ? '' : 's'} ${filterStates.length > 0 ? '(filtered)' : '(all)'} by CS program status`}
       footer="Source: DSIRE (NCSU/DOE) program registry verifies program identity; status tier admin-curated from state PUC / program-enrollment filings. Active = enrollment open; Limited = capped capacity; Pending = legislation filed."
       className="h-full"
     >

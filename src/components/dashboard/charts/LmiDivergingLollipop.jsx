@@ -87,7 +87,7 @@ export default function LmiDivergingLollipop({ filterStates = [], isExpanded = f
     <ChartCard
       label="EQUITY"
       title="LMI Penetration by State"
-      sub={`X-axis = percentage points above/below the ~${NATL_MEDIAN}% national median (0 = amber line). ${isExpanded ? `Top 20` : `Top 7`} of ${total} seeded states by LMI share (≤80% AMI)${isExpanded ? '.' : ' — all sit above the median; expand for the full above/below spread.'}`}
+      sub={`Δ vs ${NATL_MEDIAN}% national median (pts; 0 = amber) · ${isExpanded ? 'top 20' : 'top 7'} of ${total} by LMI share ≤80% AMI`}
       footer="Source: US Census ACS 2018–2022 5-year estimates (api.census.gov). Seeded states only; non-seeded omitted rather than back-filled with the national median."
       className="h-full"
       expandable
