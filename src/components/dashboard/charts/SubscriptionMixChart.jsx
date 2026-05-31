@@ -14,7 +14,7 @@ function renderTotalLabel(props) {
       fontFamily="JetBrains Mono, ui-monospace, monospace" fontSize={9}
       fill="var(--text-muted, #6C7A91)"
     >
-      {Number(value).toLocaleString()} MW
+      {Math.round(Number(value)).toLocaleString()} MW
     </text>
   )
 }
@@ -78,7 +78,7 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
     <ChartCard
       title="Subscription Channel Mix"
       sub={`${isExpanded ? 'Top 15' : 'Top 8'} states by operating CS capacity · channel share of each state's MW`}
-      footer="Source: cs_projects.subscription_marketer (LBNL/NREL Sharing the Sun, Jan 2026). 'Unspecified' = projects the source left unlabeled — shown, not dropped. Sharing the Sun does not publish a residential/commercial subscriber breakdown."
+      footer="Source: LBNL/NREL Sharing the Sun (Jan 2026). 'Unspecified' = source left unlabeled — shown, not dropped."
       className="h-full"
       expandable={expandable}
       isExpanded={isExpanded}
@@ -99,10 +99,12 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
               <XAxis
                 type="number"
                 domain={[0, 100]}
+                ticks={[0, 25, 50, 75, 100]}
+                allowDecimals={false}
                 tick={CHART_AXIS.tick}
                 axisLine={CHART_AXIS.axisLine}
                 tickLine={false}
-                tickFormatter={(v) => `${v}%`}
+                tickFormatter={(v) => `${Math.round(v)}%`}
               />
               <YAxis
                 type="category"
@@ -119,7 +121,7 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
                 formatter={(value, name, entry) => {
                   const key = entry?.dataKey
                   const rawMW = entry?.payload?._raw?.[key] ?? 0
-                  return [`${Math.round(value)}% · ${Number(rawMW).toLocaleString()} MW`, name]
+                  return [`${Math.round(value)}% · ${Math.round(rawMW).toLocaleString()} MW`, name]
                 }}
               />
               <Legend
@@ -136,6 +138,7 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
                     name={c.label}
                     stackId="mix"
                     fill={c.color}
+                    fillOpacity={0.55}
                     radius={last ? [0, 3, 3, 0] : [0, 0, 0, 0]}
                     isAnimationActive={false}
                   >
