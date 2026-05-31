@@ -1,5 +1,6 @@
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import AnimatedIcon from '../ui/AnimatedIcon'
+import HoverBorderGradient from '../ui/HoverBorderGradient'
 
 // DashboardSidebar — left-rail tab navigation for the Dashboard.
 //
@@ -195,20 +196,22 @@ export default function DashboardSidebar({ collapsed = false, onToggleCollapse }
 
         {/* Run a Lens CTA — anchored at the bottom of the rail */}
         <div className={`pt-2 pb-3 border-t shrink-0 ${collapsed ? 'px-2' : 'px-2'}`} style={{ borderColor: 'var(--cards-border)' }}>
-          <button
-            type="button"
-            onClick={handleRunLens}
-            className={`dash-ai-glow w-full inline-flex items-center justify-center gap-2 rounded-md font-bold text-[12px] transition-all hover:brightness-110 ${collapsed ? 'h-10 py-0' : 'py-2'}`}
-            style={{
-              background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 16px -4px rgba(20,184,166,0.55)',
-            }}
-            aria-label="Run a Lens"
-          >
-            <AnimatedIcon name="Search" animation="pulse" size={11} strokeWidth={2.5} />
-            {!collapsed && 'Run a Lens'}
-          </button>
+          <HoverBorderGradient containerClassName="w-full" radius={8}>
+            <button
+              type="button"
+              onClick={handleRunLens}
+              className={`dash-ai-glow w-full inline-flex items-center justify-center gap-2 rounded-md font-bold text-[12px] transition-all hover:brightness-110 ${collapsed ? 'h-10 py-0' : 'py-2'}`}
+              style={{
+                background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)',
+                color: '#FFFFFF',
+                boxShadow: '0 4px 16px -4px rgba(20,184,166,0.55)',
+              }}
+              aria-label="Run a Lens"
+            >
+              <AnimatedIcon name="Search" animation="pulse" size={11} strokeWidth={2.5} />
+              {!collapsed && 'Run a Lens'}
+            </button>
+          </HoverBorderGradient>
           {!collapsed && (
             <p className="mt-1.5 text-[9px] leading-tight text-center" style={{ color: 'var(--text-muted)' }}>
               Single-project deep-dive

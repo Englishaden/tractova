@@ -59,19 +59,22 @@ export default function SortableTable({
     <div className="w-full overflow-x-auto thin-scrollbar">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr className="border-b" style={{ borderColor: 'var(--cards-border)' }}>
+          <tr style={{ background: 'linear-gradient(180deg, rgba(20,184,166,0.07) 0%, rgba(20,184,166,0.01) 100%)', borderBottom: '1px solid var(--hairline-teal, rgba(20,184,166,0.35))' }}>
             {columns.map((c) => {
               const isSorted = c.key === sortKey
               return (
                 <th
                   key={c.key}
                   onClick={() => toggleSort(c)}
-                  className={`px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[0.16em] font-bold select-none ${c.align === 'right' ? 'text-right' : 'text-left'} ${c.sortable === false ? '' : 'cursor-pointer hover:text-[var(--link)]'}`}
-                  style={{ color: isSorted ? 'var(--link, #5EEAD4)' : 'var(--text-label)' }}
+                  className={`relative px-2.5 py-2 font-mono text-[9px] uppercase tracking-[0.18em] font-bold select-none transition-colors ${c.align === 'right' ? 'text-right' : 'text-left'} ${c.sortable === false ? '' : 'cursor-pointer'}`}
+                  style={{ color: isSorted ? 'var(--link, #5EEAD4)' : 'var(--text-label)', background: isSorted ? 'rgba(20,184,166,0.10)' : 'transparent' }}
+                  onMouseEnter={c.sortable === false ? undefined : (e) => { if (!isSorted) e.currentTarget.style.color = 'var(--text-primary)' }}
+                  onMouseLeave={c.sortable === false ? undefined : (e) => { if (!isSorted) e.currentTarget.style.color = 'var(--text-label)' }}
                   scope="col"
                 >
                   {c.header}
                   {isSorted && <SortArrow dir={sortDir} />}
+                  {isSorted && <span className="absolute left-0 right-0 bottom-0 h-px" style={{ background: 'var(--link, #5EEAD4)' }} aria-hidden="true" />}
                 </th>
               )
             })}
