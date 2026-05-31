@@ -170,7 +170,7 @@ export default function DensePolicyFeed({ news = [], hideTabs = false }) {
               type="button"
               onClick={() => setPage((p) => Math.max(0, p - 1))}
               disabled={safePage === 0}
-              className="font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+              className="font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded transition-all disabled:opacity-30 disabled:cursor-default hover:bg-white/[0.04]"
               style={{ color: 'var(--link, #5EEAD4)', border: '1px solid var(--cards-border)' }}
             >
               ← Prev
@@ -182,7 +182,7 @@ export default function DensePolicyFeed({ news = [], hideTabs = false }) {
               type="button"
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
               disabled={safePage >= pageCount - 1}
-              className="font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/[0.04]"
+              className="font-mono text-[10px] uppercase tracking-[0.14em] px-2 py-1 rounded transition-all disabled:opacity-30 disabled:cursor-default hover:bg-white/[0.04]"
               style={{ color: 'var(--link, #5EEAD4)', border: '1px solid var(--cards-border)' }}
             >
               Next →

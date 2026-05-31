@@ -54,7 +54,7 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
     if (!rows) return []
     return rows
       .filter((r) => r.total > 0)
-      .slice(0, 15)
+      .slice(0, isExpanded ? 15 : 8)
       .map((r) => {
         const t = r.total || 1
         return {
@@ -69,7 +69,7 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
           _raw: { utility: r.utility, thirdParty: r.thirdParty, combination: r.combination, unknown: r.unknown },
         }
       })
-  }, [rows])
+  }, [rows, isExpanded])
 
   const loading = rows === null
   const empty = !loading && data.length === 0
@@ -77,7 +77,7 @@ export default function SubscriptionMixChart({ expandable = false, isExpanded = 
   return (
     <ChartCard
       title="Subscription Channel Mix"
-      sub="Top 15 states by operating CS capacity · channel share of each state's MW"
+      sub={`${isExpanded ? 'Top 15' : 'Top 8'} states by operating CS capacity · channel share of each state's MW`}
       footer="Source: cs_projects.subscription_marketer (LBNL/NREL Sharing the Sun, Jan 2026). 'Unspecified' = projects the source left unlabeled — shown, not dropped. Sharing the Sun does not publish a residential/commercial subscriber breakdown."
       className="h-full"
       expandable={expandable}

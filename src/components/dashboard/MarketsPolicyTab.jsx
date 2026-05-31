@@ -87,8 +87,9 @@ export default function MarketsPolicyTab() {
   return (
     <div className="flex flex-col gap-3">
       {/* ── MARKETS ── program viability + who markets the deployed capacity.
-          12-col motion bento: table + radar share a row and meld on expand
-          (col-span 6→8, sibling reflows); sub-mix spans full width below. */}
+          12-col motion bento: table + radar are col-span-6 tiles that meld
+          (→8 on expand); sub-mix is full-width but COMPACT (top 8 → expand 15),
+          collapsible like the Analytics tiles. */}
       <SectionHeader label="Markets" hint="program viability · channel mix" />
       <motion.div layout={LAYOUT} transition={SPRING} className="grid grid-cols-1 lg:grid-cols-12 gap-2 items-stretch">
         <motion.div layout={LAYOUT} transition={SPRING} className={span('table', 'lg:col-span-6')}>
@@ -105,7 +106,9 @@ export default function MarketsPolicyTab() {
           />
         </motion.div>
         <motion.div layout={LAYOUT} transition={SPRING} className="lg:col-span-12">
-          <SubscriptionMixChart />
+          <SubscriptionMixChart
+            expandable isExpanded={isOpen('submix')} onToggleExpand={() => toggle('submix')}
+          />
         </motion.div>
       </motion.div>
 
