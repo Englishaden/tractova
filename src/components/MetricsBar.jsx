@@ -593,6 +593,10 @@ export default function MetricsBar({ previewMode = false }) {
                     <div
                       className="mt-2 pt-2"
                       style={{ borderTop: '1px solid var(--cards-border)' }}
+                      // Clicks on the reveal data shouldn't bubble to the card
+                      // button and collapse it — only the header/number/spark
+                      // area toggles. (Tier rows inside still handle their own.)
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {c.reveal}
                     </div>
@@ -603,7 +607,7 @@ export default function MetricsBar({ previewMode = false }) {
             <TooltipContent side="bottom" sideOffset={8}>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-white/55 mb-1">{c.label}</p>
               <p className="text-[12px] leading-relaxed">{c.tooltip}</p>
-              <p className="text-[10px] text-white/40 mt-2">Click to expand the trend.</p>
+              <p className="text-[10px] text-white/40 mt-2">{expanded ? 'Click the header to collapse.' : 'Click to expand the trend.'}</p>
             </TooltipContent>
           </Tooltip>
         )

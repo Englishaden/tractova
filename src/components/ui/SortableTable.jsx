@@ -51,8 +51,12 @@ export default function SortableTable({
 
   const toggleSort = (c) => {
     if (c.sortable === false) return
-    if (c.key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
-    else { setSortKey(c.key); setSortDir(c.key === sortKey ? sortDir : (typeof c.value?.(rows[0]) === 'number' ? 'desc' : 'asc')) }
+    if (c.key === sortKey) { setSortDir((d) => (d === 'asc' ? 'desc' : 'asc')); return }
+    setSortKey(c.key)
+    // New column: numeric → desc-first, text → asc-first. Guard rows[0] so an
+    // empty table with visible headers can't crash the accessor.
+    const numeric = rows.length > 0 && typeof c.value?.(rows[0]) === 'number'
+    setSortDir(numeric ? 'desc' : 'asc')
   }
 
   return (

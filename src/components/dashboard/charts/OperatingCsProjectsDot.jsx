@@ -91,7 +91,7 @@ export default function OperatingCsProjectsDot({ filterStates = [], isExpanded =
               cursor={false}
               formatter={(_v, _n, props) => {
                 const p = props?.payload || {}
-                return [`${p.count} projects · ${p.totalMw ?? 0} MW total · median ${p.median ?? 0} MW`, '']
+                return [`${p.count} projects · ${Math.round(p.totalMw ?? 0).toLocaleString()} MW total · median ${Math.round(p.median ?? 0)} MW`, '']
               }}
             />
             <Bar dataKey="count" shape={<DotGlyph />} isAnimationActive={false} />

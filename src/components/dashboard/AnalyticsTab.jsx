@@ -175,7 +175,7 @@ export default function AnalyticsTab() {
                       className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 transition-all"
                       style={{
                         background: active ? 'var(--link-active-bg)' : 'transparent',
-                        border: `1px solid ${active ? 'var(--link-active-bg)' : 'var(--cards-border)'}`,
+                        border: `1px solid ${active ? 'var(--link, #5EEAD4)' : 'var(--cards-border)'}`,
                         color: active ? '#FFFFFF' : 'var(--text-label)',
                       }}
                       data-active={active ? 'true' : 'false'}

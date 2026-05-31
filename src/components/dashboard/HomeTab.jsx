@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import IntelligenceFeedCard from '../IntelligenceFeedCard'
 import StateDetailPanel from '../StateDetailPanel'
 import DashboardGlobe from '../DashboardGlobe'
@@ -123,6 +124,7 @@ function MarketsOnTheMove({ stateProgramMap, deltaMap, onStateClick }) {
 }
 
 export default function HomeTab({ effectivePreviewMode, onDataError }) {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [selectedStateId, setSelectedStateId] = useState(null)
   const [stateProgramMap, setStateProgramMap] = useState({})
   const [news, setNews] = useState([])
@@ -182,6 +184,14 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
 
   const handleStateClick = (stateId) => setSelectedStateId((prev) => prev === stateId ? null : stateId)
   const handleClosePanel = () => setSelectedStateId(null)
+  // "View all" on the Intelligence Feed → the Markets & Policy tab, which hosts
+  // the full paginated signal feed (the dense "read the whole conversation"
+  // surface). Without this the CTA was a no-op.
+  const goToFullFeed = useCallback(() => {
+    const next = new URLSearchParams(searchParams)
+    next.set('tab', 'markets')
+    setSearchParams(next)
+  }, [searchParams, setSearchParams])
 
   return (
     <div className="flex flex-col gap-2">
@@ -275,7 +285,7 @@ export default function HomeTab({ effectivePreviewMode, onDataError }) {
                 lensFilters={{ stage: filters.stage, mw: filters.mw }}
               />
             ) : (
-              <IntelligenceFeedCard news={filteredNews} />
+              <IntelligenceFeedCard news={filteredNews} onSeeAll={goToFullFeed} />
             )}
           </div>
         </div>

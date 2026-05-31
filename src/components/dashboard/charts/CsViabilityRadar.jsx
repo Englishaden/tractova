@@ -50,12 +50,14 @@ export default function CsViabilityRadar({ programs = [], expandable = false, is
   const active = validSelected.length ? validSelected : pool.slice(0, 3).map((p) => p.id)
 
   const toggle = (id) => {
-    setSelected((prev) => {
-      const cur = prev.filter((x) => pool.some((p) => p.id === x))
-      if (cur.includes(id)) return cur.filter((x) => x !== id)
-      if (cur.length >= 3) return [...cur.slice(1), id] // drop oldest
-      return [...cur, id]
-    })
+    // Base on the EFFECTIVE selection (`active` — what's actually shown
+    // highlighted), not raw `selected`. Before any interaction `selected` is []
+    // but the top-3 render highlighted via the fallback; basing on `active`
+    // means clicking a highlighted chip removes it (instead of adding/collapsing).
+    const cur = active
+    if (cur.includes(id)) setSelected(cur.filter((x) => x !== id))
+    else if (cur.length >= 3) setSelected([...cur.slice(1), id]) // drop oldest
+    else setSelected([...cur, id])
   }
 
   const byId = useMemo(() => Object.fromEntries(pool.map((p) => [p.id, p])), [pool])

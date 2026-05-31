@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { geoOrthographic, geoPath, geoGraticule, geoBounds, geoMercator } from 'd3-geo'
 import { timer as d3Timer } from 'd3-timer'
 import { interpolate as d3Interpolate } from 'd3-interpolate'
@@ -270,17 +270,6 @@ export default function DashboardGlobe({
 
   // Top-N states to highlight as bright dots during idle (visible cue
   // that this is a US-focused intelligence tool even before zoom).
-  const topStateCoords = useMemo(() => {
-    const arr = Object.values(stateProgramMap || {})
-      .filter((s) => s.csStatus !== 'none')
-      .sort((a, b) => (b.feasibilityScore || 0) - (a.feasibilityScore || 0))
-      .slice(0, 15)
-    // We don't have lat/lng on state info; rely on FIPS later. Markers
-    // come from a centroid lookup that lives on the rendering path —
-    // here we just need the IDs and feasibility score for marker size.
-    return arr.map((s) => ({ id: s.id, score: s.feasibilityScore || 0 }))
-  }, [stateProgramMap])
-
   // ── Live markers — Aden 2026-05-28 "make the globe icons live" ──────────
   // Authed users see markers at the states where they have saved Library
   // projects (their own market intel). Signed-out / preview visitors see
@@ -679,7 +668,7 @@ export default function DashboardGlobe({
       t.stop()
       ro.disconnect()
     }
-  }, [ready, topStateCoords])
+  }, [ready])
 
   // ── Click handler ─────────────────────────────────────────────────────
   // While idle → click triggers the focus transition.
