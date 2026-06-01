@@ -16,7 +16,7 @@
       "package": "xlsx",
       "severity": "high",
       "title": "Prototype Pollution in sheetJS",
-      "reason": "xlsx 0.18.5 is the latest version on npm; SheetJS publishes 0.20.2+ only via their own CDN (not npm). Mitigations: (1) Lazy-loaded — only triggered when a Pro user clicks Export in src/pages/Library.jsx (verified via dist/assets/xlsx-*.js separate chunk). (2) Tractova WRITES workbooks (XLSX.writeFile) — never PARSES user-uploaded files, which is the vulnerable code path. The Prototype Pollution attack requires reading a malicious workbook the attacker authored; no flow does this. Tracking SheetJS's npm-publishing posture; revisit in Q3 2026 or migrate to exceljs.",
+      "reason": "xlsx 0.18.5 is the latest version on npm; SheetJS publishes 0.20.2+ only via their own CDN (not npm). EXPOSURE (corrected 2026-05-31 audit, finding M3 — the prior rationale's claim that Tractova 'never PARSES' workbooks was inaccurate): two paths use xlsx. (1) CLIENT export — src/pages/Library.jsx + src/lib/exportHelpers.js call XLSX.writeFile/aoa_to_sheet only (WRITE path; prototype-pollution-on-read does not apply). (2) SERVER scrapers — api/scrapers/_refresh-ca-dg.js, _refresh-md-dg.js, _refresh-va-dg.js, _refresh-nj-dg.js call XLSX.read() on workbooks fetched server-side. These DO exercise the vulnerable parse path, but only against fixed, pinned state-agency HTTPS URLs (not user- or attacker-supplied), so exploitation requires compromising or MITMing a .gov source. Residual risk accepted on that basis. Remediation tracked: migrate to exceljs (or pin the SheetJS CDN build) — revisit Q3 2026.",
       "first_seen": "2026-05-06",
       "review_due": "2026-08-06"
     },
@@ -25,7 +25,7 @@
       "package": "xlsx",
       "severity": "high",
       "title": "SheetJS Regular Expression Denial of Service (ReDoS)",
-      "reason": "Same xlsx 0.18.5 root as GHSA-4r6h-8v6p-xvw6. Same mitigations: lazy-loaded, write-only export flow, no parsing of user-uploaded data. ReDoS would require attacker-controlled string fed to xlsx parser — the only consumer is buildExportRows in Library.jsx which feeds Tractova-generated rows, not user input.",
+      "reason": "Same xlsx 0.18.5 root as GHSA-4r6h-8v6p-xvw6. EXPOSURE (corrected 2026-05-31 audit, finding M3): the ReDoS parse path IS exercised by the server-side DG scrapers (api/scrapers/_refresh-ca-dg.js, _refresh-md-dg.js, _refresh-va-dg.js, _refresh-nj-dg.js via XLSX.read), but only on fixed, pinned state-agency HTTPS workbooks — not user- or attacker-supplied input. The client export path is write-only (buildExportRows in Library.jsx feeds Tractova-generated rows). Remediation: exceljs migration or SheetJS CDN pin; revisit Q3 2026.",
       "first_seen": "2026-05-06",
       "review_due": "2026-08-06"
     }
