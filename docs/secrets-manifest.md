@@ -44,6 +44,7 @@ NEVER bypass to ship faster.
 | `STRIPE_WEBHOOK_SECRET` | Webhook signature verification | No | When endpoint URL changes / quarterly |
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Browser-side checkout | Yes (public) | When Stripe account rotates |
 | `CRON_SECRET` | Bearer token gate on `api/refresh-data.js` | No | Semi-annually |
+| `VITE_HCAPTCHA_SITEKEY` | hCaptcha widget on auth forms (public sitekey) | Yes (public) | n/a — the paired SECRET lives in Supabase Auth (Bot & Abuse Protection), not in env |
 
 ---
 

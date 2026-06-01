@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { supabase } from '../lib/supabase'
 import { pwnedPasswordCount } from '../lib/pwnedPassword'
+import { HCAPTCHA_SITEKEY } from '../lib/captcha'
 
 export default function SignUp() {
   const [name,     setName]     = useState('')
@@ -17,6 +19,8 @@ export default function SignUp() {
   // SaaS norm and helps the IP-violation / trade-secret enforcement
   // language in Terms § 04 hold up.
   const [agreed,   setAgreed]   = useState(false)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const captchaRef = useRef(null)
 
   const navigate = useNavigate()
 
@@ -50,11 +54,14 @@ export default function SignUp() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: name } },
+      options: { data: { full_name: name }, captchaToken },
     })
 
     if (error) {
       setError(humanizeError(error.message))
+      // hCaptcha tokens are single-use — reset so a retry gets a fresh one.
+      captchaRef.current?.resetCaptcha()
+      setCaptchaToken(null)
       setLoading(false)
       return
     }
@@ -137,6 +144,15 @@ export default function SignUp() {
             <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline hover:no-underline" style={{ color: '#0F766E' }}>Privacy Policy</Link>.
           </span>
         </label>
+
+        <div className="pt-1">
+          <HCaptcha
+            ref={captchaRef}
+            sitekey={HCAPTCHA_SITEKEY}
+            onVerify={setCaptchaToken}
+            onExpire={() => setCaptchaToken(null)}
+          />
+        </div>
 
         <button
           type="submit"
@@ -326,6 +342,7 @@ function humanizeError(msg) {
   // A2: enumeration-resistant — don't confirm whether an email is registered.
   // (Authoritative fix is Supabase "Confirm email" obfuscation; see CLAUDE.md.)
   if (msg.toLowerCase().includes('already registered')) return 'We couldn’t create the account. If you already have one, sign in or reset your password.'
+  if (msg.toLowerCase().includes('captcha')) return 'Please complete the captcha and try again.'
   if (msg.toLowerCase().includes('password')) return 'Password must be at least 10 characters.'
   return msg
 }

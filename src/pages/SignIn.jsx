@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import HCaptcha from '@hcaptcha/react-hcaptcha'
 import { supabase } from '../lib/supabase'
 import { AuthShell } from './SignUp'
+import { HCAPTCHA_SITEKEY } from '../lib/captcha'
 
 // view: 'signin' | 'reset' | 'reset_sent'
 export default function SignIn() {
@@ -10,6 +12,8 @@ export default function SignIn() {
   const [password, setPassword] = useState('')
   const [error,    setError]    = useState(null)
   const [loading,  setLoading]  = useState(false)
+  const [captchaToken, setCaptchaToken] = useState(null)
+  const captchaRef = useRef(null)
 
   const navigate  = useNavigate()
   const location  = useLocation()
@@ -20,9 +24,11 @@ export default function SignIn() {
     e.preventDefault()
     setError(null)
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken } })
     if (error) {
       setError(humanizeError(error.message))
+      captchaRef.current?.resetCaptcha()
+      setCaptchaToken(null)
       setLoading(false)
     } else {
       navigate(from, { replace: true })
@@ -35,17 +41,20 @@ export default function SignIn() {
     setLoading(true)
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/update-password`,
+      captchaToken,
     })
     setLoading(false)
     if (error) {
       setError(humanizeError(error.message))
+      captchaRef.current?.resetCaptcha()
+      setCaptchaToken(null)
     } else {
       setView('reset_sent')
     }
   }
 
-  const switchToReset  = () => { setError(null); setView('reset') }
-  const switchToSignIn = () => { setError(null); setView('signin') }
+  const switchToReset  = () => { setError(null); setCaptchaToken(null); setView('reset') }
+  const switchToSignIn = () => { setError(null); setCaptchaToken(null); setView('signin') }
 
   // ── Three view variants share the AuthShell wrapper. The dark-panel
   // copy adapts to which view we're in so the auth flow stays visually
@@ -145,6 +154,15 @@ export default function SignIn() {
               />
             </Field>
 
+            <div className="pt-1">
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={HCAPTCHA_SITEKEY}
+                onVerify={setCaptchaToken}
+                onExpire={() => setCaptchaToken(null)}
+              />
+            </div>
+
             <button
               type="submit" disabled={loading}
               className="w-full text-white text-sm font-semibold py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -187,6 +205,15 @@ export default function SignIn() {
               />
             </Field>
 
+            <div className="pt-1">
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={HCAPTCHA_SITEKEY}
+                onVerify={setCaptchaToken}
+                onExpire={() => setCaptchaToken(null)}
+              />
+            </div>
+
             <button
               type="submit" disabled={loading}
               className="w-full text-white text-sm font-semibold py-3 rounded-md transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -226,6 +253,7 @@ const INPUT_CLASS = "w-full border border-gray-300 rounded-md px-3 py-2.5 text-s
 
 function humanizeError(msg) {
   if (!msg) return 'Something went wrong. Try again.'
+  if (msg.toLowerCase().includes('captcha')) return 'Please complete the captcha and try again.'
   if (msg.toLowerCase().includes('invalid login')) return 'Invalid email or password.'
   if (msg.toLowerCase().includes('email not confirmed')) return 'Please confirm your email before signing in.'
   return msg
