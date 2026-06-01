@@ -52,8 +52,8 @@ export default function UpdatePassword() {
       setError('Passwords do not match.')
       return
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
+    if (password.length < 10) {
+      setError('Password must be at least 10 characters.')
       return
     }
 
@@ -140,7 +140,7 @@ export default function UpdatePassword() {
                 <input
                   type="password" required autoComplete="new-password"
                   value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Min. 6 characters"
+                  placeholder="Min. 10 characters"
                   className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm placeholder-gray-400
                              focus:outline-hidden focus:border-teal-500 focus:ring-2 focus:ring-teal-500/15 transition-colors"
                 />

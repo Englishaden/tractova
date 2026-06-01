@@ -27,8 +27,8 @@ export default function SignUp() {
       setError('Passwords do not match.')
       return
     }
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.')
+    if (password.length < 10) {
+      setError('Password must be at least 10 characters.')
       return
     }
     if (!agreed) {
@@ -100,7 +100,7 @@ export default function SignUp() {
           <input
             type="password" required autoComplete="new-password"
             value={password} onChange={(e) => setPassword(e.target.value)}
-            placeholder="Min. 6 characters"
+            placeholder="Min. 10 characters"
             className={INPUT_CLASS}
           />
         </Field>
@@ -314,8 +314,10 @@ const INPUT_CLASS = "w-full border border-gray-300 rounded-md px-3 py-2.5 text-s
 
 function humanizeError(msg) {
   if (!msg) return 'Something went wrong. Try again.'
-  if (msg.toLowerCase().includes('already registered')) return 'An account with this email already exists.'
-  if (msg.toLowerCase().includes('password')) return 'Password must be at least 6 characters.'
+  // A2: enumeration-resistant — don't confirm whether an email is registered.
+  // (Authoritative fix is Supabase "Confirm email" obfuscation; see CLAUDE.md.)
+  if (msg.toLowerCase().includes('already registered')) return 'We couldn’t create the account. If you already have one, sign in or reset your password.'
+  if (msg.toLowerCase().includes('password')) return 'Password must be at least 10 characters.'
   return msg
 }
 
