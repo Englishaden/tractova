@@ -7,7 +7,7 @@
       "package": "d3-color",
       "severity": "high",
       "title": "d3-color vulnerable to ReDoS",
-      "reason": "Transitive via react-simple-maps@3.0.0 (d3-zoom -> d3-transition -> d3-interpolate -> d3-color). Cascades into 4 npm-audit entries (d3-color, d3-interpolate, d3-transition, d3-zoom) plus react-simple-maps itself = 5 total. Mitigations: (1) react-simple-maps 4.0.0-beta available — track upstream stable. (2) Consumed only in src/components/USMap.jsx for state-level visualization. The vulnerable regex parses color strings; USMap renders fixed brand colors (no user-controlled input reaches d3-color). Risk vector requires user-controlled string into d3-color/d3-interpolate which Tractova does not expose.",
+      "reason": "Transitive via TWO roots (corrected 2026-05-31 audit): (1) react-simple-maps@3.0.0 (d3-zoom -> d3-transition -> d3-interpolate -> d3-color), and (2) recharts via victory-vendor's d3-interpolate@3.0.1 -> d3-color '1 - 3', both resolving to the same hoisted d3-color@2.0.0. Cascades into the d3-color/d3-interpolate/d3-transition/d3-zoom npm-audit entries plus react-simple-maps. Consumers: src/components/USMap.jsx (react-simple-maps, fixed brand colors) and src/components/DashboardGlobe.jsx (direct d3-interpolate import, numeric-only interpolation). The vulnerable regex parses color STRINGS; no user-controlled string reaches d3-color/d3-interpolate on any path, so the ReDoS vector is not exposed. Mitigation: react-simple-maps 4.x / recharts upgrade — track upstream stable; revisit at review_due.",
       "first_seen": "2026-05-06",
       "review_due": "2026-08-06"
     },

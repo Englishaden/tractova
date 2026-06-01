@@ -111,7 +111,24 @@ function buildSlackBlocks(project, alerts, userName) {
   }
 }
 
+// SSRF guard: slack_webhook_url is user-controlled (set in Profile.jsx) and
+// POSTed server-side below. Slack incoming webhooks are ALWAYS
+// https://hooks.slack.com/services/… — validate against that exact host. An
+// exact-host allowlist is tighter than a private-IP block: it also blocks
+// alert content being exfiltrated to an arbitrary public host.
+function isSlackWebhookUrl(raw) {
+  try {
+    const u = new URL(String(raw))
+    return u.protocol === 'https:' && u.hostname === 'hooks.slack.com'
+  } catch {
+    return false
+  }
+}
+
 async function sendSlack(webhookUrl, payload) {
+  if (!isSlackWebhookUrl(webhookUrl)) {
+    throw new Error('Invalid Slack webhook URL — must be https://hooks.slack.com/… (SSRF guard).')
+  }
   // 8s timeout so a hung Slack endpoint can't stall the cron
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 8000)
@@ -121,6 +138,7 @@ async function sendSlack(webhookUrl, payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: controller.signal,
+      redirect: 'manual', // never follow a 3xx that could redirect inward
     })
     clearTimeout(timeout)
     if (!res.ok) {
@@ -309,7 +327,7 @@ export default async function handler(req, res) {
             await sendEmail(user.email, subject, html, text)
             results.push({ email: user.email, project: project.name, alerts: alerts.map(a => a.label) })
           } catch (err) {
-            console.error(`[send-alerts] email failed for ${user.email}:`, err.message)
+            console.error(`[send-alerts] email failed for user ${profile.id}:`, err.message)
             if (testMode) {
               return res.status(500).json({ error: `Email send failed: ${err.message}` })
             }

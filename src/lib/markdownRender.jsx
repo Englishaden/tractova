@@ -25,7 +25,17 @@ export function renderMarkdownInline(text) {
     const code = remaining.match(/^`([^`]+?)`/)
     if (code) { parts.push(<code key={key++} className="px-1 py-0.5 rounded bg-gray-100 text-[11px] font-mono">{code[1]}</code>); remaining = remaining.slice(code[0].length); continue }
     const link = remaining.match(/^\[([^\]]+?)\]\(([^)]+?)\)/)
-    if (link) { parts.push(<a key={key++} href={link[2]} target="_blank" rel="noopener noreferrer" className="text-teal-700 underline hover:text-teal-800">{link[1]}</a>); remaining = remaining.slice(link[0].length); continue }
+    if (link) {
+      // Scheme allowlist — React does NOT block javascript:/data:/vbscript: in
+      // href, so only render an anchor for http(s)/mailto/relative URLs; render
+      // anything else as plain text (defense-in-depth XSS guard).
+      const href = link[2].trim()
+      const safeHref = /^(https?:\/\/|mailto:|\/)/i.test(href)
+      parts.push(safeHref
+        ? <a key={key++} href={href} target="_blank" rel="noopener noreferrer" className="text-teal-700 underline hover:text-teal-800">{link[1]}</a>
+        : <span key={key++}>{link[1]}</span>)
+      remaining = remaining.slice(link[0].length); continue
+    }
     parts.push(remaining[0])
     remaining = remaining.slice(1)
   }

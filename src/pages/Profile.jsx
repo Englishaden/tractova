@@ -323,6 +323,7 @@ function AlertPreferences({ userId }) {
   const [prefs, setPrefs] = useState({ digest: true, alerts: true, positive: true, slack: false })
   const [slackUrl, setSlackUrl] = useState('')
   const [slackUrlDirty, setSlackUrlDirty] = useState(false)
+  const [slackError, setSlackError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
 
@@ -377,8 +378,21 @@ function AlertPreferences({ userId }) {
   }
 
   const saveSlackUrl = async () => {
+    const trimmed = slackUrl.trim()
+    // Mirror the server-side SSRF guard (api/send-alerts.js): only persist a
+    // real https://hooks.slack.com webhook (or clear it). Blocks bad values at
+    // the source so they never reach the DB.
+    let valid = !trimmed
+    if (trimmed) {
+      try { const u = new URL(trimmed); valid = u.protocol === 'https:' && u.hostname === 'hooks.slack.com' } catch { valid = false }
+    }
+    if (!valid) {
+      setSlackError('Enter a valid https://hooks.slack.com/… webhook URL.')
+      return
+    }
+    setSlackError(null)
     setSaving(true)
-    await safeUpdate({ slack_webhook_url: slackUrl.trim() || null })
+    await safeUpdate({ slack_webhook_url: trimmed || null })
     setSlackUrlDirty(false)
     setSaving(false)
   }
@@ -432,11 +446,12 @@ function AlertPreferences({ userId }) {
             <Input
               type="url"
               value={slackUrl}
-              onChange={(val) => { setSlackUrl(val); setSlackUrlDirty(true) }}
+              onChange={(val) => { setSlackUrl(val); setSlackUrlDirty(true); setSlackError(null) }}
               placeholder="https://hooks.slack.com/services/..."
               paper
               inputClassName="text-xs font-mono"
             />
+            {slackError && <p className="text-[10px] text-red-600 mt-1.5">{slackError}</p>}
             <div className="flex items-center justify-between mt-1.5 gap-3">
               <p className="text-[10px] text-gray-400">
                 Create one in your Slack workspace at <a href="https://api.slack.com/apps" target="_blank" rel="noopener noreferrer" className="text-teal-700 hover:underline">api.slack.com/apps</a> → Incoming Webhooks.

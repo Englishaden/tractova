@@ -21,6 +21,13 @@
 
 **Loose end (cosmetic):** an early commit `e4b4588` carries a stray `@` subject (here-string slip), now buried in history — harmless; force-push deny rule blocks an in-session squash.
 
+### Security audit — COMPLETE (2026-05-31)
+Two-part security pass (cowork dispatch findings C1–L3, then a multi-agent completion sweep). Posture: strong / launch-ready. All prior fixes verified holding (C1/071, RLS sweep/072, I1 SSRF, C4 cron, A1/A2, app-side HIBP, C3 CORS, L1/L2/D1/L3, headers/CSP). New findings fixed this pass:
+- **SSRF (Medium, the one real exploit)** — `profiles.slack_webhook_url` was POSTed server-side in `send-alerts.js` without a guard; a Pro user could point it at an internal address. Fixed: `sendSlack()` now requires `https://hooks.slack.com` exact-host + `redirect:'manual'`; `Profile.jsx` validates on write too.
+- **Low/hygiene fixed:** recipient email → `profile.id` in send-alerts log (PII); generic client 500s on portal/checkout/digest (verbose-error leak), admin test diagnostics kept; `markdownRender.jsx` href scheme allowlist (http/https/mailto/relative only — XSS defense-in-depth); `audit-allowlist.json` d3-color rationale corrected (recharts 2nd root + DashboardGlobe 2nd consumer).
+- **Left for Aden (not code):** confirm Supabase console toggles (confirm-email obfuscation, auth/email rate limits, CAPTCHA, recovery redirect allowlist) + apply migration 072; rotate live creds in local `.env.local`. **Flagged, your call:** `.claude/settings.local.json` wildcard `Bash(node:*)/(python *)/(curl:*)/(cat .env.local)` auto-allows undercut the safety-net deny rules.
+- Decision recorded: leaked-pw server-side enforcement deliberately deferred (disproportionate — self-harm-only threat). Full report in workflow run `wf_c1bc154c-242`.
+
 ### Landing-page audit (2026-05-31) — new `Skills/Web Design Audit Checklist.md`
 New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar checks + a living ledger (continues the dashboard audit). Ran it on `src/pages/Landing.jsx`.
 - **Fixed:** hero `DashboardPreview` "Recent Policy Alerts" now **live** — `getNewsFeed()` (same `news_feed` source as dashboard), maps `pillar→tag`, newest 2; the 2 curated rows are loading/empty fallback only (so "Updated weekly" is now honest). News failure non-fatal (banner stays on programs+metrics). · CTA label unified (final "Create your free account" → "Get started free"). · `aria-hidden` on decorative inline SVGs.

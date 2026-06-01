@@ -203,6 +203,6 @@ export default async function handler(req, res) {
       error: err.message,
       stack: err.stack?.slice(0, 2000),
     })
-    return res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: 'Internal error.' })
   }
 }
