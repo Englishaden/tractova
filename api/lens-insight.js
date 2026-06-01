@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { applyCors } from './_cors.js'
 import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from './lib/_aiCacheLayer.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { isAdminFromBearer } from './_admin-auth.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { SYSTEM_PROMPT } from './prompts/system.js'
 import handlePortfolio from './handlers/_lens-portfolio.js'
@@ -400,8 +401,16 @@ export default async function handler(req, res) {
   if (action === 'news-summary') return handleNewsSummary(body, res)
   if (action === 'deal-memo')    return handleDealMemo(body, res)
   if (action === 'utility-outreach') return handleUtilityOutreach(body, res, user)
-  if (action === 'classify-docket') return handleClassifyDocket(body, res)
-  if (action === 'policy-classify') return handlePolicyClassify(body, res)
+  // classify-docket + policy-classify fetch arbitrary URLs server-side
+  // (api/lib/_urlFetch.js). That is an admin-only capability — the Pro gate
+  // above is NOT sufficient. Re-verify admin before dispatching. (Audit I1.)
+  if (action === 'classify-docket' || action === 'policy-classify') {
+    const adminCheck = await isAdminFromBearer(supabaseAdmin, req.headers.authorization)
+    if (!adminCheck.ok) return res.status(403).json({ error: 'Admin access required' })
+    return action === 'classify-docket'
+      ? handleClassifyDocket(body, res)
+      : handlePolicyClassify(body, res)
+  }
   if (action === 'memo-create')  return handleMemoCreate(body, res, user)
 
   // ── Fetch policy_impact_events for this state ────────────────────────────
