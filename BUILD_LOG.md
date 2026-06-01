@@ -50,7 +50,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
-- **072** `projects_update_with_check.sql` — adds `WITH CHECK (auth.uid()=user_id)` to the projects UPDATE policy (C1-class RLS-sweep fix; blocks ownership reassignment). ⏳ **written, NOT yet applied** — Aden to apply + run the verify snippet in the header.
+- **072** `projects_update_with_check.sql` — adds `WITH CHECK (auth.uid()=user_id)` to the projects UPDATE policy (C1-class RLS-sweep fix; blocks ownership reassignment). ✅ applied 2026-06-01 (Aden).
 - **071** `profiles_privileged_column_guard.sql` — BEFORE-UPDATE trigger blocking `authenticated`/`anon` from writing `role`/`subscription_tier`/`subscription_status`/`stripe_customer_id` (security audit C1 — the Pro-paywall + admin self-grant hole). ✅ applied 2026-05-31 (Aden).
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
