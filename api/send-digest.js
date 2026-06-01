@@ -55,7 +55,10 @@ export default async function handler(req, res) {
   //   2. Bearer CRON_SECRET (manual cron trigger)  -> full run, all Pro users
   //   3. Authenticated admin user via Supabase JWT -> TEST MODE, sends only
   //                                                   to the admin email
-  const isVercelCron       = req.headers['x-vercel-cron'] === '1'
+  // C4: x-vercel-cron trusted ONLY when no CRON_SECRET is configured (Vercel
+  // auto-injects Authorization: Bearer ${CRON_SECRET} on cron requests when
+  // the secret is set, so the spoofable header path is unnecessary in prod).
+  const isVercelCron       = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
   const isManualWithSecret = process.env.CRON_SECRET &&
     req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
 

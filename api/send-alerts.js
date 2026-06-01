@@ -142,7 +142,10 @@ export default async function handler(req, res) {
   //   3. Admin JWT -> TEST MODE (synthesizes a sample alert for the admin's
   //      first project; ignores alert_urgent preference; bypasses the
   //      "no real alerts -> skip" guard so we always get a deliverable)
-  const isVercelCron     = req.headers['x-vercel-cron'] === '1'
+  // C4: x-vercel-cron trusted ONLY when no CRON_SECRET is configured (Vercel
+  // auto-injects Authorization: Bearer ${CRON_SECRET} on cron requests when
+  // the secret is set, so the spoofable header path is unnecessary in prod).
+  const isVercelCron     = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
   const isManualWithSecret = process.env.CRON_SECRET &&
     req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
 

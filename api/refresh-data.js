@@ -76,9 +76,12 @@ export default async function handler(req, res) {
     }
   }
 
-  // Vercel cron infra path: Vercel signs internal cron requests with a
-  // x-vercel-cron header. If CRON_SECRET isn't set, we accept these too.
-  if (!isAuthed && req.headers['x-vercel-cron']) {
+  // Vercel cron infra path. C4: the x-vercel-cron header is NOT a trust
+  // boundary on its own (spoofable if the platform ever stops stripping
+  // inbound x-vercel-* headers), so we only honor it when CRON_SECRET is
+  // unset. In a configured environment Vercel auto-injects Authorization:
+  // Bearer ${CRON_SECRET}, handled by the cron-secret path above.
+  if (!isAuthed && !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1') {
     isAuthed = true
     authMode = 'vercel-cron'
   }

@@ -61,7 +61,10 @@ function buildEmailHtml(issues) {
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
-  const isVercelCron = req.headers['x-vercel-cron'] === '1'
+  // C4: x-vercel-cron is trusted ONLY when no CRON_SECRET is configured.
+  // When the secret is set (prod), Vercel auto-injects Authorization: Bearer
+  // ${CRON_SECRET}, so the spoofable header path is unnecessary.
+  const isVercelCron = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
   const isBearerAuth = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
   if (!isVercelCron && !isBearerAuth) {
     return res.status(401).json({ error: 'Unauthorized' })

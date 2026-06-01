@@ -248,7 +248,10 @@ async function handlerInner(req, res) {
   const authHeader = req.headers.authorization
   const cronHeader = req.headers['x-vercel-cron']
 
-  const isVercelCron = cronHeader === '1'
+  // C4: x-vercel-cron is trusted ONLY when no CRON_SECRET is configured.
+  // When the secret is set (prod), Vercel auto-injects Authorization: Bearer
+  // ${CRON_SECRET}, so the spoofable header path is unnecessary.
+  const isVercelCron = !process.env.CRON_SECRET && cronHeader === '1'
   const isBearerAuth = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
 
   let isAdminAuth = false
