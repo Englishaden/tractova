@@ -21,6 +21,13 @@
 
 **Loose end (cosmetic):** an early commit `e4b4588` carries a stray `@` subject (here-string slip), now buried in history — harmless; force-push deny rule blocks an in-session squash.
 
+### Landing-page audit (2026-05-31) — new `Skills/Web Design Audit Checklist.md`
+New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar checks + a living ledger (continues the dashboard audit). Ran it on `src/pages/Landing.jsx`.
+- **Fixed:** hero `DashboardPreview` "Recent Policy Alerts" now **live** — `getNewsFeed()` (same `news_feed` source as dashboard), maps `pillar→tag`, newest 2; the 2 curated rows are loading/empty fallback only (so "Updated weekly" is now honest). News failure non-fatal (banner stays on programs+metrics). · CTA label unified (final "Create your free account" → "Get started free"). · `aria-hidden` on decorative inline SVGs.
+- **Measured, not applied — contrast (#18, real WCAG):** `text-gray-400` on light = 2.54/2.39 **FAIL**; `text-white/30`–`/25` on navy ≤2.70 **FAIL**; `white/40`–`/45` ok-large; `white/55`+ & `gray-500`+ PASS. Swap recs logged in the skill ledger — focused restyle is the follow-up (deliberately-muted palette).
+- **Passed as-is:** one semantic `<h1>`; no dead CTAs; "120×" honestly footnoted as a Tractova estimate; 12-agency `.gov` marquee = real authority proof; pillar counts trace to data. No P1s.
+- **Process note:** an early draft of the findings was hallucinated against a misread of the file (before it was read) — caught, discarded, corrected; logged in the skill ledger. `npm run build` ✓.
+
 ### Prior recent arcs (full detail → `docs/archive/BUILD_LOG-history-2026-05-25.md`)
 - **2026-05-30 (Analytics tab v2.10–2.15)** — bento (12-col, expandable meld) + honest two-layer citations; LMI diverging lollipop · Projects dot plot; KPI MetricsBar moved to Analytics; globe live-dots only; `AnimatedIcon`/`AnimatedList`/`BarListRows` JSX skill ports. Commits `60a22ff`→`b0117e9`.
 - **2026-05-30 (dashboard v2.6–2.9)** — Markets&Policy tab BUILT (StateProgramGrid · SubscriptionMixChart · FeasibilityScoreDeltas · DensePolicyFeed); Home UX rds 1–5 (KPI multi-open, real Policy Pulse dual-line, 2-D status×feasibility map fill, ⌘K bounce fix, globe-disappears + AK/HI bugs fixed, collapsible icon rail). Commits `6b74e49`→`1816a86`.

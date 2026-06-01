@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, cloneElement } from 'react'
 import { Link } from 'react-router-dom'
 import * as RadixTabs from '@radix-ui/react-tabs'
-import { getStatePrograms, getDashboardMetrics } from '../lib/programData'
+import { getStatePrograms, getDashboardMetrics, getNewsFeed } from '../lib/programData'
 import ApiErrorBanner from '../components/ApiErrorBanner'
 import { useAuth } from '../context/AuthContext'
 import { useRevealOnScroll } from '../hooks/useLandingMotion'
@@ -20,7 +20,7 @@ import { LampContainer }       from '../components/ui/landing/LampContainer'
 // ── icons ────────────────────────────────────────────────────────────────────
 function IconCheck() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12"/>
     </svg>
   )
@@ -29,7 +29,7 @@ function IconCheck() {
 function IconFaqPlusMinus({ open }) {
   return (
     <span className="inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 transition-colors" style={{ background: '#0F1A2E' }}>
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg aria-hidden="true" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         {open
           ? <line x1="5" y1="12" x2="19" y2="12"/>
           : <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}
@@ -47,7 +47,7 @@ function IconFaqPlusMinus({ open }) {
 // which requires a dedicated alerts table (not yet wired — see programData.js
 // — the placeholder text matches the actual current state of CEJA + Xcel
 // Solar Garden so it's accurate, just not auto-refreshing).
-function DashboardPreview({ activeCount, metrics, programs }) {
+function DashboardPreview({ activeCount, metrics, programs, alerts }) {
   const topStates = (programs ?? [])
     .filter(s => s.csStatus === 'active' || s.csStatus === 'limited')
     .map(s => ({
@@ -69,6 +69,20 @@ function DashboardPreview({ activeCount, metrics, programs }) {
     { id: 'MD', score: 70, status: 'active' },
     { id: 'VA', score: 67, status: 'active' },
     { id: 'MA', score: 45, status: 'limited' },
+  ]
+
+  // Live policy alerts (newest 2) from the news_feed — same source the
+  // dashboard IntelligenceFeedCard uses, so the "Updated weekly" label is
+  // honest. Falls back to two curated items only while the fetch is in flight
+  // / the table is empty, mirroring the sampleStates loading-fallback above.
+  const PILLAR_TAG = { offtake: 'Offtake', ix: 'IX', incentive: 'Incentive', policy: 'Policy', site: 'Site' }
+  const liveAlerts = (alerts ?? [])
+    .map(a => ({ tag: PILLAR_TAG[a.pillar] ?? 'Update', text: a.headline }))
+    .filter(a => a.text)
+    .slice(0, 2)
+  const sampleAlerts = liveAlerts.length > 0 ? liveAlerts : [
+    { tag: 'Offtake', text: 'Illinois Shines capacity expanded under new CEJA rules' },
+    { tag: 'IX',      text: 'Xcel Solar Garden queue moving — new block open' },
   ]
 
   return (
@@ -121,10 +135,7 @@ function DashboardPreview({ activeCount, metrics, programs }) {
             <span className="text-[8px] text-white/25 uppercase tracking-wider">Updated weekly</span>
           </div>
           <div className="space-y-2">
-            {[
-              { tag: 'Offtake', text: 'Illinois Shines capacity expanded under new CEJA rules' },
-              { tag: 'IX',      text: 'Xcel Solar Garden queue moving — new block open' },
-            ].map((a, i) => (
+            {sampleAlerts.map((a, i) => (
               <div key={i} className="flex items-baseline gap-2">
                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-sm shrink-0 leading-tight" style={a.tag === 'IX'
                   ? { background: 'rgba(245,158,11,0.18)', color: '#FCD34D' }
@@ -170,7 +181,7 @@ function CtaPrimary({ to, children, className = '' }) {
         <span className="lp-btn-swap__text">{children}</span>
         <span className="lp-btn-swap__text" aria-hidden="true">{children}</span>
       </span>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
         <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
       </svg>
     </Link>
@@ -551,17 +562,22 @@ export default function Landing() {
   const { user } = useAuth()
   const [programs, setPrograms]     = useState([])
   const [metrics, setMetrics]       = useState(null)
+  const [news, setNews]             = useState([])
   const [fetchError, setFetchError] = useState(null)
   const [retrying, setRetrying]     = useState(false)
 
   const loadHero = useCallback(async (isRetry = false) => {
     if (isRetry) setRetrying(true)
-    const [progRes, metRes] = await Promise.allSettled([
+    const [progRes, metRes, newsRes] = await Promise.allSettled([
       getStatePrograms(),
       getDashboardMetrics(),
+      getNewsFeed(),
     ])
     if (progRes.status === 'fulfilled') setPrograms(progRes.value)
     if (metRes.status === 'fulfilled')  setMetrics(metRes.value)
+    // News failure is non-fatal — the preview falls back to curated alerts,
+    // so it doesn't trip the hero error banner (kept on prog+metrics only).
+    if (newsRes.status === 'fulfilled') setNews(newsRes.value)
     if (progRes.status === 'rejected' && metRes.status === 'rejected') {
       setFetchError({
         message: 'Live market data temporarily unavailable.',
@@ -642,7 +658,7 @@ export default function Landing() {
           </div>
 
           <Reveal delay={350}>
-            <DashboardPreview activeCount={activeCount} metrics={metrics} programs={programs} />
+            <DashboardPreview activeCount={activeCount} metrics={metrics} programs={programs} alerts={news} />
           </Reveal>
         </div>
       </CursorGridSection>
@@ -853,7 +869,7 @@ export default function Landing() {
                   ].map(t => (
                     <li key={t} className="flex items-start gap-2.5 text-sm text-gray-500">
                       <span className="mt-0.5 shrink-0 text-gray-300">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                       </span>
@@ -980,7 +996,7 @@ export default function Landing() {
                   </>
                 ) : (
                   <>
-                    <CtaPrimary to="/signup">Create your free account</CtaPrimary>
+                    <CtaPrimary to="/signup">Get started free</CtaPrimary>
                     <Link to="/preview" className="px-6 py-3 rounded-lg text-sm font-semibold border text-white/85 hover:text-white transition-colors" style={{ borderColor: 'rgba(255,255,255,0.18)' }}
                           onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.4)' }}
                           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)' }}>
