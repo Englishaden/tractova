@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { pwnedPasswordCount } from '../lib/pwnedPassword'
 
 export default function SignUp() {
   const [name,     setName]     = useState('')
@@ -37,6 +38,14 @@ export default function SignUp() {
     }
 
     setLoading(true)
+
+    // Leaked-password check (app-layer HIBP, k-anonymity — see lib/pwnedPassword).
+    // App-layer because Supabase gates its native HIBP integration to Pro.
+    if ((await pwnedPasswordCount(password)) > 0) {
+      setError('That password has appeared in a known data breach. Please choose a different one.')
+      setLoading(false)
+      return
+    }
 
     const { data, error } = await supabase.auth.signUp({
       email,

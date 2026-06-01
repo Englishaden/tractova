@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { pwnedPasswordCount } from '../lib/pwnedPassword'
 
 // Reset-password landing — Supabase emails users a one-time link of the form
 //   {origin}/update-password#access_token=...&refresh_token=...&type=recovery
@@ -58,6 +59,14 @@ export default function UpdatePassword() {
     }
 
     setLoading(true)
+
+    // Leaked-password check (app-layer HIBP, k-anonymity — see lib/pwnedPassword).
+    if ((await pwnedPasswordCount(password)) > 0) {
+      setError('That password has appeared in a known data breach. Please choose a different one.')
+      setLoading(false)
+      return
+    }
+
     const { error: updateErr } = await supabase.auth.updateUser({ password })
     setLoading(false)
 
