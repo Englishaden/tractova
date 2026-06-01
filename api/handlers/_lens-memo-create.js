@@ -92,7 +92,10 @@ export default async function handleMemoCreate(body, res, user) {
       user_id: user.id,
       kind: 'shared',
       detail: `Shared deal memo · expires ${new Date(inserted.expires_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
-      meta: { token: inserted.token, sharedBy: user.email || null },
+      // D1: store the actor's UUID, not their email (avoid PII in the event
+      // log). No consumer reads this field — MemoView renders snapshot.
+      // sharedByName (display name) only.
+      meta: { token: inserted.token, sharedByUserId: user.id },
     }])
     .then(({ error: auditErr }) => {
       if (auditErr) console.warn('[lens-insight:memo-create] audit log failed:', auditErr.message)
