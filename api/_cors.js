@@ -19,15 +19,35 @@ const ALLOWED_ORIGINS = new Set([
   'http://localhost:4173', // Vite preview
 ])
 
-// Vercel preview URLs (project deploys + branch deploys). Conservative match
-// on tractova-named projects only; any unrelated *.vercel.app is rejected.
-const VERCEL_PREVIEW_RE = /^https:\/\/tractova[a-z0-9-]*\.vercel\.app$/
+// Vercel preview / branch deploys. C3: the old `tractova-*.vercel.app` regex
+// matched ANY subdomain on the shared vercel.app domain — including one an
+// attacker could register (e.g. tractova-evil.vercel.app) — so it was not a
+// real allow-list. Instead, allow only the EXACT hostnames Vercel injects for
+// THIS deployment. (Same-origin preview calls don't need CORS at all; this
+// just covers genuine cross-origin preview/prod cases without a wildcard.)
+function vercelOwnOrigins() {
+  return [
+    process.env.VERCEL_URL,
+    process.env.VERCEL_BRANCH_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  ].filter(Boolean).map(h => `https://${h}`)
+}
 
 function isAllowed(origin) {
   if (!origin) return false
   if (ALLOWED_ORIGINS.has(origin)) return true
-  if (VERCEL_PREVIEW_RE.test(origin)) return true
+  if (vercelOwnOrigins().includes(origin)) return true
   return false
+}
+
+// L1: validate a user-supplied redirect target (Stripe success / cancel /
+// return URLs) resolves to an origin we control, to block open-redirect /
+// phishing via our own checkout links.
+export function isAllowedRedirectUrl(urlStr) {
+  if (!urlStr || typeof urlStr !== 'string') return false
+  let u
+  try { u = new URL(urlStr) } catch { return false }
+  return isAllowed(u.origin)
 }
 
 /**
@@ -50,4 +70,4 @@ export function applyCors(req, res) {
   return req.method === 'OPTIONS'
 }
 
-export { ALLOWED_ORIGINS, VERCEL_PREVIEW_RE }
+export { ALLOWED_ORIGINS }
