@@ -4,7 +4,16 @@
 
 ---
 
-## 🟢 Pickup — 2026-05-31 (latest) — Dashboard CLOSEOUT (v2.16→2.25, commits `e4b4588`→`bb0b553`)
+## 🟢 Pickup — 2026-06-01 — Housekeeping (folder reorg + settings hardening)
+
+Two queued items closed; **NEXT MAJOR is unchanged = Lens → Glossary → Library UI makeover** (see DO NEXT #1 below).
+
+- **Folder reorg — DONE (scoped).** The root looked cluttered but most of it is already **gitignored** (`claude.exe`, `dist/`, `test-results/`, `.logs/`, `.audit/`, `inspiration/`, `research/`, `backups/`, `data/`, + the 2 marketing notes). The only *tracked* loose doc was `TRACTOVA.md` → moved to `docs/TRACTOVA.md` (100% rename, nothing referenced it; build green; commit `909e494`). `Skills/` left in place (referenced by 6 src files). Gitignored loose notes left at root by choice (invisible to git anyway). No further reorg pending.
+- **`.claude/settings.local.json` hardened** (the §below "flagged, your call" item — done). Removed exec-wildcard allows that let an agent bypass the deny list via another binary: `node:*`, `python *`, `python3 -c ' *`, `pip install *`, `curl:*`, `claude:*`. Removed secret-read allows: `cat .env.local`, the `awk -F= …/.env.local` + `grep …/.env*`. Added to **deny**: `git restore *`, `git rm *` (uncommitted-work / file-deletion gaps the deny list didn't shadow). Specific node/python/pdftotext invocations already in the file kept — new ones just prompt once. File is gitignored (local only); JSON re-validated (375 allow / 20 deny).
+
+---
+
+## 🟢 Pickup — 2026-05-31 — Dashboard CLOSEOUT (v2.16→2.25, commits `e4b4588`→`bb0b553`)
 
 **Dashboard phases DONE. NEXT MAJOR = Lens → Glossary → Library UI makeover** (carry the dashboard's polish/skill language across). Every push verify-green (api+citations+secrets+audit+locs+175 unit+build+7/7 smoke).
 
@@ -14,7 +23,6 @@
 - **LIVE-DATA (Aden's #1):** Policy FEED fully scraper-live (`_refresh-news.js` → `news_feed`). Policy TIMELINE **publish-gated by design** — `_scan-policy-candidates.js` (weekly) drafts; timeline shows `review_status='published'` only ($-impact fields AI must not set unverified). Dump → Feed instant; Timeline → live on 1-click admin publish. **Decision: keep the gate.**
 
 ### ⏭ DO NEXT
-0. **Folder-structure reorg — QUEUED 2026-06-01 for next session. SCOPED + verify-gated ONLY.** Move ONLY loose top-level clutter into clear folders: stray `*.txt`/notes, `inspiration/`, `research/`, `backups/`, and sub-folder `docs/`. **DO NOT MOVE the load-bearing anchors** — `CLAUDE.md`, `BUILD_LOG.md`, `.claude/`, `src/`, `api/`, `supabase/migrations/`, `scripts/`, root configs (`vite.config.js`, `vercel.json`, `package.json`, `index.html`) — moving them breaks imports / migration-runner / SessionStart hook / build. `Skills/` is referenced in code comments → update refs if it moves. **Process:** draft target tree → Aden approves → execute on a branch → `npm run verify` green → push. Confidence is 100%-non-breaking ONLY in this scoped form; a blanket "sort everything" is explicitly OUT.
 1. **Lens → Glossary → Library UI makeover** — the next major phase; apply the dashboard's polish/skill language (ChartCard meld, SortableTable, AnimatedList, CountUp, HoverBorderGradient, tasteful motion) across these surfaces.
 2. **Verify `state_programs.capacity_mw`** vs DSIRE / state-PUC + add per-row `source`/`last_updated` (citation honest; numbers still need a pass).
 3. **MarketBrief re-enable** (commented in `HomeTab.jsx`) · **Net Billing sourcing** (per-state PUC tariffs — DSIRE paid as of May 2026).
@@ -26,7 +34,7 @@
 Two-part security pass (cowork dispatch findings C1–L3, then a multi-agent completion sweep). Posture: strong / launch-ready. All prior fixes verified holding (C1/071, RLS sweep/072, I1 SSRF, C4 cron, A1/A2, app-side HIBP, C3 CORS, L1/L2/D1/L3, headers/CSP). New findings fixed this pass:
 - **SSRF (Medium, the one real exploit)** — `profiles.slack_webhook_url` was POSTed server-side in `send-alerts.js` without a guard; a Pro user could point it at an internal address. Fixed: `sendSlack()` now requires `https://hooks.slack.com` exact-host + `redirect:'manual'`; `Profile.jsx` validates on write too.
 - **Low/hygiene fixed:** recipient email → `profile.id` in send-alerts log (PII); generic client 500s on portal/checkout/digest (verbose-error leak), admin test diagnostics kept; `markdownRender.jsx` href scheme allowlist (http/https/mailto/relative only — XSS defense-in-depth); `audit-allowlist.json` d3-color rationale corrected (recharts 2nd root + DashboardGlobe 2nd consumer).
-- **Left for Aden (not code):** confirm Supabase console toggles (confirm-email obfuscation, auth/email rate limits, CAPTCHA, recovery redirect allowlist) + apply migration 072; rotate live creds in local `.env.local`. **Flagged, your call:** `.claude/settings.local.json` wildcard `Bash(node:*)/(python *)/(curl:*)/(cat .env.local)` auto-allows undercut the safety-net deny rules.
+- **Left for Aden (not code):** confirm Supabase console toggles (confirm-email obfuscation, auth/email rate limits, CAPTCHA, recovery redirect allowlist) + apply migration 072; rotate live creds in local `.env.local`. ~~**Flagged, your call:** `.claude/settings.local.json` wildcard auto-allows undercut the deny rules~~ → **DONE 2026-06-01** (see top pickup).
 - Decision recorded: leaked-pw server-side enforcement deliberately deferred (disproportionate — self-harm-only threat). Full report in workflow run `wf_c1bc154c-242`.
 
 ### Landing-page audit (2026-05-31) — new `Skills/Web Design Audit Checklist.md`
