@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { applyCors } from './_cors.js'
+import { applyCors, isAllowedRedirectUrl } from './_cors.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
@@ -34,6 +34,13 @@ export default async function handler(req, res) {
   if (!rl.ok) return res.status(429).json(rl.response)
 
   const { priceId, successUrl, cancelUrl } = await readBody(req)
+
+  // L1: reject redirect targets that aren't our own origins (open-redirect /
+  // phishing guard). The client passes window.location-based URLs, which are
+  // always same-origin, so legitimate checkout flows are unaffected.
+  if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
+    return res.status(400).json({ error: 'Invalid redirect URL' })
+  }
 
   // Server-side validation: the client passes priceId from a Vite env var
   // (VITE_STRIPE_PRICE_ID) but a malicious request could substitute any

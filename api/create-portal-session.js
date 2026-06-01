@@ -1,5 +1,5 @@
 import Stripe from 'stripe'
-import { applyCors } from './_cors.js'
+import { applyCors, isAllowedRedirectUrl } from './_cors.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
 // ── Stripe customer endpoint ─────────────────────────────────────────────────
@@ -93,6 +93,12 @@ export default async function handler(req, res) {
   if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
   const { returnUrl } = await readBody(req)
+
+  // L1: reject redirect targets that aren't our own origins (open-redirect /
+  // phishing guard). Client passes window.location.href (same-origin).
+  if (!isAllowedRedirectUrl(returnUrl)) {
+    return res.status(400).json({ error: 'Invalid return URL' })
+  }
 
   const customerId = await getStripeCustomerId(user.id)
   if (!customerId) {
