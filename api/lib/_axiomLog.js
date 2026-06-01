@@ -67,7 +67,8 @@ export async function axiomLog(level, message, meta = {}) {
 
   if (!_firstCallLogged) {
     _firstCallLogged = true
-    const tokenShape = AXIOM_TOKEN ? `set (${AXIOM_TOKEN.length} chars, prefix=${AXIOM_TOKEN.slice(0, 6)}…)` : 'MISSING'
+    // L3: log only presence + length, never any prefix of the token.
+    const tokenShape = AXIOM_TOKEN ? `set (${AXIOM_TOKEN.length} chars)` : 'MISSING'
     const datasetShape = AXIOM_DATASET ? `set ('${AXIOM_DATASET}')` : 'MISSING'
     // Use console.warn so it shows in Vercel function logs (Hobby tier
     // shows warn + error in the runtime tail).
