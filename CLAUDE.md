@@ -102,3 +102,22 @@ Companion files: `BUILD_LOG.md` (session log, single source of truth) · `docs/d
 **Stop and ask:** DELETE/TRUNCATE/DROP · force-push · `rm -rf` of non-session dirs · editing `.env*` · killing processes · spending > $0.50 in one sweep.
 **Just do it:** file `Edit`/`Write` in the tree · `git add`/`commit`/`push origin main` · `build`/`lint:api`/`test:*` · `Read`/`Grep`/`Glob` · writing a migration FILE.
 **When unsure → ask.** A 30-second pause costs nothing; an unwanted DELETE costs hours.
+
+---
+
+## 9 — Security checklist (review before each deploy touching auth / data / $)
+
+From the 2026-05-31 security audit. Run through this when a change touches
+authentication, authorization, the DB layer, payments, or any server-side fetch.
+
+- [ ] **profiles privileged columns stay locked.** No new code/policy lets the `authenticated`/`anon` role write `role`, `subscription_tier`, `subscription_status`, or `stripe_customer_id`. The migration-071 BEFORE-UPDATE guard must remain; re-check `pg_policies` + `pg_trigger` for `profiles` after any RLS change. (C1)
+- [ ] **Server-side authz on a FRESH lookup.** Every `api/*` handler verifies the JWT and re-checks tier/role against the DB — never trusts a client field, cookie, hidden input, URL param, or price id. Default-deny.
+- [ ] **Admin vs Pro vs cron are distinct gates.** Admin-only actions call `isAdminFromBearer` (the Pro gate is NOT admin). Cron-only endpoints require `Bearer CRON_SECRET` (or admin JWT) — the `x-vercel-cron` header alone is not a trust boundary. (I1, C4)
+- [ ] **No SSRF.** Any server-side `fetch(userOrAdminUrl)` goes through `api/lib/_urlFetch.js`-style guards: http/https only, resolved host not in a private/loopback/link-local/reserved range, redirects followed manually and re-validated. (I1)
+- [ ] **Secrets.** Nothing secret in the client bundle or logs (log presence+length, never a prefix). `npm run lint:secrets` clean. New env var → `docs/secrets-manifest.md` + Vercel + § 7 list. Compare tokens with `timingSafeEqualStr`. (L2, L3)
+- [ ] **Dependencies.** `npm audit` reviewed; any new high+ advisory is fixed or added to `scripts/audit-allowlist.json` with an ACCURATE, current rationale + `review_due`. (M3)
+- [ ] **Headers / CORS / redirects.** CSP + CORS allow-list unchanged or tightened — no `*`, no attacker-registerable wildcard, no reflected-origin on authed endpoints. User-supplied redirect targets (Stripe URLs) validated against our own origins via `isAllowedRedirectUrl`. (C3, L1)
+- [ ] **Input + output.** Server-side validation on every input; no string-concat SQL (PostgREST/parameterized only); no `dangerouslySetInnerHTML`; no untrusted workbook parsing (xlsx read path is gov-source-only — D-day for the exceljs migration is tracked in the allowlist).
+- [ ] **Payments.** Stripe webhook signature verified on the raw body; paid tier granted ONLY by a verified webhook event; `client_reference_id` validated against a real profile.
+- [ ] **PII.** Event logs / metadata store `user_id`, not email; public surfaces never render raw email. (D1)
+- [ ] **Supabase Auth settings (live, not in repo):** password min length ≥ 10 + leaked-password protection on; "Confirm email" obfuscation on (anti-enumeration); auth rate limits configured. (A1, A2)
