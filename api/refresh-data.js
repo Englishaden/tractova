@@ -1,4 +1,5 @@
 import { isAdminFromBearer } from './_admin-auth.js'
+import { timingSafeEqualStr } from './_safeCompare.js'
 import { applyCors } from './_cors.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { supabaseAdmin, applyStaleTolerance, logCronRun } from './scrapers/_scraperBase.js'
@@ -62,7 +63,7 @@ export default async function handler(req, res) {
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7)
     // CRON_SECRET path
-    if (process.env.CRON_SECRET && token === process.env.CRON_SECRET) {
+    if (process.env.CRON_SECRET && timingSafeEqualStr(token, process.env.CRON_SECRET)) {
       isAuthed = true
       authMode = 'cron-secret'
     } else {

@@ -2,6 +2,7 @@ import { STATUS_LABEL, buildStateMap } from './lib/_alertClassifier.js'
 import { buildDigestHtml, buildDigestText } from './templates/_digestEmail.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
+import { timingSafeEqualStr } from './_safeCompare.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'digest@tractova.com'
@@ -60,7 +61,7 @@ export default async function handler(req, res) {
   // the secret is set, so the spoofable header path is unnecessary in prod).
   const isVercelCron       = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
   const isManualWithSecret = process.env.CRON_SECRET &&
-    req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+    timingSafeEqualStr(req.headers.authorization, `Bearer ${process.env.CRON_SECRET}`)
 
   let testMode = false
   let testUserId = null

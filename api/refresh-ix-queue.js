@@ -1,4 +1,5 @@
 import { isAdminFromBearer } from './_admin-auth.js'
+import { timingSafeEqualStr } from './_safeCompare.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { scrapeNyDg } from './scrapers/_refresh-ny-dg.js'
@@ -77,7 +78,7 @@ async function handlerInner(req, res) {
   // When the secret is set (prod), Vercel auto-injects Authorization: Bearer
   // ${CRON_SECRET}, so the spoofable header path is unnecessary.
   const isVercelCron = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
-  const isBearerAuth = process.env.CRON_SECRET && authHeader === `Bearer ${process.env.CRON_SECRET}`
+  const isBearerAuth = process.env.CRON_SECRET && timingSafeEqualStr(authHeader, `Bearer ${process.env.CRON_SECRET}`)
 
   let isAdminAuth = false
   if (!isVercelCron && !isBearerAuth && authHeader?.startsWith('Bearer ')) {

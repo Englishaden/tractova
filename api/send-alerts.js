@@ -1,4 +1,5 @@
 import { isAdminFromBearer } from './_admin-auth.js'
+import { timingSafeEqualStr } from './_safeCompare.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { APP_URL } from './templates/_emailTheme.js'
@@ -147,7 +148,7 @@ export default async function handler(req, res) {
   // the secret is set, so the spoofable header path is unnecessary in prod).
   const isVercelCron     = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
   const isManualWithSecret = process.env.CRON_SECRET &&
-    req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+    timingSafeEqualStr(req.headers.authorization, `Bearer ${process.env.CRON_SECRET}`)
 
   let testMode = false
   let testUserId = null

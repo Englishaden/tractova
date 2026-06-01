@@ -1,4 +1,5 @@
 import { isAdminFromBearer } from './_admin-auth.js'
+import { timingSafeEqualStr } from './_safeCompare.js'
 import handleExport from './handlers/_health-export.js'
 import handleStagingGet from './handlers/_health-staging-get.js'
 import handleStagingPost from './handlers/_health-staging-post.js'
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
       return res.status(503).json({ error: 'Health summary endpoint not configured (HEALTH_CHECK_TOKEN missing)' })
     }
     const auth = req.headers.authorization
-    if (!auth?.startsWith('Bearer ') || auth.slice(7) !== expected) {
+    if (!auth?.startsWith('Bearer ') || !timingSafeEqualStr(auth.slice(7), expected)) {
       return res.status(403).json({ error: 'Forbidden' })
     }
     try {

@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
+import { timingSafeEqualStr } from './_safeCompare.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'alerts@tractova.com'
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
   // When the secret is set (prod), Vercel auto-injects Authorization: Bearer
   // ${CRON_SECRET}, so the spoofable header path is unnecessary.
   const isVercelCron = !process.env.CRON_SECRET && req.headers['x-vercel-cron'] === '1'
-  const isBearerAuth = process.env.CRON_SECRET && req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`
+  const isBearerAuth = process.env.CRON_SECRET && timingSafeEqualStr(req.headers.authorization, `Bearer ${process.env.CRON_SECRET}`)
   if (!isVercelCron && !isBearerAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
