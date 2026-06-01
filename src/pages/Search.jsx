@@ -38,6 +38,7 @@ import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
 import HoverBorderGradient from '../components/ui/HoverBorderGradient'
+import TealRail from '../components/ui/TealRail'
 import AddToCompareButton from '../components/AddToCompareButton'
 import LensRegulatoryWatchSection from '../components/LensRegulatoryWatchSection.jsx'
 
@@ -1087,7 +1088,8 @@ function SearchContent() {
                 signal pivot — no dollars; this is signal sensitivity. */}
             <div className="lens-reveal">
             <CollapsibleSection index={3} label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" dataTourId="scenario">
-            <div className="bg-white rounded-lg" style={{ border: '1px solid #E2E8F0' }}>
+            <div className="bg-white rounded-lg relative overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
+              <TealRail />
               <DevFeasibilityView
                 stateProgram={results.stateProgram}
                 countyData={results.countyData}

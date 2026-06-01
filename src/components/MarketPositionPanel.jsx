@@ -1,6 +1,7 @@
 import { computeDisplayScoreRange, getOfftakeCoverageStates, safeScore } from '../lib/scoreEngine'
 import ArcGauge from './ArcGauge.jsx'
 import CoverageBadge from './CoverageBadge'
+import TealRail from './ui/TealRail'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import SubScoreBar from './SubScoreBar'
 import { STATUS_CFG, getMarketRank } from '../lib/searchShared.jsx'
@@ -64,9 +65,8 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
       className="bg-white rounded-lg mb-6 overflow-hidden relative"
       style={{ border: '1px solid #E2E8F0' }}
     >
-      {/* Top teal accent rail — V3 brand signature */}
-      <div className="absolute top-0 left-0 right-0 h-[2px]"
-        style={{ background: 'linear-gradient(90deg, transparent 0%, #14B8A6 30%, #14B8A6 70%, transparent 100%)' }} />
+      {/* Top teal accent rail — V3 brand signature (shared TealRail primitive) */}
+      <TealRail />
 
       {/* Eyebrow metadata strip — research-note convention */}
       <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100">

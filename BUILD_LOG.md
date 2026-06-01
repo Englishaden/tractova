@@ -4,9 +4,16 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-01 — Lens makeover · Wave 1 (polish primitives)
+## 🟢 Pickup — 2026-06-01 — Lens makeover · Waves 1–2
 
-First wave of the **Lens → Glossary → Library** makeover. Started on the Lens (`src/pages/Search.jsx`, ~1.4k lines — already a mature, designed surface). Verify-green (lints + 175 unit + build + 7/7 smoke).
+Makeover of the **Lens → Glossary → Library** surfaces, starting on the Lens (`src/pages/Search.jsx`, ~1.4k lines — already a mature, designed surface). Both waves verify-green (lints + 175 unit + build + 7/7 smoke).
+
+### Wave 2 — section/meld unification (card-DNA)
+**Finding (verified by reading, not assuming):** the Lens results were already ~80% unified with the dashboard; the real gap was *intra-Lens* card-chrome drift on the single-panel sections. §01 + §02 had a top teal-hairline rail; §03 was plain; §04 used a divergent left-3px-teal border.
+- **New canonical primitive `src/components/ui/TealRail.jsx`** — the brand top-edge hairline in ONE place (was hand-rolled in ≥2 copies). Parent needs `relative overflow-hidden`.
+- Refactored §01 `MarketPositionPanel` + §02 `MarketIntelligenceSummary` to use it (single source); added it to §03 (Dev Feasibility wrapper in Search.jsx); **converted §04 `StructureComparison`'s left-border accent to the top rail** so all four single-panel sections share one card DNA. §05 pillar-grid + §06 regulatory-watch left alone (multi-part, not single panels — a top rail doesn't fit).
+
+### Wave 1 — polish primitives
 
 - **Primary CTA melded with the dashboard's Run-a-Lens language** — the "Run Lens Analysis" submit button now carries the teal gradient + glow + `HoverBorderGradient` sheen, **but only when the run is available** (`isFormValid && !analyzing`); a disabled button stays a quiet muted teal (wrapping it would spin the border on hover and fake interactivity). Pattern matched from `DashboardSidebar.jsx:199`.
 - **Verified, NOT re-done — `CountUp` on scores was already satisfied.** The §01 composite (`ArcGauge`'s `AnimatedScoreText`) and the sub-score rows (`SubScoreBar` motion value) already tween 0→value on the *exact same curve as `CountUp`* (`[0.22,1,0.36,1]`). Swapping in the literal component would be redundant churn (and impossible for the SVG gauge text). Left untouched. *(The earlier survey claim that "nothing animates" was wrong — confirmed by reading the components.)*

@@ -1,6 +1,7 @@
 import { generateMarketSummary } from '../lib/lensHelpers.js'
 import BriefDrilldown from './BriefDrilldown'
 import { sanitizeBrief, CHIP_COLORS } from '../lib/searchShared.jsx'
+import TealRail from './ui/TealRail'
 
 // §02 Analyst Brief — the editorial AI read on the project. Signal-only: the
 // What-If sensitivity scenarios (and their $ precedents) were removed in the
@@ -30,9 +31,8 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
       className="mb-6 bg-white rounded-lg overflow-hidden relative"
       style={{ border: '1px solid #E2E8F0' }}
     >
-      {/* Top teal hairline rail */}
-      <div className="absolute top-0 left-0 right-0 h-[2px]"
-        style={{ background: 'linear-gradient(90deg, transparent 0%, #14B8A6 30%, #14B8A6 70%, transparent 100%)' }} />
+      {/* Top teal hairline rail — shared TealRail primitive */}
+      <TealRail />
 
       {/* Eyebrow metadata strip */}
       <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100 flex-wrap gap-y-2">
