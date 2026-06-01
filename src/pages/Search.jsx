@@ -37,6 +37,7 @@ import CollapsibleSection from '../components/CollapsibleSection'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
+import HoverBorderGradient from '../components/ui/HoverBorderGradient'
 import AddToCompareButton from '../components/AddToCompareButton'
 import LensRegulatoryWatchSection from '../components/LensRegulatoryWatchSection.jsx'
 
@@ -838,7 +839,7 @@ function SearchContent() {
               />
 
               {/* MW */}
-              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15 focus-within:ring-2 focus-within:ring-primary/10">
+              <div className="bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15">
                 <label className={labelCls + ' flex items-center gap-1.5'}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   Project Size (MW AC)
@@ -930,23 +931,39 @@ function SearchContent() {
                   <button type="button" onClick={() => setConfirmClear(false)} className="text-gray-400 hover:text-gray-600">Cancel</button>
                 </div>
               )}
-              <button
-                type="submit"
-                disabled={!isFormValid || analyzing}
-                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-6 py-2.5 rounded-lg hover:bg-primary-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed min-w-[160px] justify-center"
-              >
-                {analyzing ? (
-                  <>
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin shrink-0" />
-                    Analyzing…
-                  </>
-                ) : (
-                  <>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                    Run Lens Analysis
-                  </>
-                )}
-              </button>
+              {(() => {
+                // Carry the dashboard's Run-a-Lens CTA language onto the Lens's
+                // own primary action: teal gradient + glow, plus the
+                // HoverBorderGradient sheen — but only when the run is actually
+                // available. Wrapping a disabled button would spin the border on
+                // hover and imply an interactivity that isn't there.
+                const readyToRun = isFormValid && !analyzing
+                const submitBtn = (
+                  <button
+                    type="submit"
+                    disabled={!isFormValid || analyzing}
+                    className="flex items-center gap-2 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-all hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 min-w-[160px] justify-center"
+                    style={readyToRun
+                      ? { background: 'linear-gradient(135deg, #14B8A6 0%, #0F766E 100%)', boxShadow: '0 4px 16px -4px rgba(20,184,166,0.55)' }
+                      : { background: '#0F766E' }}
+                  >
+                    {analyzing ? (
+                      <>
+                        <span className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin shrink-0" />
+                        Analyzing…
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        Run Lens Analysis
+                      </>
+                    )}
+                  </button>
+                )
+                return readyToRun
+                  ? <HoverBorderGradient containerClassName="shrink-0" radius={10}>{submitBtn}</HoverBorderGradient>
+                  : submitBtn
+              })()}
             </div>
           </div>
         </form>

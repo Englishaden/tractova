@@ -4,6 +4,24 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-01 — Lens makeover · Wave 1 (polish primitives)
+
+First wave of the **Lens → Glossary → Library** makeover. Started on the Lens (`src/pages/Search.jsx`, ~1.4k lines — already a mature, designed surface). Verify-green (lints + 175 unit + build + 7/7 smoke).
+
+- **Primary CTA melded with the dashboard's Run-a-Lens language** — the "Run Lens Analysis" submit button now carries the teal gradient + glow + `HoverBorderGradient` sheen, **but only when the run is available** (`isFormValid && !analyzing`); a disabled button stays a quiet muted teal (wrapping it would spin the border on hover and fake interactivity). Pattern matched from `DashboardSidebar.jsx:199`.
+- **Verified, NOT re-done — `CountUp` on scores was already satisfied.** The §01 composite (`ArcGauge`'s `AnimatedScoreText`) and the sub-score rows (`SubScoreBar` motion value) already tween 0→value on the *exact same curve as `CountUp`* (`[0.22,1,0.36,1]`). Swapping in the literal component would be redundant churn (and impossible for the SVG gauge text). Left untouched. *(The earlier survey claim that "nothing animates" was wrong — confirmed by reading the components.)*
+- **Action buttons left as-is** — `AddToCompareButton` + "Save as Project" already share one on-brand secondary treatment (`bg-white border-gray-200 … hover:border-primary`); no divergent dashboard standard to match, so no churn.
+- **Quick fix:** removed a duplicated `focus-within:ring-2 …ring-primary/10` on the MW field.
+
+**Motion decision (Aden):** keep `.lens-reveal` (bidirectional scroll-reveal is distinctive) — only harmonize easing/stagger with the dashboard feel; do NOT replace with framer-motion. Deferred to a later wave.
+
+### ⏭ Lens makeover — remaining waves (not yet started)
+- **Wave 2 — section/meld unification:** align `CollapsibleSection` typography + motion with the dashboard's `ChartCard` family so the two surfaces read as one.
+- **Wave 3 — form pass:** field grouping, sticky-prefs UX, run flow.
+- **Then:** Glossary + Library surfaces. Run all 20 web-design checks per surface (mobile-first), append to `Skills/Web Design Audit Checklist.md` Pass 3 ledger.
+
+---
+
 ## 🟢 Pickup — 2026-06-01 — Housekeeping (folder reorg + settings hardening)
 
 Two queued items closed; **NEXT MAJOR is unchanged = Lens → Glossary → Library UI makeover** (see DO NEXT #1 below).
