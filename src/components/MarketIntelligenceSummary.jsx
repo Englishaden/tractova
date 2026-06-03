@@ -1,5 +1,5 @@
 import { generateMarketSummary } from '../lib/lensHelpers.js'
-import BriefDrilldown from './BriefDrilldown'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs'
 import { sanitizeBrief, CHIP_COLORS } from '../lib/searchShared.jsx'
 import TealRail from './ui/TealRail'
 
@@ -35,7 +35,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
       <TealRail />
 
       {/* Eyebrow metadata strip */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100 flex-wrap gap-y-2">
+      <div className="flex items-center justify-between px-5 pt-3 pb-2.5 border-b border-gray-100 flex-wrap gap-y-2">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: '#0F1A2E' }}>
             Analyst Brief
@@ -56,7 +56,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
       </div>
 
       {/* Body — editorial composition */}
-      <div className="px-6 py-6">
+      <div className="px-5 py-5">
 
         {/* AI brief as a pull-quote with serif drop-cap. This is the
             differentiated value the user is paying for — present it with
@@ -112,40 +112,40 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
           </div>
         )}
 
-        {/* Drill-Down accordion — deeper analysis collapses behind chevrons so
-            users skim the brief + immediate action first, then drill in. */}
-        {showAI && (
-          aiInsight.primaryRisk ||
-          aiInsight.topOpportunity ||
-          aiInsight.stageSpecificGuidance ||
-          aiInsight.competitiveContext
-        ) && (
-          <div className="mt-5 pt-5 border-t border-gray-100">
-            <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400 mb-1">
-              Drill-Down
-            </p>
-            {aiInsight.primaryRisk && (
-              <BriefDrilldown label="Primary Risk" accent="#DC2626" eyebrowColor="#DC2626">
-                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.primaryRisk}</p>
-              </BriefDrilldown>
-            )}
-            {aiInsight.topOpportunity && (
-              <BriefDrilldown label="Top Opportunity" accent="#0F766E" eyebrowColor="#0F766E">
-                <p className="text-[13px] text-ink leading-[1.55]">{aiInsight.topOpportunity}</p>
-              </BriefDrilldown>
-            )}
-            {aiInsight.stageSpecificGuidance && (
-              <BriefDrilldown label={`Stage Guidance — ${form.stage || 'General'}`} accent="#0F766E" eyebrowColor="#0F766E">
-                <p className="text-[14px] text-ink leading-[1.55]">{aiInsight.stageSpecificGuidance}</p>
-              </BriefDrilldown>
-            )}
-            {aiInsight.competitiveContext && (
-              <BriefDrilldown label="Competitive Context" accent="#2563EB" eyebrowColor="#1D4ED8">
-                <p className="text-[14px] text-ink leading-[1.55]">{aiInsight.competitiveContext}</p>
-              </BriefDrilldown>
-            )}
-          </div>
-        )}
+        {/* Drill-Down — tabbed (was 4 stacked accordions that elongated the
+            section). One panel height now; pick the lens you want. Each tab's
+            content carries its accent as a left rule so the colour-coding
+            (risk=red, opportunity/stage=teal, competitive=blue) survives. */}
+        {showAI && (() => {
+          const drills = [
+            aiInsight.primaryRisk && { id: 'risk', label: 'Primary Risk', accent: '#DC2626', text: aiInsight.primaryRisk },
+            aiInsight.topOpportunity && { id: 'opp', label: 'Top Opportunity', accent: '#0F766E', text: aiInsight.topOpportunity },
+            aiInsight.stageSpecificGuidance && { id: 'stage', label: 'Stage Guidance', accent: '#0F766E', text: aiInsight.stageSpecificGuidance },
+            aiInsight.competitiveContext && { id: 'comp', label: 'Competitive Context', accent: '#2563EB', text: aiInsight.competitiveContext },
+          ].filter(Boolean)
+          if (!drills.length) return null
+          return (
+            <div className="mt-5 pt-5 border-t border-gray-100">
+              <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400 mb-2">
+                Drill-Down
+              </p>
+              <Tabs defaultValue={drills[0].id}>
+                <TabsList className="flex-wrap">
+                  {drills.map((d) => (
+                    <TabsTrigger key={d.id} value={d.id}>{d.label}</TabsTrigger>
+                  ))}
+                </TabsList>
+                {drills.map((d) => (
+                  <TabsContent key={d.id} value={d.id}>
+                    <div className="pl-3" style={{ borderLeft: `2px solid ${d.accent}` }}>
+                      <p className="text-[14px] text-ink leading-[1.6]">{d.text}</p>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </div>
+          )
+        })()}
       </div>
     </article>
   )
