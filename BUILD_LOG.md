@@ -4,9 +4,17 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-01 — Lens makeover · Waves 1–2
+## 🟢 Pickup — 2026-06-03 — Lens makeover · Waves 1–4 DONE (Wave 5 = mobile, next)
 
-Makeover of the **Lens → Glossary → Library** surfaces, starting on the Lens (`src/pages/Search.jsx`, ~1.4k lines — already a mature, designed surface). Both waves verify-green (lints + 175 unit + build + 7/7 smoke).
+Makeover of the **Lens → Glossary → Library** surfaces via the `web-design-audit` skill (Pass 3 ledger in `Skills/Web Design Audit Checklist.md`). All on the Lens (`src/pages/Search.jsx`, ~1.4k lines — already a mature, designed surface), wave-based, each verify-green + pushed. **Key finding:** the Lens was already well-polished, so value came from closing specific gaps + adding microinteractions, NOT bulk restyling. Every assumption was grounded by reading the code first (caught 2 survey errors: scores already animate; §02 already had the rail).
+
+**⚠️ Visual-verification caveat:** the Lens is Pro-gated, so Playwright smoke stops at the paywall — Waves 1/2/4 are build- + code-verified but NOT screenshot-verified. **Aden: eyeball on Vercel prod** (run a Lens) — especially the Wave 4 microinteractions (scrollspy rail, sticky query bar, card stagger/lift).
+
+- **Wave 3 — a11y + contrast correctness (commit `4ff8b5f`):** `aria-hidden` on all decorative SVGs (Search 16, MarketPosition 3, MarketIntelligence 1); `text-gray-400`→`gray-500` on readable body (Search ×6, PaletteLensForm ×2, StructureComparison ×3) — left the 3 `·` separators + the gated "not modeled" row (WCAG-exempt disabled). Type hierarchy verified clean.
+- **Wave 4 — microinteractions (commits `17ec147` 4a, `28f6c41` 4b):** (a) pillar-card hover-lift + teal glow · (b) §05 grid staggers in (`AnimatedList` + new `itemAs` prop) · (c) `LensSectionRail` scrollspy dots §01–§05 (xl+, IntersectionObserver) · (d) `StickyQueryBar` (form scrolls out → bar w/ summary + Edit↑ + Re-run) · (e) Add-to-Compare check-morph · (g) new reusable `ui/CopyButton` on the Run-ID. All reduced-motion-safe. **Reusable primitives banked for Glossary/Library:** `CopyButton`, `AnimatedList(itemAs)`, the rail + sticky-bar patterns.
+
+### ⏭ Lens Wave 5 — mobile-first responsive (#11/#12) — PENDING
+Audit every Lens surface at phone width: form `grid-cols-2`, pillar grid → `xl:grid-cols-5`, `StructureComparison` fixed 3-col (may pinch), `RunIdMasthead` wrap, and the new rail (already `hidden xl:`) / sticky bar at mobile. Then Glossary + Library makeovers (carry the banked primitives).
 
 ### Wave 2 — section/meld unification (card-DNA)
 **Finding (verified by reading, not assuming):** the Lens results were already ~80% unified with the dashboard; the real gap was *intra-Lens* card-chrome drift on the single-panel sections. §01 + §02 had a top teal-hairline rail; §03 was plain; §04 used a divergent left-3px-teal border.
