@@ -59,7 +59,7 @@ export default function StructureComparison({
       <div className="rounded-lg overflow-hidden relative" style={{ border: '1px solid rgba(15,26,46,0.10)' }}>
         <TealRail />
         {/* Header strip — research-panel chrome */}
-        <div className="px-4 py-2.5 flex items-center justify-between gap-2 border-b" style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}>
+        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b" style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}>
           <span className="eyebrow-mono font-bold text-teal-800">Which structure monetizes best here</span>
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] tabular-nums text-gray-500">
             {stateProgram.id} · {size % 1 === 0 ? size : size.toFixed(1)} MW · Standalone PV

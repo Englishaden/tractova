@@ -830,7 +830,7 @@ function SearchContent() {
               Structure") need the column width to stay on one line — a 6-up row
               wrapped them and dropped their controls out of alignment. */}
           <div className="px-5 py-5 bg-paper rounded-b-xl">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
 
               {/* State */}
               <FieldSelect
@@ -1016,7 +1016,7 @@ function SearchContent() {
                 .lens-reveal — a native scroll-driven fade+rise that reverses on
                 scroll up/down (see index.css). */}
             <div className="lens-reveal">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-base font-bold text-gray-900">
                   {results.form.county} County, {results.stateProgram?.name || results.form.state}
@@ -1057,7 +1057,7 @@ function SearchContent() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
                 {/* Add to Compare */}
                 <AddToCompareButton results={results} />
 

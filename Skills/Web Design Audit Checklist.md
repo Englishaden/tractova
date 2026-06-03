@@ -204,7 +204,9 @@ Pre-decided proposals to revisit during this phase: view persistence (URL/localS
   - **4a:** (a) pillar cards — stronger hover-lift + teal border/glow on `SummaryShell`. (b) §05 grid staggers in on expand — `AnimatedList` gained an `itemAs` prop so it wraps a card grid with valid markup. (e) `AddToCompareButton` morphs to a check + "Added" on the false→true edge. (g) new reusable `ui/CopyButton.jsx` → Run-ID copies with inline "Copied" feedback.
   - **4b:** (c) `lens/LensSectionRail.jsx` — fixed scrollspy dots (§01–§05) at the right gutter (xl+), IntersectionObserver-driven active highlight, click-to-jump (sections got `id`s + `scroll-mt-24`). (d) `lens/StickyQueryBar.jsx` — once the form scrolls out, a bar slides in under the nav (top-14) with the query summary + Edit↑ + Re-run (`formRef.requestSubmit()`).
   - Reusable primitives created for Glossary/Library reuse: `CopyButton`, `AnimatedList` (`itemAs`), and the rail/sticky-bar patterns.
-- **Wave 5 — mobile-first responsive (#11/#12) — ⏭ PENDING.** Audit every Lens surface at phone width (form `grid-cols-2`, pillar grid → `xl:grid-cols-5`, `StructureComparison` fixed 3-col may pinch, RunIdMasthead).
+- **Wave 5 — mobile-first responsive (#11/#12) — ✅ DONE (code-level; build-verified, NOT screenshot-verified — Pro-gated).** Form fields `grid-cols-2`→`grid-cols-1 sm:grid-cols-2 md:grid-cols-3` (the long-label selects "System Architecture"/"Monetization Structure" get full width on phones). Results header `flex`→`flex-col sm:flex-row` so the title stacks above the action buttons on mobile; action-button row `flex-wrap`. `StructureComparison` header strip `flex-wrap` so the `state · MW · PV` meta wraps below the title instead of pinching. Already-mobile-first + left as-is: pillar grid (`grid-cols-1` base), MarketPositionPanel (`grid-cols-1 md:grid-cols-12`), RunIdMasthead (`flex-wrap`), CollapsibleSection sublabel (`hidden sm:inline`), the new rail (`hidden xl:`).
+
+**→ Lens Pass 3 COMPLETE (Waves 1–5). Next: Glossary, then Library — carry the banked primitives (`CopyButton`, `AnimatedList(itemAs)`, `TealRail`, rail/sticky-bar patterns) + run all 20 checks mobile-first.**
 
 ---
 
