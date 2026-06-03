@@ -142,7 +142,7 @@ export default function LensComparablesSection({ state, stateName, mw, technolog
 
   return (
     <>
-      <CollapsibleSection label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates">
+      <CollapsibleSection index={6} id="lens-sec-6" label="Comparable Deals & Benchmarks" sublabel="operating projects · per-deal comps · market aggregates">
       <div className="space-y-3">
         {(!bisectOnly || bisectOnly === 'operating') && (
           <LensComparableSubsection

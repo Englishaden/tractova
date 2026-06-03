@@ -240,7 +240,7 @@ export default function LensRegulatoryWatchSection({ state, stateName, policyEve
 
   return (
     <>
-      <CollapsibleSection label="Regulatory Watch" sublabel="pending bills · enacted events · active proceedings">
+      <CollapsibleSection index={7} id="lens-sec-7" label="Regulatory Watch" sublabel="pending bills · enacted events · active proceedings">
       <div className="space-y-3">
         <CollapsibleSubsection
           title={

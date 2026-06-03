@@ -12,9 +12,14 @@ import { useState, useEffect } from 'react'
 // `sections`: [{ id, label }] — `id` must match a rendered section element.
 export default function LensSectionRail({ sections }) {
   const [active, setActive] = useState(sections[0]?.id)
+  // Only render dots for sections actually in the DOM — Comparables/Regulatory
+  // are curation-gated and may not exist, and a dot that scrolls nowhere is a
+  // dead CTA (#7).
+  const [presentIds, setPresentIds] = useState([])
 
   useEffect(() => {
     const els = sections.map((s) => document.getElementById(s.id)).filter(Boolean)
+    setPresentIds(els.map((el) => el.id))
     if (!els.length) return
     // rootMargin biases "active" to the section crossing the upper third of the
     // viewport, so the highlight tracks what you're reading, not what's barely
@@ -32,6 +37,9 @@ export default function LensSectionRail({ sections }) {
     return () => obs.disconnect()
   }, [sections])
 
+  const shown = sections.filter((s) => presentIds.includes(s.id))
+  if (!shown.length) return null
+
   const go = (id) => {
     const el = document.getElementById(id)
     if (!el) return
@@ -44,7 +52,7 @@ export default function LensSectionRail({ sections }) {
       aria-label="Lens report sections"
       className="hidden xl:flex flex-col gap-2.5 fixed right-3 top-1/2 -translate-y-1/2 z-30"
     >
-      {sections.map((s) => {
+      {shown.map((s) => {
         const on = active === s.id
         return (
           <button

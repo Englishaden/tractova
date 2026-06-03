@@ -69,7 +69,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
       <TealRail />
 
       {/* Eyebrow metadata strip — research-note convention */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-3 border-b border-gray-100">
+      <div className="flex items-center justify-between px-5 pt-3 pb-2.5 border-b border-gray-100">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: '#0F1A2E' }}>
             Tractova Lens · Market Position
@@ -212,7 +212,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
       {/* Body — asymmetric grid: 5 cols gauge / 7 cols identity + sub-scores */}
       <div className="grid grid-cols-1 md:grid-cols-12">
         {/* Left — gauge */}
-        <div className="md:col-span-5 px-6 py-7 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-100 relative">
+        <div className="md:col-span-5 px-5 py-5 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-gray-100 relative">
           <p className="font-mono text-[9px] uppercase tracking-[0.24em] mb-3 text-gray-400">
             Feasibility Index
           </p>
@@ -284,7 +284,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
         </div>
 
         {/* Right — identity + sub-scores */}
-        <div className="md:col-span-7 px-6 py-7 flex flex-col gap-6">
+        <div className="md:col-span-7 px-5 py-5 flex flex-col gap-5">
           {/* Identity */}
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -293,7 +293,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
               </p>
               <CoverageBadge tier={stateProgram.coverageTier} />
             </div>
-            <h2 className="font-serif font-semibold text-ink leading-[0.95]" style={{ fontSize: '34px', letterSpacing: '-0.02em' }}>
+            <h2 className="font-serif font-semibold text-ink leading-[0.95]" style={{ fontSize: '28px', letterSpacing: '-0.02em' }}>
               {stateProgram.name}
             </h2>
             {stateProgram.csProgram && (
@@ -304,7 +304,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
           </div>
 
           {/* Sub-scores */}
-          <div className="pt-5 border-t border-gray-100 space-y-2.5">
+          <div className="pt-4 border-t border-gray-100 space-y-2.5">
             <div className="flex items-center justify-between mb-1">
               <p className="font-mono text-[9px] uppercase tracking-[0.24em] text-gray-400">
                 Sub-Scores

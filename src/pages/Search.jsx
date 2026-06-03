@@ -209,6 +209,8 @@ const LENS_RAIL_SECTIONS = [
   { id: 'lens-sec-3', label: 'Dev Feasibility' },
   { id: 'lens-sec-4', label: 'Structure' },
   { id: 'lens-sec-5', label: 'Diagnostics' },
+  { id: 'lens-sec-6', label: 'Comparables' },
+  { id: 'lens-sec-7', label: 'Regulatory' },
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
