@@ -39,6 +39,7 @@ import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
 import HoverBorderGradient from '../components/ui/HoverBorderGradient'
 import TealRail from '../components/ui/TealRail'
+import AnimatedList from '../components/ui/AnimatedList'
 import AddToCompareButton from '../components/AddToCompareButton'
 import LensRegulatoryWatchSection from '../components/LensRegulatoryWatchSection.jsx'
 
@@ -1141,7 +1142,7 @@ function SearchContent() {
               // above (lensSubs) — same object the §01 gauge + Analyst Brief use.
               const sub = lensSubs
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-stretch">
+                <AnimatedList as="div" itemAs="div" delay={0.06} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 items-stretch">
                   <OfftakeCardSummary
                     stateProgram={results.stateProgram}
                     score={sub.offtake}
@@ -1175,7 +1176,7 @@ function SearchContent() {
                     policyDetail={sub.policyDetail}
                     onOpen={() => setActivePillar('policyTiming')}
                   />
-                </div>
+                </AnimatedList>
               )
             })()}
 

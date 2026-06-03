@@ -41,7 +41,7 @@ export function SummaryShell({ pillarLabel, pillarAccent, title, score, coverage
     <button
       type="button"
       onClick={onOpen}
-      className="group flex flex-col text-left w-full h-full bg-white rounded-lg border border-gray-200 px-4 py-3.5 transition-all hover:border-gray-300 hover:-translate-y-px focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500/30"
+      className="group flex flex-col text-left w-full h-full bg-white rounded-lg border border-gray-200 px-4 py-3.5 transition-all duration-200 motion-reduce:transition-none hover:border-teal-300 hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 hover:shadow-[0_12px_30px_-12px_rgba(20,184,166,0.32)] focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500/30"
       style={{ minHeight: 150 }}
       aria-label={`Open ${pillarLabel} detail`}
     >

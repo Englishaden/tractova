@@ -15,8 +15,11 @@ import { motion, useReducedMotion } from 'motion/react'
 //   <AnimatedList className="..." delay={0.06}>
 //     {items.map((it) => <li key={it.id}>...</li>)}
 //   </AnimatedList>
-
-export default function AnimatedList({ children, className = '', delay = 0.07, as: Tag = 'ul' }) {
+//
+// For a non-list container (e.g. a card grid), pass matching tags so the markup
+// stays valid — `<li>` inside a `<div>` is invalid:
+//   <AnimatedList as="div" itemAs="div" className="grid ..." delay={0.06}>
+export default function AnimatedList({ children, className = '', delay = 0.07, as: Tag = 'ul', itemAs = 'li' }) {
   const reduced = useReducedMotion()
   const items = useMemo(() => Children.toArray(children), [children])
 
@@ -25,7 +28,7 @@ export default function AnimatedList({ children, className = '', delay = 0.07, a
   }
 
   const MotionTag = motion[Tag] || motion.ul
-  const MotionItem = motion.li
+  const MotionItem = motion[itemAs] || motion.li
 
   return (
     <MotionTag

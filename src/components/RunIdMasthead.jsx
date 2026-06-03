@@ -1,3 +1,5 @@
+import CopyButton from './ui/CopyButton'
+
 // V3.1: Bloomberg-style run-id masthead at the top of every Lens result.
 // Signals research-grade character: this analysis ran at a specific moment,
 // in a specific region, with a specific input set. Reads instantly to anyone
@@ -27,6 +29,11 @@ export default function RunIdMasthead({ form }) {
         >
           ◆ Run · {runId}
         </span>
+        <CopyButton
+          value={runId}
+          label={`Copy run ID ${runId}`}
+          className="text-[8px] font-bold uppercase tracking-[0.16em] shrink-0 text-white/40 hover:text-teal-300"
+        />
         <span className="text-[9px] hidden sm:inline" style={{ color: 'rgba(255,255,255,0.30)' }}>·</span>
         <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
           {tsCode} UTC
