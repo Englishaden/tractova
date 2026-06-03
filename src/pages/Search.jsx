@@ -40,6 +40,8 @@ import CountyCombobox from '../components/CountyCombobox'
 import HoverBorderGradient from '../components/ui/HoverBorderGradient'
 import TealRail from '../components/ui/TealRail'
 import AnimatedList from '../components/ui/AnimatedList'
+import LensSectionRail from '../components/lens/LensSectionRail'
+import StickyQueryBar from '../components/lens/StickyQueryBar'
 import AddToCompareButton from '../components/AddToCompareButton'
 import LensRegulatoryWatchSection from '../components/LensRegulatoryWatchSection.jsx'
 
@@ -197,6 +199,17 @@ async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, ru
   }
   return { insight: null, reason: 'http_5xx_after_retry' }
 }
+
+// Scrollspy rail contents — the five numbered report sections (ids match the
+// CollapsibleSection `id`s below). Comparables/Regulatory are gated + secondary,
+// so the rail stays the clean five-section index of the core report.
+const LENS_RAIL_SECTIONS = [
+  { id: 'lens-sec-1', label: 'Market Position' },
+  { id: 'lens-sec-2', label: 'Analyst Brief' },
+  { id: 'lens-sec-3', label: 'Dev Feasibility' },
+  { id: 'lens-sec-4', label: 'Structure' },
+  { id: 'lens-sec-5', label: 'Diagnostics' },
+]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Paywall gate — renders UpgradePrompt until subscription is confirmed Pro
@@ -973,6 +986,16 @@ function SearchContent() {
         {/* Results panel */}
         {results && (
           <div ref={resultsRef}>
+            {/* Scrollspy index (xl+) + sticky query bar (appears once the form
+                scrolls out) — keep report context + a quick re-run within reach. */}
+            <LensSectionRail sections={LENS_RAIL_SECTIONS} />
+            <StickyQueryBar
+              watchRef={formRef}
+              summary={`${results.form.county ? results.form.county + ', ' : ''}${results.stateProgram?.name || results.form.state} · ${effectiveMw != null ? effectiveMw.toFixed(1) : results.form.mw} MW · ${results.form.technology}`}
+              onEdit={() => formRef.current?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })}
+              onRerun={() => formRef.current?.requestSubmit()}
+              analyzing={analyzing}
+            />
             {/* Bloomberg-style run-id masthead — research-grade character */}
             <RunIdMasthead form={results.form} />
             <SectionDivider />
@@ -1055,7 +1078,7 @@ function SearchContent() {
                 keepMounted: the gauge + sub-score bars are animation-heavy, so we
                 keep them in the DOM across collapse rather than re-mounting (and
                 re-firing every entrance animation) on each re-open. */}
-            <CollapsibleSection index={1} label="Market Position" sublabel="composite feasibility index" defaultOpen keepMounted>
+            <CollapsibleSection index={1} id="lens-sec-1" label="Market Position" sublabel="composite feasibility index" defaultOpen keepMounted>
             <div data-tour-id="composite">
               <MarketPositionPanel
                 stateProgram={results.stateProgram}
@@ -1070,7 +1093,7 @@ function SearchContent() {
 
             {/* Market Intelligence Summary */}
             <div className="lens-reveal">
-            <CollapsibleSection index={2} label="Analyst Brief" sublabel="claude · sonnet 4.6">
+            <CollapsibleSection index={2} id="lens-sec-2" label="Analyst Brief" sublabel="claude · sonnet 4.6">
             <MarketIntelligenceSummary
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -1088,7 +1111,7 @@ function SearchContent() {
                 synthesized $ revenue/payback sensitivity) in the 2026-05
                 signal pivot — no dollars; this is signal sensitivity. */}
             <div className="lens-reveal">
-            <CollapsibleSection index={3} label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" dataTourId="scenario">
+            <CollapsibleSection index={3} id="lens-sec-3" label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" dataTourId="scenario">
             <div className="bg-white rounded-lg relative overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
               <TealRail />
               <DevFeasibilityView
@@ -1114,7 +1137,7 @@ function SearchContent() {
                 offtake signal (no $) from the same engine as the Feasibility
                 Index. Compared at Standalone PV. */}
             <div className="lens-reveal">
-            <CollapsibleSection index={4} label="Structure Comparison" sublabel="which structure monetizes best · offtake signal">
+            <CollapsibleSection index={4} id="lens-sec-4" label="Structure Comparison" sublabel="which structure monetizes best · offtake signal">
             <StructureComparison
               stateProgram={results.stateProgram}
               countyData={results.countyData}
@@ -1135,7 +1158,7 @@ function SearchContent() {
                 consistent white surface. items-stretch: every card in a row
                 shares the tallest card's height (footers align). */}
             <div className="lens-reveal">
-            <CollapsibleSection index={5} label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" dataTourId="pillars">
+            <CollapsibleSection index={5} id="lens-sec-5" label="Pillar Diagnostics" sublabel="offtake · interconnect · incentives · site · policy" dataTourId="pillars">
             <div className="space-y-5">
             {(() => {
               // §05 pillar cards read the canonical composite computed once

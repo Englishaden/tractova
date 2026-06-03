@@ -24,7 +24,7 @@ const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)'
 // sections that are open by default (e.g. Market Position) — re-opening them
 // then doesn't re-mount the subtree and re-fire every entrance animation at
 // once, which is what made the re-open feel laggy.
-export default function CollapsibleSection({ index, label, sublabel, defaultOpen = false, keepMounted = false, dataTourId, children }) {
+export default function CollapsibleSection({ index, label, sublabel, defaultOpen = false, keepMounted = false, dataTourId, id, children }) {
   const [open, setOpen] = useState(defaultOpen)                    // intent — drives chevron + aria
   const [expanded, setExpanded] = useState(defaultOpen)           // visual grid state (0fr/1fr)
   const [render, setRender] = useState(defaultOpen || keepMounted) // body present in the DOM
@@ -55,7 +55,7 @@ export default function CollapsibleSection({ index, label, sublabel, defaultOpen
   }
 
   return (
-    <section className="mt-8" data-tour-id={dataTourId}>
+    <section className="mt-8 scroll-mt-24" id={id} data-tour-id={dataTourId}>
       <button
         type="button"
         onClick={toggle}
