@@ -68,9 +68,9 @@ export default function StructureComparison({
 
         {/* Column header row */}
         <div className="px-4 py-1.5 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 bg-white border-b border-gray-100">
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">Structure</span>
-          <GlossaryLabel term="Offtake" displayAs="Offtake" className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 text-right justify-self-end" />
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400 text-right justify-self-end">Coverage</span>
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500">Structure</span>
+          <GlossaryLabel term="Offtake" displayAs="Offtake" className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500 text-right justify-self-end" />
+          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500 text-right justify-self-end">Coverage</span>
         </div>
 
         {/* Rows */}

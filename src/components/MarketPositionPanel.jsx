@@ -315,7 +315,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button type="button" aria-label="Methodology" className="cursor-help" onClick={(e) => e.preventDefault()}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
                     </svg>
                   </button>
@@ -345,7 +345,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                 className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm"
                 style={{ background: 'rgba(180,83,9,0.06)', border: '1px solid rgba(180,83,9,0.18)' }}
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#92400E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="#92400E" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <p className="text-[10px] leading-snug" style={{ color: '#78350F' }}>
@@ -381,7 +381,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                   ? { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.20)' }
                   : { background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.18)' }}
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={policyDetail.federal.tier === 'at_risk' ? '#B91C1C' : '#92400E'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke={policyDetail.federal.tier === 'at_risk' ? '#B91C1C' : '#92400E'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
                   <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
                 <p className="text-[10px] leading-snug" style={{ color: policyDetail.federal.tier === 'at_risk' ? '#7F1D1D' : '#78350F' }}>

@@ -187,10 +187,21 @@ Anon marketing front door. Sections: (1) dark hero w/ live `DashboardPreview` ca
 
 **Verify:** `npm run build` ✓ clean (live-alerts + CTA + aria-hidden edits compile).
 
-### Pass 3 — Lens → Glossary → Library makeover — ⏭ QUEUED (next major phase)
+### Pass 3 — Lens → Glossary → Library makeover — 🔵 IN PROGRESS (Lens)
 
 Carry the dashboard's polish/skill language across (ChartCard meld, SortableTable, AnimatedList, CountUp, HoverBorderGradient, tasteful motion). Run all 20 checks on each surface as it's reworked, **mobile-first (#12)**, and append findings here.
 Pre-decided proposals to revisit during this phase: view persistence (URL/localStorage) · unified filter context · Skeleton standardisation · `eslint-plugin-jsx-a11y` · CI bundle-size guard.
+
+**Lens — wave-based (sequence: correctness → microinteractions → mobile). Each wave verify-green + pushed.**
+
+- **Wave 1 — polish primitives (commit `e43b9b1`):** "Run Lens Analysis" CTA melded with the dashboard Run-a-Lens language (teal gradient + glow + `HoverBorderGradient` sheen, only when `isFormValid && !analyzing`). *(#7)* · Verified `CountUp` was already satisfied by `ArcGauge`/`SubScoreBar` (same `[0.22,1,0.36,1]` curve) — left untouched, no churn. · Removed a duplicated `focus-within:ring` on the MW field.
+- **Wave 2 — section/meld unification (commit `96438d7`):** the four single-panel sections had drifted (§01/§02 top rail · §03 plain · §04 left-3px border). Extracted one canonical `src/components/ui/TealRail.jsx` and applied it across §01–§04 so they share the dashboard tiles' card DNA. §05 grid / §06 regulatory-watch left (multi-part, not single panels). *(#8 hierarchy / unify)*
+- **Wave 3 — correctness & a11y (this commit):**
+  - **#17 a11y — `aria-hidden` on decorative icons:** Search.jsx 16/16, MarketPositionPanel 3/3, MarketIntelligenceSummary 1/1 (were 0). Pillar-card shells are real `<button>`s (`SummaryShell`) → keyboard-operable; CollapsibleSection headers are buttons too. No `cursor:not-allowed` dead-ends on the Lens.
+  - **#18 contrast — `text-gray-400`→`gray-500`** (gray-400 on white = 2.54:1, **fails AA** per Pass 2): swapped 6 readable instances in Search.jsx + 2 in PaletteLensForm + 3 column headers in StructureComparison. **Left** the 3 `·` separator dots (decorative) and the gated/"not modeled" StructureComparison row (intentional disabled affordance — WCAG exempts inactive UI, and it carries an explicit "not modeled" label).
+  - **#10 type hierarchy — PASS:** Search.jsx = 1×h1, 2×h2, 2×h3; no skipped levels.
+- **Wave 4 — microinteractions — ⏭ NEXT.** Approved set: (a+b) pillar-card hover-lift + staggered reveal · (c) sticky scrollspy §01–§06 section rail · (d) sticky compact form-bar on scroll · (e+g) Save/Compare success-morph + Run-ID copy-to-clipboard feedback. Build as reusable, reduced-motion-safe primitives (Lens-deep first, then carry to Glossary/Library).
+- **Wave 5 — mobile-first responsive (#11/#12) — ⏭ PENDING.** Audit every Lens surface at phone width (form `grid-cols-2`, pillar grid → `xl:grid-cols-5`, `StructureComparison` fixed 3-col may pinch, RunIdMasthead).
 
 ---
 

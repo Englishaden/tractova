@@ -99,7 +99,7 @@ export default function MarketIntelligenceSummary({ stateProgram, countyData, fo
           <div className="mt-6 pt-5 border-t border-gray-100 pl-4" style={{ borderLeftWidth: 0, position: 'relative' }}>
             <div className="absolute left-0 top-5 bottom-0 w-[2px]" style={{ background: '#14B8A6' }} />
             <div className="flex items-start gap-3 ml-4">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="#0F766E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 mt-1">
                 <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
               </svg>
               <div>

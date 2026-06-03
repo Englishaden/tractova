@@ -104,7 +104,7 @@ export default function PaletteLensForm({
         <span className="font-mono text-[9px] uppercase tracking-[0.24em] font-bold" style={{ color: '#0F766E' }}>
           Lens — Quick Run
         </span>
-        <span className="text-[10px] text-gray-400 italic">structured form · Tab cycles fields · ↵ to run</span>
+        <span className="text-[10px] text-gray-500 italic">structured form · Tab cycles fields · ↵ to run</span>
       </div>
 
       {/* Two-column grid on wider palette viewports; single-column stack
@@ -192,7 +192,7 @@ export default function PaletteLensForm({
       </div>
 
       <div className="flex items-center justify-between gap-3 pt-2 border-t" style={{ borderColor: '#E2E8F0' }}>
-        <span className="text-[10px] font-mono text-gray-400 truncate">
+        <span className="text-[10px] font-mono text-gray-500 truncate">
           {isComplete
             ? `Ready · ${stateName} · ${county} · ${mw} MW · ${architecture} · ${structure} · ${stage.split(' (')[0]}`
             : 'Fill all fields to enable Run Lens'}
