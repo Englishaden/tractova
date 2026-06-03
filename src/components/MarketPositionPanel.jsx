@@ -2,6 +2,7 @@ import { computeDisplayScoreRange, getOfftakeCoverageStates, safeScore } from '.
 import ArcGauge from './ArcGauge.jsx'
 import CoverageBadge from './CoverageBadge'
 import TealRail from './ui/TealRail'
+import SpotlightCard from './ui/SpotlightCard'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import SubScoreBar from './SubScoreBar'
 import { STATUS_CFG, getMarketRank } from '../lib/searchShared.jsx'
@@ -375,11 +376,13 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                 pillar's reasoning (OBBBA §48E/§45Y cliff, FEOC, safe harbor) so
                 the sub-score isn't a bare number. Risk tiers, not dollars. */}
             {policyDetail?.federal && policyDetail.federal.tier !== 'clear' && (
-              <div
-                className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm"
+              <SpotlightCard
+                glow={policyDetail.federal.tier === 'at_risk' ? 'rgba(220,38,38,0.16)' : 'rgba(217,119,6,0.20)'}
+                size={200}
+                className="mt-2 flex items-start gap-1.5 px-2 py-1.5 rounded-sm overflow-hidden"
                 style={policyDetail.federal.tier === 'at_risk'
-                  ? { background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.20)' }
-                  : { background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.18)' }}
+                  ? { backgroundColor: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.20)' }
+                  : { backgroundColor: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.18)' }}
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke={policyDetail.federal.tier === 'at_risk' ? '#B91C1C' : '#92400E'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
                   <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -388,7 +391,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                   <span className="font-bold uppercase tracking-wider text-[9px]">Policy &amp; Timing — {policyDetail.federal.headline}</span>
                   <span className="block mt-0.5 font-normal">{policyDetail.federal.reasons?.[0]}</span>
                 </p>
-              </div>
+              </SpotlightCard>
             )}
           </div>
         </div>

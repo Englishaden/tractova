@@ -18,6 +18,7 @@ import { applyLeverAdjustments } from '../../lib/leverAdjustments'
 import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
 import FieldSelect from '../FieldSelect'
+import SpotlightCard from '../ui/SpotlightCard'
 
 const VERDICT_PALETTE = {
   go:      { label: 'Go',      tone: '#0F766E', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.35)', icon: '◆' },
@@ -247,8 +248,12 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
   const showLeverImpact = Math.abs(compositeDelta) >= 1 && leverRationale.length > 0
   const deltaSign = compositeDelta >= 0 ? '+' : ''
   return (
-    <div className="rounded-lg px-4 py-4 flex items-center justify-between gap-4 flex-wrap"
-      style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
+    <SpotlightCard
+      glow={`${palette.tone}26`}
+      size={320}
+      className="rounded-lg px-4 py-4 flex items-center justify-between gap-4 flex-wrap overflow-hidden"
+      style={{ backgroundColor: palette.bg, border: `1px solid ${palette.border}` }}
+    >
       <div className="flex items-center gap-4 min-w-0">
         <div className="text-3xl font-bold tabular-nums" style={{ color: palette.tone }}>
           {palette.icon}
@@ -319,7 +324,7 @@ function VerdictTile({ verdict, palette, composite, subScores, stateName, county
         <PillarReadout label="SITE" value={subScores.site} />
         <PillarReadout label="P&T"  value={subScores.policyTiming} />
       </div>
-    </div>
+    </SpotlightCard>
   )
 }
 
