@@ -1112,7 +1112,7 @@ function SearchContent() {
                 signal pivot — no dollars; this is signal sensitivity. */}
             <div className="lens-reveal">
             <CollapsibleSection index={3} id="lens-sec-3" label="Dev Feasibility" sublabel="go/no-go scorecard · pillar levers" dataTourId="scenario">
-            <div className="bg-white rounded-lg relative overflow-hidden" style={{ border: '1px solid #E2E8F0' }}>
+            <div className="bg-white rounded-lg relative" style={{ border: '1px solid #E2E8F0' }}>
               <TealRail />
               <DevFeasibilityView
                 stateProgram={results.stateProgram}

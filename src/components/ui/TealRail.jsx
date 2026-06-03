@@ -7,13 +7,15 @@
 // gradient lived in several copies. One source now; change it here, every
 // section follows.
 //
-// The parent must be `relative overflow-hidden` so the 2px rail pins to the
-// top edge and clips to the card's rounded corners.
+// The parent must be `relative`. The rail self-clips its top corners via
+// `rounded-t-[inherit]` (inherits the card's border-radius), so the parent does
+// NOT need `overflow-hidden` — important for cards containing dropdowns/popovers
+// that must escape the card bounds (e.g. the §03 Feasibility Levers selects).
 export default function TealRail() {
   return (
     <div
       aria-hidden="true"
-      className="absolute top-0 left-0 right-0 h-[2px]"
+      className="absolute top-0 left-0 right-0 h-[2px] rounded-t-[inherit]"
       style={{ background: 'linear-gradient(90deg, transparent 0%, #14B8A6 30%, #14B8A6 70%, transparent 100%)' }}
     />
   )
