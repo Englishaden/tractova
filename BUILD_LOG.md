@@ -4,7 +4,22 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-03 — Lens makeover COMPLETE (Waves 1–5) · NEXT = Glossary
+## 🟢 Pickup — 2026-06-03 — Lens Wave 6 (prod-review redesign) · 6a–6d done, 6e + prod-eyeball pending
+
+**From Aden's prod screenshots.** North star he set: **each section fits one viewport at 100%** (felt 100% too large, "better at ~85%"). All verify-green + pushed; **NOT yet visually verified by Aden** — the density level was calibrated on §01 and propagated; wants his eyeball before 6e.
+
+- **Clipping fix (`c430c96`):** §03 Levers dropdowns were clipped by Wave 2's `overflow-hidden` (regression). `TealRail` now self-clips via `rounded-t-[inherit]`; dropped the overflow-hidden.
+- **6a (`66a1f85`):** Comparables→**§06**, Regulatory→**§07** (labels + scrollspy rail; rail self-hides dots for gated sections not rendered). §01 density pass (py-7→py-5, headline 34→28px) = calibration reference.
+- **6b (`92b6cb8`):** §03 Dev Feasibility **de-dup** — stripped the duplicate 5-pillar grid (it dup'd §05 + the verdict's own OFFT/IX/INC/SITE/P&T readout); §03 = lean **Verdict + Levers**. **−258 lines.**
+- **6c (`2e6e4ad`):** §02 Analyst Brief drill-downs (4 stacked accordions) → one **tabbed** panel (shared `ui/Tabs`) + density. `BriefDrilldown.jsx` now orphaned (left as dead code — `git rm` deny-listed).
+- **6d (`d00ba12`):** new reusable **`ui/SpotlightCard`** (cursor-follow glow, light-surface retune, reduced-motion-safe) on the §03 Verdict tile + §01 Policy&Timing alert (the two "bland" elements).
+
+### ⏭ Lens 6e — PENDING (after Aden's prod review of density)
+Structure Comparison (§04) condense + density ratio on §04 / §05 pillar cards / RunIdMasthead. **§01 white-space fill still OPEN** (Aden undecided — density done, layout-fill not). Then Glossary → Library.
+
+---
+
+## 🟢 Pickup — 2026-06-03 — Lens makeover (Waves 1–5) — superseded by Wave 6 above
 
 Makeover of the **Lens → Glossary → Library** surfaces via the `web-design-audit` skill (Pass 3 ledger in `Skills/Web Design Audit Checklist.md`). All on the Lens (`src/pages/Search.jsx`, ~1.4k lines — already a mature, designed surface), wave-based, each verify-green + pushed. **Key finding:** the Lens was already well-polished, so value came from closing specific gaps + adding microinteractions, NOT bulk restyling. Every assumption was grounded by reading the code first (caught 2 survey errors: scores already animate; §02 already had the rail).
 

@@ -206,7 +206,15 @@ Pre-decided proposals to revisit during this phase: view persistence (URL/localS
   - Reusable primitives created for Glossary/Library reuse: `CopyButton`, `AnimatedList` (`itemAs`), and the rail/sticky-bar patterns.
 - **Wave 5 — mobile-first responsive (#11/#12) — ✅ DONE (code-level; build-verified, NOT screenshot-verified — Pro-gated).** Form fields `grid-cols-2`→`grid-cols-1 sm:grid-cols-2 md:grid-cols-3` (the long-label selects "System Architecture"/"Monetization Structure" get full width on phones). Results header `flex`→`flex-col sm:flex-row` so the title stacks above the action buttons on mobile; action-button row `flex-wrap`. `StructureComparison` header strip `flex-wrap` so the `state · MW · PV` meta wraps below the title instead of pinching. Already-mobile-first + left as-is: pillar grid (`grid-cols-1` base), MarketPositionPanel (`grid-cols-1 md:grid-cols-12`), RunIdMasthead (`flex-wrap`), CollapsibleSection sublabel (`hidden sm:inline`), the new rail (`hidden xl:`).
 
-**→ Lens Pass 3 COMPLETE (Waves 1–5). Next: Glossary, then Library — carry the banked primitives (`CopyButton`, `AnimatedList(itemAs)`, `TealRail`, rail/sticky-bar patterns) + run all 20 checks mobile-first.**
+- **Wave 6 — prod-review redesign (2026-06-03, commits `c430c96`→`d00ba12`).** From Aden's prod screenshots. North star: **each section fits one viewport at 100%** (he felt 100% too large / "better at ~85%"). NOT YET visually verified by Aden.
+  - **Fix:** §03 Levers dropdowns were clipped by Wave 2's `overflow-hidden` — `TealRail` now self-clips (`rounded-t-[inherit]`), dropped the overflow-hidden. (`c430c96`)
+  - **6a:** Comparables→§06, Regulatory→§07 (labels + rail; rail self-hides dots for gated sections not in DOM). §01 density pass (py-7→py-5, headline 34→28px) as the calibration reference. (`66a1f85`)
+  - **6b:** §03 Dev Feasibility de-dup — stripped the duplicate 5-pillar grid (dup'd §05 + the verdict's own readout); §03 = lean Verdict + Levers. −258 lines. (`92b6cb8`)
+  - **6c:** §02 Analyst Brief drill-downs (4 stacked accordions) → one tabbed panel via shared `ui/Tabs`; density-tightened. `BriefDrilldown.jsx` now orphaned (git-rm deny-listed; left as dead code). (`2e6e4ad`)
+  - **6d:** new reusable `ui/SpotlightCard` (cursor-follow glow, light-surface retune of the skill, reduced-motion-safe) on the §03 Verdict tile + §01 Policy&Timing alert (the two "bland" elements). (`d00ba12`)
+  - **⏭ 6e PENDING:** Structure Comparison (§04) condense + density ratio on §04/§05/masthead. **§01 white-space fill still open** (Aden undecided; density done, layout fill not).
+
+**→ Lens Waves 1–5 done; Wave 6 (6a–6d) done, 6e pending + needs Aden's prod eyeball on the density level. Then: Glossary, Library — carry the banked primitives (`CopyButton`, `AnimatedList(itemAs)`, `TealRail`, `SpotlightCard`, `ui/Tabs`, rail/sticky-bar).**
 
 ---
 
