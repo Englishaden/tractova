@@ -15,11 +15,9 @@
 import { useMemo, useState, useEffect } from 'react'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import { applyLeverAdjustments } from '../../lib/leverAdjustments'
-import { structureNoun } from '../../lib/lensFormConstants'
 import GlossaryLabel from '../ui/GlossaryLabel'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '../ui/Tooltip'
 import FieldSelect from '../FieldSelect'
-import CoverageChip from '../lens/CoverageChip'
 
 const VERDICT_PALETTE = {
   go:      { label: 'Go',      tone: '#0F766E', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.35)', icon: '◆' },
@@ -191,7 +189,7 @@ export default function DevFeasibilityView({
 
   return (
     <TooltipProvider delayDuration={150}>
-    <div className="px-6 py-5 space-y-5">
+    <div className="px-5 py-4 space-y-4">
       <VerdictTile
         verdict={verdict}
         palette={verdictPalette}
@@ -209,42 +207,11 @@ export default function DevFeasibilityView({
         federalTiming={federalTiming}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        <OfftakePillarCard
-          stateProgram={stateProgram}
-          subScore={subScores.offtake}
-          structuralSubScore={structuralSubScores.offtake}
-          delta={leverResult.deltas.offtake}
-          coverage={subScores.coverage.offtake}
-          technology={technology}
-        />
-        <InterconnectionPillarCard
-          ixQueueSummary={ixQueueSummary}
-          stateProgram={stateProgram}
-          subScore={subScores.ix}
-          structuralSubScore={structuralSubScores.ix}
-          delta={leverResult.deltas.ix}
-          coverage={subScores.coverage.ix}
-        />
-        <IncentivesPillarCard
-          subScore={subScores.incentives}
-          coverage={subScores.coverage.incentives}
-          adders={subScores.incentiveDetail}
-        />
-        <SitePillarCard
-          countyData={countyData}
-          subScore={subScores.site}
-          structuralSubScore={structuralSubScores.site}
-          delta={leverResult.deltas.site}
-          coverage={subScores.coverage.site}
-        />
-        <PolicyTimingPillarCard
-          subScore={subScores.policyTiming}
-          coverage={subScores.coverage.policyTiming}
-          federal={federalTiming}
-          events={statePolicyEvents}
-        />
-      </div>
+      {/* The full 5-pillar card grid was removed here (2026-06-03 §03 rework):
+          it duplicated §05 Pillar Diagnostics (deep cards + modals) AND the
+          VerdictTile's own OFFT/IX/INC/SITE/P&T readout. §03's distinct value
+          is the interactive Verdict + Levers ("what moves the score"); the
+          deep per-pillar read lives in §05. De-dup per the unify tenet. */}
 
       <FeasibilityLevers
         levers={levers}
@@ -490,225 +457,6 @@ function siteFriction(ctx) {
     return `Site signal not yet curated for ${countyLabel.toLowerCase()} — verify directly via parcel survey.`
   }
   return 'Verify parcel-level land control + permitting path.'
-}
-
-// ── Pillar cards (compact) ─────────────────────────────────────────────────
-
-function PillarCardShell({ pillarLabel, subScore, structuralSubScore, delta, coverage, children }) {
-  const tone = subScore == null ? '#475569' : subScore >= 70 ? '#0F766E' : subScore >= 50 ? '#92400E' : '#991B1B'
-  // Delta chip surfaces when levers have moved this pillar away from the
-  // structural baseline. Hover → tooltip naming the structural anchor so
-  // devs can see "before / after."
-  const showDelta = Number.isFinite(delta) && Math.abs(delta) >= 1 && Number.isFinite(structuralSubScore)
-  return (
-    <div className="rounded-md px-3 py-3 bg-white" style={{ border: '1px solid #E2E8F0' }}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="eyebrow-mono text-gray-500">{pillarLabel}</span>
-        <div className="flex items-center gap-1.5">
-          {showDelta && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className="eyebrow-mono px-1 py-0.5 rounded-sm tabular-nums cursor-help"
-                  style={{
-                    background: delta > 0 ? 'rgba(20,184,166,0.15)' : 'rgba(220,38,38,0.12)',
-                    color: delta > 0 ? '#0F766E' : '#991B1B',
-                  }}
-                >
-                  {delta > 0 ? '+' : ''}{delta}
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Lever adjustment</p>
-                <p className="leading-relaxed">
-                  Structural baseline: <span className="font-mono tabular-nums">{Math.round(structuralSubScore)}</span>. Lever delta: <span className="font-mono tabular-nums font-bold" style={{ color: delta > 0 ? '#5EEAD4' : '#FCA5A5' }}>{delta > 0 ? '+' : ''}{delta}</span>. See verdict tile for which lever drove this.
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-          <span className="font-bold text-[14px] tabular-nums" style={{ color: tone }}>
-            {subScore == null ? '—' : Math.round(subScore)}
-          </span>
-        </div>
-      </div>
-      {children}
-      <CoverageChip coverage={coverage} />
-    </div>
-  )
-}
-
-// Coverage chip moved to shared src/components/lens/CoverageChip.jsx so
-// §03 (Dev Feasibility pillar cards) and §04 (summary cards) render the
-// same vocabulary. Import handled at the top of this file.
-
-function OfftakePillarCard({ stateProgram, subScore, structuralSubScore, delta, coverage, technology }) {
-  const isCS = technology === 'Community Solar' || technology === 'Hybrid'
-  return (
-    <PillarCardShell pillarLabel="Offtake" subScore={subScore} structuralSubScore={structuralSubScore} delta={delta} coverage={coverage}>
-      {isCS && stateProgram ? (
-        <div className="space-y-1 text-[11px]">
-          <div className="font-semibold text-ink leading-tight">{stateProgram.csProgram || 'No CS program'}</div>
-          <div className="text-gray-600 capitalize">Status: {stateProgram.csStatus || 'none'}</div>
-          {stateProgram.capacityMW > 0 && (
-            <div className="text-gray-600 font-mono tabular-nums">
-              {stateProgram.capacityMW.toLocaleString()} MW cap
-            </div>
-          )}
-          {stateProgram.lmiRequired && (
-            <div className="text-[10px] text-amber-700">
-              LMI required{stateProgram.lmiPercent ? ` · ${stateProgram.lmiPercent}%` : ''}
-            </div>
-          )}
-        </div>
-      ) : technology === 'BESS' ? (
-        <div className="text-[11px] text-gray-600">
-          Capacity-market clearing varies by ISO. Score reflects 2026 forward curves; verify against ISO auction results.
-        </div>
-      ) : (
-        <div className="text-[11px] text-gray-600">
-          C&I offtake driven by retail rates (EIA 861). Higher retail rate = stronger displacement value.
-        </div>
-      )}
-    </PillarCardShell>
-  )
-}
-
-function InterconnectionPillarCard({ ixQueueSummary, stateProgram, subScore, structuralSubScore, delta, coverage }) {
-  const hasLive = ixQueueSummary && ixQueueSummary.totalProjects > 0
-  return (
-    <PillarCardShell pillarLabel="Interconnection" subScore={subScore} structuralSubScore={structuralSubScore} delta={delta} coverage={coverage}>
-      {hasLive && ixQueueSummary.signalType === 'cs_pipeline' ? (
-        <div className="space-y-1 text-[11px]">
-          <div className="font-mono tabular-nums text-ink">
-            {ixQueueSummary.totalProjects.toLocaleString()} in pipeline · {ixQueueSummary.totalMW.toLocaleString()} MW
-          </div>
-          {ixQueueSummary.completedProjects != null && (
-            <div className="text-gray-600">{ixQueueSummary.completedProjects.toLocaleString()} {structureNoun(ixQueueSummary.view, ixQueueSummary.availableStructures).short} projects energized to date</div>
-          )}
-          <div className="text-[10px] text-gray-500">{ixQueueSummary.sourceRegion || 'Distribution'} · score on curated baseline</div>
-        </div>
-      ) : hasLive ? (
-        <div className="space-y-1 text-[11px]">
-          <div className="font-mono tabular-nums text-ink">
-            {ixQueueSummary.avgStudyMonths} mo · {ixQueueSummary.totalMW.toLocaleString()} MW pending
-          </div>
-          <div className="text-gray-600 capitalize">Congestion: {ixQueueSummary.congestionLevel}</div>
-          <div className="text-[10px] text-gray-500">{ixQueueSummary.totalProjects} projects in queue</div>
-        </div>
-      ) : (
-        <div className="text-[11px] text-gray-600">
-          {stateProgram?.ixDifficulty
-            ? <>Difficulty: <span className="capitalize font-semibold text-ink">{String(stateProgram.ixDifficulty).replace('_', ' ')}</span></>
-            : 'Live queue data not yet wired for this state.'}
-        </div>
-      )}
-    </PillarCardShell>
-  )
-}
-
-function SitePillarCard({ countyData, subScore, structuralSubScore, delta, coverage }) {
-  const wet = countyData?.geospatial?.wetlandCoveragePct
-  const farm = countyData?.geospatial?.primeFarmlandPct
-  const siteControl = countyData?.siteControl
-  return (
-    <PillarCardShell pillarLabel="Site" subScore={subScore} structuralSubScore={structuralSubScore} delta={delta} coverage={coverage}>
-      <div className="space-y-1 text-[11px]">
-        {wet != null && (
-          <div className="text-gray-700">
-            Wetlands: <span className="font-mono tabular-nums font-semibold text-ink">{wet.toFixed(1)}%</span>
-            {wet >= 25 && <span className="ml-1 text-[10px] text-amber-700">permit risk</span>}
-          </div>
-        )}
-        {farm != null && (
-          <div className="text-gray-700">
-            Prime farmland: <span className="font-mono tabular-nums font-semibold text-ink">{farm.toFixed(1)}%</span>
-          </div>
-        )}
-        {wet == null && farm == null && (
-          <div className="text-gray-600">
-            {siteControl === true ? 'Curated: land available' : siteControl === false ? 'Curated: limited land' : 'No site signal yet for this county.'}
-          </div>
-        )}
-      </div>
-    </PillarCardShell>
-  )
-}
-
-// Pillar 4 — Incentives. ITC adder eligibility (Energy Community + §48(e)
-// Low-Income) from real county data. No levers move it (eligibility is fixed
-// by county), so no delta chip.
-function IncentivesPillarCard({ subScore, coverage, adders }) {
-  const a = adders || {}
-  const ec = !!a.energyCommunity
-  const lic = !!a.lowIncomeCommunity
-  const dataNotWired = coverage === 'none' || subScore == null
-  const chip = (label, on) => (
-    <span
-      className="eyebrow-mono px-1.5 py-0.5 rounded-sm"
-      style={on
-        ? { background: 'rgba(21,128,61,0.10)', color: '#166534' }
-        : { background: 'rgba(15,26,46,0.05)', color: '#94A3B8' }}
-    >
-      {on ? '✓' : '–'} {label}
-    </span>
-  )
-  return (
-    <PillarCardShell pillarLabel="Incentives" subScore={subScore} coverage={coverage}>
-      <div className="space-y-1.5 text-[11px]">
-        {dataNotWired ? (
-          <div className="text-gray-500 italic leading-snug">
-            County ITC-adder eligibility not resolved for this geography.
-          </div>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-1">
-              {chip('Energy Comm.', ec)}
-              {chip('Low-Income', lic)}
-            </div>
-            <div className="text-[10px] text-gray-500 leading-snug">
-              §48E base 30% nationwide; adders stack to ~50% ITC.
-            </div>
-          </>
-        )}
-      </div>
-    </PillarCardShell>
-  )
-}
-
-// Pillar 5 — Policy & Timing. Federal tax-credit timing tier (OBBBA §48E/§45Y,
-// FEOC, safe harbor) blended with applicable state-policy headwind events.
-function PolicyTimingPillarCard({ subScore, coverage, federal, events = [] }) {
-  const dataNotWired = coverage === 'none' || subScore == null
-  const tierTone = federal?.tier === 'at_risk' ? '#B91C1C' : federal?.tier === 'watch' ? '#92400E' : '#0F766E'
-  const tierLabel = federal?.tier === 'at_risk' ? 'At risk' : federal?.tier === 'watch' ? 'Watch' : 'On track'
-  return (
-    <PillarCardShell pillarLabel="Policy & Timing" subScore={subScore} coverage={coverage}>
-      <div className="space-y-1.5 text-[11px]">
-        {dataNotWired ? (
-          <div className="text-gray-500 italic leading-snug">
-            Set a stage / target COD to assess federal timing + state policy risk.
-          </div>
-        ) : (
-          <>
-            {federal && (
-              <div className="flex items-center gap-1.5">
-                <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm font-bold" style={{ background: 'rgba(15,26,46,0.05)', color: tierTone }}>
-                  Federal · {tierLabel}
-                </span>
-              </div>
-            )}
-            {events.length > 0 ? (
-              <div className="text-gray-600 leading-snug line-clamp-2">
-                {events.length} state polic{events.length === 1 ? 'y' : 'ies'} · {events[0].event_name} ({events[0].severity})
-              </div>
-            ) : (
-              <div className="text-[10px] text-gray-500 leading-snug">No applicable state policy headwinds.</div>
-            )}
-          </>
-        )}
-      </div>
-    </PillarCardShell>
-  )
 }
 
 // ── Feasibility levers ─────────────────────────────────────────────────────
