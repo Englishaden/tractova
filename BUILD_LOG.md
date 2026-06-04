@@ -4,14 +4,17 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-04 — Glossary revamp DONE · NEXT = Library (separate plan)
+## 🟢 Pickup — 2026-06-04 — Glossary revamp DONE + reviewed ✓ · NEXT SESSION = LIBRARY REVAMP
 
-Full Glossary revamp shipped (commit `1c034b0`; plan in `.claude/plans/okay-do-the-full-smooth-chipmunk.md`; audit ledger Pass 4). Lens (Waves 1–6) + Dashboard considered **closed out**. **Library is the next major surface — needs its own plan (lots of work), not started.**
+**Surfaces closed out: Dashboard · Lens (Waves 1–6) · Glossary.** Glossary reviewed on prod by Aden 2026-06-04 — **looks good, no major comments.** §01 Lens white-space fill = dropped/closed. **NEXT MAJOR = Library revamp (its own explore→audit→plan flow; Aden says it needs a lot of work).**
 
-- **Demoted from primary nav (Aden's IA call):** Glossary is a reference surface, not a daily tool → removed from the top-level signed-in nav (now **Dashboard / Lens / Library**) and grouped with **About** under a "Resources" block in the account dropdown (`Nav.jsx`). Route + 26 `GlossaryLabel` tooltip consumers + ⌘K `:gloss` untouched.
-- **Page (`src/pages/Glossary.jsx`):** A–Z letter groups + fixed A–Z **jump rail** (`GlossaryJumpRail`, adapted from `LensSectionRail`); hero `.lp-aurora` wash + `TealRail` + `MountReveal` + `CountUp`; `SpotlightCard` cursor-glow cards + hover-lift + `AnimatedList` stagger; see-also hover-previews (`SeeAlsoLink`); footer CTA → About + ⌘K. All reduced-motion-safe; a11y + mobile passes done. Every card kept in DOM → deep-links + ⌘K intact.
-- **New/changed:** `src/components/glossary/{GlossaryJumpRail,SeeAlsoLink}.jsx`; `TealRail` gained optional `className`. Verify-green (lints + 175 unit + build + 7/7 smoke; one flaky preview-server run, clean on re-run).
-- **⏭ Aden:** Glossary is **public** → eyeball on prod directly. **Decision still open from Lens:** §01 white-space fill (dropped/closed unless you revisit).
+Glossary revamp shipped (commit `1c034b0`; plan `.claude/plans/okay-do-the-full-smooth-chipmunk.md`; audit ledger Pass 4):
+- **Demoted from primary nav:** reference surface, not a daily tool → out of the top-level signed-in nav (now **Dashboard / Lens / Library**), grouped with **About** under a "Resources" block in the account dropdown (`Nav.jsx`). Route + 26 `GlossaryLabel` consumers + ⌘K `:gloss` untouched.
+- **Page (`src/pages/Glossary.jsx`):** A–Z groups + fixed A–Z `GlossaryJumpRail`; hero `.lp-aurora` + `TealRail` + `MountReveal` + `CountUp`; `SpotlightCard` cursor-glow cards + hover-lift + `AnimatedList` stagger; `SeeAlsoLink` hover-previews; footer CTA. Reduced-motion-safe; a11y + mobile done; cards stay in DOM → deep-links + ⌘K intact. New: `src/components/glossary/{GlossaryJumpRail,SeeAlsoLink}.jsx`; `TealRail` gained optional `className`.
+
+### ⏭ NEXT SESSION — Library revamp (not started)
+Apply the same playbook as Lens/Glossary: **(1)** explore the Library surface (`src/pages/Library.jsx` — large; `ProjectCard.jsx`, `CompareTray.jsx`, `LibraryToolbar.jsx`, `MiniArcGauge`, etc.; it's Pro-gated like the Lens, so smoke can't screenshot it). **(2)** run the 20-check `web-design-audit` (mobile-first) → log Pass 5. **(3)** plan → approve → wave-based build, verify-green per slice. **Carry the banked primitives:** `SpotlightCard`, `CopyButton`, `AnimatedList(itemAs)`, `TealRail`, `ui/Tabs`, `MountReveal`, `CountUp`, `SortableTable`, scrollspy-rail / sticky-bar patterns. Aden flagged Library "needs a ton of work" — expect a bigger scope than Glossary; get his priorities up front.
+**Carried loose end:** `src/components/BriefDrilldown.jsx` orphaned since Lens 6c (dead code; removal needs `git rm`, deny-listed — clear when convenient).
 
 ---
 
