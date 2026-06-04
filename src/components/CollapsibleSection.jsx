@@ -28,6 +28,12 @@ export default function CollapsibleSection({ index, label, sublabel, defaultOpen
   const [open, setOpen] = useState(defaultOpen)                    // intent — drives chevron + aria
   const [expanded, setExpanded] = useState(defaultOpen)           // visual grid state (0fr/1fr)
   const [render, setRender] = useState(defaultOpen || keepMounted) // body present in the DOM
+  // Once the open transition finishes, switch the body to overflow-VISIBLE so
+  // dropdowns/popovers inside a section (e.g. the §03 Feasibility Levers selects)
+  // can escape the card instead of being clipped by this collapse wrapper. While
+  // the height is animating we keep it clipped, else content spills past the 0fr
+  // row mid-transition.
+  const [fullyOpen, setFullyOpen] = useState(defaultOpen)
   const reduced = useReducedMotion()
 
   const toggle = () => {
@@ -35,22 +41,25 @@ export default function CollapsibleSection({ index, label, sublabel, defaultOpen
     setOpen(next)
     if (next) {
       // keepMounted: body is already in the DOM, so flip straight to 1fr.
-      if (keepMounted) { setExpanded(true); return }
+      if (keepMounted) { setExpanded(true); if (reduced) setFullyOpen(true); return }
       setRender(true)
-      if (reduced) setExpanded(true)
+      if (reduced) { setExpanded(true); setFullyOpen(true) }
       // Two rAFs so the browser paints the 0fr state before we flip to 1fr —
       // otherwise it mounts already-expanded and there's no transition.
       else requestAnimationFrame(() => requestAnimationFrame(() => setExpanded(true)))
     } else {
       setExpanded(false)        // animate 1fr→0fr; unmount onTransitionEnd (unless keepMounted)
+      setFullyOpen(false)       // re-clip immediately so closing content doesn't spill
       if (!keepMounted && reduced) setRender(false)
     }
   }
 
   const handleTransitionEnd = (e) => {
-    if (keepMounted) return
-    if (e.target === e.currentTarget && e.propertyName === 'grid-template-rows' && !expanded) {
-      setRender(false)
+    if (e.target !== e.currentTarget || e.propertyName !== 'grid-template-rows') return
+    if (expanded) {
+      setFullyOpen(true)        // open transition done → let popovers overflow the card
+    } else if (!keepMounted) {
+      setRender(false)          // close transition done → unmount the heavy body
     }
   }
 
@@ -99,7 +108,7 @@ export default function CollapsibleSection({ index, label, sublabel, defaultOpen
         onTransitionEnd={handleTransitionEnd}
       >
         <div
-          className="overflow-hidden"
+          className={fullyOpen ? 'overflow-visible' : 'overflow-hidden'}
           style={{
             opacity: expanded ? 1 : 0,
             transition: reduced ? 'none' : `opacity 0.28s ${EASE}`,
