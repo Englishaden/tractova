@@ -212,7 +212,8 @@ Pre-decided proposals to revisit during this phase: view persistence (URL/localS
   - **6b:** §03 Dev Feasibility de-dup — stripped the duplicate 5-pillar grid (dup'd §05 + the verdict's own readout); §03 = lean Verdict + Levers. −258 lines. (`92b6cb8`)
   - **6c:** §02 Analyst Brief drill-downs (4 stacked accordions) → one tabbed panel via shared `ui/Tabs`; density-tightened. `BriefDrilldown.jsx` now orphaned (git-rm deny-listed; left as dead code). (`2e6e4ad`)
   - **6d:** new reusable `ui/SpotlightCard` (cursor-follow glow, light-surface retune of the skill, reduced-motion-safe) on the §03 Verdict tile + §01 Policy&Timing alert (the two "bland" elements). (`d00ba12`)
-  - **⏭ 6e PENDING:** Structure Comparison (§04) condense + density ratio on §04/§05/masthead. **§01 white-space fill still open** (Aden undecided; density done, layout fill not).
+  - **6e (`6653344`):** §04 Structure Comparison density cuts (header/column/row padding — already a tight table) + §05 pillar-card height 150→134 / py-3.5→py-3 (same ratio as §01–§03). Masthead left (already thin).
+  - **⏭ OPEN:** §01 white-space fill (Aden undecided — density done, layout fill not). Needs his prod read on the density level before it's locked.
 
 **→ Lens Waves 1–5 done; Wave 6 (6a–6d) done, 6e pending + needs Aden's prod eyeball on the density level. Then: Glossary, Library — carry the banked primitives (`CopyButton`, `AnimatedList(itemAs)`, `TealRail`, `SpotlightCard`, `ui/Tabs`, rail/sticky-bar).**
 

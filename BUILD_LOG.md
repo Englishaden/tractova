@@ -14,8 +14,10 @@
 - **6c (`2e6e4ad`):** §02 Analyst Brief drill-downs (4 stacked accordions) → one **tabbed** panel (shared `ui/Tabs`) + density. `BriefDrilldown.jsx` now orphaned (left as dead code — `git rm` deny-listed).
 - **6d (`d00ba12`):** new reusable **`ui/SpotlightCard`** (cursor-follow glow, light-surface retune, reduced-motion-safe) on the §03 Verdict tile + §01 Policy&Timing alert (the two "bland" elements).
 
-### ⏭ Lens 6e — PENDING (after Aden's prod review of density)
-Structure Comparison (§04) condense + density ratio on §04 / §05 pillar cards / RunIdMasthead. **§01 white-space fill still OPEN** (Aden undecided — density done, layout-fill not). Then Glossary → Library.
+- **6e (`6653344`):** §04 Structure Comparison density cuts + §05 pillar-card height 150→134 (same ratio as §01–§03). Masthead left (already thin).
+
+### ⏭ Lens — only OPEN item: §01 white-space fill
+Density is done across §01–§05; the §01 Target-State white-space *layout fill* is still Aden's call (he was undecided). Locked pending his prod read of the density level. **Then: Glossary → Library** (carry banked primitives: `CopyButton`, `AnimatedList(itemAs)`, `TealRail`, `SpotlightCard`, `ui/Tabs`, scrollspy-rail / sticky-bar).
 
 ---
 
