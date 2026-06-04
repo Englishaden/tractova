@@ -124,7 +124,6 @@ export default function Nav() {
           <div className="flex items-center gap-3 sm:gap-5 md:gap-7 overflow-x-auto">
             {navLink('/', 'Dashboard')}
             {navLink('/search', 'Lens')}
-            {navLink('/glossary', 'Glossary')}
             {navLink('/library', 'Library')}
           </div>
         )}
@@ -206,6 +205,41 @@ export default function Nav() {
                         <circle cx="12" cy="7" r="4"/>
                       </svg>
                       Profile
+                    </Link>
+                  </DropdownMenu.Item>
+
+                  <DropdownMenu.Separator className="my-1" style={{ borderTop: `1px solid ${scope.dropdownDivider}` }} />
+
+                  {/* Resources — reference surfaces (Glossary + About) live here
+                      rather than the primary nav, which stays the daily tools
+                      (Dashboard / Lens / Library). */}
+                  <DropdownMenu.Item asChild>
+                    <Link
+                      to="/glossary"
+                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-colors outline-none"
+                      style={{ color: scope.menuItemText }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = scope.menuItemHoverBg; e.currentTarget.style.color = scope.menuItemHoverFg }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = scope.menuItemText }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                      </svg>
+                      Glossary
+                    </Link>
+                  </DropdownMenu.Item>
+
+                  <DropdownMenu.Item asChild>
+                    <Link
+                      to="/about"
+                      className="flex items-center gap-2.5 w-full px-3 py-2 text-sm transition-colors outline-none"
+                      style={{ color: scope.menuItemText }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = scope.menuItemHoverBg; e.currentTarget.style.color = scope.menuItemHoverFg }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = scope.menuItemText }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      About
                     </Link>
                   </DropdownMenu.Item>
 

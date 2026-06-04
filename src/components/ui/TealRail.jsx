@@ -11,11 +11,11 @@
 // `rounded-t-[inherit]` (inherits the card's border-radius), so the parent does
 // NOT need `overflow-hidden` — important for cards containing dropdowns/popovers
 // that must escape the card bounds (e.g. the §03 Feasibility Levers selects).
-export default function TealRail() {
+export default function TealRail({ className = '' }) {
   return (
     <div
       aria-hidden="true"
-      className="absolute top-0 left-0 right-0 h-[2px] rounded-t-[inherit]"
+      className={`absolute top-0 left-0 right-0 h-[2px] rounded-t-[inherit] ${className}`}
       style={{ background: 'linear-gradient(90deg, transparent 0%, #14B8A6 30%, #14B8A6 70%, transparent 100%)' }}
     />
   )

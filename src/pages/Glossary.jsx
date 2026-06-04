@@ -1,7 +1,14 @@
-import { useState, useRef, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { useLocation, Link } from 'react-router-dom'
 import IntelligenceBackground from '../components/IntelligenceBackground'
 import WalkingTractovaMark from '../components/WalkingTractovaMark'
+import TealRail from '../components/ui/TealRail'
+import MountReveal from '../components/ui/MountReveal'
+import CountUp from '../components/ui/CountUp'
+import AnimatedList from '../components/ui/AnimatedList'
+import SpotlightCard from '../components/ui/SpotlightCard'
+import GlossaryJumpRail from '../components/glossary/GlossaryJumpRail'
+import SeeAlsoLink from '../components/glossary/SeeAlsoLink'
 // Glossary data moved to src/data/glossaryTerms.js so CommandPalette
 // (eager-mounted in App.jsx) doesn't have to static-import this page
 // module — that was forcing the whole Glossary chunk into the main
@@ -103,19 +110,37 @@ export default function Glossary() {
   }, [location.hash])
 
   // Typeahead: match term names only
-  const suggestions = query.trim()
-    ? terms.filter((t) => t.term.toLowerCase().includes(query.toLowerCase()))
-    : []
+  const suggestions = useMemo(() => (
+    query.trim()
+      ? terms.filter((t) => t.term.toLowerCase().includes(query.toLowerCase()))
+      : []
+  ), [query])
 
   // Main list: apply pillar filter + text search (name or definition)
-  const filtered = terms.filter((t) => {
+  const filtered = useMemo(() => terms.filter((t) => {
     const matchesPillar = !pillar || t.pillar === pillar || t.pillar === 'all'
     const q = query.trim().toLowerCase()
     const matchesQuery = !q ||
       t.term.toLowerCase().includes(q) ||
       t.definition.toLowerCase().includes(q)
     return matchesPillar && matchesQuery
-  })
+  }), [query, pillar])
+
+  // A–Z letter groups over the filtered set — classic glossary structure +
+  // anchors the jump rail targets. Non-alpha leading chars bucket under '#'.
+  const letterGroups = useMemo(() => {
+    const buckets = {}
+    for (const t of filtered) {
+      const c = (t.term[0] || '#').toUpperCase()
+      const letter = /[A-Z]/.test(c) ? c : '#'
+      ;(buckets[letter] ||= []).push(t)
+    }
+    return Object.keys(buckets).sort().map((letter) => ({
+      letter,
+      id: `gloss-letter-${letter}`,
+      terms: buckets[letter],
+    }))
+  }, [filtered])
 
   const scrollToTerm = (termName) => {
     setQuery('')
@@ -169,25 +194,28 @@ export default function Glossary() {
       <IntelligenceBackground />
       <WalkingTractovaMark triggerProbability={0.30} sessionGate={true} />
 
+      {/* A–Z jump rail (xl+, only the letters currently rendered) */}
+      {letterGroups.length > 0 && (
+        <GlossaryJumpRail groups={letterGroups.map((g) => ({ id: g.id, label: g.letter }))} />
+      )}
+
       <main className="relative max-w-dashboard mx-auto px-6 pt-20 pb-16">
-        {/* V3 hero — brand navy with teal accent rail; replaces legacy emerald-on-amber */}
+        {/* V3 hero — brand navy with teal accent rail + living aurora wash */}
         <div className="mt-6 mb-8">
           <div className="relative rounded-xl px-8 py-7 overflow-hidden"
             style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}>
-            {/* Top teal accent rail */}
-            <div className="absolute top-0 left-0 right-0 h-px"
-              style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(20,184,166,0.55) 30%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.55) 70%, transparent 100%)' }} />
+            {/* Top teal accent rail (canonical TealRail primitive) */}
+            <TealRail />
             {/* Subtle grid texture (kept) */}
-            <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'repeating-linear-gradient(0deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px),repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px)' }} />
-            {/* Teal accent glow (was amber) */}
-            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full blur-3xl"
-              style={{ background: 'rgba(20,184,166,0.20)' }} />
+            <div className="absolute inset-0 opacity-[0.04]" aria-hidden="true" style={{ backgroundImage: 'repeating-linear-gradient(0deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px),repeating-linear-gradient(90deg,#fff 0px,#fff 1px,transparent 1px,transparent 32px)' }} />
+            {/* Living aurora wash — teal/amber/sky drift (reduced-motion: static).
+                Replaces the former single static teal glow blob. */}
+            <div className="absolute inset-0 lp-aurora opacity-60 pointer-events-none" aria-hidden="true" />
 
             <div className="relative flex items-start justify-between gap-6">
-              <div>
+              <MountReveal>
                 <div className="flex items-center gap-2.5 mb-2">
-                  {/* Pulsing dot mirrors the Library "data refreshed" treatment —
-                      visual signal that this is a live, growing surface. */}
+                  {/* Pulsing dot — visual signal that this is a live, growing surface. */}
                   <span className="relative inline-flex w-1.5 h-1.5 shrink-0">
                     <span
                       className="absolute inline-flex h-full w-full rounded-full opacity-70 animate-ping"
@@ -202,7 +230,9 @@ export default function Glossary() {
                     style={{ color: '#5EEAD4' }}>Reference</span>
                   <span className="w-px h-3" style={{ background: 'rgba(20,184,166,0.40)' }} />
                   <span className="font-mono text-[10px] tracking-wider"
-                    style={{ color: 'rgba(255,255,255,0.55)' }}>{terms.length} TERMS</span>
+                    style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    <CountUp value={terms.length} /> TERMS
+                  </span>
                 </div>
                 <h1 className="font-serif text-3xl font-semibold text-white tracking-tight"
                   style={{ letterSpacing: '-0.02em' }}>Industry Glossary</h1>
@@ -210,9 +240,9 @@ export default function Glossary() {
                   style={{ color: 'rgba(255,255,255,0.65)' }}>
                   Definitions for every key term used across Tractova — from program structures and dev stages to interconnection mechanics. Built for practitioners, not generalists.
                 </p>
-              </div>
+              </MountReveal>
               {/* Decorative monospace tag — V3 teal */}
-              <div className="hidden sm:block shrink-0 text-right">
+              <div className="hidden sm:block shrink-0 text-right" aria-hidden="true">
                 <div className="font-mono text-[10px] leading-5 select-none"
                   style={{ color: 'rgba(94,234,212,0.40)' }}>
                   <div>offtake · ix · site</div>
@@ -225,8 +255,9 @@ export default function Glossary() {
         </div>
 
         {/* Search input + typeahead dropdown */}
+        <MountReveal delay={0.08}>
         <div ref={searchRef} className="relative max-w-sm mb-6">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input
@@ -235,6 +266,7 @@ export default function Glossary() {
             onChange={handleQueryChange}
             onFocus={() => { if (query.trim()) setShowDropdown(true) }}
             placeholder="Search terms..."
+            aria-label="Search glossary terms"
             className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-hidden focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-colors"
           />
           {query && (
@@ -243,7 +275,7 @@ export default function Glossary() {
               aria-label="Clear search"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
@@ -251,7 +283,7 @@ export default function Glossary() {
 
           {/* Typeahead dropdown */}
           {showDropdown && suggestions.length > 0 && (
-            <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+            <ul className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden max-h-72 overflow-y-auto">
               {suggestions.map((t) => (
                 <li key={t.term} className="border-b border-gray-50 last:border-0">
                   <button
@@ -268,10 +300,12 @@ export default function Glossary() {
             </ul>
           )}
         </div>
+        </MountReveal>
 
         {/* Pillar filter buttons */}
-        <div className="flex items-center gap-2 mb-6">
-          <span className="text-xs text-gray-400 font-medium mr-1">Pillar:</span>
+        <MountReveal delay={0.12}>
+        <div className="flex items-center flex-wrap gap-2 mb-8">
+          <span className="text-xs text-gray-500 font-medium mr-1">Pillar:</span>
           <button
             onClick={() => setPillar(null)}
             className={`text-xs px-3 py-1.5 rounded border font-medium transition-colors ${
@@ -296,80 +330,122 @@ export default function Glossary() {
             </button>
           ))}
         </div>
+        </MountReveal>
 
-        {/* Term list */}
-        {filtered.length > 0 ? (
-          <div className="grid gap-4">
-            {filtered.map((t) => (
-              <div
-                key={t.term}
-                id={toSlug(t.term)}
-                ref={(el) => { cardRefs.current[t.term] = el }}
-                className={`bg-white border rounded-lg px-6 py-5 transition-all duration-700 ${
-                  highlighted === t.term
-                    ? 'border-teal-500 ring-2 ring-teal-500/25 bg-teal-50/40'
-                    : 'border-gray-200'
-                }`}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2.5 flex-wrap">
-                      <button
-                        onClick={() => copyAnchorLink(t.term)}
-                        title="Copy link to this term"
-                        className="group flex items-center gap-1.5 font-serif text-lg font-semibold text-ink hover:text-teal-700 transition-colors"
-                        style={{ letterSpacing: '-0.015em' }}
+        {/* Term list — grouped A–Z */}
+        {letterGroups.length > 0 ? (
+          <div className="space-y-8">
+            {letterGroups.map((group) => (
+              <section key={group.letter}>
+                <h2
+                  id={group.id}
+                  className="scroll-mt-20 font-serif text-2xl font-semibold mb-3 flex items-center gap-3"
+                  style={{ color: '#5A6B7A' }}
+                >
+                  {group.letter}
+                  <span className="flex-1 h-px" style={{ background: '#E2E8F0' }} />
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-gray-400">
+                    {group.terms.length}
+                  </span>
+                </h2>
+                <AnimatedList as="div" itemAs="div" delay={0.04} className="grid gap-4">
+                  {group.terms.map((t) => (
+                    <div
+                      key={t.term}
+                      id={toSlug(t.term)}
+                      ref={(el) => { cardRefs.current[t.term] = el }}
+                      className="scroll-mt-20"
+                    >
+                      <SpotlightCard
+                        glow="rgba(20,184,166,0.14)"
+                        size={280}
+                        className={`group rounded-lg border px-6 py-5 overflow-hidden transition-all duration-300 motion-reduce:transition-none hover:-translate-y-0.5 motion-reduce:hover:translate-y-0 hover:shadow-[0_12px_30px_-12px_rgba(20,184,166,0.25)] ${
+                          highlighted === t.term
+                            ? 'border-teal-500 ring-2 ring-teal-500/25'
+                            : 'border-gray-200 hover:border-teal-300'
+                        }`}
+                        style={{ backgroundColor: highlighted === t.term ? 'rgba(20,184,166,0.05)' : '#ffffff' }}
                       >
-                        {t.term}
-                        <svg
-                          width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                          className="opacity-0 group-hover:opacity-40 transition-opacity shrink-0"
-                        >
-                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                        </svg>
-                      </button>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${PILLAR_BADGE[t.pillar]}`}>
-                        {PILLAR_LABEL[t.pillar]}
-                      </span>
-                      {copyState.term === t.term && (
-                        <span
-                          className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold transition-opacity"
-                          style={{ color: copyState.status === 'ok' ? '#0F766E' : '#B45309' }}
-                        >
-                          {copyState.status === 'ok' ? 'Copied' : 'Copy failed'}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2 leading-relaxed">{t.definition}</p>
+                        <TealRail className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 motion-reduce:transition-none" />
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <button
+                                onClick={() => copyAnchorLink(t.term)}
+                                title="Copy link to this term"
+                                className="group/copy flex items-center gap-1.5 font-serif text-lg font-semibold text-ink hover:text-teal-700 transition-colors"
+                                style={{ letterSpacing: '-0.015em' }}
+                              >
+                                {t.term}
+                                <svg
+                                  width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                  className="opacity-0 group-hover/copy:opacity-40 transition-opacity shrink-0"
+                                >
+                                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                </svg>
+                              </button>
+                              <span className={`text-xs px-1.5 py-0.5 rounded-sm border font-medium ${PILLAR_BADGE[t.pillar]}`}>
+                                {PILLAR_LABEL[t.pillar]}
+                              </span>
+                              {copyState.term === t.term && (
+                                <span
+                                  className="font-mono text-[9px] uppercase tracking-[0.18em] font-semibold transition-opacity"
+                                  style={{ color: copyState.status === 'ok' ? '#0F766E' : '#B45309' }}
+                                >
+                                  {copyState.status === 'ok' ? 'Copied' : 'Copy failed'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2 leading-relaxed">{t.definition}</p>
 
-                    {/* Related terms */}
-                    {t.related?.length > 0 && (
-                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-gray-100">
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.20em] text-ink-muted">See also</span>
-                        {t.related.map((r) => (
-                          <button
-                            key={r}
-                            onClick={() => scrollToTerm(r)}
-                            className="text-xs hover:underline transition-colors py-2 -my-1.5 px-1 -mx-0.5"
-                            style={{ color: '#0F766E' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.color = '#0A1828' }}
-                            onMouseLeave={(e) => { e.currentTarget.style.color = '#0F766E' }}
-                          >
-                            {r}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                            {/* Related terms — hover to preview the target definition */}
+                            {t.related?.length > 0 && (
+                              <div className="flex items-center flex-wrap gap-x-3 gap-y-1 mt-3 pt-3 border-t border-gray-100">
+                                <span className="font-mono text-[10px] font-bold uppercase tracking-[0.20em] text-ink-muted">See also</span>
+                                {t.related.map((r) => (
+                                  <SeeAlsoLink key={r} term={r} onClick={() => scrollToTerm(r)} />
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </SpotlightCard>
+                    </div>
+                  ))}
+                </AnimatedList>
+              </section>
             ))}
           </div>
         ) : (
-          <div className="text-sm text-gray-400 italic">
+          <div className="text-sm text-gray-500 italic">
             No terms match &ldquo;{query}&rdquo;
             {pillar && <span> in <span className="font-medium">{PILLAR_LABEL[pillar]}</span></span>}
+          </div>
+        )}
+
+        {/* Footer CTA — reference surfaces connect (Glossary ↔ About + ⌘K) */}
+        {letterGroups.length > 0 && (
+          <div className="mt-10">
+            <SpotlightCard
+              glow="rgba(20,184,166,0.14)"
+              size={360}
+              className="group relative rounded-lg border border-gray-200 bg-white px-6 py-5 overflow-hidden flex items-center justify-between gap-4 flex-wrap"
+            >
+              <TealRail className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 motion-reduce:transition-none" />
+              <div>
+                <p className="font-serif text-base font-semibold text-ink">Missing a term?</p>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Press <kbd className="font-mono text-[11px] px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50 text-gray-600">⌘K</kbd> to search the whole platform — or read the story behind Tractova.
+                </p>
+              </div>
+              <Link
+                to="/about"
+                className="shrink-0 inline-flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:border-primary hover:text-primary transition-colors"
+              >
+                About Tractova →
+              </Link>
+            </SpotlightCard>
           </div>
         )}
       </main>
