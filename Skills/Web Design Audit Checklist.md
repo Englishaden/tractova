@@ -215,7 +215,18 @@ Pre-decided proposals to revisit during this phase: view persistence (URL/localS
   - **6e (`6653344`):** §04 Structure Comparison density cuts (header/column/row padding — already a tight table) + §05 pillar-card height 150→134 / py-3.5→py-3 (same ratio as §01–§03). Masthead left (already thin).
   - **⏭ OPEN:** §01 white-space fill (Aden undecided — density done, layout fill not). Needs his prod read on the density level before it's locked.
 
-**→ Lens Waves 1–5 done; Wave 6 (6a–6d) done, 6e pending + needs Aden's prod eyeball on the density level. Then: Glossary, Library — carry the banked primitives (`CopyButton`, `AnimatedList(itemAs)`, `TealRail`, `SpotlightCard`, `ui/Tabs`, rail/sticky-bar).**
+**→ Lens Waves 1–6 done. Then: Glossary (Pass 4 below), Library (later) — carry the banked primitives (`CopyButton`, `AnimatedList(itemAs)`, `TealRail`, `SpotlightCard`, `ui/Tabs`, rail/sticky-bar).**
+
+### Pass 4 — Glossary revamp — ✅ DONE (2026-06-04, commit `1c034b0`)
+
+Public surface (screenshot-verifiable on prod, unlike the Pro-gated Lens). Plan: `.claude/plans/okay-do-the-full-smooth-chipmunk.md`.
+
+- **IA (#20) — demoted from primary nav.** Glossary was a co-equal top-level tab among the daily tools; it's a *reference* surface, so it moved into the account dropdown's "Resources" group alongside **About** (which had no nav link at all). Primary nav = Dashboard / Lens / Library. Inline `GlossaryLabel` tooltips (26 files) + the route + ⌘K `:gloss` all unchanged.
+- **Organization (#8 hierarchy, #5 above-fold):** flat list → **A–Z letter groups** + a fixed right-gutter **A–Z jump rail** (`GlossaryJumpRail`, adapted from `LensSectionRail`; IntersectionObserver active-highlight, xl+ only, self-hides absent letters). Every card stays in the DOM → deep-links + ⌘K intact.
+- **Microinteractions (reduced-motion-safe):** hero `.lp-aurora` wash + `TealRail` + `MountReveal` text-reveal + `CountUp` term count · per-letter `AnimatedList` stagger · `SpotlightCard` cursor-glow + hover-lift + hover-only `TealRail` on cards · see-also hover-previews (`SeeAlsoLink` via shared `Tooltip`) · existing search match-highlight + copy feedback + deep-link flash kept.
+- **#17 a11y:** decorative SVGs `aria-hidden`, search `aria-label`, real `<h2>` letter headings, rail `<nav aria-label>` + `aria-current`. **#11/#12 mobile:** rail hidden, single column, chips wrap. **#18:** aurora confined to hero; cards stay solid white (glow is faint, text contrast holds).
+- New: `TealRail` gained an optional `className` (hover-fade on cards). 2 new components (`GlossaryJumpRail`, `SeeAlsoLink`). `BriefDrilldown.jsx` from Lens 6c still orphaned (git-rm deny-listed).
+- **⏭ Aden:** prod eyeball (public URL). **Library = separate plan, later.**
 
 ---
 

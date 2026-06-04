@@ -4,6 +4,17 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-04 — Glossary revamp DONE · NEXT = Library (separate plan)
+
+Full Glossary revamp shipped (commit `1c034b0`; plan in `.claude/plans/okay-do-the-full-smooth-chipmunk.md`; audit ledger Pass 4). Lens (Waves 1–6) + Dashboard considered **closed out**. **Library is the next major surface — needs its own plan (lots of work), not started.**
+
+- **Demoted from primary nav (Aden's IA call):** Glossary is a reference surface, not a daily tool → removed from the top-level signed-in nav (now **Dashboard / Lens / Library**) and grouped with **About** under a "Resources" block in the account dropdown (`Nav.jsx`). Route + 26 `GlossaryLabel` tooltip consumers + ⌘K `:gloss` untouched.
+- **Page (`src/pages/Glossary.jsx`):** A–Z letter groups + fixed A–Z **jump rail** (`GlossaryJumpRail`, adapted from `LensSectionRail`); hero `.lp-aurora` wash + `TealRail` + `MountReveal` + `CountUp`; `SpotlightCard` cursor-glow cards + hover-lift + `AnimatedList` stagger; see-also hover-previews (`SeeAlsoLink`); footer CTA → About + ⌘K. All reduced-motion-safe; a11y + mobile passes done. Every card kept in DOM → deep-links + ⌘K intact.
+- **New/changed:** `src/components/glossary/{GlossaryJumpRail,SeeAlsoLink}.jsx`; `TealRail` gained optional `className`. Verify-green (lints + 175 unit + build + 7/7 smoke; one flaky preview-server run, clean on re-run).
+- **⏭ Aden:** Glossary is **public** → eyeball on prod directly. **Decision still open from Lens:** §01 white-space fill (dropped/closed unless you revisit).
+
+---
+
 ## 🟢 Pickup — 2026-06-03 — Lens Wave 6 (prod-review redesign) · 6a–6d done, 6e + prod-eyeball pending
 
 **From Aden's prod screenshots.** North star he set: **each section fits one viewport at 100%** (felt 100% too large, "better at ~85%"). All verify-green + pushed; **NOT yet visually verified by Aden** — the density level was calibrated on §01 and propagated; wants his eyeball before 6e.
