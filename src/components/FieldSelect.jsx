@@ -1,16 +1,51 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Custom select dropdown (replaces native <select> for Stage + Technology)
+// Custom select dropdown (replaces native <select>)
+//
+// The menu is rendered through a PORTAL to document.body, positioned fixed at
+// the trigger's viewport rect. This is deliberate: the Lens result sections each
+// carry a scroll-driven opacity+transform (.lens-reveal → useLensReveal), which
+// creates a per-section stacking context. An in-flow absolute menu (even z-50)
+// therefore paints BEHIND later sections (§04/§05 bled through the §03 Levers
+// dropdown). Portaling to body escapes every section stacking context so the
+// menu always paints on top. Position is recomputed on scroll/resize.
 // ─────────────────────────────────────────────────────────────────────────────
 export default function FieldSelect({ label, labelIcon, value, onChange, options, placeholder, required, optionTooltips = {} }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef(null)
+  const [pos, setPos] = useState(null) // {top, left, width} in viewport coords
+  const ref = useRef(null)             // trigger container
+  const menuRef = useRef(null)         // portaled menu
 
+  const updatePos = () => {
+    const el = ref.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setPos({ top: r.bottom + 6, left: r.left, width: r.width })
+  }
+
+  // Position the menu when it opens, and keep it pinned to the trigger as the
+  // page scrolls/resizes (capture:true catches scroll on any ancestor).
+  useLayoutEffect(() => {
+    if (!open) return
+    updatePos()
+    const onMove = () => updatePos()
+    window.addEventListener('scroll', onMove, true)
+    window.addEventListener('resize', onMove)
+    return () => {
+      window.removeEventListener('scroll', onMove, true)
+      window.removeEventListener('resize', onMove)
+    }
+  }, [open])
+
+  // Outside-click closes — but the menu lives in a body portal, so check BOTH
+  // the trigger and the portaled menu before treating a click as "outside".
   useEffect(() => {
     if (!open) return
     const handle = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      if (ref.current?.contains(e.target) || menuRef.current?.contains(e.target)) return
+      setOpen(false)
     }
     document.addEventListener('mousedown', handle)
     return () => document.removeEventListener('mousedown', handle)
@@ -48,17 +83,18 @@ export default function FieldSelect({ label, labelIcon, value, onChange, options
         </span>
         <svg
           width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+          strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
           className={`shrink-0 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
         >
           <polyline points="6 9 12 15 18 9"/>
         </svg>
       </div>
 
-      {open && (
+      {open && pos && createPortal(
         <ul
-          className="absolute z-50 left-0 top-full mt-2 w-full min-w-[180px] bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
-          style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
+          ref={menuRef}
+          className="fixed z-[1000] bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden max-h-60 overflow-y-auto"
+          style={{ top: pos.top, left: pos.left, width: pos.width, minWidth: 180, boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {options.map((opt) => (
@@ -78,7 +114,7 @@ export default function FieldSelect({ label, labelIcon, value, onChange, options
               }`}
             >
               <span className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${value === opt ? 'text-primary' : 'text-transparent'}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
               </span>
@@ -91,7 +127,8 @@ export default function FieldSelect({ label, labelIcon, value, onChange, options
             </li>
             )
           ))}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   )
