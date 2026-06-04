@@ -59,7 +59,7 @@ export default function StructureComparison({
       <div className="rounded-lg overflow-hidden relative" style={{ border: '1px solid rgba(15,26,46,0.10)' }}>
         <TealRail />
         {/* Header strip — research-panel chrome */}
-        <div className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b" style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}>
+        <div className="px-4 py-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b" style={{ background: 'rgba(20,184,166,0.05)', borderColor: 'rgba(15,26,46,0.06)' }}>
           <span className="eyebrow-mono font-bold text-teal-800">Which structure monetizes best here</span>
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] tabular-nums text-gray-500">
             {stateProgram.id} · {size % 1 === 0 ? size : size.toFixed(1)} MW · Standalone PV
@@ -67,7 +67,7 @@ export default function StructureComparison({
         </div>
 
         {/* Column header row */}
-        <div className="px-4 py-1.5 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 bg-white border-b border-gray-100">
+        <div className="px-4 py-1 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 bg-white border-b border-gray-100">
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500">Structure</span>
           <GlossaryLabel term="Offtake" displayAs="Offtake" className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500 text-right justify-self-end" />
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-500 text-right justify-self-end">Coverage</span>
@@ -83,7 +83,7 @@ export default function StructureComparison({
             return (
               <div
                 key={r.structure}
-                className="px-4 py-2.5 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 items-center border-b border-gray-50 last:border-b-0"
+                className="px-4 py-2 grid grid-cols-[1.8fr_0.8fr_1fr] gap-2 items-center border-b border-gray-50 last:border-b-0"
                 style={isBest ? { background: 'rgba(20,184,166,0.06)' } : undefined}
               >
                 <div className="flex items-center gap-2 min-w-0">
