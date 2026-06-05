@@ -15,14 +15,15 @@
     "test:smoke:ui": "playwright test --ui",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
+    "lint:js": "eslint \"src/**/*.{js,jsx}\"",
     "lint:api": "node scripts/lint-api.mjs",
     "lint:citations": "node scripts/lint-citations.mjs",
     "lint:secrets": "node scripts/lint-secrets.mjs",
     "lint:audit": "node scripts/audit-check.mjs",
     "lint:locs": "node scripts/lint-locs.mjs",
     "audit:visual": "node scripts/visual-audit.mjs",
-    "verify": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run test:unit && npm run build && npm run test:smoke",
-    "verify:full": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run test:unit && npm run build && npm run test:smoke:all"
+    "verify": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run lint:js && npm run test:unit && npm run build && npm run test:smoke",
+    "verify:full": "npm run lint:api && npm run lint:citations && npm run lint:secrets && npm run lint:audit && npm run lint:locs && npm run lint:js && npm run test:unit && npm run build && npm run test:smoke:all"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.1",
@@ -60,6 +61,10 @@
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/postcss": "^4.2.4",
     "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^15.15.0",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.5.14",
     "tailwindcss": "^4.2.4",
