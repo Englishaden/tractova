@@ -26,7 +26,6 @@ export default function ProjectDrawer({
   stateProgramMap,
   countyDataMap,
   stateDeltaMap,
-  scenariosMap,
   shareCountMap,
   selectedIds,
   onToggleSelect,
@@ -35,7 +34,6 @@ export default function ProjectDrawer({
   onFollowUpChange,
   onRequestRemove,
   onShareSuccess,
-  onScenarioDelete,
 }) {
   const reduced = useReducedMotion()
 
@@ -118,8 +116,6 @@ export default function ProjectDrawer({
                       selected={selectedIds?.has(project.id) || false}
                       onToggleSelect={() => onToggleSelect?.(project.id)}
                       selectionActive={selectedIds && selectedIds.size > 0}
-                      scenarios={scenariosMap?.[project.id] || []}
-                      onScenarioDelete={(snapId) => onScenarioDelete?.(project.id, snapId)}
                     />
                   ) : (
                     <p className="text-xs text-ink-muted text-center py-6">No project selected.</p>

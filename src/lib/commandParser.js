@@ -25,7 +25,6 @@
 export const VERBS = {
   lens:      { syntax: ':lens <STATE> [<MW>] [<TECH>]', summary: 'Run a new Lens analysis' },
   portfolio: { syntax: ':portfolio',                    summary: 'Open Library' },
-  scenarios: { syntax: ':scenarios',                    summary: 'Library — Scenarios tab' },
   rerun:     { syntax: ':rerun <project>',              summary: 'Re-run Lens for a saved project' },
   gloss:     { syntax: ':gloss <TERM>',                 summary: 'Jump to a glossary term' },
   state:     { syntax: ':state <ID>',                   summary: 'State snapshot on Dashboard' },
@@ -126,7 +125,6 @@ export function parseCommand(query, ctx = {}) {
   switch (verbName) {
     case 'help':      return runHelp()
     case 'portfolio': return runStaticVerb('portfolio', 'Open Library',                  'Saved projects portfolio', '/library')
-    case 'scenarios': return runStaticVerb('scenarios', 'Open Library — Scenarios',      'Scenario snapshots tab',    '/library?tab=scenarios')
     case 'new':       return runStaticVerb('new',       'Start a new Lens analysis',     'Clear form',                '/search?new=1')
     case 'state':     return runState(rawArgs, stateIds)
     case 'gloss':     return runGloss(rawArgs, glossaryTerms)
@@ -141,7 +139,7 @@ export function parseCommand(query, ctx = {}) {
 
 // Argless verbs land directly on a route; arg-verbs need a trailing
 // space so the user can keep typing their args after autocomplete.
-const ARGLESS_VERBS = new Set(['portfolio', 'scenarios', 'new', 'help'])
+const ARGLESS_VERBS = new Set(['portfolio', 'new', 'help'])
 function verbTakesArgs(v) { return !ARGLESS_VERBS.has(v) }
 
 function verbReferenceItems() {

@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 // Posts to /api/lens-insight 'memo-create' with a pre-generated AI memo +
 // project snapshot. Server returns { token, url, expiresAt }. We copy the
 // fully-qualified URL to clipboard and show a toast.
-export default function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveScore, shareCount = 0, onShareSuccess, selectedScenario = null }) {
+export default function ShareDealMemoButton({ project, stateProgram, countyData, stage, liveScore, shareCount = 0, onShareSuccess }) {
   const [sharing, setSharing] = useState(false)
   // Persistent share confirmation panel -- the transient toast is easy to
   // miss, especially if the user is mid-scroll. We hold the URL inline until
@@ -51,10 +51,6 @@ export default function ShareDealMemoButton({ project, stateProgram, countyData,
           stateProgram: stateOverride,
           countyData,
           memo: memo || { recommendation: 'No AI memo generated; viewing project context only.' },
-          // Optional saved scenario — when the user has one selected on this
-          // card (Include in PDF toggle), it rides the same share so the
-          // recipient sees the deal memo + scenario in a single link.
-          scenario: selectedScenario || null,
         }),
       })
       if (!createRes.ok) {

@@ -1,11 +1,5 @@
 import { Document, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer'
-import { formatScenarioSummary } from '../lib/scenarioEngine'
 import { IX_LABEL } from '../lib/statusMaps.js'
-
-// Legacy saved-scenario PDFs (the frozen Scenarios viewer) still render their
-// stored economics. The synthesized-$ model that produced them was retired in
-// the 2026-05 signal pivot, so the export discloses that explicitly.
-const SCENARIO_DISCLAIMER = 'Legacy figures from Tractova\'s retired financial-sensitivity model (pre-2026-05). Directional only — never investment-grade. Tractova now scores feasibility on signal-based pillars (no synthesized dollars); these saved scenario economics are kept for historical reference.'
 
 // ── V3 Brand tokens ───────────────────────────────────────────────────────────
 // PDF-native fonts only (Times/Courier/Helvetica) so we avoid Font.register
@@ -262,69 +256,7 @@ function AIMemoSection({ memo }) {
 }
 
 // ── PDF Document ──────────────────────────────────────────────────────────────
-// ── Scenario Studio section ──────────────────────────────────────────────────
-// Renders only when the caller passes a saved scenario. Two-column metrics
-// strip (Year 1 revenue + simple payback) + summary line + disclaimer.
-function ScenarioSection({ scenario }) {
-  if (!scenario) return null
-  const out = scenario.outputs || {}
-  const summary = scenario.scenario_inputs && scenario.baseline_inputs
-    ? formatScenarioSummary(
-        { inputs: scenario.scenario_inputs, outputs: out },
-        { inputs: scenario.baseline_inputs },
-      )
-    : ''
-  return (
-    <View>
-      <Text style={s.sectionLabel}>Selected Scenario (legacy) · {scenario.name}</Text>
-      {/* 2x4 metric grid mirrors the Studio output card. Each cell is a
-          tile with a label + bold mono numeric — matches the data-density
-          aesthetic used elsewhere in the PDF. */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 }}>
-        <ScenarioMetricTile label="Year 1 Revenue" value={`$${formatLargeUSD(out.year1Revenue)}`} suffix="/yr" />
-        <ScenarioMetricTile label="Simple Payback" value={out.paybackYears != null ? `${out.paybackYears} yr` : '—'} />
-        <ScenarioMetricTile label="IRR · project" value={out.irr != null && out.irr > 0 ? `${(out.irr * 100).toFixed(1)}%` : '—'} />
-        <ScenarioMetricTile label="IRR · equity" value={out.equityIrr != null && out.equityIrr > 0 ? `${(out.equityIrr * 100).toFixed(1)}%` : '—'} />
-        <ScenarioMetricTile label="NPV" value={out.npv != null ? `$${formatLargeUSD(out.npv)}` : '—'} />
-        <ScenarioMetricTile label="DSCR" value={out.dscr != null ? `${out.dscr.toFixed(2)}x` : '—'} />
-        <ScenarioMetricTile label="LCOE" value={out.lcoe != null ? `$${out.lcoe.toFixed(0)}` : '—'} suffix="/MWh" />
-        <ScenarioMetricTile label="Lifetime Rev" value={out.lifetimeRevenue != null ? `$${formatLargeUSD(out.lifetimeRevenue)}` : '—'} />
-      </View>
-      {summary && (
-        <View style={s.tealBlock}>
-          <Text style={[s.tealText, { fontSize: 8.5 }]}>Inputs: {summary}</Text>
-        </View>
-      )}
-      <View style={[s.grayBlock, { borderLeftColor: AMBER, borderLeftWidth: 2 }]}>
-        <Text style={[s.blockText, { fontSize: 7.5, color: INK_MUTED, lineHeight: 1.4 }]}>
-          {SCENARIO_DISCLAIMER}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-function ScenarioMetricTile({ label, value, suffix }) {
-  return (
-    <View style={{ width: '25%', paddingRight: 6, paddingBottom: 8 }}>
-      <Text style={[s.dataLabel, { width: 'auto', marginBottom: 2 }]}>{label}</Text>
-      <Text style={{ fontSize: 11, fontFamily: FONT_MONO_BOLD, color: INK }}>
-        {value}
-        {suffix && <Text style={{ fontSize: 7, fontFamily: FONT_MONO, color: INK_MUTED }}> {suffix}</Text>}
-      </Text>
-    </View>
-  )
-}
-
-function formatLargeUSD(n) {
-  if (n == null) return '—'
-  const abs = Math.abs(n)
-  if (abs >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`
-  if (abs >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-  return Math.round(n).toLocaleString()
-}
-
-function ProjectPDFDoc({ project, current, aiMemo, scenario }) {
+function ProjectPDFDoc({ project, current, aiMemo }) {
   const generatedDate = new Date().toLocaleDateString('en-US', {
     month: 'long', day: 'numeric', year: 'numeric',
   })
@@ -435,14 +367,6 @@ function ProjectPDFDoc({ project, current, aiMemo, scenario }) {
           </>
         )}
 
-        {/* ── Selected Scenario (when scenario provided) ── */}
-        {scenario && (
-          <>
-            <ScenarioSection scenario={scenario} />
-            <View style={s.divider} />
-          </>
-        )}
-
         {/* ── Pipeline ── */}
         <Text style={s.sectionLabel}>Development Pipeline</Text>
         <View style={{ marginBottom: 16 }}>
@@ -474,15 +398,12 @@ function ProjectPDFDoc({ project, current, aiMemo, scenario }) {
 }
 
 // ── Export function ───────────────────────────────────────────────────────────
-// Optional `scenario` is a row from scenario_snapshots (with baseline_inputs +
-// scenario_inputs + outputs + name). When passed, the PDF gains a
-// "Selected Scenario" section between the AI memo and the pipeline visual.
-export async function exportProjectPDF(project, current, aiMemo = null, scenario = null) {
-  const doc  = <ProjectPDFDoc project={project} current={current} aiMemo={aiMemo} scenario={scenario} />
+export async function exportProjectPDF(project, current, aiMemo = null) {
+  const doc  = <ProjectPDFDoc project={project} current={current} aiMemo={aiMemo} />
   const blob = await pdf(doc).toBlob()
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
-  const suffix = aiMemo ? '-deal-memo' : (scenario ? '-scenario' : '')
+  const suffix = aiMemo ? '-deal-memo' : ''
   a.href     = url
   a.download = `${(project.name || 'project').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-tractova${suffix}.pdf`
   a.click()

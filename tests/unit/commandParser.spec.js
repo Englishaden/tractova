@@ -214,9 +214,6 @@ describe('parseCommand — static verbs', () => {
   it(':portfolio → /library', () => {
     expect(parseCommand(':portfolio', ctx).items[0].path).toBe('/library')
   })
-  it(':scenarios → /library?tab=scenarios', () => {
-    expect(parseCommand(':scenarios', ctx).items[0].path).toBe('/library?tab=scenarios')
-  })
   it(':new → /search?new=1', () => {
     expect(parseCommand(':new', ctx).items[0].path).toBe('/search?new=1')
   })

@@ -144,7 +144,6 @@ export default function ProjectTable({
   stateProgramMap,
   countyDataMap,
   stateDeltaMap,
-  scenariosMap,
   shareCountMap,
   selectedIds,
   onToggleSelect,
@@ -153,7 +152,6 @@ export default function ProjectTable({
   onFollowUpChange,
   onRequestRemove,
   onShareSuccess,
-  onScenarioDelete,
 }) {
   const [expandedId, setExpandedId] = useState(null)
 
@@ -295,8 +293,6 @@ export default function ProjectTable({
                     selected={isSelected}
                     onToggleSelect={() => onToggleSelect?.(p.id)}
                     selectionActive={selectedIds && selectedIds.size > 0}
-                    scenarios={scenariosMap?.[p.id] || []}
-                    onScenarioDelete={(snapId) => onScenarioDelete?.(p.id, snapId)}
                     defaultExpanded
                   />
                 </div>

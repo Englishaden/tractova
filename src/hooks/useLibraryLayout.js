@@ -60,7 +60,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
   const [filterStage,      setFilterStage]      = useState('')
   const [filterTags,       setFilterTags]       = useState([])         // AND-match against project.tags
   const [pipelineExpanded, setPipelineExpanded] = useState(false)
-  const [viewMode,         setViewMode]         = useState('projects') // 'projects' | 'scenarios' | 'comparisons'
+  const [viewMode,         setViewMode]         = useState('projects') // 'projects' | 'comparisons'
   const [layout,           setLayoutState]      = useState(loadLayout) // 'cards' | 'table' | 'map'
   const [drawerProject,    setDrawerProject]    = useState(null)       // map-pin → slide-in
   const [pageSize,         setPageSizeState]    = useState(loadPageSize)
@@ -73,13 +73,11 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     setPage(1)  // reset so the user always sees the top of the new window
   }, [])
 
-  // ?tab=scenarios | ?tab=comparisons URL handling so external links
-  // (e.g. the "view in Library →" confirmation card in ScenarioStudio)
-  // can land directly on a non-default tab. Only applies on mount.
+  // ?tab=comparisons URL handling so external links can land directly on the
+  // Comparisons tab. Only applies on mount.
   const [searchParams] = useSearchParams()
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab === 'scenarios')   setViewMode('scenarios')
     if (tab === 'comparisons') setViewMode('comparisons')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

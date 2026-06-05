@@ -18,7 +18,8 @@ Waves (each verify-green + pushed):
 - **4 `570021c`** — **`SavedViewsMenu`** (snapshot/restore {filters, tags, search, sort} via `saved_views`; silent-RLS-fail like SavedComparisonsList).
 - **5 (this commit)** — **polish:** `SpotlightCard` glow on KPI tiles + `TealRail` on the intelligence drawer; command-bar search full-width on phones. **Deferred:** ScoreGauge/MiniArcGauge parametric unification (both work; risk > value).
 
-**Carried loose end:** `src/components/BriefDrilldown.jsx` still orphaned (git-rm deny-listed).
+**Scenarios feature removed (2026-06-04, follow-on):** financial/scenario modeling is out of the product (it stays behind the scenes in policy/card feasibility calcs). Pulled the Library "Scenarios" tab + fetch/state, the ProjectCard scenario badge/picker/delete-modal, the PDF + share-memo + MemoView scenario embedding, the `:scenarios` command/shortcut, and the Lens-save orphan auto-promotion. **Kept:** `DevFeasibilityView` + `leverAdjustments` (Lens levers — NOT financials), `scoreEngine` weight scenarios, `denormalizeTech`, the **Comparisons** tab, and the `scenario_snapshots` **table** (no data drop — Aden's call). Toggle is now Projects · Comparisons. Build + 174 unit + 7 smoke green.
+**Carried loose ends (orphaned, git-rm deny-listed → clean up together):** `src/components/BriefDrilldown.jsx`, `src/components/ScenariosView.jsx`, `src/components/ScenarioHistoryList.jsx`, `src/lib/orphanConversion.js`. (`scenarioEngine.js` kept — still exports `denormalizeTech`/`formatScenarioSummary`.)
 **⏭ Next:** Aden applies the 3 migrations → prod-eyeball the Library as a Pro user (board DnD, tag/follow-up chips, saved views, due-this-week roll-up). Tag/follow-up edits bubble live from Cards + Table + Drawer (all threaded). Optional follow-up: ScoreGauge/MiniArcGauge parametric unification (deferred — both work).
 
 ---

@@ -59,14 +59,6 @@ const COMMANDS = [
     body: 'Opens your saved projects portfolio.',
   },
   {
-    verb: ':scenarios',
-    label: 'Library — Scenarios tab',
-    syntax: ':scenarios',
-    example: ':scenarios',
-    invoke: 'type :scenarios',
-    body: 'Jumps directly to the Scenarios tab inside the Library — your saved Scenario Studio snapshots.',
-  },
-  {
     verb: ':rerun',
     label: 'Re-run a saved project',
     syntax: ':rerun <PROJECT NAME>',

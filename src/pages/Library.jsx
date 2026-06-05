@@ -11,7 +11,6 @@ import MountReveal from '../components/ui/MountReveal'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
-import { convertOrphanGroupToProject } from '../lib/orphanConversion'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { logProjectEvent } from '../lib/projectEvents'
@@ -24,7 +23,6 @@ const WalkingTractovaMark   = lazy(() => import('../components/WalkingTractovaMa
 import { getAlerts } from '../lib/alertHelpers'
 import { buildExportRows, buildMethodologySheet, buildGlossarySheet } from '../lib/exportHelpers'
 import ProjectCard from '../components/ProjectCard.jsx'
-import ScenariosView from '../components/ScenariosView.jsx'
 import SavedComparisonsList from '../components/library/SavedComparisonsList.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryCommandBar from '../components/library/LibraryCommandBar.jsx'
@@ -189,7 +187,7 @@ async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
 export default function Library() {
   const { isPro, loading: subLoading } = useSubscription()
   // Mobile gets a cards-only view that drops the desktop toolbar, view
-  // toggle, map, table, bulk-actions, and Comparisons/Scenarios tabs.
+  // toggle, map, table, bulk-actions, and the Comparisons tab.
   // Paywall still applies — MobileLibrary is rendered after the Pro gate.
   const isMobile = useIsMobile()
   if (subLoading) return <div className="min-h-screen bg-surface" />
@@ -212,8 +210,6 @@ function LibraryContent() {
   const [stateDeltaMap,   setStateDeltaMap]   = useState(new Map()) // state_id -> { delta, prevScore, latestAt, ... }
   const [countyDataMap,   setCountyDataMap]   = useState({}) // key `${state}::${county}` -> countyData
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
-  const [scenariosMap,    setScenariosMap]    = useState({})         // project_id -> [{id, name, scenario_inputs, baseline_inputs, outputs, created_at, state_id, county_name, technology}, ...]
-  const [orphanScenarios, setOrphanScenarios] = useState([])         // [{... same shape, project_id: null}] — scenarios saved without a linked project
   const [savedComparisonsCount, setSavedComparisonsCount] = useState(0) // count for the Comparisons tab's "· N" badge
 
   // View-state stack — owns filters, sort, viewMode (Projects/Scenarios/
@@ -372,39 +368,6 @@ function LibraryContent() {
     window.addEventListener('tractova:saved-comparisons-changed', onChange)
     return () => { cancelled = true; window.removeEventListener('tractova:saved-comparisons-changed', onChange) }
   }, [user])
-
-  // All scenarios for the user — one batched query, then split into
-  // per-project map (for the Library card chip) + orphan list (for the
-  // Library "Scenarios" view tab). Orphans are scenarios saved during
-  // Lens exploration BEFORE the user committed the project to Library;
-  // pre-Phase-2.6 they were invisible. Now they surface in the global
-  // Scenarios view + auto-promote to a project on next save (Search.jsx).
-  useEffect(() => {
-    if (!user) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('scenario_snapshots')
-          .select('id, project_id, name, baseline_inputs, scenario_inputs, outputs, created_at, state_id, county_name, technology')
-          .order('created_at', { ascending: false })
-        if (cancelled || error || !data) return
-        const grouped = {}
-        const orphans = []
-        for (const row of data) {
-          if (row.project_id) {
-            if (!grouped[row.project_id]) grouped[row.project_id] = []
-            grouped[row.project_id].push(row)
-          } else {
-            orphans.push(row)
-          }
-        }
-        setScenariosMap(grouped)
-        setOrphanScenarios(orphans)
-      } catch { /* table missing or RLS denial -- silent */ }
-    })()
-    return () => { cancelled = true }
-  }, [user, projects.length])
 
   // V3 §4.3 audit log: detect score shifts since last observation and log
   // them as 'score_change' events. Runs once when both projects + state map
@@ -740,12 +703,10 @@ function LibraryContent() {
           />
         )}
 
-        {/* View toggle — Projects vs Scenarios. The Scenarios view exposes
-            saved scenarios that don't yet have a project attached (orphan
-            scenarios from Lens exploration), grouped by state + county +
-            tech. Always visible so users can find scenarios even before
-            they've saved any projects. */}
-        {(projects.length > 0 || orphanScenarios.length > 0 || Object.keys(scenariosMap).length > 0) && (
+        {/* View toggle — Projects vs Comparisons. (Scenarios removed
+            2026-06-04 — financial/scenario modeling is out of the product;
+            feasibility $ stays behind the scenes in policy/card calcs.) */}
+        {(projects.length > 0 || savedComparisonsCount > 0) && (
           <div className="flex items-center gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'rgba(15,26,46,0.04)' }}>
             <button
               type="button"
@@ -756,19 +717,6 @@ function LibraryContent() {
                 : { background: 'transparent', color: '#6B7280' }}
             >
               Projects {projects.length > 0 && <span className="font-mono opacity-60">· {projects.length}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('scenarios')}
-              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
-              style={viewMode === 'scenarios'
-                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
-                : { background: 'transparent', color: '#6B7280' }}
-            >
-              Scenarios {(() => {
-                const total = orphanScenarios.length + Object.values(scenariosMap).reduce((n, arr) => n + arr.length, 0)
-                return total > 0 ? <span className="font-mono opacity-60">· {total}</span> : null
-              })()}
             </button>
             <button
               type="button"
@@ -788,43 +736,6 @@ function LibraryContent() {
             load when most users land on Projects. */}
         {viewMode === 'comparisons' && !loading && (
           <SavedComparisonsList />
-        )}
-
-        {/* Scenarios view — grouped by Lens context. */}
-        {viewMode === 'scenarios' && !loading && (
-          <ScenariosView
-            scenariosMap={scenariosMap}
-            orphanScenarios={orphanScenarios}
-            projects={projects}
-            onScenarioDelete={async (snap) => {
-              const { error } = await supabase.from('scenario_snapshots').delete().eq('id', snap.id)
-              if (error) return
-              if (snap.project_id) {
-                setScenariosMap(prev => ({
-                  ...prev,
-                  [snap.project_id]: (prev[snap.project_id] || []).filter(s => s.id !== snap.id),
-                }))
-              } else {
-                setOrphanScenarios(prev => prev.filter(s => s.id !== snap.id))
-              }
-            }}
-            onConvertOrphan={async (group) => {
-              // Phase 2C — orphan → project. Supabase logic lives in
-              // `lib/orphanConversion.js`; Library handles optimistic UI.
-              if (!user || !group?.scenarios?.length) return
-              const sp = stateProgramMap[group.state] || null
-              const cd = countyDataMap[`${group.state}::${group.county}`] || null
-              const inserted = await convertOrphanGroupToProject({ group, userId: user.id, stateProgram: sp, countyData: cd })
-              if (!inserted) return
-              const ids = group.scenarios.map(s => s.id)
-              setProjects(prev => [normalize(inserted), ...prev])
-              setScenariosMap(prev => ({
-                ...prev,
-                [inserted.id]: group.scenarios.map(s => ({ ...s, project_id: inserted.id })),
-              }))
-              setOrphanScenarios(prev => prev.filter(s => !ids.includes(s.id)))
-            }}
-          />
         )}
 
         {/* Loading skeleton */}
@@ -1004,7 +915,6 @@ function LibraryContent() {
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
                     stateDeltaMap={stateDeltaMap}
-                    scenariosMap={scenariosMap}
                     shareCountMap={shareCountMap}
                     selectedIds={selectedIds}
                     onToggleSelect={toggleSelect}
@@ -1013,10 +923,6 @@ function LibraryContent() {
                     onFollowUpChange={handleFollowUpChange}
                     onRequestRemove={handleRequestRemove}
                     onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
-                    onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
-                      ...prev,
-                      [projectId]: (prev[projectId] || []).filter(s => s.id !== snapId),
-                    }))}
                   />
                 </Suspense>
               ) : layout === 'board' ? (
@@ -1049,11 +955,6 @@ function LibraryContent() {
                     selected={selectedIds.has(p.id)}
                     onToggleSelect={() => toggleSelect(p.id)}
                     selectionActive={displayProjects.length > 1}
-                    scenarios={scenariosMap[p.id] || []}
-                    onScenarioDelete={(snapId) => setScenariosMap(prev => ({
-                      ...prev,
-                      [p.id]: (prev[p.id] || []).filter(s => s.id !== snapId),
-                    }))}
                   />
                 ))}
               </div>
@@ -1148,7 +1049,7 @@ function LibraryContent() {
             <DialogTitle>Remove {selectedIds.size} project{selectedIds.size === 1 ? '' : 's'}?</DialogTitle>
           </div>
           <DialogDescription>
-            This will permanently delete <span className="font-semibold text-ink">{selectedIds.size}</span> project{selectedIds.size === 1 ? '' : 's'} from your Library. Saved scenarios, share links, and alert history for these projects will also be removed. This cannot be undone.
+            This will permanently delete <span className="font-semibold text-ink">{selectedIds.size}</span> project{selectedIds.size === 1 ? '' : 's'} from your Library. Share links and alert history for these projects will also be removed. This cannot be undone.
           </DialogDescription>
           <div className="flex items-center justify-end gap-2 mt-5">
             <button
@@ -1180,7 +1081,6 @@ function LibraryContent() {
         stateProgramMap={stateProgramMap}
         countyDataMap={countyDataMap}
         stateDeltaMap={stateDeltaMap}
-        scenariosMap={scenariosMap}
         shareCountMap={shareCountMap}
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
@@ -1189,10 +1089,6 @@ function LibraryContent() {
         onFollowUpChange={handleFollowUpChange}
         onRequestRemove={handleRequestRemove}
         onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
-        onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
-          ...prev,
-          [projectId]: (prev[projectId] || []).filter(s => s.id !== snapId),
-        }))}
       />
     </div>
   )

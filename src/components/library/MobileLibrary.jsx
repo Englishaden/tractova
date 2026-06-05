@@ -147,7 +147,7 @@ export default function MobileLibrary() {
         </h1>
         <p className="text-[12px] mt-1.5" style={{ color: 'rgba(15,26,46,0.62)' }}>
           {projects.length} project{projects.length === 1 ? '' : 's'} · cards-only mobile view.
-          Use a desktop for the full Lens analysis, compare tray, and scenario studio.
+          Use a desktop for the full Lens analysis, board, and compare tray.
         </p>
       </header>
 

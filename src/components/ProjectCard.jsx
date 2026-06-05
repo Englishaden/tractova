@@ -4,11 +4,9 @@ import { supabase } from '../lib/supabase'
 import { getCountyData } from '../lib/programData'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs'
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/Dialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import TechLabel from './ui/TechLabel'
 import { getAlerts } from '../lib/alertHelpers'
-import { formatLargeUSD } from '../lib/formatters'
 import AlertChip from './AlertChip.jsx'
 import GlossaryLabel from './ui/GlossaryLabel.jsx'
 import ProjectAuditTimeline from './ProjectAuditTimeline.jsx'
@@ -28,7 +26,7 @@ import {
   IX_LABEL,
 } from '../pages/Library.jsx'
 
-export default function ProjectCard({ project, onRequestRemove, onStageChange, onTagsChange, onFollowUpChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, scenarios = [], onScenarioDelete, defaultExpanded = false }) {
+export default function ProjectCard({ project, onRequestRemove, onStageChange, onTagsChange, onFollowUpChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, defaultExpanded = false }) {
   // defaultExpanded — Phase 2A Table view passes true so a row click
   // expands directly into the full card, not into the collapsed banner
   // (no double-click required).
@@ -101,13 +99,6 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
   // redundancy. Now there's one path: it tries the AI memo, falls back
   // gracefully if the AI call fails or times out.
   const [memoExporting, setMemoExporting] = useState(false)
-  // Scenario selection — when set, the next PDF export embeds this scenario
-  // as a "Selected Scenario" section. null = data-only / no scenario embed.
-  const [selectedScenarioId, setSelectedScenarioId] = useState(null)
-  const [scenariosOpen, setScenariosOpen] = useState(false)
-  // Confirm-delete modal for the in-card scenario picker. Holds the snap
-  // pending confirmation, or null when no modal is open.
-  const [scenarioConfirmDelete, setScenarioConfirmDelete] = useState(null)
   const handleExportDealMemo = async (e) => {
     e.stopPropagation()
     setMemoExporting(true)
@@ -150,11 +141,8 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
         console.warn('[Deal Memo] AI fetch failed; exporting data-only PDF:', err.message)
       }
 
-      const selectedScenario = selectedScenarioId
-        ? scenarios.find(s => s.id === selectedScenarioId) || null
-        : null
       const { exportProjectPDF } = await import('./ProjectPDFExport')
-      await exportProjectPDF({ ...project, notes, stage }, stateOverride, memo, selectedScenario)
+      await exportProjectPDF({ ...project, notes, stage }, stateOverride, memo)
     } finally {
       setMemoExporting(false)
     }
@@ -366,29 +354,6 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
                   </p>
                 </TooltipContent>
               </Tooltip>
-            )}
-            {/* Scenarios badge — promoted from the buried below-footer toggle
-                to the header so users see immediately that this project has
-                saved scenarios attached. Click expands the card AND opens
-                the picker for one-tap access. */}
-            {scenarios.length > 0 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setExpanded(true)
-                  setScenariosOpen(true)
-                }}
-                className="cursor-pointer text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1 transition-all hover:brightness-95"
-                style={{ background: 'rgba(20,184,166,0.12)', color: '#0F766E', borderColor: 'rgba(20,184,166,0.40)', lineHeight: 1 }}
-                aria-label={`${scenarios.length} saved scenario${scenarios.length === 1 ? '' : 's'} — open picker`}
-              >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 3v18h18" />
-                  <path d="M7 14l4-4 4 4 5-5" />
-                </svg>
-                <span className="font-mono tabular-nums">Scenarios · {scenarios.length}</span>
-              </button>
             )}
             {/* Follow-up due chip — Pass 5 Wave 2; shows only for a near
                 next-action (≤14d or overdue). Null-safe pre-migration. */}
@@ -645,84 +610,6 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
             </TabsContent>
           </Tabs>
 
-          {/* ── Saved Scenarios picker ── */}
-          {/* Backed by scenario_snapshots (migration 041) — list filtered to
-              this project_id by the parent's batched query. Opened via the
-              "Scenarios · N" badge in the card header (since 2026-05-01 the
-              chevron toggle here was retired in favor of the header badge,
-              which is impossible to miss). Selecting a scenario marks it for
-              the next PDF export + Share Deal Memo. */}
-          {scenarios.length > 0 && scenariosOpen && (
-            <div className="mt-5 pt-4" style={{ borderTop: '1px solid #E5E7EB' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-[0.20em] font-bold" style={{ color: '#0F766E' }}>
-                    ◆ Saved Scenarios · {scenarios.length}
-                  </span>
-                  {selectedScenarioId && (
-                    <span className="eyebrow-mono px-1.5 py-0.5 rounded-sm" style={{ background: 'rgba(245,158,11,0.15)', color: '#92400E' }}>
-                      1 in next PDF
-                    </span>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setScenariosOpen(false)}
-                  className="cursor-pointer text-[10px] font-medium text-gray-500 hover:text-ink"
-                >
-                  Hide
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {scenarios.map((snap) => {
-                    const isSel = snap.id === selectedScenarioId
-                    const out = snap.outputs || {}
-                    return (
-                      <div
-                        key={snap.id}
-                        className="rounded-md px-3 py-2 transition-colors"
-                        style={{
-                          background: isSel ? 'rgba(20,184,166,0.08)' : '#FAFAF7',
-                          border: isSel ? '1px solid rgba(20,184,166,0.40)' : '1px solid #E5E7EB',
-                        }}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[12px] font-semibold text-ink truncate">{snap.name}</p>
-                            <div className="text-[10px] text-gray-500 tabular-nums mt-0.5">
-                              ${formatLargeUSD(out.year1Revenue)}/yr · {out.paybackYears != null ? `${out.paybackYears}yr payback` : '—'}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setScenarioConfirmDelete(snap)}
-                            className="cursor-pointer text-[10px] text-gray-400 hover:text-red-600 transition-colors px-1"
-                            aria-label={`Delete scenario ${snap.name}`}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        <div className="mt-2 flex items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => setSelectedScenarioId(isSel ? null : snap.id)}
-                            className="text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
-                            style={{
-                              background: isSel ? '#0F766E' : 'rgba(20,184,166,0.12)',
-                              color: isSel ? 'white' : '#0F766E',
-                              border: '1px solid rgba(20,184,166,0.30)',
-                            }}
-                          >
-                            {isSel ? '✓ In next PDF' : 'Include in PDF'}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-              </div>
-            </div>
-          )}
-
           {/* ── Action footer ── */}
           <div className="mt-5 pt-4 flex items-center justify-between gap-2 flex-wrap" style={{ borderTop: '1px solid #E5E7EB' }}>
             <div className="flex items-center gap-3 flex-wrap">
@@ -765,7 +652,6 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
                 liveScore={liveScore}
                 shareCount={shareCount}
                 onShareSuccess={handleShareSuccess}
-                selectedScenario={selectedScenarioId ? scenarios.find(s => s.id === selectedScenarioId) || null : null}
               />
               {/* V3 §Wave 2: Utility Outreach Kit -- consultant-grade pre-app
                   packet (email + study intel + checklists). Pro-gated via
@@ -805,53 +691,6 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
           </div>
         </div>
       )}
-
-      {/* Delete-scenario confirm modal — guards the in-card picker's ✕
-          button so misclicks don't permanently nuke a scenario. Mirrors
-          the confirm pattern in the project remove flow. */}
-      <Dialog open={!!scenarioConfirmDelete} onOpenChange={(open) => { if (!open) setScenarioConfirmDelete(null) }}>
-        <DialogContent>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'rgba(220,38,38,0.08)' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="3 6 5 6 21 6"/>
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                <path d="M10 11v6M14 11v6"/>
-              </svg>
-            </div>
-            <DialogTitle>Delete scenario "{scenarioConfirmDelete?.name}"?</DialogTitle>
-          </div>
-          <DialogDescription>
-            This permanently removes the saved scenario, including its inputs and computed metrics. This can't be undone.
-          </DialogDescription>
-          <div className="flex items-center justify-end gap-2 mt-5">
-            <button
-              type="button"
-              onClick={() => setScenarioConfirmDelete(null)}
-              className="cursor-pointer text-sm text-ink-muted hover:text-ink px-3 py-2 rounded-lg transition-colors"
-            >
-              Keep it
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                const snap = scenarioConfirmDelete
-                if (!snap) return
-                const { error } = await supabase.from('scenario_snapshots').delete().eq('id', snap.id)
-                if (!error && onScenarioDelete) onScenarioDelete(snap.id)
-                if (selectedScenarioId === snap.id) setSelectedScenarioId(null)
-                setScenarioConfirmDelete(null)
-              }}
-              className="cursor-pointer text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-              style={{ background: '#DC2626' }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#B91C1C'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#DC2626'}
-            >
-              Delete scenario
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
