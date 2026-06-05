@@ -6,6 +6,8 @@
 
 ## 🟢 Pickup — 2026-06-04 (eve) — LIBRARY REVAMP (Pass 5) code-complete: Waves 0–5 · ⏭ APPLY MIGRATIONS 073/074/075 + prod-eyeball
 
+**Prod-review polish (2026-06-05, from Aden's screenshots):** killed redundancy + raised the visual bar. (1) Portfolio Intelligence: dropped the 3 KPI tiles (dup of the summary line) + the "Recent Updates" bar (dup of alerts; unique updated/moved signals folded into the summary line); pipeline distribution → one compact **stacked-bar funnel** (CsProgramStatusBar idiom, div-based, click-to-filter + stale dot kept). (2) Command bar → `SpotlightCard` glow + `TealRail`; dropped the redundant "N projects" count; folded the standalone "Select all" row into the bar; fixed the harsh black focus outline on the layout toggle (→ teal ring). (3) Hero subline trimmed (numbers now owned by Portfolio Intelligence — no triple-count). (4) LibraryMap → static aurora wash behind the canvas. Build + 174 unit + 7 smoke green.
+
 **Library Pass 5 — "the big one" — shipped + pushed (main `ed3c873`→HEAD).** Plan `~/.claude/plans/idempotent-prancing-harp.md`; audit ledger Pass 5. Pro-gated → smoke stops at the paywall, so every wave is build + 175-unit + 7-smoke green but **NOT screenshot-verified**. Scope set via Q&A with Aden: full overhaul (all 4 pains), **Cards primary**, keep 3 tabs, bigger than Glossary.
 
 **⚠️ APPLY FIRST — features are DARK until the migrations land (all reads null-safe, app works without them):** **073** `projects.tags text[]` · **074** `projects.follow_up_at` + `follow_up_note` · **075** `saved_views` table. projects UPDATE policy (072) is column-agnostic → no policy change needed.

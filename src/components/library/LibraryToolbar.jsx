@@ -78,9 +78,9 @@ export default function LibraryToolbar({ layout, onLayoutChange, count }) {
               aria-selected={active}
               onClick={() => onLayoutChange(v.id)}
               title={v.hint}
-              className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded transition-all"
+              className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1.5 rounded transition-all focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500/35"
               style={active
-                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
+                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(15,26,46,0.10)' }
                 : { background: 'transparent', color: '#6B7280' }}
             >
               {v.icon}

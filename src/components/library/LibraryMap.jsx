@@ -192,6 +192,22 @@ export default function LibraryMap({
         willChange: 'transform',
       }}
     >
+      {/* Aurora wash — static, low-opacity teal/mint glows pooled in the
+          corners give the slate canvas atmospheric depth (Aurora Background
+          skill idiom) instead of a flat gradient. Sits under the dot-grid +
+          state polygons (z-10 content). Reduced-motion-safe — nothing animates. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: [
+            'radial-gradient(58% 48% at 8% 4%, rgba(20,184,166,0.22), transparent 60%)',
+            'radial-gradient(50% 44% at 94% 98%, rgba(15,118,110,0.18), transparent 62%)',
+            'radial-gradient(38% 34% at 76% 10%, rgba(94,234,212,0.16), transparent 60%)',
+            'radial-gradient(44% 50% at 30% 100%, rgba(45,212,191,0.10), transparent 58%)',
+          ].join(', '),
+        }}
+      />
       {/* ── Header bar — eyebrow + title + ticker stats (under title)
             + filter chip when active ───────────────────────────────── */}
       <div

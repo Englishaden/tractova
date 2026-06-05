@@ -6,7 +6,6 @@ import { useSubscription } from '../hooks/useSubscription'
 import { useLibraryLayout } from '../hooks/useLibraryLayout'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import UpgradePrompt from '../components/UpgradePrompt'
-import CountUp from '../components/ui/CountUp'
 import MountReveal from '../components/ui/MountReveal'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
@@ -616,18 +615,12 @@ function LibraryContent() {
             <div>
               <p className="text-[10px] font-bold tracking-widest uppercase mb-1.5" style={{ color: '#2DD4BF' }}>Deal Tracker</p>
               <h1 className="text-2xl font-serif font-semibold tracking-tight text-white" style={{ letterSpacing: '-0.02em' }}>Library</h1>
+              {/* Subline is brand-only — the projects/MW/alerts numbers live in
+                  the Portfolio Intelligence drawer below (no triple-count). */}
               <p className="text-sm mt-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                {projects.length > 0 ? (
-                  <>
-                    <span className="font-mono"><CountUp value={projects.length} /></span> project{projects.length !== 1 ? 's' : ''}
-                    <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
-                    <span className="font-mono"><CountUp value={projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)} decimals={1} /></span> MW tracked
-                    <span className="mx-1.5" style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
-                    monitored for policy changes
-                  </>
-                ) : (
-                  'Your saved deals — tracked, scored, and monitored for policy changes.'
-                )}
+                {projects.length > 0
+                  ? 'Tracked, scored, and monitored for policy changes.'
+                  : 'Your saved deals — tracked, scored, and monitored for policy changes.'}
               </p>
               {lastRefresh && (
                 <span
@@ -774,6 +767,20 @@ function LibraryContent() {
               layout={layout} onLayoutChange={handleLayoutChange} count={displayProjects.length}
               activeFilterCount={activeFilterCount}
               onClearAll={() => { setFilterState(''); setFilterStructure(''); setFilterStage(''); setFilterTags([]); setSearch('') }}
+              selectAllSlot={
+                selectedIds.size === 0 && displayProjects.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={handleSelectAll}
+                    title="Select all for bulk export, compare, or delete"
+                    className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-1 rounded-md transition-colors"
+                    style={{ color: '#0F766E', background: 'rgba(20,184,166,0.07)', border: '1px solid rgba(20,184,166,0.22)' }}
+                  >
+                    <span className="w-3 h-3 rounded-sm border flex items-center justify-center" style={{ borderColor: 'rgba(15,118,110,0.4)' }} aria-hidden="true" />
+                    Select all {displayProjects.length}
+                  </button>
+                ) : null
+              }
               savedViewsSlot={
                 <SavedViewsMenu
                   currentView={{ filterState, filterStructure, filterStage, tags: filterTags, search, sortBy }}
@@ -789,25 +796,6 @@ function LibraryContent() {
                 />
               }
             />
-
-            {/* Inline "Select all" affordance — discreet text-button visible
-                BEFORE any selection is active so the affordance is
-                discoverable. Without this, users have to click one card's
-                checkbox first to learn the bulk toolbar exists. */}
-            {selectedIds.size === 0 && displayProjects.length > 1 && (
-              <div className="mb-2 flex items-center gap-3 text-[11px] font-mono">
-                <button
-                  type="button"
-                  onClick={handleSelectAll}
-                  className="font-medium uppercase tracking-[0.16em] hover:underline transition-colors"
-                  style={{ color: '#0F766E' }}
-                >
-                  Select all {displayProjects.length} →
-                </button>
-                <span className="text-gray-300">·</span>
-                <span className="text-gray-400">for bulk export, compare, or delete</span>
-              </div>
-            )}
 
             {/* Bulk-operations toolbar — appears as a sticky bar at the top
                 of the grid when ≥1 project is selected via the per-card

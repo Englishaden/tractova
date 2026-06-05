@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import CountUp from '../ui/CountUp'
-import SpotlightCard from '../ui/SpotlightCard'
 import TealRail from '../ui/TealRail'
 import WeeklySummaryCard from './WeeklySummaryCard'
 import { getAlerts } from '../../lib/alertHelpers'
@@ -90,7 +89,6 @@ export default function PortfolioIntelligence({
       }
     })
   }, [projects])
-  const maxCount = Math.max(...stageCounts.map(s => s.count), 1)
 
   if (projects.length === 0) return null
 
@@ -121,6 +119,20 @@ export default function PortfolioIntelligence({
                 <span style={{ color: hasOverdue ? '#DC2626' : '#0F766E' }}>{due.length} due</span>
               </>
             )}
+            {/* Unique "what changed" signals folded in from the retired Recent
+                Updates bar — only render when present, so the line stays clean. */}
+            {updatedCount > 0 && (
+              <>
+                <span className="mx-1.5 text-gray-300">·</span>
+                <span style={{ color: '#2563EB' }}>{updatedCount} updated</span>
+              </>
+            )}
+            {stateMoveCount > 0 && (
+              <>
+                <span className="mx-1.5 text-gray-300">·</span>
+                <span className="text-gray-500">{stateMoveCount} moved</span>
+              </>
+            )}
           </span>
         </div>
         <span className="flex items-center gap-1.5 shrink-0 text-[10px] font-semibold text-gray-400">
@@ -137,102 +149,77 @@ export default function PortfolioIntelligence({
 
       {/* ── Expanded breakdown ── */}
       {open && (
-        <div className="px-4 pb-4 pt-1 border-t border-gray-100 flex flex-col gap-3">
-          {/* KPI tiles */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
-            {[
-              { label: 'Saved Projects', value: projects.length, decimals: 0, suffix: '', sub: 'across all states' },
-              { label: 'Total Capacity', value: totalMw, decimals: 1, suffix: ' MW', sub: 'AC nameplate' },
-              { label: 'Active Alerts', value: alertCount, decimals: 0, suffix: '', sub: 'policy or market flags' },
-            ].map(({ label, value, decimals, suffix, sub }) => (
-              <SpotlightCard key={label} className="rounded-xl px-4 py-3 border border-gray-200 overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
-                <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">{label}</p>
-                <p className="text-xl font-bold font-mono tabular-nums mt-0.5" style={{ color: '#0F1A2E' }}><CountUp value={value} decimals={decimals} suffix={suffix} /></p>
-                <p className="text-[10px] mt-0.5 text-gray-400">{sub}</p>
-              </SpotlightCard>
-            ))}
-          </div>
-
-          {/* Recent Updates roll-up */}
-          {(updatedCount > 0 || stateMoveCount > 0 || alertCount > 0) && (
-            <div
-              className="flex items-center gap-3 rounded-lg px-4 py-2.5 flex-wrap"
-              style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.20)' }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0F766E' }} />
-              <p className="font-mono text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>Recent Updates</p>
-              <span className="text-gray-300">·</span>
-              <p className="text-xs font-medium text-ink">
-                {updatedCount > 0 && <span>{updatedCount} project{updatedCount > 1 ? 's have' : ' has'} updated market data</span>}
-                {updatedCount > 0 && stateMoveCount > 0 && <span className="text-gray-400"> · </span>}
-                {stateMoveCount > 0 && <span>{stateMoveCount} state{stateMoveCount > 1 ? 's' : ''} moved week-over-week</span>}
-                {(updatedCount > 0 || stateMoveCount > 0) && alertCount > 0 && <span className="text-gray-400"> · </span>}
-                {alertCount > 0 && <span>{alertCount} alert{alertCount > 1 ? 's' : ''} across your portfolio</span>}
-              </p>
+        <div className="px-4 pb-4 pt-3 border-t border-gray-100 flex flex-col gap-3">
+          {/* Pipeline funnel — ONE compact stacked bar (the dashboard's
+              CsProgramStatusBar idiom, div-based so it doesn't pull Recharts
+              into the Library bundle). Click a segment or legend chip to filter
+              by stage; amber dot = a project 180+ days in that stage. Replaces
+              the old vertical-bar block (taller + less professional). */}
+          <div className="rounded-xl px-4 py-3.5 bg-white border border-gray-200">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pipeline Distribution</p>
+              {filterStage && (
+                <button type="button" onClick={() => setFilterStage('')} className="text-[10px] font-semibold text-teal-700 hover:text-teal-800">Clear ✕</button>
+              )}
             </div>
-          )}
-
-          {/* Pipeline distribution — click a bar to filter by stage */}
-          <div className="rounded-xl px-4 py-3 bg-white border border-gray-200">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Pipeline Distribution</p>
-            <div className="flex items-end gap-2 h-16">
-              {stageCounts.map(({ stage, count, mw, color, stale }) => {
-                const isActive = filterStage === stage
-                const isDimmed = filterStage && filterStage !== stage
-                return (
-                  <button
-                    type="button"
-                    key={stage}
-                    onClick={() => count > 0 && setFilterStage(isActive ? '' : stage)}
-                    disabled={count === 0}
-                    className="flex-1 flex flex-col items-center gap-1 group relative transition-opacity"
-                    style={{ opacity: isDimmed ? 0.4 : 1, cursor: count > 0 ? 'pointer' : 'default' }}
-                  >
-                    <div
-                      className="w-full rounded-t-md transition-all duration-300 relative"
-                      style={{
-                        height: count > 0 ? `${Math.max(6, (count / maxCount) * 56)}px` : '3px',
-                        background: count > 0 ? color : '#E5E7EB',
-                        outline: isActive ? '2px solid #0F766E' : 'none',
-                        outlineOffset: isActive ? '2px' : '0',
-                      }}
-                    >
-                      {stale && (
-                        <span
-                          className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-                          style={{ background: '#F59E0B', boxShadow: '0 0 0 1.5px #FFFFFF' }}
-                          title="A project has been in this stage 180+ days"
-                        />
-                      )}
-                    </div>
-                    {count > 0 && (
-                      <span className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[10px] font-medium bg-gray-900 text-white shadow-lg pointer-events-none font-mono">
-                        {count} project{count > 1 ? 's' : ''} · {mw.toFixed(1)} MW{stale ? ' · ⚠ stale' : ''}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            <div className="flex gap-2 mt-2">
-              {stageCounts.map(({ stage, count, mw, color }) => {
-                const isActive = filterStage === stage
-                return (
-                  <div key={stage + 'l'} className="flex-1 text-center">
-                    <p className="text-[9px] leading-tight font-semibold" style={{ color: isActive ? '#0F766E' : count > 0 ? '#0A1828' : '#9CA3AF' }}>
-                      {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
-                    </p>
-                    {count > 0 && (
-                      <>
-                        <p className="text-[10px] font-bold font-mono tabular-nums" style={{ color: ['#F0FDFA', '#99F6E4'].includes(color) ? '#0F766E' : color }}>{count}</p>
-                        <p className="text-[8px] font-mono tabular-nums text-gray-400">{mw.toFixed(0)} MW</p>
-                      </>
-                    )}
+            {(() => {
+              const active = stageCounts.filter(s => s.count > 0)
+              const total = active.reduce((s, c) => s + c.count, 0) || 1
+              return (
+                <>
+                  <div className="flex w-full h-8 rounded-lg overflow-hidden" style={{ background: '#F1F5F9' }}>
+                    {active.map(({ stage, count, mw, color, stale }) => {
+                      const isActive = filterStage === stage
+                      const isDimmed = filterStage && !isActive
+                      const pct = (count / total) * 100
+                      const light = ['#F0FDFA', '#99F6E4', '#5EEAD4'].includes(color)
+                      return (
+                        <button
+                          key={stage}
+                          type="button"
+                          onClick={() => setFilterStage(isActive ? '' : stage)}
+                          title={`${stage} · ${count} project${count > 1 ? 's' : ''} · ${mw.toFixed(1)} MW${stale ? ' · ⚠ 180+ days in stage' : ''}`}
+                          className="relative h-full flex items-center justify-center transition-all duration-300"
+                          style={{
+                            width: `${pct}%`,
+                            background: color,
+                            opacity: isDimmed ? 0.3 : 1,
+                            boxShadow: isActive ? 'inset 0 0 0 2px #0F766E' : 'none',
+                          }}
+                        >
+                          {pct > 7 && (
+                            <span className="font-mono text-[10px] font-bold tabular-nums" style={{ color: light ? '#0A1828' : '#FFFFFF' }}>{count}</span>
+                          )}
+                          {stale && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ background: '#F59E0B', boxShadow: '0 0 0 1.5px #FFFFFF' }} />}
+                        </button>
+                      )
+                    })}
                   </div>
-                )
-              })}
-            </div>
+                  {/* Stage legend — also click-to-filter */}
+                  <div className="flex flex-wrap gap-x-3.5 gap-y-1 mt-2.5">
+                    {active.map(({ stage, count, mw, color }) => {
+                      const isActive = filterStage === stage
+                      const swatch = ['#F0FDFA', '#99F6E4'].includes(color) ? '#5EEAD4' : color
+                      return (
+                        <button
+                          key={stage + 'l'}
+                          type="button"
+                          onClick={() => setFilterStage(isActive ? '' : stage)}
+                          title={`${mw.toFixed(1)} MW`}
+                          className="flex items-center gap-1.5 transition-opacity"
+                          style={{ opacity: filterStage && !isActive ? 0.4 : 1 }}
+                        >
+                          <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: swatch }} />
+                          <span className="font-mono text-[9px] uppercase tracking-[0.14em]" style={{ color: isActive ? '#0F766E' : '#5A6B7A' }}>
+                            {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]} · {count}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )
+            })()}
           </div>
 
           {/* Due this week — empty until follow-up dates exist (migration 074 + Wave 2) */}

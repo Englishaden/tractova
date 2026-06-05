@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import FilterSelect from '../ui/FilterSelect'
 import LibraryToolbar from './LibraryToolbar'
+import SpotlightCard from '../ui/SpotlightCard'
+import TealRail from '../ui/TealRail'
 import { axesFromTechnology } from '../../lib/lensFormConstants'
 import { PIPELINE_STAGES } from './PipelineProgress'
 
@@ -111,6 +113,7 @@ export default function LibraryCommandBar({
   layout, onLayoutChange, count,
   activeFilterCount, onClearAll,
   savedViewsSlot = null,
+  selectAllSlot = null,
 }) {
   const stateOptions = useMemo(
     () => [...new Set(projects.map(p => p.state).filter(Boolean))].sort(),
@@ -122,7 +125,12 @@ export default function LibraryCommandBar({
   )
 
   return (
-    <div className="mb-3 rounded-xl bg-white border border-gray-200 px-3 py-2.5 flex items-center gap-2 flex-wrap">
+    <SpotlightCard
+      glow="rgba(20,184,166,0.10)"
+      className="mb-3 rounded-xl border border-gray-200 px-3 py-2.5 flex items-center gap-2 flex-wrap"
+      style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 3px rgba(15,26,46,0.05)' }}
+    >
+      <TealRail />
       {/* Search — full-width on phones (its own row), fixed on sm+ */}
       <div className="relative w-full sm:w-auto">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden="true">
@@ -166,7 +174,12 @@ export default function LibraryCommandBar({
         </button>
       )}
 
-      {/* Sort + layout — pushed right */}
+      {/* Select-all affordance — folded in from its old standalone row. */}
+      {selectAllSlot}
+
+      {/* Sort + layout — pushed right. The "N projects" count is intentionally
+          dropped here (the Projects tab already carries it; pagination shows the
+          filtered count). */}
       <div className="ml-auto flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-medium text-gray-400">Sort:</span>
@@ -183,8 +196,8 @@ export default function LibraryCommandBar({
             </button>
           ))}
         </div>
-        <LibraryToolbar layout={layout} onLayoutChange={onLayoutChange} count={count} />
+        <LibraryToolbar layout={layout} onLayoutChange={onLayoutChange} count={null} />
       </div>
-    </div>
+    </SpotlightCard>
   )
 }
