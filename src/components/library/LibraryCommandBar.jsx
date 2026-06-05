@@ -127,62 +127,57 @@ export default function LibraryCommandBar({
   return (
     <SpotlightCard
       glow="rgba(20,184,166,0.10)"
-      className="mb-3 rounded-xl border border-gray-200 px-3 py-2.5 flex items-center gap-2 flex-wrap"
+      className="mb-3 rounded-xl border border-gray-200 px-3 py-2.5 flex flex-col gap-2.5"
       style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 3px rgba(15,26,46,0.05)' }}
     >
       <TealRail />
-      {/* Search — full-width on phones; on sm+ it GROWS to fill the bar so the
-          sort/layout controls sit flush-right with no dead gap (image-3 fix). */}
-      <div className="relative w-full sm:flex-1 sm:min-w-[160px] sm:max-w-sm">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden="true">
-          <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-        </svg>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search projects…"
-          aria-label="Search projects by name, county, state, technology, or tag"
-          className="text-[11px] rounded-lg pl-7 pr-7 py-1.5 bg-white border border-gray-200 text-ink placeholder:text-gray-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500/20 focus:border-teal-300 w-full transition-colors"
-        />
-        {search && (
+
+      {/* Row 1 — find & filter: search fills the row, filters sit to its right */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative w-full sm:flex-1 sm:min-w-[180px]">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden="true">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects…"
+            aria-label="Search projects by name, county, state, technology, or tag"
+            className="text-[11px] rounded-lg pl-7 pr-7 py-1.5 bg-white border border-gray-200 text-ink placeholder:text-gray-400 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500/20 focus:border-teal-300 w-full transition-colors"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          )}
+        </div>
+        <FilterSelect value={filterState} onChange={setFilterState} placeholder="All States" ariaLabel="Filter by state" options={stateOptions} />
+        <FilterSelect value={filterStructure} onChange={setFilterStructure} placeholder="All Structures" ariaLabel="Filter by monetization structure" options={structureOptions} />
+        <FilterSelect value={filterStage} onChange={setFilterStage} placeholder="All Stages" ariaLabel="Filter by stage" options={PIPELINE_STAGES} />
+        <TagFilter allTags={allTags} filterTags={filterTags} setFilterTags={setFilterTags} />
+        {savedViewsSlot}
+        {activeFilterCount > 0 && (
           <button
             type="button"
-            onClick={() => setSearch('')}
-            aria-label="Clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+            onClick={onClearAll}
+            className="text-[10px] font-semibold text-gray-400 hover:text-teal-700 transition-colors px-1 shrink-0"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            Clear all ✕
           </button>
         )}
       </div>
 
-      {/* Filters */}
-      <FilterSelect value={filterState} onChange={setFilterState} placeholder="All States" ariaLabel="Filter by state" options={stateOptions} />
-      <FilterSelect value={filterStructure} onChange={setFilterStructure} placeholder="All Structures" ariaLabel="Filter by monetization structure" options={structureOptions} />
-      <FilterSelect value={filterStage} onChange={setFilterStage} placeholder="All Stages" ariaLabel="Filter by stage" options={PIPELINE_STAGES} />
-      <TagFilter allTags={allTags} filterTags={filterTags} setFilterTags={setFilterTags} />
-
-      {savedViewsSlot}
-
-      {activeFilterCount > 0 && (
-        <button
-          type="button"
-          onClick={onClearAll}
-          className="text-[10px] font-semibold text-gray-400 hover:text-teal-700 transition-colors px-1"
-        >
-          Clear all ✕
-        </button>
-      )}
-
-      {/* Select-all affordance — folded in from its old standalone row. */}
-      {selectAllSlot}
-
-      {/* Sort + layout — pushed right. The "N projects" count is intentionally
-          dropped here (the Projects tab already carries it; pagination shows the
-          filtered count). */}
-      <div className="ml-auto flex items-center gap-2 flex-wrap">
-        <div className="flex items-center gap-1.5">
+      {/* Row 2 — sort & view: select-all + sort on the left, layout toggle right.
+          A hairline separates the two control zones. */}
+      <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-gray-100">
+        {selectAllSlot}
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[10px] font-medium text-gray-400">Sort:</span>
           {SORTS.map(s => (
             <button
@@ -197,7 +192,9 @@ export default function LibraryCommandBar({
             </button>
           ))}
         </div>
-        <LibraryToolbar layout={layout} onLayoutChange={onLayoutChange} count={null} />
+        <div className="ml-auto">
+          <LibraryToolbar layout={layout} onLayoutChange={onLayoutChange} count={null} />
+        </div>
       </div>
     </SpotlightCard>
   )

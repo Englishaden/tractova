@@ -61,7 +61,7 @@ const VIEWS = [
 
 export default function LibraryToolbar({ layout, onLayoutChange, count }) {
   return (
-    <div className="flex items-center justify-between gap-3 mb-3 mt-2">
+    <div className="flex items-center gap-3">
       <div
         className="inline-flex items-center gap-0.5 p-0.5 rounded-md"
         style={{ background: 'rgba(15,26,46,0.04)', border: '1px solid #E5E7EB' }}
