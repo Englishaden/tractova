@@ -25,7 +25,7 @@ import ProjectCard from '../components/ProjectCard.jsx'
 import SavedComparisonsList from '../components/library/SavedComparisonsList.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryCommandBar from '../components/library/LibraryCommandBar.jsx'
-import PortfolioIntelligence from '../components/library/PortfolioIntelligence.jsx'
+import LibraryIntelligence from '../components/library/LibraryIntelligence.jsx'
 import PipelineBoard from '../components/library/PipelineBoard.jsx'
 import SavedViewsMenu from '../components/library/SavedViewsMenu.jsx'
 import LibrarySubNav from '../components/library/LibrarySubNav.jsx'
@@ -692,18 +692,16 @@ function LibraryContent() {
           />
         )}
 
-        {/* Intelligence tab — portfolio analytics, given its own roomy view.
-            Wave A renders the existing analytics body (embedded = always-open,
-            no drawer chrome); Wave B re-sections it Lens-style. */}
+        {/* Intelligence tab — portfolio analytics in its own roomy view,
+            organised Lens-style (collapsible §-sections + scrollspy rail).
+            Pipeline/Map sections drill through to the filtered Pipeline tab. */}
         {viewMode === 'intelligence' && !loading && !previewEmpty && (
-          <PortfolioIntelligence
-            embedded
+          <LibraryIntelligence
             projects={projects}
             stateProgramMap={stateProgramMap}
             countyDataMap={countyDataMap}
-            stateDeltaMap={stateDeltaMap}
-            filterStage={filterStage}
-            setFilterStage={setFilterStage}
+            onStageDrill={(stage) => { setFilterStage(stage); setViewMode('pipeline') }}
+            onStateDrill={(state) => { setFilterState(state); setViewMode('pipeline') }}
           />
         )}
 
