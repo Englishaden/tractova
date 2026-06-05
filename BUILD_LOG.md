@@ -19,7 +19,7 @@ Waves (each verify-green + pushed):
 - **5 (this commit)** — **polish:** `SpotlightCard` glow on KPI tiles + `TealRail` on the intelligence drawer; command-bar search full-width on phones. **Deferred:** ScoreGauge/MiniArcGauge parametric unification (both work; risk > value).
 
 **Carried loose end:** `src/components/BriefDrilldown.jsx` still orphaned (git-rm deny-listed).
-**⏭ Next:** Aden applies the 3 migrations → prod-eyeball the Library as a Pro user (board DnD, tag/follow-up chips, saved views, due-this-week roll-up). Optional follow-ups: gauge unification; tag/follow-up live-bubble when edited from Table/Drawer (persists either way; only the in-session portfolio reflection differs).
+**⏭ Next:** Aden applies the 3 migrations → prod-eyeball the Library as a Pro user (board DnD, tag/follow-up chips, saved views, due-this-week roll-up). Tag/follow-up edits bubble live from Cards + Table + Drawer (all threaded). Optional follow-up: ScoreGauge/MiniArcGauge parametric unification (deferred — both work).
 
 ---
 
