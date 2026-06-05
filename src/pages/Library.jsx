@@ -753,9 +753,8 @@ function LibraryContent() {
             {/* Command bar — the single control surface (search · filters ·
                 tags · saved-views slot · sort · layout). Consolidated in Pass 5
                 Wave 1; the former filter strip + view toggle lived here as two
-                separate rows. The portfolio roll-up that used to sit here (the
-                "Recent Updates" banner + WeeklySummaryCard) moved into the
-                PortfolioIntelligence drawer above. */}
+                separate rows. The portfolio roll-up that used to sit here moved
+                into the PortfolioIntelligence drawer above. */}
             <LibraryCommandBar
               projects={projects}
               search={search} setSearch={setSearch}

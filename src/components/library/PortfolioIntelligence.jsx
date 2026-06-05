@@ -1,19 +1,19 @@
 import { useState, useMemo } from 'react'
 import CountUp from '../ui/CountUp'
 import TealRail from '../ui/TealRail'
-import WeeklySummaryCard from './WeeklySummaryCard'
+import PortfolioAnalytics from './PortfolioAnalytics'
 import { getAlerts } from '../../lib/alertHelpers'
 import { PIPELINE_STAGES, PIPELINE_SHORT } from './PipelineProgress'
 
-// ── Portfolio Intelligence — the consolidated "what's my book doing" drawer ──
-// Pass 5 (Wave 1) folds five formerly-stacked blocks — the KPI stat strip, the
-// Pipeline Distribution bar, the "Recent Updates" what-changed banner, the
-// "due this week" follow-up roll-up, and the WeeklySummaryCard — into ONE
-// collapsible surface. Collapsed by default: a single summary line carries the
-// glanceable numbers (projects · MW · alerts · due); expanding reveals the full
-// breakdown. This kills the signal overlap (counts/MW/alerts were repeated
-// across three of the old blocks) and reclaims the vertical real estate above
-// the project list that the user actually came for.
+// ── Portfolio Intelligence — the ONE "what's my book doing" surface ──────────
+// Collapsed: a single summary line carries the glanceable numbers (projects ·
+// MW · alerts · due · updated · moved). Expanded: pipeline funnel → due-this-week
+// → PortfolioAnalytics (health · risk · tech · geo · AI insight) — all under this
+// single collapsible header. 2026-06-05: the old WeeklySummaryCard used to render
+// here with its OWN navy "Portfolio Intelligence" header + collapse chevron — a
+// confusing same-named nested dropdown that repeated projects/MW. It's now gutted
+// to header-less PortfolioAnalytics content so there is exactly one intelligence
+// surface, one title, one set of numbers.
 //
 // State lives in localStorage so the user's open/closed preference survives a
 // reload — mirrors the layout/pageSize persistence in useLibraryLayout.
@@ -149,7 +149,7 @@ export default function PortfolioIntelligence({
 
       {/* ── Expanded breakdown ── */}
       {open && (
-        <div className="px-4 pb-4 pt-3 border-t border-gray-100 flex flex-col gap-3">
+        <div className="px-4 pb-4 pt-3 border-t border-gray-100 flex flex-col gap-2.5">
           {/* Pipeline funnel — ONE compact stacked bar (the dashboard's
               CsProgramStatusBar idiom, div-based so it doesn't pull Recharts
               into the Library bundle). Click a segment or legend chip to filter
@@ -247,9 +247,11 @@ export default function PortfolioIntelligence({
             </div>
           )}
 
-          {/* Full portfolio analytics — only meaningful at 3+ projects */}
+          {/* Full portfolio analytics — health · risk · tech · geo · AI insight.
+              Content-only (no nested "Portfolio Intelligence" header/collapse —
+              this IS the one intelligence surface). Only meaningful at 3+. */}
           {projects.length >= 3 && (
-            <WeeklySummaryCard projects={projects} stateProgramMap={stateProgramMap} />
+            <PortfolioAnalytics projects={projects} stateProgramMap={stateProgramMap} />
           )}
         </div>
       )}
