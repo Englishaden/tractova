@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
