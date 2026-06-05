@@ -129,8 +129,6 @@ function PillarIcon({ type }) {
 
 // generateMarketSummary moved to src/lib/lensHelpers.js (Sprint 2.3).
 
-// BriefDrilldown moved to src/components/BriefDrilldown.jsx (Sprint E.3).
-
 // MarketIntelligenceSummary moved to src/components/MarketIntelligenceSummary.jsx (Sprint 2.3).
 
 // What-If sensitivity scenarios (LensScenarioRow + CustomScenario* + the
