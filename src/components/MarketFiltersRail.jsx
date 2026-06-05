@@ -250,9 +250,10 @@ export default function MarketFiltersRail({
   filters,
   onChange,
 }) {
-  // Per-group disclosure. Default: State open (the most useful), others closed.
+  // Per-group disclosure. Default: all collapsed (Aden 2026-06-05 — keep the
+  // State group closed on load so the rail opens compact).
   const [openGroups, setOpenGroups] = useState({
-    state:   true,
+    state:   false,
     utility: false,
     stage:   false,
     size:    false,
