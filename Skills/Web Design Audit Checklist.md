@@ -228,6 +228,24 @@ Public surface (screenshot-verifiable on prod, unlike the Pro-gated Lens). Plan:
 - New: `TealRail` gained an optional `className` (hover-fade on cards). 2 new components (`GlossaryJumpRail`, `SeeAlsoLink`). `BriefDrilldown.jsx` from Lens 6c still orphaned (git-rm deny-listed).
 - **⏭ Aden:** prod eyeball (public URL). **Library = separate plan, later.**
 
+### Pass 5 — Library revamp ("the big one") — 🔵 IN PROGRESS (2026-06-04)
+
+Pro-gated daily-driver deal-tracker. Plan: `.claude/plans/idempotent-prancing-harp.md`. Unlike Glossary, Library is **feature-mature** (16 components, 3 layouts, 3 tabs) but **heavily accreted** (V3 + Phase 2A/2B/2C + Phase 4) and predates the Lens/Glossary motion bar. Aden's four-pain diagnosis → revamp = *workflow elevation* (CRM-lite cockpit) + *hard consolidation* + *visual pass*. Scope locked via Q&A: kanban board · follow-up dates · custom tags · saved views · desktop search · consolidate-hard. Wave-based, verify-green per slice.
+
+**20-check findings (audit drives the wave plan):**
+- **#9 White space / #8 hierarchy — the headline defect.** Five stacked blocks sit above the first project (stat strip → Pipeline Distribution → "Recent Updates" banner → `WeeklySummaryCard` → filter/sort strip). Three surface *overlapping* signals (counts / MW / alerts / what-changed). → **Wave 1** collapses them into one sticky command bar + one collapsible "Portfolio Intelligence" drawer.
+- **#4 Interactions / weak-as-daily-tool.** Organising a deal stops at the 7-value `stage` enum + free-text notes; no custom labels, no "what's due", no recallable filter combos, no pipeline board. → **Waves 2–4** (tags, follow-up dates, kanban board, saved views).
+- **#11/#12 Responsive.** Desktop has no text search (mobile does); the top stack is especially crammed at mobile width. → search added Wave 1; mobile-first sweep Wave 5.
+- **#8 / unify — two score gauges** (`ScoreGauge` large + `MiniArcGauge` 44×44) and a bespoke `WeeklySummaryCard` animation set (`health-grid`/`health-scan`/`health-ring` keyframes) never unified with the banked motion vocabulary. → **Wave 5** parametric-unifies the gauges + applies `SpotlightCard`/`TealRail`/`AnimatedList`.
+- **#18 contrast / palette.** Stray hardcoded color triples in `ProjectCard` (legacy rgba vs canonical teal-700) — already partly consolidated (V3.1 note in-file); finish in Wave 5.
+- **#16 loading speed — PASS (keep).** Map + Table already lazy-split; gauges use `motion.js` `animate()` not RAF loops. Don't regress this when adding the board.
+- **#17 a11y — carry the bar.** Existing cards are keyboard-operable (role=button headers, Radix dialogs/popovers). New board DnD needs a keyboard path (stage dropdown fallback) + the new controls need `aria-label`s.
+
+**Schema (Wave 0, migration FILES — Aden applies; all reads null-safe):** `073` projects.tags text[] · `074` projects.follow_up_at + follow_up_note · `075` saved_views table (mirrors `saved_comparisons` 062 RLS). projects UPDATE policy (072) is column-agnostic → no policy change for the new columns.
+
+- **Wave 0 — ✅ migrations 073/074/075 written; `normalize()` extended (tags/followUpAt/followUpNote, null-safe); this ledger entry opened.**
+- **⏭ Waves 1–5** per plan. Carry banked primitives (`SpotlightCard`, `TealRail`, `AnimatedList(itemAs)`, `CopyButton`, `ui/Tabs`, scrollspy-rail/sticky-bar). `BriefDrilldown.jsx` orphan still carried.
+
 ---
 
 ## 🛡️ Tractova guardrails this skill respects

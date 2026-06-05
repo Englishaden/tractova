@@ -53,10 +53,12 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
   const showAllOverride = typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).get('all') === '1'
 
-  const [sortBy,           setSortBy]           = useState('saved')    // saved|score|mw|alerts
+  const [sortBy,           setSortBy]           = useState('saved')    // saved|score|mw|alerts|followup
+  const [search,           setSearch]           = useState('')         // desktop free-text (name/county/state/tech/tags)
   const [filterState,      setFilterState]      = useState('')
   const [filterStructure,  setFilterStructure]  = useState('')
   const [filterStage,      setFilterStage]      = useState('')
+  const [filterTags,       setFilterTags]       = useState([])         // AND-match against project.tags
   const [pipelineExpanded, setPipelineExpanded] = useState(false)
   const [viewMode,         setViewMode]         = useState('projects') // 'projects' | 'scenarios' | 'comparisons'
   const [layout,           setLayoutState]      = useState(loadLayout) // 'cards' | 'table' | 'map'
@@ -114,20 +116,42 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     if (filterState) filtered = filtered.filter(p => p.state === filterState)
     if (filterStructure) filtered = filtered.filter(p => structureOf(p) === filterStructure)
     if (filterStage) filtered = filtered.filter(p => p.stage === filterStage)
+    // Tag filter — AND semantics (project must carry every selected tag), so
+    // narrowing by multiple tags drills in rather than widening the set.
+    if (filterTags.length) filtered = filtered.filter(p => filterTags.every(t => (p.tags || []).includes(t)))
+    // Free-text search — same client-side approach as MobileLibrary, over the
+    // already-fetched rows. Matches name / county / state(+name) / technology /
+    // tags so one box finds a deal however the user remembers it.
+    const q = search.trim().toLowerCase()
+    if (q) {
+      filtered = filtered.filter(p => {
+        const hay = [p.name, p.county, p.state, p.stateName, p.technology, ...(p.tags || [])]
+          .filter(Boolean).join(' ').toLowerCase()
+        return hay.includes(q)
+      })
+    }
     return [...filtered].sort((a, b) => {
       if (sortBy === 'score')  return liveScoreFor(b) - liveScoreFor(a)
       if (sortBy === 'mw')     return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
       if (sortBy === 'alerts') return getAlerts(b, stateProgramMap, countyDataMap).length - getAlerts(a, stateProgramMap, countyDataMap).length
+      // followup — soonest open next-action first; projects with no follow-up
+      // sink to the bottom (Infinity), then break ties by most-recently saved.
+      if (sortBy === 'followup') {
+        const fa = a.followUpAt ? new Date(a.followUpAt).getTime() : Infinity
+        const fb = b.followUpAt ? new Date(b.followUpAt).getTime() : Infinity
+        if (fa !== fb) return fa - fb
+        return new Date(b.savedAt) - new Date(a.savedAt)
+      }
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
-  }, [projects, filterState, filterStructure, filterStage, sortBy, stateProgramMap, countyDataMap, liveScoreFor])
+  }, [projects, filterState, filterStructure, filterStage, filterTags, search, sortBy, stateProgramMap, countyDataMap, liveScoreFor])
 
   // Reset to page 1 when the filtered list changes shape — otherwise a
   // user on page 3 of 100 who applies a filter that yields 8 results
   // ends up looking at an empty page 3.
   useEffect(() => {
     setPage(1)
-  }, [filterState, filterStructure, filterStage, sortBy])
+  }, [filterState, filterStructure, filterStage, filterTags, search, sortBy])
 
   // Windowed projects for rendering. Stat strip + Pipeline Distribution
   // still use the full `displayProjects` (and `projects`) so portfolio-
@@ -144,12 +168,28 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     if (page > maxPage) setPage(maxPage)
   }, [displayProjects.length, pageSize, page])
 
+  // Unique tags across the portfolio — powers the command-bar tag filter and
+  // the saved-views restore. Sorted for stable menu order.
+  const allTags = useMemo(() => {
+    const set = new Set()
+    for (const p of projects) for (const t of (p.tags || [])) set.add(t)
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [projects])
+
+  const activeFilterCount =
+    (filterState ? 1 : 0) + (filterStructure ? 1 : 0) + (filterStage ? 1 : 0) +
+    filterTags.length + (search.trim() ? 1 : 0)
+
   return {
     // Filters
     sortBy, setSortBy,
+    search, setSearch,
     filterState, setFilterState,
     filterStructure, setFilterStructure,
     filterStage, setFilterStage,
+    filterTags, setFilterTags,
+    allTags,
+    activeFilterCount,
     pipelineExpanded, setPipelineExpanded,
     // Top-level tab
     viewMode, setViewMode,

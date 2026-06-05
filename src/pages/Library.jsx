@@ -6,11 +6,8 @@ import { useSubscription } from '../hooks/useSubscription'
 import { useLibraryLayout } from '../hooks/useLibraryLayout'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import UpgradePrompt from '../components/UpgradePrompt'
-import SectionDivider from '../components/SectionDivider'
-import FilterSelect from '../components/ui/FilterSelect'
 import CountUp from '../components/ui/CountUp'
 import MountReveal from '../components/ui/MountReveal'
-import { axesFromTechnology } from '../lib/lensFormConstants'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
 import { computeSubScores, safeScore } from '../lib/scoreEngine'
@@ -29,13 +26,14 @@ import { buildExportRows, buildMethodologySheet, buildGlossarySheet } from '../l
 import ProjectCard from '../components/ProjectCard.jsx'
 import ScenariosView from '../components/ScenariosView.jsx'
 import SavedComparisonsList from '../components/library/SavedComparisonsList.jsx'
-import WeeklySummaryCard from '../components/library/WeeklySummaryCard.jsx'
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
-import LibraryToolbar from '../components/library/LibraryToolbar.jsx'
+import LibraryCommandBar from '../components/library/LibraryCommandBar.jsx'
+import PortfolioIntelligence from '../components/library/PortfolioIntelligence.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
 import MobileLibrary from '../components/library/MobileLibrary.jsx'
 import { useIsMobile } from '../hooks/useIsMobile'
+// PIPELINE_STAGES/SHORT now consumed inside PortfolioIntelligence + LibraryCommandBar.
 
 // LibraryMap + ProjectTable lazily split — default layout is 'cards', so
 // Map's heavy payload (react-simple-maps + topojson-client + ~100 KB
@@ -43,7 +41,6 @@ import { useIsMobile } from '../hooks/useIsMobile'
 // scenario chips) only load when the user actually picks the layout.
 const LibraryMap   = lazy(() => import('../components/library/LibraryMap.jsx'))
 const ProjectTable = lazy(() => import('../components/library/ProjectTable.jsx'))
-import { PIPELINE_STAGES, PIPELINE_SHORT } from '../components/library/PipelineProgress.jsx'
 
 // Library view-state (layout / filters / sort / pagination / map drawer /
 // URL flags) is owned by the useLibraryLayout hook in src/hooks/.
@@ -76,6 +73,12 @@ function normalize(row) {
     notes:            row.notes || '',
     savedAt:          row.saved_at,
     lastObservedScore: row.last_observed_score ?? null,
+    // Pass 5 cockpit columns (migrations 073/074). Null-safe: until those
+    // migrations apply, the row lacks these keys and we fall through to the
+    // empty/undefined defaults — chips don't render, filters/sorts no-op.
+    tags:             Array.isArray(row.tags) ? row.tags : [],
+    followUpAt:       row.follow_up_at ?? null,
+    followUpNote:     row.follow_up_note ?? '',
   }
 }
 
@@ -218,10 +221,12 @@ function LibraryContent() {
   // (windowed) so the page just renders.
   const {
     sortBy, setSortBy,
+    search, setSearch,
     filterState, setFilterState,
     filterStructure, setFilterStructure,
     filterStage, setFilterStage,
-    pipelineExpanded, setPipelineExpanded,
+    filterTags, setFilterTags,
+    allTags, activeFilterCount,
     viewMode, setViewMode,
     layout, setLayout: handleLayoutChange,
     drawerProject, setDrawerProject,
@@ -705,181 +710,22 @@ function LibraryContent() {
         </div>
         </MountReveal>
 
-        {/* Page content */}
-        <div className="mb-8">
-
-          {/* Stat strip + pipeline overview */}
-          {projects.length > 0 && (
-            <>
-              {/* V3 stat strip: navy chrome with teal accent rail; monospace numerics */}
-              <MountReveal delay={0.08}>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { label: 'Saved Projects', rawValue: projects.length, decimals: 0, suffix: '',     sub: 'across all states',     valColor: '#0F1A2E' },
-                  { label: 'Total Capacity', rawValue: projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0), decimals: 1, suffix: ' MW', sub: 'AC nameplate', valColor: '#0F1A2E' },
-                  { label: 'Active Alerts',  rawValue: projects.reduce((s, p) => s + getAlerts(p, stateProgramMap, countyDataMap).length, 0), decimals: 0, suffix: '', sub: 'policy or market flags', valColor: '#0F1A2E' },
-                ].map(({ label, rawValue, decimals, suffix, sub, valColor }) => (
-                  <div key={label} className="rounded-xl px-4 py-3 bg-white border border-gray-200 relative overflow-hidden">
-                    <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">{label}</p>
-                    <p className="text-xl font-bold font-mono tabular-nums mt-0.5" style={{ color: valColor }}><CountUp value={rawValue} decimals={decimals} suffix={suffix} /></p>
-                    <p className="text-[10px] mt-0.5 text-gray-400">{sub}</p>
-                  </div>
-                ))}
-              </div>
-              </MountReveal>
-
-              {/* Pipeline distribution bar — V3: click to filter, weeks-in-stage stale flag.
-                  Stage ramp uses V3 feasibility tokens (was hardcoded emerald cascade). */}
-              <MountReveal delay={0.16}>
-              {(() => {
-                const STAGE_COLORS = ['#F0FDFA', '#99F6E4', '#5EEAD4', '#2DD4BF', '#14B8A6', '#0F766E', '#0F1A2E']
-                const now = Date.now()
-                const stageCounts = PIPELINE_STAGES.map((s, i) => {
-                  const matching = projects.filter(p => p.stage === s)
-                  // V3: weeks-in-stage stale detection — flag stages where any project has been
-                  // sitting >180 days based on saved_at (proxy for last status change)
-                  const stale = matching.some(p => {
-                    if (!p.savedAt) return false
-                    const days = (now - new Date(p.savedAt).getTime()) / 86400000
-                    return days >= 180
-                  })
-                  return {
-                    stage: s,
-                    count: matching.length,
-                    mw: matching.reduce((sum, p) => sum + (parseFloat(p.mw) || 0), 0),
-                    color: STAGE_COLORS[i],
-                    stale,
-                  }
-                })
-                const maxCount = Math.max(...stageCounts.map(s => s.count), 1)
-                // 2026-05-05: Pipeline Distribution made collapsible — was
-                // taking ~150px of vertical real estate above the project
-                // grid even when the user wasn't actively filtering by stage.
-                // Default collapsed; one click expands. Active filter
-                // forces-expand so the user sees what they're filtering by.
-                const totalProjects = stageCounts.reduce((s, c) => s + c.count, 0)
-                const totalMwSum = stageCounts.reduce((s, c) => s + c.mw, 0)
-                const showBars = pipelineExpanded || !!filterStage
-                return (
-                  <div className="mt-4 rounded-xl px-4 py-3 bg-white border border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setPipelineExpanded(v => !v)}
-                      className="w-full flex items-center justify-between text-left"
-                      aria-expanded={showBars}
-                    >
-                      <div className="flex items-center gap-2">
-                        <svg
-                          className="w-3 h-3 text-gray-400 transition-transform"
-                          style={{ transform: showBars ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                        >
-                          <polyline points="9 18 15 12 9 6"/>
-                        </svg>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pipeline Distribution</p>
-                        {!showBars && (
-                          <span className="text-[10px] text-gray-400 font-mono tabular-nums">
-                            · {totalProjects} project{totalProjects !== 1 ? 's' : ''} · {totalMwSum.toFixed(1)} MW across {stageCounts.filter(s => s.count > 0).length} stage{stageCounts.filter(s => s.count > 0).length !== 1 ? 's' : ''}
-                          </span>
-                        )}
-                      </div>
-                      {filterStage && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => { e.stopPropagation(); setFilterStage('') }}
-                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); setFilterStage('') } }}
-                          className="text-[10px] font-semibold text-teal-700 hover:text-teal-800 cursor-pointer"
-                        >
-                          Clear filter ✕
-                        </span>
-                      )}
-                    </button>
-                    {showBars && (
-                    <>
-                    <div className="mt-3 flex items-end gap-2 h-16">
-                      {stageCounts.map(({ stage, count, mw, color, stale }) => {
-                        const isActive = filterStage === stage
-                        const isDimmed = filterStage && filterStage !== stage
-                        return (
-                          <button
-                            type="button"
-                            key={stage}
-                            onClick={() => count > 0 && setFilterStage(isActive ? '' : stage)}
-                            disabled={count === 0}
-                            className="flex-1 flex flex-col items-center gap-1 group relative transition-opacity"
-                            style={{ opacity: isDimmed ? 0.4 : 1, cursor: count > 0 ? 'pointer' : 'default' }}
-                          >
-                            <div
-                              className="w-full rounded-t-md transition-all duration-300 relative"
-                              style={{
-                                height: count > 0 ? `${Math.max(6, (count / maxCount) * 56)}px` : '3px',
-                                background: count > 0 ? color : '#E5E7EB',
-                                outline: isActive ? '2px solid #0F766E' : 'none',
-                                outlineOffset: isActive ? '2px' : '0',
-                              }}
-                            >
-                              {stale && (
-                                <span
-                                  className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
-                                  style={{ background: '#F59E0B', boxShadow: '0 0 0 1.5px #FFFFFF' }}
-                                  title="A project has been in this stage 180+ days"
-                                />
-                              )}
-                            </div>
-                            {count > 0 && (
-                              <span className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-75 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[10px] font-medium bg-gray-900 text-white shadow-lg pointer-events-none font-mono">
-                                {count} project{count > 1 ? 's' : ''} · {mw.toFixed(1)} MW
-                                {stale ? ' · ⚠ stale' : ''}
-                              </span>
-                            )}
-                          </button>
-                        )
-                      })}
-                    </div>
-                    <div className="flex gap-2 mt-2">
-                      {stageCounts.map(({ stage, count, mw, color }) => {
-                        const isActive = filterStage === stage
-                        // V3 fix: stage labels need to be readable regardless of bar color.
-                        // The first two stages (Prospecting #F0FDFA, Site Control #99F6E4) are
-                        // very-light teals that disappear against white. Use ink for labels;
-                        // the colored count number below carries the visual identity.
-                        return (
-                          <div key={stage + 'l'} className="flex-1 text-center">
-                            <p
-                              className="text-[9px] leading-tight font-semibold"
-                              style={{ color: isActive ? '#0F766E' : count > 0 ? '#0A1828' : '#9CA3AF' }}
-                            >
-                              {PIPELINE_SHORT[PIPELINE_STAGES.indexOf(stage)]}
-                            </p>
-                            {count > 0 && (
-                              <>
-                                {/* Count number takes the stage color -- but darken the very light shades
-                                    so they're readable on white. Stages 0/1 use teal-700 fallback. */}
-                                <p className="text-[10px] font-bold font-mono tabular-nums" style={{ color: ['#F0FDFA', '#99F6E4'].includes(color) ? '#0F766E' : color }}>{count}</p>
-                                <p className="text-[8px] font-mono tabular-nums text-gray-400">{mw.toFixed(0)} MW</p>
-                              </>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                    </>
-                    )}
-                  </div>
-                )
-              })()}
-              </MountReveal>
-
-              {/* Filter + sort bar relocated to sit directly above the
-                  LibraryToolbar (below WeeklySummaryCard + SectionDivider)
-                  so the control strip is adjacent to the project list it
-                  drives. Previously bifurcated by the portfolio-intelligence
-                  block — user feedback 2026-05-11 Phase 2A polish. */}
-            </>
-          )}
-        </div>
+        {/* Portfolio intelligence — consolidated overview drawer (Pass 5 Wave 1).
+            The former stat-strip + pipeline-distribution + recent-updates +
+            weekly-summary blocks now live in this ONE collapsible surface
+            (src/components/library/PortfolioIntelligence.jsx). It self-hides
+            when there are no projects, so the guard is just for loading /
+            ?preview=empty. */}
+        {viewMode === 'projects' && !loading && !previewEmpty && (
+          <PortfolioIntelligence
+            projects={projects}
+            stateProgramMap={stateProgramMap}
+            countyDataMap={countyDataMap}
+            stateDeltaMap={stateDeltaMap}
+            filterStage={filterStage}
+            setFilterStage={setFilterStage}
+          />
+        )}
 
         {/* View toggle — Projects vs Scenarios. The Scenarios view exposes
             saved scenarios that don't yet have a project attached (orphan
@@ -987,53 +833,24 @@ function LibraryContent() {
           </div>
         ) : (projects.length > 0 && !previewEmpty) ? (
           <>
-            {/* "What Changed" banner — Phase 2A extended with state-move
-                counts. The per-card chips that show this (hasDataUpdate
-                badge, State ±X pt badge) now persist when cards expand;
-                this banner is the portfolio-level roll-up of those same
-                signals, visible in both Cards and Table layouts. */}
-            {(() => {
-              const updatedCount = projects.filter(p => {
-                const current = stateProgramMap[p.state]
-                return current?.lastUpdated && p.savedAt && new Date(current.lastUpdated) > new Date(p.savedAt)
-              }).length
-              const alertCount = projects.reduce((n, p) => n + getAlerts(p, stateProgramMap, countyDataMap).length, 0)
-              // State moves week-over-week — counts distinct states with a
-              // non-zero snapshot delta that we have projects in. Mirrors
-              // the per-card "State ±X pt" chip's source data.
-              const movedStates = new Set()
-              for (const p of projects) {
-                const d = stateDeltaMap?.get?.(p.state)
-                if (d && d.delta !== 0) movedStates.add(p.state)
-              }
-              const stateMoveCount = movedStates.size
-              if (updatedCount === 0 && alertCount === 0 && stateMoveCount === 0) return null
-              return (
-                <div
-                  className="flex items-center gap-3 rounded-lg px-4 py-3 mb-4 flex-wrap"
-                  style={{ background: 'rgba(20,184,166,0.06)', border: '1px solid rgba(20,184,166,0.20)' }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#0F766E' }} />
-                  <p className="font-mono text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: '#0F766E' }}>
-                    Recent Updates
-                  </p>
-                  <span className="text-gray-300">·</span>
-                  <p className="text-xs font-medium text-ink">
-                    {updatedCount > 0 && <span>{updatedCount} project{updatedCount > 1 ? 's have' : ' has'} updated market data</span>}
-                    {updatedCount > 0 && stateMoveCount > 0 && <span className="text-gray-400"> · </span>}
-                    {stateMoveCount > 0 && <span>{stateMoveCount} state{stateMoveCount > 1 ? 's' : ''} moved week-over-week</span>}
-                    {(updatedCount > 0 || stateMoveCount > 0) && alertCount > 0 && <span className="text-gray-400"> · </span>}
-                    {alertCount > 0 && <span>{alertCount} alert{alertCount > 1 ? 's' : ''} across your portfolio</span>}
-                  </p>
-                </div>
-              )
-            })()}
-
-            {/* Portfolio Summary — shows when 3+ projects */}
-            {projects.length >= 3 && (
-              <WeeklySummaryCard projects={projects} stateProgramMap={stateProgramMap} />
-            )}
-            <SectionDivider />
+            {/* Command bar — the single control surface (search · filters ·
+                tags · saved-views slot · sort · layout). Consolidated in Pass 5
+                Wave 1; the former filter strip + view toggle lived here as two
+                separate rows. The portfolio roll-up that used to sit here (the
+                "Recent Updates" banner + WeeklySummaryCard) moved into the
+                PortfolioIntelligence drawer above. */}
+            <LibraryCommandBar
+              projects={projects}
+              search={search} setSearch={setSearch}
+              filterState={filterState} setFilterState={setFilterState}
+              filterStructure={filterStructure} setFilterStructure={setFilterStructure}
+              filterStage={filterStage} setFilterStage={setFilterStage}
+              filterTags={filterTags} setFilterTags={setFilterTags} allTags={allTags}
+              sortBy={sortBy} setSortBy={setSortBy}
+              layout={layout} onLayoutChange={handleLayoutChange} count={displayProjects.length}
+              activeFilterCount={activeFilterCount}
+              onClearAll={() => { setFilterState(''); setFilterStructure(''); setFilterStage(''); setFilterTags([]); setSearch('') }}
+            />
 
             {/* Inline "Select all" affordance — discreet text-button visible
                 BEFORE any selection is active so the affordance is
@@ -1122,64 +939,6 @@ function LibraryContent() {
                   </button>
                 </div>
               </div>
-            )}
-
-            {/* Phase 2A · unified control strip — filter + sort + layout
-                toggle sit together immediately above the project list so
-                the user's eye doesn't have to jump back up to the top of
-                the page to filter or re-sort. Previously the filter row
-                was rendered above WeeklySummaryCard + SectionDivider,
-                visually bifurcating it from the data it drives. */}
-            {projects.length > 0 && (
-              <div className="mt-2 mb-1 flex items-center gap-2 flex-wrap">
-                <FilterSelect
-                  value={filterState}
-                  onChange={setFilterState}
-                  placeholder="All States"
-                  ariaLabel="Filter by state"
-                  options={[...new Set(projects.map(p => p.state))].sort()}
-                />
-                <FilterSelect
-                  value={filterStructure}
-                  onChange={setFilterStructure}
-                  placeholder="All Structures"
-                  ariaLabel="Filter by monetization structure"
-                  options={[...new Set(projects.map(p => p.structure || axesFromTechnology(p.technology).structure).filter(Boolean))].sort()}
-                />
-                <FilterSelect
-                  value={filterStage}
-                  onChange={setFilterStage}
-                  placeholder="All Stages"
-                  ariaLabel="Filter by stage"
-                  options={PIPELINE_STAGES}
-                />
-
-                <div className="ml-auto flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium text-gray-400">Sort:</span>
-                  {[
-                    { key: 'saved', label: 'Recent' },
-                    { key: 'score', label: 'Score' },
-                    { key: 'mw',    label: 'MW' },
-                    { key: 'alerts', label: 'Alerts' },
-                  ].map(s => (
-                    <button
-                      key={s.key}
-                      onClick={() => setSortBy(s.key)}
-                      className="text-[10px] font-semibold px-2 py-1 rounded-sm transition-colors"
-                      style={sortBy === s.key
-                        ? { background: 'rgba(20,184,166,0.08)', color: '#0F766E', border: '1px solid rgba(20,184,166,0.30)' }
-                        : { background: 'transparent', color: '#6B7280', border: '1px solid transparent' }}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Phase 2A + 2B · view-mode toolbar — Cards | Table | Map. */}
-            {displayProjects.length > 0 && (
-              <LibraryToolbar layout={layout} onLayoutChange={handleLayoutChange} count={displayProjects.length} />
             )}
 
             {displayProjects.length > 0 ? (
