@@ -30,6 +30,7 @@ import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx
 import LibraryCommandBar from '../components/library/LibraryCommandBar.jsx'
 import PortfolioIntelligence from '../components/library/PortfolioIntelligence.jsx'
 import PipelineBoard from '../components/library/PipelineBoard.jsx'
+import SavedViewsMenu from '../components/library/SavedViewsMenu.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
 import MobileLibrary from '../components/library/MobileLibrary.jsx'
@@ -862,6 +863,20 @@ function LibraryContent() {
               layout={layout} onLayoutChange={handleLayoutChange} count={displayProjects.length}
               activeFilterCount={activeFilterCount}
               onClearAll={() => { setFilterState(''); setFilterStructure(''); setFilterStage(''); setFilterTags([]); setSearch('') }}
+              savedViewsSlot={
+                <SavedViewsMenu
+                  currentView={{ filterState, filterStructure, filterStage, tags: filterTags, search, sortBy }}
+                  canSave={activeFilterCount > 0}
+                  onApply={(f) => {
+                    setFilterState(f.filterState || '')
+                    setFilterStructure(f.filterStructure || '')
+                    setFilterStage(f.filterStage || '')
+                    setFilterTags(Array.isArray(f.tags) ? f.tags : [])
+                    setSearch(f.search || '')
+                    setSortBy(f.sortBy || 'saved')
+                  }}
+                />
+              }
             />
 
             {/* Inline "Select all" affordance — discreet text-button visible
