@@ -4,15 +4,17 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-05 — LIBRARY RE-ARCHITECTURE (Pass 6) shipped: sub-tabs + Lens sections · ⏭ prod-eyeball (+ still APPLY MIGRATIONS 073/074/075)
+## 🟢 Pickup — 2026-06-05 — LIBRARY RE-ARCHITECTURE (Pass 6) DONE: sub-tabs + Lens sections + mobile · ⏭ Aden review deferred (new chat)
 
-**Library re-architected into sub-tabs (main `f8c30c7`→`9d8850e`→HEAD).** Prod review: too packed/tall, nested-dup "Portfolio Intelligence". Fix = marry Dashboard sub-tabs + Lens section-breakouts. Direction via 8-question Q&A: hybrid · **board-first** · intelligence own tab · 3 tabs · horizontal strip · slim ribbon · map in both. Plan `~/.claude/plans/idempotent-prancing-harp.md`; audit ledger Pass 6. Pro-gated → build/unit/smoke-green but **NOT screenshot-verified — needs Aden prod-eyeball.**
+**STATUS (Aden 2026-06-05):** migrations **073/074/075 APPLIED** ✓ (cockpit features live). Aden is **holding review** of the Pass 6 Library for now — will **start a NEW CHAT** to go over Library-tab changes. **Mobile is a separate FUTURE major redesign** (the Pass 6 mobile sub-tabs shipped, but a full mobile rethink is its own future effort). Only loose end: a deferred breathing-room/motion polish pass on the new surfaces (optional).
+
+**Library re-architected into sub-tabs (main `f8c30c7`→`5b9d03e`).** Prod review: too packed/tall, nested-dup "Portfolio Intelligence". Fix = marry Dashboard sub-tabs + Lens section-breakouts. Direction via 8-question Q&A: hybrid · **board-first** · intelligence own tab · 3 tabs · horizontal strip · slim ribbon · map in both. Plan `~/.claude/plans/idempotent-prancing-harp.md`; audit ledger Pass 6. Pro-gated → build + 174-unit + 7-smoke + eslint-no-undef green every commit, but **NOT screenshot-verified — needs Aden prod-eyeball (incl. a phone for the mobile sub-tabs + fixed cards).**
 
 - **New:** `LibrarySubNav` (Pipeline · Intelligence · Comparisons, URL `?view=`), `LibraryStatusRibbon` (slim Pipeline stats), `LibraryIntelligence` (Lens-style §01 Pipeline · §02 Analytics · §03 Map — `CollapsibleSection` + `LensSectionRail` scrollspy + `useLensReveal`; funnel/map drill → filtered Pipeline). `useLibraryLayout`: `viewMode` pipeline/intelligence/comparisons + `?view=` sync; **board-first** default layout. Toggle now Board · Cards · Table · Map.
 - **Deleted:** `PortfolioIntelligence.jsx` (drawer → ribbon + Intelligence tab). `PortfolioAnalytics` reused as §02.
 - **Quick fixes:** board "1 alert" blob (whitespace-nowrap); command-bar dead gap (search grows flush-right); empty-state clear resets search+tags. Dashboard Market-Filters State group defaults collapsed (`901b7b4`).
 - **Command bar (`031d768`):** rebuilt into two clean rows (Row 1 find & filter · Row 2 sort & view) — killed the dead white-space under search.
-- **Mobile sub-tabs (this commit):** `MobileLibrary` now carries the same Pipeline · Intelligence · Comparisons sub-nav (Intelligence stacks; scrollspy rail is xl-only so §-headers are the mobile nav). **Unified `normalizeProject`** (`src/lib/normalizeProject.js`) — fixed a latent bug where MobileLibrary's drifted normalize produced projectName/capacityMw while ProjectCard + analytics read name/mw/tags. **Optional next:** breathing-room/motion polish on the new surfaces.
+- **Mobile sub-tabs (`5b9d03e`):** `MobileLibrary` now carries the same Pipeline · Intelligence · Comparisons sub-nav (Intelligence stacks; scrollspy rail is xl-only so §-headers are the mobile nav). **Unified `normalizeProject`** (`src/lib/normalizeProject.js`) — fixed a latent bug where MobileLibrary's drifted normalize produced projectName/capacityMw while ProjectCard + analytics read name/mw/tags (mobile cards/search/sort were mismatched). Also surfaces `structure` (desktop normalize had dropped it).
 
 ---
 
