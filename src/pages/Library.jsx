@@ -521,6 +521,17 @@ function LibraryContent() {
     } catch { /* per-project failure must not block UI */ }
   }, [user, projects, stateProgramMap, countyDataMap])
 
+  // Pass 5 Wave 2 — bubble tag / follow-up edits from any card surface back
+  // into the projects array so the command-bar tag filter, the 'Due' sort, and
+  // the PortfolioIntelligence "due this week" roll-up update live (persistence
+  // happens inside ProjectCard). Mirrors the handleStageChange pattern.
+  const handleTagsChange = useCallback((id, tags) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, tags } : p))
+  }, [])
+  const handleFollowUpChange = useCallback((id, { followUpAt, followUpNote }) => {
+    setProjects(prev => prev.map(p => p.id === id ? { ...p, followUpAt, followUpNote } : p))
+  }, [])
+
   const handleRequestRemove = (id, name) => setConfirmRemove({ id, name })
 
   const handleConfirmRemove = async () => {
@@ -982,6 +993,8 @@ function LibraryContent() {
                     selectedIds={selectedIds}
                     onToggleSelect={toggleSelect}
                     onStageChange={handleStageChange}
+                    onTagsChange={handleTagsChange}
+                    onFollowUpChange={handleFollowUpChange}
                     onRequestRemove={handleRequestRemove}
                     onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
                     onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({
@@ -999,6 +1012,8 @@ function LibraryContent() {
                     project={p}
                     onRequestRemove={handleRequestRemove}
                     onStageChange={handleStageChange}
+                    onTagsChange={handleTagsChange}
+                    onFollowUpChange={handleFollowUpChange}
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
                     stateDelta={stateDeltaMap?.get?.(p.state) || null}
@@ -1144,6 +1159,8 @@ function LibraryContent() {
         selectedIds={selectedIds}
         onToggleSelect={toggleSelect}
         onStageChange={handleStageChange}
+        onTagsChange={handleTagsChange}
+        onFollowUpChange={handleFollowUpChange}
         onRequestRemove={handleRequestRemove}
         onShareSuccess={(id) => setShareCountMap(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }))}
         onScenarioDelete={(projectId, snapId) => setScenariosMap(prev => ({

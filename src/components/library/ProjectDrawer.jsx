@@ -31,6 +31,8 @@ export default function ProjectDrawer({
   selectedIds,
   onToggleSelect,
   onStageChange,
+  onTagsChange,
+  onFollowUpChange,
   onRequestRemove,
   onShareSuccess,
   onScenarioDelete,
@@ -106,6 +108,8 @@ export default function ProjectDrawer({
                       defaultExpanded
                       onRequestRemove={(id, name) => { onRequestRemove?.(id, name); onOpenChange(false) }}
                       onStageChange={onStageChange}
+                      onTagsChange={onTagsChange}
+                      onFollowUpChange={onFollowUpChange}
                       stateProgramMap={stateProgramMap}
                       countyDataMap={countyDataMap}
                       stateDelta={stateDeltaMap?.get?.(project.state) || null}

@@ -149,6 +149,8 @@ export default function ProjectTable({
   selectedIds,
   onToggleSelect,
   onStageChange,
+  onTagsChange,
+  onFollowUpChange,
   onRequestRemove,
   onShareSuccess,
   onScenarioDelete,
@@ -283,6 +285,8 @@ export default function ProjectTable({
                     project={p}
                     onRequestRemove={onRequestRemove}
                     onStageChange={onStageChange}
+                    onTagsChange={onTagsChange}
+                    onFollowUpChange={onFollowUpChange}
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
                     stateDelta={stateDeltaMap?.get?.(p.state) || null}

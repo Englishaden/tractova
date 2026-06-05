@@ -14,6 +14,8 @@ import GlossaryLabel from './ui/GlossaryLabel.jsx'
 import ProjectAuditTimeline from './ProjectAuditTimeline.jsx'
 import YourDealSection from './YourDealSection.jsx'
 import StagePicker from './library/StagePicker.jsx'
+import TagEditor from './library/TagEditor.jsx'
+import FollowUpControl from './library/FollowUpControl.jsx'
 import CompareChip from './library/CompareChip.jsx'
 import ShareDealMemoButton from './library/ShareDealMemoButton.jsx'
 import UtilityOutreachButton from './library/UtilityOutreachButton.jsx'
@@ -26,7 +28,7 @@ import {
   IX_LABEL,
 } from '../pages/Library.jsx'
 
-export default function ProjectCard({ project, onRequestRemove, onStageChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, scenarios = [], onScenarioDelete, defaultExpanded = false }) {
+export default function ProjectCard({ project, onRequestRemove, onStageChange, onTagsChange, onFollowUpChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, scenarios = [], onScenarioDelete, defaultExpanded = false }) {
   // defaultExpanded — Phase 2A Table view passes true so a row click
   // expands directly into the full card, not into the collapsed banner
   // (no double-click required).
@@ -34,6 +36,34 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
   const [notes,      setNotes]      = useState(project.notes || '')
   const [saveStatus, setSaveStatus] = useState('idle') // 'idle' | 'saving' | 'saved'
   const [stage,      setStage]      = useState(project.stage || '')
+  // Pass 5 cockpit fields — local state mirrors the row so header chips + the
+  // Notes-tab editors update instantly; persistence + the bubble to Library's
+  // portfolio surfaces happen in the handlers below. Both degrade silently if
+  // migrations 073/074 haven't applied (the update PostgREST-errors, local
+  // state still reflects the edit until reload).
+  const [tags,         setTags]         = useState(project.tags || [])
+  const [followUpAt,   setFollowUpAt]   = useState(project.followUpAt || null)
+  const [followUpNote, setFollowUpNote] = useState(project.followUpNote || '')
+  const updateTags = (next) => {
+    setTags(next)
+    onTagsChange?.(project.id, next)
+    supabase.from('projects').update({ tags: next }).eq('id', project.id).then(() => {})
+  }
+  const updateFollowUp = (at, note) => {
+    setFollowUpAt(at); setFollowUpNote(note || '')
+    onFollowUpChange?.(project.id, { followUpAt: at, followUpNote: note || '' })
+    supabase.from('projects').update({ follow_up_at: at, follow_up_note: note || null }).eq('id', project.id).then(() => {})
+  }
+  // Relative "due" label for the collapsed-header follow-up chip.
+  const followUpRel = (() => {
+    if (!followUpAt) return null
+    const days = Math.round((new Date(followUpAt).getTime() - Date.now()) / 86400000)
+    if (days < 0) return { text: `${Math.abs(days)}d overdue`, overdue: true }
+    if (days === 0) return { text: 'Due today', overdue: false }
+    if (days === 1) return { text: 'Due tomorrow', overdue: false }
+    if (days <= 14) return { text: `Due ${days}d`, overdue: false }
+    return null  // far-out dates don't need a header chip
+  })()
   const [localCountyData, setLocalCountyData] = useState(null)
   // Bump on share success so the Audit timeline re-fetches and surfaces the
   // newly-logged 'shared' event without requiring a full Library refresh.
@@ -360,6 +390,35 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
                 <span className="font-mono tabular-nums">Scenarios · {scenarios.length}</span>
               </button>
             )}
+            {/* Follow-up due chip — Pass 5 Wave 2; shows only for a near
+                next-action (≤14d or overdue). Null-safe pre-migration. */}
+            {followUpRel && (
+              <span
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border inline-flex items-center gap-1"
+                style={followUpRel.overdue
+                  ? { background: 'rgba(220,38,38,0.10)', color: '#DC2626', borderColor: 'rgba(220,38,38,0.30)', lineHeight: 1 }
+                  : { background: 'rgba(15,118,110,0.10)', color: '#0F766E', borderColor: 'rgba(15,118,110,0.30)', lineHeight: 1 }}
+                title={followUpNote || 'Next action'}
+              >
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                </svg>
+                {followUpRel.text}
+              </span>
+            )}
+            {/* Tag chips — first 3 in the header; remainder as a +N pill. */}
+            {tags.slice(0, 3).map((t) => (
+              <span
+                key={t}
+                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border"
+                style={{ background: 'rgba(20,184,166,0.08)', color: '#0F766E', borderColor: 'rgba(20,184,166,0.25)', lineHeight: 1 }}
+              >
+                {t}
+              </span>
+            ))}
+            {tags.length > 3 && (
+              <span className="text-[10px] font-semibold text-gray-400 self-center">+{tags.length - 3}</span>
+            )}
           </div>
           <p className="text-xs mt-0.5 truncate text-gray-500">
             {project.county} County, {project.stateName || project.state}
@@ -558,9 +617,16 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, s
               )}
             </TabsContent>
 
-            {/* ── Tab 3: Notes — user's own deal log ───────────────────── */}
+            {/* ── Tab 3: Notes — user's own deal log + cockpit fields ──── */}
             <TabsContent value="notes">
-              <YourDealSection project={project} stage={stage} setStage={setStage} notes={notes} setNotes={setNotes} saveStatus={saveStatus} />
+              <div className="flex flex-col gap-4">
+                {/* Tags + next-action — Pass 5 Wave 2 CRM-lite controls */}
+                <div className="rounded-lg px-4 py-3 bg-white border border-gray-200 flex flex-col gap-4">
+                  <TagEditor tags={tags} onChange={updateTags} />
+                  <FollowUpControl followUpAt={followUpAt} followUpNote={followUpNote} onChange={updateFollowUp} />
+                </div>
+                <YourDealSection project={project} stage={stage} setStage={setStage} notes={notes} setNotes={setNotes} saveStatus={saveStatus} />
+              </div>
             </TabsContent>
 
             {/* ── Tab 4: Audit — append-only event timeline (V3 §4.3) ── */}
