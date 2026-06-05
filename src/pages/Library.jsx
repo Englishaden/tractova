@@ -29,6 +29,7 @@ import SavedComparisonsList from '../components/library/SavedComparisonsList.jsx
 import EmptyStateOnboarding from '../components/library/EmptyStateOnboarding.jsx'
 import LibraryCommandBar from '../components/library/LibraryCommandBar.jsx'
 import PortfolioIntelligence from '../components/library/PortfolioIntelligence.jsx'
+import PipelineBoard from '../components/library/PipelineBoard.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
 import MobileLibrary from '../components/library/MobileLibrary.jsx'
@@ -1003,6 +1004,17 @@ function LibraryContent() {
                     }))}
                   />
                 </Suspense>
+              ) : layout === 'board' ? (
+                /* Wave 3 — kanban deal board. Renders ALL filtered projects
+                   (un-paginated, like Map); drag a card to advance its stage.
+                   Card click opens the same ProjectDrawer the map pins use. */
+                <PipelineBoard
+                  projects={displayProjects}
+                  stateProgramMap={stateProgramMap}
+                  countyDataMap={countyDataMap}
+                  onStageChange={handleStageChange}
+                  onCardClick={(p) => setDrawerProject(p)}
+                />
               ) : (
               <MountReveal delay={0.24}>
               <div className="grid gap-3">
@@ -1032,11 +1044,10 @@ function LibraryContent() {
               </div>
               </MountReveal>
               )}
-              {/* Pagination strip — always visible in Cards / Table when
-                  the portfolio has at least one project. Skipped in Map
-                  view (the map shows all projects as pins regardless of
-                  page; pagination is a list-view affordance). */}
-              {layout !== 'map' && !showAllOverride && displayProjects.length > 0 && (
+              {/* Pagination strip — Cards / Table only. Skipped in Map + Board
+                  views, which render every filtered project at once (pins /
+                  columns); pagination is a list-view affordance. */}
+              {layout !== 'map' && layout !== 'board' && !showAllOverride && displayProjects.length > 0 && (
                 <Pagination
                   total={displayProjects.length}
                   page={page}

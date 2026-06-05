@@ -17,7 +17,7 @@ const VALID_PAGE_SIZES   = [10, 25, 50, 100]
 function loadLayout() {
   try {
     const v = typeof window !== 'undefined' ? localStorage.getItem(LAYOUT_STORAGE_KEY) : null
-    if (v === 'table' || v === 'map') return v
+    if (v === 'table' || v === 'map' || v === 'board') return v
     return 'cards'
   } catch { return 'cards' }
 }

@@ -45,6 +45,18 @@ const VIEWS = [
       </svg>
     ),
   },
+  {
+    id: 'board',
+    label: 'Board',
+    hint: 'Kanban · drag deals across pipeline stages',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="5" height="16" rx="1"/>
+        <rect x="10" y="4" width="5" height="10" rx="1"/>
+        <rect x="17" y="4" width="4" height="13" rx="1"/>
+      </svg>
+    ),
+  },
 ]
 
 export default function LibraryToolbar({ layout, onLayoutChange, count }) {
