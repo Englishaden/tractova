@@ -4,6 +4,17 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-05 — LIBRARY RE-ARCHITECTURE (Pass 6) shipped: sub-tabs + Lens sections · ⏭ prod-eyeball (+ still APPLY MIGRATIONS 073/074/075)
+
+**Library re-architected into sub-tabs (main `f8c30c7`→`9d8850e`→HEAD).** Prod review: too packed/tall, nested-dup "Portfolio Intelligence". Fix = marry Dashboard sub-tabs + Lens section-breakouts. Direction via 8-question Q&A: hybrid · **board-first** · intelligence own tab · 3 tabs · horizontal strip · slim ribbon · map in both. Plan `~/.claude/plans/idempotent-prancing-harp.md`; audit ledger Pass 6. Pro-gated → build/unit/smoke-green but **NOT screenshot-verified — needs Aden prod-eyeball.**
+
+- **New:** `LibrarySubNav` (Pipeline · Intelligence · Comparisons, URL `?view=`), `LibraryStatusRibbon` (slim Pipeline stats), `LibraryIntelligence` (Lens-style §01 Pipeline · §02 Analytics · §03 Map — `CollapsibleSection` + `LensSectionRail` scrollspy + `useLensReveal`; funnel/map drill → filtered Pipeline). `useLibraryLayout`: `viewMode` pipeline/intelligence/comparisons + `?view=` sync; **board-first** default layout. Toggle now Board · Cards · Table · Map.
+- **Deleted:** `PortfolioIntelligence.jsx` (drawer → ribbon + Intelligence tab). `PortfolioAnalytics` reused as §02.
+- **Quick fixes:** board "1 alert" blob (whitespace-nowrap); command-bar dead gap (search grows flush-right); empty-state clear resets search+tags. Dashboard Market-Filters State group defaults collapsed (`901b7b4`).
+- **Known gap:** `MobileLibrary` stays cards-only (no Intelligence/Comparisons on mobile — was always cards-only, not a regression). **Optional next:** mobile sub-tabs; breathing-room/motion polish on the new surfaces.
+
+---
+
 ## 🟢 Pickup — 2026-06-04 (eve) — LIBRARY REVAMP (Pass 5) code-complete: Waves 0–5 · ⏭ APPLY MIGRATIONS 073/074/075 + prod-eyeball
 
 **Prod-review polish (2026-06-05, from Aden's screenshots):** killed redundancy + raised the visual bar. (1) Portfolio Intelligence: dropped the 3 KPI tiles (dup of the summary line) + the "Recent Updates" bar (dup of alerts; unique updated/moved signals folded into the summary line); pipeline distribution → one compact **stacked-bar funnel** (CsProgramStatusBar idiom, div-based, click-to-filter + stale dot kept). (2) Command bar → `SpotlightCard` glow + `TealRail`; dropped the redundant "N projects" count; folded the standalone "Select all" row into the bar; fixed the harsh black focus outline on the layout toggle (→ teal ring). (3) Hero subline trimmed (numbers now owned by Portfolio Intelligence — no triple-count). (4) LibraryMap → static aurora wash behind the canvas. **(5, 2026-06-05 — 3-agent dedupe re-audit):** killed the nested **duplicate "Portfolio Intelligence"** — `WeeklySummaryCard` carried its OWN navy "Portfolio Intelligence" header + collapse chevron nested inside the same-named drawer (MW shown ~4×, projects ~3×). Gutted it to header-less `PortfolioAnalytics` (Health + Risk · Tech + Geo · AI insight) rendered directly in the single drawer; dropped the redundant "Total Capacity" MW tile; `WeeklySummaryCard.jsx` deleted. One intelligence surface, one title, one set of numbers. Build + 174 unit + 7 smoke + eslint no-undef gate green.

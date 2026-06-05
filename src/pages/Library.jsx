@@ -954,7 +954,7 @@ function LibraryContent() {
               <div className="text-center py-12">
                 <p className="text-sm font-medium text-gray-500">No projects match current filters.</p>
                 <button
-                  onClick={() => { setFilterState(''); setFilterStructure(''); setFilterStage('') }}
+                  onClick={() => { setFilterState(''); setFilterStructure(''); setFilterStage(''); setFilterTags([]); setSearch('') }}
                   className="mt-2 text-xs font-medium transition-colors"
                   style={{ color: '#0F766E' }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#0A1828' }}

@@ -251,6 +251,14 @@ Pro-gated daily-driver deal-tracker. Plan: `.claude/plans/idempotent-prancing-ha
 - **Wave 5 — polish (#8/#11/#12):** `SpotlightCard` glow on the KPI tiles + `TealRail` on the intelligence drawer; command-bar search goes full-width on phones. **Deferred:** ScoreGauge/MiniArcGauge parametric unification (both work; risk > value — left for a focused pass). `BriefDrilldown.jsx` orphan still carried.
 - **⏭ Aden:** apply migrations 073/074/075 (features are dark until then), then prod-eyeball. Verify green each wave (build + 175 unit + 7 smoke).
 
+### Pass 6 — Library re-architecture (sub-tabs + Lens sections) — ✅ DONE code-level (2026-06-05; prod-eyeball pending)
+
+Prod review found the Library still **packed + tall** (everything in one scroll) + a nested-dup "Portfolio Intelligence". Aden's north stars: **less scroll, breathe, don't throw everything at the user** — marry the Dashboard's sub-tabs + the Lens's section breakouts. Direction set via Q&A (8 questions): **hybrid** · **board-first** · intelligence in its **own tab** · 3 tabs · horizontal strip · slim Pipeline ribbon · map in both. Plan: `~/.claude/plans/idempotent-prancing-harp.md`. Three Explore agents mapped the Dashboard `?tab=` pattern + the Lens `CollapsibleSection`/`LensSectionRail`/`useLensReveal` + the Skills/ library (confirmed: composition, not new components).
+
+- **Wave A (`f8c30c7`) — sub-tab shell (#20 one-job-per-view, #9 white-space):** `LibrarySubNav` (Pipeline · Intelligence · Comparisons, `?view=` deep-link). Pipeline view = slim `LibraryStatusRibbon` + command bar + board-first deal list — the heavy analytics left the main scroll. Fixes: board "1 alert" blob (#4), command-bar dead gap → search grows flush-right (#9), layout toggle Board-first.
+- **Wave B (`9d8850e`) — Intelligence tab (#9/#20):** `LibraryIntelligence` = Lens-style §01 Pipeline · §02 Analytics · §03 Map collapsibles + scrollspy `LensSectionRail` + `useLensReveal`, generous spacing. Funnel/map drill through → filtered Pipeline. Old all-in-one `PortfolioIntelligence` drawer deleted.
+- **Wave C — polish:** empty-state clear resets search+tags too; ledger + BUILD_LOG. **Known gap:** `MobileLibrary` stays cards-only (no Intelligence/Comparisons on mobile — not a regression; was always cards-only). Build + 174 unit + 7 smoke + eslint no-undef gate green.
+
 ---
 
 ## 🛡️ Tractova guardrails this skill respects
