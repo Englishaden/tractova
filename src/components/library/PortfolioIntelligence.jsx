@@ -32,6 +32,10 @@ export default function PortfolioIntelligence({
   stateDeltaMap,
   filterStage,
   setFilterStage,
+  // embedded = render as always-open tab content (no drawer card / header /
+  // collapse). Used by the Intelligence sub-tab. Pass 6 interim — Wave B
+  // replaces this whole component with LibraryIntelligence sections.
+  embedded = false,
 }) {
   const [open, setOpenState] = useState(loadOpen)
   const setOpen = (v) => {
@@ -93,9 +97,11 @@ export default function PortfolioIntelligence({
   if (projects.length === 0) return null
 
   return (
-    <div className="relative mb-4 rounded-xl bg-white border border-gray-200 overflow-hidden">
-      <TealRail />
-      {/* ── Summary header — always visible, carries the glanceable numbers ── */}
+    <div className={embedded ? 'relative' : 'relative mb-4 rounded-xl bg-white border border-gray-200 overflow-hidden'}>
+      {!embedded && <TealRail />}
+      {/* ── Summary header — drawer mode only; the Intelligence tab uses the
+          slim status ribbon on Pipeline instead. ── */}
+      {!embedded && (
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -146,10 +152,11 @@ export default function PortfolioIntelligence({
           </svg>
         </span>
       </button>
+      )}
 
       {/* ── Expanded breakdown ── */}
-      {open && (
-        <div className="px-4 pb-4 pt-3 border-t border-gray-100 flex flex-col gap-2.5">
+      {(open || embedded) && (
+        <div className={embedded ? 'flex flex-col gap-3' : 'px-4 pb-4 pt-3 border-t border-gray-100 flex flex-col gap-2.5'}>
           {/* Pipeline funnel — ONE compact stacked bar (the dashboard's
               CsProgramStatusBar idiom, div-based so it doesn't pull Recharts
               into the Library bundle). Click a segment or legend chip to filter

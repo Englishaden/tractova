@@ -10,6 +10,18 @@
 
 const VIEWS = [
   {
+    id: 'board',
+    label: 'Board',
+    hint: 'Kanban · drag deals across pipeline stages',
+    icon: (
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="5" height="16" rx="1"/>
+        <rect x="10" y="4" width="5" height="10" rx="1"/>
+        <rect x="17" y="4" width="4" height="13" rx="1"/>
+      </svg>
+    ),
+  },
+  {
     id: 'cards',
     label: 'Cards',
     hint: 'One project per card · expanded detail',
@@ -42,18 +54,6 @@ const VIEWS = [
         <path d="M3 6v15l6-3 6 3 6-3V3l-6 3-6-3-6 3z"/>
         <line x1="9" y1="3" x2="9" y2="18"/>
         <line x1="15" y1="6" x2="15" y2="21"/>
-      </svg>
-    ),
-  },
-  {
-    id: 'board',
-    label: 'Board',
-    hint: 'Kanban · drag deals across pipeline stages',
-    icon: (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="4" width="5" height="16" rx="1"/>
-        <rect x="10" y="4" width="5" height="10" rx="1"/>
-        <rect x="17" y="4" width="4" height="13" rx="1"/>
       </svg>
     ),
   },

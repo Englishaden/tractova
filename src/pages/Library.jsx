@@ -28,6 +28,8 @@ import LibraryCommandBar from '../components/library/LibraryCommandBar.jsx'
 import PortfolioIntelligence from '../components/library/PortfolioIntelligence.jsx'
 import PipelineBoard from '../components/library/PipelineBoard.jsx'
 import SavedViewsMenu from '../components/library/SavedViewsMenu.jsx'
+import LibrarySubNav from '../components/library/LibrarySubNav.jsx'
+import LibraryStatusRibbon from '../components/library/LibraryStatusRibbon.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
 import MobileLibrary from '../components/library/MobileLibrary.jsx'
@@ -679,14 +681,23 @@ function LibraryContent() {
         </div>
         </MountReveal>
 
-        {/* Portfolio intelligence — consolidated overview drawer (Pass 5 Wave 1).
-            The former stat-strip + pipeline-distribution + recent-updates +
-            weekly-summary blocks now live in this ONE collapsible surface
-            (src/components/library/PortfolioIntelligence.jsx). It self-hides
-            when there are no projects, so the guard is just for loading /
-            ?preview=empty. */}
-        {viewMode === 'projects' && !loading && !previewEmpty && (
+        {/* Sub-tab nav — Pipeline · Intelligence · Comparisons (Pass 6).
+            Bifurcates the Library into focused views so each breathes. URL
+            ?view= + state owned by useLibraryLayout. */}
+        {(projects.length > 0 || savedComparisonsCount > 0) && (
+          <LibrarySubNav
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            counts={{ pipeline: projects.length, comparisons: savedComparisonsCount }}
+          />
+        )}
+
+        {/* Intelligence tab — portfolio analytics, given its own roomy view.
+            Wave A renders the existing analytics body (embedded = always-open,
+            no drawer chrome); Wave B re-sections it Lens-style. */}
+        {viewMode === 'intelligence' && !loading && !previewEmpty && (
           <PortfolioIntelligence
+            embedded
             projects={projects}
             stateProgramMap={stateProgramMap}
             countyDataMap={countyDataMap}
@@ -694,34 +705,6 @@ function LibraryContent() {
             filterStage={filterStage}
             setFilterStage={setFilterStage}
           />
-        )}
-
-        {/* View toggle — Projects vs Comparisons. (Scenarios removed
-            2026-06-04 — financial/scenario modeling is out of the product;
-            feasibility $ stays behind the scenes in policy/card calcs.) */}
-        {(projects.length > 0 || savedComparisonsCount > 0) && (
-          <div className="flex items-center gap-1 mb-4 p-1 rounded-lg w-fit" style={{ background: 'rgba(15,26,46,0.04)' }}>
-            <button
-              type="button"
-              onClick={() => setViewMode('projects')}
-              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
-              style={viewMode === 'projects'
-                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
-                : { background: 'transparent', color: '#6B7280' }}
-            >
-              Projects {projects.length > 0 && <span className="font-mono opacity-60">· {projects.length}</span>}
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('comparisons')}
-              className="cursor-pointer text-[11px] font-semibold px-3 py-1.5 rounded-md transition-all"
-              style={viewMode === 'comparisons'
-                ? { background: 'white', color: '#0F1A2E', boxShadow: '0 1px 2px rgba(0,0,0,0.08)' }
-                : { background: 'transparent', color: '#6B7280' }}
-            >
-              Comparisons {savedComparisonsCount > 0 && <span className="font-mono opacity-60">· {savedComparisonsCount}</span>}
-            </button>
-          </div>
         )}
 
         {/* Saved comparisons — Phase 2C tab. Component owns its own fetch
@@ -732,7 +715,7 @@ function LibraryContent() {
         )}
 
         {/* Loading skeleton */}
-        {viewMode === 'projects' && (loading ? (
+        {viewMode === 'pipeline' && (loading ? (
           <div className="grid gap-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="rounded-xl px-5 py-4 animate-pulse flex items-center gap-4 bg-white border border-gray-200">
@@ -750,6 +733,15 @@ function LibraryContent() {
           </div>
         ) : (projects.length > 0 && !previewEmpty) ? (
           <>
+            {/* Slim status ribbon — glanceable portfolio numbers stay in view;
+                deep analytics are one click away in the Intelligence tab. */}
+            <LibraryStatusRibbon
+              projects={projects}
+              stateProgramMap={stateProgramMap}
+              countyDataMap={countyDataMap}
+              onOpenIntelligence={() => setViewMode('intelligence')}
+            />
+
             {/* Command bar — the single control surface (search · filters ·
                 tags · saved-views slot · sort · layout). Consolidated in Pass 5
                 Wave 1; the former filter strip + view toggle lived here as two

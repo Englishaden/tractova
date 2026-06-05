@@ -15,11 +15,13 @@ const PAGE_SIZE_KEY      = 'tractova_library_page_size'
 const VALID_PAGE_SIZES   = [10, 25, 50, 100]
 
 function loadLayout() {
+  // Board-first (Pass 6): default to the kanban board when the user has no
+  // stored preference; honour their stored choice (cards/table/map/board) otherwise.
   try {
     const v = typeof window !== 'undefined' ? localStorage.getItem(LAYOUT_STORAGE_KEY) : null
-    if (v === 'table' || v === 'map' || v === 'board') return v
-    return 'cards'
-  } catch { return 'cards' }
+    if (v === 'cards' || v === 'table' || v === 'map' || v === 'board') return v
+    return 'board'
+  } catch { return 'board' }
 }
 function saveLayout(layout) {
   try { localStorage.setItem(LAYOUT_STORAGE_KEY, layout) } catch { /* quota / SSR — silent */ }
@@ -60,8 +62,10 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
   const [filterStage,      setFilterStage]      = useState('')
   const [filterTags,       setFilterTags]       = useState([])         // AND-match against project.tags
   const [pipelineExpanded, setPipelineExpanded] = useState(false)
-  const [viewMode,         setViewMode]         = useState('projects') // 'projects' | 'comparisons'
-  const [layout,           setLayoutState]      = useState(loadLayout) // 'cards' | 'table' | 'map'
+  // Pass 6 sub-tabs: 'pipeline' (deal board/list) | 'intelligence' (analytics) |
+  // 'comparisons'. Synced to the ?view= URL param (deep-link + back/forward).
+  const [viewMode,         setViewModeState]    = useState('pipeline')
+  const [layout,           setLayoutState]      = useState(loadLayout) // 'board' | 'cards' | 'table' | 'map'
   const [drawerProject,    setDrawerProject]    = useState(null)       // map-pin → slide-in
   const [pageSize,         setPageSizeState]    = useState(loadPageSize)
   const [page,             setPage]             = useState(1)
@@ -73,13 +77,24 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     setPage(1)  // reset so the user always sees the top of the new window
   }, [])
 
-  // ?tab=comparisons URL handling so external links can land directly on the
-  // Comparisons tab. Only applies on mount.
-  const [searchParams] = useSearchParams()
+  // Sub-tab ↔ URL sync (mirrors the Dashboard ?tab= pattern). Read ?view= on
+  // mount; setViewMode writes it back so deep-links + browser back/forward work.
+  // Legacy ?tab=comparisons still lands on Comparisons.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const VALID_VIEWS = ['pipeline', 'intelligence', 'comparisons']
   useEffect(() => {
-    const tab = searchParams.get('tab')
-    if (tab === 'comparisons') setViewMode('comparisons')
+    const v = searchParams.get('view')
+    if (VALID_VIEWS.includes(v)) setViewModeState(v)
+    else if (searchParams.get('tab') === 'comparisons') setViewModeState('comparisons')
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const setViewMode = useCallback((v) => {
+    setViewModeState(v)
+    const next = new URLSearchParams(window.location.search)
+    if (v === 'pipeline') next.delete('view')   // default view = clean URL
+    else next.set('view', v)
+    next.delete('tab')                           // retire the legacy param
+    setSearchParams(next, { replace: false })
+  }, [setSearchParams])
 
   // Phase 2B — Esc clears the state filter when the user is in Map
   // view. Only fires when filterState is set, the drawer isn't open

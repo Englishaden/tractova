@@ -119,12 +119,12 @@ export default function PipelineBoard({ projects, stateProgramMap, countyDataMap
                           </p>
                           <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                             {alerts.length > 0 && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={hasUrgent ? { background: '#FEE2E2', color: '#991B1B' } : { background: '#FEF3C7', color: '#92400E' }}>
+                              <span className="inline-flex items-center gap-1 whitespace-nowrap leading-none text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={hasUrgent ? { background: '#FEE2E2', color: '#991B1B' } : { background: '#FEF3C7', color: '#92400E' }}>
                                 {alerts.length} alert{alerts.length > 1 ? 's' : ''}
                               </span>
                             )}
                             {(p.tags || []).slice(0, 2).map(t => (
-                              <span key={t} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(20,184,166,0.08)', color: '#0F766E' }}>{t}</span>
+                              <span key={t} className="inline-block whitespace-nowrap leading-none text-[9px] font-semibold px-1.5 py-0.5 rounded-full truncate max-w-[80px]" style={{ background: 'rgba(20,184,166,0.08)', color: '#0F766E' }}>{t}</span>
                             ))}
                           </div>
                         </div>
