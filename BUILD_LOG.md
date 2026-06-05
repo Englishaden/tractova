@@ -11,7 +11,8 @@
 - **New:** `LibrarySubNav` (Pipeline · Intelligence · Comparisons, URL `?view=`), `LibraryStatusRibbon` (slim Pipeline stats), `LibraryIntelligence` (Lens-style §01 Pipeline · §02 Analytics · §03 Map — `CollapsibleSection` + `LensSectionRail` scrollspy + `useLensReveal`; funnel/map drill → filtered Pipeline). `useLibraryLayout`: `viewMode` pipeline/intelligence/comparisons + `?view=` sync; **board-first** default layout. Toggle now Board · Cards · Table · Map.
 - **Deleted:** `PortfolioIntelligence.jsx` (drawer → ribbon + Intelligence tab). `PortfolioAnalytics` reused as §02.
 - **Quick fixes:** board "1 alert" blob (whitespace-nowrap); command-bar dead gap (search grows flush-right); empty-state clear resets search+tags. Dashboard Market-Filters State group defaults collapsed (`901b7b4`).
-- **Known gap:** `MobileLibrary` stays cards-only (no Intelligence/Comparisons on mobile — was always cards-only, not a regression). **Optional next:** mobile sub-tabs; breathing-room/motion polish on the new surfaces.
+- **Command bar (`031d768`):** rebuilt into two clean rows (Row 1 find & filter · Row 2 sort & view) — killed the dead white-space under search.
+- **Mobile sub-tabs (this commit):** `MobileLibrary` now carries the same Pipeline · Intelligence · Comparisons sub-nav (Intelligence stacks; scrollspy rail is xl-only so §-headers are the mobile nav). **Unified `normalizeProject`** (`src/lib/normalizeProject.js`) — fixed a latent bug where MobileLibrary's drifted normalize produced projectName/capacityMw while ProjectCard + analytics read name/mw/tags. **Optional next:** breathing-room/motion polish on the new surfaces.
 
 ---
 

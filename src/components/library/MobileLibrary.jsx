@@ -5,7 +5,11 @@ import { useAuth } from '../../context/AuthContext'
 import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../../lib/programData'
 import { computeSubScores, safeScore } from '../../lib/scoreEngine'
 import { logProjectEvent } from '../../lib/projectEvents'
+import { normalizeProject } from '../../lib/normalizeProject'
 import ProjectCard from '../ProjectCard.jsx'
+import LibrarySubNav from './LibrarySubNav.jsx'
+import LibraryIntelligence from './LibraryIntelligence.jsx'
+import SavedComparisonsList from './SavedComparisonsList.jsx'
 
 // MobileLibrary — Phase 6 (TRACTOVA-UX-001).
 //
@@ -25,22 +29,9 @@ import ProjectCard from '../ProjectCard.jsx'
 // No countyData prefetch; ProjectCard falls back to its local fetch when
 // the map is empty (already-shipped degraded-but-working path).
 
-function normalize(row) {
-  return {
-    id:               row.id,
-    state:            row.state || row.state_id || '',
-    county:           row.county || row.county_name || '',
-    projectName:      row.project_name || row.name || 'Untitled project',
-    technology:       row.technology || row.tech_type || 'Community Solar',
-    capacityMw:       Number(row.capacity_mw ?? row.system_size_mw ?? 0) || 0,
-    stage:            row.stage || '',
-    notes:            row.notes || '',
-    savedAt:          row.saved_at || row.created_at,
-    score:            row.score ?? null,
-    score_breakdown:  row.score_breakdown || null,
-    inputs:           row.inputs || null,
-  }
-}
+// Uses the shared canonical normalizer (was a drifted local copy that produced
+// projectName/capacityMw while ProjectCard + analytics read name/mw/tags).
+const normalize = normalizeProject
 
 export default function MobileLibrary() {
   const { user, loading: authLoading } = useAuth()
@@ -53,6 +44,7 @@ export default function MobileLibrary() {
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('saved') // saved | score | mw
   const [confirmRemove, setConfirmRemove] = useState(null)
+  const [view, setView] = useState('pipeline') // pipeline | intelligence | comparisons
 
   useEffect(() => { getStateProgramMap().then(setStateProgramMap).catch(() => {}) }, [])
   useEffect(() => { getStateProgramDeltas().then(setStateDeltaMap).catch(() => {}) }, [])
@@ -96,9 +88,10 @@ export default function MobileLibrary() {
     let rows = projects
     if (q) {
       rows = rows.filter(p =>
-        p.projectName.toLowerCase().includes(q) ||
-        p.state.toLowerCase().includes(q) ||
-        p.county.toLowerCase().includes(q)
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.state || '').toLowerCase().includes(q) ||
+        (p.county || '').toLowerCase().includes(q) ||
+        (p.tags || []).some(t => t.toLowerCase().includes(q))
       )
     }
     const sorted = [...rows]
@@ -109,7 +102,7 @@ export default function MobileLibrary() {
         return (sb ?? -1) - (sa ?? -1)
       })
     } else if (sortBy === 'mw') {
-      sorted.sort((a, b) => (b.capacityMw || 0) - (a.capacityMw || 0))
+      sorted.sort((a, b) => (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0))
     }
     // 'saved' is the default order from Supabase (already desc).
     return sorted
@@ -146,11 +139,15 @@ export default function MobileLibrary() {
           Saved projects
         </h1>
         <p className="text-[12px] mt-1.5" style={{ color: 'rgba(15,26,46,0.62)' }}>
-          {projects.length} project{projects.length === 1 ? '' : 's'} · cards-only mobile view.
-          Use a desktop for the full Lens analysis, board, and compare tray.
+          {projects.length} project{projects.length === 1 ? '' : 's'} · Pipeline, Intelligence
+          &amp; Comparisons. The kanban board + bulk actions are desktop-only.
         </p>
       </header>
 
+      <LibrarySubNav viewMode={view} setViewMode={setView} counts={{ pipeline: projects.length }} />
+
+      {view === 'pipeline' && (
+      <>
       <div className="flex gap-2 mb-4">
         <input
           type="search"
@@ -218,6 +215,24 @@ export default function MobileLibrary() {
           />
         ))}
       </div>
+      </>
+      )}
+
+      {/* Intelligence — same Lens-style sections as desktop; the scrollspy rail
+          is xl-only so on a phone the §-headers are the navigation. */}
+      {view === 'intelligence' && !loading && (
+        <LibraryIntelligence
+          projects={projects}
+          stateProgramMap={stateProgramMap}
+          countyDataMap={countyDataMap}
+          onStageDrill={() => setView('pipeline')}
+          onStateDrill={() => setView('pipeline')}
+        />
+      )}
+
+      {view === 'comparisons' && !loading && (
+        <SavedComparisonsList />
+      )}
 
       {confirmRemove && (
         <div
@@ -237,7 +252,7 @@ export default function MobileLibrary() {
               Remove this project?
             </h2>
             <p className="text-[13px] mb-4" style={{ color: 'rgba(15,26,46,0.62)' }}>
-              {confirmRemove.projectName} — {confirmRemove.state}, {confirmRemove.county}. This can't be undone.
+              {confirmRemove.name} — {confirmRemove.state}, {confirmRemove.county}. This can't be undone.
             </p>
             <div className="flex gap-2">
               <button
@@ -260,7 +275,7 @@ export default function MobileLibrary() {
       )}
 
       <p className="text-[11px] text-center mt-8" style={{ color: 'rgba(15,26,46,0.40)' }}>
-        Need bulk actions, the map, or compare tray? <Link to="/" className="underline">Open Tractova on desktop.</Link>
+        Need the kanban board, bulk actions, or Lens analysis? <Link to="/" className="underline">Open Tractova on desktop.</Link>
       </p>
     </main>
   )
