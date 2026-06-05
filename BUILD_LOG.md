@@ -4,7 +4,26 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-04 — Glossary revamp DONE + reviewed ✓ · NEXT SESSION = LIBRARY REVAMP
+## 🟢 Pickup — 2026-06-04 (eve) — LIBRARY REVAMP (Pass 5) code-complete: Waves 0–5 · ⏭ APPLY MIGRATIONS 073/074/075 + prod-eyeball
+
+**Library Pass 5 — "the big one" — shipped + pushed (main `ed3c873`→HEAD).** Plan `~/.claude/plans/idempotent-prancing-harp.md`; audit ledger Pass 5. Pro-gated → smoke stops at the paywall, so every wave is build + 175-unit + 7-smoke green but **NOT screenshot-verified**. Scope set via Q&A with Aden: full overhaul (all 4 pains), **Cards primary**, keep 3 tabs, bigger than Glossary.
+
+**⚠️ APPLY FIRST — features are DARK until the migrations land (all reads null-safe, app works without them):** **073** `projects.tags text[]` · **074** `projects.follow_up_at` + `follow_up_note` · **075** `saved_views` table. projects UPDATE policy (072) is column-agnostic → no policy change needed.
+
+Waves (each verify-green + pushed):
+- **0 `ed3c873`** — migrations 073/074/075 + `normalize()` surfaces them + Pass 5 ledger opened.
+- **1 `ed3c873`** — **hard consolidation:** the 5-block top stack → ONE `LibraryCommandBar` (desktop search + filters + tag filter + sort + layout) + ONE collapsible `PortfolioIntelligence` drawer (KPIs + pipeline distribution + recent-updates + due-this-week + weekly summary). `useLibraryLayout` += search / tag-filter (AND) / 'Due' sort / allTags / activeFilterCount.
+- **2 `011cec1`** — **CRM-lite:** `TagEditor` + `FollowUpControl`; ProjectCard header Due/Overdue + tag chips; Notes-tab editors; persistence + bubble to Library; threaded through ProjectTable/ProjectDrawer; MobileLibrary inherits via ProjectCard.
+- **3 `8c8bff2`** — **kanban `PipelineBoard`** 4th layout (native HTML5 DnD across stage columns → `handleStageChange`; per-card StagePicker = keyboard/touch a11y path; desktop-only; un-paginated like Map). Toggle now Cards | Table | Map | Board.
+- **4 `570021c`** — **`SavedViewsMenu`** (snapshot/restore {filters, tags, search, sort} via `saved_views`; silent-RLS-fail like SavedComparisonsList).
+- **5 (this commit)** — **polish:** `SpotlightCard` glow on KPI tiles + `TealRail` on the intelligence drawer; command-bar search full-width on phones. **Deferred:** ScoreGauge/MiniArcGauge parametric unification (both work; risk > value).
+
+**Carried loose end:** `src/components/BriefDrilldown.jsx` still orphaned (git-rm deny-listed).
+**⏭ Next:** Aden applies the 3 migrations → prod-eyeball the Library as a Pro user (board DnD, tag/follow-up chips, saved views, due-this-week roll-up). Optional follow-ups: gauge unification; tag/follow-up live-bubble when edited from Table/Drawer (persists either way; only the in-session portfolio reflection differs).
+
+---
+
+## 🟢 Pickup — 2026-06-04 — Glossary revamp DONE + reviewed ✓ · LIBRARY REVAMP = DONE (see pickup above)
 
 **Surfaces closed out: Dashboard · Lens (Waves 1–6) · Glossary.** Glossary reviewed on prod by Aden 2026-06-04 — **looks good, no major comments.** §01 Lens white-space fill = dropped/closed. **NEXT MAJOR = Library revamp (its own explore→audit→plan flow; Aden says it needs a lot of work).**
 

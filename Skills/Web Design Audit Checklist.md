@@ -228,7 +228,7 @@ Public surface (screenshot-verifiable on prod, unlike the Pro-gated Lens). Plan:
 - New: `TealRail` gained an optional `className` (hover-fade on cards). 2 new components (`GlossaryJumpRail`, `SeeAlsoLink`). `BriefDrilldown.jsx` from Lens 6c still orphaned (git-rm deny-listed).
 - **⏭ Aden:** prod eyeball (public URL). **Library = separate plan, later.**
 
-### Pass 5 — Library revamp ("the big one") — 🔵 IN PROGRESS (2026-06-04)
+### Pass 5 — Library revamp ("the big one") — ✅ DONE code-level (2026-06-04; Aden prod-eyeball pending — Pro-gated)
 
 Pro-gated daily-driver deal-tracker. Plan: `.claude/plans/idempotent-prancing-harp.md`. Unlike Glossary, Library is **feature-mature** (16 components, 3 layouts, 3 tabs) but **heavily accreted** (V3 + Phase 2A/2B/2C + Phase 4) and predates the Lens/Glossary motion bar. Aden's four-pain diagnosis → revamp = *workflow elevation* (CRM-lite cockpit) + *hard consolidation* + *visual pass*. Scope locked via Q&A: kanban board · follow-up dates · custom tags · saved views · desktop search · consolidate-hard. Wave-based, verify-green per slice.
 
@@ -243,8 +243,13 @@ Pro-gated daily-driver deal-tracker. Plan: `.claude/plans/idempotent-prancing-ha
 
 **Schema (Wave 0, migration FILES — Aden applies; all reads null-safe):** `073` projects.tags text[] · `074` projects.follow_up_at + follow_up_note · `075` saved_views table (mirrors `saved_comparisons` 062 RLS). projects UPDATE policy (072) is column-agnostic → no policy change for the new columns.
 
-- **Wave 0 — ✅ migrations 073/074/075 written; `normalize()` extended (tags/followUpAt/followUpNote, null-safe); this ledger entry opened.**
-- **⏭ Waves 1–5** per plan. Carry banked primitives (`SpotlightCard`, `TealRail`, `AnimatedList(itemAs)`, `CopyButton`, `ui/Tabs`, scrollspy-rail/sticky-bar). `BriefDrilldown.jsx` orphan still carried.
+- **Wave 0 (`ed3c873`) — foundations:** migrations 073 (projects.tags) / 074 (follow_up_at+note) / 075 (saved_views); `normalize()` surfaces them null-safe; this ledger entry opened.
+- **Wave 1 (`ed3c873`) — hard consolidation (#9/#8):** the 5-block stack → one `LibraryCommandBar` (search + filters + tag filter + sort + layout) + one collapsible `PortfolioIntelligence` drawer (KPIs + pipeline + recent-updates + due-this-week + weekly summary). `useLibraryLayout` gained search + tag filter (AND) + 'Due' sort + allTags/activeFilterCount.
+- **Wave 2 (`011cec1`) — CRM-lite (#4):** `TagEditor` + `FollowUpControl`; ProjectCard owns state/persistence + bubbles to Library; header gains Due/Overdue + tag chips; Notes tab gains the editors. Threaded through ProjectDrawer/ProjectTable; MobileLibrary inherits via ProjectCard.
+- **Wave 3 (`8c8bff2`) — kanban board (#4):** `PipelineBoard` 4th layout, native HTML5 DnD across stage columns → `handleStageChange`; per-card StagePicker = keyboard/touch path (a11y). Desktop-only; un-paginated like Map.
+- **Wave 4 (`570021c`) — saved views:** `SavedViewsMenu` in the command-bar slot; snapshot/restore {filters,tags,search,sort} via `saved_views`; silent-RLS-fail like SavedComparisonsList.
+- **Wave 5 — polish (#8/#11/#12):** `SpotlightCard` glow on the KPI tiles + `TealRail` on the intelligence drawer; command-bar search goes full-width on phones. **Deferred:** ScoreGauge/MiniArcGauge parametric unification (both work; risk > value — left for a focused pass). `BriefDrilldown.jsx` orphan still carried.
+- **⏭ Aden:** apply migrations 073/074/075 (features are dark until then), then prod-eyeball. Verify green each wave (build + 175 unit + 7 smoke).
 
 ---
 

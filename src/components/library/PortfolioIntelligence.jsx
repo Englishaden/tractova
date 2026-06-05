@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
 import CountUp from '../ui/CountUp'
+import SpotlightCard from '../ui/SpotlightCard'
+import TealRail from '../ui/TealRail'
 import WeeklySummaryCard from './WeeklySummaryCard'
 import { getAlerts } from '../../lib/alertHelpers'
 import { PIPELINE_STAGES, PIPELINE_SHORT } from './PipelineProgress'
@@ -93,7 +95,8 @@ export default function PortfolioIntelligence({
   if (projects.length === 0) return null
 
   return (
-    <div className="mb-4 rounded-xl bg-white border border-gray-200 overflow-hidden">
+    <div className="relative mb-4 rounded-xl bg-white border border-gray-200 overflow-hidden">
+      <TealRail />
       {/* ── Summary header — always visible, carries the glanceable numbers ── */}
       <button
         type="button"
@@ -142,12 +145,12 @@ export default function PortfolioIntelligence({
               { label: 'Total Capacity', value: totalMw, decimals: 1, suffix: ' MW', sub: 'AC nameplate' },
               { label: 'Active Alerts', value: alertCount, decimals: 0, suffix: '', sub: 'policy or market flags' },
             ].map(({ label, value, decimals, suffix, sub }) => (
-              <div key={label} className="rounded-xl px-4 py-3 bg-white border border-gray-200 relative overflow-hidden">
+              <SpotlightCard key={label} className="rounded-xl px-4 py-3 border border-gray-200 overflow-hidden" style={{ backgroundColor: '#FFFFFF' }}>
                 <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, #0F1A2E 0%, #14B8A6 100%)' }} />
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mt-1">{label}</p>
                 <p className="text-xl font-bold font-mono tabular-nums mt-0.5" style={{ color: '#0F1A2E' }}><CountUp value={value} decimals={decimals} suffix={suffix} /></p>
                 <p className="text-[10px] mt-0.5 text-gray-400">{sub}</p>
-              </div>
+              </SpotlightCard>
             ))}
           </div>
 
