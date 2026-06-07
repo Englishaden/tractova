@@ -166,16 +166,31 @@ describe('computeSubScores — main entry', () => {
     expect(r.coverage.site).toBe('fallback')
   })
 
-  it('site uses live geospatial when present', () => {
-    // wetland 5% (<15 → false), prime farmland 35% (>=25 → true) → 82
+  it('site uses live geospatial when present (high farmland = constraint, not best-site)', () => {
+    // 2026-06 audit fix: HIGH prime farmland is a siting CONSTRAINT (ag-conversion
+    // review), so availableLand = farmland < 25. wetland 5% (<15 → no warning);
+    // farmland 35% (>=25 → availableLand=false). (land=false, wet=false) → 42.
     const r = computeSubScores(
       { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' },
       { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 35 } },
       '',
       'Community Solar',
     )
-    expect(r.site).toBe(82)
+    expect(r.site).toBe(42)
     expect(r.coverage.site).toBe('live')
+  })
+
+  it('low prime-farmland scores a better site than high prime-farmland (constraint direction)', () => {
+    const lowFarm = computeSubScores(
+      { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' },
+      { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10 } }, '', 'Community Solar',
+    )
+    const highFarm = computeSubScores(
+      { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' },
+      { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 80 } }, '', 'Community Solar',
+    )
+    // low farmland → availableLand=true → 82; high farmland → false → 42.
+    expect(lowFarm.site).toBeGreaterThan(highFarm.site)
   })
 
   it('LMI penalty applies to the offtake baseline regardless of csStatus', () => {
@@ -392,6 +407,15 @@ describe('computeIncentiveScore — Pillar 4 (ITC step-up eligibility)', () => {
     const r = computeIncentiveScore({ energyCommunity: null, nmtcLic: { isEligible: false }, hudQctDda: { qctCount: 3, isNonMetroDda: false } })
     expect(r.adders.lowIncomeCommunity).toBe(true)
     expect(r.score).toBe(75)
+  })
+
+  it('§48(e) LIC adder is size-capped at ≤5 MW AC (Category 1 statutory cap)', () => {
+    const stack = { energyCommunity: { isEnergyCommunity: true }, nmtcLic: { isEligible: true }, hudQctDda: null }
+    expect(computeIncentiveScore(stack, 5).score).toBe(100)      // ≤5 MW → full stack
+    expect(computeIncentiveScore(stack, 20).score).toBe(75)      // >5 MW → LIC adder dropped, EC stays
+    expect(computeIncentiveScore(stack, 20).adders.lowIncomeCommunity).toBe(false)
+    expect(computeIncentiveScore(stack, 20).adders.licSizeCapped).toBe(true)
+    expect(computeIncentiveScore(stack, null).score).toBe(100)   // unknown size → no cap (don't fabricate)
   })
 })
 

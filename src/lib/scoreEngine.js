@@ -331,7 +331,7 @@ export function getOfftakeCoverageStates(technology) {
 // result means "no qualifying row for this county" → treated as not-eligible
 // for that pathway. When ALL three are null we have no coverage → score null
 // (excluded from the composite via rebalance) rather than fabricate a baseline.
-export function computeIncentiveScore(incentives) {
+export function computeIncentiveScore(incentives, mw = null) {
   if (!incentives) return { score: null, coverage: 'none', adders: {} }
   const { energyCommunity, nmtcLic, hudQctDda } = incentives
   const hasCoverage = energyCommunity != null || nmtcLic != null || hudQctDda != null
@@ -340,12 +340,22 @@ export function computeIncentiveScore(incentives) {
   const ec = !!(energyCommunity && energyCommunity.isEnergyCommunity)
   const nmtc = !!(nmtcLic && nmtcLic.isEligible)
   const hud = !!(hudQctDda && (hudQctDda.qctCount > 0 || hudQctDda.isNonMetroDda))
-  const lic = nmtc || hud   // §48(e) Low-Income Community bonus via either pathway
+  const licTract = nmtc || hud   // §48(e) Low-Income Community bonus via either pathway
+  // §48(e) Category 1 Low-Income Community bonus is statutorily capped at
+  // facilities ≤5 MW AC net output (2026-06 data audit fix — the engine
+  // previously awarded the +25 LIC adder regardless of size, over-granting it
+  // to the 10-20 MW projects in Tractova's own scope, which the UI already
+  // flags "≤5 MW only"). The Energy Community +10% has no size cap. mw=null
+  // (size unknown) → don't cap. NOTE (flagged, not changed here): using HUD
+  // QCT as a §48(e) LIC pathway is a Treasury-faithfulness question — §48(e)
+  // Cat 1 uses the NMTC LIC definition, not the LIHTC QCT designation.
+  const licSizeEligible = mw == null || mw <= 5
+  const lic = licTract && licSizeEligible
 
   // 50 = base §48E (30% with PW&A), no location bonus. +25 Energy Community,
   // +25 Low-Income Community → up to 100 (full adder stack, potential ~50% ITC).
   const score = 50 + (ec ? 25 : 0) + (lic ? 25 : 0)
-  return { score, coverage: 'live', adders: { energyCommunity: ec, lowIncomeCommunity: lic, nmtc, hudQctDda: hud } }
+  return { score, coverage: 'live', adders: { energyCommunity: ec, lowIncomeCommunity: lic, nmtc, hudQctDda: hud, licSizeCapped: licTract && !licSizeEligible } }
 }
 
 // ── IX live-blend thresholds ─────────────────────────────────────────────────
@@ -568,14 +578,21 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   if (hasLiveGeo) {
     // Calibrated 2026-05-01 from scripts/probe-geospatial.mjs:
     //   wetlandWarning = wetland_coverage_pct >= 15 (matches BUILD_LOG)
-    //   availableLand  = prime_farmland_pct  >= 25 (matches BUILD_LOG)
+    //   availableLand  = prime_farmland_pct  <  25
+    // NOTE (2026-06 data audit fix): `availableLand` means "favorable,
+    // low-constraint land." HIGH prime-farmland coverage is a siting
+    // CONSTRAINT (ag-conversion / FPPA review, ag-preservation ordinances,
+    // community opposition), NOT an opportunity — so favorable = LOW farmland
+    // (< 25%). This matches the SiteControlCard UI + glossary, which already
+    // treat high farmland as a constraint; the prior `>= 25` mapping was
+    // inverted and scored high-farmland counties as best-site.
     // wetland_coverage_pct can exceed 100% from NWI polygon overlap +
     // water inclusion; the >=15 threshold is unaffected.
     if (geo.wetlandCoveragePct != null) {
       wetlandWarning = geo.wetlandCoveragePct >= 15
     }
     if (geo.primeFarmlandPct != null) {
-      availableLand = geo.primeFarmlandPct >= 25
+      availableLand = geo.primeFarmlandPct < 25
     }
     // Bridge: if one layer is missing from the live row, fill the gap from
     // curated where possible (e.g. SSURGO ingest done but NWI seed still
@@ -606,7 +623,7 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   // Absent → score null → excluded from the composite (weights rebalance), so
   // surfaces that don't fetch county incentive data (Library/Compare) aren't
   // penalized with a fabricated baseline.
-  const inc = computeIncentiveScore(opts.incentives)
+  const inc = computeIncentiveScore(opts.incentives, mw)
   const incentives = inc.score
   const incentivesCoverage = inc.coverage
 
