@@ -583,25 +583,26 @@ function LibraryContent() {
         {/* V3: Brand-navy hero banner — adds institutional depth, replaces stark white-on-white */}
         <MountReveal delay={0}>
         <div
-          className="mt-4 rounded-xl overflow-hidden mb-6 relative"
-          style={{ background: 'linear-gradient(135deg, #0F1A2E 0%, #0A132A 100%)' }}
+          className="mt-4 rounded-xl overflow-hidden mb-5 relative"
+          style={{ background: 'linear-gradient(135deg, var(--color-brand-600), var(--color-brand-700))' }}
         >
-          {/* Top teal accent rail */}
-          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, rgba(20,184,166,0.4) 0%, rgba(20,184,166,0.85) 50%, rgba(20,184,166,0.4) 100%)' }} />
-          <div className="px-6 py-5 flex items-end justify-between gap-4">
-            <div>
-              <p className="text-[10px] font-bold tracking-widest uppercase mb-1.5" style={{ color: '#2DD4BF' }}>Deal Tracker</p>
+          {/* Top teal accent rail — shared .lp-accent-rail utility (was a
+              hand-rolled inline gradient div duplicating the same primitive). */}
+          <div className="lp-accent-rail" />
+          <div className="px-6 py-3.5 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold tracking-widest uppercase mb-1 text-feasibility-3">Deal Tracker</p>
               <h1 className="text-2xl font-serif font-semibold tracking-tight text-white" style={{ letterSpacing: '-0.02em' }}>Library</h1>
-              {/* Subline is brand-only — the projects/MW/alerts numbers live in
-                  the Portfolio Intelligence drawer below (no triple-count). */}
-              <p className="text-sm mt-1.5" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                {projects.length > 0
-                  ? 'Tracked, scored, and monitored for policy changes.'
-                  : 'Your saved deals — tracked, scored, and monitored for policy changes.'}
-              </p>
+              {/* Subline kept only for the empty/onboarding state. On a populated
+                  deal-tracker it was brand voice with no daily value, so the slim
+                  pass drops it (and tightens padding + vertically centers the row)
+                  to surface the board higher. Numbers still live in the ribbon. */}
+              {projects.length === 0 && (
+                <p className="text-sm mt-1.5 text-white/55">Your saved deals — tracked, scored, and monitored for policy changes.</p>
+              )}
               {lastRefresh && (
                 <span
-                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] mt-2"
+                  className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.16em] mt-1.5"
                   style={{ color: lastRefresh.isStale ? '#FCD34D' : '#5EEAD4' }}
                   title={lastRefresh.isStale
                     ? `Underlying program data is ${lastRefresh.ageDays} days old — last weekly refresh missed at least one cycle. Score deltas and alerts may not reflect this week's policy changes.`
@@ -627,14 +628,7 @@ function LibraryContent() {
               {projects.length > 0 && (
                 <button
                   onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors"
-                  style={{
-                    color: 'rgba(255,255,255,0.85)',
-                    background: 'rgba(255,255,255,0.05)',
-                    border: '1px solid rgba(255,255,255,0.12)',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors text-white/85 bg-white/5 hover:bg-white/10 border border-white/[0.12]"
                   title="Export to Excel — Projects sheet + Methodology & Sources + Glossary"
                 >
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -643,10 +637,7 @@ function LibraryContent() {
               )}
               <Link
                 to="/search"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white px-3.5 py-2 rounded-lg transition-colors"
-                style={{ background: '#14B8A6' }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#0F766E' }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = '#14B8A6' }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white px-3.5 py-2 rounded-lg transition-colors bg-feasibility-4 hover:bg-primary"
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 New Lens Search
