@@ -4,6 +4,23 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-07 — LIBRARY PASS-6 POLISH reviewed on prod ✓ + react-router patch · ⏭ Aden broad prod review
+
+**STATUS (Aden 2026-06-07):** Pass 6 Library **reviewed on prod by Aden — "looks good and better"** ✓ (hero + board screenshots). The deferred **motion/breathing polish is DONE** (no longer a loose end). Paused here for a **broad prod review across the whole Library** (+ confirm the react-router bump behaves) before the next substantive slice. Open product fork (not started, Aden to pick): **coverage expansion (IX/offtake states)** vs **retention mechanics (score-move / due-follow-up digest)**. Mobile remains a separate future major redesign.
+
+**Library polish pass — 4 commits, all verify-green + pushed (main `834de32`→`543286e`):**
+- **`834de32`** — hero slimmed (py-5→3.5 · items-center · drop populated-state subline, kept for empty state) + unified to design tokens (inline navy hex → `var(--color-brand-600/700)`; hand-rolled rail → existing `.lp-accent-rail`; eyebrow/CTAs → `feasibility`/`primary` utilities; deleted imperative onMouse hover handlers).
+- **`fb77192`** — portfolio numbers (projects · MW · alerts · due) folded into the hero's dead right-half; **`LibraryStatusRibbon` deleted** (computation relocated to a `portfolioStats` useMemo in Library). One glanceable top-line; deep analytics stay in the Intelligence tab.
+- **`3e8bb19`** — board deal-names were truncated to ~7 chars: `StagePicker` gained a `compact` prop (chevron-only; stage still cued by badge color — the column header already names the stage); board name `truncate`→`line-clamp-2`. Shared label variant (Table/Card/Drawer) unchanged.
+- **`543286e`** — entrance-motion parity: Board + Comparisons wrapped in `MountReveal` (Cards already had it; Intelligence has its own scroll-reveal). Closes the motion loose end.
+
+**Security — `dcb65fb` (Dependabot triage of the 4 advisories):**
+- **FIXED:** `react-router-dom` 6.30.3→6.30.4 (manifest floor → `^6.30.4`), patching the moderate open-redirect (`//` protocol-relative reinterpretation). npm audit moderate 2→0; smoke green across routes.
+- **ACCEPTED (unchanged):** the 6 highs = d3-color ReDoS chain + xlsx — both not-exposed, allowlisted, `review_due 2026-08-06`. **GitHub's Dependabot banner still shows 3 high BY DESIGN** (it ignores `audit-allowlist.json`); our `lint:audit` gate is the source of truth (green, 3/3 allowlisted, current).
+- **Recorded:** react-simple-maps@4.0.0-beta.6 is still pre-release AND still declares d3-zoom@^2 → the d3 "4.x upgrade" mitigation is a confirmed DEAD END (logged in the allowlist rationale).
+
+---
+
 ## 🟢 Pickup — 2026-06-05 — LIBRARY RE-ARCHITECTURE (Pass 6) DONE: sub-tabs + Lens sections + mobile · ⏭ Aden review deferred (new chat)
 
 **STATUS (Aden 2026-06-05):** migrations **073/074/075 APPLIED** ✓ (cockpit features live). Aden is **holding review** of the Pass 6 Library for now — will **start a NEW CHAT** to go over Library-tab changes. **Mobile is a separate FUTURE major redesign** (the Pass 6 mobile sub-tabs shipped, but a full mobile rethink is its own future effort). Only loose end: a deferred breathing-room/motion polish pass on the new surfaces (optional).
