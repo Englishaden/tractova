@@ -4,6 +4,31 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-07 (eve) — DATA AUDIT shipped + Wave-1 remediation underway · ⏭ PARITY WIRING next, then Aden prod-review
+
+**STATUS (Aden 2026-06-07 eve):** Full data/scoring audit done → **plan APPROVED** = `~/.claude/plans/ok-we-should-move-dynamic-charm.md` (the audit of record + remediation roadmap; read it first). Wave 0 probes + 4 Wave-1 commits shipped. **NEXT = the PARITY WIRING** (⏭ below). Then **Aden reviews prod for bugs/issues; continue tomorrow.**
+
+**What "parity wiring" is:** the Library scores a saved project on only offtake/ix/site (it never fetches per-county incentives or per-state policy) while the Lens uses all 5 pillars → **same project, different Feasibility Index** on Library vs Lens, and drift *between* Library surfaces (8+ ad-hoc `computeSubScores` calls, each with a different arg set). The wiring threads the Lens's inputs into the Library and routes every surface through the one canonical helper so one project = one score everywhere.
+
+**Decisions LOCKED:** (1) saved scores → **Full Lens parity** (one helper). (2) **P0 integrity first**. (3) citation map → dedicated **/methodology** page. (4) site farmland axis → **inverted** (high farmland = constraint). (5) policy severity → **require human-set** (null AI severity; retire bps bridge).
+
+**The audit (20-agent run `wf_9c370c00-d60`):** the 2026-05 5-pillar pivot (Offtake 25·IX 25·Incentives 20·Site 20·Policy 10) left stale 3-pillar artifacts + the Library reduced-pillar gap above. Also honesty bugs (site axis inverted, §48e 5MW cap unenforced, AI-auto-published policy severity) + a misleading freshness signal (`MAX(any successful cron)` can read "today" while a pillar silently fails; only 6 of ~16 tables alert-monitored). Full inventory + accuracy ranking + citation map = in the plan file.
+
+**Wave 0 probes (live DB):** ✅ IX fabricated seed (`002_ix_queue_seed`) **already purged** — no fix needed; live IX blend still moves 0 states (all feeds `cs_pipeline`). Policy = 19 states/27 rows (the other 31 scored "clean" by default). availableLand inversion confirmed.
+
+**Wave 1 shipped (main `1fd536f`→`856ec19`):**
+- **`1fd536f`** — killed stale 40/35/25 labels (StateDetailPanel caption, MarketPositionPanel tooltip+comment, scoreEngine root comment). ProjectCard "Index Breakdown" 40/35/25 **deferred to the wiring** (needs incentives/policy in `subs`). Caught: the Dashboard "Feasibility Index" is a DIFFERENT state heuristic (`computeFeasibilityScore` = cs_status+capacity+lmi+ix, NO site/incentive/policy term) sharing the per-project name.
+- **`a7df017`** — **canonical `scoreSavedProject(project, sp, cd, opts)`** (`src/lib/scoreEngine.js`) + 5 parity tests (Library==Lens). Fixed `normalizeProject` silently dropping `cod_target_year` → now `codTargetYear`.
+- **`856ec19`** — site farmland axis inverted (`availableLand = primeFarmlandPct < 25`, high farmland=constraint, matches UI); §48(e) ≤5MW LIC cap enforced (`computeIncentiveScore(incentives, mw)`).
+
+**⏭ NEXT — Task #3 PARITY WIRING (centerpiece; big + Pro-gated-blind, so verify carefully):** in `Library.jsx` + `MobileLibrary.jsx` build an incentives map (`getEnergyCommunity`/`getNmtcLic`/`getHudQctDda` per `state::county`) + a policyEvents map (`getPolicyImpactEvents({state})` per state); thread both to every scoring surface; replace the ad-hoc `computeSubScores` calls with `scoreSavedProject` at `ProjectCard.jsx:180/113`, `ProjectTable.jsx:166`, `PipelineBoard.jsx:37`, `LibraryMap.jsx:94/119/142`, `useLibraryLayout.js:123`, `CompareTray.jsx:106`, `exportHelpers.js:28`, `Library.jsx:401/459`, `MobileLibrary.jsx:100`, `alertHelpers.js:72`; render `ProjectCard` "Index Breakdown" as 5 pillars (mirror `MarketPositionPanel.jsx:335-342`). Then Task #4 (5-pillar XLSX export — needs the parity fetch so columns have data). Foundation (helper + test) is laid.
+
+**2 OPEN for Aden (policy calls, not code):** (a) **HUD QCT as §48e LIC pathway** — over-grants (§48e Cat1 = NMTC LIC def, not LIHTC QCT); flagged in code, removal lowers QCT-only scores. (b) **Policy-severity bridge retirement** silences the 27 existing rows until severity backfill — sequence backfill-then-retire vs retire-now.
+
+**Wave 2 (after parity):** `/methodology` citation page (from a shared `dataSources.js`; add the Policy pillar + fix EPA→DOE-NETL / EIA-861-vs-EPM / NWI-USFWS / OBBBA-secondary labels); freshness truth (oldest-successful-cron + per-pillar alerting); policy-flow guardrails (AI confidence gate, empty-set AI-cache bust, no-data≠clean flag); NWI cron/coverage-copy honesty.
+
+---
+
 ## 🟢 Pickup — 2026-06-07 — LIBRARY PASS-6 POLISH reviewed on prod ✓ + react-router patch · ⏭ Aden broad prod review
 
 **STATUS (Aden 2026-06-07):** Pass 6 Library **reviewed on prod by Aden — "looks good and better"** ✓ (hero + board screenshots). The deferred **motion/breathing polish is DONE** (no longer a loose end). Paused here for a **broad prod review across the whole Library** (+ confirm the react-router bump behaves) before the next substantive slice. Open product fork (not started, Aden to pick): **coverage expansion (IX/offtake states)** vs **retention mechanics (score-move / due-follow-up digest)**. Mobile remains a separate future major redesign.
