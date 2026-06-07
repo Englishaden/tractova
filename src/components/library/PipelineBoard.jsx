@@ -113,7 +113,7 @@ export default function PipelineBoard({ projects, stateProgramMap, countyDataMap
                       <div className="flex items-start gap-2">
                         <MiniArcGauge score={score} color={accentFor(score)} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-semibold text-ink leading-snug truncate" style={{ fontFamily: 'var(--font-serif, serif)' }}>{p.name}</p>
+                          <p className="text-[12px] font-semibold text-ink leading-snug line-clamp-2" style={{ fontFamily: 'var(--font-serif, serif)' }}>{p.name}</p>
                           <p className="text-[10px] text-gray-500 truncate mt-0.5">
                             {p.county} County · {parseFloat(p.mw) || 0} MW
                           </p>
@@ -130,7 +130,7 @@ export default function PipelineBoard({ projects, stateProgramMap, countyDataMap
                         </div>
                         {/* Keyboard / touch path — change stage without dragging. */}
                         <div onClick={(e) => e.stopPropagation()} className="shrink-0">
-                          <StagePicker stage={p.stage} projectId={p.id} onChange={(s) => onStageChange?.(p.id, s)} />
+                          <StagePicker stage={p.stage} projectId={p.id} onChange={(s) => onStageChange?.(p.id, s)} compact />
                         </div>
                       </div>
                     </div>

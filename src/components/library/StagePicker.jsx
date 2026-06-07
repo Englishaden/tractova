@@ -31,7 +31,12 @@ const STAGE_BADGE = {
   'Operational':            'bg-teal-50 text-teal-800 border-teal-200',
 }
 
-export default function StagePicker({ stage, projectId, onChange }) {
+// `compact` renders a chevron-only control (no stage label) for surfaces
+// where the stage is already named by context — e.g. the PipelineBoard, whose
+// column header IS the stage, so repeating it on every card both crushed the
+// project name and stated the obvious. The stage is still cued by the badge
+// color; the full menu is unchanged.
+export default function StagePicker({ stage, projectId, onChange, compact = false }) {
   const [open, setOpen] = useState(false)
 
   const handleSelect = async (newStage) => {
@@ -60,10 +65,13 @@ export default function StagePicker({ stage, projectId, onChange }) {
         <button
           type="button"
           onClick={(e) => e.stopPropagation()}
-          aria-label="Edit project stage"
-          className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-sm border font-medium transition-opacity hover:opacity-80 ${stageCls}`}
+          aria-label={compact ? `Edit project stage (currently ${stage || 'unset'})` : 'Edit project stage'}
+          title={compact ? `Stage: ${stage || 'unset'} — click to change` : undefined}
+          className={compact
+            ? `flex items-center justify-center w-6 h-6 rounded-sm border transition-opacity hover:opacity-80 ${stageCls}`
+            : `flex items-center gap-1 text-xs px-2 py-0.5 rounded-sm border font-medium transition-opacity hover:opacity-80 ${stageCls}`}
         >
-          {stage}
+          {!compact && stage}
           <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
             <polyline points="6 9 12 15 18 9"/>
           </svg>
