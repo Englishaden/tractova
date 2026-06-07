@@ -715,7 +715,9 @@ function LibraryContent() {
             so Library doesn't pay a second Supabase round-trip on every
             load when most users land on Projects. */}
         {viewMode === 'comparisons' && !loading && (
-          <SavedComparisonsList />
+          <MountReveal delay={0}>
+            <SavedComparisonsList />
+          </MountReveal>
         )}
 
         {/* Loading skeleton */}
@@ -905,6 +907,7 @@ function LibraryContent() {
                 /* Wave 3 — kanban deal board. Renders ALL filtered projects
                    (un-paginated, like Map); drag a card to advance its stage.
                    Card click opens the same ProjectDrawer the map pins use. */
+                <MountReveal delay={0}>
                 <PipelineBoard
                   projects={displayProjects}
                   stateProgramMap={stateProgramMap}
@@ -912,6 +915,7 @@ function LibraryContent() {
                   onStageChange={handleStageChange}
                   onCardClick={(p) => setDrawerProject(p)}
                 />
+                </MountReveal>
               ) : (
               <MountReveal delay={0.24}>
               <div className="grid gap-3">
