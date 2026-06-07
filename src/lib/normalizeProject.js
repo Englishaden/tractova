@@ -18,6 +18,11 @@ export function normalizeProject(row) {
     servingUtility:    row.serving_utility,
     feasibilityScore:  row.opportunity_score,
     ixDifficulty:      row.ix_difficulty,
+    // Target COD year (migration 070) — drives the federal tax-credit TIMING
+    // pillar (§48E/§45Y safe-harbor). Was previously DROPPED here, so every
+    // Library surface passed codYear=undefined to scoreSavedProject while the
+    // Lens passed the real value — a silent source of Library-vs-Lens drift.
+    codTargetYear:     row.cod_target_year ?? null,
     notes:             row.notes || '',
     savedAt:           row.saved_at,
     lastObservedScore: row.last_observed_score ?? null,

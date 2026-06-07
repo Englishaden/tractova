@@ -746,6 +746,42 @@ export function computeDisplayScoreRange(a, b, c) {
   }
 }
 
+// ── scoreSavedProject ─────────────────────────────────────────────────────────
+// THE canonical way to score a SAVED project (Library card/table/board/map,
+// Compare, Portfolio, export). It threads the SAME inputs the Lens uses
+// (src/pages/Search.jsx computeSubScores call) so the identical project yields
+// the identical 5-pillar Feasibility Index on every surface — ending the
+// per-call-site argument drift the 2026-06 data audit found (8+ sites each
+// passed a different arg set, so the same project scored differently on the
+// card vs table vs Lens).
+//
+// Full Lens parity: pass opts.incentives ({ energyCommunity, nmtcLic,
+// hudQctDda }), opts.policyEvents (state events), and opts.ixQueueSummary when
+// the container has fetched them. Omit any and computeDisplayScore rebalances
+// over the pillars present — an honest reduced score, never a fabricated
+// baseline (scoreEngine rebalance, computeDisplayScore). codYear comes off the
+// normalized project (normalizeProject surfaces it as `codTargetYear`).
+//
+// @param {object} project — normalized project (mw, stage, technology, codTargetYear)
+// @param {object} stateProgram — stateProgramMap[project.state]
+// @param {object|null} countyData — countyDataMap[`${state}::${county}`]
+// @param {object} opts — { incentives?, policyEvents?, ixQueueSummary? }
+// @returns {{ subs: object|null, score: number|null }}
+export function scoreSavedProject(project, stateProgram, countyData = null, opts = {}) {
+  if (!project || !stateProgram) return { subs: null, score: null }
+  const subs = computeSubScores(
+    stateProgram,
+    countyData,
+    project.stage,
+    project.technology,
+    opts.ixQueueSummary ?? null,
+    opts.policyEvents ?? null,
+    parseFloat(project.mw) || null,
+    { incentives: opts.incentives, codYear: project.codTargetYear ?? null },
+  )
+  return { subs, score: safeScore(subs) }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Portfolio-level helpers — used by Library + Profile to score a set of saved
 // projects and roll them up into a single MW-weighted health number.
