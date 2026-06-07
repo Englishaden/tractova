@@ -27,8 +27,8 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
   // different things.
   const stateBaseline = typeof stateProgram.feasibilityScore === 'number' ? stateProgram.feasibilityScore : null
   const projectAdjustment = (stateBaseline != null && score != null) ? score - stateBaseline : 0
-  // Methodology-sensitivity range — composite weights (0.40/0.35/0.25) are
-  // Tractova editorial choice, not anchored on primary data. Show users how
+  // Methodology-sensitivity range — composite weights (0.25/0.25/0.20/0.20/0.10)
+  // are Tractova editorial choice, not anchored on primary data. Show users how
   // the score moves under reasonable alternative weights so they can see
   // whether the project's verdict is robust to methodology choice.
   // Surfaced when spread > 4 (meaningful sensitivity); suppressed otherwise
@@ -265,7 +265,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
               </TooltipTrigger>
               <TooltipContent side="bottom" className="text-[10px] max-w-xs">
                 <p className="font-bold mb-1.5" style={{ color: '#5EEAD4' }}>How sensitive is this score to methodology?</p>
-                <p className="mb-2">The composite weights (Offtake 40% / IX 35% / Site 25%) are Tractova editorial — there's no primary-data anchor for "how much should each pillar count." Score below under reasonable alternatives:</p>
+                <p className="mb-2">The composite weights (Offtake 25% / Interconnection 25% / Incentives 20% / Site 20% / Policy &amp; Timing 10%) are Tractova editorial — there's no primary-data anchor for "how much should each pillar count." Score below under reasonable alternatives:</p>
                 <ul className="space-y-1 mb-2">
                   {Object.entries(scoreRange.scenarios).map(([k, s]) => (
                     <li key={k} className="flex items-center justify-between gap-3">

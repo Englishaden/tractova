@@ -642,34 +642,19 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
 }
 
 // ── Composite weights ────────────────────────────────────────────────────────
-// Default weights for the headline Feasibility Index: offtake 40%, IX 35%,
-// site 25%. THESE ARE TRACTOVA EDITORIAL — there is no primary-source
-// citation for "how much should offtake matter vs IX vs site" in CS project
-// underwriting. The choice reflects product judgment:
-//   - Offtake (40%): the revenue mechanism. If the program is closed or
-//     CS rates are low, the project doesn't pencil regardless of other inputs.
-//   - IX (35%): typically the binary go/no-go gate. Long studies + huge
-//     upgrade costs kill projects mid-development.
-//   - Site (25%): more solvable than IX/offtake — wetlands and farmland are
-//     real friction but most CS projects find a workable parcel.
-//
-// Audit 2026-05-04 acknowledged this is editorial. To make it transparent
-// we expose alternate weight scenarios + a range computation so the Lens UI
-// can show "Score 73 (range 67-78 across reasonable weight schemes)" letting
-// users see how sensitive their project's score is to the methodology choice.
-//
-// If/when we get developer-survey or empirical IRR-vs-pillar data that would
-// anchor these weights, replace WEIGHT_SCENARIOS with the empirical values.
-// Five-pillar weights (2026-05 pivot). Tractova-editorial (Tier C — no primary
-// anchor for "how much should each pillar count"); surfaced transparently via
-// the weight-sensitivity range below. computeDisplayScore REBALANCES over
-// whichever pillars are present + finite, so a surface that hasn't fetched a
-// pillar (e.g. Library lacks county incentive data) isn't penalized with a
-// fabricated baseline — it scores on the pillars it has.
+// Five-pillar weights (2026-05 pivot). Tractova-editorial (Tier C — there is no
+// primary-source anchor for "how much should each pillar count" in CS
+// underwriting); surfaced transparently via the weight-sensitivity range below
+// (the Lens shows "Score 73 (range 67-78 across reasonable weight schemes)").
+// computeDisplayScore REBALANCES over whichever pillars are present + finite, so
+// a surface that hasn't fetched a pillar (e.g. a portfolio path without county
+// incentive data) isn't penalized with a fabricated baseline — it scores on the
+// pillars it has. If/when developer-survey or empirical IRR-vs-pillar data lands,
+// replace WEIGHT_SCENARIOS with the empirical values.
 //   Offtake (25) — revenue mechanism / program gate.
 //   Interconnection (25) — the classic binary go/no-go (queue / cost / timeline).
 //   Incentives (20) — post-OBBBA the ITC adder stack is make-or-break; real,
-//     county-level eligibility (EPA energy community / Census-CDFI NMTC / HUD).
+//     county-level eligibility (DOE NETL energy community / Census-CDFI NMTC / HUD).
 //   Site (20) — real friction (land / wetland / farmland / zoning) but solvable.
 //   Policy & Timing (10) — federal tax-credit cliffs (§48E/§45Y, FEOC, safe
 //     harbor) keyed to COD/NTP + state policy headwind risk (severity tiers);

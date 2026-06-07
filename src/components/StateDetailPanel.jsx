@@ -234,8 +234,7 @@ function MarketTab({ state }) {
         <div className="bg-[var(--bg-surface)] rounded-md p-3">
           <ScoreBar score={state.feasibilityScore} />
           <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">
-            Composite of Offtake (40%), Interconnection (35%), and Site Control (25%).
-            Per-county breakdown available in <Link to={`/search?state=${state.id}`} className="underline decoration-dotted underline-offset-2 hover:no-underline" style={{ color: 'var(--link, #5EEAD4)' }}>Lens</Link>.
+            State program signal — Community Solar status, capacity runway, LMI carve-out, and interconnection difficulty. Run a project in <Link to={`/search?state=${state.id}`} className="underline decoration-dotted underline-offset-2 hover:no-underline" style={{ color: 'var(--link, #5EEAD4)' }}>Lens</Link> for the full five-pillar Feasibility Index (adds county site, incentive &amp; policy data).
           </p>
         </div>
       </div>
