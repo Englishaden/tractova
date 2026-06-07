@@ -29,7 +29,6 @@ import LibraryIntelligence from '../components/library/LibraryIntelligence.jsx'
 import PipelineBoard from '../components/library/PipelineBoard.jsx'
 import SavedViewsMenu from '../components/library/SavedViewsMenu.jsx'
 import LibrarySubNav from '../components/library/LibrarySubNav.jsx'
-import LibraryStatusRibbon from '../components/library/LibraryStatusRibbon.jsx'
 import ProjectDrawer from '../components/library/ProjectDrawer.jsx'
 import Pagination from '../components/library/Pagination.jsx'
 import MobileLibrary from '../components/library/MobileLibrary.jsx'
@@ -255,6 +254,24 @@ function LibraryContent() {
       isStale: ageDays > 14,
     }
   }, [refreshAt])
+
+  // Top-line portfolio numbers, folded into the hero from the old
+  // LibraryStatusRibbon (deleted Pass 6 polish) — same computation, now a
+  // persistent glanceable header. Deep analytics still live in the
+  // Intelligence tab (glanceable here · deep there, no double-count).
+  const portfolioStats = useMemo(() => {
+    const now = Date.now()
+    let mw = 0, alerts = 0, due = 0, overdue = false
+    for (const p of projects) {
+      mw += parseFloat(p.mw) || 0
+      alerts += getAlerts(p, stateProgramMap, countyDataMap).length
+      if (p.followUpAt) {
+        const days = (new Date(p.followUpAt).getTime() - now) / 86400000
+        if (days <= 7) { due++; if (days < 0) overdue = true }
+      }
+    }
+    return { totalMw: mw, alertCount: alerts, dueCount: due, hasOverdue: overdue }
+  }, [projects, stateProgramMap, countyDataMap])
 
   // Centralize county data fetch -- previously each ProjectCard fetched its
   // own, leaving the sort logic with no county info and ranking projects
@@ -596,7 +613,8 @@ function LibraryContent() {
               {/* Subline kept only for the empty/onboarding state. On a populated
                   deal-tracker it was brand voice with no daily value, so the slim
                   pass drops it (and tightens padding + vertically centers the row)
-                  to surface the board higher. Numbers still live in the ribbon. */}
+                  to surface the board higher. The portfolio numbers now sit in the
+                  hero's right cluster (below). */}
               {projects.length === 0 && (
                 <p className="text-sm mt-1.5 text-white/55">Your saved deals — tracked, scored, and monitored for policy changes.</p>
               )}
@@ -624,24 +642,46 @@ function LibraryContent() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-col items-end gap-2.5 shrink-0">
+              {/* Portfolio top-line — folded in from the old status ribbon so the
+                  hero's right half carries content instead of dead navy. Hidden
+                  below md (mobile uses MobileLibrary); empty/onboarding state
+                  shows no numbers. Colors are the navy-surface variants. */}
               {projects.length > 0 && (
-                <button
-                  onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors text-white/85 bg-white/5 hover:bg-white/10 border border-white/[0.12]"
-                  title="Export to Excel — Projects sheet + Methodology & Sources + Glossary"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Export Excel
-                </button>
+                <div className="hidden md:flex items-center font-mono text-[11px] tabular-nums" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                  <span className="text-feasibility-3 font-bold tracking-[0.16em] uppercase text-[10px] mr-2.5">Portfolio</span>
+                  <span>{projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+                  <span className="mx-2 text-white/25">·</span>
+                  <span>{portfolioStats.totalMw.toFixed(1)} MW</span>
+                  <span className="mx-2 text-white/25">·</span>
+                  <span style={{ color: portfolioStats.alertCount > 0 ? '#FCD34D' : undefined }}>{portfolioStats.alertCount} alert{portfolioStats.alertCount !== 1 ? 's' : ''}</span>
+                  {portfolioStats.dueCount > 0 && (
+                    <>
+                      <span className="mx-2 text-white/25">·</span>
+                      <span style={{ color: portfolioStats.hasOverdue ? '#FCA5A5' : '#5EEAD4' }}>{portfolioStats.dueCount} due</span>
+                    </>
+                  )}
+                </div>
               )}
-              <Link
-                to="/search"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-white px-3.5 py-2 rounded-lg transition-colors bg-feasibility-4 hover:bg-primary"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                New Lens Search
-              </Link>
+              <div className="flex items-center gap-2">
+                {projects.length > 0 && (
+                  <button
+                    onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors text-white/85 bg-white/5 hover:bg-white/10 border border-white/[0.12]"
+                    title="Export to Excel — Projects sheet + Methodology & Sources + Glossary"
+                  >
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export Excel
+                  </button>
+                )}
+                <Link
+                  to="/search"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-white px-3.5 py-2 rounded-lg transition-colors bg-feasibility-4 hover:bg-primary"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  New Lens Search
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -697,15 +737,8 @@ function LibraryContent() {
           </div>
         ) : (projects.length > 0 && !previewEmpty) ? (
           <>
-            {/* Slim status ribbon — glanceable portfolio numbers stay in view;
-                deep analytics are one click away in the Intelligence tab. */}
-            <LibraryStatusRibbon
-              projects={projects}
-              stateProgramMap={stateProgramMap}
-              countyDataMap={countyDataMap}
-              onOpenIntelligence={() => setViewMode('intelligence')}
-            />
-
+            {/* Portfolio numbers moved into the hero (Pass 6 polish) — the
+                command bar now follows the sub-nav directly. */}
             {/* Command bar — the single control surface (search · filters ·
                 tags · saved-views slot · sort · layout). Consolidated in Pass 5
                 Wave 1; the former filter strip + view toggle lived here as two
