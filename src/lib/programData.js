@@ -247,6 +247,12 @@ async function fetchCountyGeospatial(stateId, countyName) {
     ssurgoAreasymbol:     geo.ssurgo_areasymbol,
     farmlandLastUpdated:  geo.farmland_last_updated,
     farmlandSource:       geo.farmland_source,
+    // FEMA NFHL flood (migration 077) — null until the geospatial_flood ingest
+    // lands; the score engine applies no flood penalty while null.
+    floodSfhaPct:         geo.flood_sfha_pct,
+    floodCategory:        geo.flood_category,
+    floodSfhaAcres:       geo.flood_sfha_acres,
+    floodLastUpdated:     geo.flood_last_updated,
   }
 }
 

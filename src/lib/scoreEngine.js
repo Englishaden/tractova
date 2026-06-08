@@ -452,28 +452,40 @@ function ixLiveAdjustment(ixQueueSummary) {
 // NWI catches up showing high wetland coverage).
 //
 // Both null → site=60 baseline (no info, neutral).
-function computeSiteSubScore(architecture, availableLand, wetlandWarning) {
+//
+// Flood (2026-06 Wave 3 — third constraint): a county heavy in FEMA Special
+// Flood Hazard Area is a real siting constraint (buildable acreage, insurability,
+// permitting), so floodWarning=true applies a flat additive penalty on top of the
+// land×wetland base. It's lighter than the wetland hit (flood is mitigable/
+// insurable; a wetland 404 is a hard permit gate). Unknown flood (null) → no
+// penalty — we don't penalize missing data, matching the partial-input discipline
+// above; the penalty never drives the score below 0.
+const SITE_FLOOD_PENALTY = 12
+function computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning = null) {
+  let base
   if (architecture === 'Standalone BESS') {
     // Legacy standalone BESS depends primarily on wetland permitting, not land
     // area (1-2 acres/MW vs solar's 5-7).
-    if (wetlandWarning === false) return 78
-    if (wetlandWarning === true)  return 58
-    return 68  // wetland unknown — midpoint of (78, 58)
+    if (wetlandWarning === false)     base = 78
+    else if (wetlandWarning === true) base = 58
+    else                              base = 68  // wetland unknown — midpoint of (78, 58)
+  } else {
+    // Solar (Standalone PV / PV + Storage) — footprint dominated by the PV array.
+    const land = availableLand
+    const wet  = wetlandWarning
+    if      (land === true  && wet === false) base = 82
+    else if (land === true  && wet === true)  base = 56
+    else if (land === false && wet === false) base = 42
+    else if (land === false && wet === true)  base = 26
+    // Partial-input midpoints
+    else if (land === true  && wet == null)   base = 69  // (82+56)/2
+    else if (land === false && wet == null)   base = 34  // (42+26)/2
+    else if (land == null   && wet === false) base = 62  // (82+42)/2
+    else if (land == null   && wet === true)  base = 41  // (56+26)/2
+    else                                      base = 60  // both null — neutral
   }
-  // Solar (Standalone PV / PV + Storage) — footprint dominated by the PV array.
-  const land = availableLand
-  const wet  = wetlandWarning
-  if (land === true  && wet === false) return 82
-  if (land === true  && wet === true)  return 56
-  if (land === false && wet === false) return 42
-  if (land === false && wet === true)  return 26
-  // Partial-input midpoints
-  if (land === true  && wet == null)   return 69  // (82+56)/2
-  if (land === false && wet == null)   return 34  // (42+26)/2
-  if (land == null   && wet === false) return 62  // (82+42)/2
-  if (land == null   && wet === true)  return 41  // (56+26)/2
-  // Both null — no info, neutral baseline
-  return 60
+  if (floodWarning === true) base = Math.max(0, base - SITE_FLOOD_PENALTY)
+  return base
 }
 
 /**
@@ -643,7 +655,15 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     wetlandWarning = countyData.siteControl.wetlandWarning
   }
 
-  site = computeSiteSubScore(architecture, availableLand, wetlandWarning)
+  // Flood (2026-06 Wave 3, third site constraint) — county FEMA NFHL Special
+  // Flood Hazard Area prevalence. >=20% = flood-constrained county (disclosed
+  // editorial threshold, like the 15% wetland / 25% farmland lines). Read off the
+  // live geo row directly; null until the geospatial_flood ingest reaches this
+  // county → computeSiteSubScore applies no penalty.
+  let floodWarning = null
+  if (geo?.floodSfhaPct != null) floodWarning = geo.floodSfhaPct >= 20
+
+  site = computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning)
 
   // ── Stage modifiers ──
   const [dOft, dIX, dSite] = STAGE_MODIFIERS[stage] ?? [0, 0, 0]

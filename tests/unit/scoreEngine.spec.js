@@ -195,6 +195,26 @@ describe('computeSubScores — main entry', () => {
     expect(lowFarm.site).toBeGreaterThan(highFarm.site)
   })
 
+  it('FEMA flood is a third site constraint: ≥20% SFHA subtracts the 12-pt penalty', () => {
+    // Base: low farmland (availableLand=true) + low wetland (no warning) → 82.
+    const base = { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' }
+    const noFlood = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10 } }, '', 'Community Solar')
+    const lowFlood = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, floodSfhaPct: 8 } }, '', 'Community Solar')
+    const highFlood = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, floodSfhaPct: 30 } }, '', 'Community Solar')
+    expect(noFlood.site).toBe(82)    // flood unknown → no penalty
+    expect(lowFlood.site).toBe(82)   // 8% < 20% threshold → no penalty
+    expect(highFlood.site).toBe(70)  // 30% ≥ 20% → 82 − 12
+  })
+
+  it('flood penalty never drives the site sub-score below 0', () => {
+    // Worst base (limited land + wetland warning) = 26; minus 12 = 14, still ≥ 0.
+    const r = computeSubScores(
+      { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' },
+      { geospatial: { wetlandCoveragePct: 50, primeFarmlandPct: 80, floodSfhaPct: 60 } }, '', 'Community Solar',
+    )
+    expect(r.site).toBe(14)
+  })
+
   it('LMI penalty applies to the offtake baseline regardless of csStatus', () => {
     // Pinning current behavior: the LMI deduction applies whenever
     // lmiRequired && lmiPercent crosses the threshold, even on pending /
