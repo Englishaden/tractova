@@ -171,10 +171,11 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
           })()}
           {/* Live-Site indicator (Path B). Fires when this county has a row in
               county_geospatial_data — derived from USFWS NWI wetlands + USDA
-              SSURGO prime farmland. Covers all 50 states / 3,142 counties once
-              both ingests have run. Closes the 32-state coverage gap of the
-              curated county_intelligence table. Absent = falling back to the
-              curated booleans (or the site=60 baseline) for this county. */}
+              SSURGO prime farmland. SSURGO farmland is live weekly (49 states);
+              NWI wetlands are seeded for a partial set of counties, so a county
+              may be "live" on farmland while still scoring without wetland data.
+              Absent = falling back to the curated booleans (or the site=60
+              baseline) for this county. */}
           {coverage?.site === 'live' && (
             <>
               <span className="text-gray-300 text-[9px]">/</span>
@@ -195,8 +196,8 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                   <p className="font-bold mb-1" style={{ color: '#5EEAD4' }}>Live Geospatial Site Data</p>
                   <p>The Site Control sub-score is derived from authoritative federal geospatial sources for this county, not from a curated qualitative cell.</p>
                   <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — wetland coverage % (USFWS NWI) · prime farmland % (USDA SSURGO)</p>
-                  <p className="mt-0.5"><span className="text-amber-300 font-mono">THRESHOLDS</span> — wetlandWarning ≥ 15% · availableLand ≥ 25% (calibrated against ground-truth counties)</p>
-                  <p className="mt-1.5 text-gray-400">Replaces the legacy curated county_intelligence booleans for the 32 states that were never seeded — all 3,142 counties get live signals.</p>
+                  <p className="mt-0.5"><span className="text-amber-300 font-mono">THRESHOLDS</span> — wetland warning ≥ 15% · favorable land &lt; 25% prime farmland (high farmland = siting constraint)</p>
+                  <p className="mt-1.5 text-gray-400">SSURGO farmland is live weekly across 49 states; NWI wetlands are seeded for a partial set of counties, so coverage is mixed rather than universal.</p>
                 </TooltipContent>
               </Tooltip>
             </>

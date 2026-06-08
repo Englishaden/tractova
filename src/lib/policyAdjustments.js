@@ -155,12 +155,19 @@ export function policySeverityTier(p) {
 /**
  * @param {Array} policyEvents
  * @param {{mw, stage, technology}|null} project
- * @returns {{score:number, applicableCount:number, events:Array}} 100 = clean
+ * @returns {{score:number, applicableCount:number, events:Array, coverage:'none'|'live'}}
+ *   100 = no headwind. `coverage:'none'` distinguishes "we have NO policy data
+ *   for this state" from "we checked and found no applicable headwind" — the
+ *   2026-06 audit (A6) flagged that the bare 100 silently read as "clean" when
+ *   it could mean "unmonitored." Callers (and the methodology page) can surface
+ *   the difference instead of implying a confident all-clear.
  */
 export function computeStatePolicyRiskScore(policyEvents, project = null) {
-  if (!Array.isArray(policyEvents) || policyEvents.length === 0) return { score: 100, applicableCount: 0, events: [] }
+  if (!Array.isArray(policyEvents) || policyEvents.length === 0) return { score: 100, applicableCount: 0, events: [], coverage: 'none' }
   const applicable = filterApplicablePolicies(policyEvents, project || {})
-  if (applicable.length === 0) return { score: 100, applicableCount: 0, events: [] }
+  // Events EXIST for this state (coverage:'live'); a score of 100 here means a
+  // genuine "no applicable headwind for this project," not "unmonitored."
+  if (applicable.length === 0) return { score: 100, applicableCount: 0, events: [], coverage: 'live' }
 
   let penalty = 0
   const events = []
@@ -171,5 +178,5 @@ export function computeStatePolicyRiskScore(policyEvents, project = null) {
     penalty += SEVERITY_PENALTY[tier] * prob
     events.push({ id: p.id, event_name: p.event_name, severity: tier, probability: p.impact_probability || 'assumed', pillar: p.pillar, source_url: p.source_url })
   }
-  return { score: Math.max(0, Math.round(100 - penalty)), applicableCount: applicable.length, events }
+  return { score: Math.max(0, Math.round(100 - penalty)), applicableCount: applicable.length, events, coverage: 'live' }
 }

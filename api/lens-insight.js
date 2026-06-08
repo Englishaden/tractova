@@ -130,6 +130,12 @@ export function buildContext({ state, county, mw, stage, technology, stateProgra
     // gating saves prompt tokens + ensures the model doesn't muse about an
     // 1MW-floor policy for a 0.5MW project.
     const applicable = policyEvents.filter(ev => {
+      // Confidence gate — MATCH the score (policyAdjustments.filterApplicablePolicies
+      // requires impact_confidence='high'). Without this the brief discussed a
+      // medium-confidence event the score excluded, so the AI verdict and the
+      // Feasibility Index silently disagreed (2026-06 audit, Bug B). Now an event
+      // moves BOTH the score and the brief, or neither.
+      if (ev.impact_confidence !== 'high') return false
       if (ev.min_mw_ac != null && mwNum > 0 && mwNum < ev.min_mw_ac) return false
       if (ev.max_mw_ac != null && mwNum > 0 && mwNum > ev.max_mw_ac) return false
       if (Array.isArray(ev.applicable_technologies) && ev.applicable_technologies.length > 0

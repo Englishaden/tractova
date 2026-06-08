@@ -14,7 +14,7 @@ export const COVERAGE_TOOLTIPS = {
   live: {
     label: 'Live data',
     title: 'Live data',
-    body: 'Score is driven by real-time data — IX queue scrapes (8 CS states), county geospatial (NWI wetlands + SSURGO farmland, all 3,142 counties), or live news/PUC ingest. Refreshed on cron; data-age stamps surface staleness when scrapers lag.',
+    body: 'Score is driven by real-time data — IX queue scrapes (8 CS states), county geospatial (USDA SSURGO prime farmland, live weekly across 49 states; USFWS NWI wetlands, seeded for a partial set of counties), or live news/PUC ingest. Refreshed on cron; data-age stamps surface staleness when scrapers lag.',
   },
   researched: {
     label: 'Researched',

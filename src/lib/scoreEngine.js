@@ -481,8 +481,9 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   let offtakeCoverage = 'researched'
   // Site coverage tier (highest-to-lowest authority):
   //   'live'       = derived from county_geospatial_data (NWI wetlands +
-  //                  SSURGO prime farmland) — covers all 3,142 counties /
-  //                  50 states once Path B ingest completes.
+  //                  SSURGO prime farmland). SSURGO farmland is live weekly
+  //                  (49 states); NWI wetlands are seeded for a partial set of
+  //                  counties, so a county can be 'live' on farmland alone.
   //   'researched' = curated boolean from county_intelligence (only ~18
   //                  states currently seeded). Used as fallback when the
   //                  live row hasn't been ingested yet for this county.

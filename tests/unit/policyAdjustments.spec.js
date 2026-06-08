@@ -20,6 +20,20 @@ describe('computeStatePolicyRiskScore — severity-based Policy & Timing input',
     expect(computeStatePolicyRiskScore(null).score).toBe(100)
   })
 
+  it('flags coverage:none for an unmonitored state vs coverage:live when events exist (no-data ≠ clean)', () => {
+    // No events for the state → we have NO policy data, not a confident all-clear.
+    expect(computeStatePolicyRiskScore([]).coverage).toBe('none')
+    expect(computeStatePolicyRiskScore(null).coverage).toBe('none')
+    // Events exist but none apply to this project → genuinely clean (coverage live).
+    const noneApplicable = computeStatePolicyRiskScore([hi({ event_name: 'Z', impact_severity: 'small', max_mw_ac: 1 })], { mw: 5, stage: 'Prospecting' })
+    expect(noneApplicable.coverage).toBe('live')
+    expect(noneApplicable.score).toBe(100)
+    // Applicable headwind → scored, coverage live.
+    const scored = computeStatePolicyRiskScore([hi({ event_name: 'X', impact_severity: 'severe', impact_probability: 'high' })], { stage: 'Prospecting' })
+    expect(scored.coverage).toBe('live')
+    expect(scored.score).toBeLessThan(100)
+  })
+
   it('uses explicit impact_severity when set; severe drops the score more than small', () => {
     const severe = computeStatePolicyRiskScore([hi({ event_name: 'X', impact_severity: 'severe', impact_probability: 'high' })], { stage: 'Prospecting' })
     const small = computeStatePolicyRiskScore([hi({ event_name: 'Y', impact_severity: 'small', impact_probability: 'high' })], { stage: 'Prospecting' })

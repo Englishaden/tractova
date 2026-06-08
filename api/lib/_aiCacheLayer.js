@@ -87,5 +87,12 @@ export function dataVersionFor(stateProgram, policyEvents) {
     const ts = ev?.verified_at || ev?.updated_at
     return ts && ts > acc ? ts : acc
   }, '')
-  return latestPolicyTs ? `${programVersion}|policy=${latestPolicyTs}` : programVersion
+  // Fold in the COUNT as well as the max timestamp (2026-06 audit, Bug A).
+  // Removing an event soft-deletes it, so it drops out of this (is_active=true)
+  // set WITHOUT advancing latestPolicyTs when its verified_at wasn't the max —
+  // which made the version string collide with the pre-removal cached brief, so
+  // a Lens call could serve a 6h-stale verdict still referencing the removed
+  // event. The count changes on any add/remove, forcing the cache miss.
+  const n = policyEvents.length
+  return latestPolicyTs ? `${programVersion}|policy=${n}:${latestPolicyTs}` : `${programVersion}|policy=${n}`
 }

@@ -223,7 +223,7 @@ export const GLOSSARY_DEFINITIONS = {
   'Site · Live': {
     title: 'Site · Live',
     short: 'This county has live geospatial data (NWI wetlands + SSURGO farmland) driving the Site Control sub-score.',
-    long: 'When this badge appears, the Site Control sub-score is derived from authoritative federal sources for this specific county, not from a curated qualitative cell. Inputs are wetland coverage % (USFWS NWI) and prime farmland % (USDA SSURGO). Thresholds: wetlandWarning ≥ 15%, availableLand ≥ 25%. Replaces the legacy curated booleans for the 32 states that were never seeded — all 3,142 counties get live signals once the NWI seed completes.',
+    long: 'When this badge appears, the Site Control sub-score is derived from authoritative federal sources for this specific county, not from a curated qualitative cell. Inputs are wetland coverage % (USFWS NWI) and prime farmland % (USDA SSURGO). Thresholds: a wetland warning fires at ≥ 15% NWI coverage; favorable (low-constraint) land is < 25% prime farmland — HIGH farmland is a siting constraint (FPPA conversion review, ag-preservation), not an opportunity. Coverage is mixed: SSURGO farmland is live weekly across 49 states, while NWI wetlands are seeded for a partial set of counties, so some counties score on farmland alone until the wetland seed reaches them.',
     inputs: 'USFWS NWI · USDA SSURGO · county_geospatial_data',
   },
   'Scenario Studio': {
