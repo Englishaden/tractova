@@ -142,7 +142,7 @@ export const DATA_SOURCES = [
     url: 'https://www.fws.gov/program/national-wetlands-inventory',
     tier: 'C',
     provides: 'County wetland-richness index from NWI polygons (overlapping classifications can exceed 100%). ≥15% triggers a wetland warning + Section 404 flag.',
-    synthesis: 'PARTIAL coverage — NWI is currently SEEDED (~700 of 3,142 counties), not yet a live cron, so many counties score on SSURGO alone. The 15% threshold is Tractova editorial. Always confirm with a parcel-level delineation.',
+    synthesis: 'PARTIAL but growing — NWI now refreshes on a throttle-safe weekly cron that extends/freshens a batch of counties per run (bulk backfill still runs from a local script, since NWI rate-limits a full pass), climbing from the original ~700 toward all 3,142. Counties not yet reached score on SSURGO farmland alone meanwhile. The 15% threshold is Tractova editorial; always confirm with a parcel-level delineation.',
   },
 
   // ── Policy & Timing (10%) — added in the 2026-06 audit (was omitted) ─────────

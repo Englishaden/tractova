@@ -282,7 +282,7 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#1D4ED8' }}>How each tile is derived</p>
           <ul className="space-y-1 text-gray-700 list-none">
             <li><span className="font-semibold text-ink">Land</span> · USDA SSURGO prime-farmland coverage (live, refreshed weekly) — high farmland flags a siting constraint; binary "available" assumes a typical greenfield/brownfield profile</li>
-            <li><span className="font-semibold text-ink">Wetland</span> · USFWS NWI (National Wetlands Inventory) — county-level coverage aggregated from NWI polygons. Partial coverage: not every county is seeded yet, so some score on SSURGO alone. Site-level wetlands always require a parcel delineation</li>
+            <li><span className="font-semibold text-ink">Wetland</span> · USFWS NWI (National Wetlands Inventory) — county-level coverage aggregated from NWI polygons, extended weekly via a throttle-safe cron (still partial — counties not yet reached score on SSURGO alone). Site-level wetlands always require a parcel delineation</li>
             <li><span className="font-semibold text-ink">Zoning</span> · surfaced when county code references solar overlay districts, agricultural setbacks, or special-use permits in our notes layer</li>
             <li><span className="font-semibold text-ink">Hosting</span> · proxy from IX ease score until utility hosting-capacity maps are integrated per-territory</li>
           </ul>

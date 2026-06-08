@@ -10,6 +10,7 @@ import refreshEnergyCommunity from './scrapers/_refresh-energy-community.js'
 import refreshHudQctDda from './scrapers/_refresh-hud-qct-dda.js'
 import refreshNmtcLic from './scrapers/_refresh-nmtc-lic.js'
 import refreshGeospatialFarmland from './scrapers/_refresh-geospatial-farmland.js'
+import refreshGeospatialWetland from './scrapers/_refresh-geospatial-wetland.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
 import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
@@ -45,7 +46,7 @@ import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'solar_costs', 'policy_scan', 'hosting_capacity']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'solar_costs', 'policy_scan', 'hosting_capacity']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -169,8 +170,13 @@ export default async function handler(req, res) {
   let sources
   // policy_scan is excluded from bundles: it has its own weekly schedule, calls
   // Haiku per candidate, and shouldn't fan out alongside the data refreshers.
-  if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => s !== 'solar_costs' && s !== 'policy_scan')
-  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => s !== 'nmtc_lic' && s !== 'solar_costs' && s !== 'policy_scan')
+  // geospatial_wetland is excluded from bundles like solar_costs/policy_scan: the
+  // NWI server hard-throttles, so it nibbles a small batch on its OWN weekly cron
+  // (or explicit ?source=geospatial_wetland) rather than fanning out inside 'all'
+  // and risking the bundle's 300s budget.
+  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland'])
+  if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
+  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => s !== 'nmtc_lic' && !BUNDLE_EXCLUDED.has(s))
   else                           sources = requested.split(',').map(s => s.trim()).filter(Boolean)
 
   const invalidSources = sources.filter(s => !SUPPORTED_SOURCES.includes(s))
@@ -204,6 +210,7 @@ export default async function handler(req, res) {
       else if (source === 'hud_qct_dda')       result = await refreshHudQctDda()
       else if (source === 'nmtc_lic')          result = await refreshNmtcLic()
       else if (source === 'geospatial_farmland') result = await refreshGeospatialFarmland()
+      else if (source === 'geospatial_wetland')  result = await refreshGeospatialWetland()
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
       else if (source === 'policy_scan')         result = await refreshPolicyScan()
       else if (source === 'hosting_capacity')    result = await refreshHostingCapacity()
