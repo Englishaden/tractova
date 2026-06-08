@@ -451,10 +451,13 @@ describe('computeIncentiveScore — Pillar 4 (ITC step-up eligibility)', () => {
     expect(r.adders.lowIncomeCommunity).toBe(true)
   })
 
-  it('HUD QCT/DDA alone qualifies the Low-Income Community adder', () => {
+  it('HUD QCT/DDA alone does NOT grant the LIC adder — §48(e) Cat 1 uses the NMTC definition (2026-06 fix)', () => {
+    // QCT present but not NMTC-eligible → base 50 only; QCT is surfaced as
+    // informational (adders.hudQctDda) but no longer counts toward the +25 LIC.
     const r = computeIncentiveScore({ energyCommunity: null, nmtcLic: { isEligible: false }, hudQctDda: { qctCount: 3, isNonMetroDda: false } })
-    expect(r.adders.lowIncomeCommunity).toBe(true)
-    expect(r.score).toBe(75)
+    expect(r.adders.lowIncomeCommunity).toBe(false)
+    expect(r.adders.hudQctDda).toBe(true)   // still surfaced as context
+    expect(r.score).toBe(50)
   })
 
   it('§48(e) LIC adder is size-capped at ≤5 MW AC (Category 1 statutory cap)', () => {

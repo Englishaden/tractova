@@ -108,12 +108,12 @@ export const DATA_SOURCES = [
   },
   {
     pillar: 'Incentives',
-    component: '§48(e) Cat 1 Low-Income Community — HUD pathway',
+    component: 'HUD QCT/DDA — informational context (not a §48(e) pathway)',
     source: 'HUD QCT/DDA dataset',
     url: 'https://www.huduser.gov/portal/datasets/qct.html',
     tier: 'A',
-    provides: 'HUD Qualified Census Tract / Difficult Development Area designations (2026 vintage), used as a LIC-bonus screening pathway.',
-    synthesis: 'Observed HUD designation. NOTE (flagged in the audit): §48(e) Category 1 statutorily uses the NMTC LIC definition, not the LIHTC QCT designation — the QCT pathway is a screening proxy under review, and the +25 LIC adder is capped to facilities ≤5 MW AC.',
+    provides: 'HUD Qualified Census Tract / Difficult Development Area designations (2026 vintage).',
+    synthesis: 'Surfaced as context only. As of the 2026-06 audit it does NOT count toward the §48(e) Cat 1 Low-Income Community adder — §48(e) Cat 1 statutorily uses the NMTC LIC definition, not the LIHTC QCT designation, so QCT-eligibility alone no longer grants the +25. The LIC adder is NMTC-only (and capped to facilities ≤5 MW AC).',
   },
   {
     pillar: 'Incentives',

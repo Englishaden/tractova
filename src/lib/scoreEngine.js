@@ -374,15 +374,17 @@ export function computeIncentiveScore(incentives, mw = null) {
   const ec = !!(energyCommunity && energyCommunity.isEnergyCommunity)
   const nmtc = !!(nmtcLic && nmtcLic.isEligible)
   const hud = !!(hudQctDda && (hudQctDda.qctCount > 0 || hudQctDda.isNonMetroDda))
-  const licTract = nmtc || hud   // §48(e) Low-Income Community bonus via either pathway
-  // §48(e) Category 1 Low-Income Community bonus is statutorily capped at
-  // facilities ≤5 MW AC net output (2026-06 data audit fix — the engine
-  // previously awarded the +25 LIC adder regardless of size, over-granting it
-  // to the 10-20 MW projects in Tractova's own scope, which the UI already
-  // flags "≤5 MW only"). The Energy Community +10% has no size cap. mw=null
-  // (size unknown) → don't cap. NOTE (flagged, not changed here): using HUD
-  // QCT as a §48(e) LIC pathway is a Treasury-faithfulness question — §48(e)
-  // Cat 1 uses the NMTC LIC definition, not the LIHTC QCT designation.
+  // §48(e) Category 1 Low-Income Community bonus uses the NMTC LIC definition —
+  // NOT the LIHTC QCT designation. So the LIC pathway is NMTC-only (Aden's
+  // 2026-06 call). HUD QCT/DDA is still computed + surfaced (`hudQctDda` in
+  // adders) as informational context, but it no longer grants the +25 adder —
+  // the prior `nmtc || hud` OR-logic over-granted it to QCT-only counties
+  // (lowering those counties' incentive score by 25 now is the intended fix).
+  const licTract = nmtc
+  // The LIC bonus is also statutorily capped at facilities ≤5 MW AC net output
+  // (the engine previously awarded +25 regardless of size, over-granting it to
+  // the 10-20 MW projects in Tractova's scope, which the UI flags "≤5 MW only").
+  // The Energy Community +10% has no size cap. mw=null (unknown) → don't cap.
   const licSizeEligible = mw == null || mw <= 5
   const lic = licTract && licSizeEligible
 
