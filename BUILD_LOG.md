@@ -21,7 +21,9 @@
 
 **⏭ Wave 3 remaining (Aden to steer, none started):** more **Site layers** (slope/DEM · transmission-proximity · PAD-US · NLCD-for-real); **IX live-blend runway metric** (needs a design call — cs_pipeline is deliberately NOT blended today); CDFI published LIC list (retire the NMTC state-MFI approximation); ix_difficulty DB CHECK. Still open from Wave 1/2: the **2 policy decisions** (HUD-QCT §48e pathway; policy-severity bridge retirement).
 
-**⏰ Waiting on Aden:** (1) **re-run the data refresh** — confirm `geospatial_farmland` (2405-guard fix) + `ix_queue` (maxDuration fix) are now GREEN; (2) **apply migration 078** (flood NRI retune — then the `flood_nri` source in the weekly `all` bundle populates flood risk); (3) **prod-review** the Pro-gated Library work (5-pillar card breakdown + XLSX export). The 10th cron (NWI wetland) deployed fine — no action.
+**Refresh progress (Aden's runs):** `geospatial_farmland` ✅ green (2405-guard fix held) · `ix_queue` ✅ OK (maxDuration fix held) · `flood_nri` first run FAILED on a NOT-NULL `state` violation — a bug I introduced (dropped `state` from the merge-upsert, which INSERTs new rows). **Fixed `38736c7`** (derive state from FIPS via `uspsFromStateFips`). Migration **078 applied** ✅.
+
+**⏰ Waiting on Aden:** (1) **one more re-run** — confirm `flood_nri` is now green (then NRI flood risk populates + the Site flood penalty goes live); (2) **prod-review** the Pro-gated Library work (5-pillar card breakdown + XLSX export). All other sources green.
 
 **Wave 1 — PARITY WIRING (main `1fd536f`→`856ec19`, then `f421673`):** the Library scored saved projects on 3 pillars (no incentives/policy) so the SAME project differed Library-vs-Lens. Now **one project = one 5-pillar score everywhere.** `f421673` = the centerpiece: new canonical `scoreProjectFromMaps(project, maps)` (`scoreEngine.js`); `Library.jsx`+`MobileLibrary.jsx` batch-fetch an incentivesMap (`state::county`) + policyEventsMap (state) and thread to every surface (ProjectCard/Table/Board/Map/sort/Drawer/Compare/export/alerts/PortfolioAnalytics); ProjectCard "Index Breakdown" → 5 pillars; 5-pillar XLSX export (+live composite, killed a stale Revenue col); fixed 2 latent bugs (codYear field undefined on normalized projects; score-drop alert false-firing on a 3-vs-5-pillar mismatch). Earlier Wave-1 commits: stale 40/35/25 labels killed, `scoreSavedProject` helper + parity tests, site axis inverted, §48(e) ≤5MW LIC cap.
 
@@ -210,7 +212,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
-- **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. No data loss (ingest never ran). **⏳ Pending Aden's apply** — the `flood_nri` ingest no-ops safely until then.
+- **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
 - **077** `county_geospatial_flood.sql` — ADD flood columns on `county_geospatial_data` (Wave 3 FEMA flood). Additive/nullable. ✅ applied 2026-06-08 (Aden). (Cols renamed by 078.)
 - **076** `freshness_geospatial_hosting.sql` — adds `county_geospatial_data` + `hosting_capacity_data` to the `get_data_freshness` RPC (A5). ✅ applied 2026-06-08 (Aden).
 - **072** `projects_update_with_check.sql` — adds `WITH CHECK (auth.uid()=user_id)` to the projects UPDATE policy (C1-class RLS-sweep fix; blocks ownership reassignment). ✅ applied 2026-06-01 (Aden).
