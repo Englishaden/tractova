@@ -138,8 +138,24 @@ export default async function refreshGeospatialFarmland() {
   // pass the /^\d{3}$/ check but build a FIPS that is NOT a real county (e.g.
   // FL608 → 12608). Gate the CONUS upserts on this set so those artifacts don't
   // pollute county_geospatial_data (was the source of ~800 spurious rows).
-  const { data: acsFips } = await supabaseAdmin.from('county_acs_data').select('county_fips')
-  const validFips = new Set((acsFips || []).map(r => r.county_fips))
+  // Paginate — county_acs_data is ~3,142 rows but PostgREST caps a response at
+  // 1000 by default. An un-paginated select returned exactly 1000, so the guard
+  // below saw size<3000 and aborted EVERY run (silently — the old MAX-of-any-cron
+  // freshness signal masked it; the 2026-06 audit's freshness fix now surfaces
+  // it). Loop in 1000-row pages like runCsStatusAudit does for cs_projects.
+  const validFips = new Set()
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error: fipsErr } = await supabaseAdmin
+      .from('county_acs_data')
+      .select('county_fips')
+      .range(from, from + 999)
+    if (fipsErr) {
+      return { ok: false, error: `Could not load canonical county FIPS set (${fipsErr.message}); aborting to avoid mis-gating SSURGO rows.` }
+    }
+    if (!page || page.length === 0) break
+    for (const r of page) validFips.add(r.county_fips)
+    if (page.length < 1000) break
+  }
   if (validFips.size < 3000) {
     return { ok: false, error: `Could not load canonical county FIPS set (got ${validFips.size}); aborting to avoid mis-gating SSURGO rows.` }
   }
