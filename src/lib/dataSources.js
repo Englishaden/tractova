@@ -144,6 +144,15 @@ export const DATA_SOURCES = [
     provides: 'County wetland-richness index from NWI polygons (overlapping classifications can exceed 100%). ≥15% triggers a wetland warning + Section 404 flag.',
     synthesis: 'PARTIAL but growing — NWI now refreshes on a throttle-safe weekly cron that extends/freshens a batch of counties per run (bulk backfill still runs from a local script, since NWI rate-limits a full pass), climbing from the original ~700 toward all 3,142. Counties not yet reached score on SSURGO farmland alone meanwhile. The 15% threshold is Tractova editorial; always confirm with a parcel-level delineation.',
   },
+  {
+    pillar: 'Site',
+    component: 'Flood risk (third site constraint)',
+    source: 'FEMA National Risk Index (NRI) — county layer',
+    url: 'https://www.fema.gov/flood-maps/products-tools/national-risk-index',
+    tier: 'B',
+    provides: 'County flood risk RATING + 0-100 score — the worse of NRI inland (riverine) and coastal flooding. County-keyed (no parcel geometry).',
+    synthesis: 'Tractova takes the worse of the two NRI flood ratings; a county rated Relatively High or Very High applies a flat site-score penalty (flood is a real constraint on buildable acreage / insurability / permitting, but mitigable — so a lighter hit than the wetland 404 gate). The two warning tiers + the penalty size are disclosed editorial. County-level screening — a specific parcel may sit in or out of a floodplain regardless.',
+  },
 
   // ── Policy & Timing (10%) — added in the 2026-06 audit (was omitted) ─────────
   {

@@ -11,6 +11,7 @@ import refreshHudQctDda from './scrapers/_refresh-hud-qct-dda.js'
 import refreshNmtcLic from './scrapers/_refresh-nmtc-lic.js'
 import refreshGeospatialFarmland from './scrapers/_refresh-geospatial-farmland.js'
 import refreshGeospatialWetland from './scrapers/_refresh-geospatial-wetland.js'
+import refreshFloodNri from './scrapers/_refresh-flood-nri.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
 import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
@@ -46,7 +47,7 @@ import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'solar_costs', 'policy_scan', 'hosting_capacity']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'flood_nri', 'solar_costs', 'policy_scan', 'hosting_capacity']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -211,6 +212,7 @@ export default async function handler(req, res) {
       else if (source === 'nmtc_lic')          result = await refreshNmtcLic()
       else if (source === 'geospatial_farmland') result = await refreshGeospatialFarmland()
       else if (source === 'geospatial_wetland')  result = await refreshGeospatialWetland()
+      else if (source === 'flood_nri')           result = await refreshFloodNri()
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
       else if (source === 'policy_scan')         result = await refreshPolicyScan()
       else if (source === 'hosting_capacity')    result = await refreshHostingCapacity()

@@ -655,13 +655,16 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     wetlandWarning = countyData.siteControl.wetlandWarning
   }
 
-  // Flood (2026-06 Wave 3, third site constraint) — county FEMA NFHL Special
-  // Flood Hazard Area prevalence. >=20% = flood-constrained county (disclosed
-  // editorial threshold, like the 15% wetland / 25% farmland lines). Read off the
-  // live geo row directly; null until the geospatial_flood ingest reaches this
-  // county → computeSiteSubScore applies no penalty.
+  // Flood (2026-06 Wave 3, third site constraint) — FEMA NRI county flood risk
+  // RATING. 'relatively_high' | 'very_high' = flood-constrained (the disclosed
+  // threshold; these two tokens must match _floodNri.isFloodConstrained, which the
+  // ingest writes). null until the flood_nri ingest reaches this county →
+  // computeSiteSubScore applies no penalty. (Was an NFHL SFHA-% threshold in the
+  // slice-1 foundation; Aden chose the NRI county layer — cleaner, no GIS math.)
   let floodWarning = null
-  if (geo?.floodSfhaPct != null) floodWarning = geo.floodSfhaPct >= 20
+  if (geo?.floodRiskRating != null) {
+    floodWarning = geo.floodRiskRating === 'relatively_high' || geo.floodRiskRating === 'very_high'
+  }
 
   site = computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning)
 

@@ -283,6 +283,7 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           <ul className="space-y-1 text-gray-700 list-none">
             <li><span className="font-semibold text-ink">Land</span> · USDA SSURGO prime-farmland coverage (live, refreshed weekly) — high farmland flags a siting constraint; binary "available" assumes a typical greenfield/brownfield profile</li>
             <li><span className="font-semibold text-ink">Wetland</span> · USFWS NWI (National Wetlands Inventory) — county-level coverage aggregated from NWI polygons, extended weekly via a throttle-safe cron (still partial — counties not yet reached score on SSURGO alone). Site-level wetlands always require a parcel delineation</li>
+            <li><span className="font-semibold text-ink">Flood</span> · FEMA National Risk Index (NRI) county flood risk — the worse of inland (riverine) + coastal. A Relatively-High / Very-High rating applies a site-score penalty (mitigable, so lighter than a wetland 404); county-level screening, verify the parcel's floodplain</li>
             <li><span className="font-semibold text-ink">Zoning</span> · surfaced when county code references solar overlay districts, agricultural setbacks, or special-use permits in our notes layer</li>
             <li><span className="font-semibold text-ink">Hosting</span> · proxy from IX ease score until utility hosting-capacity maps are integrated per-territory</li>
           </ul>
@@ -292,6 +293,7 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           <div className="flex flex-wrap gap-1.5">
             <a href="https://www.fws.gov/program/national-wetlands-inventory" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USFWS NWI ↗</a>
             <a href="https://sdmdataaccess.sc.egov.usda.gov/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USDA SSURGO ↗</a>
+            <a href="https://www.fema.gov/flood-maps/products-tools/national-risk-index" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">FEMA NRI ↗</a>
             <a href="https://www.eia.gov/electricity/data/eia860/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">EIA Form 860 ↗</a>
           </div>
         </div>
