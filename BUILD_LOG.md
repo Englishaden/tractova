@@ -4,9 +4,15 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-08 — DATA AUDIT remediation WAVE 1 + WAVE 2 SHIPPED · ⏭ Aden prod-review + apply migration 076
+## 🟢 Pickup — 2026-06-08 — DATA AUDIT remediation WAVES 1+2 SHIPPED · WAVE 3 STARTED (offtake all-50) · ⏭ Aden prod-review + apply migration 076 + RE-RUN data refresh
 
-**STATUS:** Audit plan `~/.claude/plans/ok-we-should-move-dynamic-charm.md` — **Wave 1 (P0 scoring integrity) + Wave 2 (trust surfaces) both DONE + pushed.** All verify-green; the Library work is **Pro-gated → smoke stops at the paywall, NOT screenshot-verified.** ⏭ **NEXT = Aden prod-review** (eyeball a Library card's 5-pillar breakdown + an XLSX export; the new `/methodology` page is publicly verifiable at /methodology) **+ apply migration 076.**
+**STATUS:** Audit plan `~/.claude/plans/ok-we-should-move-dynamic-charm.md` — **Wave 1 (parity) + Wave 2 (trust surfaces) DONE; Wave 3 track 1 (offtake all-50) DONE.** All verify-green; Library work is **Pro-gated → NOT screenshot-verified.** ⏭ **NEXT = Aden prod-review** (Library card 5-pillar breakdown + XLSX export; `/methodology` is publicly verifiable) **+ apply migration 076 + ⏰ RE-RUN the data refresh** to confirm the geospatial fix (below).
+
+**Prod-review finding + fix (`c7e6a9c`):** Aden ran a data refresh → `geospatial_farmland` FAILED every run ("Could not load canonical county FIPS set (got 1000)") + `ix_queue` 504. Root cause: the SSURGO refresher's canonical-FIPS query (`county_acs_data`) was un-paginated, hitting PostgREST's 1000-row cap (~3,142 counties) → tripped the `<3000` safe-abort. **Fixed** (paginate in 1000-row pages). NOT from my changes — and the Wave-2 freshness fix is what *surfaced* it (old MAX-cron signal masked it). ⏰ **Re-run the refresh to confirm green** (ix_queue 504 was likely a transient upstream timeout). Existing SSURGO data was intact (safe abort never wrote bad rows).
+
+**Wave 3 track 1 — Offtake all-50 (`632d41b`):** extended `CI_OFFTAKE_SCORES` 32 → 49 entries (48 states + DC). Sourced 19 states' commercial ¢/kWh from **real EIA EPM 5.6.B (Mar-2026, Form EIA-861M)**, recorded on disk `docs/eia-861/commercial-retail-rates.json` (mirrors `docs/dsire-net-billing/`). 17 continental states encoded via a **transparent disclosed formula** `clamp(round(34 + 1.8·¢/kWh),45,72)` (no deep-market boost — thin/non-ISO; sanity-checked vs same-table legacy comparators). **AK + HI deliberately gated** (real high rates but islanded/atypical offtake → stay on 55 fallback, documented). New **CI freshness gate**: `audit-check.mjs` fails when a sourced dataset's `review_due` passes (offtake review_due 2027-06-01) — aging data now fails CI like the npm allowlist. Two-layer honesty throughout (rate sourced · score disclosed).
+
+**⏭ Wave 3 remaining tracks (Aden to pick — flagged as needing a cost/scope nod, each looped-external):** (a) **Site layers** — NWI cron (~700→3,142 counties, external USFWS ArcGIS, infra-heavy) then FEMA flood; (b) **IX live-blend runway metric** — needs a design call (cs_pipeline is deliberately NOT blended today). Also still open from Wave 1/2: the **2 policy decisions** (HUD-QCT §48e pathway; policy-severity bridge retirement).
 
 **Wave 1 — PARITY WIRING (main `1fd536f`→`856ec19`, then `f421673`):** the Library scored saved projects on 3 pillars (no incentives/policy) so the SAME project differed Library-vs-Lens. Now **one project = one 5-pillar score everywhere.** `f421673` = the centerpiece: new canonical `scoreProjectFromMaps(project, maps)` (`scoreEngine.js`); `Library.jsx`+`MobileLibrary.jsx` batch-fetch an incentivesMap (`state::county`) + policyEventsMap (state) and thread to every surface (ProjectCard/Table/Board/Map/sort/Drawer/Compare/export/alerts/PortfolioAnalytics); ProjectCard "Index Breakdown" → 5 pillars; 5-pillar XLSX export (+live composite, killed a stale Revenue col); fixed 2 latent bugs (codYear field undefined on normalized projects; score-drop alert false-firing on a 3-vs-5-pillar mismatch). Earlier Wave-1 commits: stale 40/35/25 labels killed, `scoreSavedProject` helper + parity tests, site axis inverted, §48(e) ≤5MW LIC cap.
 
@@ -17,7 +23,7 @@
 
 **2 OPEN for Aden (policy calls, not code — UNCHANGED):** (a) **HUD QCT as §48e LIC pathway** — over-grants (§48e Cat1 = NMTC LIC def, not LIHTC QCT); flagged in code + on /methodology, removal lowers QCT-only scores. (b) **Policy-severity bridge retirement** — sequence backfill-then-retire vs retire-now.
 
-**⏭ Wave 3 (future, scoped not built — see plan PART B):** coverage builds — Site layers (FEMA NFHL flood, slope/DEM, transmission proximity, PAD-US, NLCD-for-real), CDFI published LIC list (retire the state-MFI approximation), EIA-861 all-50 offtake, a real IX distribution-runway metric + ix_difficulty DB CHECK. Wire B1 + NWI cron before stacking site layers.
+**Wave 3 fuller backlog (beyond the two tracks above — see plan PART B):** more site layers (slope/DEM, transmission proximity, PAD-US, NLCD-for-real), CDFI published LIC list (retire the state-MFI NMTC approximation), ix_difficulty DB CHECK constraint. (EIA-861 all-50 offtake — ✅ done `632d41b`.) Wire NWI cron before stacking site layers.
 
 ---
 
