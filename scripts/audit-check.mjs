@@ -37,6 +37,7 @@ const today = new Date().toISOString().slice(0, 10)
 // doesn't break CI.
 const DATA_REVIEWS = [
   { label: 'offtake C&I rates (EIA EPM 5.6.B)', path: 'docs/eia-861/commercial-retail-rates.json' },
+  { label: '§48(e) Cat 1 LIC (DOE/CDFI NMTC)',  path: 'docs/cdfi-lic/lic-source.json' },
 ]
 const dataOverdue = []
 for (const r of DATA_REVIEWS) {

@@ -37,8 +37,8 @@ export const GLOSSARY_DEFINITIONS = {
   'Incentives': {
     title: 'Incentives',
     short: 'ITC step-up eligibility at this county — the §48E base credit plus the location-bonus adder stack (Energy Community, §48(e) Low-Income).',
-    long: 'The pillar that answers "how rich is the ITC adder stack here?" The §48E base 30% (with prevailing-wage + apprenticeship) is available nationwide; the LOCATION bonuses vary by county and are scored from real federal data — EPA/DOE Energy Communities (+10%), and §48(e) Low-Income Communities via Census/CDFI NMTC tracts or HUD QCT/DDA (+10%). A full stack pushes effective ITC toward ~50%. No dollars — this measures eligibility, not synthesized value.',
-    inputs: 'getEnergyCommunity (DOE NETL) · getNmtcLic (Census/CDFI) · getHudQctDda (HUD)',
+    long: 'The pillar that answers "how rich is the ITC adder stack here?" The §48E base 30% (with prevailing-wage + apprenticeship) is available nationwide; the LOCATION bonuses vary by county and are scored from real federal data — EPA/DOE Energy Communities (+10%), and §48(e) Low-Income Communities via the DOE §48(e)/CDFI NMTC LIC determination (+10%; HUD QCT/DDA is shown for context but does not grant this adder). A full stack pushes effective ITC toward ~50%. No dollars — this measures eligibility, not synthesized value.',
+    inputs: 'getEnergyCommunity (DOE NETL) · getNmtcLic (DOE §48e / CDFI) · getHudQctDda (HUD, context)',
   },
   'Policy & Timing': {
     title: 'Policy & Timing',
@@ -163,8 +163,8 @@ export const GLOSSARY_DEFINITIONS = {
   'ITC': {
     title: 'ITC (Investment Tax Credit)',
     short: 'IRA Section 48 federal tax credit equal to 30% of qualifying project costs, plus stackable bonus adders.',
-    long: 'Base 30% ITC for renewable projects meeting prevailing wage + apprenticeship requirements. Stackable adders: Energy Community siting (+10%), Low-Income Community §48(e) (+10-20%), domestic content (+10%). Most CS projects under 5 MW qualify for the full adder stack, pushing effective ITC to 50%+. Tractova computes per-county adder eligibility from DOE NETL EDX (Energy Communities), HUD QCT/DDA, and CDFI NMTC LIC data.',
-    inputs: 'DOE NETL EDX · HUD User · Census ACS (CDFI methodology)',
+    long: 'Base 30% ITC for renewable projects meeting prevailing wage + apprenticeship requirements. Stackable adders: Energy Community siting (+10%), Low-Income Community §48(e) (+10-20%), domestic content (+10%). Most CS projects under 5 MW qualify for the full adder stack, pushing effective ITC to 50%+. Tractova computes per-county adder eligibility from DOE NETL EDX (Energy Communities) and the DOE §48(e)/CDFI NMTC LIC determination (Low-Income Communities); HUD QCT/DDA is surfaced for context.',
+    inputs: 'DOE NETL EDX · HUD User · DOE §48(e) layers (CDFI NMTC LIC)',
   },
   'Energy Community': {
     title: 'Energy Community',

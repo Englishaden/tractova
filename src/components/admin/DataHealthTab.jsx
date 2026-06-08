@@ -37,7 +37,7 @@ const FRESHNESS_CONFIG = {
   county_acs_data:     { label: 'County ACS (Census)', mode: 'live',    icon: '📊', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [14, 30] },
   energy_community_data:{ label: 'Energy Community (IRA)', mode: 'live', icon: '⚡', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
   hud_qct_dda_data:    { label: 'HUD QCT / DDA',         mode: 'live',    icon: '🏘', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
-  nmtc_lic_data:       { label: 'NMTC LIC §48(e)',       mode: 'live',    icon: '🎯', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [14, 60] },
+  nmtc_lic_data:       { label: 'NMTC LIC §48(e)',       mode: 'seeded',  icon: '🎯', field: 'last_cron_success', fallbackField: 'last_updated', staleField: null,          thresholds: [400, 540] },
   revenue_rates:       { label: 'Revenue Rates',       mode: 'live',    icon: '💰', field: 'last_cron_success', fallbackField: 'last_updated',    staleField: null,          thresholds: [120, 200] },
   revenue_stacks:      { label: 'Revenue Stacks',      mode: 'curated', icon: '🏛', field: 'last_cron_success', fallbackField: 'last_updated',     staleField: null,       thresholds: [14, 30] },
   news_feed:           { label: 'News Feed',           mode: 'live',    icon: '📰', field: 'last_cron_success', fallbackField: 'latest_item',     staleField: null,          thresholds: [14, 30] },
@@ -51,7 +51,7 @@ const FRESHNESS_CONFIG = {
 const MODE_BADGE = {
   live:    { label: 'LIVE',    bg: 'rgba(15,118,110,0.10)',  text: '#0F766E', border: 'rgba(15,118,110,0.30)', tooltip: 'Auto-refreshed via cron (Census / EIA / NREL / ISO / RSS).' },
   curated: { label: 'CURATED', bg: 'rgba(124,58,237,0.08)',  text: '#6D28D9', border: 'rgba(124,58,237,0.30)', tooltip: 'Hand-maintained by the operator with a periodic verify cron.' },
-  seeded:  { label: 'SEEDED',  bg: 'rgba(217,119,6,0.08)',   text: '#92400E', border: 'rgba(217,119,6,0.30)',  tooltip: 'One-time seed (NWI / SSURGO). No cron — refresh requires a manual seed-script run.' },
+  seeded:  { label: 'SEEDED',  bg: 'rgba(217,119,6,0.08)',   text: '#92400E', border: 'rgba(217,119,6,0.30)',  tooltip: 'Published-file / one-time seed (e.g. NWI, SSURGO, DOE §48e LIC). No weekly cron — refresh re-runs a seed script.' },
 }
 
 export default function DataHealthTab() {

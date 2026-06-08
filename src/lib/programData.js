@@ -354,9 +354,9 @@ export async function getEnergyCommunity(stateId, countyName) {
 
 // ── getNmtcLic ────────────────────────────────────────────────────────────────
 // IRA §48(e) Category 1 Low-Income Communities Bonus Credit eligibility per
-// county. Returns per-county count of NMTC LIC tracts derived from raw
-// Census ACS data per CDFI Fund's methodology. A project sited in any
-// qualifying tract picks up the +10% ITC bonus credit. Stacks with Energy
+// county. Returns the per-county count of NMTC LIC tracts from the authoritative
+// CDFI determination (ACS 2016-2020, via the DOE §48(e) layers). A project sited
+// in any qualifying tract picks up the +10% ITC bonus credit. Stacks with Energy
 // Community for compound bonus (potentially +20%).
 export async function getNmtcLic(stateId, countyName) {
   if (!stateId || !countyName) return null
@@ -377,11 +377,9 @@ export async function getNmtcLic(stateId, countyName) {
       countyName:                data.county_name,
       totalTractsInCounty:       data.total_tracts_in_county || 0,
       qualifyingTractsCount:     data.qualifying_tracts_count || 0,
-      qualifyingViaPoverty:      data.qualifying_via_poverty || 0,
-      qualifyingViaLowMfi:       data.qualifying_via_low_mfi || 0,
       qualifyingTractGeoids:     data.qualifying_tract_geoids || [],
-      stateMedianFamilyIncome:   data.state_median_family_income,
       datasetVersion:            data.dataset_version,
+      source:                    data.source,
       lastUpdated:               data.last_updated,
       isEligible:                (data.qualifying_tracts_count || 0) > 0,
     }

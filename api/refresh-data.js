@@ -161,12 +161,13 @@ export default async function handler(req, res) {
 
   // ── Source routing ──────────────────────────────────────────────────────────
   // Accept either a single source ("lmi"), CSV ("lmi,county_acs"), "all"
-  // (every supported source), or "fast" (everything except nmtc_lic, which
-  // iterates 51 states and dominates wall time).
-  // 'solar_costs' is annual + heavyweight (1.9 GB upstream CSV); kept out of
-  // 'all' / 'fast' bundles so the weekly cron + admin Refresh button never
-  // trigger it. Runs only via its own annual cron schedule (Nov 1) or
-  // explicit ?source=solar_costs from the seed flow.
+  // (every supported source), or "fast" (same as 'all' today — both skip the
+  // BUNDLE_EXCLUDED static/heavyweight sources below).
+  // 'solar_costs' is annual + heavyweight (1.9 GB upstream CSV); 'nmtc_lic' is a
+  // static published file (DOE §48e / CDFI, re-sourced ~yearly via the seed) —
+  // both kept out of 'all' / 'fast' so the weekly cron + admin Refresh-all never
+  // trigger them. They run via their own cron (solar_costs: Nov 1) or an
+  // explicit ?source=… (admin "Refresh nmtc_lic" / the seed flow).
   const requested = (req.query.source || 'all').toString().toLowerCase()
   let sources
   // policy_scan is excluded from bundles: it has its own weekly schedule, calls
@@ -175,9 +176,9 @@ export default async function handler(req, res) {
   // NWI server hard-throttles, so it nibbles a small batch on its OWN weekly cron
   // (or explicit ?source=geospatial_wetland) rather than fanning out inside 'all'
   // and risking the bundle's 300s budget.
-  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland'])
+  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland', 'nmtc_lic'])
   if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
-  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => s !== 'nmtc_lic' && !BUNDLE_EXCLUDED.has(s))
+  else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
   else                           sources = requested.split(',').map(s => s.trim()).filter(Boolean)
 
   const invalidSources = sources.filter(s => !SUPPORTED_SOURCES.includes(s))
@@ -192,10 +193,11 @@ export default async function handler(req, res) {
   const results = {}
 
   // Sources sharing an upstream must be serialized to avoid throttling. The
-  // three Census ACS sources (lmi, county_acs, nmtc_lic) all hit
-  // api.census.gov, which 503s under concurrent load from a single IP. The
-  // remaining sources hit independent APIs and can fan out in parallel.
-  const CENSUS_SERIAL = new Set(['lmi', 'county_acs', 'nmtc_lic'])
+  // two Census ACS sources (lmi, county_acs) both hit api.census.gov, which
+  // 503s under concurrent load from a single IP. The remaining sources hit
+  // independent APIs and can fan out in parallel. (nmtc_lic no longer pulls
+  // Census — it reads a committed artifact — so it's no longer serialized.)
+  const CENSUS_SERIAL = new Set(['lmi', 'county_acs'])
   const censusGroup = sources.filter(s =>  CENSUS_SERIAL.has(s))
   const otherGroup  = sources.filter(s => !CENSUS_SERIAL.has(s))
 

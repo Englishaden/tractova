@@ -34,7 +34,7 @@ export default function IncentivesDetail({ score, energyCommunity, nmtcLic, hudQ
         <ul className="text-[11px] text-gray-700 leading-snug list-none space-y-1">
           <li><span className="font-semibold text-ink">Base 50</span> · §48E eligibility (30% with PW&amp;A) — available in every county.</li>
           <li><span className="font-semibold text-ink">+25 Energy Community</span> · coal-closure tract or fossil-fuel MSA designation (DOE NETL).</li>
-          <li><span className="font-semibold text-ink">+25 Low-Income (§48e)</span> · qualifying NMTC LIC tract (Census/CDFI), ≤5 MW. HUD QCT/DDA is a separate LIHTC instrument — shown for context, but it does NOT grant this ITC adder.</li>
+          <li><span className="font-semibold text-ink">+25 Low-Income (§48e)</span> · qualifying NMTC LIC tract (DOE §48e / CDFI CIMS · ACS 2016-2020), ≤5 MW. HUD QCT/DDA is a separate LIHTC instrument — shown for context, but it does NOT grant this ITC adder.</li>
           <li className="text-gray-500 italic">Coverage reads "live" when the county FIPS resolves against the federal layers; otherwise the pillar is excluded from the composite rather than scored on a fabricated baseline.</li>
         </ul>
       </div>

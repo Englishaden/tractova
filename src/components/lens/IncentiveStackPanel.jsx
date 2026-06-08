@@ -62,9 +62,6 @@ export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDd
               </div>
               <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
                 Project sited in any of these tracts adds 10% to ITC (≤5 MW only). Stacks with Energy Community above.
-                {nmtcLic.qualifyingViaPoverty > 0 && nmtcLic.qualifyingViaLowMfi > 0 && (
-                  <> Via poverty: {nmtcLic.qualifyingViaPoverty} · via low MFI: {nmtcLic.qualifyingViaLowMfi}.</>
-                )}
               </div>
             </>
           ) : nmtcLic ? (

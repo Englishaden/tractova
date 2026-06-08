@@ -11,14 +11,14 @@ import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 // (A5 fix). The caption = the OLDEST latest-success among these, so a stalled
 // weekly pillar drags it down honestly. Deliberately EXCLUDES long-cadence crons
 // (capacity-factor-refresh quarterly, refresh-data:solar_costs annual,
-// monthly-data-refresh) — their long gaps are normal, not staleness — and
+// refresh-data:nmtc_lic static/~yearly, monthly-data-refresh) — their long gaps
+// are normal, not staleness — and
 // non-data crons (staleness-check, send-digest, send-alerts). Keep in sync with
 // the active weekly crons in vercel.json + the THRESHOLDS in check-staleness.js.
 const FRESHNESS_PILLAR_CRONS = [
   'ix-queue-refresh',
   'refresh-data:energy_community',
   'refresh-data:hud_qct_dda',
-  'refresh-data:nmtc_lic',
   'refresh-data:geospatial_farmland',
   'refresh-data:lmi',
   'refresh-data:county_acs',

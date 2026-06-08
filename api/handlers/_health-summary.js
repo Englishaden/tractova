@@ -110,7 +110,7 @@ export default async function handleHealthSummary(res) {
     'refresh-data:lmi':             8,
     'refresh-data:state_programs':  8,
     'refresh-data:county_acs':      8,
-    'refresh-data:nmtc_lic':        8,
+    'refresh-data:nmtc_lic':        400,  // static published file (DOE §48e / CDFI), re-sourced ~yearly
     'refresh-data:hud_qct_dda':     8,
     'refresh-data:energy_community':8,
     'refresh-data:revenue_stacks':  8,

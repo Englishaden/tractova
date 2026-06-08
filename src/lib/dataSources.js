@@ -118,11 +118,11 @@ export const DATA_SOURCES = [
   {
     pillar: 'Incentives',
     component: '§48(e) Cat 1 Low-Income Community — NMTC pathway',
-    source: 'CDFI Fund NMTC + Census ACS 2018-22 (derived)',
-    url: 'https://www.cdfifund.gov/programs-training/programs/new-markets-tax-credit',
-    tier: 'B-',
-    provides: 'Census-tract Low-Income Community eligibility for the +10% §48(e) bonus, derived per the CDFI methodology.',
-    synthesis: 'Derived by Tractova from raw Census ACS against a state-MFI approximation of the CDFI rule — a deliberately CONSERVATIVE under-count until the CDFI published LIC list is ingested directly. Eligibility is per-tract; a project must sit in a qualifying tract.',
+    source: 'DOE §48(e) Program Layers · CDFI CIMS NMTC LIC (ACS 2016-2020)',
+    url: 'https://www.energy.gov/diversity/low-income-communities-bonus-credit-program',
+    tier: 'A',
+    provides: 'Census-tract Low-Income Community eligibility for the +10% §48(e) Cat 1 bonus, rolled up per county.',
+    synthesis: 'The authoritative CDFI CIMS NMTC LIC determination (ACS 2016-2020 — the legally-operative §48(e) Cat 1 vintage), published via the DOE program; it applies the greater-of-state/MSA-MFI rule + special provisions (replacing Tractova\'s earlier ACS state-MFI derivation). Tractova rolls the tract file up to a per-county count — eligibility is per-tract, so a project must sit in a qualifying tract; verify the parcel.',
   },
 
   // ── Site (20%) ────────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ export const DATA_SOURCES = [
     source: 'U.S. Census ACS 5-Year Estimates',
     url: 'https://www.census.gov/programs-surveys/acs',
     tier: 'B',
-    provides: 'County LMI %, AMI bands — the basis for CS subscriber-eligibility math and the NMTC LIC derivation.',
+    provides: 'County LMI %, AMI bands — the basis for CS subscriber-eligibility math.',
     synthesis: 'Observed Census data; the subscriber-eligibility interpretation is Tractova\'s.',
   },
 ]

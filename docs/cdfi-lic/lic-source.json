@@ -1,0 +1,14 @@
+{
+  "label": "§48(e) Cat 1 LIC (DOE/CDFI NMTC, ACS 2016-2020)",
+  "source": "DOE \"IRA Low-Income Community Bonus Credit Program Layers\" — Category 1 column is the CDFI CIMS NMTC LIC determination",
+  "publisher": "U.S. Department of Energy (data.gov-cataloged), aggregating CDFI Fund / CEQ / USDA",
+  "url": "https://data.nlr.gov/submissions/222",
+  "program_url": "https://www.energy.gov/diversity/low-income-communities-bonus-credit-program",
+  "irs_url": "https://www.irs.gov/credits-deductions/clean-electricity-low-income-communities-bonus-credit-amount-program",
+  "vintage": "ACS 2016-2020 (CDFI NMTC LIC) · 2023 census tracts · DOE Excel file 2024-09-19",
+  "file": "data/cdfi-lic/48e-lic-layers_20240919.xlsx",
+  "artifact": "src/data/nmtcLicCounties.js",
+  "ingested": "2026-06-08",
+  "review_due": "2027-06-01",
+  "notes": "Static published file (not a live API). The Category-1 column `NMTC_2020_pct` is the legally-operative §48(e) Cat 1 determination; a tract is counted LIC when NMTC_2020_pct > 0 (see QUALIFY_MIN_PCT in api/scrapers/_nmtcLic.js). Per-site eligibility is verified at the parcel level. DOE states the spatial data is for geolocation, not a substitute for the official eligibility determination. RE-SOURCE: re-download the '48 Program | Excel tool' from data.nlr.gov/submissions/222 into data/cdfi-lic/, then `node scripts/seed-nmtc-lic.mjs --apply`, then bump review_due. CDFI re-bases the NMTC LIC vintage when a new ACS 5-year lands (watch for an ACS 2020-2024 transition)."
+}

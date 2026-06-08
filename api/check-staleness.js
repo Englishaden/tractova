@@ -29,7 +29,6 @@ const THRESHOLDS = {
   // Incentive pillar (weekly via refresh-data?source=all; vintage-stable data)
   energy_community_data: { field: 'last_updated',    staleField: null,          yellow: 21,  red: 60,  label: 'Energy Communities (DOE NETL)' },
   hud_qct_dda_data:      { field: 'last_updated',    staleField: null,          yellow: 21,  red: 60,  label: 'HUD QCT/DDA' },
-  nmtc_lic_data:         { field: 'last_updated',    staleField: null,          yellow: 21,  red: 60,  label: 'NMTC LIC' },
   // Site pillar
   county_geospatial_data:{ field: 'last_updated',    staleField: null,          yellow: 45,  red: 120, label: 'County Geospatial (NWI + SSURGO)' },
   hosting_capacity_data: { field: 'newest_fetch',    staleField: null,          yellow: 45,  red: 120, label: 'Hosting Capacity' },
@@ -40,6 +39,9 @@ const THRESHOLDS = {
   // normally-infrequent refresh isn't flagged as a failure.
   solar_cost_index:      { field: 'last_updated',    staleField: null,          yellow: 220, red: 450, label: 'Solar Cost Index' },
   cs_specific_yield:     { field: 'last_updated',    staleField: null,          yellow: 150, red: 300, label: 'CS Specific Yield' },
+  // NMTC LIC is a static published file (DOE §48e / CDFI, ACS 2016-2020),
+  // re-sourced ~yearly via scripts/seed-nmtc-lic.mjs — not a weekly refresh.
+  nmtc_lic_data:         { field: 'last_updated',    staleField: null,          yellow: 400, red: 540, label: 'NMTC LIC (§48e, static)' },
 }
 
 function daysSince(dateStr) {
