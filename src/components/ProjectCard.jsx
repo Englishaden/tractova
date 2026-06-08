@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getCountyData } from '../lib/programData'
-import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { scoreSavedProject } from '../lib/scoreEngine'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/Tabs'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/Tooltip'
 import TechLabel from './ui/TechLabel'
@@ -26,7 +26,7 @@ import {
   IX_LABEL,
 } from '../pages/Library.jsx'
 
-export default function ProjectCard({ project, onRequestRemove, onStageChange, onTagsChange, onFollowUpChange, stateProgramMap, countyDataMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, defaultExpanded = false }) {
+export default function ProjectCard({ project, onRequestRemove, onStageChange, onTagsChange, onFollowUpChange, stateProgramMap, countyDataMap = {}, incentivesMap = {}, policyEventsMap = {}, stateDelta = null, shareCount = 0, onShareSuccess, selected = false, onToggleSelect, selectionActive = false, defaultExpanded = false }) {
   // defaultExpanded — Phase 2A Table view passes true so a row click
   // expands directly into the full card, not into the collapsed banner
   // (no double-click required).
@@ -92,6 +92,14 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
   }, [project.state, project.county, mappedCountyData])
 
   const current   = stateProgramMap[project.state]
+  // Parity inputs (2026-06 audit) — county-level ITC incentive eligibility +
+  // per-state policy events, the two pillars the Library used to omit. Pulled
+  // from the maps Library/MobileLibrary batch-fetch; null until they land
+  // (rebalanced out, not a fabricated baseline). scoreSavedProject reads
+  // project.codTargetYear + project.mw, so the card now matches the Lens.
+  const countyKey   = `${project.state}::${project.county}`
+  const incentives  = incentivesMap[countyKey] || null
+  const policyEvents = policyEventsMap[project.state] || null
 
   // V3: consolidated single PDF export. Was previously two buttons
   // ("Export Summary PDF" + "Generate Deal Memo") that produced near-identical
@@ -110,8 +118,7 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
       // mismatch the user reported.
       let liveScore = null
       if (current) {
-        const subs = computeSubScores(current, countyData, stage, project.technology, null, null, project.mw, { codYear: project.cod_target_year })
-        liveScore = safeScore(subs)
+        liveScore = scoreSavedProject({ ...project, stage }, current, countyData, { incentives, policyEvents }).score
       }
       const stateOverride = current ? { ...current, feasibilityScore: liveScore } : current
 
@@ -147,7 +154,7 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
       setMemoExporting(false)
     }
   }
-  const alerts    = getAlerts(project, stateProgramMap, countyDataMap)
+  const alerts    = getAlerts(project, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)
   const hasUrgent = alerts.some(a => a.level === 'urgent')
   // 2026-05-05 (A.6): split alerts by kind so the pill can render
   // distinct colors. data_update is good news (green); concern is
@@ -176,11 +183,16 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
     }
   }, [notes]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const subs = current
-    ? computeSubScores(current, countyData, stage, project.technology, null, null, project.mw, { codYear: project.cod_target_year })
-    : { offtake: 0, ix: 0, site: 0 }
-  const { offtake, ix, site } = subs
-  const liveScore = current ? safeScore(subs) : null
+  // Canonical 5-pillar score — same helper (and same inputs) the Lens uses, so
+  // this card's Feasibility Index matches the Lens for the identical project.
+  // Local `stage` (updated on stage-change before the parent reloads) overrides
+  // the saved stage.
+  const scored = current
+    ? scoreSavedProject({ ...project, stage }, current, countyData, { incentives, policyEvents })
+    : { subs: { offtake: 0, ix: 0, site: 0, incentives: null, policyTiming: null }, score: null }
+  const subs = scored.subs
+  const { offtake, ix, site, incentives: incentivesScore, policyTiming } = subs
+  const liveScore = scored.score
 
   // V3.1 color audit: consolidated all score-color triples (accent / bg /
   // text) to the canonical Tailwind v4 palette. Previously the bg used
@@ -423,7 +435,7 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
               )}
             </button>
           )}
-          <CompareChip project={project} stateProgram={current} countyData={countyData} />
+          <CompareChip project={project} stateProgram={current} countyData={countyData} incentives={incentives} policyEvents={policyEvents} />
           <button
             onClick={(e) => { e.stopPropagation(); onRequestRemove(project.id, project.name) }}
             title="Remove project"
@@ -501,14 +513,21 @@ export default function ProjectCard({ project, onRequestRemove, onStageChange, o
                     </div>
                   </div>
 
-                  {/* Sub-score breakdown */}
+                  {/* Sub-score breakdown — five pillars at the 2026-05 pivot
+                      weights (Offtake 25 · IX 25 · Incentives 20 · Site 20 ·
+                      Policy & Timing 10), mirroring the Lens MarketPositionPanel.
+                      Incentives + Policy & Timing render only when the project's
+                      county/state has coverage (rebalanced out otherwise) — a
+                      missing row means "no data," not a zero. */}
                   <div className="flex flex-col gap-2 rounded-lg px-3 py-3" style={{ background: '#FFFFFF', border: '1px solid #E2E8F0' }}>
                     <p className="eyebrow-mono mb-1 text-ink-muted">Index Breakdown</p>
                     {[
-                      { label: 'Offtake', value: offtake, weight: '40%', color: '#0F766E' },
-                      { label: 'IX Risk', value: ix,      weight: '35%', color: '#D97706' },
-                      { label: 'Site',    value: site,    weight: '25%', color: '#2563EB' },
-                    ].map(s => (
+                      { label: 'Offtake',   value: offtake,         weight: '25%', color: '#0F766E' },
+                      { label: 'IX Risk',   value: ix,              weight: '25%', color: '#D97706' },
+                      { label: 'Incentives', value: incentivesScore, weight: '20%', color: '#15803D' },
+                      { label: 'Site',      value: site,            weight: '20%', color: '#2563EB' },
+                      { label: 'Policy',    value: policyTiming,    weight: '10%', color: '#475569' },
+                    ].filter(s => s.value != null).map(s => (
                       <div key={s.label} className="flex items-center gap-2">
                         <span className="text-[10px] w-14 text-right font-medium text-ink-muted">{s.label}</span>
                         <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: '#F1F5F9' }}>

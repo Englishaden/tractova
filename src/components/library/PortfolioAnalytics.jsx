@@ -17,14 +17,16 @@ import TractovaLoader from '../ui/TractovaLoader'
 // Per-user-per-day cache so a Library load doesn't re-spend tokens.
 const _portfolioInsightCache = new Map()
 
-export default function PortfolioAnalytics({ projects, stateProgramMap }) {
+export default function PortfolioAnalytics({ projects, stateProgramMap, countyDataMap = {}, incentivesMap = {}, policyEventsMap = {} }) {
   const { user } = useAuth()
   const cacheKey = user ? `${user.id}::${new Date().toISOString().slice(0, 10)}` : null
   const [aiInsight, setAiInsight] = useState(cacheKey ? (_portfolioInsightCache.get(cacheKey) ?? null) : null)
   const [aiLoading, setAiLoading] = useState(false)
 
   // Per-project scores + MW-weighted portfolio health (shared scoreEngine helpers).
-  const scored      = useMemo(() => scoreProjects(projects, stateProgramMap), [projects, stateProgramMap])
+  // Pass the parity maps so Portfolio Health scores each project on all 5 pillars
+  // (the same number its Library card shows) instead of the old 3-pillar rollup.
+  const scored      = useMemo(() => scoreProjects(projects, stateProgramMap, { countyDataMap, incentivesMap, policyEventsMap }), [projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
   const healthScore = useMemo(() => computePortfolioHealth(scored), [scored])
 
   const techBreakdown = useMemo(() => {

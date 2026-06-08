@@ -799,6 +799,30 @@ export function scoreSavedProject(project, stateProgram, countyData = null, opts
   return { subs, score: safeScore(subs) }
 }
 
+// ── scoreProjectFromMaps ───────────────────────────────────────────────────────
+// Library-surface convenience over scoreSavedProject: every Library view holds
+// the same four lookup maps (state programs, county geospatial, county-level ITC
+// incentive eligibility, per-state policy events). This resolves a project's row
+// out of those maps using the canonical `${state}::${county}` / `${state}` keys
+// and delegates to scoreSavedProject, so the card, table, board, map, sort, and
+// export all read ONE arg-resolution path. A map being empty (`{}`) yields a
+// null pillar → computeDisplayScore rebalances it out (honest reduced score, not
+// a fabricated baseline) — the same lazy-population pattern as countyDataMap.
+//
+// @param {object} project — normalized project (state, county, stage, technology, mw, codTargetYear)
+// @param {{stateProgramMap?, countyDataMap?, incentivesMap?, policyEventsMap?}} maps
+// @returns {{ subs: object|null, score: number|null }}
+export function scoreProjectFromMaps(project, maps = {}) {
+  const { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap } = maps
+  const sp = stateProgramMap?.[project.state]
+  if (!sp) return { subs: null, score: null }
+  const key = `${project.state}::${project.county}`
+  return scoreSavedProject(project, sp, countyDataMap?.[key] || null, {
+    incentives:   incentivesMap?.[key] || null,
+    policyEvents: policyEventsMap?.[project.state] || null,
+  })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Portfolio-level helpers — used by Library + Profile to score a set of saved
 // projects and roll them up into a single MW-weighted health number.
@@ -813,22 +837,34 @@ export function scoreSavedProject(project, stateProgram, countyData = null, opts
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Annotate each project with a `score` derived from the curated state program
- * + the project's stage / technology. Projects whose state isn't in the
- * program map get score=0 (treated as "no data" rather than NaN-poisoning the
- * weighted average upstream).
+ * Annotate each project with a `score` via the canonical scoreSavedProject
+ * path, so a portfolio rollup scores each project exactly as its Library card
+ * does. Projects whose state isn't in the program map get score=0 (treated as
+ * "no data" rather than NaN-poisoning the weighted average upstream).
+ *
+ * Pass `opts` maps to reach full 5-pillar parity: `countyDataMap` (site),
+ * `incentivesMap` (ITC adders), `policyEventsMap` (state policy). Any map
+ * omitted → that pillar rebalances out (honest reduced score). The portfolio
+ * path previously read `p.cod_target_year` (raw), which is undefined on a
+ * normalized project — routing through scoreSavedProject (reads `codTargetYear`)
+ * fixes that silently-dropped Policy & Timing input too.
+ *
+ * @param {Array} projects — normalized project rows
+ * @param {object} stateProgramMap — keyed by state id
+ * @param {{countyDataMap?, incentivesMap?, policyEventsMap?}} [opts]
  */
-export function scoreProjects(projects, stateProgramMap, policyEventsByState = null) {
+export function scoreProjects(projects, stateProgramMap, opts = {}) {
   if (!Array.isArray(projects)) return []
+  const { countyDataMap = null, incentivesMap = null, policyEventsMap = null } = opts
   return projects.map(p => {
     const sp = stateProgramMap?.[p.state]
     if (!sp) return { ...p, score: 0 }
-    const policies = policyEventsByState?.[p.state] || null
-    // Pass codYear so the Policy & Timing pillar (federal tax-credit cliff) is
-    // included for saved projects. Incentives stays excluded here (no county
-    // incentive fetch in the portfolio path) → rebalanced out of the composite.
-    const subs = computeSubScores(sp, null, p.stage, p.technology, null, policies, p.mw, { codYear: p.cod_target_year })
-    return { ...p, score: safeScore(subs) }
+    const key = `${p.state}::${p.county}`
+    const { score } = scoreSavedProject(p, sp, countyDataMap?.[key] || null, {
+      incentives:   incentivesMap?.[key] || null,
+      policyEvents: policyEventsMap?.[p.state] || null,
+    })
+    return { ...p, score }
   })
 }
 

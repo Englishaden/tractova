@@ -1,4 +1,4 @@
-import { computeSubScores, safeScore } from './scoreEngine'
+import { scoreProjectFromMaps } from './scoreEngine'
 
 // ── Alert detection ──────────────────────────────────────────────────────────
 const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
@@ -18,10 +18,12 @@ const STATUS_RANK = { active: 3, limited: 2, pending: 1, none: 0 }
  *
  * @param {object} project — saved project row including the at-save snapshot fields
  * @param {object} stateProgramMap — keyed by state id → live state_program row
- * @param {object} [countyDataMap] — keyed by county_fips → live county_intelligence
+ * @param {object} [countyDataMap] — keyed by `${state}::${county}` → live county data
+ * @param {object} [incentivesMap] — keyed by `${state}::${county}` → ITC incentive eligibility
+ * @param {object} [policyEventsMap] — keyed by state → policy events[]
  * @returns {Array<{level, kind, title, detail, evidence?}>}
  */
-export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
+export function getAlerts(project, stateProgramMap, countyDataMap = {}, incentivesMap = {}, policyEventsMap = {}) {
   const current = stateProgramMap[project.state]
   if (!current) return []
 
@@ -61,16 +63,15 @@ export function getAlerts(project, stateProgramMap, countyDataMap = {}) {
     }
   }
 
-  // Score-drop alert must use the SAME inputs as the visual card display so the
-  // delta the user sees in the alert matches the score they see on the card.
-  // Previous bug: alert recomputed with countyData=null while the card recomputed
-  // with countyData from countyDataMap, producing inconsistent deltas. Now both
-  // paths read from countyDataMap (lazy-populated as cards expand). When the
-  // map hasn't filled yet for this (state, county), we fall back to null —
-  // the score will refine as countyDataMap populates and the alert re-renders.
-  const cd = countyDataMap[`${project.state}::${project.county}`] || null
-  const currentSubs = computeSubScores(current, cd, project.stage, project.technology)
-  const currentLiveScore = safeScore(currentSubs)
+  // Score-drop alert must use the SAME canonical helper as the visual card so the
+  // delta the user sees in the alert matches the score on the card. Both now go
+  // through scoreProjectFromMaps (all 5 pillars off the shared maps). This also
+  // ends a false-alert class the 2026-06 audit found: the stored
+  // project.feasibilityScore is the Lens 5-pillar value, so recomputing it on
+  // only 3 pillars made incentive-eligible counties look like a "Score Drop"
+  // every load. Maps lazy-populate — the alert refines (and a spurious one
+  // clears) as incentives/policy land.
+  const currentLiveScore = scoreProjectFromMaps(project, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap }).score
   if (project.feasibilityScore != null && currentLiveScore < project.feasibilityScore - 10) {
     alerts.push({
       level: 'warning', kind: 'concern', pillar: 'Market',

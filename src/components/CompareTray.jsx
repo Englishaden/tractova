@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { useCompare } from '../context/CompareContext'
 import { supabase } from '../lib/supabase'
-import { getStateProgram, getCountyData } from '../lib/programData'
-import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { getStateProgram, getCountyData, getEnergyCommunity, getNmtcLic, getHudQctDda, getPolicyImpactEvents } from '../lib/programData'
+import { scoreSavedProject } from '../lib/scoreEngine'
 import { IX_LABEL } from '../lib/statusMaps.js'
 import { saveComparison, loadSavedComparison } from '../lib/savedComparisons'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/Dialog'
@@ -98,15 +98,28 @@ function CompareModal({ onClose }) {
     setRefreshing(true)
     Promise.all(items.map(async (it) => {
       try {
-        const [sp, cd] = await Promise.all([
+        // Re-fetch the full Lens input set per item (state program · county geo ·
+        // ITC incentive eligibility · per-state policy) and recompute via the
+        // canonical helper, so the recomputed composite is the SAME 5-pillar score
+        // the Library card + Lens show. Previously this recomputed on only 3
+        // pillars, so the compare modal's "recomputed" score diverged from both.
+        const [sp, cd, ec, nmtc, hud, policy] = await Promise.all([
           getStateProgram(it.state).catch(() => null),
           it.county ? getCountyData(it.state, it.county).catch(() => null) : null,
+          it.county ? getEnergyCommunity(it.state, it.county).catch(() => null) : null,
+          it.county ? getNmtcLic(it.state, it.county).catch(() => null) : null,
+          it.county ? getHudQctDda(it.state, it.county).catch(() => null) : null,
+          getPolicyImpactEvents({ state: it.state }).catch(() => null),
         ])
         if (!sp) return [it.id, null]
-        const sub = computeSubScores(sp, cd, it.stage, it.technology)
-        const score = safeScore(sub)
+        const incentives = (ec || nmtc || hud) ? { energyCommunity: ec, nmtcLic: nmtc, hudQctDda: hud } : null
+        const { subs: sub, score } = scoreSavedProject(
+          { stage: it.stage, technology: it.technology, mw: it.mw, codTargetYear: it.codTargetYear ?? null },
+          sp, cd, { incentives, policyEvents: policy },
+        )
         return [it.id, {
           subOfftake: sub.offtake, subIx: sub.ix, subSite: sub.site,
+          subIncentives: sub.incentives, subPolicyTiming: sub.policyTiming,
           score, csStatus: sp.csStatus, capacityMW: sp.capacityMW,
           ixDifficulty: sp.ixDifficulty,
         }]
@@ -232,19 +245,34 @@ function CompareModal({ onClose }) {
       label: 'Offtake sub-score',
       term:  'Offtake',
       section: 'COMPOSITE',
-      render: (item) => fmtSubScore(item.subOfftake),
+      render: (item) => fmtSubScore(refreshed[item.id]?.subOfftake ?? item.subOfftake),
     },
     {
       label: 'Interconnection sub-score',
       term:  'IX',
       section: 'COMPOSITE',
-      render: (item) => fmtSubScore(item.subIx),
+      render: (item) => fmtSubScore(refreshed[item.id]?.subIx ?? item.subIx),
+    },
+    {
+      // Incentives + Policy & Timing complete the 5-pillar comparison (2026-06
+      // parity wiring). A "—" here means the project's county/state has no
+      // coverage row (the pillar rebalanced out of the composite), not a zero.
+      label: 'Incentives sub-score',
+      term:  'Incentives',
+      section: 'COMPOSITE',
+      render: (item) => fmtSubScore(refreshed[item.id]?.subIncentives ?? item.subIncentives),
     },
     {
       label: 'Site Control sub-score',
       term:  'Site Control',
       section: 'COMPOSITE',
-      render: (item) => fmtSubScore(item.subSite),
+      render: (item) => fmtSubScore(refreshed[item.id]?.subSite ?? item.subSite),
+    },
+    {
+      label: 'Policy & Timing sub-score',
+      term:  'Policy & Timing',
+      section: 'COMPOSITE',
+      render: (item) => fmtSubScore(refreshed[item.id]?.subPolicyTiming ?? item.subPolicyTiming),
     },
     {
       label: 'CS Program Status',

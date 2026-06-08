@@ -25,7 +25,7 @@ const SECTIONS = [
   { id: 'lib-intel-3', label: 'Map' },
 ]
 
-export default function LibraryIntelligence({ projects, stateProgramMap, countyDataMap, onStageDrill, onStateDrill }) {
+export default function LibraryIntelligence({ projects, stateProgramMap, countyDataMap, incentivesMap = {}, policyEventsMap = {}, onStageDrill, onStateDrill }) {
   useLensReveal(projects.length > 0)
 
   const stageCounts = useMemo(() => {
@@ -132,7 +132,7 @@ export default function LibraryIntelligence({ projects, stateProgramMap, countyD
       {/* §02 — Health · risk · tech mix · AI insight */}
       <CollapsibleSection index={2} id="lib-intel-2" label="Analytics" sublabel="health · risk · mix · AI" defaultOpen>
         <div className="lens-reveal">
-          <PortfolioAnalytics projects={projects} stateProgramMap={stateProgramMap} />
+          <PortfolioAnalytics projects={projects} stateProgramMap={stateProgramMap} countyDataMap={countyDataMap} incentivesMap={incentivesMap} policyEventsMap={policyEventsMap} />
         </div>
       </CollapsibleSection>
 
@@ -145,6 +145,8 @@ export default function LibraryIntelligence({ projects, stateProgramMap, countyD
               projects={projects}
               stateProgramMap={stateProgramMap}
               countyDataMap={countyDataMap}
+              incentivesMap={incentivesMap}
+              policyEventsMap={policyEventsMap}
               filterState=""
               onStateClick={(id, has) => { if (has) onStateDrill?.(id) }}
               onStateDoubleClick={(id, has) => { if (has) onStateDrill?.(id) }}

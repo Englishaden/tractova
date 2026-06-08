@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ComposableMap, Geographies, Geography, Marker } from 'react-simple-maps'
-import { computeSubScores, safeScore } from '../../lib/scoreEngine'
+import { scoreProjectFromMaps } from '../../lib/scoreEngine'
 import countyCentroids from '../../data/county_centroids.json'
 
 // Phase 2B · TRACTOVA-UX-001 — Library Map view (research-terminal pass).
@@ -70,6 +70,8 @@ export default function LibraryMap({
   projects,
   stateProgramMap,
   countyDataMap,
+  incentivesMap = {},
+  policyEventsMap = {},
   onStateClick,
   onStateDoubleClick,
   onPinClick,
@@ -90,9 +92,7 @@ export default function LibraryMap({
       const sp = stateProgramMap[p.state]
       if (!sp) continue
       stateSet.add(p.state)
-      const cd = countyDataMap?.[`${p.state}::${p.county}`] || null
-      const subs = computeSubScores(sp, cd, p.stage, p.technology)
-      const score = safeScore(subs)
+      const { score } = scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
       const mw = parseFloat(p.mw) || 0
       const w = mw > 0 ? mw : 1
       if (score != null) {
@@ -107,7 +107,7 @@ export default function LibraryMap({
       weightedAvg: scoredCount > 0 ? Math.round(weighted / mwSum) : null,
       stateCount: stateSet.size,
     }
-  }, [projects, stateProgramMap, countyDataMap])
+  }, [projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   const stateAggregates = useMemo(() => {
     const agg = {}
@@ -115,9 +115,7 @@ export default function LibraryMap({
       if (!p.state) continue
       const sp = stateProgramMap[p.state]
       if (!sp) continue
-      const cd = countyDataMap?.[`${p.state}::${p.county}`] || null
-      const subs = computeSubScores(sp, cd, p.stage, p.technology)
-      const score = safeScore(subs)
+      const { score } = scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
       if (score == null) continue
       const mw = parseFloat(p.mw) || 0
       if (!agg[p.state]) agg[p.state] = { mwSum: 0, weighted: 0, count: 0 }
@@ -130,7 +128,7 @@ export default function LibraryMap({
       agg[k].weightedAvg = Math.round(agg[k].weighted / agg[k].mwSum)
     }
     return agg
-  }, [projects, stateProgramMap, countyDataMap])
+  }, [projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   const pins = useMemo(() => {
     return projects.map(p => {
@@ -138,13 +136,11 @@ export default function LibraryMap({
       if (!sp || !p.state || !p.county) return null
       const centroid = countyCentroids[`${p.state}::${p.county}`]
       if (!centroid) return null
-      const cd = countyDataMap?.[`${p.state}::${p.county}`] || null
-      const subs = computeSubScores(sp, cd, p.stage, p.technology)
-      const score = safeScore(subs)
+      const { score } = scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
       const mw = parseFloat(p.mw) || 0
       return { id: p.id, name: p.name, state: p.state, county: p.county, mw, score, centroid, project: p }
     }).filter(Boolean)
-  }, [projects, stateProgramMap, countyDataMap])
+  }, [projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   const shouldCluster = pins.length > CLUSTER_THRESHOLD
 

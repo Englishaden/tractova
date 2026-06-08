@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../context/AuthContext'
-import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../../lib/programData'
-import { computeSubScores, safeScore } from '../../lib/scoreEngine'
+import { getStateProgramMap, getCountyData, getStateProgramDeltas, getEnergyCommunity, getNmtcLic, getHudQctDda, getPolicyImpactEvents } from '../../lib/programData'
+import { scoreProjectFromMaps } from '../../lib/scoreEngine'
 import { logProjectEvent } from '../../lib/projectEvents'
 import { normalizeProject } from '../../lib/normalizeProject'
 import ProjectCard from '../ProjectCard.jsx'
@@ -40,6 +40,8 @@ export default function MobileLibrary() {
   const [error, setError] = useState(null)
   const [stateProgramMap, setStateProgramMap] = useState({})
   const [countyDataMap, setCountyDataMap] = useState({})
+  const [incentivesMap, setIncentivesMap] = useState({})   // `${state}::${county}` -> ITC incentive eligibility
+  const [policyEventsMap, setPolicyEventsMap] = useState({}) // state -> policy events[]
   const [stateDeltaMap, setStateDeltaMap] = useState(new Map())
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState('saved') // saved | score | mw
@@ -83,6 +85,41 @@ export default function MobileLibrary() {
     })
   }, [projects.length])
 
+  // Parity fetch — county-level ITC incentives + per-state policy events, so the
+  // mobile cards + score-sort match the Lens (mirrors Library.jsx).
+  useEffect(() => {
+    if (!projects.length) return
+    const seenCounty = new Set(), seenState = new Set()
+    const incPending = [], polPending = []
+    for (const p of projects) {
+      if (p.state && p.county) {
+        const key = `${p.state}::${p.county}`
+        if (!seenCounty.has(key) && !incentivesMap[key]) {
+          seenCounty.add(key)
+          incPending.push(
+            Promise.all([
+              getEnergyCommunity(p.state, p.county).catch(() => null),
+              getNmtcLic(p.state, p.county).catch(() => null),
+              getHudQctDda(p.state, p.county).catch(() => null),
+            ]).then(([energyCommunity, nmtcLic, hudQctDda]) => [key, { energyCommunity, nmtcLic, hudQctDda }]).catch(() => null)
+          )
+        }
+      }
+      if (p.state && !seenState.has(p.state) && !policyEventsMap[p.state]) {
+        seenState.add(p.state)
+        polPending.push(getPolicyImpactEvents({ state: p.state }).then(ev => [p.state, ev]).catch(() => null))
+      }
+    }
+    if (incPending.length) Promise.all(incPending).then(results => {
+      const updates = {}; for (const r of results) { if (r) updates[r[0]] = r[1] }
+      if (Object.keys(updates).length) setIncentivesMap(prev => ({ ...prev, ...updates }))
+    })
+    if (polPending.length) Promise.all(polPending).then(results => {
+      const updates = {}; for (const r of results) { if (r) updates[r[0]] = r[1] }
+      if (Object.keys(updates).length) setPolicyEventsMap(prev => ({ ...prev, ...updates }))
+    })
+  }, [projects.length])
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     let rows = projects
@@ -96,9 +133,10 @@ export default function MobileLibrary() {
     }
     const sorted = [...rows]
     if (sortBy === 'score') {
+      const maps = { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap }
       sorted.sort((a, b) => {
-        const sa = safeScore(computeSubScores(stateProgramMap[a.state], countyDataMap[`${a.state}::${a.county}`], a.stage, a.technology, null, null, a.mw, { codYear: a.cod_target_year }))
-        const sb = safeScore(computeSubScores(stateProgramMap[b.state], countyDataMap[`${b.state}::${b.county}`], b.stage, b.technology, null, null, b.mw, { codYear: b.cod_target_year }))
+        const sa = scoreProjectFromMaps(a, maps).score
+        const sb = scoreProjectFromMaps(b, maps).score
         return (sb ?? -1) - (sa ?? -1)
       })
     } else if (sortBy === 'mw') {
@@ -106,7 +144,7 @@ export default function MobileLibrary() {
     }
     // 'saved' is the default order from Supabase (already desc).
     return sorted
-  }, [projects, search, sortBy, stateProgramMap, countyDataMap])
+  }, [projects, search, sortBy, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   const handleStageChange = async (projectId, nextStage) => {
     const prev = projects.find(p => p.id === projectId)?.stage || ''
@@ -209,6 +247,8 @@ export default function MobileLibrary() {
             project={p}
             stateProgramMap={stateProgramMap}
             countyDataMap={countyDataMap}
+            incentivesMap={incentivesMap}
+            policyEventsMap={policyEventsMap}
             stateDelta={stateDeltaMap.get?.(p.state) || null}
             onRequestRemove={handleRequestRemove}
             onStageChange={handleStageChange}
@@ -225,6 +265,8 @@ export default function MobileLibrary() {
           projects={projects}
           stateProgramMap={stateProgramMap}
           countyDataMap={countyDataMap}
+          incentivesMap={incentivesMap}
+          policyEventsMap={policyEventsMap}
           onStageDrill={() => setView('pipeline')}
           onStateDrill={() => setView('pipeline')}
         />

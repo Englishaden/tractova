@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { computeSubScores } from '../lib/scoreEngine'
+import { scoreSavedProject } from '../lib/scoreEngine'
 
 const CompareContext = createContext(null)
 
@@ -14,7 +14,20 @@ const MAX_ITEMS = 5
 // "where does each state shine vs lag" gap explicitly.
 export function lensResultToCompareItem(results) {
   const sp = results.stateProgram
-  const sub = sp ? computeSubScores(sp, results.countyData, results.form.stage, results.form.technology, results.ixQueueSummary) : null
+  // Full 5-pillar feed (mirrors Search.jsx lensSubs) so a Lens-added compare row
+  // carries the same sub-scores as the Lens panel — and matches a Library-added
+  // row for the identical project once the modal refresh runs.
+  const codYear = results.form?.codYear ? Number(results.form.codYear) : null
+  const incentives = (results.energyCommunity || results.nmtcLic || results.hudQctDda)
+    ? { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda }
+    : null
+  const { subs: sub } = sp
+    ? scoreSavedProject(
+        { stage: results.form.stage, technology: results.form.technology, mw: results.form.mw, codTargetYear: codYear },
+        sp, results.countyData,
+        { incentives, policyEvents: results.policyEvents, ixQueueSummary: results.ixQueueSummary },
+      )
+    : { subs: null }
   const geo = results.countyData?.geospatial
   return {
     id:               `lens-${results.form.state}-${results.form.county.replace(/\s+/g, '-')}`,
@@ -35,10 +48,16 @@ export function lensResultToCompareItem(results) {
     // would otherwise need a per-render state program lookup.
     lmiRequired:      sp?.lmiRequired ?? null,
     lmiPercent:       sp?.lmiPercent ?? null,
-    // Sub-score breakdown (added 2026-05-03 per site-walk review).
+    // Target COD year — feeds the Policy & Timing pillar on the modal's refresh
+    // recompute (was dropped, so Lens-added rows lost the federal-cliff signal).
+    codTargetYear:    codYear,
+    // Sub-score breakdown — all 5 pillars (added 2026-05-03, extended to 5 in the
+    // 2026-06 parity wiring).
     subOfftake:       sub?.offtake ?? null,
     subIx:            sub?.ix ?? null,
     subSite:          sub?.site ?? null,
+    subIncentives:    sub?.incentives ?? null,
+    subPolicyTiming:  sub?.policyTiming ?? null,
     // Path B geospatial percentages (USFWS NWI + USDA SSURGO).
     wetlandPct:       geo?.wetlandCoveragePct ?? null,
     farmlandPct:      geo?.primeFarmlandPct ?? null,
@@ -56,9 +75,13 @@ export function lensResultToCompareItem(results) {
 // Offtake/IX/Site sub-scores + Wetland/Farmland % when the user adds
 // projects from Library — Aden flagged this 2026-05-04 as a regression
 // from Session 4's compare-row expansion.
-export function libraryProjectToCompareItem(project, stateProgram = null, countyData = null) {
+export function libraryProjectToCompareItem(project, stateProgram = null, countyData = null, incentives = null, policyEvents = null) {
   const sp = stateProgram
-  const sub = sp ? computeSubScores(sp, countyData, project.stage, project.technology) : null
+  // Route through the canonical helper so a Library-added row scores identically
+  // to its card. Incentives/policy are optional at add-time (the bulk-add path
+  // may not have them) — the modal's refresh re-fetches + recomputes the full
+  // 5-pillar composite on open regardless.
+  const { subs: sub } = sp ? scoreSavedProject(project, sp, countyData, { incentives, policyEvents }) : { subs: null }
   const geo = countyData?.geospatial
   return {
     id:               `lib-${project.id}`,
@@ -77,12 +100,17 @@ export function libraryProjectToCompareItem(project, stateProgram = null, county
     capacityMW:       sp?.capacityMW || null,
     lmiRequired:      sp?.lmiRequired ?? null,
     lmiPercent:       sp?.lmiPercent ?? null,
-    // Sub-score breakdown — same engine + arg shape as lensResultToCompareItem
-    // so a Library compare row matches a Lens compare row exactly when both
-    // point at the same state+county+technology+stage.
+    // Target COD year — so the modal refresh recomputes the Policy & Timing
+    // pillar (federal cliff) for this row too.
+    codTargetYear:    project.codTargetYear ?? null,
+    // Sub-score breakdown — same helper + 5-pillar shape as lensResultToCompareItem
+    // so a Library compare row matches a Lens compare row exactly when both point
+    // at the same state+county+technology+stage.
     subOfftake:       sub?.offtake ?? null,
     subIx:            sub?.ix ?? null,
     subSite:          sub?.site ?? null,
+    subIncentives:    sub?.incentives ?? null,
+    subPolicyTiming:  sub?.policyTiming ?? null,
     // Path B geospatial percentages (USFWS NWI + USDA SSURGO).
     wetlandPct:       geo?.wetlandCoveragePct ?? null,
     farmlandPct:      geo?.primeFarmlandPct ?? null,

@@ -7,9 +7,9 @@ import { useLibraryLayout } from '../hooks/useLibraryLayout'
 import { useBulkSelection } from '../hooks/useBulkSelection'
 import UpgradePrompt from '../components/UpgradePrompt'
 import MountReveal from '../components/ui/MountReveal'
-import { getStateProgramMap, getCountyData, getStateProgramDeltas } from '../lib/programData'
+import { getStateProgramMap, getCountyData, getStateProgramDeltas, getEnergyCommunity, getNmtcLic, getHudQctDda, getPolicyImpactEvents } from '../lib/programData'
 import { useDataRefresh } from '../lib/useDataRefresh'
-import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { scoreProjectFromMaps } from '../lib/scoreEngine'
 import { useCompare, libraryProjectToCompareItem } from '../context/CompareContext'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '../components/ui/Dialog'
 import { logProjectEvent } from '../lib/projectEvents'
@@ -92,8 +92,11 @@ export const CS_STATUS_STYLES = {
 const EXPORT_HEADERS = [
   // Identity
   'Name', 'State', 'County', 'MW AC', 'Technology', 'Stage',
-  // Scores (composite + sub-scores from scoreEngine.computeSubScores)
-  'Feasibility Index', 'Offtake Sub-score', 'IX Sub-score', 'Site Sub-score',
+  // Scores (composite + 5 sub-scores from scoreEngine.scoreSavedProject — same
+  // engine + inputs the in-app Lens uses, so the sheet matches the UI exactly).
+  // Incentives + Policy & Timing are blank where the project's county/state has
+  // no coverage row (rebalanced out of the composite, not scored as 0).
+  'Feasibility Index', 'Offtake Sub-score', 'IX Sub-score', 'Site Sub-score', 'Incentives Sub-score', 'Policy & Timing Sub-score',
   // Program
   'CS Status', 'CS Program', 'Program Capacity Remaining (MW)', 'LMI Required (%)', 'Program Runway (months)',
   // IX
@@ -112,12 +115,15 @@ const EXPORT_HEADERS = [
 //   1. Projects — full data table including sub-scores from scoreEngine
 //   2. Methodology & Sources — pillar→source→URL hyperlink reference
 //   3. Glossary — terms used in Sheet 1, mirrors the in-app Glossary page
-async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
-  const rows = buildExportRows(projects, stateProgramMap, countyDataMap)
+async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}, incentivesMap = {}, policyEventsMap = {}) {
+  const rows = buildExportRows(projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)
   const XLSX = await import('xlsx')
 
   // ── Sheet 1: Projects ──
   const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEADERS, ...rows])
+  // One width per EXPORT_HEADERS column, in order. (The prior array carried a
+  // stale "Revenue" width + a dead USD-format loop on column U from a removed
+  // revenue column, which shifted every width past Site by one — both gone now.)
   ws['!cols'] = [
     { wch: 28 }, // Name
     { wch: 12 }, // State
@@ -125,10 +131,12 @@ async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
     { wch: 8 },  // MW AC
     { wch: 16 }, // Technology
     { wch: 18 }, // Stage
-    { wch: 10 }, // Feas Idx
-    { wch: 12 }, // Offtake
-    { wch: 10 }, // IX
-    { wch: 10 }, // Site
+    { wch: 10 }, // Feasibility Index
+    { wch: 12 }, // Offtake Sub-score
+    { wch: 10 }, // IX Sub-score
+    { wch: 10 }, // Site Sub-score
+    { wch: 14 }, // Incentives Sub-score
+    { wch: 18 }, // Policy & Timing Sub-score
     { wch: 10 }, // CS Status
     { wch: 22 }, // CS Program
     { wch: 14 }, // Program Capacity
@@ -139,17 +147,10 @@ async function exportXLSX(projects, stateProgramMap = {}, countyDataMap = {}) {
     { wch: 14 }, // Wetland %
     { wch: 14 }, // Prime Farmland %
     { wch: 22 }, // Serving Utility
-    { wch: 18 }, // Revenue
-    { wch: 36 }, // Alerts
-    { wch: 12 }, // Saved
+    { wch: 36 }, // Risk Flags
+    { wch: 12 }, // Saved Date
   ]
   ws['!freeze'] = { xSplit: 0, ySplit: 1 }
-  // USD whole-dollars on revenue column. Column letter for "Est. Annual
-  // Revenue" is U (21st column) given the new header order — was P pre-Session 5.
-  for (let r = 2; r <= rows.length + 1; r++) {
-    const cell = ws[`U${r}`]
-    if (cell && typeof cell.v === 'number') cell.z = '"$"#,##0'
-  }
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Projects')
@@ -184,6 +185,15 @@ function LibraryContent() {
   const [stateProgramMap, setStateProgramMap] = useState({})
   const [stateDeltaMap,   setStateDeltaMap]   = useState(new Map()) // state_id -> { delta, prevScore, latestAt, ... }
   const [countyDataMap,   setCountyDataMap]   = useState({}) // key `${state}::${county}` -> countyData
+  // Parity-wiring (2026-06 data audit): the Library used to score saved projects
+  // on only offtake/ix/site, so the SAME project showed a different Feasibility
+  // Index here vs the Lens. These two maps thread the Lens's remaining inputs —
+  // county-level ITC incentive eligibility and per-state policy events — into the
+  // canonical scoreProjectFromMaps so one project = one score everywhere. Both
+  // lazy-populate (like countyDataMap); until they fill, scores rebalance over the
+  // pillars present rather than fabricating a baseline.
+  const [incentivesMap,   setIncentivesMap]   = useState({}) // key `${state}::${county}` -> { energyCommunity, nmtcLic, hudQctDda }
+  const [policyEventsMap, setPolicyEventsMap] = useState({}) // key state -> policy events[]
   const [shareCountMap,   setShareCountMap]   = useState({})         // project_id -> int (active, non-expired tokens)
   const [savedComparisonsCount, setSavedComparisonsCount] = useState(0) // count for the Comparisons tab's "· N" badge
 
@@ -209,7 +219,7 @@ function LibraryContent() {
     previewEmpty,
     displayProjects,
     pagedProjects,
-  } = useLibraryLayout(projects, stateProgramMap, countyDataMap)
+  } = useLibraryLayout(projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)
 
   // Bulk-operations state — selected project IDs (Set), toggle/clear/
   // selectAll actions, allSelected derived flag, and the bulk-delete
@@ -264,14 +274,14 @@ function LibraryContent() {
     let mw = 0, alerts = 0, due = 0, overdue = false
     for (const p of projects) {
       mw += parseFloat(p.mw) || 0
-      alerts += getAlerts(p, stateProgramMap, countyDataMap).length
+      alerts += getAlerts(p, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap).length
       if (p.followUpAt) {
         const days = (new Date(p.followUpAt).getTime() - now) / 86400000
         if (days <= 7) { due++; if (days < 0) overdue = true }
       }
     }
     return { totalMw: mw, alertCount: alerts, dueCount: due, hasOverdue: overdue }
-  }, [projects, stateProgramMap, countyDataMap])
+  }, [projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   // Centralize county data fetch -- previously each ProjectCard fetched its
   // own, leaving the sort logic with no county info and ranking projects
@@ -294,6 +304,52 @@ function LibraryContent() {
       for (const r of results) { if (r) updates[r[0]] = r[1] }
       if (Object.keys(updates).length) setCountyDataMap(prev => ({ ...prev, ...updates }))
     })
+  }, [projects.length])
+
+  // Parity fetch — county-level ITC incentive eligibility (per state::county) +
+  // per-state policy events. Same dedup/batch shape as the countyData fetch
+  // above, and the same getters the Lens uses (Search.jsx handleSubmit), so the
+  // composite reaches full Lens parity once these land. All getters go through
+  // programData's withCache, so re-renders don't re-hit Supabase.
+  useEffect(() => {
+    if (!projects.length) return
+    const seenCounty = new Set()
+    const seenState  = new Set()
+    const incPending = []
+    const polPending = []
+    for (const p of projects) {
+      if (p.state && p.county) {
+        const key = `${p.state}::${p.county}`
+        if (!seenCounty.has(key) && !incentivesMap[key]) {
+          seenCounty.add(key)
+          incPending.push(
+            Promise.all([
+              getEnergyCommunity(p.state, p.county).catch(() => null),
+              getNmtcLic(p.state, p.county).catch(() => null),
+              getHudQctDda(p.state, p.county).catch(() => null),
+            ]).then(([energyCommunity, nmtcLic, hudQctDda]) => [key, { energyCommunity, nmtcLic, hudQctDda }]).catch(() => null)
+          )
+        }
+      }
+      if (p.state && !seenState.has(p.state) && !policyEventsMap[p.state]) {
+        seenState.add(p.state)
+        polPending.push(getPolicyImpactEvents({ state: p.state }).then(ev => [p.state, ev]).catch(() => null))
+      }
+    }
+    if (incPending.length) {
+      Promise.all(incPending).then(results => {
+        const updates = {}
+        for (const r of results) { if (r) updates[r[0]] = r[1] }
+        if (Object.keys(updates).length) setIncentivesMap(prev => ({ ...prev, ...updates }))
+      })
+    }
+    if (polPending.length) {
+      Promise.all(polPending).then(results => {
+        const updates = {}
+        for (const r of results) { if (r) updates[r[0]] = r[1] }
+        if (Object.keys(updates).length) setPolicyEventsMap(prev => ({ ...prev, ...updates }))
+      })
+    }
   }, [projects.length])
 
   useEffect(() => {
@@ -397,9 +453,7 @@ function LibraryContent() {
         const sp = stateProgramMap[p.state]
         if (!sp) continue
         try {
-          const cd = countyDataMap[`${p.state}::${p.county}`] || null
-          const subs = computeSubScores(sp, cd, p.stage, p.technology)
-          const liveScore = safeScore(subs)
+          const { score: liveScore } = scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
           const previous = p.lastObservedScore
           if (previous == null) {
             // First observation -- just seed the column, don't log an event.
@@ -423,7 +477,7 @@ function LibraryContent() {
           // the last 30 days for this project). Skip 'info' level alerts
           // ('Data Refreshed') -- they're noise for an audit trail; the
           // audit log captures material risk events, not data freshness.
-          const alerts = getAlerts(p, stateProgramMap, countyDataMap)
+          const alerts = getAlerts(p, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)
           for (const alert of alerts) {
             if (alert.level === 'info') continue
             const fingerprint = `${alert.level}::${alert.pillar || 'general'}::${alert.label}`
@@ -442,7 +496,7 @@ function LibraryContent() {
       }
     })()
     return () => { cancelled = true }
-  }, [user, projects.length, Object.keys(stateProgramMap).length, Object.keys(countyDataMap).length])
+  }, [user, projects.length, Object.keys(stateProgramMap).length, Object.keys(countyDataMap).length, Object.keys(incentivesMap).length, Object.keys(policyEventsMap).length])
 
   // Stage change locally + immediate score-change check (don't wait for next
   // Library reload). User feedback: stage changes the visible score, so the
@@ -455,9 +509,7 @@ function LibraryContent() {
     const sp = stateProgramMap[project.state]
     if (!sp) return
     try {
-      const cd = countyDataMap[`${project.state}::${project.county}`] || null
-      const subs = computeSubScores(sp, cd, newStage, project.technology)
-      const newScore = safeScore(subs)
+      const { score: newScore } = scoreProjectFromMaps({ ...project, stage: newStage }, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
       const previous = project.lastObservedScore
       if (previous == null) {
         await supabase.from('projects').update({ last_observed_score: newScore }).eq('id', id)
@@ -477,7 +529,7 @@ function LibraryContent() {
         setProjects(prev => prev.map(p => p.id === id ? { ...p, lastObservedScore: newScore } : p))
       }
     } catch { /* per-project failure must not block UI */ }
-  }, [user, projects, stateProgramMap, countyDataMap])
+  }, [user, projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   // Pass 5 Wave 2 — bubble tag / follow-up edits from any card surface back
   // into the projects array so the command-bar tag filter, the 'Due' sort, and
@@ -521,9 +573,9 @@ function LibraryContent() {
   const handleBulkExportXLSX = useCallback(() => {
     const subset = projects.filter((p) => selectedIds.has(p.id))
     if (subset.length === 0) return
-    exportXLSX(subset, stateProgramMap, countyDataMap)
+    exportXLSX(subset, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)
     setSelectedIds(new Set())
-  }, [projects, selectedIds, stateProgramMap, countyDataMap])
+  }, [projects, selectedIds, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   // Bulk add to Compare tray. Capped at MAX_ITEMS=5 (CompareContext rule);
   // remaining slots after current items determine how many more we can add.
@@ -543,13 +595,15 @@ function LibraryContent() {
       // behavior; sub-scores fill in once countyData populates and the row
       // is re-added).
       const cd = countyDataMap[`${p.state}::${p.county}`] || null
-      const item = libraryProjectToCompareItem(p, sp, cd)
+      const incentives = incentivesMap[`${p.state}::${p.county}`] || null
+      const policyEvents = policyEventsMap[p.state] || null
+      const item = libraryProjectToCompareItem(p, sp, cd, incentives, policyEvents)
       const ok = addToCompare(item)
       if (ok) added += 1
       else skipped += 1
     }
     setSelectedIds(new Set())
-  }, [projects, selectedIds, stateProgramMap, addToCompare, compareItems.length, COMPARE_MAX])
+  }, [projects, selectedIds, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap, addToCompare, compareItems.length, COMPARE_MAX])
 
   if (authLoading) return null
 
@@ -666,7 +720,7 @@ function LibraryContent() {
               <div className="flex items-center gap-2">
                 {projects.length > 0 && (
                   <button
-                    onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap)}
+                    onClick={() => exportXLSX(projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)}
                     className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-lg transition-colors text-white/85 bg-white/5 hover:bg-white/10 border border-white/[0.12]"
                     title="Export to Excel — Projects sheet + Methodology & Sources + Glossary"
                   >
@@ -706,6 +760,8 @@ function LibraryContent() {
             projects={projects}
             stateProgramMap={stateProgramMap}
             countyDataMap={countyDataMap}
+            incentivesMap={incentivesMap}
+            policyEventsMap={policyEventsMap}
             onStageDrill={(stage) => { setFilterStage(stage); setViewMode('pipeline') }}
             onStateDrill={(state) => { setFilterState(state); setViewMode('pipeline') }}
           />
@@ -872,6 +928,8 @@ function LibraryContent() {
                     projects={displayProjects}
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
+                    incentivesMap={incentivesMap}
+                    policyEventsMap={policyEventsMap}
                     filterState={filterState}
                     onStateClick={(stateId, hasProjects) => {
                       if (!hasProjects) return
@@ -892,6 +950,8 @@ function LibraryContent() {
                     projects={pagedProjects}
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
+                    incentivesMap={incentivesMap}
+                    policyEventsMap={policyEventsMap}
                     stateDeltaMap={stateDeltaMap}
                     shareCountMap={shareCountMap}
                     selectedIds={selectedIds}
@@ -912,6 +972,8 @@ function LibraryContent() {
                   projects={displayProjects}
                   stateProgramMap={stateProgramMap}
                   countyDataMap={countyDataMap}
+                  incentivesMap={incentivesMap}
+                  policyEventsMap={policyEventsMap}
                   onStageChange={handleStageChange}
                   onCardClick={(p) => setDrawerProject(p)}
                 />
@@ -929,6 +991,8 @@ function LibraryContent() {
                     onFollowUpChange={handleFollowUpChange}
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
+                    incentivesMap={incentivesMap}
+                    policyEventsMap={policyEventsMap}
                     stateDelta={stateDeltaMap?.get?.(p.state) || null}
                     shareCount={shareCountMap[p.id] || 0}
                     onShareSuccess={() => setShareCountMap(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 }))}
@@ -1060,6 +1124,8 @@ function LibraryContent() {
         onOpenChange={(open) => { if (!open) setDrawerProject(null) }}
         stateProgramMap={stateProgramMap}
         countyDataMap={countyDataMap}
+        incentivesMap={incentivesMap}
+        policyEventsMap={policyEventsMap}
         stateDeltaMap={stateDeltaMap}
         shareCountMap={shareCountMap}
         selectedIds={selectedIds}

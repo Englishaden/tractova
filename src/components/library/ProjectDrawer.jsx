@@ -25,6 +25,8 @@ export default function ProjectDrawer({
   onOpenChange,
   stateProgramMap,
   countyDataMap,
+  incentivesMap = {},
+  policyEventsMap = {},
   stateDeltaMap,
   shareCountMap,
   selectedIds,
@@ -110,6 +112,8 @@ export default function ProjectDrawer({
                       onFollowUpChange={onFollowUpChange}
                       stateProgramMap={stateProgramMap}
                       countyDataMap={countyDataMap}
+                      incentivesMap={incentivesMap}
+                      policyEventsMap={policyEventsMap}
                       stateDelta={stateDeltaMap?.get?.(project.state) || null}
                       shareCount={shareCountMap?.[project.id] || 0}
                       onShareSuccess={() => onShareSuccess?.(project.id)}

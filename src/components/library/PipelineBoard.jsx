@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { PIPELINE_STAGES, PIPELINE_SHORT } from './PipelineProgress'
 import StagePicker from './StagePicker'
 import MiniArcGauge from './MiniArcGauge'
-import { computeSubScores, safeScore } from '../../lib/scoreEngine'
+import { scoreProjectFromMaps } from '../../lib/scoreEngine'
 import { getAlerts } from '../../lib/alertHelpers'
 
 // ── PipelineBoard — kanban deal board (Pass 5, Wave 3) ───────────────────────
@@ -26,16 +26,11 @@ function accentFor(score) {
   return '#DC2626'
 }
 
-export default function PipelineBoard({ projects, stateProgramMap, countyDataMap, onStageChange, onCardClick }) {
+export default function PipelineBoard({ projects, stateProgramMap, countyDataMap, incentivesMap = {}, policyEventsMap = {}, onStageChange, onCardClick }) {
   const [dragId, setDragId] = useState(null)
   const [overStage, setOverStage] = useState(null)
 
-  const scoreOf = (p) => {
-    const sp = stateProgramMap[p.state]
-    if (!sp) return null
-    const cd = countyDataMap[`${p.state}::${p.county}`] || null
-    return safeScore(computeSubScores(sp, cd, p.stage, p.technology))
-  }
+  const scoreOf = (p) => scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap }).score
 
   // Group into stage buckets; collect anything stage-less / off-taxonomy into NONE.
   const { buckets, hasUnstaged } = useMemo(() => {
@@ -98,7 +93,7 @@ export default function PipelineBoard({ projects, stateProgramMap, countyDataMap
               ) : (
                 items.map((p) => {
                   const score = scoreOf(p)
-                  const alerts = getAlerts(p, stateProgramMap, countyDataMap)
+                  const alerts = getAlerts(p, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap)
                   const hasUrgent = alerts.some(a => a.level === 'urgent')
                   return (
                     <div

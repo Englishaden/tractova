@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMotionValue, animate } from 'motion/react'
-import { computeSubScores, safeScore } from '../../lib/scoreEngine'
+import { scoreProjectFromMaps } from '../../lib/scoreEngine'
 import { getAlerts } from '../../lib/alertHelpers'
 import ProjectCard from '../ProjectCard.jsx'
 
@@ -143,6 +143,8 @@ export default function ProjectTable({
   projects,
   stateProgramMap,
   countyDataMap,
+  incentivesMap = {},
+  policyEventsMap = {},
   stateDeltaMap,
   shareCountMap,
   selectedIds,
@@ -158,16 +160,14 @@ export default function ProjectTable({
   // Phase 3 perf — precompute per-row {score, alerts} once when the
   // underlying data changes, instead of recomputing inside the .map()
   // on every render. Library re-renders on filter/sort/page change
-  // and on selection toggles; without this memo, computeSubScores +
+  // and on selection toggles; without this memo, scoreProjectFromMaps +
   // getAlerts ran N×re-renders times. Now they run N×data-change.
   const rows = useMemo(() => projects.map(p => {
     const sp = stateProgramMap[p.state]
-    const cd = countyDataMap[`${p.state}::${p.county}`] || null
-    const subs = sp ? computeSubScores(sp, cd, p.stage, p.technology) : null
-    const score = subs ? safeScore(subs) : null
-    const alerts = sp ? getAlerts(p, stateProgramMap, countyDataMap) : []
+    const { score } = scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
+    const alerts = sp ? getAlerts(p, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap) : []
     return { p, score, alerts }
-  }), [projects, stateProgramMap, countyDataMap])
+  }), [projects, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   return (
     <div className="rounded-xl border" style={{ borderColor: '#E5E7EB' }}>
@@ -287,6 +287,8 @@ export default function ProjectTable({
                     onFollowUpChange={onFollowUpChange}
                     stateProgramMap={stateProgramMap}
                     countyDataMap={countyDataMap}
+                    incentivesMap={incentivesMap}
+                    policyEventsMap={policyEventsMap}
                     stateDelta={stateDeltaMap?.get?.(p.state) || null}
                     shareCount={shareCountMap?.[p.id] || 0}
                     onShareSuccess={() => onShareSuccess?.(p.id)}

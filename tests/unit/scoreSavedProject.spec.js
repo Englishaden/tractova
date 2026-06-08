@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scoreSavedProject, computeSubScores, safeScore } from '../../src/lib/scoreEngine.js'
+import { scoreSavedProject, scoreProjectFromMaps, scoreProjects, computeSubScores, safeScore } from '../../src/lib/scoreEngine.js'
 
 // The 2026-06 data audit found that saved projects scored differently on the
 // Library vs the Lens because each surface called computeSubScores with a
@@ -60,5 +60,57 @@ describe('scoreSavedProject — Library == Lens parity', () => {
   it('returns a null shape when stateProgram is missing (state still hydrating)', () => {
     const project = { mw: 5, stage: 'Development', technology: 'Community Solar' }
     expect(scoreSavedProject(project, null)).toEqual({ subs: null, score: null })
+  })
+})
+
+// The Library threads the same four lookup maps to every scoring surface (card,
+// table, board, map, sort, export). scoreProjectFromMaps resolves a project out
+// of those maps and delegates to scoreSavedProject, so every surface reads ONE
+// arg-resolution path. These tests pin that resolution == the Lens.
+
+describe('scoreProjectFromMaps — one project, one score across Library surfaces', () => {
+  const project = { state: 'NY', county: 'Albany', mw: 5, stage: 'Development', technology: 'Community Solar', codTargetYear: 2029 }
+  const stateProgramMap = { NY }
+  const incentivesMap = { 'NY::Albany': FULL_INCENTIVES }
+
+  it('matches scoreSavedProject (and the Lens) when the maps carry full coverage', () => {
+    const lens = scoreSavedProject(project, NY, null, { incentives: FULL_INCENTIVES })
+    const fromMaps = scoreProjectFromMaps(project, { stateProgramMap, countyDataMap: {}, incentivesMap, policyEventsMap: {} })
+    expect(fromMaps.score).toBe(lens.score)
+    expect(fromMaps.subs.incentives).toBe(lens.subs.incentives)
+  })
+
+  it('resolves incentives by the `${state}::${county}` key (a county with no row rebalances out)', () => {
+    const covered = scoreProjectFromMaps(project, { stateProgramMap, incentivesMap })
+    const uncovered = scoreProjectFromMaps({ ...project, county: 'Nowhere' }, { stateProgramMap, incentivesMap })
+    expect(covered.subs.incentives).not.toBeNull()
+    expect(uncovered.subs.incentives).toBeNull()
+    expect(covered.score).toBeGreaterThan(uncovered.score)
+  })
+
+  it('returns the null shape when the state program map has no entry', () => {
+    expect(scoreProjectFromMaps(project, { stateProgramMap: {} })).toEqual({ subs: null, score: null })
+  })
+
+  it('an empty maps object scores on the core pillars (no fabricated baseline)', () => {
+    const { subs, score } = scoreProjectFromMaps(project, { stateProgramMap })
+    expect(subs.incentives).toBeNull()
+    expect(Number.isFinite(score)).toBe(true)
+  })
+})
+
+describe('scoreProjects — portfolio rollup reaches the same 5-pillar score', () => {
+  it('scores each project via scoreSavedProject, lifted by the incentives map', () => {
+    const projects = [{ id: 1, state: 'NY', county: 'Albany', mw: 5, stage: 'Development', technology: 'Community Solar', codTargetYear: 2029 }]
+    const stateProgramMap = { NY }
+    const withInc = scoreProjects(projects, stateProgramMap, { incentivesMap: { 'NY::Albany': FULL_INCENTIVES } })
+    const withoutInc = scoreProjects(projects, stateProgramMap)
+    expect(withInc[0].score).toBe(scoreSavedProject(projects[0], NY, null, { incentives: FULL_INCENTIVES }).score)
+    expect(withInc[0].score).toBeGreaterThan(withoutInc[0].score)
+  })
+
+  it('keeps score=0 (not null) for a project whose state is missing from the map', () => {
+    const projects = [{ id: 1, state: 'ZZ', county: 'X', mw: 5, stage: 'Development', technology: 'Community Solar' }]
+    expect(scoreProjects(projects, {})[0].score).toBe(0)
   })
 })

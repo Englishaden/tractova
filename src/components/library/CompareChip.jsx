@@ -1,9 +1,9 @@
 import { useCompare, libraryProjectToCompareItem } from '../../context/CompareContext'
 
 // ── Compare chip (icon-only button, sits in card right controls) ─────────────
-export default function CompareChip({ project, stateProgram = null, countyData = null }) {
+export default function CompareChip({ project, stateProgram = null, countyData = null, incentives = null, policyEvents = null }) {
   const { add, remove, isInCompare, items, MAX_ITEMS } = useCompare()
-  const item = libraryProjectToCompareItem(project, stateProgram, countyData)
+  const item = libraryProjectToCompareItem(project, stateProgram, countyData, incentives, policyEvents)
   const inCompare = isInCompare(item.id)
   const atLimit = !inCompare && items.length >= MAX_ITEMS
 

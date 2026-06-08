@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { computeSubScores, safeScore } from '../lib/scoreEngine'
+import { scoreProjectFromMaps } from '../lib/scoreEngine'
 import { getAlerts } from '../lib/alertHelpers'
 import { axesFromTechnology, normalizeStructure } from '../lib/lensFormConstants'
 
@@ -47,7 +47,7 @@ function savePageSize(n) {
 // makes the page tractable. `projects`, `stateProgramMap`, and
 // `countyDataMap` come from the page (data-state); this hook owns
 // everything downstream.
-export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
+export function useLibraryLayout(projects, stateProgramMap, countyDataMap, incentivesMap = {}, policyEventsMap = {}) {
   // URL flags — sampled once at hook init; the page reloads if the
   // user changes them, so we don't bother subscribing.
   const previewEmpty = typeof window !== 'undefined' &&
@@ -112,17 +112,15 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     return () => window.removeEventListener('keydown', onKey)
   }, [filterState, layout, drawerProject])
 
-  // V3 fix: sort-by-score uses the SAME inputs as the card display
-  // (state map + countyData + stage + technology). Previously sort
-  // passed null for countyData while cards passed real data, so a
-  // card showing "84" could sort below a card showing "76".
+  // V3 fix: sort-by-score uses the SAME canonical helper as the card display
+  // (scoreProjectFromMaps — all 5 pillars off the same lookup maps), so a card
+  // showing "84" never sorts below a card showing "76". Previously this passed
+  // null for countyData AND omitted incentives/policy, so the sort order could
+  // disagree with the visible scores once the parity maps populated.
   const liveScoreFor = useCallback((p) => {
-    const sp = stateProgramMap[p.state]
-    if (!sp) return -1
-    const cd = countyDataMap[`${p.state}::${p.county}`] || null
-    const subs = computeSubScores(sp, cd, p.stage, p.technology)
-    return safeScore(subs)
-  }, [stateProgramMap, countyDataMap])
+    const { score } = scoreProjectFromMaps(p, { stateProgramMap, countyDataMap, incentivesMap, policyEventsMap })
+    return score == null ? -1 : score
+  }, [stateProgramMap, countyDataMap, incentivesMap, policyEventsMap])
 
   const displayProjects = useMemo(() => {
     let filtered = projects
@@ -146,7 +144,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
     return [...filtered].sort((a, b) => {
       if (sortBy === 'score')  return liveScoreFor(b) - liveScoreFor(a)
       if (sortBy === 'mw')     return (parseFloat(b.mw) || 0) - (parseFloat(a.mw) || 0)
-      if (sortBy === 'alerts') return getAlerts(b, stateProgramMap, countyDataMap).length - getAlerts(a, stateProgramMap, countyDataMap).length
+      if (sortBy === 'alerts') return getAlerts(b, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap).length - getAlerts(a, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap).length
       // followup — soonest open next-action first; projects with no follow-up
       // sink to the bottom (Infinity), then break ties by most-recently saved.
       if (sortBy === 'followup') {
@@ -157,7 +155,7 @@ export function useLibraryLayout(projects, stateProgramMap, countyDataMap) {
       }
       return new Date(b.savedAt) - new Date(a.savedAt)
     })
-  }, [projects, filterState, filterStructure, filterStage, filterTags, search, sortBy, stateProgramMap, countyDataMap, liveScoreFor])
+  }, [projects, filterState, filterStructure, filterStage, filterTags, search, sortBy, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap, liveScoreFor])
 
   // Reset to page 1 when the filtered list changes shape — otherwise a
   // user on page 3 of 100 who applies a filter that yields 8 results

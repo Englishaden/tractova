@@ -1,31 +1,40 @@
-import { computeSubScores } from './scoreEngine'
+import { scoreSavedProject } from './scoreEngine'
 import { GLOSSARY_DEFINITIONS } from './glossaryDefinitions'
 import { getAlerts } from './alertHelpers'
 import { IX_LABEL } from './statusMaps.js'
 
+const num = (v) => (typeof v === 'number' && Number.isFinite(v)) ? v : ''
+
 /**
  * Builds the row array for the Library xlsx export. Each row maps a
- * saved project to flat columns suitable for Excel — sub-scores,
- * revenue projection, alert flags, lineage timestamps.
+ * saved project to flat columns suitable for Excel — the live 5-pillar
+ * composite + sub-scores, alert flags, lineage timestamps.
  *
- * @param {Array<object>} projects — saved project rows
+ * @param {Array<object>} projects — saved project rows (normalized)
  * @param {object} stateProgramMap — keyed by state id
- * @param {object} [countyDataMap] — keyed by county_fips
+ * @param {object} [countyDataMap] — keyed by `${state}::${county}`
+ * @param {object} [incentivesMap] — keyed by `${state}::${county}` → ITC eligibility
+ * @param {object} [policyEventsMap] — keyed by state → policy events[]
  * @returns {Array<object>}
  */
-export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
+export function buildExportRows(projects, stateProgramMap, countyDataMap = {}, incentivesMap = {}, policyEventsMap = {}) {
   // CS_LABEL is export-specific — uses 'None' instead of the canonical
   // 'Closed' from statusMaps.js (export workbook readability convention).
   const CS_LABEL = { active: 'Active', limited: 'Limited', pending: 'Pending', none: 'None' }
   return projects.map(p => {
     const sp = stateProgramMap[p.state] || {}
     const cd = countyDataMap[`${p.state}::${p.county}`] || null
-    const alerts = getAlerts(p, stateProgramMap, countyDataMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
+    const alerts = getAlerts(p, stateProgramMap, countyDataMap, incentivesMap, policyEventsMap).map(a => a.label || a.message || '').filter(Boolean).join('; ')
     const ixNotes = (sp.ixNotes || '').replace(/\s+/g, ' ').slice(0, 200)
-    // Sub-scores: same engine the Lens result panel uses, so export numbers
-    // are guaranteed to match what the user saw in the app. countyData is
-    // best-effort — geospatial cells stay blank for cards never expanded.
-    const subs = sp.id ? computeSubScores(sp, cd, p.stage, p.technology) : null
+    // Canonical 5-pillar score via the same helper the Library cards + Lens use,
+    // so export numbers match the in-app values exactly (composite is the LIVE
+    // recompute, not the at-save snapshot). countyData / incentives / policy are
+    // best-effort — a pillar with no coverage row stays blank (rebalanced out of
+    // the composite) rather than printing a fabricated 0.
+    const key = `${p.state}::${p.county}`
+    const { subs, score } = sp.id
+      ? scoreSavedProject(p, sp, cd, { incentives: incentivesMap[key] || null, policyEvents: policyEventsMap[p.state] || null })
+      : { subs: null, score: null }
     const wetlandPct = cd?.geospatial?.wetlandCoveragePct
     const farmlandPct = cd?.geospatial?.primeFarmlandPct
     return [
@@ -36,11 +45,13 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}) {
       p.mw ? Number(p.mw) : '',
       p.technology || '',
       p.stage || '',
-      // Scores
-      p.feasibilityScore ?? '',
-      subs && typeof subs.offtake === 'number' ? subs.offtake : '',
-      subs && typeof subs.ix === 'number' ? subs.ix : '',
-      subs && typeof subs.site === 'number' ? subs.site : '',
+      // Scores — live composite + 5 sub-scores
+      num(score),
+      subs ? num(subs.offtake) : '',
+      subs ? num(subs.ix) : '',
+      subs ? num(subs.site) : '',
+      subs ? num(subs.incentives) : '',
+      subs ? num(subs.policyTiming) : '',
       // Program
       CS_LABEL[p.csStatus] || p.csStatus || '',
       p.csProgram || '',
