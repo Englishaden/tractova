@@ -37,7 +37,7 @@
       "maxDuration": 60
     },
     "api/refresh-ix-queue.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/refresh-capacity-factors.js": {
       "maxDuration": 60

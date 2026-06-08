@@ -230,10 +230,21 @@ export default async function refreshGeospatialFarmland() {
     }
   }
 
-  if (upsertRows.length < 2500) {
+  // SSURGO survey areas are NOT 1:1 with counties — ~28% are non-county special
+  // areas (national parks, reservations, multi-county surveys; areasymbol suffix
+  // ≥600) that the validFips gate above correctly strips. A healthy full fetch
+  // (~3,360 areas) maps to ~2,400 real counties, so the floor is 2000 — a broken
+  // FETCH is already caught by the rows<2000 guard near the top. (2026-06 audit:
+  // was 2500 with a stale "~3,000+" message from BEFORE the validFips spurious-row
+  // filter dropped the mapped count from ~3,200 to ~2,400; the surfaced FIPS fix
+  // then revealed this second stale guard.) The upsert merges on county_fips and
+  // touches only farmland columns, so committing this set refreshes the mapped
+  // counties and never NULLs an unmapped county's existing data. `skipped` is
+  // inlined so any future shortfall is self-diagnosing.
+  if (upsertRows.length < 2000) {
     return {
       ok: false,
-      error: `Only ${upsertRows.length} county rows mapped from ${rows.length} SSURGO areas; expected ~3,000+. Aborting.`,
+      error: `Only ${upsertRows.length} counties mapped from ${rows.length} SSURGO areas (skipped ${JSON.stringify(skipped)}); a healthy fetch maps ~2,400. Aborting to avoid committing a degraded set.`,
       skipped,
     }
   }
