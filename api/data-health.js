@@ -7,6 +7,26 @@ import handleHealthSummary from './handlers/_health-summary.js'
 import handleFreshness from './handlers/_health-freshness.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 
+// Weekly-cadence data-pillar crons that feed the public "Data refreshed" caption
+// (A5 fix). The caption = the OLDEST latest-success among these, so a stalled
+// weekly pillar drags it down honestly. Deliberately EXCLUDES long-cadence crons
+// (capacity-factor-refresh quarterly, refresh-data:solar_costs annual,
+// monthly-data-refresh) — their long gaps are normal, not staleness — and
+// non-data crons (staleness-check, send-digest, send-alerts). Keep in sync with
+// the active weekly crons in vercel.json + the THRESHOLDS in check-staleness.js.
+const FRESHNESS_PILLAR_CRONS = [
+  'ix-queue-refresh',
+  'refresh-data:energy_community',
+  'refresh-data:hud_qct_dda',
+  'refresh-data:nmtc_lic',
+  'refresh-data:geospatial_farmland',
+  'refresh-data:lmi',
+  'refresh-data:county_acs',
+  'refresh-data:news',
+  'refresh-data:policy_scan',
+  'refresh-data:hosting_capacity',
+]
+
 // ── Auth ────────────────────────────────────────────────────────────────────
 // 2026-05-05 (C1): role-based check via profiles.role (migration 057) with
 // legacy email-match fallback. Replaces the previous hardcoded
@@ -44,27 +64,57 @@ export default async function handler(req, res) {
     }
   }
 
-  // PUBLIC path: latest successful cron_runs.finished_at — single timestamp,
-  // no sensitive data, used by the global Footer to render an honest "Data
-  // refreshed N ago" caption. Bypasses admin auth because this is one
-  // aggregate value the whole product (anon + signed-in) needs to see.
+  // PUBLIC path: the "Data refreshed N ago" caption shown on the Footer /
+  // Dashboard / Library. Bypasses admin auth because it's one aggregate value
+  // the whole product (anon + signed-in) needs.
+  //
+  // 2026-06 audit (A5): this was MAX(finished_at) across ALL crons, so it read
+  // "today" the moment ANY cron succeeded — even while a specific pillar's
+  // weekly refresh silently failed for weeks. It now returns the OLDEST
+  // latest-success among the WEEKLY-cadence data pillars (the weakest current
+  // link), so a stalled pillar correctly drags the caption back and trips the
+  // surfaces' >14-day stale flag. Intentionally-infrequent crons (capacity
+  // factors quarterly, solar costs annual, substations monthly) and non-data
+  // crons (staleness-check, send-*) are excluded from the headline and monitored
+  // separately by check-staleness with cadence-matched thresholds.
   if (action === 'last-refresh') {
     if (req.method !== 'GET') return res.status(405).end('Method Not Allowed')
     // no-store: this is a freshness SIGNAL — it must reflect an admin refresh
-    // immediately, not lag behind a CDN/browser cache window. The query is a
-    // single indexed `limit 1`, so serving it uncached is cheap. (Was
-    // public,max-age=60, which delayed the "Data refreshed" caption updating.)
+    // immediately, not lag behind a CDN/browser cache window.
     res.setHeader('Cache-Control', 'no-store')
     try {
       const { data, error } = await supabaseAdmin
         .from('cron_runs')
-        .select('finished_at')
+        .select('cron_name, finished_at')
         .eq('status', 'success')
+        .in('cron_name', FRESHNESS_PILLAR_CRONS)
         .not('finished_at', 'is', null)
         .order('finished_at', { ascending: false })
-        .limit(1)
+        .limit(300)
       if (error) throw error
-      const finishedAt = data?.[0]?.finished_at || null
+      // Latest success per pillar cron (rows are finished_at-desc, so first seen
+      // per cron_name wins), then the OLDEST of those = the weakest link.
+      const latestByCron = {}
+      for (const row of (data || [])) {
+        if (!latestByCron[row.cron_name]) latestByCron[row.cron_name] = row.finished_at
+      }
+      const stamps = Object.values(latestByCron)
+      let finishedAt = stamps.length ? stamps.reduce((min, t) => (t < min ? t : min)) : null
+
+      // Fallback: if NONE of the pillar crons have ever succeeded (fresh DB, or
+      // every pillar failing), fall back to the global latest success so the
+      // caption still renders rather than vanishing. check-staleness carries the
+      // real per-pillar + failed-cron alerting.
+      if (!finishedAt) {
+        const { data: anyOk } = await supabaseAdmin
+          .from('cron_runs')
+          .select('finished_at')
+          .eq('status', 'success')
+          .not('finished_at', 'is', null)
+          .order('finished_at', { ascending: false })
+          .limit(1)
+        finishedAt = anyOk?.[0]?.finished_at || null
+      }
       return res.status(200).json({ finishedAt })
     } catch (err) {
       console.error('[data-health last-refresh] failed:', err)

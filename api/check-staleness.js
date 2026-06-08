@@ -7,14 +7,39 @@ const FROM_EMAIL = 'alerts@tractova.com'
 const ADMIN_EMAIL = 'aden.walker67@gmail.com'
 const APP_URL = 'https://tractova.com'
 
-// Staleness thresholds in days — yellow = needs attention, red = overdue
+// Staleness thresholds in days — yellow = needs attention, red = overdue.
+// Each `field` is the freshness-timestamp key the get_data_freshness RPC returns
+// for that table; a table the RPC doesn't return is skipped (no false alert).
+// Thresholds are matched to each input's REAL refresh cadence so the monitor
+// doesn't cry wolf on a deliberately-infrequent source (annual solar costs,
+// quarterly capacity factors) — a noisy monitor is an ignored monitor.
+//
+// 2026-06 audit (A5): extended from 6 tables to the full pillar set. Previously
+// energy_community / hud_qct / nmtc_lic / county_geospatial / hosting_capacity /
+// solar_cost_index / cs_specific_yield / lmi / county_acs failed SILENTLY — they
+// had no threshold entry, so a stale or frozen pillar raised no alert.
 const THRESHOLDS = {
-  state_programs:      { field: 'newest_verified', staleField: 'stale_count', yellow: 90, red: 180, label: 'State Programs' },
-  ix_queue_data:       { field: 'newest_fetch',    staleField: 'stale_count', yellow: 14, red: 30,  label: 'IX Queue Data' },
-  substations:         { field: 'last_updated',    staleField: null,          yellow: 60, red: 180, label: 'Substations' },
-  county_intelligence: { field: 'oldest_verified', staleField: 'stale_count', yellow: 90, red: 180, label: 'County Intelligence' },
-  revenue_rates:       { field: 'last_updated',    staleField: null,          yellow: 90, red: 180, label: 'Revenue Rates' },
-  news_feed:           { field: 'latest_item',     staleField: null,          yellow: 14, red: 30,  label: 'News Feed' },
+  // Curated / weekly-cadence core
+  state_programs:        { field: 'newest_verified', staleField: 'stale_count', yellow: 90,  red: 180, label: 'State Programs' },
+  ix_queue_data:         { field: 'newest_fetch',    staleField: 'stale_count', yellow: 14,  red: 30,  label: 'IX Queue Data' },
+  substations:           { field: 'last_updated',    staleField: null,          yellow: 60,  red: 180, label: 'Substations' },
+  county_intelligence:   { field: 'oldest_verified', staleField: 'stale_count', yellow: 90,  red: 180, label: 'County Intelligence' },
+  revenue_rates:         { field: 'last_updated',    staleField: null,          yellow: 90,  red: 180, label: 'Revenue Rates' },
+  news_feed:             { field: 'latest_item',     staleField: null,          yellow: 14,  red: 30,  label: 'News Feed' },
+  // Incentive pillar (weekly via refresh-data?source=all; vintage-stable data)
+  energy_community_data: { field: 'last_updated',    staleField: null,          yellow: 21,  red: 60,  label: 'Energy Communities (DOE NETL)' },
+  hud_qct_dda_data:      { field: 'last_updated',    staleField: null,          yellow: 21,  red: 60,  label: 'HUD QCT/DDA' },
+  nmtc_lic_data:         { field: 'last_updated',    staleField: null,          yellow: 21,  red: 60,  label: 'NMTC LIC' },
+  // Site pillar
+  county_geospatial_data:{ field: 'last_updated',    staleField: null,          yellow: 45,  red: 120, label: 'County Geospatial (NWI + SSURGO)' },
+  hosting_capacity_data: { field: 'newest_fetch',    staleField: null,          yellow: 45,  red: 120, label: 'Hosting Capacity' },
+  // Demographics — ACS-derived, slow-moving
+  lmi_data:              { field: 'last_updated',    staleField: null,          yellow: 60,  red: 180, label: 'LMI Data' },
+  county_acs_data:       { field: 'last_updated',    staleField: null,          yellow: 90,  red: 365, label: 'County ACS' },
+  // Long-cadence by design (annual / manual quarterly) — wide thresholds so a
+  // normally-infrequent refresh isn't flagged as a failure.
+  solar_cost_index:      { field: 'last_updated',    staleField: null,          yellow: 220, red: 450, label: 'Solar Cost Index' },
+  cs_specific_yield:     { field: 'last_updated',    staleField: null,          yellow: 150, red: 300, label: 'CS Specific Yield' },
 }
 
 function daysSince(dateStr) {
@@ -98,6 +123,23 @@ export default async function handler(req, res) {
       // Check for stale individual rows
       if (cfg.staleField && tableData[cfg.staleField] > 0) {
         results.issues.push({ table: cfg.label, severity: 'yellow', detail: `${tableData[cfg.staleField]} individual stale row(s)` })
+      }
+    }
+
+    // A5 fix: alert on CRON FAILURE, not just data age. A pillar can look fresh
+    // by timestamp while its refresh cron has been erroring — the exact gap that
+    // let the hero read "today" during a silent failure. last_cron_runs is the
+    // latest run per cron (distinct-on cron_name); flag any whose most recent
+    // run failed. ('partial' = staleness-check found issues, not a failure.)
+    const lastRuns = Array.isArray(freshness?.last_cron_runs) ? freshness.last_cron_runs : []
+    for (const run of lastRuns) {
+      if (run.status === 'failed') {
+        const days = daysSince(run.finished_at)
+        results.issues.push({
+          table: `Cron: ${run.cron_name}`,
+          severity: 'red',
+          detail: `Most recent run FAILED${days != null ? ` (${days} day${days === 1 ? '' : 's'} ago)` : ''} — pillar may be silently stale`,
+        })
       }
     }
 
