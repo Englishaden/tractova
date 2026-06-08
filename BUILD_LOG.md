@@ -6,7 +6,7 @@
 
 ## 🟢 Pickup — 2026-06-08 (eve) — CDFI/NMTC §48(e) Cat 1 LIC ACCURACY UPGRADE shipped (Wave 3, IX) · ⏭ Aden: apply LIC data + prod-review
 
-**STATUS:** §48(e) Cat 1 Low-Income-Community eligibility now comes from the **authoritative DOE/CDFI published file**, not Tractova's re-derivation. Code shipped + pushed (main `5bbcd23`; verify-green: 217 unit / 8 smoke / build / lint api+secrets+audit). **⏭ DB NOT yet applied — the upgrade is dark until synced (one command, below).**
+**STATUS:** §48(e) Cat 1 Low-Income-Community eligibility now comes from the **authoritative DOE/CDFI published file**, not Tractova's re-derivation. Code shipped + pushed (main `5bbcd23`; verify-green: 217 unit / 8 smoke / build / lint api+secrets+audit). **✅ DB applied + probe-confirmed** (3144 rows, all ACS 2016-2020 vintage, 0 stale 2018-22 rows, CO/Broomfield now eligible). ⏭ Aden: prod-eyeball when convenient.
 
 **Why (2 real accuracy gaps in the old derive):** it used ACS **2018-22** + a **state-MFI-only** approximation of the CDFI two-prong rule → (1) wrong vintage (§48(e) Cat 1 = NMTC LIC, which CDFI locks to **ACS 2016-2020**), (2) **metro LIC under-count** (CDFI uses greater-of state/MSA MFI). Replaced with the **DOE "IRA §48(e) Bonus Credit Program Layers"** Excel — its Category-1 column IS the CDFI CIMS NMTC LIC determination (ACS 2016-2020, greater-of-state/MSA + special provisions baked in). data.gov-cataloged (publisher DOE). Raw xlsx in `data/cdfi-lic/` (gitignored; re-dl from data.nlr.gov/submissions/222) → parsed → committed `src/data/nmtcLicCounties.js` (the artifact the prod handler imports).
 
@@ -14,7 +14,7 @@
 
 **Architecture — nmtc_lic is now a STATIC source** (mirrors `solar_costs`): added to `BUNDLE_EXCLUDED` + removed from `CENSUS_SERIAL` (no Census); staleness 21/60→400/540 (`check-staleness`); dropped from `FRESHNESS_PILLAR_CRONS` (`data-health`) + health cadence 8→400 (`_health-summary`); DataHealthTab `live`→`seeded` — so going static does NOT false-alarm the Wave-2 freshness monitors. Handler `_refresh-nmtc-lic.js` now imports the committed artifact + upserts (no xlsx-in-prod); admin Refresh `nmtc_lic` re-syncs DB from it. New `_nmtcLic.js` pure helper + 11 unit tests. **No migration** (reuses `nmtc_lic_data`; legacy `via_*`/`state_mfi` set 0/null). Citation tier **B-→A** (`dataSources.js` → /methodology + XLSX); glossary updated + the stale "HUD QCT grants the LIC adder" copy fixed. Freshness CI gate `docs/cdfi-lic/lic-source.json` (review_due 2027-06-01) + `audit-check`.
 
-**⏭ TO APPLY (Aden — or say the word and I'll run it):** `node scripts/seed-nmtc-lic.mjs --apply` (idempotent county upsert; dry-run impact already shown above) **OR** admin Refresh `nmtc_lic`. Then prod-eyeball the Incentives panel ("N of M tracts qualify") + /methodology §48(e) row. **Heads-up:** the per-tract `via poverty / via MFI` sub-line is gone (the published source isn't split by reason — expected).
+**✅ APPLIED 2026-06-08** (`node scripts/seed-nmtc-lic.mjs --apply`, probe-confirmed). Re-sync anytime via that command or admin Refresh `nmtc_lic`. ⏭ Aden: prod-eyeball the Incentives panel ("N of M tracts qualify") + /methodology §48(e) row. **Heads-up:** the per-tract `via poverty / via MFI` sub-line is gone (the published source isn't split by reason — expected).
 
 **⏭ Remaining queued (Aden's earlier picks):** GIS/site layers (slope/DEM · PAD-US — raster-heavy, each needs a penalty-weight call) · IX live-blend runway metric (needs a design sign-off). CDFI LIC (Aden's pick) = ✅ this track.
 
