@@ -21,6 +21,18 @@ export const STAGE_MODIFIERS = {
 // 70-87 = strong; 55-69 = workable; <55 = thin economics.
 //
 // Source: https://www.eia.gov/electricity/sales_revenue_price/  (commercial sector)
+//
+// COVERAGE (2026-06 data audit, Wave 3): extended from 32 → 49 entries (48 states
+// + DC). The original 32 above are hand-tuned (rate + qualitative market depth).
+// The "── 2026-06 extension ──" block below adds the remaining continental states
+// off a TRANSPARENT rate-anchored formula — score = clamp(round(34 + 1.8·¢/kWh),
+// 45, 72) — sourced from EIA EPM Table 5.6.B (Mar-2026, Form EIA-861M) and recorded
+// on disk in docs/eia-861/commercial-retail-rates.json (audit-check.mjs fails CI
+// when that file's review_due passes). New-cohort states get NO deep-market boost
+// (thin / non-ISO markets, so retail rate is the honest dominant signal). AK + HI
+// are deliberately NOT listed — real high rates but islanded/atypical offtake; they
+// stay on the 55 fallback (see the docs `gated` block). Two-layer throughout:
+// the rate is sourced, the score is disclosed synthesis.
 const CI_OFFTAKE_SCORES = {
   // ── ISO-NE — highest retail rates in the nation ───────────────────────────
   RI: 90, MA: 85, NH: 84, CT: 80, VT: 82, ME: 68,
@@ -38,6 +50,28 @@ const CI_OFFTAKE_SCORES = {
   TX: 62, FL: 72, NC: 66, GA: 62, SC: 62,
   // ── Pacific Northwest — low retail, limited C&I depth ─────────────────────
   OR: 56, WA: 52,
+  // ── 2026-06 extension — EIA EPM 5.6.B (Mar-2026) · score = clamp(round(34 + 1.8·¢/kWh), 45, 72) ──
+  // Trailing comment = the sourced commercial ¢/kWh. No deep-market boost (thin /
+  // non-ISO markets). Full source + rationale: docs/eia-861/commercial-retail-rates.json.
+  AL: 61, // 15.06¢
+  AR: 55, // 11.41¢
+  IA: 53, // 10.53¢
+  ID: 51, // 9.42¢
+  KS: 55, // 11.57¢
+  KY: 57, // 12.96¢
+  LA: 56, // 12.20¢
+  MS: 60, // 14.52¢
+  MT: 56, // 12.25¢
+  ND: 48, // 7.68¢ (lowest in nation)
+  NE: 51, // 9.26¢
+  OK: 50, // 9.00¢
+  SD: 55, // 11.56¢
+  TN: 58, // 13.55¢
+  UT: 52, // 9.91¢
+  WV: 55, // 11.77¢
+  WY: 51, // 9.64¢
+  // AK (22.38¢) + HI (37.94¢) deliberately omitted → 55 fallback (islanded/atypical
+  // offtake; high rate ≠ real distribution-scale depth — see the docs `gated` block).
 }
 
 // ISO capacity market tiers for BESS offtake scoring.

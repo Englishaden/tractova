@@ -41,12 +41,12 @@ export const DATA_SOURCES = [
   },
   {
     pillar: 'Offtake',
-    component: 'C&I retail-rate anchor (32 states)',
-    source: 'EIA Form 861 — Commercial Retail Rates',
+    component: 'C&I retail-rate anchor (48 states + DC)',
+    source: 'EIA Form 861 — Commercial Retail Rates (+ EIA EPM Table 5.6.B)',
     url: 'https://www.eia.gov/electricity/sales_revenue_price/',
     tier: 'B',
-    provides: 'Commercial-sector retail electricity rates (2024), the anchor for C&I and net-metering offtake economics.',
-    synthesis: 'Calibrated against 2024 commercial retail rates plus a qualitative market-depth adjustment (e.g. TX scores on volume despite a modest rate). 18 states fall to a directional baseline, flagged as "limited coverage."',
+    provides: 'Commercial-sector retail electricity rates — the anchor for C&I and net-metering offtake economics. The original 32 states off EIA Form 861 (2024); the 2026-06 extension off EIA EPM Table 5.6.B (Mar-2026, Form EIA-861M).',
+    synthesis: 'The legacy 32 blend rate with a per-state market-depth adjustment (e.g. TX scores on volume despite a modest rate). The extension cohort uses a transparent rate-anchored formula — clamp(round(34 + 1.8·¢/kWh), 45, 72) — with no deep-market boost (thin / non-ISO markets). AK + HI stay on a directional baseline (islanded / atypical offtake). Sourced on disk in docs/eia-861/, with a CI review_due that forces re-sourcing.',
   },
   {
     pillar: 'Offtake',

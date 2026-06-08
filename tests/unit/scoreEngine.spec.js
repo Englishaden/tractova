@@ -122,16 +122,18 @@ describe('computeSubScores — main entry', () => {
   })
 
   it('marks offtake coverage = fallback when state is outside C&I curated list', () => {
-    // 'KS' is intentionally not in CI_OFFTAKE_SCORES at the top of
-    // scoreEngine.js (verified 2026-05-06). If KS gets added, swap to
-    // any other un-covered state.
+    // 'AK' is deliberately NOT in CI_OFFTAKE_SCORES (2026-06 Wave-3 extension —
+    // islanded/atypical offtake; high EIA rate ≠ real distribution-scale depth,
+    // so it stays on the fallback baseline rather than a fabricated score).
+    // KS used to be the fallback fixture but was added in that extension.
     const r = computeSubScores(
-      { id: 'KS', csStatus: 'none', ixDifficulty: 'moderate' },
+      { id: 'AK', csStatus: 'none', ixDifficulty: 'moderate' },
       null,
       '',
       'C&I Solar',
     )
     expect(r.coverage.offtake).toBe('fallback')
+    expect(r.offtake).toBe(55)  // the documented C&I fallback baseline
   })
 
   it('marks ix coverage = live when ixQueueSummary has projects', () => {
@@ -270,6 +272,32 @@ describe('getOfftakeCoverageStates — published coverage', () => {
     expect(list.length).toBeGreaterThan(20)
     const sorted = [...list].sort()
     expect(list).toEqual(sorted)
+  })
+
+  it('Wave-3 extension: covers the 18 EIA-sourced states, still gates AK/HI, no junk keys', () => {
+    const list = getOfftakeCoverageStates('C&I Solar')
+    // The 17 continental states added off EIA EPM 5.6.B are now covered.
+    for (const s of ['AL', 'AR', 'IA', 'ID', 'KS', 'KY', 'LA', 'MS', 'MT', 'ND', 'NE', 'OK', 'SD', 'TN', 'UT', 'WV', 'WY']) {
+      expect(list, `${s} should be in C&I coverage`).toContain(s)
+    }
+    // AK + HI stay deliberately uncovered (islanded / atypical offtake).
+    expect(list).not.toContain('AK')
+    expect(list).not.toContain('HI')
+    // 32 legacy + 17 new = 49 entries (48 states + DC).
+    expect(list.length).toBe(49)
+    // Guard against a stray non-state key leaking into the map (a real bug I
+    // nearly shipped): every entry must be a 2-letter uppercase code.
+    for (const k of list) expect(k, `bad coverage key: ${k}`).toMatch(/^[A-Z]{2}$/)
+  })
+
+  it('Wave-3 sourced states score on the real EIA rate (researched, not fallback)', () => {
+    // ND = 7.68¢ → clamp(round(34 + 1.8·7.68),45,72) = 48; coverage researched.
+    const nd = computeSubScores({ id: 'ND', csStatus: 'none', ixDifficulty: 'moderate' }, null, '', 'C&I Solar')
+    expect(nd.coverage.offtake).toBe('researched')
+    expect(nd.offtake).toBe(48)
+    // AL = 15.06¢ → 61.
+    const al = computeSubScores({ id: 'AL', csStatus: 'none', ixDifficulty: 'moderate' }, null, '', 'C&I Solar')
+    expect(al.offtake).toBe(61)
   })
 
   it('returns BESS coverage for legacy BESS', () => {

@@ -1,0 +1,34 @@
+{
+  "_comment": "Sourced commercial retail rates backing the C&I / Net-Metering offtake anchor (CI_OFFTAKE_SCORES in src/lib/scoreEngine.js). Mirrors the docs/dsire-net-billing/ on-disk-sourcing convention, but consolidated to one file because every state comes from ONE EIA table (5.6.B), not per-state program pages. Two-layer honesty: `commercial_cents_kwh` is OBSERVED (EIA, cited); `score` is Tractova's disclosed SYNTHESIS via the documented formula. scripts/audit-check.mjs fails CI when review_due passes, forcing a re-source against the then-current EIA vintage.",
+  "source": "U.S. EIA Electric Power Monthly, Table 5.6.B — Average Price of Electricity to Ultimate Customers by End-Use Sector, by State (Commercial sector)",
+  "form": "EIA-861M",
+  "url": "https://www.eia.gov/electricity/monthly/epm_table_grapher.php?t=epmt_5_6_b",
+  "vintage": "March 2026 (year-to-date)",
+  "release_date": "2026-05-21",
+  "fetched": "2026-06-08",
+  "review_due": "2027-06-01",
+  "calibration": "Offtake SIGNAL = clamp(round(34 + 1.8 * commercial_cents_per_kWh), 45, 72). The rate is the observed/sourced layer; the 0-100 score is Tractova's disclosed synthesis. This new cohort carries NO per-state deep-market boost (unlike some legacy hand-tuned states — e.g. TX 62 / MI 74 / FL 72, which are bumped for industrial-PPA volume or large-market depth), because these are thin / non-ISO markets where retail rate is the honest dominant offtake signal. Verified consistent against same-table legacy comparators (WA 12.01->52, OR 10.52->56, MN 11.54->55, MO 9.88->54, VA 11.52->58).",
+  "new_cohort": {
+    "AL": { "commercial_cents_kwh": 15.06, "score": 61 },
+    "AR": { "commercial_cents_kwh": 11.41, "score": 55 },
+    "IA": { "commercial_cents_kwh": 10.53, "score": 53 },
+    "ID": { "commercial_cents_kwh": 9.42,  "score": 51 },
+    "KS": { "commercial_cents_kwh": 11.57, "score": 55 },
+    "KY": { "commercial_cents_kwh": 12.96, "score": 57 },
+    "LA": { "commercial_cents_kwh": 12.20, "score": 56 },
+    "MS": { "commercial_cents_kwh": 14.52, "score": 60 },
+    "MT": { "commercial_cents_kwh": 12.25, "score": 56 },
+    "ND": { "commercial_cents_kwh": 7.68,  "score": 48 },
+    "NE": { "commercial_cents_kwh": 9.26,  "score": 51 },
+    "OK": { "commercial_cents_kwh": 9.00,  "score": 50 },
+    "SD": { "commercial_cents_kwh": 11.56, "score": 55 },
+    "TN": { "commercial_cents_kwh": 13.55, "score": 58 },
+    "UT": { "commercial_cents_kwh": 9.91,  "score": 52 },
+    "WV": { "commercial_cents_kwh": 11.77, "score": 55 },
+    "WY": { "commercial_cents_kwh": 9.64,  "score": 51 }
+  },
+  "gated": {
+    "AK": "Commercial retail 22.38c/kWh (EIA, real) but remote / islanded with no ISO and negligible distribution-scale CS or C&I market — a high retail rate does NOT map to real offtake depth here. Deliberately left on the 55 fallback (surfaces the 'limited coverage — directional only' caption) rather than fabricate a deep-market score the rate would imply.",
+    "HI": "Commercial retail 37.94c/kWh (EIA, real, highest in the nation) but per-island islanded grids + a gated export structure (Smart Export per-island TOU — see the HI note in NET_BILLING_EXPORT_RATIO). Distribution-scale offtake is atypical; left on the 55 fallback rather than apply the continental rate formula."
+  }
+}

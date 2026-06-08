@@ -30,6 +30,24 @@ const allowlist = JSON.parse(
 const known = new Set(allowlist.advisories.map(a => a.ghsa))
 const today = new Date().toISOString().slice(0, 10)
 
+// Data-freshness review gates — sourced datasets carry a review_due so aging
+// calibrations fail CI the same way an overdue accepted-vuln does, forcing a
+// re-source against the current vintage (2026-06 audit, Wave 3). Add a row per
+// sourced dataset; a missing file is skipped (not a failure) so a doc move
+// doesn't break CI.
+const DATA_REVIEWS = [
+  { label: 'offtake C&I rates (EIA EPM 5.6.B)', path: 'docs/eia-861/commercial-retail-rates.json' },
+]
+const dataOverdue = []
+for (const r of DATA_REVIEWS) {
+  try {
+    const doc = JSON.parse(readFileSync(resolve(ROOT, r.path), 'utf8'))
+    if (doc.review_due && doc.review_due < today) {
+      dataOverdue.push({ label: r.label, review_due: doc.review_due, vintage: doc.vintage || '?' })
+    }
+  } catch { /* file absent / moved — skip, don't fail CI on a doc rename */ }
+}
+
 let raw
 try {
   raw = execSync('npm audit --json', {
@@ -110,12 +128,23 @@ if (overdue.length > 0) {
   failed = true
 }
 
+if (dataOverdue.length > 0) {
+  console.error(`\n  ! ${dataOverdue.length} sourced dataset${dataOverdue.length === 1 ? '' : 's'} overdue for a freshness review:`)
+  for (const d of dataOverdue) {
+    console.error(`    ${d.label.padEnd(34)} vintage=${d.vintage}  review_due=${d.review_due} (today=${today})`)
+  }
+  console.error('\n  Action: re-source the dataset against the current vintage, then bump its review_due (see the docs file).')
+  failed = true
+}
+
 if (failed) {
-  console.error(
-    '\n  Action: either upgrade the affected dep, or extend scripts/audit-allowlist.json'
-    + '\n  with a new advisory entry (must include reason + review_due).\n',
-  )
+  if (newCritical.length > 0 || overdue.length > 0) {
+    console.error(
+      '\n  Action (deps): either upgrade the affected dep, or extend scripts/audit-allowlist.json'
+      + '\n  with a new advisory entry (must include reason + review_due).\n',
+    )
+  }
   process.exit(1)
 }
 
-console.log('  ✓ no new high/critical advisories; allowlist current')
+console.log('  ✓ no new high/critical advisories; allowlist current; sourced datasets within review window')
