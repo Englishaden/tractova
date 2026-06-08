@@ -4,28 +4,20 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-07 (eve) — DATA AUDIT shipped + Wave-1 remediation underway · ⏭ PARITY WIRING next, then Aden prod-review
+## 🟢 Pickup — 2026-06-08 — DATA AUDIT remediation WAVE 1 + WAVE 2 SHIPPED · ⏭ Aden prod-review + apply migration 076
 
-**STATUS (Aden 2026-06-07 eve):** Full data/scoring audit done → **plan APPROVED** = `~/.claude/plans/ok-we-should-move-dynamic-charm.md` (the audit of record + remediation roadmap; read it first). Wave 0 probes + 4 Wave-1 commits shipped. **NEXT = the PARITY WIRING** (⏭ below). Then **Aden reviews prod for bugs/issues; continue tomorrow.**
+**STATUS:** Audit plan `~/.claude/plans/ok-we-should-move-dynamic-charm.md` — **Wave 1 (P0 scoring integrity) + Wave 2 (trust surfaces) both DONE + pushed.** All verify-green; the Library work is **Pro-gated → smoke stops at the paywall, NOT screenshot-verified.** ⏭ **NEXT = Aden prod-review** (eyeball a Library card's 5-pillar breakdown + an XLSX export; the new `/methodology` page is publicly verifiable at /methodology) **+ apply migration 076.**
 
-**What "parity wiring" is:** the Library scores a saved project on only offtake/ix/site (it never fetches per-county incentives or per-state policy) while the Lens uses all 5 pillars → **same project, different Feasibility Index** on Library vs Lens, and drift *between* Library surfaces (8+ ad-hoc `computeSubScores` calls, each with a different arg set). The wiring threads the Lens's inputs into the Library and routes every surface through the one canonical helper so one project = one score everywhere.
+**Wave 1 — PARITY WIRING (main `1fd536f`→`856ec19`, then `f421673`):** the Library scored saved projects on 3 pillars (no incentives/policy) so the SAME project differed Library-vs-Lens. Now **one project = one 5-pillar score everywhere.** `f421673` = the centerpiece: new canonical `scoreProjectFromMaps(project, maps)` (`scoreEngine.js`); `Library.jsx`+`MobileLibrary.jsx` batch-fetch an incentivesMap (`state::county`) + policyEventsMap (state) and thread to every surface (ProjectCard/Table/Board/Map/sort/Drawer/Compare/export/alerts/PortfolioAnalytics); ProjectCard "Index Breakdown" → 5 pillars; 5-pillar XLSX export (+live composite, killed a stale Revenue col); fixed 2 latent bugs (codYear field undefined on normalized projects; score-drop alert false-firing on a 3-vs-5-pillar mismatch). Earlier Wave-1 commits: stale 40/35/25 labels killed, `scoreSavedProject` helper + parity tests, site axis inverted, §48(e) ≤5MW LIC cap.
 
-**Decisions LOCKED:** (1) saved scores → **Full Lens parity** (one helper). (2) **P0 integrity first**. (3) citation map → dedicated **/methodology** page. (4) site farmland axis → **inverted** (high farmland = constraint). (5) policy severity → **require human-set** (null AI severity; retire bps bridge).
+**Wave 2 — TRUST SURFACES (main `c1e37ce`→`ee2dab6`):**
+- **`c1e37ce`** — public **`/methodology`** page + shared **`src/lib/dataSources.js`** (single registry consumed by the page AND the XLSX sheet — unified, can't drift). Added the missing Policy pillar + LBNL/NREL-CS-MMP/specific-yield rows; corrected labels (DOE NETL, USFWS NWI, Form-861-vs-EPM, IRS/Treasury-primary). Two-layer (observed vs Tractova-synthesis) per row + weight-disclosure block. About teaser + smoke check.
+- **`480880c`** — **freshness truth (A5):** `last-refresh` now = OLDEST latest-success among weekly-cadence pillars (not global MAX), so a stalled pillar drags the caption + trips the stale flag. `check-staleness` THRESHOLDS 6→15 tables + a NEW failed-cron alert (status='failed', not just age). **Migration 076** adds `county_geospatial_data` + `hosting_capacity_data` to `get_data_freshness` RPC — ⚠️ **pending Aden's apply** (everything else works without it).
+- **`ee2dab6`** — **policy guardrails (A6):** AI prompt now confidence-gated to match the score (Bug B); `dataVersionFor` folds event count so removing an event busts the AI cache (Bug A); `computeStatePolicyRiskScore` returns `coverage:'none'|'live'` (no-data ≠ clean). **NWI honesty (A4.5):** killed the "all 3,142 counties" live over-claim (NWI is seeded/partial; SSURGO live 49 states), EPA→USFWS, dropped the never-ingested NLCD citation, AND fixed a stale inverted `availableLand ≥ 25%` label (favorable = <25% farmland).
 
-**The audit (20-agent run `wf_9c370c00-d60`):** the 2026-05 5-pillar pivot (Offtake 25·IX 25·Incentives 20·Site 20·Policy 10) left stale 3-pillar artifacts + the Library reduced-pillar gap above. Also honesty bugs (site axis inverted, §48e 5MW cap unenforced, AI-auto-published policy severity) + a misleading freshness signal (`MAX(any successful cron)` can read "today" while a pillar silently fails; only 6 of ~16 tables alert-monitored). Full inventory + accuracy ranking + citation map = in the plan file.
+**2 OPEN for Aden (policy calls, not code — UNCHANGED):** (a) **HUD QCT as §48e LIC pathway** — over-grants (§48e Cat1 = NMTC LIC def, not LIHTC QCT); flagged in code + on /methodology, removal lowers QCT-only scores. (b) **Policy-severity bridge retirement** — sequence backfill-then-retire vs retire-now.
 
-**Wave 0 probes (live DB):** ✅ IX fabricated seed (`002_ix_queue_seed`) **already purged** — no fix needed; live IX blend still moves 0 states (all feeds `cs_pipeline`). Policy = 19 states/27 rows (the other 31 scored "clean" by default). availableLand inversion confirmed.
-
-**Wave 1 shipped (main `1fd536f`→`856ec19`):**
-- **`1fd536f`** — killed stale 40/35/25 labels (StateDetailPanel caption, MarketPositionPanel tooltip+comment, scoreEngine root comment). ProjectCard "Index Breakdown" 40/35/25 **deferred to the wiring** (needs incentives/policy in `subs`). Caught: the Dashboard "Feasibility Index" is a DIFFERENT state heuristic (`computeFeasibilityScore` = cs_status+capacity+lmi+ix, NO site/incentive/policy term) sharing the per-project name.
-- **`a7df017`** — **canonical `scoreSavedProject(project, sp, cd, opts)`** (`src/lib/scoreEngine.js`) + 5 parity tests (Library==Lens). Fixed `normalizeProject` silently dropping `cod_target_year` → now `codTargetYear`.
-- **`856ec19`** — site farmland axis inverted (`availableLand = primeFarmlandPct < 25`, high farmland=constraint, matches UI); §48(e) ≤5MW LIC cap enforced (`computeIncentiveScore(incentives, mw)`).
-
-**⏭ NEXT — Task #3 PARITY WIRING (centerpiece; big + Pro-gated-blind, so verify carefully):** in `Library.jsx` + `MobileLibrary.jsx` build an incentives map (`getEnergyCommunity`/`getNmtcLic`/`getHudQctDda` per `state::county`) + a policyEvents map (`getPolicyImpactEvents({state})` per state); thread both to every scoring surface; replace the ad-hoc `computeSubScores` calls with `scoreSavedProject` at `ProjectCard.jsx:180/113`, `ProjectTable.jsx:166`, `PipelineBoard.jsx:37`, `LibraryMap.jsx:94/119/142`, `useLibraryLayout.js:123`, `CompareTray.jsx:106`, `exportHelpers.js:28`, `Library.jsx:401/459`, `MobileLibrary.jsx:100`, `alertHelpers.js:72`; render `ProjectCard` "Index Breakdown" as 5 pillars (mirror `MarketPositionPanel.jsx:335-342`). Then Task #4 (5-pillar XLSX export — needs the parity fetch so columns have data). Foundation (helper + test) is laid.
-
-**2 OPEN for Aden (policy calls, not code):** (a) **HUD QCT as §48e LIC pathway** — over-grants (§48e Cat1 = NMTC LIC def, not LIHTC QCT); flagged in code, removal lowers QCT-only scores. (b) **Policy-severity bridge retirement** silences the 27 existing rows until severity backfill — sequence backfill-then-retire vs retire-now.
-
-**Wave 2 (after parity):** `/methodology` citation page (from a shared `dataSources.js`; add the Policy pillar + fix EPA→DOE-NETL / EIA-861-vs-EPM / NWI-USFWS / OBBBA-secondary labels); freshness truth (oldest-successful-cron + per-pillar alerting); policy-flow guardrails (AI confidence gate, empty-set AI-cache bust, no-data≠clean flag); NWI cron/coverage-copy honesty.
+**⏭ Wave 3 (future, scoped not built — see plan PART B):** coverage builds — Site layers (FEMA NFHL flood, slope/DEM, transmission proximity, PAD-US, NLCD-for-real), CDFI published LIC list (retire the state-MFI approximation), EIA-861 all-50 offtake, a real IX distribution-runway metric + ix_difficulty DB CHECK. Wire B1 + NWI cron before stacking site layers.
 
 ---
 
@@ -203,12 +195,13 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
+- **076** `freshness_geospatial_hosting.sql` — adds `county_geospatial_data` (with wetland-vs-farmland populated split) + `hosting_capacity_data` to the `get_data_freshness` RPC (2026-06 audit A5; both were absent). Idempotent CREATE OR REPLACE. **⏳ Pending Aden's apply** — the `/api/data-health?action=last-refresh` freshness fix works without it; this only lights up the two new admin Data-Health cards + their staleness thresholds.
 - **072** `projects_update_with_check.sql` — adds `WITH CHECK (auth.uid()=user_id)` to the projects UPDATE policy (C1-class RLS-sweep fix; blocks ownership reassignment). ✅ applied 2026-06-01 (Aden).
 - **071** `profiles_privileged_column_guard.sql` — BEFORE-UPDATE trigger blocking `authenticated`/`anon` from writing `role`/`subscription_tier`/`subscription_status`/`stripe_customer_id` (security audit C1 — the Pro-paywall + admin self-grant hole). ✅ applied 2026-05-31 (Aden).
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** none known.
+- **Pending:** **076** (freshness RPC extension — see above).
 
 ---
 
