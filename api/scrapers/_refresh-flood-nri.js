@@ -12,6 +12,7 @@
  */
 import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
 import { NRI_FEATURESERVER, NRI_FLOOD_FIELDS, worstFlood } from './_floodNri.js'
+import { uspsFromStateFips } from './_nwiWetland.js'
 
 const PAGE = 1000  // ArcGIS resultRecordCount per page
 
@@ -72,12 +73,21 @@ export default async function refreshFloodNri() {
       fetched += 1
       const fips = String(a.STCOFIPS || '').trim()
       if (!validFips.has(fips)) { skippedNonCounty += 1; continue }
+      // `state` is NOT NULL on county_geospatial_data — and this is a merge-upsert
+      // that INSERTs a fresh row for any county not already present (e.g. one with
+      // no wetland/farmland row yet), so every row must carry it. Derive it
+      // deterministically from the FIPS prefix (FIPS→USPS is canonical) rather
+      // than trust NRI's STATEABBRV string. (Bug fix: the first cut omitted state
+      // and the batch insert failed the not-null constraint.)
+      const state = uspsFromStateFips(fips.slice(0, 2))
+      if (!state) { skippedNonCounty += 1; continue }
       const { rating, score } = worstFlood(a.IFLD_RISKR, a.IFLD_RISKS, a.CFLD_RISKR, a.CFLD_RISKS)
       // Only write counties NRI actually rates — an unrated county stays null
       // (no flood penalty), not a fabricated "none" row.
       if (rating === 'none' && score == null) continue
       upsertRows.push({
         county_fips:        fips,
+        state,
         flood_risk_rating:  rating,
         flood_risk_score:   score,
         flood_last_updated: new Date().toISOString(),
