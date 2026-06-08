@@ -19,11 +19,11 @@
 
 **Wave 3 track 1 — Offtake all-50 (`632d41b`):** extended `CI_OFFTAKE_SCORES` 32 → 49 entries (48 states + DC). Sourced 19 states' commercial ¢/kWh from **real EIA EPM 5.6.B (Mar-2026, Form EIA-861M)**, recorded on disk `docs/eia-861/commercial-retail-rates.json` (mirrors `docs/dsire-net-billing/`). 17 continental states encoded via a **transparent disclosed formula** `clamp(round(34 + 1.8·¢/kWh),45,72)` (no deep-market boost — thin/non-ISO; sanity-checked vs same-table legacy comparators). **AK + HI deliberately gated** (real high rates but islanded/atypical offtake → stay on 55 fallback, documented). New **CI freshness gate**: `audit-check.mjs` fails when a sourced dataset's `review_due` passes (offtake review_due 2027-06-01) — aging data now fails CI like the npm allowlist. Two-layer honesty throughout (rate sourced · score disclosed).
 
-**⏭ Wave 3 remaining (Aden to steer, none started):** more **Site layers** (slope/DEM · transmission-proximity · PAD-US · NLCD-for-real); **IX live-blend runway metric** (needs a design call — cs_pipeline is deliberately NOT blended today); CDFI published LIC list (retire the NMTC state-MFI approximation); ix_difficulty DB CHECK. Still open from Wave 1/2: the **2 policy decisions** (HUD-QCT §48e pathway; policy-severity bridge retirement).
+**Data refresh — ALL GREEN (5/5 OK, Aden confirmed).** Three failures surfaced + fixed across the session: `geospatial_farmland` (FIPS-pagination `c7e6a9c` + stale 2405-guard `daacb3d`), `ix_queue` 504 (maxDuration 60→300 `daacb3d`), `flood_nri` NOT-NULL `state` (a bug I introduced — dropped `state` from the merge-upsert; fixed `38736c7` by deriving it from FIPS). Pipeline healthy; all Wave-3 ingests operational.
 
-**Refresh progress (Aden's runs):** `geospatial_farmland` ✅ green (2405-guard fix held) · `ix_queue` ✅ OK (maxDuration fix held) · `flood_nri` first run FAILED on a NOT-NULL `state` violation — a bug I introduced (dropped `state` from the merge-upsert, which INSERTs new rows). **Fixed `38736c7`** (derive state from FIPS via `uspsFromStateFips`). Migration **078 applied** ✅.
+**⏭ Wave 3 remaining (Aden to steer):** **CDFI published LIC list** (replace the NMTC state-MFI approximation — accuracy-critical to the Incentives pillar, needs a careful sourcing pass; my recommended next track); more **Site layers** (slope/DEM · PAD-US — but raster/GIS-heavy + each needs a penalty-weight call); **IX live-blend runway metric** (needs a design sign-off — cs_pipeline is deliberately NOT blended today).
 
-**⏰ Waiting on Aden:** (1) **one more re-run** — confirm `flood_nri` is now green (then NRI flood risk populates + the Site flood penalty goes live); (2) **prod-review** the Pro-gated Library work (5-pillar card breakdown + XLSX export). All other sources green.
+**⏰ Waiting on Aden:** (1) **apply migration 079** (ix_difficulty CHECK, NOT VALID/safe); (2) **prod-review** the Pro-gated Library work when convenient (Aden confirmed the 5-pillar parity landed on prod). Everything else is green + live.
 
 **Wave 1 — PARITY WIRING (main `1fd536f`→`856ec19`, then `f421673`):** the Library scored saved projects on 3 pillars (no incentives/policy) so the SAME project differed Library-vs-Lens. Now **one project = one 5-pillar score everywhere.** `f421673` = the centerpiece: new canonical `scoreProjectFromMaps(project, maps)` (`scoreEngine.js`); `Library.jsx`+`MobileLibrary.jsx` batch-fetch an incentivesMap (`state::county`) + policyEventsMap (state) and thread to every surface (ProjectCard/Table/Board/Map/sort/Drawer/Compare/export/alerts/PortfolioAnalytics); ProjectCard "Index Breakdown" → 5 pillars; 5-pillar XLSX export (+live composite, killed a stale Revenue col); fixed 2 latent bugs (codYear field undefined on normalized projects; score-drop alert false-firing on a 3-vs-5-pillar mismatch). Earlier Wave-1 commits: stale 40/35/25 labels killed, `scoreSavedProject` helper + parity tests, site axis inverted, §48(e) ≤5MW LIC cap.
 
@@ -32,7 +32,7 @@
 - **`480880c`** — **freshness truth (A5):** `last-refresh` now = OLDEST latest-success among weekly-cadence pillars (not global MAX), so a stalled pillar drags the caption + trips the stale flag. `check-staleness` THRESHOLDS 6→15 tables + a NEW failed-cron alert (status='failed', not just age). **Migration 076** adds `county_geospatial_data` + `hosting_capacity_data` to `get_data_freshness` RPC — ⚠️ **pending Aden's apply** (everything else works without it).
 - **`ee2dab6`** — **policy guardrails (A6):** AI prompt now confidence-gated to match the score (Bug B); `dataVersionFor` folds event count so removing an event busts the AI cache (Bug A); `computeStatePolicyRiskScore` returns `coverage:'none'|'live'` (no-data ≠ clean). **NWI honesty (A4.5):** killed the "all 3,142 counties" live over-claim (NWI is seeded/partial; SSURGO live 49 states), EPA→USFWS, dropped the never-ingested NLCD citation, AND fixed a stale inverted `availableLand ≥ 25%` label (favorable = <25% farmland).
 
-**2 OPEN for Aden (policy calls, not code — UNCHANGED):** (a) **HUD QCT as §48e LIC pathway** — over-grants (§48e Cat1 = NMTC LIC def, not LIHTC QCT); flagged in code + on /methodology, removal lowers QCT-only scores. (b) **Policy-severity bridge retirement** — sequence backfill-then-retire vs retire-now.
+**2 policy decisions — RESOLVED 2026-06-08 (Aden):** (a) **HUD QCT §48e pathway → REMOVED** (`020f8e8`) — NMTC-only now; QCT-only counties drop 25 pts on Incentives (intended). This also fixed a score-vs-UI mismatch (IncentiveStackPanel already called QCT a LIHTC instrument that doesn't stack into the ITC ceiling — only the score over-granted). (b) **Policy-severity bridge → BACKFILL-THEN-RETIRE** — the bps→severity bridge STAYS until Aden human-sets `impact_severity` on the ~27 rows; no code change yet (retire lands after his backfill). Also shipped: **ix_difficulty DB CHECK** (`6676283`, migration 079, NOT VALID — audit A1).
 
 **Wave 3 fuller backlog (beyond the two tracks above — see plan PART B):** more site layers (slope/DEM, transmission proximity, PAD-US, NLCD-for-real), CDFI published LIC list (retire the state-MFI NMTC approximation), ix_difficulty DB CHECK constraint. (EIA-861 all-50 offtake — ✅ done `632d41b`.) Wire NWI cron before stacking site layers.
 
@@ -212,6 +212,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
+- **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID` (enforces future writes; never fails on apply). Aden: `VALIDATE CONSTRAINT` after a clean-data check. **⏳ Pending apply.**
 - **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
 - **077** `county_geospatial_flood.sql` — ADD flood columns on `county_geospatial_data` (Wave 3 FEMA flood). Additive/nullable. ✅ applied 2026-06-08 (Aden). (Cols renamed by 078.)
 - **076** `freshness_geospatial_hosting.sql` — adds `county_geospatial_data` + `hosting_capacity_data` to the `get_data_freshness` RPC (A5). ✅ applied 2026-06-08 (Aden).
@@ -220,7 +221,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** **078** (flood-column NRI retune — above, additive/rename, safe).
+- **Pending:** **079** (ix_difficulty CHECK — above, NOT VALID, safe).
 
 ---
 
