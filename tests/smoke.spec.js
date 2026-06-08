@@ -121,4 +121,14 @@ test.describe('Tractova smoke', () => {
     await expect(page.locator('input[type="email"], input[type="password"]').first()).toBeVisible({ timeout: 5_000 })
     expect(errors, errors.join('\n\n')).toHaveLength(0)
   })
+
+  test('methodology page renders the pillar citation map (public)', async ({ page }) => {
+    const errors = attachErrorCollectors(page)
+    await page.goto('/methodology')
+    // The Policy & Timing pillar was the entire pillar the audit found missing
+    // from the citation map — assert it now renders, plus the hero heading.
+    await expect(page.getByRole('heading', { name: 'Sources & Methodology' })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Policy & Timing' })).toBeVisible({ timeout: 5_000 })
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
 })

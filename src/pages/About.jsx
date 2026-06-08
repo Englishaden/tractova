@@ -240,6 +240,14 @@ export default function About() {
               )}
             </div>
           )}
+          {/* Trust teaser — the honesty claim above ("numbers you can audit")
+              earns a receipt. Links to the full source/methodology citation map. */}
+          <p className="mt-8 text-sm text-white/45">
+            Every number traces to a source —{' '}
+            <Link to="/methodology" className="text-white/70 hover:text-white underline underline-offset-2 transition-colors">
+              see the full data methodology &amp; sources →
+            </Link>
+          </p>
         </div>
       </section>
 

@@ -30,6 +30,7 @@ import SignUp from './pages/SignUp'
 const Search          = lazy(() => import('./pages/Search'))
 const Library         = lazy(() => import('./pages/Library'))
 const Glossary        = lazy(() => import('./pages/Glossary'))
+const Methodology     = lazy(() => import('./pages/Methodology'))
 const Profile         = lazy(() => import('./pages/Profile'))
 const Admin           = lazy(() => import('./pages/Admin'))
 const MemoView        = lazy(() => import('./pages/MemoView'))
@@ -104,6 +105,7 @@ export default function App() {
               }
             />
             <Route path="/glossary" element={<Glossary />} />
+            <Route path="/methodology" element={<Methodology />} />
             <Route path="/admin" element={<Admin />} />
             {/* DEV-ONLY crash route. */}
             {import.meta.env.DEV && (
