@@ -4,6 +4,22 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-08 (eve) — CDFI/NMTC §48(e) Cat 1 LIC ACCURACY UPGRADE shipped (Wave 3, IX) · ⏭ Aden: apply LIC data + prod-review
+
+**STATUS:** §48(e) Cat 1 Low-Income-Community eligibility now comes from the **authoritative DOE/CDFI published file**, not Tractova's re-derivation. Code shipped + pushed (main `5bbcd23`; verify-green: 217 unit / 8 smoke / build / lint api+secrets+audit). **⏭ DB NOT yet applied — the upgrade is dark until synced (one command, below).**
+
+**Why (2 real accuracy gaps in the old derive):** it used ACS **2018-22** + a **state-MFI-only** approximation of the CDFI two-prong rule → (1) wrong vintage (§48(e) Cat 1 = NMTC LIC, which CDFI locks to **ACS 2016-2020**), (2) **metro LIC under-count** (CDFI uses greater-of state/MSA MFI). Replaced with the **DOE "IRA §48(e) Bonus Credit Program Layers"** Excel — its Category-1 column IS the CDFI CIMS NMTC LIC determination (ACS 2016-2020, greater-of-state/MSA + special provisions baked in). data.gov-cataloged (publisher DOE). Raw xlsx in `data/cdfi-lic/` (gitignored; re-dl from data.nlr.gov/submissions/222) → parsed → committed `src/data/nmtcLicCounties.js` (the artifact the prod handler imports).
+
+**Impact (dry-run vs live DB, 3144 rows):** **161 counties newly ELIGIBLE** (the metro uplift — flagship: **CO/Broomfield**, a high-MFI Denver-metro county the state-MFI rule missed), **86 newly INELIGIBLE** (vintage shift). ~8% flip, no implausible swing.
+
+**Architecture — nmtc_lic is now a STATIC source** (mirrors `solar_costs`): added to `BUNDLE_EXCLUDED` + removed from `CENSUS_SERIAL` (no Census); staleness 21/60→400/540 (`check-staleness`); dropped from `FRESHNESS_PILLAR_CRONS` (`data-health`) + health cadence 8→400 (`_health-summary`); DataHealthTab `live`→`seeded` — so going static does NOT false-alarm the Wave-2 freshness monitors. Handler `_refresh-nmtc-lic.js` now imports the committed artifact + upserts (no xlsx-in-prod); admin Refresh `nmtc_lic` re-syncs DB from it. New `_nmtcLic.js` pure helper + 11 unit tests. **No migration** (reuses `nmtc_lic_data`; legacy `via_*`/`state_mfi` set 0/null). Citation tier **B-→A** (`dataSources.js` → /methodology + XLSX); glossary updated + the stale "HUD QCT grants the LIC adder" copy fixed. Freshness CI gate `docs/cdfi-lic/lic-source.json` (review_due 2027-06-01) + `audit-check`.
+
+**⏭ TO APPLY (Aden — or say the word and I'll run it):** `node scripts/seed-nmtc-lic.mjs --apply` (idempotent county upsert; dry-run impact already shown above) **OR** admin Refresh `nmtc_lic`. Then prod-eyeball the Incentives panel ("N of M tracts qualify") + /methodology §48(e) row. **Heads-up:** the per-tract `via poverty / via MFI` sub-line is gone (the published source isn't split by reason — expected).
+
+**⏭ Remaining queued (Aden's earlier picks):** GIS/site layers (slope/DEM · PAD-US — raster-heavy, each needs a penalty-weight call) · IX live-blend runway metric (needs a design sign-off). CDFI LIC (Aden's pick) = ✅ this track.
+
+---
+
 ## 🟢 Pickup — 2026-06-08 — DATA AUDIT WAVES 1+2 DONE · WAVE 3 (offtake all-50 · NWI cron · FEMA flood) DONE · ⏭ Aden prod-review + re-run refresh
 
 **STATUS:** Audit plan `~/.claude/plans/ok-we-should-move-dynamic-charm.md` — **Waves 1 + 2 DONE; Wave 3 tracks shipped: offtake all-50, NWI wetland cron, FEMA flood (both slices).** Migrations **076 + 077 APPLIED** (Aden); **078 pending.** All verify-green; Library + scrapers are **Pro-gated / verify-on-prod → NOT screenshot-verified.** ⏭ **NEXT = Aden prod-review + re-run the data refresh** to confirm the two scraper fixes below are green, then apply 078.
@@ -212,7 +228,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
-- **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID` (enforces future writes; never fails on apply). Aden: `VALIDATE CONSTRAINT` after a clean-data check. **⏳ Pending apply.**
+- **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID`. ✅ applied 2026-06-08 (Aden-confirmed this session). Optional follow-up: `VALIDATE CONSTRAINT` after a clean-data check.
 - **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
 - **077** `county_geospatial_flood.sql` — ADD flood columns on `county_geospatial_data` (Wave 3 FEMA flood). Additive/nullable. ✅ applied 2026-06-08 (Aden). (Cols renamed by 078.)
 - **076** `freshness_geospatial_hosting.sql` — adds `county_geospatial_data` + `hosting_capacity_data` to the `get_data_freshness` RPC (A5). ✅ applied 2026-06-08 (Aden).
@@ -221,7 +237,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** **079** (ix_difficulty CHECK — above, NOT VALID, safe).
+- **Pending:** none. (The NMTC LIC data refresh is a seed / admin-Refresh step, not a migration — no schema change; see top pickup.)
 
 ---
 
