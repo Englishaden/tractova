@@ -4,6 +4,26 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-08 (eve·2) — PHASE 1 DATA-HONESTY CLEANUP shipped (main `a85ffa8`) · ⏭ Aden prod-eyeball
+
+**STATUS:** First slice of the data-gap roadmap (the "fix what's wrong on screen" phase, from the gap-bridging research `wf_625bacea`). Shipped + pushed; verify-green (217 unit / 8 smoke / build / lints). Independently adversarial-verified (an agent re-swept + caught 3 survivors I'd missed → fixed). **Copy/comments only — NO scoring change.**
+
+**Ground truth re-probed (live DB, 3,143 counties):** wetland (NWI) **3,143/3,143 COMPLETE** · SSURGO farmland **2,405/3,143** · FEMA flood 3,143/3,143 · IX queue live in **6 states** (CA/MD/NJ/NY/VA/WI), hosting-capacity ~10 · IX live feeds are CONTEXT (ixLiveAdjustment=0 → score stays on curated ixDifficulty for all 50).
+
+**Fixed (stale claims, grep-driven across src/api/docs):**
+- **Wetland was wrongly labeled "partial / seeded ~700" — it's COMPLETE** (we were UNDER-claiming). Corrected in CoverageChip, SiteControlCard, MarketPositionPanel, dataSources (/methodology; NWI tier C→B-), glossary 'Site · Live', NWI cron header, scoreEngine comments, DataHealthTab.
+- **SSURGO "49 states" → "2,405 of 3,143 counties"** (old copy had wetland/SSURGO inverted).
+- **IX "8 states / CO,IL,MA,…" → real 6 queue states**, and killed every "live data blends/drives the IX score" overclaim (it's CONTEXT; score is curated). glossary 'IX' + 'IX · Live', MarketPositionPanel tooltips+comments, CoverageChip, scoreEngine comments.
+
+**New — event-driven freshness:** `scripts/check-data-vintages.mjs` (`npm run check:vintages`) probes publishers for a NEWER vintage (LIC date-stamped Excel = verified working against data.nlr.gov; EIA API key-gated) vs the docs/*.json sidecar → flags a re-source when one actually ships, not on the guessed review_due date. Detect-only, fail-open, OUT of `verify`. (Wire to a weekly cron/Action later; EIA probe skips unless EIA_API_KEY is in `.env.local` — it's in Vercel only.)
+
+**Investigated → deferred (honest):** SSURGO backfill — the 738 farmland nulls are a systematic SSURGO areasymbol→county mapping gap (738 across 33 states incl CA/GA/KY), NOT AK-only; raising coverage needs a USDA areasymbol crosswalk = a separate track. Copy now honestly says 2,405.
+
+**⏭ Roadmap remainder (gap research `wf_625bacea`):** Phase 2 = keystone (optional address→census-**tract** lookup; tax-credit bonuses LIC/HUD only, NOT flood/wetland — geocoder gives tract not parcel) · Phase 3 = slope (USGS 3DEP, verified-live) + protected-land (PAD-US, endpoint needs re-probe), each needs Aden's penalty-weight sign-off · Phase 4 = IX manual-upload (~5 states) + EIA offtake auto-refresh (⚠ an EIA pipeline ALREADY exists in `refresh-substations.js` — unify, don't duplicate). Structurally impossible (don't chase): full-50 IX (7 states no redistribution-safe feed); true-parcel (vs tract); live-IX-scoring.
+**Loose end (not this sweep):** glossary 'Offtake' long still says "EIA Form 861 (curated for 12 high-rate states)" — stale vs the Wave-3 all-50 offtake; left untouched (didn't re-verify offtake coverage this session).
+
+---
+
 ## 🟢 Pickup — 2026-06-08 (eve) — CDFI/NMTC §48(e) Cat 1 LIC ACCURACY UPGRADE shipped (Wave 3, IX) · ⏭ Aden: apply LIC data + prod-review
 
 **STATUS:** §48(e) Cat 1 Low-Income-Community eligibility now comes from the **authoritative DOE/CDFI published file**, not Tractova's re-derivation. Code shipped + pushed (main `5bbcd23`; verify-green: 217 unit / 8 smoke / build / lint api+secrets+audit). **✅ DB applied + probe-confirmed** (3144 rows, all ACS 2016-2020 vintage, 0 stale 2018-22 rows, CO/Broomfield now eligible). ⏭ Aden: prod-eyeball when convenient.
