@@ -14,7 +14,7 @@ import {
 // status, the ITC adder eligibility stack (Energy Community / §48(e) / HUD),
 // and the structure's offtake mechanism. No synthesized dollars: the revenue/
 // payback projections + $/W cost lineage retired with the $ layer.
-export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, energyCommunity, nmtcLic, hudQctDda, county }) {
+export default function OfftakeCard({ stateProgram, revenueStack, technology, mw, energyCommunity, nmtcLic, hudQctDda, county, tractResolve }) {
   const hasProgram = stateProgram && stateProgram.csStatus !== 'none'
   const runway = stateProgram?.runway ?? null
   const isCS = technology === 'Community Solar'
@@ -95,7 +95,7 @@ export default function OfftakeCard({ stateProgram, revenueStack, technology, mw
                     (also the body of the §04 Incentives pillar detail tab) so the
                     eligibility read is one component, not two divergent copies. */}
                 <div className="mt-2">
-                  <IncentiveStackPanel energyCommunity={energyCommunity} nmtcLic={nmtcLic} hudQctDda={hudQctDda} county={county} />
+                  <IncentiveStackPanel energyCommunity={energyCommunity} nmtcLic={nmtcLic} hudQctDda={hudQctDda} county={county} tractResolve={tractResolve} />
                 </div>
                 {revenueStack.summary && <p className="text-xs text-gray-500 mt-2 leading-relaxed px-1">{revenueStack.summary}</p>}
               </div>

@@ -6,7 +6,7 @@ import IncentiveStackPanel from './IncentiveStackPanel'
 // 30% nationwide + location bonuses scored from real federal data. No dollars.
 const PILLAR_ACCENT = '#15803D'
 
-export default function IncentivesDetail({ score, energyCommunity, nmtcLic, hudQctDda, county }) {
+export default function IncentivesDetail({ score, energyCommunity, nmtcLic, hudQctDda, county, tractResolve }) {
   return (
     <div className="px-5 py-4 space-y-4">
       {/* Header — score + framing */}
@@ -26,7 +26,7 @@ export default function IncentivesDetail({ score, energyCommunity, nmtcLic, hudQ
       </div>
 
       {/* Eligibility panel (shared with the Offtake detail) */}
-      <IncentiveStackPanel energyCommunity={energyCommunity} nmtcLic={nmtcLic} hudQctDda={hudQctDda} county={county} />
+      <IncentiveStackPanel energyCommunity={energyCommunity} nmtcLic={nmtcLic} hudQctDda={hudQctDda} county={county} tractResolve={tractResolve} />
 
       {/* Base-credit + scoring note */}
       <div className="rounded-md px-3 py-2.5 bg-surface space-y-1.5">
@@ -40,7 +40,7 @@ export default function IncentivesDetail({ score, energyCommunity, nmtcLic, hudQ
       </div>
 
       <p className="text-[10px] text-gray-500 italic leading-relaxed">
-        Eligibility is county-level and informational. Brownfield Energy-Community qualification and §48(e) tract siting are confirmed at the parcel level — verify with tax counsel before banking an adder.
+        Energy-Community / flood / wetland reads are county-level. §48(e) LIC is shown for the census tract your address resolves to when provided (the neighborhood, not the parcel); it screens eligibility, not the official IRS determination — verify with tax counsel before banking an adder.
       </p>
     </div>
   )

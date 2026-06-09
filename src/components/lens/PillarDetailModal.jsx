@@ -195,6 +195,7 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                           nmtcLic={pillarProps.nmtcLic}
                           hudQctDda={pillarProps.hudQctDda}
                           county={pillarProps.county}
+                          tractResolve={pillarProps.tractResolve}
                         />
                       </div>
                     )}
@@ -218,6 +219,7 @@ export default function PillarDetailModal({ activePillar, onClose, onPillarChang
                           nmtcLic={pillarProps.nmtcLic}
                           hudQctDda={pillarProps.hudQctDda}
                           county={pillarProps.county}
+                          tractResolve={pillarProps.tractResolve}
                         />
                       </div>
                     )}

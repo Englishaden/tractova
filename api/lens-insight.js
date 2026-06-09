@@ -17,6 +17,7 @@ import handlePolicyClassify from './handlers/_lens-policy-classify.js'
 import handleMemoCreate from './handlers/_lens-memo-create.js'
 import handleMemoView from './handlers/_lens-memo-view.js'
 import handleMarketBrief from './handlers/_market-brief.js'
+import handleTractResolve from './handlers/_tract-resolve.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build structured context string from project data
@@ -383,6 +384,15 @@ export default async function handler(req, res) {
     // Rate-limit infrastructure failure must never block legitimate use.
     // Log and continue.
     console.warn('[lens-insight:ratelimit] check failed:', _err.message)
+  }
+
+  // ── tract-resolve: geocoder proxy (no Anthropic) — dispatch BEFORE the AI-key
+  //    gate. Pro-gated + rate-limited above; logged for audit + rate-limit count.
+  if (body.action === 'tract-resolve') {
+    supabaseAdmin.from('api_call_log')
+      .insert([{ user_id: user.id, action: 'tract-resolve', model: 'census-geocoder' }])
+      .then(({ error }) => { if (error) console.warn('[lens-insight:log] tract-resolve insert failed:', error.message) })
+    return handleTractResolve(body, res)
   }
 
   // ── If no API key, return fallback immediately (no error) ──────────────────

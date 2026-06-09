@@ -367,7 +367,7 @@ export function getOfftakeCoverageStates(technology) {
 // (excluded from the composite via rebalance) rather than fabricate a baseline.
 export function computeIncentiveScore(incentives, mw = null) {
   if (!incentives) return { score: null, coverage: 'none', adders: {} }
-  const { energyCommunity, nmtcLic, hudQctDda } = incentives
+  const { energyCommunity, nmtcLic, hudQctDda, licTractResolved } = incentives
   const hasCoverage = energyCommunity != null || nmtcLic != null || hudQctDda != null
   if (!hasCoverage) return { score: null, coverage: 'none', adders: {} }
 
@@ -380,7 +380,13 @@ export function computeIncentiveScore(incentives, mw = null) {
   // adders) as informational context, but it no longer grants the +25 adder —
   // the prior `nmtc || hud` OR-logic over-granted it to QCT-only counties
   // (lowering those counties' incentive score by 25 now is the intended fix).
-  const licTract = nmtc
+  // Per-site override (Phase 2): when an address resolved to its census tract,
+  // licTractResolved is the EXACT per-tract LIC determination (true/false) and
+  // takes precedence over the county-binary `nmtc` (which only says the county
+  // CONTAINS ≥1 LIC tract). Absent (null/undefined — no address or geocode
+  // failed) → fall back to the county signal, unchanged.
+  const siteResolved = licTractResolved === true || licTractResolved === false
+  const licTract = siteResolved ? licTractResolved : nmtc
   // The LIC bonus is also statutorily capped at facilities ≤5 MW AC net output
   // (the engine previously awarded +25 regardless of size, over-granting it to
   // the 10-20 MW projects in Tractova's scope, which the UI flags "≤5 MW only").
@@ -391,7 +397,7 @@ export function computeIncentiveScore(incentives, mw = null) {
   // 50 = base §48E (30% with PW&A), no location bonus. +25 Energy Community,
   // +25 Low-Income Community → up to 100 (full adder stack, potential ~50% ITC).
   const score = 50 + (ec ? 25 : 0) + (lic ? 25 : 0)
-  return { score, coverage: 'live', adders: { energyCommunity: ec, lowIncomeCommunity: lic, nmtc, hudQctDda: hud, licSizeCapped: licTract && !licSizeEligible } }
+  return { score, coverage: 'live', adders: { energyCommunity: ec, lowIncomeCommunity: lic, nmtc, hudQctDda: hud, licSizeCapped: licTract && !licSizeEligible, licTractResolved: siteResolved ? licTractResolved : null } }
 }
 
 // ── IX live-blend thresholds ─────────────────────────────────────────────────

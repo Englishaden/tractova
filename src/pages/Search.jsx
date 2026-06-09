@@ -198,6 +198,29 @@ async function fetchAIInsight({ form, stateProgram, countyData, revenueStack, ru
   return { insight: null, reason: 'http_5xx_after_retry' }
 }
 
+// Optional per-site LIC: resolve an address → census tract → isLicTract via the
+// lens-insight 'tract-resolve' proxy (the Census Geocoder has no CORS + is flaky,
+// so it runs server-side). Returns the proxy result {ok, tractGeoid, isLicTract,
+// matchedAddress} | {ok:false} | null. NEVER throws — any failure degrades to the
+// honest county-level signal. Build-time flag VITE_LIC_TRACT_LOOKUP=off disables.
+const LIC_TRACT_LOOKUP = import.meta.env.VITE_LIC_TRACT_LOOKUP !== 'off'
+async function resolveAddressTract({ address, accessToken, signal }) {
+  if (!address || !accessToken) return null
+  try {
+    const res = await fetch('/api/lens-insight', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` },
+      signal,
+      body: JSON.stringify({ action: 'tract-resolve', address }),
+    })
+    if (!res.ok) return { ok: false, reason: `http_${res.status}` }
+    return await res.json()
+  } catch (err) {
+    if (err?.name === 'AbortError') return null
+    return { ok: false, reason: 'network' }
+  }
+}
+
 // Scrollspy rail contents — the five numbered report sections (ids match the
 // CollapsibleSection `id`s below). Comparables/Regulatory are gated + secondary,
 // so the rail stays the clean five-section index of the core report.
@@ -278,6 +301,7 @@ function SearchContent() {
     structure: initialStructure,
     technology: initialTechnology,
     codYear: '',   // target commercial-operation year — drives the Policy & Timing pillar
+    address: '',   // optional site address — resolves to a census tract for the exact §48(e) LIC determination
   })
 
   // Phase 2C — `?fromProject=<id>` deep-link. The Cmd-K `:rerun <project>`
@@ -376,12 +400,15 @@ function SearchContent() {
   // 3-pillar call, so its verdict could disagree with the gauge); this is the
   // single source of truth. Recomputes when the live MW lever or inputs change.
   // computeSubScores is a cheap pure fn, so an inline compute per render is fine.
+  // Per-site LIC: when an address resolved to its census tract, the exact
+  // per-tract determination (true/false); null otherwise → county-binary fallback.
+  const licTractResolved = results?.tractResolve?.ok ? results.tractResolve.isLicTract : null
   const lensSubs = results
     ? computeSubScores(
         results.stateProgram, results.countyData, results.form.stage, results.form.technology,
         results.ixQueueSummary, results.policyEvents, effectiveMw,
         {
-          incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda },
+          incentives: { energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda, licTractResolved },
           codYear: results.form.codYear ? Number(results.form.codYear) : null,
         },
       )
@@ -556,19 +583,24 @@ function SearchContent() {
 
       abortRef.current = new AbortController()
       let aiInsight = null
+      let tractResolve = null
       try {
-        const [aiResult] = await Promise.all([
+        const [aiResult, tractRes] = await Promise.all([
           fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken, signal: abortRef.current.signal }),
+          (LIC_TRACT_LOOKUP && form.address && form.address.trim())
+            ? resolveAddressTract({ address: form.address.trim(), accessToken, signal: abortRef.current.signal })
+            : Promise.resolve(null),
           new Promise(resolve => setTimeout(resolve, 800)),
         ])
         aiInsight = aiResult?.insight ?? null
+        tractResolve = tractRes
       } catch (err) {
         if (err.name !== 'AbortError') console.warn('[Lens] AI insight failed, showing analysis without it:', err.message)
         // AbortError or other AI failure → fall through with aiInsight=null;
         // analysis is still useful without the AI verdict.
       }
 
-      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity, aiInsight })
+      setResults({ form: { ...form }, stateProgram, countyData, revenueStack, ixQueueSummary, substations, energyCommunity, hudQctDda, nmtcLic, policyEvents, hostingCapacity, aiInsight, tractResolve })
     } catch (err) {
       // Any uncaught error in data fetching used to leave analyzing=true forever
       // (the white-screen loading hang). Surface it to the user instead.
@@ -892,6 +924,26 @@ function SearchContent() {
                 options={['Not set', '2026', '2027', '2028', '2029', '2030', '2031', '2032']}
                 placeholder="Target COD year…"
               />
+
+              {LIC_TRACT_LOOKUP && (
+                /* Optional site address — resolves to its census tract for the EXACT
+                   §48(e) LIC determination (vs the county-level "contains LIC tracts").
+                   Blank → county-level, unchanged. Full-width row; never blocks Run. */
+                <div className="sm:col-span-2 md:col-span-3 bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15">
+                  <label className={labelCls + ' flex items-center gap-1.5'}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Site address <span className="text-gray-400 font-normal normal-case tracking-normal">— optional, for the exact LIC tract</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={set('address')}
+                    placeholder="e.g. 100 Main St, Springfield, MA"
+                    autoComplete="off"
+                    className={inputCls + ' w-full'}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -1091,7 +1143,7 @@ function SearchContent() {
                 countyData={results.countyData}
                 ixQueueSummary={results.ixQueueSummary}
                 policyEvents={results.policyEvents || []}
-                incentives={{ energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda }}
+                incentives={{ energyCommunity: results.energyCommunity, nmtcLic: results.nmtcLic, hudQctDda: results.hudQctDda, licTractResolved }}
                 technology={results.form.technology}
                 stage={results.form.stage || null}
                 stateName={results.stateProgram?.name || results.form.state}
@@ -1286,6 +1338,7 @@ function SearchContent() {
             energyCommunity: results.energyCommunity,
             nmtcLic:         results.nmtcLic,
             hudQctDda:       results.hudQctDda,
+            tractResolve:    results.tractResolve,
             county:          results.form.county,
             interconnection: results.countyData?.interconnection,
             geospatial:      results.countyData?.geospatial,

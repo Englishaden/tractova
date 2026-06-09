@@ -37,7 +37,7 @@ export const GLOSSARY_DEFINITIONS = {
   'Incentives': {
     title: 'Incentives',
     short: 'ITC step-up eligibility at this county — the §48E base credit plus the location-bonus adder stack (Energy Community, §48(e) Low-Income).',
-    long: 'The pillar that answers "how rich is the ITC adder stack here?" The §48E base 30% (with prevailing-wage + apprenticeship) is available nationwide; the LOCATION bonuses vary by county and are scored from real federal data — EPA/DOE Energy Communities (+10%), and §48(e) Low-Income Communities via the DOE §48(e)/CDFI NMTC LIC determination (+10%; HUD QCT/DDA is shown for context but does not grant this adder). A full stack pushes effective ITC toward ~50%. No dollars — this measures eligibility, not synthesized value.',
+    long: 'The pillar that answers "how rich is the ITC adder stack here?" The §48E base 30% (with prevailing-wage + apprenticeship) is available nationwide; the LOCATION bonuses vary by county and are scored from real federal data — EPA/DOE Energy Communities (+10%), and §48(e) Low-Income Communities via the DOE §48(e)/CDFI NMTC LIC determination (+10%; HUD QCT/DDA is shown for context but does not grant this adder). The LIC read is county-level by default (does the county contain qualifying tracts) and pins to the exact census tract — the neighborhood, not the parcel — when a site address is entered. A full stack pushes effective ITC toward ~50%. No dollars — this measures eligibility, not synthesized value.',
     inputs: 'getEnergyCommunity (DOE NETL) · getNmtcLic (DOE §48e / CDFI) · getHudQctDda (HUD, context)',
   },
   'Policy & Timing': {

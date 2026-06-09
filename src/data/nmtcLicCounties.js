@@ -4,7 +4,7 @@
 // Threshold: a tract is LIC when NMTC_2020_pct > 0.
 // Regenerate: re-download the DOE Excel to data/cdfi-lic/, then
 //   node scripts/seed-nmtc-lic.mjs          (regenerates this file + prints the DB impact diff)
-//   node scripts/seed-nmtc-lic.mjs --apply  (also upserts nmtc_lic_data)
+//   node scripts/seed-nmtc-lic.mjs --apply  (also upserts nmtc_lic_data + nmtc_lic_tracts)
 
 export const NMTC_LIC_META = {"datasetVersion":"ACS 2016-2020 (CDFI NMTC LIC)","source":"DOE §48(e) Low-Income Community Bonus Credit Program Layers · CDFI CIMS NMTC LIC determination (ACS 2016-2020)"}
 

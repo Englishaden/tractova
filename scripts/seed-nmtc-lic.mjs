@@ -25,7 +25,7 @@ import { readFileSync, writeFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import xlsx from 'xlsx'
-import { parseTractRow, rollupByCounty, QUALIFY_MIN_PCT } from '../api/scrapers/_nmtcLic.js'
+import { parseTractRow, rollupByCounty, tractQualifies, QUALIFY_MIN_PCT } from '../api/scrapers/_nmtcLic.js'
 
 // ── env loader (same pattern as scripts/seed-county-geospatial-nwi.mjs) ──
 try {
@@ -83,11 +83,17 @@ const rawRows = xlsx.utils.sheet_to_json(wb.Sheets[sheetName])
 const tracts = rawRows.map(parseTractRow).filter(t => t && t.countyFips)
 const counties = rollupByCounty(tracts, FIPS_TO_USPS, { minPct: QUALIFY_MIN_PCT })
 
+// Tract-level qualifying set (Phase 2) — feeds nmtc_lic_tracts for the per-site
+// address→tract LIC lookup. Same threshold + FIPS gate as the county rollup.
+const licTracts = tracts
+  .filter(t => t.geoid && t.geoid.length === 11 && FIPS_TO_USPS[t.countyFips.slice(0, 2)] && tractQualifies(t.nmtcPct, QUALIFY_MIN_PCT))
+  .map(t => ({ geoid: t.geoid, county_fips: t.countyFips, state: FIPS_TO_USPS[t.countyFips.slice(0, 2)], nmtc_pct: t.nmtcPct }))
+
 const totalTracts = counties.reduce((s, c) => s + c.total_tracts_in_county, 0)
 const totalQualTracts = counties.reduce((s, c) => s + c.qualifying_tracts_count, 0)
 const countiesWithLic = counties.filter(c => c.qualifying_tracts_count > 0).length
 console.log(`→ Parsed ${rawRows.length} tract rows → ${tracts.length} valid → ${counties.length} tracked counties`)
-console.log(`   ${countiesWithLic}/${counties.length} counties have ≥1 LIC tract · ${totalQualTracts}/${totalTracts} tracts qualify`)
+console.log(`   ${countiesWithLic}/${counties.length} counties have ≥1 LIC tract · ${totalQualTracts}/${totalTracts} tracts qualify · ${licTracts.length} tracts → nmtc_lic_tracts`)
 
 // ── 2. emit the committed artifact (scalars only — no geoid arrays) ──
 const artifactRows = counties.map(c => ({
@@ -105,7 +111,7 @@ const banner =
 // Threshold: a tract is LIC when NMTC_2020_pct > ${QUALIFY_MIN_PCT}.
 // Regenerate: re-download the DOE Excel to data/cdfi-lic/, then
 //   node scripts/seed-nmtc-lic.mjs          (regenerates this file + prints the DB impact diff)
-//   node scripts/seed-nmtc-lic.mjs --apply  (also upserts nmtc_lic_data)
+//   node scripts/seed-nmtc-lic.mjs --apply  (also upserts nmtc_lic_data + nmtc_lic_tracts)
 `
 const body =
 `export const NMTC_LIC_META = ${JSON.stringify(META)}
@@ -151,7 +157,7 @@ console.log(`   newly ELIGIBLE:   ${newlyEligible.length}  e.g. ${newlyEligible.
 console.log(`   newly INELIGIBLE: ${newlyIneligible.length}  e.g. ${newlyIneligible.slice(0, 8).map(c => `${c.state}/${c.county_name}`).join(', ') || '—'}`)
 
 if (!APPLY) {
-  console.log('\n(dry-run — no DB writes. Re-run with --apply to upsert nmtc_lic_data.)')
+  console.log(`\n(dry-run — no DB writes. Re-run with --apply to upsert ${counties.length} counties + ${licTracts.length} tracts.)`)
   process.exit(0)
 }
 
@@ -180,3 +186,13 @@ for (let i = 0; i < dbRows.length; i += BATCH) {
   upserted += slice.length
 }
 console.log(`\n✓ upserted ${upserted} counties into nmtc_lic_data`)
+
+// ── upsert tract-level LIC eligibility (nmtc_lic_tracts) for the per-site lookup ──
+let tUpserted = 0
+for (let i = 0; i < licTracts.length; i += BATCH) {
+  const slice = licTracts.slice(i, i + BATCH)
+  const { error } = await admin.from('nmtc_lic_tracts').upsert(slice, { onConflict: 'geoid' })
+  if (error) { console.error(`✗ nmtc_lic_tracts upsert failed at batch ${i / BATCH}: ${error.message}`); process.exit(1) }
+  tUpserted += slice.length
+}
+console.log(`✓ upserted ${tUpserted} tracts into nmtc_lic_tracts`)

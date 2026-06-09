@@ -6,7 +6,10 @@ import LoadingDot from '../ui/LoadingDot'
 // stack context) and as the body of the Incentives pillar detail tab, so the
 // eligibility read is one component, not two divergent copies. No dollars —
 // eligibility + the resulting ITC ceiling only.
-export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDda, county }) {
+export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDda, county, tractResolve }) {
+  // When an address resolved to its census tract (Phase 2), the LIC adder
+  // reflects that EXACT tract; otherwise the county-binary "contains LIC tracts".
+  const licCeilingEligible = tractResolve?.ok ? tractResolve.isLicTract : !!nmtcLic?.isEligible
   return (
     <div className="px-3 py-2.5 rounded-md border border-teal-100 bg-teal-50/40 space-y-2">
       {/* Energy Community row */}
@@ -55,24 +58,49 @@ export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDd
           <div className="eyebrow-mono font-semibold text-teal-800 mb-1">
             §48(e) Cat 1 LIC (+10% ITC)
           </div>
-          {nmtcLic?.isEligible ? (
-            <>
-              <div className="text-xs font-semibold text-teal-900">
-                ✓ Eligible — {nmtcLic.qualifyingTractsCount} of {nmtcLic.totalTractsInCounty} tract{nmtcLic.totalTractsInCounty === 1 ? '' : 's'} qualify as NMTC LIC
-              </div>
-              <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
-                Project sited in any of these tracts adds 10% to ITC (≤5 MW only). Stacks with Energy Community above.
-              </div>
-            </>
-          ) : nmtcLic ? (
-            <>
-              <div className="text-xs text-gray-700">No qualifying NMTC LIC tracts in this county</div>
-              <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
-                Categories 3-4 (low-income residential / economic benefit) may still qualify — verify with tax counsel.
-              </div>
-            </>
+          {tractResolve?.ok ? (
+            tractResolve.isLicTract ? (
+              <>
+                <div className="text-xs font-semibold text-teal-900">
+                  ✓ The census tract your address falls in IS a qualifying NMTC LIC tract
+                </div>
+                <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
+                  Adds 10% to ITC (≤5 MW only); stacks with Energy Community above. Tract {tractResolve.tractGeoid} — the neighborhood the address geocoded to, not the parcel. Screens eligibility; NOT the official IRS determination — verify with tax counsel.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-xs text-gray-700">The census tract your address falls in is NOT a qualifying NMTC LIC tract</div>
+                <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                  {nmtcLic?.qualifyingTractsCount > 0 ? `${nmtcLic.qualifyingTractsCount} of ${nmtcLic.totalTractsInCounty} tracts in this county do qualify — a different site may. ` : ''}Tract {tractResolve.tractGeoid}. Verify with tax counsel.
+                </div>
+              </>
+            )
           ) : (
-            <LoadingDot message="Checking" size="sm" />
+            <>
+              {tractResolve && !tractResolve.ok && (
+                <div className="text-[10px] text-amber-700 mb-1 italic leading-snug">Couldn't resolve that address — showing county-level.</div>
+              )}
+              {nmtcLic?.isEligible ? (
+                <>
+                  <div className="text-xs font-semibold text-teal-900">
+                    ✓ Eligible — {nmtcLic.qualifyingTractsCount} of {nmtcLic.totalTractsInCounty} tract{nmtcLic.totalTractsInCounty === 1 ? '' : 's'} qualify as NMTC LIC
+                  </div>
+                  <div className="text-[10px] text-teal-700 mt-0.5 leading-snug">
+                    A project sited in any of these tracts adds 10% to ITC (≤5 MW only); stacks with Energy Community. Add a site address above for the exact tract.
+                  </div>
+                </>
+              ) : nmtcLic ? (
+                <>
+                  <div className="text-xs text-gray-700">No qualifying NMTC LIC tracts in this county</div>
+                  <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                    Categories 3-4 (low-income residential / economic benefit) may still qualify — verify with tax counsel.
+                  </div>
+                </>
+              ) : (
+                <LoadingDot message="Checking" size="sm" />
+              )}
+            </>
           )}
         </div>
         <a
@@ -126,13 +154,13 @@ export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDd
 
       {/* Combined ITC summary — only when at least one ITC bonus applies.
           LIHTC excluded (separate instrument). */}
-      {(energyCommunity?.isEnergyCommunity || nmtcLic?.isEligible) && (
+      {(energyCommunity?.isEnergyCommunity || licCeilingEligible) && (
         <div className="pt-2 border-t border-teal-200/60 flex items-baseline justify-between">
           <span className="eyebrow-mono font-semibold text-teal-900">
             Combined ITC ceiling
           </span>
           <span className="font-serif text-base font-bold text-teal-900">
-            Up to {30 + (energyCommunity?.isEnergyCommunity ? 10 : 0) + (nmtcLic?.isEligible ? 10 : 0)}%
+            Up to {30 + (energyCommunity?.isEnergyCommunity ? 10 : 0) + (licCeilingEligible ? 10 : 0)}%
           </span>
         </div>
       )}
