@@ -4,6 +4,24 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-08 (eve·3) — PHASE 2 KEYSTONE: address→census-tract LIC lookup shipped (main `66ca515`) · ⏭ Aden: apply 080 + seed
+
+**STATUS:** The roadmap keystone — an OPTIONAL site address → census tract → **precise per-tract §48(e) LIC yes/no** (vs the county-binary that read eligible in ~88% of counties). Shipped + pushed; verify-green (225 unit / 8 smoke / build / lints). Independently adversarial-verified (honesty + SSRF + graceful-fallback + no-regression + score↔UI agreement; 1 cross-tab inconsistency caught → fixed). **⏭ DARK until Aden (1) applies migration 080, (2) runs `node scripts/seed-nmtc-lic.mjs --apply`** — null-safe / county-fallback until both land.
+
+**Honesty (hard constraints, all met):** it's the census TRACT the address geocodes to (a neighborhood, NOT the parcel) — every string says so; a green "qualifies" carries "screens eligibility, NOT the official IRS determination — verify with tax counsel." ONLY LIC is tract-resolved; Energy Community + flood + wetland STAY county-level (different geographies / parcel-delineation needed).
+
+**Architecture:**
+- **`nmtc_lic_tracts` (migration 080)** — the 34,992 qualifying tracts (geoid PK), seeded from the same DOE/CDFI Excel (`seed-nmtc-lic.mjs` extended; county artifact stays scalars-only). Static.
+- **Geocoder proxy** `api/handlers/_tract-resolve.js` via the `lens-insight` multiplexer (fn-cap 12/12 → no new top-level file). US Census Geocoder (no CORS + flaky) → server-side, fixed host + URL-encoded address (no SSRF), `redirect:'error'`, 10s timeout. Any miss/timeout/down → `{ok:false}` → graceful county fallback. Pure parser `_tractGeoid.js` + 4 tests.
+- **scoreEngine** `computeIncentiveScore` gains opt `licTractResolved` (true|false|null): exact tract overrides the county-binary when present; null → county fallback; ≤5MW cap unchanged. 4 tests incl. the discrimination win (resolved=false withholds the +25 even in an LIC-containing county).
+- **Lens:** optional "Site address" field (never blocks Run; build flag `VITE_LIC_TRACT_LOOKUP=off` hides it — optional default-on PUBLIC flag, documented in-code, not a secret). Search.jsx calls the proxy in parallel with the AI verdict; threads into the score (gauge + verdict agree) + the IncentiveStackPanel/IncentivesDetail/OfftakeCard tract-level display.
+
+**Census Geocoder caveat:** free, no SLA, ~500/day shared limit, frequent downtime → optional + degrades gracefully to county-level. Paid geocoder (Geocodio) is the reliability upgrade if usage warrants — deferred.
+
+**⏭ Roadmap remainder:** Phase 3 = slope (USGS 3DEP, verified-live) + protected-land (PAD-US, endpoint needs re-probe) — each needs Aden's penalty-weight sign-off. Phase 4 = IX manual-upload (~5 states) + EIA offtake auto-refresh (⚠ unify with the existing `refresh-substations.js` EIA pipeline, don't duplicate). HUD-QCT tract-resolution = near-free follow-on (`qct_tract_geoids` already populated; context-only). Loose end: glossary 'Offtake' "12 high-rate states" still stale (Wave-3 offtake is all-50) — left, not re-verified.
+
+---
+
 ## 🟢 Pickup — 2026-06-08 (eve·2) — PHASE 1 DATA-HONESTY CLEANUP shipped (main `a85ffa8`) · ⏭ Aden prod-eyeball
 
 **STATUS:** First slice of the data-gap roadmap (the "fix what's wrong on screen" phase, from the gap-bridging research `wf_625bacea`). Shipped + pushed; verify-green (217 unit / 8 smoke / build / lints). Independently adversarial-verified (an agent re-swept + caught 3 survivors I'd missed → fixed). **Copy/comments only — NO scoring change.**
@@ -248,6 +266,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
+- **080** `nmtc_lic_tracts.sql` — NEW table: the 34,992 §48(e) Cat 1 LIC tracts (geoid PK · county_fips · state · nmtc_pct) for the Phase-2 address→tract lookup. Additive (CREATE TABLE + public-read RLS). **⏳ Pending apply** → then `node scripts/seed-nmtc-lic.mjs --apply` populates it. Feature is county-fallback until both land.
 - **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID`. ✅ applied 2026-06-08 (Aden-confirmed this session). Optional follow-up: `VALIDATE CONSTRAINT` after a clean-data check.
 - **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
 - **077** `county_geospatial_flood.sql` — ADD flood columns on `county_geospatial_data` (Wave 3 FEMA flood). Additive/nullable. ✅ applied 2026-06-08 (Aden). (Cols renamed by 078.)
@@ -257,7 +276,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** none. (The NMTC LIC data refresh is a seed / admin-Refresh step, not a migration — no schema change; see top pickup.)
+- **Pending:** **080** (`nmtc_lic_tracts`, additive CREATE TABLE) — apply, then `node scripts/seed-nmtc-lic.mjs --apply` to populate the 34,992 tracts (Phase-2 per-tract LIC lookup; county-fallback until then).
 
 ---
 
