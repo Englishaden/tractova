@@ -4,9 +4,9 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-08 (eve·3) — PHASE 2 KEYSTONE: address→census-tract LIC lookup shipped (main `66ca515`) · ⏭ Aden: apply 080 + seed
+## 🟢 Pickup — 2026-06-08 (eve·3) — PHASE 2 KEYSTONE: address→census-tract LIC lookup shipped + LIVE (main `66ca515`; 080 applied + seeded) · ⏭ Aden prod-eyeball
 
-**STATUS:** The roadmap keystone — an OPTIONAL site address → census tract → **precise per-tract §48(e) LIC yes/no** (vs the county-binary that read eligible in ~88% of counties). Shipped + pushed; verify-green (225 unit / 8 smoke / build / lints). Independently adversarial-verified (honesty + SSRF + graceful-fallback + no-regression + score↔UI agreement; 1 cross-tab inconsistency caught → fixed). **⏭ DARK until Aden (1) applies migration 080, (2) runs `node scripts/seed-nmtc-lic.mjs --apply`** — null-safe / county-fallback until both land.
+**STATUS:** The roadmap keystone — an OPTIONAL site address → census tract → **precise per-tract §48(e) LIC yes/no** (vs the county-binary that read eligible in ~88% of counties). Shipped + pushed; verify-green (225 unit / 8 smoke / build / lints). Independently adversarial-verified (honesty + SSRF + graceful-fallback + no-regression + score↔UI agreement; 1 cross-tab inconsistency caught → fixed). **✅ LIVE — migration 080 applied + seeded 2026-06-09 (34,992 tracts; counties re-synced, 0 flips); end-to-end validated (the geocode→tract→isLicTract path: the verified DC/MD sample address resolves to tract 24033802405, which is in the table as LIC).** ⏭ Aden prod-eyeball with a real site address.
 
 **Honesty (hard constraints, all met):** it's the census TRACT the address geocodes to (a neighborhood, NOT the parcel) — every string says so; a green "qualifies" carries "screens eligibility, NOT the official IRS determination — verify with tax counsel." ONLY LIC is tract-resolved; Energy Community + flood + wetland STAY county-level (different geographies / parcel-delineation needed).
 
@@ -266,7 +266,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
-- **080** `nmtc_lic_tracts.sql` — NEW table: the 34,992 §48(e) Cat 1 LIC tracts (geoid PK · county_fips · state · nmtc_pct) for the Phase-2 address→tract lookup. Additive (CREATE TABLE + public-read RLS). **⏳ Pending apply** → then `node scripts/seed-nmtc-lic.mjs --apply` populates it. Feature is county-fallback until both land.
+- **080** `nmtc_lic_tracts.sql` — NEW table: the §48(e) Cat 1 LIC tracts (geoid PK · county_fips · state · nmtc_pct) for the Phase-2 address→tract lookup. Additive (CREATE TABLE + public-read RLS). ✅ applied + seeded 2026-06-09 (Aden applied the migration; `seed-nmtc-lic.mjs --apply` run + probe-confirmed = **34,992 tracts**).
 - **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID`. ✅ applied 2026-06-08 (Aden-confirmed this session). Optional follow-up: `VALIDATE CONSTRAINT` after a clean-data check.
 - **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
 - **077** `county_geospatial_flood.sql` — ADD flood columns on `county_geospatial_data` (Wave 3 FEMA flood). Additive/nullable. ✅ applied 2026-06-08 (Aden). (Cols renamed by 078.)
@@ -276,7 +276,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** **080** (`nmtc_lic_tracts`, additive CREATE TABLE) — apply, then `node scripts/seed-nmtc-lic.mjs --apply` to populate the 34,992 tracts (Phase-2 per-tract LIC lookup; county-fallback until then).
+- **Pending:** none.
 
 ---
 
