@@ -95,12 +95,12 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
           <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-gray-400">
             {(technology || '').toUpperCase()}
           </span>
-          {/* Live-IX indicator — present when ix_queue_data covers this state and
-              the queue-health signal blended into the IX sub-score. Currently
-              fires for ~8 top-CS-market states (CO/IL/MA/MD/ME/MN/NJ/NY); for
-              the rest, the IX score is curated from stateProgram.ixDifficulty
-              and this badge stays absent. Honest signal — no badge means
-              we didn't have live data, not that we're hiding something.
+          {/* Live-IX indicator — present when live ix_queue_data CONTEXT exists for
+              this state. It does NOT move the IX sub-score (ixLiveAdjustment is 0
+              today — no feed carries study-depth metrics). Fires for the 6 queue
+              states (CA/MD/NJ/NY/VA/WI); for the rest the IX score is curated from
+              stateProgram.ixDifficulty and this badge stays absent. Honest signal —
+              no badge means we didn't have live context, not that we're hiding something.
 
               Stale-data downgrade: when the underlying ISO scraper hasn't
               refreshed within 7 days (e.g. during upstream URL changes
@@ -158,10 +158,10 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                       </>
                     ) : (
                       <>
-                        <p>This state has current ISO/RTO queue-snapshot coverage. The Interconnection sub-score blends live signals on top of the curated <span className="font-mono">ixDifficulty</span> baseline.</p>
-                        <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — avg study months · total pending MW (weighted across utilities)</p>
-                        <p className="mt-0.5"><span className="text-amber-300 font-mono">CLAMP</span> — adjustment limited to ±10 so live signal can move the curated baseline meaningfully without dominating structural ISO context.</p>
-                        <p className="mt-1.5 text-gray-400">Absent badge = curated only. We don't fabricate live coverage where ISO scrapers haven't landed yet.</p>
+                        <p>This state has live distribution interconnection-queue data. It's shown as CONTEXT — the IX sub-score stays on the curated <span className="font-mono">ixDifficulty</span> baseline.</p>
+                        <p className="mt-1.5"><span className="text-teal-300 font-mono">SHOWS</span> — queue project counts / pending MW where the utility publishes them</p>
+                        <p className="mt-0.5"><span className="text-amber-300 font-mono">NOTE</span> — the ±10 queue-blend hook only fires on study-depth metrics (avg study months), which no feed carries today, so it does not move the score.</p>
+                        <p className="mt-1.5 text-gray-400">Absent badge = no live context. We don't fabricate live coverage where scrapers haven't landed yet.</p>
                       </>
                     )}
                   </TooltipContent>
@@ -171,9 +171,9 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
           })()}
           {/* Live-Site indicator (Path B). Fires when this county has a row in
               county_geospatial_data — derived from USFWS NWI wetlands + USDA
-              SSURGO prime farmland. SSURGO farmland is live weekly (49 states);
-              NWI wetlands are seeded for a partial set of counties, so a county
-              may be "live" on farmland while still scoring without wetland data.
+              SSURGO prime farmland + FEMA flood. NWI wetlands + flood now cover
+              all 3,143 counties; SSURGO farmland covers 2,405, so a county may be
+              "live" on wetland + flood while still missing the farmland layer.
               Absent = falling back to the curated booleans (or the site=60
               baseline) for this county. */}
           {coverage?.site === 'live' && (
@@ -197,7 +197,7 @@ export default function MarketPositionPanel({ stateProgram, programMap, technolo
                   <p>The Site Control sub-score is derived from authoritative federal geospatial sources for this county, not from a curated qualitative cell.</p>
                   <p className="mt-1.5"><span className="text-teal-300 font-mono">INPUTS</span> — wetland coverage % (USFWS NWI) · prime farmland % (USDA SSURGO)</p>
                   <p className="mt-0.5"><span className="text-amber-300 font-mono">THRESHOLDS</span> — wetland warning ≥ 15% · favorable land &lt; 25% prime farmland (high farmland = siting constraint)</p>
-                  <p className="mt-1.5 text-gray-400">SSURGO farmland is live weekly across 49 states; NWI wetlands are seeded for a partial set of counties, so coverage is mixed rather than universal.</p>
+                  <p className="mt-1.5 text-gray-400">NWI wetlands + FEMA flood cover all 3,143 counties; SSURGO prime farmland covers 2,405, so a county can score on wetland + flood while still missing the farmland layer. Both refresh on a weekly cron.</p>
                 </TooltipContent>
               </Tooltip>
             </>

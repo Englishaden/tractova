@@ -528,10 +528,10 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   //                match the honesty already shown on the revenue panel.
   let offtakeCoverage = 'researched'
   // Site coverage tier (highest-to-lowest authority):
-  //   'live'       = derived from county_geospatial_data (NWI wetlands +
-  //                  SSURGO prime farmland). SSURGO farmland is live weekly
-  //                  (49 states); NWI wetlands are seeded for a partial set of
-  //                  counties, so a county can be 'live' on farmland alone.
+  //   'live'       = derived from county_geospatial_data (NWI wetlands + SSURGO
+  //                  prime farmland + FEMA flood). NWI wetlands + flood cover all
+  //                  3,143 counties; SSURGO farmland covers 2,405, so a county
+  //                  can be 'live' on wetland + flood without the farmland layer.
   //   'researched' = curated boolean from county_intelligence (only ~18
   //                  states currently seeded). Used as fallback when the
   //                  live row hasn't been ingested yet for this county.
@@ -541,11 +541,12 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   const siteCoverage = hasLiveGeo
     ? 'live'
     : (countyData?.siteControl ? 'researched' : 'fallback')
-  // IX coverage flag: 'live' when ix_queue_data signals are blended into the
-  // score (8 states as of 2026-04-30 — top CS markets); 'curated' when the
-  // score is driven by stateProgram.ixDifficulty alone. Library calls don't
-  // pass ixQueueSummary so all Library scores stay 'curated' — opt-in
-  // architecture means no regression where the data isn't pre-fetched.
+  // IX coverage flag: 'live' when ix_queue_data CONTEXT exists for this state
+  // (6 distribution-DG queue states: CA/MD/NJ/NY/VA/WI; ~10 more carry a
+  // hosting-capacity map). It is CONTEXT only — ixLiveAdjustment returns 0 today
+  // (no feed carries study-depth metrics), so the score stays on ixDifficulty for
+  // every state. 'curated' otherwise. Library calls don't pass ixQueueSummary so
+  // all Library scores stay 'curated' — opt-in, no regression where data isn't fetched.
   const ixCoverage = (ixQueueSummary && ixQueueSummary.totalProjects > 0) ? 'live' : 'curated'
 
   // ── Offtake sub-score (driven by monetization STRUCTURE) ──
@@ -607,10 +608,10 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
   ix = { easy: 88, moderate: 65, hard: 38, very_hard: 14 }[stateProgram.ixDifficulty] ?? 50
   if (isLegacyBess) ix += 5                           // legacy storage — faster IX studies
   else if (architecture === 'PV + Storage') ix -= 5  // combined resource — more complex IX
-  // Live-blend: when ix_queue_data covers this state, layer the quantitative
-  // queue-health signal on top. Top-CS-markets coverage as of 2026-04-30:
-  // CO, IL, MA, MD, ME, MN, NJ, NY (~8 of 50). For the other 42, ixCoverage
-  // stays 'curated' and the score is unchanged.
+  // Live-blend HOOK: ixLiveAdjustment can nudge the baseline by ±10 IF a feed
+  // carries study-depth metrics — but today none do (all NULL by design, never
+  // fabricated), so it returns 0 and the score stays curated for ALL 50 states.
+  // Live ix_queue_data (6 states: CA/MD/NJ/NY/VA/WI) is surfaced as CONTEXT only.
   ix += ixLiveAdjustment(ixQueueSummary)
 
   // ── Site sub-score (adjusted by tech type) ──

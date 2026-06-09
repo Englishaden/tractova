@@ -281,8 +281,8 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
         <div>
           <p className="eyebrow-mono font-bold mb-1.5" style={{ color: '#1D4ED8' }}>How each tile is derived</p>
           <ul className="space-y-1 text-gray-700 list-none">
-            <li><span className="font-semibold text-ink">Land</span> · USDA SSURGO prime-farmland coverage (live, refreshed weekly) — high farmland flags a siting constraint; binary "available" assumes a typical greenfield/brownfield profile</li>
-            <li><span className="font-semibold text-ink">Wetland</span> · USFWS NWI (National Wetlands Inventory) — county-level coverage aggregated from NWI polygons, extended weekly via a throttle-safe cron (still partial — counties not yet reached score on SSURGO alone). Site-level wetlands always require a parcel delineation</li>
+            <li><span className="font-semibold text-ink">Land</span> · USDA SSURGO prime-farmland coverage (2,405 of 3,143 counties, refreshed weekly) — high farmland flags a siting constraint; binary "available" assumes a typical greenfield/brownfield profile</li>
+            <li><span className="font-semibold text-ink">Wetland</span> · USFWS NWI (National Wetlands Inventory) — county-level coverage aggregated from NWI polygons, now covering all 3,143 counties (built via a throttle-safe weekly cron). Site-level wetlands always require a parcel delineation</li>
             <li><span className="font-semibold text-ink">Flood</span> · FEMA National Risk Index (NRI) county flood risk — the worse of inland (riverine) + coastal. A Relatively-High / Very-High rating applies a site-score penalty (mitigable, so lighter than a wetland 404); county-level screening, verify the parcel's floodplain</li>
             <li><span className="font-semibold text-ink">Zoning</span> · surfaced when county code references solar overlay districts, agricultural setbacks, or special-use permits in our notes layer</li>
             <li><span className="font-semibold text-ink">Hosting</span> · proxy from IX ease score until utility hosting-capacity maps are integrated per-territory</li>

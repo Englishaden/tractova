@@ -14,7 +14,7 @@ export const COVERAGE_TOOLTIPS = {
   live: {
     label: 'Live data',
     title: 'Live data',
-    body: 'Score is driven by real-time data — IX queue scrapes (8 CS states), county geospatial (USDA SSURGO prime farmland, live weekly across 49 states; USFWS NWI wetlands, seeded for a partial set of counties), or live news/PUC ingest. Refreshed on cron; data-age stamps surface staleness when scrapers lag.',
+    body: 'Score is driven by live data refreshed on cron. Site: county geospatial — USFWS NWI wetlands (all 3,143 counties) + USDA SSURGO farmland (2,405) + FEMA flood — drives the site sub-score. Interconnection: live queue (6 states) + grid-headroom (~10 states) feeds are shown as CONTEXT, not blended into the score. Data-age stamps surface staleness when scrapers lag.',
   },
   researched: {
     label: 'Researched',
@@ -24,7 +24,7 @@ export const COVERAGE_TOOLTIPS = {
   curated: {
     label: 'Curated baseline',
     title: 'Curated baseline',
-    body: 'Score uses the state-level curated baseline (e.g. ixDifficulty tier from state_programs). All 50 states have a curated value; the live-blend overlay applies only where ix_queue_data is wired.',
+    body: 'Score uses the state-level curated baseline (e.g. the ixDifficulty tier from state_programs). All 50 states have a curated value. Where ix_queue_data is wired, live queue data is shown as context only — it does not adjust the score (the ±10 blend hook stays at 0 today; no feed carries study-depth metrics).',
   },
   fallback: {
     label: 'Fallback estimate',

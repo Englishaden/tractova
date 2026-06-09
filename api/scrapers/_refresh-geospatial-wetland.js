@@ -1,14 +1,15 @@
 /**
  * Incremental USFWS NWI wetland refresh — the "NWI cron" (2026-06 audit, Wave 3).
  *
- * NWI wetland coverage had been a one-time LOCAL seed (~700 of 3,142 counties)
- * because (1) per-county NWI ArcGIS queries take ~5-7s — a full pass is ~1.5h,
- * far past Vercel's 300s cron limit — and (2) NWI's server hard-throttles under
- * sustained load (the original PARALLEL=4 bulk seed got throttled after ~700
- * counties). So this is NOT a full-pass cron. Each run nibbles a small,
+ * NWI wetland coverage is now COMPLETE (all 3,143 counties). It began as a
+ * one-time LOCAL seed that stalled at ~700 because (1) per-county NWI ArcGIS
+ * queries take ~5-7s — a full pass is ~1.5h, far past Vercel's 300s cron limit —
+ * and (2) NWI's server hard-throttles under sustained load (the original
+ * PARALLEL=4 bulk seed got throttled after ~700). So this is NOT a full-pass
+ * cron. Each run nibbles a small,
  * throttle-safe BATCH of the STALEST counties (wetland missing first, then
  * oldest), at PARALLEL=2, under a hard time budget — resumable, so weekly runs
- * steadily extend + freshen coverage. The bulk backfill of the remaining gap
+ * steadily freshened + completed coverage. A bulk backfill, if ever needed again,
  * stays the local script (scripts/seed-county-geospatial-nwi.mjs), which has no
  * 300s ceiling.
  *

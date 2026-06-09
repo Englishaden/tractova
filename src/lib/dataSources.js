@@ -132,7 +132,7 @@ export const DATA_SOURCES = [
     source: 'USDA SSURGO via Soil Data Access',
     url: 'https://sdmdataaccess.sc.egov.usda.gov/',
     tier: 'B+',
-    provides: 'County prime-farmland % — LIVE (refreshed weekly, 49 states; AK absent, CT/RI averaged).',
+    provides: 'County prime-farmland % — LIVE (2,405 of 3,143 counties, refreshed weekly; AK absent + some areas unmapped — those counties score on wetland + flood).',
     synthesis: 'HIGH farmland coverage is treated as a siting CONSTRAINT (FPPA conversion review, ag-preservation ordinances), not an opportunity; ≥25% flags the constraint. The favorable/unfavorable threshold is Tractova editorial.',
   },
   {
@@ -140,9 +140,9 @@ export const DATA_SOURCES = [
     component: 'Wetland coverage',
     source: 'USFWS National Wetlands Inventory',
     url: 'https://www.fws.gov/program/national-wetlands-inventory',
-    tier: 'C',
+    tier: 'B-',
     provides: 'County wetland-richness index from NWI polygons (overlapping classifications can exceed 100%). ≥15% triggers a wetland warning + Section 404 flag.',
-    synthesis: 'PARTIAL but growing — NWI now refreshes on a throttle-safe weekly cron that extends/freshens a batch of counties per run (bulk backfill still runs from a local script, since NWI rate-limits a full pass), climbing from the original ~700 toward all 3,142. Counties not yet reached score on SSURGO farmland alone meanwhile. The 15% threshold is Tractova editorial; always confirm with a parcel-level delineation.',
+    synthesis: 'COMPLETE — all 3,143 counties (a throttle-safe weekly cron freshens batches; the original ~700-county local seed has fully caught up). The richness index sums overlapping NWI classifications so it can exceed 100% — wetland_category is the cleaner categorical signal driving the score. The 15% threshold is Tractova editorial; always confirm with a parcel-level delineation.',
   },
   {
     pillar: 'Site',

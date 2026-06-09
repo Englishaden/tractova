@@ -225,7 +225,7 @@ export default function DevFeasibilityView({
       />
 
       {/* The editorial Timeline-to-COD phase Gantt was removed in the 2026-05
-          signal pivot — only the IX study window was real (8 states); the
+          signal pivot — only the IX study window was real (a few states); the
           permit/construct/energization segments were uniform editorial guesses.
           COD's effect now lives where it's real: the Policy & Timing pillar
           (federal §48E/§45Y cliff) + the IX lever (queue-vs-runway). */}

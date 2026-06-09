@@ -25,8 +25,8 @@ export const GLOSSARY_DEFINITIONS = {
   'IX': {
     title: 'Interconnection (IX)',
     short: 'Utility queue position, ease score, and typical study timeline for the project\'s point of connection.',
-    long: 'The pillar that answers "can this project get on the grid in a reasonable timeframe?" Combines ISO/RTO queue data (live for 8 top CS markets) with curated state-level ixDifficulty baselines for the other 42 states. Live-blend overlay applies a quantitative adjustment from queue MW + average study months; clamped to ±10 so live signals never dominate structural ISO context.',
-    inputs: 'ISO/RTO queue scrapers (live) · stateProgram.ixDifficulty (curated baseline)',
+    long: 'The pillar that answers "can this project get on the grid in a reasonable timeframe?" The score is the curated state-level ixDifficulty baseline (all 50 states). Live distribution-queue data (6 states: CA/MD/NJ/NY/VA/WI) + grid-headroom maps (~10 states) are shown as CONTEXT — they do NOT move the score: the ±10 queue-blend hook only fires on study-depth metrics (avg study months), which no feed carries today (NULL by design, never fabricated).',
+    inputs: 'stateProgram.ixDifficulty (curated baseline = the score) · ix_queue_data + hosting_capacity_data (live context)',
   },
   'Offtake': {
     title: 'Offtake',
@@ -204,9 +204,9 @@ export const GLOSSARY_DEFINITIONS = {
   },
   'IX · Live': {
     title: 'IX · Live',
-    short: 'This state has live interconnection data feeding the IX card — not a curated-only baseline.',
-    long: 'When this badge appears, the Interconnection card is backed by live data rather than a curated-only baseline. The legacy form (CO, IL, MA, MD, ME, MN, NJ) blends ISO queue signals (avg study months, total MW pending) onto the curated ixDifficulty baseline, clamped to ±10. New York uses a different, distribution-level signal — see "CS Pipeline · Live".',
-    inputs: 'ix_queue_data table · curated ixDifficulty baseline · clamp(±10) on legacy ISO blend',
+    short: 'This state has live interconnection CONTEXT on the IX card — the score itself stays on the curated baseline.',
+    long: 'When this badge appears, live interconnection data is shown as CONTEXT for this state: 6 states have distribution-DG queue data (CA / MD / NJ / NY / VA / WI) and ~10 carry a grid-headroom (hosting-capacity) map. It does NOT move the IX score — the ±10 queue-blend hook only fires if a feed carries study-depth metrics (avg study months, pending MW), but none do today (NULL by design, never fabricated), so the score stays on the curated ixDifficulty baseline for every state. New York uses a distribution-level CS deployment-pipeline signal — see "CS Pipeline · Live".',
+    inputs: 'ix_queue_data + hosting_capacity_data (context) · curated ixDifficulty baseline (the score) · ±10 blend hook unused today',
   },
   'CS Pipeline · Live': {
     title: 'CS Pipeline · Live',
@@ -223,7 +223,7 @@ export const GLOSSARY_DEFINITIONS = {
   'Site · Live': {
     title: 'Site · Live',
     short: 'This county has live geospatial data (NWI wetlands + SSURGO farmland) driving the Site Control sub-score.',
-    long: 'When this badge appears, the Site Control sub-score is derived from authoritative federal sources for this specific county, not from a curated qualitative cell. Inputs are wetland coverage % (USFWS NWI) and prime farmland % (USDA SSURGO). Thresholds: a wetland warning fires at ≥ 15% NWI coverage; favorable (low-constraint) land is < 25% prime farmland — HIGH farmland is a siting constraint (FPPA conversion review, ag-preservation), not an opportunity. Coverage is mixed: SSURGO farmland is live weekly across 49 states, while NWI wetlands are seeded for a partial set of counties, so some counties score on farmland alone until the wetland seed reaches them.',
+    long: 'When this badge appears, the Site Control sub-score is derived from authoritative federal sources for this specific county, not from a curated qualitative cell. Inputs are wetland coverage % (USFWS NWI) and prime farmland % (USDA SSURGO). Thresholds: a wetland warning fires at ≥ 15% NWI coverage; favorable (low-constraint) land is < 25% prime farmland — HIGH farmland is a siting constraint (FPPA conversion review, ag-preservation), not an opportunity. Coverage: NWI wetlands + FEMA flood now cover all 3,143 counties; SSURGO farmland covers 2,405, so some counties score on wetland + flood until SSURGO reaches them.',
     inputs: 'USFWS NWI · USDA SSURGO · county_geospatial_data',
   },
   'Scenario Studio': {
