@@ -3,7 +3,7 @@
  * Action: 'news-summary'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { NEWS_SUMMARY_PROMPT } from '../prompts/news-summary.js'
+import { NEWS_SUMMARY_PROMPT } from '../_prompts/news-summary.js'
 
 export default async function handleNewsSummary(body, res) {
   const { items, state } = body

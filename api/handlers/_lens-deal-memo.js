@@ -3,7 +3,7 @@
  * Action: 'deal-memo'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { DEAL_MEMO_PROMPT } from '../prompts/deal-memo.js'
+import { DEAL_MEMO_PROMPT } from '../_prompts/deal-memo.js'
 import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from '../lib/_aiCacheLayer.js'
 import { buildContext } from '../lens-insight.js'
 

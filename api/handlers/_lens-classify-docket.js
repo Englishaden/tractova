@@ -3,7 +3,7 @@
  * Action: 'classify-docket'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { CLASSIFY_DOCKET_PROMPT } from '../prompts/classify-docket.js'
+import { CLASSIFY_DOCKET_PROMPT } from '../_prompts/classify-docket.js'
 import { buildCacheKey, cacheGet, cacheSet } from '../lib/_aiCacheLayer.js'
 import { expandIfUrl } from '../lib/_urlFetch.js'
 

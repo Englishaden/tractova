@@ -10,7 +10,7 @@
 //   - Fail (exit 1): a file grows beyond its budget (or its allowlist
 //     ceiling). Output names the file + the breach + suggested action.
 //
-// Subdirs (api/scrapers/, api/prompts/, api/lib/, src/components/,
+// Subdirs (api/scrapers/, api/_prompts/, api/lib/, src/components/,
 // src/components/admin/, src/lib/) are NOT budgeted here — they're
 // already small post-decomposition and a per-file budget there would
 // be noise. If a subdir file grows large, that's a signal to extract

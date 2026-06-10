@@ -16,7 +16,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { buildCacheKey, cacheGet, cacheSet } from '../lib/_aiCacheLayer.js'
 import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
-import { MARKET_BRIEF_PROMPT } from '../prompts/market-brief.js'
+import { MARKET_BRIEF_PROMPT } from '../_prompts/market-brief.js'
 
 // ISO week (1-53) — matches the plan's `market_brief::YYYY-WW` cache key.
 // Using ISO week (Mon-start) instead of calendar week so the brief rolls over

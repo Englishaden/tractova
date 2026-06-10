@@ -6,7 +6,7 @@
  * an api/*.js handler ships to prod undetected — and surfaces as HTTP 500
  * for every route on the affected file.
  *
- * Recurses one level into api/scrapers/, api/lib/, api/prompts/ etc. as
+ * Recurses one level into api/scrapers/, api/lib/, api/_prompts/ etc. as
  * the API tree decomposes. Wired into `npm run verify` so it runs before
  * the smoke pass.
  */

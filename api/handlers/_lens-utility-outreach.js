@@ -3,7 +3,7 @@
  * Action: 'utility-outreach'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { UTILITY_OUTREACH_PROMPT } from '../prompts/utility-outreach.js'
+import { UTILITY_OUTREACH_PROMPT } from '../_prompts/utility-outreach.js'
 import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from '../lib/_aiCacheLayer.js'
 import { buildContext } from '../lens-insight.js'
 

@@ -13,7 +13,7 @@
  */
 import crypto from 'node:crypto'
 import Anthropic from '@anthropic-ai/sdk'
-import { POLICY_CLASSIFY_PROMPT } from '../prompts/policy-classify.js'
+import { POLICY_CLASSIFY_PROMPT } from '../_prompts/policy-classify.js'
 import { buildCacheKey, cacheGet, cacheSet, supabaseAdmin } from '../lib/_aiCacheLayer.js'
 import { expandIfUrl } from '../lib/_urlFetch.js'
 

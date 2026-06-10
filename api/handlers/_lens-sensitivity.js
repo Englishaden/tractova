@@ -3,7 +3,7 @@
  * Action: 'sensitivity'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { SENSITIVITY_PROMPT } from '../prompts/sensitivity.js'
+import { SENSITIVITY_PROMPT } from '../_prompts/sensitivity.js'
 
 export default async function handleSensitivity(body, res) {
   const { state, county, mw, stage, technology, scenario, baseScore, newScore, override, stateProgram, countyData } = body

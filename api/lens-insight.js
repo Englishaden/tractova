@@ -4,7 +4,7 @@ import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from './lib/_aiCach
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { isAdminFromBearer } from './_admin-auth.js'
 import { axiomLog } from './lib/_axiomLog.js'
-import { SYSTEM_PROMPT } from './prompts/system.js'
+import { SYSTEM_PROMPT } from './_prompts/system.js'
 import handlePortfolio from './handlers/_lens-portfolio.js'
 import handleCompare from './handlers/_lens-compare.js'
 import handleSensitivity from './handlers/_lens-sensitivity.js'

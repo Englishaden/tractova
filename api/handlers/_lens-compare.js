@@ -3,7 +3,7 @@
  * Action: 'compare'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { COMPARE_PROMPT } from '../prompts/compare.js'
+import { COMPARE_PROMPT } from '../_prompts/compare.js'
 
 export default async function handleCompare(body, res) {
   const { projects } = body

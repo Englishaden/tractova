@@ -3,7 +3,7 @@
  * Action: 'portfolio'
  */
 import Anthropic from '@anthropic-ai/sdk'
-import { PORTFOLIO_PROMPT } from '../prompts/portfolio.js'
+import { PORTFOLIO_PROMPT } from '../_prompts/portfolio.js'
 
 export default async function handlePortfolio(body, res) {
   const { projects } = body
