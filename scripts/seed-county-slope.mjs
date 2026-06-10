@@ -135,7 +135,41 @@ ${rows.map(r => JSON.stringify(r)).join(',\n')}
 }
 function writeArtifactFile(body) { writeFileSync(OUT, body) }
 
+// --apply: set up the DB client UP FRONT (fail fast on missing creds before
+// doing hours of fetching) + checkpoint each batch to the DB as we go, so a
+// multi-hour run stays crash-safe + resumable on BOTH the artifact and the DB
+// (not a single write only at the very end).
+let supabase = null
+if (APPLY) {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) { console.error('✗ --apply needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY'); process.exit(1) }
+  supabase = createClient(url, key, { auth: { persistSession: false } })
+}
+let upserted = 0
+async function flushUpsert(batch) {
+  if (!supabase || batch.length === 0) return
+  const now = new Date().toISOString()
+  const rows = batch.map(r => ({
+    county_fips: r.county_fips, state: r.state,
+    slope_developable_pct: r.slope_developable_pct, slope_mean_deg: r.slope_mean_deg,
+    slope_last_updated: now,
+  }))
+  const { error } = await supabase.from('county_geospatial_data').upsert(rows, { onConflict: 'county_fips' })
+  if (error) { console.error(`✗ upsert (${rows.length} rows): ${error.message}`); process.exit(1) }
+  upserted += rows.length
+}
+
+// Re-sync any already-done rows (resumed from the artifact) to the DB up front —
+// the initial 14-county sample was seeded WITHOUT --apply, so it's in the
+// artifact but not yet in county_geospatial_data. Idempotent.
+if (APPLY && done.size > 0) {
+  await flushUpsert([...done.values()])
+  console.log(`   re-synced ${upserted} already-done counties to DB before the new fetch`)
+}
+
 let okN = 0, failN = 0
+let pending = []
 for (let i = 0; i < todo.length; i++) {
   const t = todo[i]
   let geom
@@ -148,36 +182,21 @@ for (let i = 0; i < todo.length; i++) {
     res = await slopeFor(geom.geometry, pixelFor(t.sqmi) * 2)
   }
   if (res.error) { console.log(`✗ ${t.fips} (${t.state}, ${t.sqmi}mi²): ${res.error}`); failN++; continue }
-  done.set(t.fips, {
+  const row = {
     county_fips: t.fips,
     state: t.state,
     slope_developable_pct: res.slope.developablePct,
     slope_mean_deg: res.slope.meanDeg,
-  })
+  }
+  done.set(t.fips, row)
+  pending.push(row)
   okN++
-  if (okN % 20 === 0) { writeArtifact(); console.log(`   …${okN} done (${t.fips} ${res.slope.developablePct}% dev)`) }
+  if (okN % 20 === 0) {
+    writeArtifact()
+    await flushUpsert(pending); pending = []
+    console.log(`   …${okN}/${todo.length} done${supabase ? ` · ${upserted} upserted` : ''} (${t.fips} ${res.slope.developablePct}% dev)`)
+  }
 }
 writeArtifact()
-console.log(`✓ ${okN} computed · ${failN} failed · artifact now ${done.size}/${targets.length} counties → ${OUT}`)
-
-// ── optional --apply ──
-if (!APPLY) { console.log('\n(re-run with --apply to upsert county_geospatial_data)'); process.exit(0) }
-const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!url || !key) { console.error('✗ --apply needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY'); process.exit(1) }
-const supabase = createClient(url, key, { auth: { persistSession: false } })
-const now = new Date().toISOString()
-const upsertRows = [...done.values()].map(r => ({
-  county_fips: r.county_fips, state: r.state,
-  slope_developable_pct: r.slope_developable_pct, slope_mean_deg: r.slope_mean_deg,
-  slope_last_updated: now,
-}))
-const BATCH = 500
-let up = 0
-for (let i = 0; i < upsertRows.length; i += BATCH) {
-  const slice = upsertRows.slice(i, i + BATCH)
-  const { error } = await supabase.from('county_geospatial_data').upsert(slice, { onConflict: 'county_fips' })
-  if (error) { console.error(`✗ upsert batch ${i / BATCH}: ${error.message}`); process.exit(1) }
-  up += slice.length
-}
-console.log(`✓ Upserted ${up} counties' slope into county_geospatial_data`)
+await flushUpsert(pending)
+console.log(`✓ ${okN} computed · ${failN} failed · artifact ${done.size}/${targets.length} counties${supabase ? ` · ${upserted} upserted to DB` : ''} → ${OUT}`)
