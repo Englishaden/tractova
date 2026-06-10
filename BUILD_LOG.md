@@ -6,6 +6,8 @@
 
 ## 🟢 Pickup — 2026-06-10 (night) — DATA-PLAN PHASES 3 + 4 BUILT OUT (HUD-QCT fix + slope + protected + EIA-offtake unify + IX upload) · ⏭ Aden review/apply, THEN new session = security analysis
 
+> **⚠ Deploy-unblock (`dec9500`):** the Phase-3/4 pushes hit a Vercel Hobby "No more than 12 Serverless Functions" build failure. Root cause was PRE-EXISTING — the 11 `api/prompts/*.js` prompt-constant modules were non-`_`-prefixed, so Vercel counted them as functions (it counts non-`_` files **recursively**, not just top-level — the old memory was wrong). Fix: renamed the dir to `api/_prompts/` (excludes all 11) + updated imports. Back to exactly 12 functions; prod deploys again. Memory `project_vercel_hobby_function_cap` corrected.
+
 **The whole remaining data roadmap shipped this session (5 commits `c596376`→`ee5d2b2`, all pushed, verify-green: 275 unit / 8 smoke / build / all lints).** Aden's call: build out all phases, then he reviews + moves to a NEW session for a data-security + cyber-threat-detection plan (saved to memory `project_security_analysis_session`).
 
 **Shipped:**
