@@ -4,6 +4,31 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-10 (night) — DATA-PLAN PHASES 3 + 4 BUILT OUT (HUD-QCT fix + slope + protected + EIA-offtake unify + IX upload) · ⏭ Aden review/apply, THEN new session = security analysis
+
+**The whole remaining data roadmap shipped this session (5 commits `c596376`→`ee5d2b2`, all pushed, verify-green: 275 unit / 8 smoke / build / all lints).** Aden's call: build out all phases, then he reviews + moves to a NEW session for a data-security + cyber-threat-detection plan (saved to memory `project_security_analysis_session`).
+
+**Shipped:**
+1. **HUD-QCT "Checking forever" fix (`c596376`)** — `IncentiveStackPanel.jsx`: `null` (county undesignated) now reads as "No QCT/DDA", only `undefined` keeps the LoadingDot. Same null-vs-undefined fix on the §48(e) LIC row.
+2. **Phase 3 — slope + protected-land site layers (`b0decac`)**, both STATIC committed-artifact sources (mirror nmtc_lic; `refresh-data` sources `slope`/`protected_land`, BUNDLE_EXCLUDED, no new top-level api file → fn-cap safe):
+   - **Slope (USGS 3DEP)** — `slope_developable_pct` (% county ≤10% grade) via 3DEP "Slope Degrees" histogram. `_slope3dep.js` (+9 tests), `seed-county-slope.mjs` (resumable, area-tiered pixel). **⚠ Artifact is a 14-county SAMPLE — full 3,142 backfill is GATED on a fetch-budget OK (one 3DEP call/county > the 50-fetch breaker).** `_refresh-slope.js` tolerates the partial artifact.
+   - **Protected land (USGS PAD-US 4.1)** — `protected_area_pct` (GAP 1+2 ÷ Census Gazetteer land). `_padusProtected.js` (+13 tests), `seed-padus-protected.mjs`. **FULL coverage: 3,222/3,222 counties committed** (validated: Inyo/Death Valley 66%, Glacier/Flathead 42%, flat IA/IL ~1%).
+   - **Score:** `computeSiteSubScore` gains slope + protected penalties (additive like flood). **⚠ DEFAULT WEIGHTS 8 pts each — NEED ADEN'S SIGN-OFF** (documented inline next to the 12-pt flood penalty). null (unseeded) → no penalty (graceful pre-migration). UI: SiteControlCard now shows Flood/Slope/Protected tiles (Flood was scored-but-invisible) + dynamic risk count; /methodology + 2 glossary terms.
+3. **Phase 4b — EIA offtake unify (`6536b34`)** — extracted `api/lib/_eiaCommercialRates.js` (shared fetch + parse + the disclosed offtake formula that was comment-only); refactored `refresh-substations.js` to use it (the "unify, don't duplicate" constraint); `seed-offtake-rates.mjs` = offline all-50 re-source + drift report (key-gated, graceful skip). Offtake SCORE stays on the curated `CI_OFFTAKE_SCORES` (no silent input swap — preserves hand-tuned market depth). Also fixed the stale glossary "12 high-rate states" → all-50.
+4. **Phase 4a — manual IX upload (`6b7d029`)** — gated states (NJ ACE/ME CMP/MN Xcel/HI HECO/OR OASIS): admin CSV → `refresh-data?source=ix_manual` (admin JWT, POST body, TEXT-only parse — no workbook) → `ix_queue_data` (`data_source:'manual'`). `_ixManual.js` (+9 tests) + `IxManualUpload.jsx` panel in the IX Queue admin tab. No migration (data_source already allows 'manual'). Manual rows = queue CONTEXT (score unaffected).
+5. **Loose ends (`ee5d2b2`):** glossary 'Offtake' fixed (above); `.playwright-mcp/` + the Markets notes `.txt` gitignored (the `git add -A` nuisance).
+
+**⏭ ADEN — review/apply before the security session:**
+- **Apply migration 081** (additive nullable slope/protected cols on `county_geospatial_data`). Everything no-ops gracefully until then.
+- **Sign off on the 4 Phase-3 penalty weights** (slope 8, protected 8 — or retune in `scoreEngine.js`).
+- **After 081:** sync protected land — `node scripts/seed-padus-protected.mjs --apply` (or admin Refresh `protected_land`); the artifact is already full-coverage.
+- **Green-light the slope backfill** (fetch budget) → `node scripts/seed-county-slope.mjs --all --apply` (~3,142 3DEP calls, ~1h). Until then slope is live for 14 sample counties only.
+- **prod-eyeball:** Lens Site pillar (new tiles + methodology), Incentives panel (HUD-QCT row), IX Queue admin tab (manual upload).
+
+**Deferred/unchanged:** paid address typeahead (Aden's call). Offtake live DB-fed scoring deliberately NOT built (would flatten hand-tuned market depth + silently swap inputs).
+
+---
+
 ## 🟢 Pickup — 2026-06-10 (eve) — PRE-RUN ADDRESS VALIDATION shipped (subsumes follow-up #1) · ⏭ HUD-QCT 1-liner, then Phase 3/4
 
 **Shipped this session — pre-run address resolution (resolve-on-blur).** Aden's ask: flag a bad address BEFORE the Lens runs (so no wasted ~10–30s runs) + make county and address agree (data validity). Decisions: **free resolve-on-blur** (no paid typeahead) + **address-wins, with confirm**. Implementation:
@@ -284,6 +309,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
+- **081** `county_slope_protected.sql` — ADD slope (`slope_developable_pct`/`slope_mean_deg`) + protected-land (`protected_area_pct`/`protected_gap123_pct`) columns on `county_geospatial_data` (Phase 3 site layers). Additive/nullable; ingest no-ops + score applies no penalty until applied. ⏳ **PENDING Aden's apply.** After apply: `seed-padus-protected.mjs --apply` (full) + `seed-county-slope.mjs --all --apply` (gated on fetch-budget OK).
 - **080** `nmtc_lic_tracts.sql` — NEW table: the §48(e) Cat 1 LIC tracts (geoid PK · county_fips · state · nmtc_pct) for the Phase-2 address→tract lookup. Additive (CREATE TABLE + public-read RLS). ✅ applied + seeded 2026-06-09 (Aden applied the migration; `seed-nmtc-lic.mjs --apply` run + probe-confirmed = **34,992 tracts**).
 - **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID`. ✅ applied 2026-06-08 (Aden-confirmed this session). Optional follow-up: `VALIDATE CONSTRAINT` after a clean-data check.
 - **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
@@ -294,7 +320,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** none.
+- **Pending:** 081 (Phase 3 slope/protected cols — additive, safe; everything no-ops until applied).
 
 ---
 
@@ -302,7 +328,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 ### P1 — next data/product work
 - **Net Billing economics** — source per-state export-credit basis (avoided-cost / ACC schedules), curated state-by-state starting with states that publish it (CA NEM 3.0 ACC). Until then Net Billing stays honestly gated (offtake fallback baseline, "not modeled"). DSIRE is paid as of May 2026, so sourcing is per-state PUC tariff filings.
-- **Manual-data IX ingest pipeline** for the gated states (NJ ACE, ME CMP, MN Xcel, HI HECO, OR OASIS) — upload → Supabase Storage → parse → `ix_queue_data`.
+- ~~Manual-data IX ingest pipeline for the gated states~~ — ✅ SHIPPED 2026-06-10 (Phase 4a, `6b7d029`): admin CSV → `refresh-data?source=ix_manual` → `ix_queue_data` (text-only parse, no Storage needed). Just needs Aden to actually source + upload each gated state's queue file.
 
 ### Accepted dependency risks (dependabot keeps flagging — rationale here)
 | Package | Severity | Why accepted | Resolution path |
