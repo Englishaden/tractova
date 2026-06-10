@@ -37,6 +37,8 @@ import CollapsibleSection from '../components/CollapsibleSection'
 import LensOverlay, { LENS_OVERLAY_STYLES } from '../components/LensOverlay'
 import FieldSelect from '../components/FieldSelect'
 import CountyCombobox from '../components/CountyCombobox'
+import AddressField from '../components/lens/AddressField'
+import { classifyCountyMatch } from '../lib/addressCounty'
 import HoverBorderGradient from '../components/ui/HoverBorderGradient'
 import TealRail from '../components/ui/TealRail'
 import AnimatedList from '../components/ui/AnimatedList'
@@ -304,6 +306,13 @@ function SearchContent() {
     address: '',   // optional site address — resolves to a census tract for the exact §48(e) LIC determination
   })
 
+  // Pre-run address resolution, lifted from AddressField. Shape:
+  //   { address, status: 'resolved'|'mismatch'|'unresolved', result } | null
+  // handleSubmit reuses this (keyed on the exact address string) so the run
+  // doesn't re-call the flaky geocoder, and so a pending county mismatch drops
+  // the address to coherent county-level instead of mixing two places.
+  const [addrResolve, setAddrResolve] = useState(null)
+
   // Phase 2C — `?fromProject=<id>` deep-link. The Cmd-K `:rerun <project>`
   // verb and the Library "Re-run with latest data" CTA both route here.
   // Three things happen on top of pre-fill:
@@ -482,6 +491,30 @@ function SearchContent() {
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }))
 
+  // Bound resolver handed to AddressField for on-blur (pre-run) resolution.
+  // Fetches a live access token per call (the session can refresh while the tab
+  // is idle) and degrades to null on any failure — AddressField treats null as
+  // "leave as-is", so a transient hiccup never blocks the field.
+  const resolveAddress = async (address, signal) => {
+    if (!LIC_TRACT_LOOKUP) return null
+    const { data: { session } } = await supabase.auth.getSession()
+    const accessToken = session?.access_token ?? ''
+    if (!accessToken) return null
+    return resolveAddressTract({ address, accessToken, signal })
+  }
+
+  // Address-wins: the entered address resolves to a different county than the
+  // one picked → adopt the address's county (and state, if it differs) so the
+  // whole composite is built off one place. The combobox value is the bare
+  // county name, which resolveCountyFips() accepts.
+  const handleSwitchCounty = (addrStateId, addrCountyName) => {
+    setForm((f) => ({ ...f, state: addrStateId || f.state, county: addrCountyName }))
+  }
+  const handleClearAddress = () => {
+    setForm((f) => ({ ...f, address: '' }))
+    setAddrResolve(null)
+  }
+
   // Auto-submit when the URL carries enough context to run the analysis
   // (state + county + mw). Used by:
   //   - Library card "Re-Analyze in Lens" link
@@ -584,12 +617,35 @@ function SearchContent() {
       abortRef.current = new AbortController()
       let aiInsight = null
       let tractResolve = null
+
+      // Tract resolution for the run. Prefer the pre-run (on-blur) resolution
+      // already settled for this exact address — no second geocoder call, and
+      // the address-wins county decision is already baked in:
+      //   'resolved'   → apply the tract.
+      //   'unresolved' → pass the {ok:false} so the report shows the county-level note.
+      //   'mismatch'   → drop to null = coherent county-level for the SELECTED county
+      //                  (never mix the address's tract into the wrong county's composite).
+      // Fallback (typed + ran before blur settled): live-resolve, then apply the
+      // same county-consistency check inline so the run-time path can't reintroduce a mismatch.
+      const addr = LIC_TRACT_LOOKUP ? (form.address?.trim() || '') : ''
+      let tractPromise
+      if (!addr) {
+        tractPromise = Promise.resolve(null)
+      } else if (addrResolve && addrResolve.address === addr) {
+        tractPromise = Promise.resolve(addrResolve.status === 'mismatch' ? null : addrResolve.result)
+      } else {
+        tractPromise = resolveAddressTract({ address: addr, accessToken, signal: abortRef.current.signal })
+          .then((res) => {
+            if (!res?.ok) return res || null
+            return classifyCountyMatch(res, form.state, form.county).verdict === 'mismatch' ? null : res
+          })
+          .catch(() => null)
+      }
+
       try {
         const [aiResult, tractRes] = await Promise.all([
           fetchAIInsight({ form, stateProgram, countyData, revenueStack, runway, ixQueue: ixQueueSummary, accessToken, signal: abortRef.current.signal }),
-          (LIC_TRACT_LOOKUP && form.address && form.address.trim())
-            ? resolveAddressTract({ address: form.address.trim(), accessToken, signal: abortRef.current.signal })
-            : Promise.resolve(null),
+          tractPromise,
           new Promise(resolve => setTimeout(resolve, 800)),
         ])
         aiInsight = aiResult?.insight ?? null
@@ -722,8 +778,9 @@ function SearchContent() {
 
   const handleClearAll = () => {
     const arch = getStickyArchitecture(), struct = getStickyStructure()
-    setForm({ state: '', county: '', mw: '', stage: '', architecture: arch, structure: struct, technology: composeTechnology(arch, struct) })
+    setForm({ state: '', county: '', mw: '', stage: '', architecture: arch, structure: struct, technology: composeTechnology(arch, struct), codYear: '', address: '' })
     setResults(null)
+    setAddrResolve(null)
     setConfirmClear(false)
     sessionStorage.removeItem('tractova_lens_form')
     sessionStorage.removeItem('tractova_lens_results')
@@ -928,21 +985,19 @@ function SearchContent() {
               {LIC_TRACT_LOOKUP && (
                 /* Optional site address — resolves to its census tract for the EXACT
                    §48(e) LIC determination (vs the county-level "contains LIC tracts").
-                   Blank → county-level, unchanged. Full-width row; never blocks Run. */
-                <div className="sm:col-span-2 md:col-span-3 bg-white rounded-lg border border-gray-200 px-3.5 pt-2.5 pb-2 shadow-xs transition-all focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-500/15">
-                  <label className={labelCls + ' flex items-center gap-1.5'}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                    Site address <span className="text-gray-400 font-normal normal-case tracking-normal">— optional, for the exact LIC tract</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={form.address}
-                    onChange={set('address')}
-                    placeholder="e.g. 100 Main St, Springfield, MA"
-                    autoComplete="off"
-                    className={inputCls + ' w-full'}
-                  />
-                </div>
+                   Blank → county-level, unchanged. Resolves on blur so an unresolved
+                   address or a county mismatch is flagged BEFORE the run, not after a
+                   wasted 10–30s report. Never blocks Run. */
+                <AddressField
+                  value={form.address}
+                  onChange={set('address')}
+                  stateId={form.state}
+                  county={form.county}
+                  resolveAddress={resolveAddress}
+                  onResolveStateChange={setAddrResolve}
+                  onSwitchCounty={handleSwitchCounty}
+                  onClearAddress={handleClearAddress}
+                />
               )}
             </div>
           </div>
