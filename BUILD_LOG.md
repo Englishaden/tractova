@@ -19,11 +19,10 @@
 5. **Loose ends (`ee5d2b2`):** glossary 'Offtake' fixed (above); `.playwright-mcp/` + the Markets notes `.txt` gitignored (the `git add -A` nuisance).
 
 **⏭ ADEN — review/apply before the security session:**
-- **Apply migration 081** (additive nullable slope/protected cols on `county_geospatial_data`). Everything no-ops gracefully until then.
+- ✅ **Migration 081 applied** (Aden) + ✅ **protected-land synced 2026-06-10** (`seed-padus-protected.mjs --apply`, probe-confirmed: **3,222/3,222 counties live**, 61 ≥40% protected; Inyo 66% / Flathead 42% / flat IL ~2% validated). protected_area_pct is now LIVE in the Site score.
 - **Sign off on the 4 Phase-3 penalty weights** (slope 8, protected 8 — or retune in `scoreEngine.js`).
-- **After 081:** sync protected land — `node scripts/seed-padus-protected.mjs --apply` (or admin Refresh `protected_land`); the artifact is already full-coverage.
 - **Green-light the slope backfill** (fetch budget) → `node scripts/seed-county-slope.mjs --all --apply` (~3,142 3DEP calls, ~1h). Until then slope is live for 14 sample counties only.
-- **prod-eyeball:** Lens Site pillar (new tiles + methodology), Incentives panel (HUD-QCT row), IX Queue admin tab (manual upload).
+- **prod-eyeball:** Lens Site pillar (new tiles + methodology — protected-land now populated), Incentives panel (HUD-QCT row), IX Queue admin tab (manual upload).
 
 **Deferred/unchanged:** paid address typeahead (Aden's call). Offtake live DB-fed scoring deliberately NOT built (would flatten hand-tuned market depth + silently swap inputs).
 
@@ -309,7 +308,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 
 > **Source of truth = `node scripts/check-migrations.mjs` against the live DB.** This note drifts; always probe before asking Aden to re-run anything.
 
-- **081** `county_slope_protected.sql` — ADD slope (`slope_developable_pct`/`slope_mean_deg`) + protected-land (`protected_area_pct`/`protected_gap123_pct`) columns on `county_geospatial_data` (Phase 3 site layers). Additive/nullable; ingest no-ops + score applies no penalty until applied. ⏳ **PENDING Aden's apply.** After apply: `seed-padus-protected.mjs --apply` (full) + `seed-county-slope.mjs --all --apply` (gated on fetch-budget OK).
+- **081** `county_slope_protected.sql` — ADD slope (`slope_developable_pct`/`slope_mean_deg`) + protected-land (`protected_area_pct`/`protected_gap123_pct`) columns on `county_geospatial_data` (Phase 3 site layers). Additive/nullable. ✅ **applied 2026-06-10 (Aden)**; ✅ **protected-land seeded** (`seed-padus-protected.mjs --apply` — 3,222/3,222 counties, probe-confirmed). Slope still sample-only (full `seed-county-slope.mjs --all --apply` gated on a fetch-budget OK).
 - **080** `nmtc_lic_tracts.sql` — NEW table: the §48(e) Cat 1 LIC tracts (geoid PK · county_fips · state · nmtc_pct) for the Phase-2 address→tract lookup. Additive (CREATE TABLE + public-read RLS). ✅ applied + seeded 2026-06-09 (Aden applied the migration; `seed-nmtc-lic.mjs --apply` run + probe-confirmed = **34,992 tracts**).
 - **079** `ix_difficulty_check.sql` — CHECK on `state_programs.ix_difficulty` (enum), `NOT VALID`. ✅ applied 2026-06-08 (Aden-confirmed this session). Optional follow-up: `VALIDATE CONSTRAINT` after a clean-data check.
 - **078** `flood_nri_retune.sql` — renames the (empty) 077 flood cols to NRI's metric: `flood_sfha_pct`→`flood_risk_score`, `flood_category`→`flood_risk_rating`, drops unused `flood_sfha_acres`. ✅ applied 2026-06-08 (Aden).
@@ -320,7 +319,7 @@ New reusable instrument: 20 web-design concepts → Concept/Question/Pass-bar ch
 - **070** `cod_year_and_policy_severity.sql` — `projects.cod_target_year` + `policy_impact_events.impact_severity`/`impact_probability` — ✅ applied 2026-05-25 (Aden).
 - **069** two-axis architecture/structure · **068** capture-all-DG `ix_queue_data` — ✅ applied (2026-05-24).
 - **≤067** — applied earlier; full historical migration table in the archive file. Probe the live DB to confirm exact state.
-- **Pending:** 081 (Phase 3 slope/protected cols — additive, safe; everything no-ops until applied).
+- **Pending:** none (081 applied 2026-06-10; protected-land seeded, slope-full-backfill gated on a fetch-budget OK — not a migration).
 
 ---
 
