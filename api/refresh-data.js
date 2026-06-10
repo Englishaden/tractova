@@ -14,6 +14,7 @@ import refreshGeospatialWetland from './scrapers/_refresh-geospatial-wetland.js'
 import refreshFloodNri from './scrapers/_refresh-flood-nri.js'
 import refreshPadusProtected from './scrapers/_refresh-padus-protected.js'
 import refreshSlope from './scrapers/_refresh-slope.js'
+import refreshIxManual from './scrapers/_refresh-ix-manual.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
 import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
@@ -49,7 +50,7 @@ import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'flood_nri', 'protected_land', 'slope', 'solar_costs', 'policy_scan', 'hosting_capacity']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'flood_nri', 'protected_land', 'slope', 'solar_costs', 'policy_scan', 'hosting_capacity', 'ix_manual']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -180,7 +181,8 @@ export default async function handler(req, res) {
   // and risking the bundle's 300s budget.
   // protected_land + slope are STATIC committed-artifact upserts (like nmtc_lic):
   // re-synced on demand via their admin Refresh button, never in a weekly bundle.
-  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland', 'nmtc_lic', 'protected_land', 'slope'])
+  // ix_manual is an admin POST-body ingest (CSV), never a scheduled refresh.
+  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland', 'nmtc_lic', 'protected_land', 'slope', 'ix_manual'])
   if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
   else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
   else                           sources = requested.split(',').map(s => s.trim()).filter(Boolean)
@@ -191,6 +193,18 @@ export default async function handler(req, res) {
       error: `Unsupported source(s): ${invalidSources.join(', ')}`,
       supported: SUPPORTED_SOURCES,
     })
+  }
+
+  // ix_manual is an admin-only CSV ingest (carries a POST body) — it must never
+  // run under a cron path, and it can't be bundled with other sources (the body
+  // is one CSV for one upload). Require an admin JWT + a lone source.
+  if (sources.includes('ix_manual')) {
+    if (authMode !== 'admin' && authMode !== 'admin-legacy-email') {
+      return res.status(403).json({ error: 'ix_manual requires an admin JWT (not a cron token)' })
+    }
+    if (sources.length > 1) {
+      return res.status(400).json({ error: 'ix_manual must be requested on its own (it carries a CSV body)' })
+    }
   }
 
   const startTs = Date.now()
@@ -221,6 +235,7 @@ export default async function handler(req, res) {
       else if (source === 'flood_nri')           result = await refreshFloodNri()
       else if (source === 'protected_land')      result = await refreshPadusProtected()
       else if (source === 'slope')               result = await refreshSlope()
+      else if (source === 'ix_manual')           result = await refreshIxManual(req.body)
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
       else if (source === 'policy_scan')         result = await refreshPolicyScan()
       else if (source === 'hosting_capacity')    result = await refreshHostingCapacity()

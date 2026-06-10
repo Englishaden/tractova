@@ -6,6 +6,7 @@ import {
 } from '../../lib/programData'
 import { Button } from '../ui'
 import { Field } from '../../pages/Admin.jsx'
+import IxManualUpload from './IxManualUpload.jsx'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // IX Queue Tab (read-only view of automated data)
@@ -95,6 +96,7 @@ export default function IXQueueTab() {
         </div>
       ) : (
         <div className="space-y-1.5">
+          <IxManualUpload onIngested={load} />
           {rows.map(r => (
             <button
               key={r.id}
