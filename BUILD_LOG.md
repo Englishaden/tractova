@@ -4,6 +4,20 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-10 — PHASE 2 PROD-REVIEWED ✓ (works) · ⏭ 2 follow-up fixes, then Phase 3/4
+
+**Aden prod-reviewed Phase 2 (address→census-tract LIC lookup) — it works.** The discrimination is live (Grundy IL: county-binary ceiling "Up to 50%" → resolving the address to a non-LIC tract drops it to "Up to 40%", correctly withholding the +10%); the graceful fallback works (a flaky Census-geocoder miss → "Couldn't resolve that address — showing county-level"); the honesty caveats render right. **This session shipped + LIVE (detail in the 3 pickups below):** CDFI LIC authoritative-source upgrade → Phase 1 data-honesty cleanup → Phase 2 keystone. Migrations **079 + 080 applied + seeded** (34,992 LIC tracts).
+
+**⏭ NEXT SESSION — 2 prod-review follow-ups (my pick: #1 first = trust-critical):**
+1. **County/address MISMATCH (real, important).** If the entered address resolves to a DIFFERENT county than the selected one (Aden's test: county Grundy `17063` + address "2951 Granger Dr, Springfield" → Sangamon `17167`, tract `17167000501`), the Incentives panel mixes two places — the "N of M tracts in this county" line is the SELECTED county's (Grundy) while the resolved tract is the ADDRESS's (Sangamon); worse, the whole composite is selected-county offtake/grid/site/policy + address-county LIC bool = incoherent. The tool doesn't detect it. **Fix (a) NOW:** in `src/pages/Search.jsx` compare the resolved tract `geoid.slice(0,5)` vs the selected county FIPS → on mismatch, surface a warning + suppress the mismatched "N of M in this county" line (`IncentiveStackPanel.jsx`). **Fix (b) LATER (cleaner, bigger):** address-wins — when an address is given, drive ALL county-level data off the address's county (the county picker becomes a hint).
+2. **HUD QCT row stuck on "Checking" forever (pre-existing display bug, NOT Phase 2).** `getHudQctDda` → `null` (county has no designation) hits `IncentiveStackPanel.jsx`'s `: hudQctDda ? (...) : <LoadingDot/>` branch, so `null` is treated as still-loading. **Fix:** mirror the Energy-Community row's `=== null` handling → render "No QCT / not designated" for `null` (1-liner).
+
+**Noted (not a bug):** the free Census geocoder is flaky — the SAME address resolved on one run + failed on another; the graceful fallback handled it. A paid geocoder (Geocodio) is the reliability upgrade if it bites in practice (deferred).
+
+**⏭ Roadmap after the fixes:** Phase 3 = slope (USGS 3DEP, verified-live) + protected-land (PAD-US, re-probe the endpoint) site layers — each needs Aden's penalty-weight sign-off. Phase 4 = IX manual-upload (~5 states) + EIA offtake auto-refresh (⚠ UNIFY with the existing `refresh-substations.js` EIA pipeline, don't duplicate). Near-free follow-on: HUD-QCT tract-resolution (`qct_tract_geoids` already populated; context-only). Loose end: glossary 'Offtake' long still says "12 high-rate states" (stale vs the Wave-3 all-50 offtake).
+
+---
+
 ## 🟢 Pickup — 2026-06-08 (eve·3) — PHASE 2 KEYSTONE: address→census-tract LIC lookup shipped + LIVE (main `66ca515`; 080 applied + seeded) · ⏭ Aden prod-eyeball
 
 **STATUS:** The roadmap keystone — an OPTIONAL site address → census tract → **precise per-tract §48(e) LIC yes/no** (vs the county-binary that read eligible in ~88% of counties). Shipped + pushed; verify-green (225 unit / 8 smoke / build / lints). Independently adversarial-verified (honesty + SSRF + graceful-fallback + no-regression + score↔UI agreement; 1 cross-tab inconsistency caught → fixed). **✅ LIVE — migration 080 applied + seeded 2026-06-09 (34,992 tracts; counties re-synced, 0 flips); end-to-end validated (the geocode→tract→isLicTract path: the verified DC/MD sample address resolves to tract 24033802405, which is in the table as LIC).** ⏭ Aden prod-eyeball with a real site address.
