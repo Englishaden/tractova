@@ -31,8 +31,8 @@ export const GLOSSARY_DEFINITIONS = {
   'Offtake': {
     title: 'Offtake',
     short: 'Revenue mechanism — community-solar program credits, C&I PPA, or BESS capacity-market revenue depending on tech.',
-    long: 'The pillar that answers "how does this project actually make money?" For Community Solar: state CS program (capacity remaining, LMI carveout requirements, contract tenor). For C&I: retail electricity rates from EIA Form 861 (curated for 12 high-rate states). For BESS: ISO capacity-market clearing prices (curated for 10 active markets). For Hybrid: blended.',
-    inputs: 'state_programs · revenue_stacks · EIA Form 861 · ISO capacity markets',
+    long: 'The pillar that answers "how does this project actually make money?" For Community Solar: state CS program (capacity remaining, LMI carveout requirements, contract tenor). For C&I / Net Metering: commercial retail electricity rates from EIA (EPM Table 5.6.B / Form EIA-861M) — all 50 states + DC, with AK/HI on a directional fallback (islanded/atypical offtake). For BESS: ISO capacity-market clearing prices (25 states with a capacity-market signal). For Hybrid: blended.',
+    inputs: 'state_programs · revenue_stacks · EIA commercial retail rates (EPM 5.6.B) · ISO capacity markets',
   },
   'Incentives': {
     title: 'Incentives',
@@ -356,7 +356,7 @@ export const GLOSSARY_DEFINITIONS = {
     title: 'PPA (Power Purchase Agreement)',
     short: 'Long-term contract under which a power buyer agrees to purchase project output at a fixed or escalating $/MWh rate.',
     long: 'The PPA is the offtake instrument for C&I and utility-scale solar. Typical terms: 15-25 years, fixed $/MWh price with 0-2% annual escalator, take-or-pay structure. Counterparty creditworthiness drives financeability — investment-grade corporate or municipal anchors most projects, retail/utility BLAs are second tier. Distinct from CS bill-credit programs, where the customer is the program administrator rather than an end-user. Tractova\'s C&I revenue model uses EIA Form 861 retail rates as a baseline PPA-spread proxy.',
-    inputs: 'EIA Form 861 commercial retail rates (curated 12 states) · revenue_rates.ppa_rate_cents_kwh',
+    inputs: 'EIA commercial retail rates (EPM 5.6.B / Form EIA-861M, all 50 states + DC) · revenue_rates.ppa_rate_cents_kwh',
   },
   'Bill Credit': {
     title: 'Bill Credit (Net Metering / NEM)',

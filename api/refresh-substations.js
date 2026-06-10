@@ -2,6 +2,7 @@ import { isAdminFromBearer } from './_admin-auth.js'
 import { timingSafeEqualStr } from './_safeCompare.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
+import { buildRetailSalesUrl, parseCommercialRate } from './lib/_eiaCommercialRates.js'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Monthly Data Refresh Cron
@@ -140,27 +141,14 @@ async function fetchRetailRates() {
   // mutable state is `results`, mutated only after Promise.allSettled
   // resolves.
   const settled = await Promise.allSettled(TRACKED_STATES.map(async (stateId) => {
-    const url = new URL('https://api.eia.gov/v2/electricity/retail-sales/data/')
-    url.searchParams.set('api_key', apiKey)
-    url.searchParams.set('frequency', 'annual')
-    url.searchParams.set('data[0]', 'price')
-    url.searchParams.set('facets[stateid][]', stateId)
-    url.searchParams.set('facets[sectorid][]', 'COM')  // Commercial sector
-    url.searchParams.set('sort[0][column]', 'period')
-    url.searchParams.set('sort[0][direction]', 'desc')
-    url.searchParams.set('length', '1')
-
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) })
+    // Shared EIA commercial-rate fetch/parse (api/lib/_eiaCommercialRates.js) —
+    // same helper the all-50 offtake-rate derivation uses, so the two never drift.
+    const res = await fetch(buildRetailSalesUrl(stateId, apiKey), { signal: AbortSignal.timeout(10000) })
     if (!res.ok) return { stateId, error: `HTTP ${res.status}` }
 
-    const json = await res.json()
-    const row = json?.response?.data?.[0]
-    if (!row?.price) return { stateId, error: 'no price data returned' }
-
-    const rateCentsKwh = parseFloat(row.price)
-    if (isNaN(rateCentsKwh) || rateCentsKwh <= 0 || rateCentsKwh > 100) {
-      return { stateId, error: `invalid price ${row.price}` }
-    }
+    const parsed = parseCommercialRate(await res.json())
+    if (parsed.error) return { stateId, error: parsed.error }
+    const { rateCentsKwh, period } = parsed
 
     const { data: existing } = await supabaseAdmin
       .from('revenue_rates')
@@ -188,7 +176,7 @@ async function fetchRetailRates() {
       } catch { /* best-effort logging */ }
     }
 
-    return { stateId, rateCentsKwh, period: row.period }
+    return { stateId, rateCentsKwh, period }
   }))
 
   for (let i = 0; i < TRACKED_STATES.length; i++) {
