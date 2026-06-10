@@ -90,7 +90,9 @@ export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDd
                     A project sited in any of these tracts adds 10% to ITC (≤5 MW only); stacks with Energy Community. Add a site address above for the exact tract.
                   </div>
                 </>
-              ) : nmtcLic ? (
+              ) : nmtcLic !== undefined ? (
+                // null = no LIC row resolvable for this county — definitive
+                // negative, not in-flight (same null-vs-undefined as below).
                 <>
                   <div className="text-xs text-gray-700">No qualifying NMTC LIC tracts in this county</div>
                   <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
@@ -131,7 +133,9 @@ export default function IncentiveStackPanel({ energyCommunity, nmtcLic, hudQctDd
                 LIHTC bonus credit eligibility for hybrid CS + affordable-housing structures. Strong overlap with state CS LMI carve-outs (NY VDER, IL Shines low-income tier, MA SMART LMI adder). Different instrument from ITC — does not stack into the ceiling below.
               </div>
             </>
-          ) : hudQctDda ? (
+          ) : hudQctDda !== undefined ? (
+            // null = HUD has no row for this county — a definitive "not
+            // designated", not an in-flight state (mirrors the EC row).
             <>
               <div className="text-xs text-gray-700">No QCT or non-metro DDA in {county || 'this county'}</div>
               <div className="text-[10px] text-gray-500 mt-0.5 leading-snug">
