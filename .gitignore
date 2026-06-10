@@ -33,6 +33,7 @@ claude.exe
 
 # Local notes / scratch files (not meant for the repo)
 Genuinely useful for the consultant.txt
+Markets & Policy_Rework & Notes.txt
 # Marketing / GTM plan — contains COI analysis specific to Nexamp + Ameresco;
 # stays local-only, never commits to GitHub.
 Marketing-Outreach-Plan.md
@@ -45,6 +46,8 @@ Marketing-Outreach-Plan.md
 /test-results/
 /playwright-report/
 /playwright/.cache/
+# Playwright MCP scratch dir (browser snapshots/output from the playwright MCP server)
+.playwright-mcp/
 # Persisted Pro-user session for authed smoke tests — never commit
 tests/.auth/
 
