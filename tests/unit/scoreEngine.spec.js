@@ -215,6 +215,38 @@ describe('computeSubScores — main entry', () => {
     expect(r.site).toBe(14)
   })
 
+  it('Phase 3a: steep terrain (<40% developable) subtracts the 8-pt slope penalty', () => {
+    // Base 82 (availableLand=true, low wetland). Slope is null unless seeded.
+    const base = { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' }
+    const noSlope     = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10 } }, '', 'Community Solar')
+    const flatCounty  = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, slopeDevelopablePct: 95 } }, '', 'Community Solar')
+    const steepCounty = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, slopeDevelopablePct: 30 } }, '', 'Community Solar')
+    expect(noSlope.site).toBe(82)     // null → no penalty
+    expect(flatCounty.site).toBe(82)  // 95% developable → not constrained
+    expect(steepCounty.site).toBe(74) // 30% developable → 82 − 8
+  })
+
+  it('Phase 3b: heavily protected county (>=40% GAP 1+2) subtracts the 8-pt protected penalty', () => {
+    const base = { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' }
+    const noProt   = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10 } }, '', 'Community Solar')
+    const lowProt  = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, protectedAreaPct: 12 } }, '', 'Community Solar')
+    const highProt = computeSubScores(base, { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, protectedAreaPct: 66 } }, '', 'Community Solar')
+    expect(noProt.site).toBe(82)    // null → no penalty
+    expect(lowProt.site).toBe(82)   // 12% → not constrained
+    expect(highProt.site).toBe(74)  // 66% → 82 − 8
+  })
+
+  it('Phase 3 penalties stack with flood and clamp at 0', () => {
+    // Best base 82, minus flood 12, slope 8, protected 8 = 54.
+    const base = { id: 'IA', csStatus: 'pending', ixDifficulty: 'moderate' }
+    const stacked = computeSubScores(
+      base,
+      { geospatial: { wetlandCoveragePct: 5, primeFarmlandPct: 10, floodRiskRating: 'very_high', slopeDevelopablePct: 20, protectedAreaPct: 55 } },
+      '', 'Community Solar',
+    )
+    expect(stacked.site).toBe(54)   // 82 − 12 − 8 − 8
+  })
+
   it('LMI penalty applies to the offtake baseline regardless of csStatus', () => {
     // Pinning current behavior: the LMI deduction applies whenever
     // lmiRequired && lmiPercent crosses the threshold, even on pending /

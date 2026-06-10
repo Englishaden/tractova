@@ -43,6 +43,8 @@ const GLOSSARY_PILLAR_MAP = {
   // Site pillar
   'Prime Farmland':     'site',
   'Wetland Warning':    'site',
+  'Terrain Slope':      'site',
+  'Protected Land':     'site',
   'Section 404':        'site',
   'NWI':                'site',
   'SSURGO':             'site',

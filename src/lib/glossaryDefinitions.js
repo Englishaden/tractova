@@ -148,6 +148,18 @@ export const GLOSSARY_DEFINITIONS = {
     long: 'Triggered when USFWS NWI wetland coverage exceeds 15% of county AREALAND (categorized as "significant" or "severe"). Projects on wetland-flagged counties typically need wetland delineations, USACE Section 404 permits, and may face mitigation requirements. The flag is directional, not site-specific — a high wetland percentage means you should plan for delineation work, not that every parcel is wet.',
     inputs: 'USFWS National Wetlands Inventory · TIGER county geometry',
   },
+  'Terrain Slope': {
+    title: 'Terrain Slope',
+    short: 'County share of terrain at a solar-buildable grade (≤10%) — below 40% flags a terrain constraint.',
+    long: 'Tractova computes, from the USGS 3DEP bare-earth elevation model ("Slope Degrees" over the county polygon), the percentage of county terrain at or below a 10% grade — the share comfortably buildable for ground-mount solar. When under 40% of the county is buildable grade, the site sub-score takes a modest penalty: steep terrain raises grading and balance-of-system cost and narrows parcel options, though buildable pockets still exist. Directional county-level screening — confirm the specific parcel grade on a site walk. The 10% grade line and the 40% threshold are Tractova editorial; the slope data is observed USGS 3DEP.',
+    inputs: 'USGS 3D Elevation Program (3DEP) bare-earth DEM · TIGER county geometry',
+  },
+  'Protected Land': {
+    title: 'Protected Land',
+    short: 'County share under strict protection (GAP 1+2: parks, wilderness, refuges) — a land-supply constraint.',
+    long: 'From the USGS Protected Areas Database (PAD-US), the percentage of county land managed for strict protection — GAP status 1 and 2 (national/state parks, wilderness, wildlife refuges) — divided by county land area. At or above 40%, the site sub-score takes a modest penalty: most of the county is undevelopable public land, so private siteable parcels are scarcer. GAP status 3 (multiple-use land such as some BLM/USFS holdings that can sometimes host energy) is tracked for context but excluded from the protected share. Directional county screening — confirm the parcel sits outside any protected boundary. The GAP 1+2 cut and the 40% threshold are Tractova editorial; the acreage is observed PAD-US.',
+    inputs: 'USGS PAD-US 4.1 GAP-status county summary · Census Gazetteer county land area',
+  },
   'Capacity Factor': {
     title: 'Capacity Factor',
     short: 'Effective annual production divided by nameplate × 8760 — typically 18-26% for fixed-tilt solar in the US.',

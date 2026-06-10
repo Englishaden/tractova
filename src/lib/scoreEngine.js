@@ -468,8 +468,24 @@ function ixLiveAdjustment(ixQueueSummary) {
 // insurable; a wetland 404 is a hard permit gate). Unknown flood (null) → no
 // penalty — we don't penalize missing data, matching the partial-input discipline
 // above; the penalty never drives the score below 0.
+// Additive site penalties (Phase 3 — slope + protected land on top of the
+// land×wetland base, applied like the flood penalty). Each fires only on a
+// definitive `true` warning; unknown (null) → no penalty (we don't penalize
+// missing data); the running base never drops below 0.
+//
+// ⚠ DEFAULT WEIGHTS — pending Aden's sign-off. Tuned by relative severity:
+//   FLOOD     12 — high FEMA NRI flood risk (mitigable / insurable)
+//   SLOPE      8 — <40% of the county is at a solar-buildable grade (3DEP);
+//                  terrain raises BoS cost + limits parcels, but the buildable
+//                  share still exists — lighter than flood.
+//   PROTECTED  8 — >=40% of county land is GAP 1+2 protected (PAD-US); a land-
+//                  SUPPLY constraint (less private land to acquire), partially
+//                  overlapping the farmland `availableLand` signal — so kept
+//                  modest to avoid double-counting land scarcity.
 const SITE_FLOOD_PENALTY = 12
-function computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning = null) {
+const SITE_SLOPE_PENALTY = 8
+const SITE_PROTECTED_PENALTY = 8
+function computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning = null, slopeWarning = null, protectedWarning = null) {
   let base
   if (architecture === 'Standalone BESS') {
     // Legacy standalone BESS depends primarily on wetland permitting, not land
@@ -492,7 +508,9 @@ function computeSiteSubScore(architecture, availableLand, wetlandWarning, floodW
     else if (land == null   && wet === true)  base = 41  // (56+26)/2
     else                                      base = 60  // both null — neutral
   }
-  if (floodWarning === true) base = Math.max(0, base - SITE_FLOOD_PENALTY)
+  if (floodWarning === true)     base = Math.max(0, base - SITE_FLOOD_PENALTY)
+  if (slopeWarning === true)     base = Math.max(0, base - SITE_SLOPE_PENALTY)
+  if (protectedWarning === true) base = Math.max(0, base - SITE_PROTECTED_PENALTY)
   return base
 }
 
@@ -675,7 +693,25 @@ export function computeSubScores(stateProgram, countyData, stage = '', technolog
     floodWarning = geo.floodRiskRating === 'relatively_high' || geo.floodRiskRating === 'very_high'
   }
 
-  site = computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning)
+  // Slope (Phase 3a) — USGS 3DEP developable-terrain share. <40% of the county
+  // at a solar-buildable grade (<=10%) = terrain-constrained. null until the
+  // slope seed reaches this county → no penalty. Threshold mirrors
+  // _slope3dep.slopeConstraint('constrained').
+  let slopeWarning = null
+  if (geo?.slopeDevelopablePct != null) {
+    slopeWarning = geo.slopeDevelopablePct < 40
+  }
+
+  // Protected land (Phase 3b) — USGS PAD-US GAP 1+2 share of county land.
+  // >=40% protected = a land-supply constraint. null until the PAD-US ingest
+  // reaches this county → no penalty. Threshold mirrors
+  // _padusProtected.protectedConstraint('constrained').
+  let protectedWarning = null
+  if (geo?.protectedAreaPct != null) {
+    protectedWarning = geo.protectedAreaPct >= 40
+  }
+
+  site = computeSiteSubScore(architecture, availableLand, wetlandWarning, floodWarning, slopeWarning, protectedWarning)
 
   // ── Stage modifiers ──
   const [dOft, dIX, dSite] = STAGE_MODIFIERS[stage] ?? [0, 0, 0]

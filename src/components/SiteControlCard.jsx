@@ -50,6 +50,19 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
     return 'rural'
   })()
 
+  // Phase 3 site layers (USGS 3DEP slope + USGS PAD-US protected land) + the
+  // FEMA NRI flood signal the score already uses. Each is null until its ingest
+  // reaches this county; thresholds mirror the score engine (a tile only renders
+  // when we have a reading, so un-seeded counties don't show empty rows).
+  const slopePct      = geospatial?.slopeDevelopablePct
+  const slopeMeanDeg  = geospatial?.slopeMeanDeg
+  const slopeWarning  = slopePct != null ? slopePct < 40 : null
+  const protectedPct  = geospatial?.protectedAreaPct
+  const protectedWarn = protectedPct != null ? protectedPct >= 40 : null
+  const floodRating   = geospatial?.floodRiskRating
+  const floodWarning  = floodRating != null ? (floodRating === 'relatively_high' || floodRating === 'very_high') : null
+  const ratingLabel   = (r) => ({ very_low: 'Very low', relatively_low: 'Relatively low', relatively_moderate: 'Moderate', relatively_high: 'Relatively high', very_high: 'Very high', none: 'Not rated' })[r] || null
+
   const farmlandLine = fmtPct(farmlandPct) ? `Prime farmland: ${fmtPct(farmlandPct)} of soil-surveyed area · USDA SSURGO 2024` : null
   // Lead with the categorical signal (the load-bearing input to the score),
   // then surface the wetland-richness index in parentheses. Both fall back
@@ -90,6 +103,53 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
         </svg>
       ),
     },
+    // Flood / Slope / Protected — render only when the county has a reading
+    // (these layers seed incrementally). Each mirrors a score-engine penalty.
+    ...(floodWarning != null ? [{
+      label: 'Flood',
+      status: floodWarning ? 'Elevated' : 'Low Risk',
+      color: floodWarning ? '#B45309' : '#0F766E',
+      bg: floodWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
+      note: `FEMA NRI flood risk: ${ratingLabel(floodRating) || '—'}${floodWarning ? ' (worse of inland + coastal)' : ''}`,
+      tooltip: floodWarning
+        ? 'FEMA National Risk Index rates this county Relatively-High / Very-High for flood (worse of riverine + coastal). Mitigable — applies a lighter site-score penalty than a wetland 404. Verify the parcel floodplain.'
+        : 'FEMA National Risk Index flood rating below the constraint threshold for this county. Confirm the parcel sits outside mapped floodplains.',
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/>
+        </svg>
+      ),
+    }] : []),
+    ...(slopeWarning != null ? [{
+      label: 'Slope',
+      status: slopeWarning ? 'Steep' : 'Buildable',
+      color: slopeWarning ? '#B45309' : '#0F766E',
+      bg: slopeWarning ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
+      note: `${Math.round(slopePct)}% of county terrain at ≤10% grade${slopeMeanDeg != null ? ` · ${slopeMeanDeg}° mean slope` : ''} · USGS 3DEP`,
+      tooltip: slopeWarning
+        ? 'USGS 3DEP: under 40% of this county sits at a solar-buildable grade (≤10%). Buildable parcels exist but terrain raises grading / balance-of-system cost and narrows siting — a modest site-score penalty.'
+        : 'USGS 3DEP: a workable majority of this county is at a solar-buildable grade (≤10%). Confirm the specific parcel slope during the site walk.',
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 20h18"/><path d="M4 20l8-14 8 14"/>
+        </svg>
+      ),
+    }] : []),
+    ...(protectedWarn != null ? [{
+      label: 'Protected',
+      status: protectedWarn ? 'Constrained' : 'Open',
+      color: protectedWarn ? '#B45309' : '#0F766E',
+      bg: protectedWarn ? 'rgba(180,83,9,0.06)' : 'rgba(15,118,110,0.06)',
+      note: `${Math.round(protectedPct)}% of county land is protected (GAP 1+2) · USGS PAD-US`,
+      tooltip: protectedWarn
+        ? 'USGS PAD-US: ≥40% of this county is strictly protected (GAP status 1+2 — parks, wilderness, refuges). Less private land is available to acquire/site — a land-supply constraint on top of farmland.'
+        : 'USGS PAD-US: most county land sits outside strictly-protected (GAP 1+2) areas. Confirm the parcel is not inside a protected boundary.',
+      icon: (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      ),
+    }] : []),
     {
       label: 'Zoning',
       status: landUseNotes ? 'Restricted' : '—',
@@ -184,10 +244,24 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           ))}
         </div>
 
-        {/* Site Risk Assessment — synthesize all signals */}
+        {/* Site Risk Assessment — synthesize all signals. The denominator counts
+            only the factors we actually have a reading for (flood/slope/protected
+            seed incrementally), so it never implies coverage we don't have. */}
         {(() => {
           const hostingRisk = hostingStatus.label === 'Constrained'
-          const riskCount = [!availableLand, wetlandWarning, !!landUseNotes, hostingRisk].filter(Boolean).length
+          // [hasReading, isFlagged] per factor — land/wetland(curated)/zoning/hosting
+          // are always evaluated; flood/slope/protected only when seeded.
+          const factors = [
+            [true, !availableLand],
+            [true, !!wetlandWarning],
+            [true, !!landUseNotes],
+            [true, hostingRisk],
+            [floodWarning != null, floodWarning === true],
+            [slopeWarning != null, slopeWarning === true],
+            [protectedWarn != null, protectedWarn === true],
+          ]
+          const factorCount = factors.filter(([has]) => has).length
+          const riskCount = factors.filter(([has, flagged]) => has && flagged).length
           const riskLevel = riskCount <= 1 ? 'low' : riskCount === 2 ? 'moderate' : 'elevated'
           const riskConfig = {
             low:      { label: 'Low Risk', color: '#0F766E', bg: 'rgba(15,118,110,0.06)', border: 'rgba(15,118,110,0.20)' },
@@ -200,6 +274,9 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
           if (!availableLand) guidance.push('Land supply is constrained — expect competitive pricing on available parcels and longer site acquisition timelines.')
           if (wetlandWarning) guidance.push('Wetland presence may require USACE Section 404 permits and jurisdictional delineation studies, adding 3–6 months and $20K–$50K to pre-development.')
           if (landUseNotes) guidance.push('Zoning restrictions may limit array placement or require special-use permits — review county ordinances early before committing to lease terms.')
+          if (floodWarning) guidance.push('FEMA rates this county high for flood risk — site outside mapped floodplains where possible and budget for drainage / insurance review.')
+          if (slopeWarning) guidance.push('Terrain is steep across much of the county — expect higher grading and balance-of-system cost and fewer flat parcels; target the lower-grade pockets.')
+          if (protectedWarn) guidance.push('A large share of county land is protected (parks / wilderness / refuges) — private siteable land is scarcer, so secure site control early.')
           if (guidance.length === 0) guidance.push(`${county} County shows favorable site conditions. Standard due diligence recommended — confirm parcel-level suitability during site walks.`)
 
           return (
@@ -212,7 +289,7 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
                   {rc.label}
                 </span>
                 <span className="text-[9px] text-gray-400">·</span>
-                <span className="text-[9px] text-gray-400">{riskCount} of 4 risk factors flagged</span>
+                <span className="text-[9px] text-gray-400">{riskCount} of {factorCount} risk factors flagged</span>
               </div>
               {guidance.map((g, i) => (
                 <p key={i} className="text-[11px] text-gray-600 leading-relaxed mt-1">{g}</p>
@@ -284,6 +361,8 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
             <li><span className="font-semibold text-ink">Land</span> · USDA SSURGO prime-farmland coverage (2,405 of 3,143 counties, refreshed weekly) — high farmland flags a siting constraint; binary "available" assumes a typical greenfield/brownfield profile</li>
             <li><span className="font-semibold text-ink">Wetland</span> · USFWS NWI (National Wetlands Inventory) — county-level coverage aggregated from NWI polygons, now covering all 3,143 counties (built via a throttle-safe weekly cron). Site-level wetlands always require a parcel delineation</li>
             <li><span className="font-semibold text-ink">Flood</span> · FEMA National Risk Index (NRI) county flood risk — the worse of inland (riverine) + coastal. A Relatively-High / Very-High rating applies a site-score penalty (mitigable, so lighter than a wetland 404); county-level screening, verify the parcel's floodplain</li>
+            <li><span className="font-semibold text-ink">Slope</span> · USGS 3DEP bare-earth elevation — the % of county terrain at ≤10% grade (solar-buildable). Below 40% applies a modest site penalty (grading / BoS cost, fewer flat parcels). County-level screening; confirm the parcel's grade on the site walk</li>
+            <li><span className="font-semibold text-ink">Protected</span> · USGS PAD-US — the % of county land under strict protection (GAP status 1+2: parks, wilderness, refuges). At or above 40% applies a land-supply penalty (less private land to acquire). County-level; confirm the parcel is outside any protected boundary</li>
             <li><span className="font-semibold text-ink">Zoning</span> · surfaced when county code references solar overlay districts, agricultural setbacks, or special-use permits in our notes layer</li>
             <li><span className="font-semibold text-ink">Hosting</span> · proxy from IX ease score until utility hosting-capacity maps are integrated per-territory</li>
           </ul>
@@ -294,6 +373,8 @@ export default function SiteControlCard({ siteControl, interconnection, geospati
             <a href="https://www.fws.gov/program/national-wetlands-inventory" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USFWS NWI ↗</a>
             <a href="https://sdmdataaccess.sc.egov.usda.gov/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USDA SSURGO ↗</a>
             <a href="https://www.fema.gov/flood-maps/products-tools/national-risk-index" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">FEMA NRI ↗</a>
+            <a href="https://www.usgs.gov/3d-elevation-program" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USGS 3DEP ↗</a>
+            <a href="https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">USGS PAD-US ↗</a>
             <a href="https://www.eia.gov/electricity/data/eia860/" target="_blank" rel="noopener noreferrer" className="font-mono text-[9px] uppercase tracking-[0.14em] px-2 py-0.5 rounded-sm border border-blue-200 text-blue-700 hover:bg-blue-50 transition-colors">EIA Form 860 ↗</a>
           </div>
         </div>

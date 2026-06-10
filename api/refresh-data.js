@@ -12,6 +12,8 @@ import refreshNmtcLic from './scrapers/_refresh-nmtc-lic.js'
 import refreshGeospatialFarmland from './scrapers/_refresh-geospatial-farmland.js'
 import refreshGeospatialWetland from './scrapers/_refresh-geospatial-wetland.js'
 import refreshFloodNri from './scrapers/_refresh-flood-nri.js'
+import refreshPadusProtected from './scrapers/_refresh-padus-protected.js'
+import refreshSlope from './scrapers/_refresh-slope.js'
 import refreshSolarCosts from './scrapers/_refresh-solar-costs.js'
 import refreshPolicyScan from './scrapers/_scan-policy-candidates.js'
 import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
@@ -47,7 +49,7 @@ import refreshHostingCapacity from './scrapers/_refresh-hosting-capacity.js'
 // Health tab in /admin shows last-run status + summary stats per source.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'flood_nri', 'solar_costs', 'policy_scan', 'hosting_capacity']
+const SUPPORTED_SOURCES = ['lmi', 'county_acs', 'news', 'energy_community', 'hud_qct_dda', 'nmtc_lic', 'geospatial_farmland', 'geospatial_wetland', 'flood_nri', 'protected_land', 'slope', 'solar_costs', 'policy_scan', 'hosting_capacity']
 
 export default async function handler(req, res) {
   if (applyCors(req, res)) return res.status(200).end()
@@ -176,7 +178,9 @@ export default async function handler(req, res) {
   // NWI server hard-throttles, so it nibbles a small batch on its OWN weekly cron
   // (or explicit ?source=geospatial_wetland) rather than fanning out inside 'all'
   // and risking the bundle's 300s budget.
-  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland', 'nmtc_lic'])
+  // protected_land + slope are STATIC committed-artifact upserts (like nmtc_lic):
+  // re-synced on demand via their admin Refresh button, never in a weekly bundle.
+  const BUNDLE_EXCLUDED = new Set(['solar_costs', 'policy_scan', 'geospatial_wetland', 'nmtc_lic', 'protected_land', 'slope'])
   if (requested === 'all')       sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
   else if (requested === 'fast') sources = SUPPORTED_SOURCES.filter(s => !BUNDLE_EXCLUDED.has(s))
   else                           sources = requested.split(',').map(s => s.trim()).filter(Boolean)
@@ -215,6 +219,8 @@ export default async function handler(req, res) {
       else if (source === 'geospatial_farmland') result = await refreshGeospatialFarmland()
       else if (source === 'geospatial_wetland')  result = await refreshGeospatialWetland()
       else if (source === 'flood_nri')           result = await refreshFloodNri()
+      else if (source === 'protected_land')      result = await refreshPadusProtected()
+      else if (source === 'slope')               result = await refreshSlope()
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
       else if (source === 'policy_scan')         result = await refreshPolicyScan()
       else if (source === 'hosting_capacity')    result = await refreshHostingCapacity()

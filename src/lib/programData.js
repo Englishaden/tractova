@@ -252,6 +252,15 @@ async function fetchCountyGeospatial(stateId, countyName) {
     floodRiskScore:       geo.flood_risk_score,
     floodRiskRating:      geo.flood_risk_rating,
     floodLastUpdated:     geo.flood_last_updated,
+    // Slope (USGS 3DEP) + protected land (USGS PAD-US) — Phase 3 site layers
+    // (migration 081). null until the slope seed / protected_land ingest reaches
+    // this county → no site penalty while null.
+    slopeDevelopablePct:  geo.slope_developable_pct,
+    slopeMeanDeg:         geo.slope_mean_deg,
+    slopeLastUpdated:     geo.slope_last_updated,
+    protectedAreaPct:     geo.protected_area_pct,
+    protectedGap123Pct:   geo.protected_gap123_pct,
+    protectedLastUpdated: geo.protected_last_updated,
   }
 }
 

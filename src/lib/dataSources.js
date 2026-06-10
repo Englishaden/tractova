@@ -153,6 +153,24 @@ export const DATA_SOURCES = [
     provides: 'County flood risk RATING + 0-100 score — the worse of NRI inland (riverine) and coastal flooding. County-keyed (no parcel geometry).',
     synthesis: 'Tractova takes the worse of the two NRI flood ratings; a county rated Relatively High or Very High applies a flat site-score penalty (flood is a real constraint on buildable acreage / insurability / permitting, but mitigable — so a lighter hit than the wetland 404 gate). The two warning tiers + the penalty size are disclosed editorial. County-level screening — a specific parcel may sit in or out of a floodplain regardless.',
   },
+  {
+    pillar: 'Site',
+    component: 'Terrain slope (developable share)',
+    source: 'USGS 3D Elevation Program (3DEP)',
+    url: 'https://www.usgs.gov/3d-elevation-program',
+    tier: 'B',
+    provides: 'County % of terrain at ≤10% grade (solar-buildable share) + mean slope, computed from the 3DEP bare-earth DEM "Slope Degrees" layer over the TIGER county polygon. STATIC (terrain is fixed) — backfilled offline, re-synced from a committed artifact.',
+    synthesis: 'The 3DEP slope histogram is observed; the 10% buildable-grade line and the <40%-developable warning threshold are Tractova disclosed editorial. A constrained county loses a modest site-score penalty (terrain raises grading / balance-of-system cost and narrows parcels, but buildable pockets still exist — lighter than flood). County-level screening; confirm the parcel grade on the site walk.',
+  },
+  {
+    pillar: 'Site',
+    component: 'Protected land (GAP 1+2)',
+    source: 'USGS Protected Areas Database (PAD-US 4.1)',
+    url: 'https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview',
+    tier: 'B',
+    provides: 'County % of land under strict protection — GAP status 1+2 (parks, wilderness, refuges) acres ÷ county land area (Census Gazetteer). STATIC — derived offline from the PAD-US county summary, re-synced from a committed artifact.',
+    synthesis: 'PAD-US acreage is observed; the GAP 1+2 cut (vs. GAP 3 multiple-use land, which can sometimes host energy) and the ≥40% warning threshold are Tractova disclosed editorial. A heavily-protected county loses a land-supply penalty (less private land to acquire), kept modest to avoid double-counting the farmland signal. County-level screening; confirm the parcel sits outside any protected boundary.',
+  },
 
   // ── Policy & Timing (10%) — added in the 2026-06 audit (was omitted) ─────────
   {
