@@ -6,8 +6,22 @@ import DashboardSidebar from '../components/dashboard/DashboardSidebar'
 import HomeTab from '../components/dashboard/HomeTab'
 import AnalyticsTab from '../components/dashboard/AnalyticsTab'
 import MarketsPolicyTab from '../components/dashboard/MarketsPolicyTab'
+import PreviewSignupGate from '../components/PreviewSignupGate'
 import { useAuth } from '../context/AuthContext'
 import { useDataRefresh } from '../lib/useDataRefresh'
+
+// Anon-preview gate for the Analytics / Markets tabs. Their charts read
+// fully-gated IP tables (cs_projects, lmi_data, snapshot feasibility_score),
+// so a logged-out visitor gets a signup CTA instead — both a funnel surface
+// and the thing that keeps anon from requesting tables migration 084 locks
+// down (F-01). The Home tab stays the rich public preview.
+function PreviewTabGate({ message }) {
+  return (
+    <div className="relative z-10 max-w-xl mx-auto mt-10 mb-6">
+      <PreviewSignupGate message={message} />
+    </div>
+  )
+}
 
 // Dashboard — thin tab orchestrator (v2.5).
 //
@@ -63,11 +77,21 @@ export default function Dashboard({ previewMode = false }) {
   const handleDataError = useCallback((msg) => setDashboardError(msg), [])
 
   // Tab content — only the active tab is rendered (lazy by default).
-  // Each tab is self-contained re: data fetching.
+  // Each tab is self-contained re: data fetching. Analytics + Markets are
+  // gated for anon (F-01 — their charts read Pro/authed-only IP tables); the
+  // tabs stay clickable but show a signup CTA. Home is the public preview.
   let tabContent
-  if (activeTab === 'analytics')      tabContent = <AnalyticsTab />
-  else if (activeTab === 'markets')   tabContent = <MarketsPolicyTab />
-  else                                 tabContent = <HomeTab effectivePreviewMode={effectivePreviewMode} onDataError={handleDataError} />
+  if (activeTab === 'analytics') {
+    tabContent = effectivePreviewMode
+      ? <PreviewTabGate message={`The Analytics surface — operating-project density, LMI distributions, feasibility-score movement, and the live KPI bar. Create a free account to explore.`} />
+      : <AnalyticsTab />
+  } else if (activeTab === 'markets') {
+    tabContent = effectivePreviewMode
+      ? <PreviewTabGate message={`The Markets & Policy surface — subscription-channel mix, the full policy signal feed, and market filters. Create a free account to explore.`} />
+      : <MarketsPolicyTab />
+  } else {
+    tabContent = <HomeTab effectivePreviewMode={effectivePreviewMode} onDataError={handleDataError} />
+  }
 
   return (
     <div className="min-h-screen relative dashboard-dark">

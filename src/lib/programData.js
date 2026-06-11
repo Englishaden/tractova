@@ -100,10 +100,20 @@ function normalize(row) {
 
 // ── getStatePrograms ──────────────────────────────────────────────────────────
 // Returns all 51 state rows with computed feasibilityScore + runway.
+//
+// F-01 data-tiering: a signed-in user reads the full `state_programs` base
+// table (ix_difficulty present → the feasibility score is exact). An anonymous
+// preview visitor reads the coarse `state_programs_public` view, which omits
+// the synthesized columns (ix_difficulty / *_notes / enrollment_rate); normalize()
+// tolerates them being absent and the score falls back to the moderate-ix default
+// — an intentional approximate teaser, not the proprietary score. Migration 084
+// (Stage 3) revokes anon's base read; until then both paths still work.
 export async function getStatePrograms() {
-  return withCache('state_programs', async () => {
+  const { data: { session } } = await supabase.auth.getSession()
+  const source = session?.user ? 'state_programs' : 'state_programs_public'
+  return withCache(`state_programs:${source}`, async () => {
     const { data, error } = await supabase
-      .from('state_programs')
+      .from(source)
       .select('*')
       .order('name')
     if (error) throw error
@@ -441,6 +451,13 @@ export async function getHudQctDda(stateId, countyName) {
 // per state). Since this runs from the client, we rely on RLS to permit
 // anon/authenticated read access on the snapshots table.
 export async function getStateProgramDeltas({ minDaysApart = 4 } = {}) {
+  // F-01: snapshot feasibility_score is synthesized IP — Pro/authed-only. An
+  // anonymous visitor gets an empty Map, so the Home "Markets on the Move"
+  // ticker falls back to recency-sorted movers (no week-over-week deltas)
+  // rather than reading the gated snapshots table. Migration 084 enforces this
+  // server-side; this keeps the anon preview from requesting a table it can't read.
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) return new Map()
   return withCache('state_program_deltas', async () => {
     // Pull last ~120 days of snapshots. ~50 states × ~16 weekly rows each
     // = ~800 rows worst case -- trivial.
@@ -521,8 +538,11 @@ export async function getDashboardMetricsHistory({ weeks = 8 } = {}) {
 
     // ── Pull snapshots + news in parallel ────────────────────────────────
     const [snapsRes, newsRes] = await Promise.allSettled([
+      // F-01: read the coarse view (state_id/cs_status/capacity_mw/snapshot_at —
+      // all non-IP, no feasibility_score) so this aggregate works for anon too,
+      // and survives the migration-084 base-table REVOKE.
       supabase
-        .from('state_programs_snapshots')
+        .from('state_programs_snapshots_public')
         .select('state_id, cs_status, capacity_mw, snapshot_at')
         .gte('snapshot_at', cutoffISO)
         .order('snapshot_at', { ascending: true }),

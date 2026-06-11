@@ -79,6 +79,22 @@ test.describe('Tractova smoke', () => {
     expect(errors, errors.join('\n\n')).toHaveLength(0)
   })
 
+  test('preview analytics + markets tabs are gated for anon (F-01)', async ({ page }) => {
+    // F-01 data-tiering: for a logged-out visitor the Analytics + Markets tabs
+    // (whose charts read Pro/authed-only IP tables) must render the signup gate,
+    // NOT the live charts — and must not throw an RLS/empty-data console error.
+    const errors = attachErrorCollectors(page)
+    for (const tab of ['analytics', 'markets']) {
+      await page.goto(`/preview?tab=${tab}`)
+      await page.waitForLoadState('networkidle', { timeout: 10_000 })
+      // The gate's eyebrow ("Sign up to view") is unique to PreviewSignupGate;
+      // AnalyticsTab/MarketsPolicyTab never render it. Its presence proves the
+      // tab is gated rather than rendering the IP charts.
+      await expect(page.getByText('Sign up to view').first()).toBeVisible({ timeout: 5_000 })
+    }
+    expect(errors, errors.join('\n\n')).toHaveLength(0)
+  })
+
   test('search page hits paywall (Pro-gated) without errors', async ({ page }) => {
     const errors = attachErrorCollectors(page)
     await page.goto('/search')
