@@ -4,18 +4,21 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { SENSITIVITY_PROMPT } from '../_prompts/sensitivity.js'
+import { MAX_OVERRIDE_ENTRIES, clampStr } from '../lib/_promptInput.js'
 
 export default async function handleSensitivity(body, res) {
   const { state, county, mw, stage, technology, scenario, baseScore, newScore, override, stateProgram, countyData } = body
   if (!scenario) return res.status(400).json({ error: 'scenario required' })
 
   const lines = []
-  lines.push(`PROJECT: ${mw || '?'} MW ${technology || 'Solar'} | ${county || '?'} County, ${state || '?'} | Stage: ${stage || '?'}`)
-  if (stateProgram?.csProgram) lines.push(`Program: ${stateProgram.csProgram} (${stateProgram.csStatus})`)
-  if (countyData?.interconnection?.servingUtility) lines.push(`Utility: ${countyData.interconnection.servingUtility}`)
-  lines.push(`\nSCENARIO: ${scenario}`)
-  if (override) {
-    Object.entries(override).forEach(([k, v]) => lines.push(`  ${k}: ${v}`))
+  lines.push(`PROJECT: ${clampStr(mw, 12) || '?'} MW ${clampStr(technology, 24) || 'Solar'} | ${clampStr(county, 48) || '?'} County, ${clampStr(state, 24) || '?'} | Stage: ${clampStr(stage, 24) || '?'}`)
+  if (stateProgram?.csProgram) lines.push(`Program: ${clampStr(stateProgram.csProgram, 80)} (${clampStr(stateProgram.csStatus, 24)})`)
+  if (countyData?.interconnection?.servingUtility) lines.push(`Utility: ${clampStr(countyData.interconnection.servingUtility, 80)}`)
+  // F-03: cap the free-text scenario and the override map so they can't
+  // balloon the prompt to full-context size.
+  lines.push(`\nSCENARIO: ${clampStr(scenario, 500)}`)
+  if (override && typeof override === 'object') {
+    Object.entries(override).slice(0, MAX_OVERRIDE_ENTRIES).forEach(([k, v]) => lines.push(`  ${clampStr(k, 60)}: ${clampStr(v, 200)}`))
   }
   lines.push(`\nSCORE IMPACT: ${baseScore ?? '?'} → ${newScore ?? '?'} (delta: ${newScore != null && baseScore != null ? (newScore - baseScore > 0 ? '+' : '') + (newScore - baseScore) : '?'})`)
 

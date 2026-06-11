@@ -6,6 +6,16 @@ import { methodologySheetRows, METHODOLOGY_DISCLOSURE } from './dataSources.js'
 
 const num = (v) => (typeof v === 'number' && Number.isFinite(v)) ? v : ''
 
+// CSV/spreadsheet formula-injection guard (audit F-44). A cell whose text
+// begins with = + - @ or a tab/CR is executed as a formula when the workbook
+// is opened in Excel/Sheets/LibreOffice. Most export fields are the user's own
+// project data, but `ixNotes` comes from the shared state_programs table
+// (admin/scraper-sourced), so one poisoned upstream value would ride into every
+// user's export for that state. Prefix-quoting (the standard guard) neutralizes
+// the formula while keeping a legitimate leading "-"/"+" readable.
+export const sanitizeCell = (v) =>
+  (typeof v === 'string' && /^[=+\-@\t\r]/.test(v)) ? `'${v}` : v
+
 /**
  * Builds the row array for the Library xlsx export. Each row maps a
  * saved project to flat columns suitable for Excel — the live 5-pillar
@@ -39,13 +49,13 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}, i
     const wetlandPct = cd?.geospatial?.wetlandCoveragePct
     const farmlandPct = cd?.geospatial?.primeFarmlandPct
     return [
-      // Identity
-      p.name,
-      p.stateName || p.state,
-      p.county,
+      // Identity — string fields sanitizeCell'd against formula injection (F-44)
+      sanitizeCell(p.name),
+      sanitizeCell(p.stateName || p.state),
+      sanitizeCell(p.county),
       p.mw ? Number(p.mw) : '',
-      p.technology || '',
-      p.stage || '',
+      sanitizeCell(p.technology || ''),
+      sanitizeCell(p.stage || ''),
       // Scores — live composite + 5 sub-scores
       num(score),
       subs ? num(subs.offtake) : '',
@@ -54,22 +64,22 @@ export function buildExportRows(projects, stateProgramMap, countyDataMap = {}, i
       subs ? num(subs.incentives) : '',
       subs ? num(subs.policyTiming) : '',
       // Program
-      CS_LABEL[p.csStatus] || p.csStatus || '',
-      p.csProgram || '',
+      sanitizeCell(CS_LABEL[p.csStatus] || p.csStatus || ''),
+      sanitizeCell(p.csProgram || ''),
       sp.capacityMW ?? '',
       sp.lmiRequired ? sp.lmiPercent : '',
       sp.runway?.months ?? '',
       // IX
-      IX_LABEL[sp.ixDifficulty] || sp.ixDifficulty || '',
-      ixNotes,
+      sanitizeCell(IX_LABEL[sp.ixDifficulty] || sp.ixDifficulty || ''),
+      sanitizeCell(ixNotes),
       // Site — wetland % capped at 100 (NWI overlap can push raw values
       // above 100; the wetland_category bucket is the cleaner signal).
       typeof wetlandPct === 'number' ? Math.round(Math.min(100, wetlandPct) * 10) / 10 : '',
       typeof farmlandPct === 'number' ? Math.round(farmlandPct * 10) / 10 : '',
       // Operations
-      p.servingUtility || '',
+      sanitizeCell(p.servingUtility || ''),
       // Meta
-      alerts,
+      sanitizeCell(alerts),
       p.savedAt ? new Date(p.savedAt).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' }) : '',
     ]
   })

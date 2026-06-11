@@ -4,15 +4,19 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { PORTFOLIO_PROMPT } from '../_prompts/portfolio.js'
+import { MAX_PROJECTS, clampStr } from '../lib/_promptInput.js'
 
 export default async function handlePortfolio(body, res) {
   const { projects } = body
-  if (!projects?.length) return res.status(400).json({ error: 'No projects provided' })
+  if (!Array.isArray(projects) || !projects.length) return res.status(400).json({ error: 'No projects provided' })
+  // F-03: bound prompt size — reject oversized portfolios instead of
+  // concatenating an unbounded array into the Sonnet prompt.
+  if (projects.length > MAX_PROJECTS) return res.status(400).json({ error: `Too many projects (max ${MAX_PROJECTS})` })
 
   const lines = [`PORTFOLIO: ${projects.length} projects\n`]
   projects.forEach((p, i) => {
-    lines.push(`${i + 1}. ${p.name || 'Unnamed'} — ${p.mw || '?'}MW ${p.technology || 'Solar'} in ${p.state || '?'}, ${p.county || '?'} County`)
-    lines.push(`   Stage: ${p.stage || 'Unknown'} | Score: ${p.score ?? '?'}/100 | IX: ${p.ixDifficulty || '?'} | CS Status: ${p.csStatus || '?'}`)
+    lines.push(`${i + 1}. ${clampStr(p.name) || 'Unnamed'} — ${clampStr(p.mw, 12) || '?'}MW ${clampStr(p.technology, 24) || 'Solar'} in ${clampStr(p.state, 24) || '?'}, ${clampStr(p.county, 48) || '?'} County`)
+    lines.push(`   Stage: ${clampStr(p.stage, 24) || 'Unknown'} | Score: ${p.score ?? '?'}/100 | IX: ${clampStr(p.ixDifficulty, 24) || '?'} | CS Status: ${clampStr(p.csStatus, 24) || '?'}`)
   })
 
   const totalMW = projects.reduce((s, p) => s + (parseFloat(p.mw) || 0), 0)

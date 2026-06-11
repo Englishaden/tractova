@@ -65,7 +65,9 @@ const event = {
 }
 
 console.log(`\n  POST ${url}`)
-console.log(`  token: ${TOKEN.slice(0, 8)}…${TOKEN.slice(-4)} (${TOKEN.length} chars)`)
+// House rule: log secret PRESENCE + LENGTH only — never a prefix/suffix
+// fragment (audit F-13). Mirrors api/lib/_axiomLog.js.
+console.log(`  token: set (${TOKEN.length} chars)`)
 console.log(`  event: ${JSON.stringify(event, null, 2)}\n`)
 
 const r = await fetch(url, {

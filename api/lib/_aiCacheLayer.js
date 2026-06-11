@@ -39,6 +39,22 @@ export function buildCacheKey(action, params) {
   return crypto.createHash('sha256').update(`${action}::${stable}`).digest('hex').slice(0, 32)
 }
 
+// Stable SHA-256 over the client-supplied context that drives the prompt but
+// does NOT appear verbatim in the verdict cache key (audit F-04). The verdict
+// key keys on state/county/mw/stage/technology + dataVersion, but buildContext
+// also consumes body.stateProgram / countyData / revenueStack / runway /
+// ixQueue — all client-supplied. Folding this hash into the key means a crafted
+// (poisoned) context can no longer collide with the honest entry and be served
+// to another user. Honest inputs are identical for a given county across users,
+// so the hash matches and genuine cross-user cache sharing is preserved; any
+// divergence is at worst a benign cache miss (an extra Sonnet call), never a
+// cross-user serve.
+export function hashContext(obj) {
+  const top = Object.keys(obj || {}).sort()
+  const stable = top.map(k => `${k}=${JSON.stringify(obj[k])}`).join('|')
+  return crypto.createHash('sha256').update(stable).digest('hex').slice(0, 16)
+}
+
 export async function cacheGet(key) {
   try {
     const { data, error } = await supabaseAdmin

@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { applyCors } from './_cors.js'
-import { buildCacheKey, cacheGet, cacheSet, dataVersionFor } from './lib/_aiCacheLayer.js'
+import { buildCacheKey, cacheGet, cacheSet, dataVersionFor, hashContext } from './lib/_aiCacheLayer.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
+import { memAllow } from './lib/_memRateLimit.js'
 import { isAdminFromBearer } from './_admin-auth.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { SYSTEM_PROMPT } from './_prompts/system.js'
@@ -343,14 +344,23 @@ export default async function handler(req, res) {
   if (!isPro) return res.status(403).json({ error: 'Pro subscription required' })
 
   // ── Rate limit — bound Anthropic spend per user ───────────────────────────
-  // Two-tier window: hard burst limit (10 calls / minute) catches scripted
-  // abuse; sustained limit (60 calls / hour) catches credential leaks.
-  // Heavy genuine users do ~30-60 calls/day total, so 60/hr is plenty of
-  // headroom while still flagging clear abuse. Silent fail if migration 015
-  // hasn't been applied (table missing) -- we don't want the audit/limit
-  // layer to break the actual feature.
+  // Tiers (all backed by api_call_log, migration 015):
+  //   burst    — 10 calls / minute   (catches scripted abuse)
+  //   sustained— 60 calls / hour     (catches a leaked/shared Pro JWT)
+  //   daily    — 200 calls / day      (absolute ceiling; cache-busting by
+  //              varying county/mw can't turn 60/hr into unbounded daily spend)
+  // Heavy genuine users do ~30-60 calls/day, so these are headroom, not friction.
+  //
+  // FAIL-CLOSED-ish (audit F-05): this path is spend-bearing, so a metering
+  // outage must NOT remove all limits. If the durable api_call_log read errors
+  // or throws, we fall back to a per-instance in-memory backstop (memAllow)
+  // that bounds throughput to RL_DEGRADED_PER_MIN per warm instance instead of
+  // failing OPEN. The feature stays mostly available; abuse is capped.
   const RL_BURST_PER_MIN = 10
   const RL_SUSTAINED_PER_HOUR = 60
+  const RL_PER_DAY = 200
+  const RL_DEGRADED_PER_MIN = 8
+  let meteringFailed = false
   try {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
     const { data: recentCalls, error: rlErr } = await supabaseAdmin
@@ -360,7 +370,9 @@ export default async function handler(req, res) {
       .gte('called_at', oneHourAgo)
       .order('called_at', { ascending: false })
       .limit(RL_SUSTAINED_PER_HOUR + 1)
-    if (!rlErr && recentCalls) {
+    if (rlErr) {
+      meteringFailed = true
+    } else if (recentCalls) {
       if (recentCalls.length >= RL_SUSTAINED_PER_HOUR) {
         return res.status(429).json({
           error: 'Rate limit exceeded',
@@ -379,11 +391,37 @@ export default async function handler(req, res) {
           retryAfterSec: 60,
         })
       }
+      // Absolute daily ceiling — a cheap count-only query.
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const { count: dayCount, error: dayErr } = await supabaseAdmin
+        .from('api_call_log')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('called_at', oneDayAgo)
+      if (dayErr) {
+        meteringFailed = true
+      } else if (dayCount != null && dayCount >= RL_PER_DAY) {
+        return res.status(429).json({
+          error: 'Daily limit reached',
+          reason: 'sustained_per_day',
+          limit: RL_PER_DAY,
+          retryAfterSec: 6 * 3600,
+        })
+      }
     }
   } catch (_err) {
-    // Rate-limit infrastructure failure must never block legitimate use.
-    // Log and continue.
+    meteringFailed = true
     console.warn('[lens-insight:ratelimit] check failed:', _err.message)
+  }
+  if (meteringFailed && !memAllow(`lens:${user.id}`, { maxInWindow: RL_DEGRADED_PER_MIN, windowMs: 60 * 1000 })) {
+    // Durable limiter unavailable AND this user already hit the degraded
+    // per-instance cap — refuse rather than fail open on a paid call.
+    return res.status(429).json({
+      error: 'Rate limit temporarily reduced',
+      reason: 'metering_degraded',
+      limit: RL_DEGRADED_PER_MIN,
+      retryAfterSec: 60,
+    })
   }
 
   // ── tract-resolve: geocoder proxy (no Anthropic) — dispatch BEFORE the AI-key
@@ -480,6 +518,18 @@ export default async function handler(req, res) {
     stage:               body.stage,
     technology:          body.technology,
     dataVersion:         dataVersionFor(body.stateProgram, policyEvents),
+    // F-04: fold a hash of the remaining client-supplied context that drives
+    // the prompt (stateProgram/countyData/revenueStack/runway/ixQueue) into the
+    // key so a poisoned context can't collide with the honest entry and be
+    // served to other users. Honest inputs match across users → cache still
+    // shares; a crafted payload keys separately.
+    contextHash:         hashContext({
+      stateProgram: body.stateProgram,
+      countyData:   body.countyData,
+      revenueStack: body.revenueStack,
+      runway:       body.runway,
+      ixQueue:      body.ixQueue,
+    }),
     buildContextVersion: 6,
   })
   const cachedVerdict = await cacheGet(verdictKey)

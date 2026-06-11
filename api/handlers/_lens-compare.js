@@ -4,21 +4,24 @@
  */
 import Anthropic from '@anthropic-ai/sdk'
 import { COMPARE_PROMPT } from '../_prompts/compare.js'
+import { MAX_PROJECTS, clampStr } from '../lib/_promptInput.js'
 
 export default async function handleCompare(body, res) {
   const { projects } = body
-  if (!projects?.length || projects.length < 2) return res.status(400).json({ error: 'Need at least 2 projects' })
+  if (!Array.isArray(projects) || projects.length < 2) return res.status(400).json({ error: 'Need at least 2 projects' })
+  // F-03: bound prompt size — reject oversized comparisons.
+  if (projects.length > MAX_PROJECTS) return res.status(400).json({ error: `Too many projects (max ${MAX_PROJECTS})` })
 
   const lines = [`COMPARING ${projects.length} PROJECTS:\n`]
   projects.forEach((p, i) => {
-    lines.push(`PROJECT ${i + 1} (id: ${p.id})`)
-    lines.push(`  Name: ${p.name || 'Unnamed'}`)
-    lines.push(`  Location: ${p.state || '?'}, ${p.county || '?'} County`)
-    lines.push(`  Size: ${p.mw || '?'} MW AC ${p.technology || 'Solar'}`)
-    lines.push(`  Stage: ${p.stage || 'Unknown'}`)
+    lines.push(`PROJECT ${i + 1} (id: ${clampStr(p.id, 40)})`)
+    lines.push(`  Name: ${clampStr(p.name) || 'Unnamed'}`)
+    lines.push(`  Location: ${clampStr(p.state, 24) || '?'}, ${clampStr(p.county, 48) || '?'} County`)
+    lines.push(`  Size: ${clampStr(p.mw, 12) || '?'} MW AC ${clampStr(p.technology, 24) || 'Solar'}`)
+    lines.push(`  Stage: ${clampStr(p.stage, 24) || 'Unknown'}`)
     lines.push(`  Feasibility Score: ${p.feasibilityScore ?? '?'}/100`)
-    lines.push(`  IX Difficulty: ${p.ixDifficulty || '?'}`)
-    lines.push(`  CS Status: ${p.csStatus || '?'}`)
+    lines.push(`  IX Difficulty: ${clampStr(p.ixDifficulty, 24) || '?'}`)
+    lines.push(`  CS Status: ${clampStr(p.csStatus, 24) || '?'}`)
     lines.push('')
   })
 
