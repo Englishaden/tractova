@@ -4,11 +4,15 @@
 
 ---
 
-## 🟢 Pickup — 2026-06-11 — SECURITY AUDIT delivered + P0/P1 SLICE 1 shipped · ⏭ Aden: apply migration 082, make the F-01 tiering call, flip 2 dashboard settings
+## 🟢 Pickup — 2026-06-11 — SECURITY AUDIT delivered + P0/P1 SLICE 1 shipped + F-01 design IN FLIGHT · ⏭ RESUME: re-run the F-01 design workflow, then build stage 1
+
+> **▶ RESUME HERE (paused 2026-06-11, machine shutdown mid-analysis):** The F-01 data-tiering DESIGN workflow was running and got interrupted (design doc NOT yet written). **To resume:** re-run it from its saved script — `Workflow({ scriptPath: "C:\\Users\\adenw\\.claude\\projects\\C--Users-adenw-tractova\\1c78a2f2-5fdc-49e5-9beb-75d95c25b4a4\\workflows\\scripts\\f01-data-tiering-design-wf_7b2c2dd2-1dc.js" })`. (Same-session `resumeFromRunId: "wf_7b2c2dd2-1dc"` returns cached agents; across a new session just re-run the script fresh — it's read-only analysis, safe to repeat.) It writes `security-audit/F01-data-tiering-design.md` + returns an adversarial critique. THEN: review the design + critique, build **stage 1** (additive: `is_pro()` helper + preview VIEWS + GRANTs — zero prod risk), write the final REVOKE migration for Aden to apply only after the SPA repoint is confirmed live on prod. Watch the Postgres `security_invoker` view footgun (a non-invoker view can bypass base-table RLS and re-leak the data).
+
+**F-01 DECISION (Aden, 2026-06-11) — APPROVED:** go with the recommendation — keep the BARE-MINIMUM coarse values public for the preview, pull all IP columns (calibrated rates, `confidence_tier`, `p*` percentile bands, computed scores) behind Pro. Aden wants MAX security; will further shrink the public preview soon (maybe just Home, or sub-tabs w/ one chart); does NOT want data/elements reverse-engineered. **Honest limit told to him:** can lock the DATA, can't make a client SPA un-inspectable (minified JS readable; source maps already OFF — 0 .map files). **OPEN sub-decision for Aden:** scoring formula (`scoreEngine.js`) ships client-side; `/methodology` already publishes it — move scoring server-side (secret) vs keep transparent? Flagged, NOT yet built (his call).
 
 **Full-spectrum security audit ran (multi-agent, Fable 5) → `security-audit/` (5 docs, commit `1040645`).** 27 findings (0 Critical · 1 High · 6 Medium · 20 Low) after adversarial verification; 17 prior controls re-confirmed intact; 7 refuted. The 2026-05-31 posture has NOT regressed.
 
-**Live-state confirmed from Aden's dashboards (the two scariest unknowns came back GOOD):** ✅ `CRON_SECRET` set (Prod+Preview) → cron-spoof Critical OFF the table · ✅ all migrations 0–81 applied (071/072 guards live) · ✅ Confirm-email ON, anon sign-ins OFF, hCaptcha wired, AXIOM_TOKEN/DATASET + HEALTH_CHECK_TOKEN set. **⚠ NEW (V-2/V-3 now CONFIRMED real):** every Sensitive server secret (service-role, Stripe ×2, Anthropic, Resend, CRON_SECRET) is scoped **Production AND Preview**, and `VITE_SUPABASE_URL` is All-Environments → **preview deploys are full prod-access copies**. Fix = enable Vercel Deployment Protection on Preview (or rescope Sensitive vars to Production-only).
+**Live-state confirmed + actions DONE by Aden (2026-06-11):** ✅ **migration 082 APPLIED** (F-02 prune-revoke + F-08 nmtc admin RLS now LIVE) · ✅ `CRON_SECRET` set → cron-spoof Critical off the table · ✅ all migrations 0–81 applied (071/072 guards live) · ✅ Confirm-email ON, anon sign-ins OFF, hCaptcha wired, AXIOM set · ✅ **Vercel Deployment Protection already ON** (Vercel Authentication / Require Log In, Standard) → V-2/V-3 preview-exposure MITIGATED, NOT a public door (downgrade from the earlier "confirmed real" note) · ✅ **Anthropic spend cap $500→$75/mo** (P0-5 backstop done). Password Protection is Pro-only/$150 (skip — Vercel Auth is the stronger control, already on). Protected Sourcemaps off = moot (no sourcemaps generated).
 
 **Shipped — P0/P1 remediation slice 1 (`d1ccd94`, pushed, verify-green: 296 unit / 8 smoke / build / all lints):**
 1. **migration 082 — ⏭ ADEN APPLIES (not live until applied):** §A F-02 `REVOKE EXECUTE` on `prune_webhook_events_older_than_days` from anon/authenticated (+service_role grant) — closes the anon-key wipe of the Stripe idempotency ledger. §B F-08 `nmtc_lic_tracts` admin writes email-literal → `public.is_admin()` (reverts the 080 regression).
@@ -18,13 +22,11 @@
 5. **F-44** `sanitizeCell()` prefix-quotes formula-leading export cells (incl. shared scraper `ixNotes`).
 6. **F-13** `probe-axiom.mjs` logs token presence+length only. 4 new unit specs.
 
-**⏭ ADEN — to make slice 1 fully live + unblock the big rock:**
-- **Apply migration 082** (Supabase SQL editor) — F-02/F-08 are file-only until applied. Verify queries are in the migration footer.
-- **F-01 (the High) — product decision:** which synthesized columns the free/anon tier may see vs Pro-only (drives the P2-1 view+REVOKE+tier-RLS build). Honest minimum to pull from anon: `confidence_tier`, `p*` percentiles, calibrated rate/score columns.
-- **2 dashboard toggles:** (a) Vercel Deployment Protection on Preview (or rescope secrets); (b) Anthropic Console hard monthly spend cap (P0-5 backstop).
+**⏭ ADEN — remaining (all P0/P1-blocking items above are DONE):**
+- **F-01 scoring sub-decision:** keep `scoreEngine.js` client-side (transparent, matches public `/methodology`) vs move it server-side (secret). Not blocking the data-tiering build.
 - Optional: confirm the 2026-05-31 `.env.local` rotation question (gitleaks found nothing committed across 885 commits, so no repo-driven emergency).
 
-**Next buildable slices (no Aden input needed):** F-11 secrets-manifest drift (now have the Vercel inventory), F-15 strip stack/err.message from 500s, F-09 SignIn enumeration, F-14 CSP img-src tighten (own commit, prod-eyeball), F-06 admin audit trigger (migration), then P3 guardrails (gitleaks + Semgrep CI). Roadmap + ordering in `security-audit/02-remediation-roadmap.md`.
+**Next buildable slices (no Aden input needed), in order:** (1) **F-01 stage 1** once the design lands (resume block at top); (2) F-11 secrets-manifest drift (have the Vercel inventory: HEALTH_CHECK_TOKEN, AXIOM_TOKEN/DATASET, EIA/NREL/CENSUS keys, STRIPE_PRICE_ID + the standard set); (3) F-15 strip stack/err.message from 500s; (4) F-09 SignIn enumeration; (5) F-14 CSP img-src tighten (own commit, prod-eyeball); (6) F-06 admin audit trigger (migration); (7) P3 guardrails (gitleaks pre-commit + Semgrep CI). Roadmap + ordering in `security-audit/02-remediation-roadmap.md`. Slice 1 already shipped (`d1ccd94`): F-02/03/04/05/08/13/44.
 
 ---
 
