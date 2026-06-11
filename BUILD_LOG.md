@@ -4,6 +4,30 @@
 
 ---
 
+## 🟢 Pickup — 2026-06-11 — SECURITY AUDIT delivered + P0/P1 SLICE 1 shipped · ⏭ Aden: apply migration 082, make the F-01 tiering call, flip 2 dashboard settings
+
+**Full-spectrum security audit ran (multi-agent, Fable 5) → `security-audit/` (5 docs, commit `1040645`).** 27 findings (0 Critical · 1 High · 6 Medium · 20 Low) after adversarial verification; 17 prior controls re-confirmed intact; 7 refuted. The 2026-05-31 posture has NOT regressed.
+
+**Live-state confirmed from Aden's dashboards (the two scariest unknowns came back GOOD):** ✅ `CRON_SECRET` set (Prod+Preview) → cron-spoof Critical OFF the table · ✅ all migrations 0–81 applied (071/072 guards live) · ✅ Confirm-email ON, anon sign-ins OFF, hCaptcha wired, AXIOM_TOKEN/DATASET + HEALTH_CHECK_TOKEN set. **⚠ NEW (V-2/V-3 now CONFIRMED real):** every Sensitive server secret (service-role, Stripe ×2, Anthropic, Resend, CRON_SECRET) is scoped **Production AND Preview**, and `VITE_SUPABASE_URL` is All-Environments → **preview deploys are full prod-access copies**. Fix = enable Vercel Deployment Protection on Preview (or rescope Sensitive vars to Production-only).
+
+**Shipped — P0/P1 remediation slice 1 (`d1ccd94`, pushed, verify-green: 296 unit / 8 smoke / build / all lints):**
+1. **migration 082 — ⏭ ADEN APPLIES (not live until applied):** §A F-02 `REVOKE EXECUTE` on `prune_webhook_events_older_than_days` from anon/authenticated (+service_role grant) — closes the anon-key wipe of the Stripe idempotency ledger. §B F-08 `nmtc_lic_tracts` admin writes email-literal → `public.is_admin()` (reverts the 080 regression).
+2. **F-05** lens-insight limiter no longer fails OPEN — on `api_call_log` error it degrades to a per-instance in-memory backstop (`api/lib/_memRateLimit.js`) + a 200/user/day ceiling.
+3. **F-03** capped client arrays/strings before prompt-build (portfolio/compare ≤25, sensitivity ≤30) via `api/lib/_promptInput.js` — bounds Anthropic input-token spend.
+4. **F-04** verdict cache key now folds `hashContext()` of the client context that drives the prompt → poisoned context can't be served cross-user; honest inputs still share cache.
+5. **F-44** `sanitizeCell()` prefix-quotes formula-leading export cells (incl. shared scraper `ixNotes`).
+6. **F-13** `probe-axiom.mjs` logs token presence+length only. 4 new unit specs.
+
+**⏭ ADEN — to make slice 1 fully live + unblock the big rock:**
+- **Apply migration 082** (Supabase SQL editor) — F-02/F-08 are file-only until applied. Verify queries are in the migration footer.
+- **F-01 (the High) — product decision:** which synthesized columns the free/anon tier may see vs Pro-only (drives the P2-1 view+REVOKE+tier-RLS build). Honest minimum to pull from anon: `confidence_tier`, `p*` percentiles, calibrated rate/score columns.
+- **2 dashboard toggles:** (a) Vercel Deployment Protection on Preview (or rescope secrets); (b) Anthropic Console hard monthly spend cap (P0-5 backstop).
+- Optional: confirm the 2026-05-31 `.env.local` rotation question (gitleaks found nothing committed across 885 commits, so no repo-driven emergency).
+
+**Next buildable slices (no Aden input needed):** F-11 secrets-manifest drift (now have the Vercel inventory), F-15 strip stack/err.message from 500s, F-09 SignIn enumeration, F-14 CSP img-src tighten (own commit, prod-eyeball), F-06 admin audit trigger (migration), then P3 guardrails (gitleaks + Semgrep CI). Roadmap + ordering in `security-audit/02-remediation-roadmap.md`.
+
+---
+
 ## 🟢 Pickup — 2026-06-10 (night) — DATA-PLAN PHASES 3 + 4 BUILT OUT (HUD-QCT fix + slope + protected + EIA-offtake unify + IX upload) · ⏭ Aden review/apply, THEN new session = security analysis
 
 > **⚠ Deploy-unblock (`dec9500`):** the Phase-3/4 pushes hit a Vercel Hobby "No more than 12 Serverless Functions" build failure. Root cause was PRE-EXISTING — the 11 `api/prompts/*.js` prompt-constant modules were non-`_`-prefixed, so Vercel counted them as functions (it counts non-`_` files **recursively**, not just top-level — the old memory was wrong). Fix: renamed the dir to `api/_prompts/` (excludes all 11) + updated imports. Back to exactly 12 functions; prod deploys again. Memory `project_vercel_hobby_function_cap` corrected.
