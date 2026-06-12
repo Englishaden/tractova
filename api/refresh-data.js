@@ -1,3 +1,4 @@
+// GATE: cron-secret (admin-bearer JWT also accepted; ix_manual source requires admin)
 import { isAdminFromBearer } from './_admin-auth.js'
 import { timingSafeEqualStr } from './_safeCompare.js'
 import { applyCors } from './_cors.js'

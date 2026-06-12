@@ -91,6 +91,15 @@ const FETCH_ALLOWLIST = new Set([
 ])
 const FETCH_RE = /\bfetch\s*\(/
 
+// Rule 4: every route entrypoint declares its auth gate near the top so a
+// reviewer (human or AI) can diff intent vs. code (CLAUDE.md §10.2). Applies to
+// top-level api/*.js (Vercel routes) + api/handlers/_*.js (multiplexed actions);
+// api/lib/, api/scrapers/, api/_prompts/ are modules, not entrypoints.
+const GATE_RE =
+  /\/\/\s*GATE:\s*(public|pro-bearer|admin-bearer|cron-secret|webhook-signature)\b/
+const needsGate = f =>
+  /^api\/[^/_][^/]*\.js$/.test(f) || /^api\/handlers\/_[^/]+\.js$/.test(f)
+
 let secFailed = 0
 for (const f of files) {
   const src = readFileSync(f, 'utf8')
@@ -103,9 +112,13 @@ for (const f of files) {
     console.error('  or add this file to FETCH_ALLOWLIST in scripts/lint-api.mjs with a trust-root comment.')
     secFailed += 1
   }
+  if (needsGate(f) && !GATE_RE.test(src.slice(0, 2000))) {
+    console.error(`✗ ${f}: missing "// GATE: <public|pro-bearer|admin-bearer|cron-secret|webhook-signature>" near the top.`)
+    secFailed += 1
+  }
 }
 if (secFailed > 0) {
   console.error(`\n${secFailed} security-lint failure(s) under api/`)
   process.exit(1)
 }
-console.log('✓ api security lint OK (fn-cap, child_process, fetch allowlist)')
+console.log('✓ api security lint OK (fn-cap, child_process, fetch allowlist, GATE declarations)')

@@ -1,3 +1,4 @@
+// GATE: webhook-signature
 import Stripe from 'stripe'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'

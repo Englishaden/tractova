@@ -1,3 +1,4 @@
+// GATE: public (dispatched before the lens-insight auth gate; opaque share-token + expiry + view cap)
 /**
  * Memo View — public token-gated read of a frozen memo snapshot
  * Action: 'memo-view'

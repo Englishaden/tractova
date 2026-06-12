@@ -1,3 +1,4 @@
+// GATE: admin-bearer (data-health.js authenticateAdmin before dispatch)
 /**
  * Staging POST — approve/reject staged state_programs edits, promote to live
  * Action: 'staging' (POST)

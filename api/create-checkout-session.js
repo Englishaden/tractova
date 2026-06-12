@@ -1,3 +1,4 @@
+// GATE: pro-bearer (JWT-verified; Pro tier NOT required — this is the upgrade path)
 import Stripe from 'stripe'
 import { applyCors, isAllowedRedirectUrl } from './_cors.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'

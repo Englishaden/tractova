@@ -1,3 +1,4 @@
+// GATE: cron-secret (no admin-JWT bypass; also runs retention DELETEs)
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { timingSafeEqualStr } from './_safeCompare.js'

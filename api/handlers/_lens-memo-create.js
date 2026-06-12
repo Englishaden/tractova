@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch; + per-row ownership check)
 /**
  * Memo Share — frozen Deal Memo snapshot accessible via opaque token URL
  * Action: 'memo-create'

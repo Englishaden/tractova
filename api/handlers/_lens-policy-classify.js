@@ -1,3 +1,4 @@
+// GATE: admin-bearer (lens-insight.js re-checks isAdminFromBearer before dispatch; the in-file "Pro" note below is stale)
 /**
  * Policy Impact Classifier — admin-side AI assist for policy_impact_events.
  * Action: 'policy-classify'

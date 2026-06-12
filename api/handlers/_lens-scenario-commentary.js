@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * Scenario commentary — DEPRECATED under the 5-pillar signal model
  * Action: 'scenario-commentary'

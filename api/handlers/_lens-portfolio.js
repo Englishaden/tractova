@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * Portfolio analysis — summarize a developer's project portfolio
  * Action: 'portfolio'

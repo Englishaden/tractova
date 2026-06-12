@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate + rate limit before dispatch)
 /**
  * Geocoder proxy — resolve an address to its census TRACT, then check whether
  * that tract is a §48(e) Category 1 NMTC Low-Income-Community tract.

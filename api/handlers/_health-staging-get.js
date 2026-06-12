@@ -1,3 +1,4 @@
+// GATE: admin-bearer (data-health.js authenticateAdmin before dispatch)
 /**
  * Staging GET — list pending/approved/rejected staging records with diffs
  * Action: 'staging' (GET)

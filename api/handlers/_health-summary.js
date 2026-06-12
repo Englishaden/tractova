@@ -1,3 +1,4 @@
+// GATE: cron-secret (static HEALTH_CHECK_TOKEN bearer, not a JWT)
 /**
  * Health Summary — bearer-token-gated, machine-readable system-health snapshot
  * Action: 'health-summary'

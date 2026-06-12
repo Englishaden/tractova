@@ -1,3 +1,4 @@
+// GATE: pro-bearer (also: public memo-view/market-brief pre-gate; admin re-check for classify-docket/policy-classify)
 import Anthropic from '@anthropic-ai/sdk'
 import { applyCors } from './_cors.js'
 import { buildCacheKey, cacheGet, cacheSet, dataVersionFor, hashContext } from './lib/_aiCacheLayer.js'

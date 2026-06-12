@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * Deal Memo — IC-grade structured analysis for export to PDF / sales artifact
  * Action: 'deal-memo'

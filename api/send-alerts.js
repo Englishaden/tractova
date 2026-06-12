@@ -1,3 +1,4 @@
+// GATE: cron-secret (admin-bearer JWT = restricted test-mode path)
 import { isAdminFromBearer } from './_admin-auth.js'
 import { timingSafeEqualStr } from './_safeCompare.js'
 import { checkRateLimit, logRateLimited } from './_rate-limit.js'

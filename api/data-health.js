@@ -1,3 +1,4 @@
+// GATE: admin-bearer (also: public last-refresh + cron-secret health-summary, dispatched by action)
 import { isAdminFromBearer } from './_admin-auth.js'
 import { timingSafeEqualStr } from './_safeCompare.js'
 import handleExport from './handlers/_health-export.js'

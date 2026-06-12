@@ -1,3 +1,4 @@
+// GATE: admin-bearer (lens-insight.js re-checks isAdminFromBearer before dispatch)
 /**
  * PUC Docket Classifier — admin-side AI assist for the docket tracker
  * Action: 'classify-docket'

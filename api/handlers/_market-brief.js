@@ -1,3 +1,4 @@
+// GATE: public (dispatched before the lens-insight auth gate)
 /**
  * Market Brief — weekly editorial paragraph for the Dashboard.
  * Action: 'market-brief' (PUBLIC — routed before the auth gate in lens-insight.js)

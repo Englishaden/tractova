@@ -1,3 +1,4 @@
+// GATE: cron-secret (admin-bearer JWT also accepted)
 import { isAdminFromBearer } from './_admin-auth.js'
 import { timingSafeEqualStr } from './_safeCompare.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'

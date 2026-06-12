@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * News pulse summary — 2-3 sentence rollup of recent items for a state or feed
  * Action: 'news-summary'

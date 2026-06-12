@@ -1,3 +1,4 @@
+// GATE: pro-bearer (pure parser; reachable only inside _tract-resolve.js)
 /**
  * Pure helper: extract the census TRACT + county GEOID from a US Census Geocoder
  * `geographies/onelineaddress` JSON response. No fetch / no DB — unit-testable.

@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * Compare — multi-project side-by-side analysis
  * Action: 'compare'

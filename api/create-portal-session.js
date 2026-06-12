@@ -1,3 +1,4 @@
+// GATE: pro-bearer (JWT-verified; Pro tier NOT required)
 import Stripe from 'stripe'
 import { applyCors, isAllowedRedirectUrl } from './_cors.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'

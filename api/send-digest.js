@@ -1,3 +1,4 @@
+// GATE: cron-secret (admin test-mode path still uses a legacy email literal — F-25 cleanup pending)
 import { STATUS_LABEL, buildStateMap } from './lib/_alertClassifier.js'
 import { buildDigestHtml, buildDigestText } from './templates/_digestEmail.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'

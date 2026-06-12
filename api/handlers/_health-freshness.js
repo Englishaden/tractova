@@ -1,3 +1,4 @@
+// GATE: admin-bearer (data-health.js authenticateAdmin before dispatch)
 /**
  * Freshness — admin Mission Control dashboard payload (default action)
  * Action: '' (default) — freshness RPC + cron telemetry + drift + cs_status audit

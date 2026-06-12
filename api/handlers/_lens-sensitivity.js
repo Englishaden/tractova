@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * Sensitivity rationale — 1-2 sentence "why this scenario changes the score"
  * Action: 'sensitivity'

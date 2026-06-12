@@ -1,3 +1,4 @@
+// GATE: admin-bearer (data-health.js authenticateAdmin before dispatch)
 /**
  * Export — JSON snapshot of selected admin tables for backup/audit
  * Action: 'export'

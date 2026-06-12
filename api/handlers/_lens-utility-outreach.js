@@ -1,3 +1,4 @@
+// GATE: pro-bearer (lens-insight.js Pro gate before dispatch)
 /**
  * Utility Outreach Kit — consultant-grade pre-application packet
  * Action: 'utility-outreach'
