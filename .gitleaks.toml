@@ -1,0 +1,28 @@
+# Tractova gitleaks config — extends the default ruleset.
+# Allowlist philosophy: only paths that DOCUMENT secret shapes by design
+# (mirrors META_FILES in scripts/lint-secrets.mjs) plus the one public-by-design
+# JWT (the Supabase anon key, RLS-gated, shipped in the browser bundle).
+title = "tractova"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Tractova-tuned false positives"
+paths = [
+  '''docs/secrets-manifest\.md''',
+  '''docs/SECURITY_ROTATION_LOG\.md''',
+  '''CLAUDE\.md''',
+  '''scripts/lint-secrets\.mjs''',
+  '''scripts/_git-hooks/.*''',
+  '''scripts/audit-allowlist\.json''',
+  '''security-audit/.*''',
+  '''package-lock\.json''',
+]
+regexes = [
+  # Supabase ANON key is public by design (shipped in the browser bundle, RLS-gated).
+  # gitleaks' generic-jwt rule flags any eyJ... string; allow ONLY this assignment shape.
+  '''VITE_SUPABASE_ANON_KEY\s*[=:]\s*["']?eyJ[A-Za-z0-9_\-\.]+''',
+  # CI placeholder used by the build workflow.
+  '''placeholder-anon-key-for-ci-build-only''',
+]

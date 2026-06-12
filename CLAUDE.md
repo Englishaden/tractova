@@ -121,3 +121,28 @@ authentication, authorization, the DB layer, payments, or any server-side fetch.
 - [ ] **Payments.** Stripe webhook signature verified on the raw body; paid tier granted ONLY by a verified webhook event; `client_reference_id` validated against a real profile.
 - [ ] **PII.** Event logs / metadata store `user_id`, not email; public surfaces never render raw email. (D1)
 - [ ] **Supabase Auth settings (live, not in repo):** password min length ≥ 10; "Confirm email" obfuscation on (anti-enumeration); auth rate limits configured. (A1, A2) **Leaked-password protection is handled app-side** (`src/lib/pwnedPassword.js` HIBP k-anonymity check in SignUp/UpdatePassword) because the native Supabase HIBP toggle is Pro-plan-gated — keep that check wired on both flows. **Server-side enforcement deliberately NOT built** (decision 2026-05-31): it would require re-routing signup through the backend (`admin.createUser`), re-implementing Supabase's confirmation-email/resend/rate-limit/anti-enumeration plumbing by hand. Bypassing the client check only weakens the user's OWN account (no adversarial gain), so the cost/risk is disproportionate. Revisit only if abuse appears.
+- [ ] **Migration grant hygiene.** New SECURITY DEFINER function → explicit `REVOKE … FROM public, anon, authenticated` in the same migration (F-02). New write policy → `public.is_admin()`, never an email literal (F-08). New table/view/column readable by anon/authenticated → explicit IP-exposure sign-off from Aden (F-01).
+- [ ] **AI spend path.** New/changed Anthropic-calling handler: input caps before prompt build (F-03); cache key covers EVERY input that shapes the prompt (F-04); rate limiter fails CLOSED on metering errors and a daily cap exists (F-05).
+- [ ] **Client-facing errors generic.** No `err.message` / stack in any 4xx/5xx body — full detail to `console.error`/`axiomLog` only (F-15).
+- [ ] **Denials observable.** New gate branches log 401/403/429 (F-21); admin write paths hit `admin_audit_log` (the migration-085 trigger for client-direct writes, or `logAdminAction` for service-role admin paths) (F-06).
+- [ ] **Post-deploy header probe.** `curl -sI https://tractova.com` → CSP / HSTS / XCTO present and matching `vercel.json` (`tests/unit/vercelHeaders.spec.js` covers the repo side; this covers what Vercel actually serves) (F-14, F-41).
+- [ ] **Env inventory.** Any new env var — including server-only non-VITE vars the lint can't see — added to `docs/secrets-manifest.md` + § 7 (F-11).
+
+---
+
+## 10 — Secure-coding contract (every session, every diff)
+
+1. **Queries:** PostgREST builders / parameterized only. Never string-concat SQL or build filter strings from user input.
+2. **Gates:** every route entrypoint (`api/*.js`, `api/handlers/_*.js`) opens with `// GATE: public|pro-bearer|admin-bearer|cron-secret|webhook-signature`, and the named gate is enforced on a FRESH DB lookup before any work. Default-deny.
+3. **Inputs:** schema-validate every client field at the top of the handler — type, length cap, array `.slice` cap, enum allowlist. Reject (400) over silently truncating. Anything feeding an AI prompt gets an explicit size cap (`api/lib/_promptInput.js`).
+4. **Secrets:** only via `process.env` / `import.meta.env`. New var → `docs/secrets-manifest.md` + § 7 + Vercel BEFORE deploy. Never log a value — presence + length only.
+5. **Routes:** never a 13th top-level `api/*.js` (Hobby cap). New actions multiplex via `api/lens-insight.js` + `api/handlers/_*.js`.
+6. **Fetches:** server-side fetch of a variable URL goes through `api/lib/_urlFetch.js`; constant-URL fetches stay constant (no user/admin string into the URL).
+7. **Admin actions:** every admin write produces an audit row (migration-085 trigger for client-direct writes; `logAdminAction` for service-role admin paths). No silent admin mutations.
+8. **Denials:** every new 401/403/429 branch logs a security event (`axiomLog` at minimum).
+9. **Errors:** clients get generic bodies; `err.message`/stack go to server logs only.
+10. **DOM:** no `dangerouslySetInnerHTML` (ESLint `react/no-danger` enforces). Rich text renders via `src/lib/markdownRender.jsx`.
+11. **Migrations:** admin RLS uses `public.is_admin()` — never an email literal. Every SECURITY DEFINER function gets an explicit `REVOKE`. Making any column anon-readable is an IP-exposure decision Aden approves explicitly.
+12. **Dependencies:** before adding any package, `npm view <pkg>` (age, maintainers, repo, weekly downloads) and state the result in the commit message. Pin exact versions; no postinstall scripts without review.
+13. **Headers:** never loosen `vercel.json` CSP/headers without a written rationale in the commit + BUILD_LOG (`tests/unit/vercelHeaders.spec.js` will fail the change anyway).
+14. **Second pass:** a diff touching `api/`, migrations, auth pages, `vercel.json`, or `package.json` gets the `/security-review` second pass before push.

@@ -49,6 +49,12 @@ export default [
       // jsx-uses-vars keeps no-undef from flagging components that are only
       // referenced inside JSX (otherwise <Foo /> looks like an unused import).
       'react/jsx-uses-vars': 'error',
+      // ── Security (guardrails spec 2026-06-10) — all verified zero-hit at adoption ──
+      // No raw HTML injection; rich text renders via src/lib/markdownRender.jsx (F-38).
+      'react/no-danger': 'error',
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
     },
   },
 ]

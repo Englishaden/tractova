@@ -1,0 +1,52 @@
+rules:
+  - id: tractova-stack-to-client
+    languages: [javascript]
+    severity: ERROR
+    message: >
+      Never return err.message / err.stack to the client on 5xx (finding F-15).
+      Send a generic body; log the full error server-side via axiomLog/console.error
+      (pattern: api/data-health.js).
+    paths:
+      include: ["api"]
+    patterns:
+      - pattern-either:
+          - pattern: $RES.status(500).json({ ..., stack: $X, ... })
+          - pattern: $RES.status(500).json({ ..., error: $E.message, ... })
+          - pattern: $RES.status(500).json({ ..., message: $E.message, ... })
+          - pattern: $RES.status(500).json({ ..., detail: $E.message, ... })
+
+  - id: tractova-admin-email-literal
+    languages: [javascript]
+    severity: ERROR
+    message: >
+      Admin checks must use the role column / public.is_admin(), never a hardcoded
+      email (findings F-08, F-25). The owner email in auth logic is a regression.
+    paths:
+      include: ["api", "src"]
+      exclude: ["api/_admin-auth.js"]   # tracked legacy fallback — remove this exclude when F-25 lands
+    patterns:
+      - pattern-regex: aden\.walker67@gmail\.com
+
+  - id: tractova-service-role-key-in-client
+    languages: [javascript]
+    severity: ERROR
+    message: >
+      SUPABASE_SERVICE_ROLE_KEY is server-only (CLAUDE.md section 7) — it must never
+      be referenced under src/ (it would ship in the browser bundle).
+    paths:
+      include: ["src"]
+    patterns:
+      - pattern-regex: SUPABASE_SERVICE_ROLE_KEY
+
+  - id: tractova-rls-write-using-true
+    languages: [generic]
+    severity: ERROR
+    message: >
+      A write-capable RLS policy with using(true) is world-writable (cf. F-01/F-02
+      class). Gate on auth.uid() / public.is_admin() / tier predicates. If a
+      historical migration trips this, add a per-file paths.exclude here
+      (migrations are immutable history) so only NEW migrations are gated.
+    paths:
+      include: ["supabase/migrations"]
+    patterns:
+      - pattern-regex: (?is)create\s+policy[^;]{0,400}for\s+(insert|update|delete|all)[^;]{0,400}using\s*\(\s*true\s*\)

@@ -1,0 +1,75 @@
+name: Security
+
+# Separate from verify.yml: these scans pull remote rule registries / advisory
+# DBs and also run on a weekly cron with no commits. npm-audit gating is NOT
+# duplicated here — it stays in verify.yml via scripts/audit-check.mjs (lint:audit).
+#
+# Non-blocking by default: nothing here gates the Vercel deploy unless branch
+# protection / a promote gate is wired (guardrails spec section 2.3b — manual
+# GitHub/Vercel step). Today this provides SIGNAL: the Actions tab shows red if a
+# real issue lands. Semgrep is in BURN-IN (continue-on-error) so registry-rule
+# noise doesn't cry wolf — triage with inline `// nosemgrep: <rule-id>` + reason,
+# then drop the continue-on-error to make it blocking.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 12 * * 1'   # Mondays ~08:00 ET — fresh pass even with no commits
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep SAST (OWASP + Tractova rules)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan (burn-in — non-blocking until rules are triaged)
+        continue-on-error: true
+        run: >
+          semgrep scan
+          --config p/owasp-top-ten
+          --config p/javascript
+          --config .semgrep/tractova-rules.yml
+          --severity ERROR
+          --error
+          --metrics=off
+
+  gitleaks:
+    name: Gitleaks (full git history)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # full history — closes the history-scan gap
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is only needed for org-owned repos; this is a
+          # personal-account repo — free. Reads .gitleaks.toml at root automatically.
+
+  supply-chain:
+    name: Lockfile tamper scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: lockfile-lint — registry-host + integrity pinning (F-19)
+        run: >
+          npx --yes lockfile-lint --path package-lock.json --type npm
+          --allowed-hosts npm --validate-https --validate-integrity
+      # TODO(security): add osv-scanner (OSV MAL-* malicious-package DB, F-19) in a
+      # follow-up — pin the action to a verified release tag + an osv-scanner.toml
+      # ignoring the audit-allowlist.json advisories so it lands green.

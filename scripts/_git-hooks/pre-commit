@@ -31,6 +31,20 @@ if ! node scripts/lint-secrets.mjs --staged; then
   exit 1
 fi
 
+# 1b. gitleaks staged deep-scan (generic detectors + entropy). lint-secrets
+# above stays the always-on, dependency-free gate; CI runs gitleaks on the FULL
+# history, so skipping here when uninstalled is a backstop, not silent.
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --pre-commit --staged --redact --no-banner; then
+    echo "  Block: gitleaks flagged a possible secret in the staged diff."
+    echo "  False positive? Extend [allowlist] in .gitleaks.toml (path or regex)."
+    exit 1
+  fi
+else
+  echo "  ! gitleaks not installed — staged deep-scan skipped (CI runs it on full history)."
+  echo "    Install: winget install Gitleaks.Gitleaks"
+fi
+
 # 2. API lint (catches syntax errors in api/*.js before they hit Vercel)
 if [ -f scripts/lint-api.mjs ]; then
   if ! node scripts/lint-api.mjs > /dev/null 2>&1; then

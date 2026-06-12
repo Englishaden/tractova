@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Tractova pre-push hook — static security gates before anything reaches origin
+# (Vercel deploys main on push, so this is the last LOCAL gate). Install via
+# `node scripts/install-git-hooks.mjs`.
+#
+# Deliberately excludes `npm run build` + Playwright (slow / needs a dev server);
+# CI runs the build, and `npm run verify` stays the rule for visible-feature
+# changes (MEMORY: feedback_pre_push_verify).
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "pre-push: lint:api + lint:secrets + lint:js + lint:audit + test:unit"
+npm run --silent lint:api
+node scripts/lint-secrets.mjs          # full tracked tree, not just staged
+npm run --silent lint:js
+npm run --silent lint:audit
+npm run --silent test:unit
+
+# Full-history secret scan when gitleaks is available (fast: seconds on ~900 commits).
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --redact --no-banner . || { echo "pre-push: gitleaks found leaks in history"; exit 1; }
+fi
+
+# Security-sensitive paths in this push -> remind about the AI second pass.
+# Warn-only: a hook can't run the review itself.
+RANGE_FILES="$(git diff --name-only origin/main..HEAD 2>/dev/null || true)"
+if echo "$RANGE_FILES" | grep -qE '^(api/|supabase/migrations/|vercel\.json|package(-lock)?\.json|src/lib/supabase|src/lib/pwnedPassword|src/pages/Sign|src/pages/UpdatePassword|scripts/lint-|\.github/workflows/|\.gitleaks\.toml)'; then
+  echo ""
+  echo "  ! Security-sensitive paths in this push."
+  echo "    Run the /security-review second pass (CLAUDE.md section 10) if not already done."
+fi
+exit 0
