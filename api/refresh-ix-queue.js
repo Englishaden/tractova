@@ -63,11 +63,9 @@ export default async function handler(req, res) {
       error: err?.message,
       stack: err?.stack?.slice(0, 2000),
     })
-    return res.status(500).json({
-      error: err?.message || String(err),
-      where: 'refresh-ix-queue',
-      stack: err?.stack?.split('\n').slice(0, 4).join(' | '),
-    })
+    // F-15: full detail is in console.error + axiomLog above (server-side);
+    // never return err.message/stack to the client.
+    return res.status(500).json({ error: 'Internal server error' })
   }
 }
 

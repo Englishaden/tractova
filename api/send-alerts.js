@@ -284,7 +284,8 @@ export default async function handler(req, res) {
               await sendEmail(user.email, subject, html, text)
               results.push({ email: user.email, project: project.name, type: 'opportunity' })
             } catch (err) {
-              return res.status(500).json({ error: `Email send failed: ${err.message}` })
+              console.error('[send-alerts] opportunity email failed:', err.message)
+              return res.status(500).json({ error: 'Email send failed' })  // F-15
             }
           }
           if (wantsSlack) {
@@ -294,7 +295,8 @@ export default async function handler(req, res) {
               await sendSlack(profile.slack_webhook_url, blocks)
               slackResults.sent++
             } catch (err) {
-              return res.status(500).json({ error: `Slack send failed: ${err.message}` })
+              console.error('[send-alerts] opportunity slack failed:', err.message)
+              return res.status(500).json({ error: 'Slack send failed' })  // F-15
             }
           }
           return res.status(200).json({ sent: results.length, slack: slackResults, testMode, testType, results })
@@ -329,7 +331,7 @@ export default async function handler(req, res) {
           } catch (err) {
             console.error(`[send-alerts] email failed for user ${profile.id}:`, err.message)
             if (testMode) {
-              return res.status(500).json({ error: `Email send failed: ${err.message}` })
+              return res.status(500).json({ error: 'Email send failed' })  // F-15: detail logged above
             }
           }
         }
@@ -345,7 +347,7 @@ export default async function handler(req, res) {
             slackResults.failed++
             console.error(`[send-alerts] slack failed for ${profile.id}:`, err.message)
             if (testMode) {
-              return res.status(500).json({ error: `Slack send failed: ${err.message}` })
+              return res.status(500).json({ error: 'Slack send failed' })  // F-15: detail logged above
             }
           }
         }
@@ -368,6 +370,6 @@ export default async function handler(req, res) {
       error:    err.message,
       stack:    err.stack?.slice(0, 2000),
     })
-    return res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: 'Internal server error' })  // F-15: detail in axiomLog above
   }
 }

@@ -224,11 +224,8 @@ export default async function handler(req, res) {
       error: err?.message,
       stack: err?.stack?.slice(0, 2000),
     })
-    return res.status(500).json({
-      error: err?.message || String(err),
-      where: 'refresh-substations',
-      stack: err?.stack?.split('\n').slice(0, 4).join(' | '),
-    })
+    // F-15: detail is logged server-side (console.error + axiomLog); no leak.
+    return res.status(500).json({ error: 'Internal server error' })
   }
 }
 

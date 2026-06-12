@@ -22,7 +22,10 @@ export default async function handleStagingPost(req, res) {
       .eq('id', id)
       .eq('submitted_at', submitted_at)
 
-    if (error) return res.status(500).json({ error: error.message })
+    if (error) {
+      console.error('[health-staging-post] reject failed:', error.message)
+      return res.status(500).json({ error: 'Internal server error' })  // F-15
+    }
     return res.status(200).json({ status: 'rejected', id })
   }
 
@@ -57,7 +60,8 @@ export default async function handleStagingPost(req, res) {
     .upsert({ id, name: staged.name, ...updates }, { onConflict: 'id' })
 
   if (upsertErr) {
-    return res.status(500).json({ error: `Promote failed: ${upsertErr.message}` })
+    console.error('[health-staging-post] promote failed:', upsertErr.message)
+    return res.status(500).json({ error: 'Internal server error' })  // F-15
   }
 
   await supabaseAdmin

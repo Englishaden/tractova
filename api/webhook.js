@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       route: 'api/webhook',
       error: err.message,
     })
-    return res.status(400).send(`Webhook Error: ${err.message}`)
+    return res.status(400).send('Webhook Error')  // F-15: detail in console.error + axiomLog above
   }
 
   const { type, data } = event
@@ -169,6 +169,6 @@ export default async function handler(req, res) {
       error:    err.message,
       stack:    err.stack?.slice(0, 2000),
     })
-    return res.status(500).json({ error: err.message })
+    return res.status(500).json({ error: 'Internal server error' })  // F-15: detail in axiomLog above
   }
 }

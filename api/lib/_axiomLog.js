@@ -141,5 +141,8 @@ export async function logAndRespond500(res, err, context = {}) {
     ...context,
     stack: err instanceof Error ? err.stack?.slice(0, 2000) : undefined,
   })
-  return res.status(500).json({ error: message })
+  // F-15: full detail (message + stack) is forwarded to Axiom above; the
+  // client response stays generic so this helper is safe-by-default before
+  // its first real callsite.
+  return res.status(500).json({ error: 'Internal server error' })
 }

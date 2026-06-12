@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       return await handleHealthSummary(res)
     } catch (err) {
       console.error('[data-health health-summary] failed:', err)
-      return res.status(500).json({ error: 'Internal server error', detail: err?.message })
+      return res.status(500).json({ error: 'Internal server error' })  // F-15: drop detail (raw err.message)
     }
   }
 

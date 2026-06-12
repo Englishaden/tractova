@@ -19,7 +19,10 @@ export default async function handleStagingGet(req, res) {
     .order('submitted_at', { ascending: false })
     .limit(50)
 
-  if (error) return res.status(500).json({ error: error.message })
+  if (error) {
+    console.error('[health-staging-get] query failed:', error.message)
+    return res.status(500).json({ error: 'Internal server error' })  // F-15
+  }
 
   const withDiffs = await Promise.all((data || []).map(async (staged) => {
     const { data: live } = await supabaseAdmin
