@@ -64,6 +64,7 @@ export default async function handler(req, res) {
   const authHeader = req.headers.authorization
   let isAuthed = false
   let authMode = ''
+  let adminUser = null   // F-06: the admin actor, threaded to the ix_manual audit-log write
 
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7)
@@ -78,6 +79,7 @@ export default async function handler(req, res) {
       if (adminCheck.ok) {
         isAuthed = true
         authMode = adminCheck._legacyFallback ? 'admin-legacy-email' : 'admin'
+        adminUser = adminCheck.user
       }
     }
   }
@@ -235,7 +237,7 @@ export default async function handler(req, res) {
       else if (source === 'flood_nri')           result = await refreshFloodNri()
       else if (source === 'protected_land')      result = await refreshPadusProtected()
       else if (source === 'slope')               result = await refreshSlope()
-      else if (source === 'ix_manual')           result = await refreshIxManual(req.body)
+      else if (source === 'ix_manual')           result = await refreshIxManual(req.body, adminUser)
       else if (source === 'solar_costs')         result = await refreshSolarCosts()
       else if (source === 'policy_scan')         result = await refreshPolicyScan()
       else if (source === 'hosting_capacity')    result = await refreshHostingCapacity()

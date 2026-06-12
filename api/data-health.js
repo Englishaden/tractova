@@ -131,7 +131,7 @@ export default async function handler(req, res) {
 
     if (action === 'staging') {
       if (req.method === 'GET') return await handleStagingGet(req, res)
-      if (req.method === 'POST') return await handleStagingPost(req, res)
+      if (req.method === 'POST') return await handleStagingPost(req, res, user)  // F-06: pass admin actor
       return res.status(405).end('Method Not Allowed')
     }
 

@@ -15,8 +15,9 @@
  */
 import { supabaseAdmin } from './_scraperBase.js'
 import { parseIxManualCsv } from './_ixManual.js'
+import { logAdminAction } from '../_admin-auth.js'
 
-export default async function refreshIxManual(body) {
+export default async function refreshIxManual(body, actor) {
   const csv = body?.csv
   if (typeof csv !== 'string' || !csv.trim()) {
     return { ok: false, error: 'ix_manual expects a POST body { csv: "<text>" } — no CSV received' }
@@ -39,6 +40,16 @@ export default async function refreshIxManual(body) {
   if (error) return { ok: false, error: `upsert failed: ${error.message}`, rows_attempted: upsertRows.length }
 
   const states = [...new Set(rows.map(r => r.state_id))].sort()
+
+  // F-06: this is a service-role write, so the migration-085 DB trigger can't
+  // see the admin actor — log it app-side where the identity is known.
+  await logAdminAction(supabaseAdmin, actor, {
+    action: 'upsert',
+    targetTable: 'ix_queue_data',
+    targetId: states.join(','),
+    details: { rows_upserted: upsertRows.length, states, source: 'ix_manual' },
+  })
+
   return {
     ok: true,
     rows_upserted: upsertRows.length,

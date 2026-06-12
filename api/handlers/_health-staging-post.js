@@ -3,13 +3,14 @@
  * Action: 'staging' (POST)
  */
 import { supabaseAdmin } from '../lib/_supabaseAdmin.js'
+import { logAdminAction } from '../_admin-auth.js'
 
 const PROMOTABLE_FIELDS = [
   'cs_status', 'cs_program', 'capacity_mw', 'lmi_required', 'lmi_percent',
   'ix_difficulty', 'ix_notes', 'program_notes', 'enrollment_rate_mw_per_month',
 ]
 
-export default async function handleStagingPost(req, res) {
+export default async function handleStagingPost(req, res, actor) {
   const { id, submitted_at, action } = req.body || {}
   if (!id || !submitted_at || !['approve', 'reject'].includes(action)) {
     return res.status(400).json({ error: 'Missing id, submitted_at, or action (approve|reject)' })
@@ -84,6 +85,15 @@ export default async function handleStagingPost(req, res) {
       } catch { /* best-effort logging */ }
     }
   }
+
+  // F-06: service-role promote — log the admin actor app-side (the migration-085
+  // trigger can't see them). Complements the per-field data_updates trail above.
+  await logAdminAction(supabaseAdmin, actor, {
+    action: 'update',
+    targetTable: 'state_programs',
+    targetId: id,
+    details: { via: 'staging-promote', fields: Object.keys(updates) },
+  })
 
   return res.status(200).json({ status: 'approved', id, fieldsUpdated: Object.keys(updates).length })
 }
