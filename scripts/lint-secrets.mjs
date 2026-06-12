@@ -33,12 +33,26 @@ const SECRET_PATTERNS = [
   ['aws-access',      /\bAKIA[0-9A-Z]{16}\b/],
   ['aws-temp',        /\bASIA[0-9A-Z]{16}\b/],
   ['jwt',             /eyJhbGciOi[A-Za-z0-9_\-]{50,}\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+/],
-  // Literal env-var assignment lines (only matters if a real value follows the =)
-  ['env-anthropic',   /^ANTHROPIC_API_KEY=[a-zA-Z0-9_\-]{10,}/m],
-  ['env-supabase-sr', /^SUPABASE_SERVICE_ROLE_KEY=[a-zA-Z0-9_\-.]{10,}/m],
-  ['env-stripe-sec',  /^STRIPE_SECRET_KEY=[a-zA-Z0-9_]{10,}/m],
-  ['env-resend',      /^RESEND_API_KEY=[a-zA-Z0-9_]{10,}/m],
-  ['env-cron',        /^CRON_SECRET=[a-zA-Z0-9_\-]{10,}/m],
+  ['supabase-secret', /\bsb_secret_[A-Za-z0-9_\-]{20,}/],            // new Supabase key format
+  ['supabase-pub',    /\bsb_publishable_[A-Za-z0-9_\-]{20,}/],       // public, but never hardcode
+  ['github-pat',      /\b(ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,})/],
+  ['private-key-pem', /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/],
+  ['postgres-url',    /postgres(?:ql)?:\/\/[^\s:@/]+:[^\s@/]+@/],    // creds-in-URL
+  ['slack-webhook',   /hooks\.slack\.com\/services\/T[A-Z0-9]+\/B[A-Z0-9]+\/[A-Za-z0-9]+/],
+  ['axiom',           /\bxaat-[A-Za-z0-9\-]{20,}/],
+  // Literal env-var assignment lines (only matters if a real value follows the =;
+  // ="..." / ='...' tolerated so a quoted value is still caught).
+  ['env-anthropic',   /^ANTHROPIC_API_KEY=["']?[a-zA-Z0-9_\-]{10,}/m],
+  ['env-supabase-sr', /^SUPABASE_SERVICE_ROLE_KEY=["']?[a-zA-Z0-9_\-.]{10,}/m],
+  ['env-stripe-sec',  /^STRIPE_SECRET_KEY=["']?[a-zA-Z0-9_]{10,}/m],
+  ['env-resend',      /^RESEND_API_KEY=["']?[a-zA-Z0-9_]{10,}/m],
+  ['env-cron',        /^CRON_SECRET=["']?[a-zA-Z0-9_\-]{10,}/m],
+  ['env-health',      /^HEALTH_CHECK_TOKEN=["']?[A-Za-z0-9_\-]{10,}/m],
+  ['env-axiom',       /^AXIOM_TOKEN=["']?[A-Za-z0-9_\-]{10,}/m],
+  ['env-test-pass',   /^TEST_USER_PASSWORD=["']?\S{8,}/m],
+  ['env-eia',         /^EIA_API_KEY=["']?[A-Za-z0-9]{10,}/m],
+  ['env-nrel',        /^NREL_API_KEY=["']?[A-Za-z0-9]{10,}/m],
+  ['env-census',      /^CENSUS_API_KEY=["']?[A-Za-z0-9]{10,}/m],
 ]
 
 // Files / paths that document patterns by design — scanning them
@@ -61,7 +75,8 @@ function shouldSkipPath(p) {
   if (p.startsWith('node_modules/')) return true
   if (p.startsWith('dist/')) return true
   if (p.startsWith('backups/')) return true
-  if (p.startsWith('public/')) return true   // upstream data files
+  // NB: public/ is NOT skipped — it deploys verbatim to prod, so a secret there
+  // would ship to the browser (F-12). Binary assets are still excluded by SKIP_EXT.
   return false
 }
 
@@ -112,15 +127,44 @@ for (const file of files) {
   }
 }
 
-if (hits.length === 0) {
+// ── VITE_ env-var manifest gate (F-11 / CLAUDE.md §10) ───────────────────────
+// Every VITE_* referenced in src|api|scripts|vite.config ships to (or shapes)
+// the browser bundle, so an uninventoried one is an unreviewed exposure
+// decision. Checked against docs/secrets-manifest.md.
+const VITE_SCOPE = /^(src|api|scripts)\/.*\.(js|jsx|mjs)$|^vite\.config\.(js|mjs)$/
+const viteHits = []
+let manifestVars = null
+try {
+  const md = readFileSync(resolve(ROOT, 'docs/secrets-manifest.md'), 'utf8')
+  manifestVars = new Set(Array.from(md.matchAll(/VITE_[A-Z0-9_]+/g), m => m[0]))
+} catch { /* manifest moved — skip rather than hard-fail on a doc rename */ }
+if (manifestVars) {
+  for (const file of files) {
+    if (!VITE_SCOPE.test(file) || shouldSkipPath(file)) continue
+    const content = getContent(file)
+    for (const m of content.matchAll(/\bVITE_[A-Z0-9_]+\b/g)) {
+      if (!manifestVars.has(m[0])) viteHits.push(`${file}: ${m[0]}`)
+    }
+  }
+}
+
+if (hits.length === 0 && viteHits.length === 0) {
   console.log(`✓ secret-scan: clean across ${files.length} ${STAGED ? 'staged file(s)' : 'tracked file(s)'}`)
   process.exit(0)
 }
 
-console.error(`\n  ! lint-secrets: ${hits.length} possible secret(s) found:`)
-for (const h of hits) {
-  console.error(`    ${h.file}:${h.line}  [${h.pattern}]  ${h.match}`)
+if (hits.length > 0) {
+  console.error(`\n  ! lint-secrets: ${hits.length} possible secret(s) found:`)
+  for (const h of hits) {
+    console.error(`    ${h.file}:${h.line}  [${h.pattern}]  ${h.match}`)
+  }
+  console.error(`\n  If these are false positives, add the path to META_FILES in scripts/lint-secrets.mjs.`)
+  console.error(`  If real, rotate the secret immediately and remove from history.`)
 }
-console.error(`\n  If these are false positives, add the path to META_FILES in scripts/lint-secrets.mjs.`)
-console.error(`  If real, rotate the secret immediately and remove from history.\n`)
+if (viteHits.length > 0) {
+  console.error(`\n  ! lint-secrets: VITE_ var(s) referenced but missing from docs/secrets-manifest.md:`)
+  for (const h of [...new Set(viteHits)]) console.error(`    ${h}`)
+  console.error('  Add an inventory row (+ CLAUDE.md §7) before committing.')
+}
+console.error('')
 process.exit(1)
