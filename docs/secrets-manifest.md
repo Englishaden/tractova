@@ -45,6 +45,22 @@ NEVER bypass to ship faster.
 | `VITE_STRIPE_PUBLISHABLE_KEY` | Browser-side checkout | Yes (public) | When Stripe account rotates |
 | `CRON_SECRET` | Bearer token gate on `api/refresh-data.js` | No | Semi-annually |
 | `VITE_HCAPTCHA_SITEKEY` | hCaptcha widget on auth forms (public sitekey) | Yes (public) | n/a — the paired SECRET lives in Supabase Auth (Bot & Abuse Protection), not in env |
+| `STRIPE_PRICE_ID` | Server-side canonical Stripe price allowlist (anti price-substitution) | No | When Stripe price changes |
+| `VITE_STRIPE_PRICE_ID` | Browser-side Stripe price id passed to checkout | Yes (public) | When Stripe price changes |
+| `CENSUS_API_KEY` | Census ACS / LMI demographic-data refresh | No | Annually |
+| `EIA_API_KEY` | EIA substations + offtake-rate data refresh | No | Annually |
+| `NREL_API_KEY` | NREL PVWatts capacity-factor refresh | No | Annually |
+| `LBNL_TTS_CSV_URL` | Source URL for the LBNL TTS solar-cost CSV (local seed path) | No | n/a — public gov source |
+| `HEALTH_CHECK_TOKEN` | Bearer gate on the `api/data-health.js` health-summary telemetry endpoint | No | Semi-annually |
+| `AXIOM_TOKEN` | Axiom log-ingest token (server-side observability) | No | Semi-annually |
+| `AXIOM_DATASET` | Axiom dataset name for log ingestion | No | n/a |
+| `SUPABASE_ANON_KEY` | Server-side anon-key fallback for read-only scripts | No | If RLS misconfigured / leaked |
+| `RESTORE_ALLOW_PROD` | Local-only `=1` override to permit `restore-from-snapshot.mjs` into a prod-looking DB | No | n/a — local override flag |
+| `TEST_USER_EMAIL` | Local/dev Playwright + audit test-account login | No | n/a — non-prod test account |
+| `TEST_USER_PASSWORD` | Local/dev Playwright + audit test-account password | No | When test account rotates |
+| `VITE_LIC_TRACT_LOOKUP` | Build-time flag; `=off` disables server-side LIC tract lookup | Yes (public, build flag) | n/a |
+
+> Vercel platform-injected vars (`VERCEL_ENV`, `VERCEL_REGION`, `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_GIT_COMMIT_SHA`) are read by `api/_cors.js` + `api/lib/_axiomLog.js` but are provided by the platform — not secrets we provision, so they are intentionally omitted from this inventory.
 
 ---
 
