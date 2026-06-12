@@ -254,7 +254,11 @@ const INPUT_CLASS = "w-full border border-gray-300 rounded-md px-3 py-2.5 text-s
 function humanizeError(msg) {
   if (!msg) return 'Something went wrong. Try again.'
   if (msg.toLowerCase().includes('captcha')) return 'Please complete the captcha and try again.'
-  if (msg.toLowerCase().includes('invalid login')) return 'Invalid email or password.'
-  if (msg.toLowerCase().includes('email not confirmed')) return 'Please confirm your email before signing in.'
+  if (msg.toLowerCase().includes('rate limit') || msg.toLowerCase().includes('too many')) return 'Too many attempts. Please wait a moment and try again.'
+  // F-09: collapse credential AND account-state errors into ONE generic message
+  // so the sign-in form can't be used to enumerate which emails are registered
+  // (or registered-but-unconfirmed). Unconfirmed users are still served by
+  // Supabase's confirm-email/resend flow out-of-band.
+  if (msg.toLowerCase().includes('invalid login') || msg.toLowerCase().includes('email not confirmed')) return 'Invalid email or password.'
   return msg
 }
