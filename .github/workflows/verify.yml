@@ -43,6 +43,9 @@ jobs:
       - name: File-size budgets (allowlist-aware)
         run: npm run lint:locs
 
+      - name: ESLint (runtime-crash + security rules)
+        run: npm run lint:js
+
       - name: Unit tests (Vitest)
         run: npm run test:unit
 
