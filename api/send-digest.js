@@ -1,9 +1,10 @@
-// GATE: cron-secret (admin test-mode path still uses a legacy email literal — F-25 cleanup pending)
+// GATE: cron-secret (admin-bearer JWT = restricted test-mode path)
 import { STATUS_LABEL, buildStateMap } from './lib/_alertClassifier.js'
 import { buildDigestHtml, buildDigestText } from './templates/_digestEmail.js'
 import { supabaseAdmin } from './lib/_supabaseAdmin.js'
 import { axiomLog } from './lib/_axiomLog.js'
 import { timingSafeEqualStr } from './_safeCompare.js'
+import { isAdminFromBearer } from './_admin-auth.js'
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_EMAIL = 'digest@tractova.com'
@@ -47,8 +48,6 @@ async function sendEmail(to, subject, html, text) {
   return res.json()
 }
 
-const ADMIN_EMAIL = 'aden.walker67@gmail.com'
-
 export default async function handler(req, res) {
   if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end('Method Not Allowed')
 
@@ -68,15 +67,11 @@ export default async function handler(req, res) {
   let testUserId = null
 
   if (!isVercelCron && !isManualWithSecret) {
-    // Try admin JWT (test path)
-    const token = req.headers.authorization?.replace(/^Bearer\s+/i, '')
-    if (!token) return res.status(401).json({ error: 'Unauthorized' })
-    const { data: { user }, error: authErr } = await supabaseAdmin.auth.getUser(token)
-    if (authErr || !user || user.email !== ADMIN_EMAIL) {
-      return res.status(401).json({ error: 'Unauthorized' })
-    }
+    // Admin JWT (test path) — role-based gate (F-25), not an email literal.
+    const adminCheck = await isAdminFromBearer(supabaseAdmin, req.headers.authorization)
+    if (!adminCheck.ok) return res.status(401).json({ error: 'Unauthorized' })
     testMode = true
-    testUserId = user.id
+    testUserId = adminCheck.user.id
   }
 
   try {
