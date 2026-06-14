@@ -43,7 +43,7 @@ specific operation (by name or visible diff/SQL).
 
 - All `Edit`/`Write` to project files (tool shows the diff).
 - `git add` + `git commit` — show staged file list + message first.
-- `git push origin main` — auto (saved `feedback_auto_push`); show commit count + range in the summary.
+- **`main` is branch-protected (2026-06-12): a direct `git push origin main` is REJECTED.** Ship via a branch + PR — `git switch -c <slice>`, commit, `npm run verify`, `git push -u origin <branch>`, then open the PR (`gh pr create` or hand Aden the compare link). CI gates the merge; Vercel previews the branch and deploys prod on merge. (saved `feedback_auto_push`; pushing a non-`main` branch is auto.)
 - `npm run build` / `lint:api` / `test:smoke` / `test:unit` — auto; relay failures.
 - Migration FILES (`supabase/migrations/*.sql`) — auto. Aden reviews + applies. The DANGER is APPLYING (his step).
 - Seed scripts on dev DB — prefer `--dry-run` first; live run needs an OK if no recent dry-run was visible.
@@ -100,7 +100,7 @@ Companion files: `BUILD_LOG.md` (session log, single source of truth) · `docs/d
 ## 8 — Quick reference
 
 **Stop and ask:** DELETE/TRUNCATE/DROP · force-push · `rm -rf` of non-session dirs · editing `.env*` · killing processes · spending > $0.50 in one sweep.
-**Just do it:** file `Edit`/`Write` in the tree · `git add`/`commit`/`push origin main` · `build`/`lint:api`/`test:*` · `Read`/`Grep`/`Glob` · writing a migration FILE.
+**Just do it:** file `Edit`/`Write` in the tree · `git add`/`commit` · push a **branch** + open a PR (main is protected — never push main directly) · `build`/`lint:api`/`test:*` · `Read`/`Grep`/`Glob` · writing a migration FILE.
 **When unsure → ask.** A 30-second pause costs nothing; an unwanted DELETE costs hours.
 
 ---
