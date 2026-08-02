@@ -67,7 +67,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^15.15.0",
     "png-to-ico": "^3.0.1",
-    "postcss": "^8.5.14",
+    "postcss": "^8.5.25",
     "tailwindcss": "^4.2.4",
     "vite": "^8.0.11",
     "vitest": "^4.1.5"
